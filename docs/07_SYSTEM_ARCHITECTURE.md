@@ -1,0 +1,253 @@
+# 07 — System Architecture
+
+**Status:** Phase 1 draft
+**Consistent with:** `06_TECH_STACK_AND_DEPENDENCIES.md` (React SPA + Express API + Postgres, modular monolith, long-running container)
+
+---
+
+## 7.1 Architecture at a glance
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ BROWSER (untrusted)                                                      │
+│  React SPA · Service Worker · IndexedDB (local-first profile & records)  │
+│  academic-rules package runs here for instant feedback                   │
+└───────────────┬──────────────────────────────────────────────────────────┘
+                │ HTTPS · JSON · httpOnly session cookie
+                ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│ CDN / static host  ── serves the SPA bundle only, no application logic    │
+└──────────────────────────────────────────────────────────────────────────┘
+                │
+                ▼
+╔══════════════════════════════════════════════════════════════════════════╗
+║ API CONTAINER (trusted)                    ← trust boundary crossed here ║
+║                                                                          ║
+║  ┌────────────────────────────────────────────────────────────────────┐  ║
+║  │ HTTP layer: helmet · CORS · rate limit · cookie · Zod validation   │  ║
+║  └───────────────────────────┬────────────────────────────────────────┘  ║
+║                              ▼                                           ║
+║  ┌────────────────────────────────────────────────────────────────────┐  ║
+║  │ Route handlers  →  authorization guard  →  service modules         │  ║
+║  └───────────────────────────┬────────────────────────────────────────┘  ║
+║                              ▼                                           ║
+║  ┌──────────┬──────────┬──────────┬───────────┬──────────┬───────────┐  ║
+║  │ identity │ student  │ academic │ documents │ content  │  admin    │  ║
+║  │          │  data    │  engine  │           │          │           │  ║
+║  └──────────┴──────────┴────┬─────┴─────┬─────┴──────────┴───────────┘  ║
+║                             │           │                               ║
+║              ┌──────────────┘           └──────────────┐                ║
+║              ▼                                          ▼                ║
+║  ┌────────────────────────┐              ┌───────────────────────────┐  ║
+║  │ academic-rules         │              │ ingestion subsystem       │  ║
+║  │ (pure, no I/O, shared  │              │ fetch→parse→normalize→    │  ║
+║  │  with the browser)     │              │ validate→publish          │  ║
+║  └────────────────────────┘              └─────────┬─────────────────┘  ║
+║                                                     │                    ║
+║  ┌────────────────────────────────────────────────┐ │                    ║
+║  │ Scheduler (node-cron) → jobs table → workers   │◄┘                    ║
+║  │  • source polling  • PDF processing            │                      ║
+║  │  • embedding       • notification fan-out      │                      ║
+║  └────────────────────────────────────────────────┘                      ║
+╚═══════════╤══════════════════╤═══════════════════╤═══════════════════════╝
+            │                  │                   │
+            ▼                  ▼                   ▼
+   ┌────────────────┐  ┌──────────────┐   ┌──────────────────┐
+   │ PostgreSQL 16  │  │ Object store │   │ External (hostile)│
+   │ (managed)      │  │ (S3-compat)  │   │  • vtu.ac.in      │
+   │ app data +     │  │ PDFs         │   │  • Web Push svc   │
+   │ jobs + audit   │  │              │   │  • Email provider │
+   └────────────────┘  └──────────────┘   │  • Sentry         │
+                                          │  • Claude API (opt)│
+                                          └──────────────────┘
+```
+
+## 7.2 Trust boundaries
+
+| # | Boundary | Rule |
+|---|---|---|
+| **TB-1** | Browser → API | Nothing from the client is trusted. Every payload is Zod-validated. **Every academic value the client computed is recomputed server-side before persistence.** The client's number is UX; the server's number is truth. |
+| **TB-2** | API → Database | Parameterised queries only (enforced by Drizzle). The application DB role has no DDL rights; migrations run under a separate role. |
+| **TB-3** | External source → Ingestion | Fetched bytes are hostile. Size-capped, type-checked, parsed in a constrained context, validated before any publication. |
+| **TB-4** | Uploaded file → Processing | Quarantined, magic-byte verified, bomb-guarded, extracted in a sandboxed child process with CPU/memory/time limits. |
+| **TB-5** | Extracted text → AI | Document text may contain prompt-injection payloads. It is passed as data with a fixed instruction envelope, and AI output is never executed, never used for authorization, never used for calculation. |
+| **TB-6** | Student → Admin | Separate authorization plane. Admin membership is an operator allowlist, not a self-serve role. Every admin action is audited. |
+| **TB-7** | API → Third parties | Outbound calls go only to an allowlist of hosts, defeating SSRF via user-supplied URLs. |
+
+## 7.3 Module responsibilities
+
+The monolith is internally partitioned. A module may call another module's public service interface but never another module's tables directly — the discipline that makes later extraction possible without making it necessary now.
+
+| Module | Owns | Must not |
+|---|---|---|
+| **identity** | Accounts, magic-link tokens, sessions, admin allowlist | Touch academic data |
+| **student-data** | Profile, results, attendance, timetable, backlogs, preferences | Compute academic values itself (delegates to academic-rules) |
+| **academic-engine** | Orchestrates rules-engine calls, versioned rule-set selection | Contain arithmetic (it lives in the pure package) |
+| **content** | Syllabus, subjects, schemes, papers metadata | Perform ingestion |
+| **documents** | Upload intake, validation, extraction, question records | Publish unvalidated output |
+| **ingestion** | Source registry, adapters, scheduling, change detection, provenance | Write directly to student data |
+| **notifications** | Subscriptions, fan-out, delivery, preferences, quiet hours | Originate claims about results |
+| **admin** | Source health, job monitoring, review queue, corrections, audit | Bypass validation on write |
+
+### The Result Provider boundary
+
+Results enter the system through a provider interface rather than directly from a route handler (`15` §15.5.1):
+
+```
+ResultProvider (manual-entry | paste-parse | future authorized integration)
+        │  fetch → parse → normalize → validate
+        ▼
+student-data module → academic-engine (recompute) → transaction → records
+```
+
+Every provider produces the same normalized shape and records its `authority` (`student_asserted` or `official`) and `parserVersion` on the stored result. Today two providers exist, both `user_supplied`. The interface exists now because manual entry and paste-parsing would otherwise be two divergent paths, and because it is what keeps a future authorized integration an implementation rather than a rewrite.
+
+**The interface is not permission to scrape.** Every prohibition in `14` §7 applies to providers identically.
+
+### The rules-engine boundary
+
+`packages/academic-rules` is pure and shared. This produces the central architectural property of GradTools:
+
+```
+Browser: rules(input) → 8.24 shown instantly (no network)
+Server:  rules(input) → 8.24 recomputed, then persisted
+         mismatch → server value wins, discrepancy logged as a defect signal
+```
+
+A persistent mismatch means the packages have diverged and is treated as a Sev-2 bug, not a rounding curiosity.
+
+## 7.4 Ingestion subsystem
+
+Scraping is an isolated subsystem behind an adapter interface, never the architecture's centre. Full detail in `14_SCRAPING_AND_DATA_INGESTION.md`.
+
+```
+  SourceRegistry (DB rows: url, schedule, parser version, enabled, health)
+        │
+        ▼
+  Scheduler ──creates──► jobs row ──claimed by──► Ingestion worker
+                                                        │
+        ┌───────────────────────────────────────────────┘
+        ▼
+   ┌─────────┐   ┌────────┐   ┌────────────┐   ┌───────────┐   ┌──────────┐
+   │ Fetcher │──►│ Parser │──►│ Normalizer │──►│ Validator │──►│ Publisher│
+   └─────────┘   └────────┘   └────────────┘   └───────────┘   └──────────┘
+    timeout       adapter-      canonical         schema +        writes
+    retry         specific      shapes            sanity          published
+    backoff       HTML→struct                     checks          records +
+    rate limit                                                    change_event
+    robots check                                     │
+    conditional GET                                  └── FAIL ──► source marked
+    raw snapshot stored                                           unhealthy,
+                                                                  publishing
+                                                                  BLOCKED,
+                                                                  response saved
+                                                                  as a fixture
+```
+
+**Properties enforced for every adapter:** timeout, retry with exponential backoff and jitter, per-source rate limit, conditional GET (ETag/Last-Modified), content hash for change detection, raw snapshot retention, parser version stamped on every record, fixture-based tests, and an explicit failure state.
+
+**A failing parser never degrades into publishing guesses.** It stops publishing and raises an operator-visible failure. Last-known-good data continues to be served with its original timestamp and a staleness indicator.
+
+## 7.5 Document processing pipeline
+
+```
+Upload / operator import
+   └─► quarantine (object store, not yet public)
+         └─► validation: magic bytes · MIME · size · page count · bomb guard
+               │                                       · embedded JS/launch rejection
+               ▼
+         extraction (sandboxed child process: CPU, memory, wall-clock limits)
+               │  pdftotext -layout  →  text layer present?
+               │        yes ──────────────────────► structured text
+               │        no  ──► tesseract OCR ────► text + lower confidence
+               ▼
+         segmentation → questions (VTU SEE structure: 10 questions, 2 per module,
+                                    5 modules, 20 marks each — see `17`)
+               ▼
+         normalization → dedup → module mapping (embeddings) → confidence score
+               ▼
+         confidence ≥ threshold ──► published
+         confidence <  threshold ──► review queue (human decides)
+```
+
+Failure at any stage leaves the document in quarantine with a diagnosable state. Nothing partially-processed is published.
+
+## 7.6 Request lifecycle (worked example)
+
+`POST /api/v1/results` — a student saves a semester result.
+
+```
+1  CDN/edge          → not cached (mutation), forwarded
+2  helmet            → security headers set
+3  CORS              → origin checked against allowlist
+4  rate limit        → per-account and per-IP token bucket (Postgres-backed)
+5  cookie/session    → session token hashed, looked up, expiry checked
+6  authorization     → the target student_id must equal the session's student_id
+                       (IDOR defence — the ID is never taken from the body alone)
+7  Zod validation    → body shape, ranges, enum membership
+8  service           → student-data.saveResult()
+9  rules recompute   → academic-rules recomputes grade/SGPA server-side (TB-1)
+10 transaction       → upsert result + result_subjects + derived SGPA
+                       + backlog rows, all-or-nothing
+11 audit             → written for privileged/corrective paths
+12 response          → 201 + canonical server-computed values
+13 client            → replaces its optimistic values with the server's
+```
+
+Steps 6, 9 and 10 are the ones that are commonly skipped and each corresponds to a real defect class (IDOR, client-trusted maths, partial writes).
+
+## 7.7 Failure boundaries and degradation
+
+| Failing component | Blast radius | Behaviour |
+|---|---|---|
+| External source | Announcements only | Serve last valid data with staleness label; mark source unhealthy; **no notification** |
+| Object store | Paper viewing/upload | Metadata still browsable; downloads show a clear error |
+| Email provider | New sign-ins only | Existing sessions unaffected; sign-in page states the delay |
+| Push service | Notification delivery | Items still visible in-app; delivery retried with backoff, then dropped with a logged reason |
+| Claude API (optional) | AI explanations only | Feature hidden entirely; deterministic evidence view is the fallback and is always sufficient |
+| Embedding model | Similarity/mapping | Falls back to deterministic keyword and code matching, with lower confidence recorded |
+| PostgreSQL | Server-side reads/writes | SPA remains usable for all local-first features; clear banner; no silent data loss |
+| API container | Server features | SPA loads from CDN; calculators, attendance and timetable keep working offline |
+
+**The design intent:** the features a student uses daily (calculators, attendance) have *no* server dependency, so the most common outage is nearly invisible to Persona A.
+
+## 7.8 Caching strategy
+
+| Layer | What | TTL | Invalidation |
+|---|---|---|---|
+| CDN | SPA static assets | 1 year, content-hashed filenames | New build |
+| CDN | `index.html` | `no-cache` | Always revalidated |
+| HTTP | Syllabus, subjects, papers metadata | `max-age=300, stale-while-revalidate=3600` | Content version bump |
+| HTTP | Announcements | `max-age=60, stale-while-revalidate=600` | New change_event |
+| HTTP | Anything student-specific | `private, no-store` | — |
+| In-process LRU | Source registry, scheme rule sets, subject tables | 5 min | Admin write |
+| Client (TanStack Query) | API reads | 60 s stale time | Mutation invalidation |
+| Client (IndexedDB) | Profile, attendance, results | Indefinite | User action |
+
+**Result-day spike strategy (`23`):** absorbed by CDN and stale-while-revalidate on the announcements endpoint, never by increasing the polling rate against the external source. Under load the source polling interval is *lengthened*, not shortened.
+
+## 7.9 Scaling path
+
+| Stage | Deployment |
+|---|---|
+| Experimental | 1 container (512 MB), managed Postgres free tier, CDN static |
+| Stage 2 (10–30 users) | Same; measure rather than scale |
+| Alpha (100–500) | 1 container (1 GB), paid Postgres with PITR, R2 for PDFs |
+| Pilot (500–2000) | 2 API instances behind a load balancer — this is the point where the deferred Redis and the extracted worker become necessary (`06` §6.3), plus a read replica if measurement justifies it |
+
+Scaling triggers are measurements, not projections. No horizontal scaling work happens before the single instance is demonstrably saturated.
+
+## 7.10 Configuration and secrets
+
+All configuration comes from environment variables, validated by a Zod schema at boot — the process **refuses to start** on a missing or malformed variable rather than failing at first use. Secrets live in the host's secret store, never in the repository, never in the client bundle, never in logs. See `25` §Environment variables.
+
+## 7.11 Architectural constraints (binding)
+
+1. No AI in any deterministic path: calculations, authorization, rate limiting, validation.
+2. External integrations are always behind an adapter interface with at least one fixture-based test.
+3. The rules engine has no I/O and no dependencies.
+4. Client-computed values are never persisted without server recomputation.
+5. Every externally-sourced record carries provenance; records without provenance are not published.
+6. Publishing is blocked while a source is unhealthy.
+7. Admin is a separate authorization plane with full audit.
+8. No student PII in logs, metrics, error reports or analytics.

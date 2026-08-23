@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# test / coverage
+coverage/
+.vitest/
+test-results/
+playwright-report/
+
+# environment & secrets  (12_PRIVACY, 13_SECURITY, 25_DEPLOYMENT)
+.env
+.env.*
+!.env.example
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# real student data must never be committed (12_PRIVACY §12.11, 22_TESTING §22.11)
+*.grade-card.json
+fixtures/private/

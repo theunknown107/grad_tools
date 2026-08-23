@@ -1,0 +1,274 @@
+# 22 — Testing and QA
+
+**Status:** Phase 1 draft
+**Principle:** test effort is allocated by **consequence of failure**, not by code volume.
+
+---
+
+## 22.1 Risk-weighted coverage targets
+
+| Area | Consequence of failure | Coverage target | Test types |
+|---|---|---|---|
+| `packages/academic-rules` | A student acts on a wrong number — unrecoverable trust loss | **100% branch** | Unit, property-based, golden, differential |
+| Authorization | Cross-student data disclosure | **100% of endpoints** | Matrix, integration |
+| Upload validation | Server compromise | **100% of checks** | Security fixtures |
+| Ingestion parsers | Wrong data published as sourced | High | Fixture, golden, robustness |
+| Rate limiting | Abuse, source hammering | High | Integration |
+| API contract | Client breakage | 100% of endpoints | Schema-contract |
+| Student data CRUD | Data loss | High | Integration |
+| Document extraction | Wrong analysis | Medium | Fixture |
+| UI components | Cosmetic | Moderate | Component, E2E on critical paths |
+| Admin tooling | Operator inconvenience | Moderate | Smoke |
+
+Overall line coverage is **not** a target. A repository at 85% coverage with an untested grade-band boundary is worse than one at 60% with the rules engine exhaustively tested.
+
+## 22.2 Test stack
+
+| Layer | Tool | Runs |
+|---|---|---|
+| Unit, property, component | Vitest + fast-check + Testing Library | Every commit |
+| API integration | Vitest + Supertest, real Postgres in Docker | Every commit |
+| E2E | Playwright (Chromium, WebKit, mobile viewport) | Every PR |
+| Accessibility | axe-core via Playwright | Every PR |
+| Performance | Lighthouse CI | Every PR |
+| Security | `pnpm audit`, secret scanning, header checks | Every PR |
+| Load | k6 | Before Alpha, and before the pilot |
+
+**Integration tests run against a real PostgreSQL instance, never a mock or SQLite.** Constraints, transactions and `SKIP LOCKED` semantics are exactly what needs testing, and none of them exist in a substitute.
+
+## 22.3 Academic rules engine — the highest standard
+
+### Golden tests
+The worked SGPA/CGPA example from the regulation's Annexure-I is encoded verbatim. Disagreement with VTU's own published example means our implementation is wrong. *(Transcription from the source PDF is a Milestone 4 task.)*
+
+### Boundary tests
+Every band edge and threshold, tested at value−1, value, value+1:
+
+| Boundary | Values |
+|---|---|
+| Grade bands | 39/40, 49/50, 54/55, 59/60, 69/70, 79/80, 89/90, 100 |
+| CIE eligibility | 19, 20, 21 (of 50) |
+| SEE minimum | 34, 35, 36 (of 100) |
+| Overall pass | 39, 40, 41 |
+| Attendance | 74.9, 75, 84.9, 85, 85.1 |
+| Class bands | 39.9, 40, 49.9, 50, 59.9, 60, 69.9, 70 |
+
+The 54/55 and 59/60 boundaries are called out specifically: the B and C bands are 5 points wide while the others are 10, and a uniform-band assumption fails exactly there (`16` §3).
+
+### Property-based tests
+Ten properties, defined in `16` §11. The two strongest:
+
+```
+∀ cie, target:  result = marksNeeded(cie, target)
+                result.ok ⟹ achievesTarget(cie, result.value)          [soundness]
+                result.ok ⟹ ¬achievesTarget(cie, result.value − 1)     [minimality]
+```
+
+These verify the calculator against the *definition* of correctness rather than against hand-computed examples, which is the only way to be confident across an input space this large.
+
+### Percentage-formula regression tests (mandatory, `DEC-009`)
+
+The obsolete `(CGPA − 0.75) × 10` formula is the single most likely wrong value to reach a student, because every third-party source publishes it. These tests exist specifically to make that regression impossible to ship:
+
+| # | Test | Assertion |
+|---|---|---|
+| P-1 | Regulation worked example | `percentage(8.20, ruleSet2022) === 82.0` — the exact example printed in clause 22OB 6.7 |
+| P-2 | **Obsolete-formula rejection** | `percentage(8.20, ruleSet2022) !== 74.5` — asserts the 0.75 offset is *not* applied |
+| P-3 | Seed integrity | The seeded 2022 rule set's `percentage_formula` equals `cgpa_x_10`; fails if a seed edit changes it |
+| P-4 | No active rule set uses the offset | Queries all `active` rule sets; **none** may have `percentage_formula = 'cgpa_minus_0_75_x_10'` |
+| P-5 | Rule-set required | `percentage(cgpa)` without a rule set fails to compile / throws — no defaulting |
+| P-6 | Boundary sweep | CGPA 4.00→40.0%, 6.00→60.0%, 7.00→70.0%, 8.20→82.0%, 10.00→100.0% |
+| P-7 | Class equivalence chain | 8.20 → 82.0% → FCD; 6.50 → 65.0% → FC; 5.00 → 50.0% → SC |
+| P-8 | Formula isolation | A hypothetical rule set carrying the offset formula produces 74.5 for 8.20 — proving the registry is honoured and the value is data-driven, not hard-coded |
+
+P-2 and P-4 are **negative assertions**, which is unusual and deliberate: they fail loudly if the widely-published wrong formula ever reaches the 2022 path, including through a seed change, a copy-paste from another calculator, or a well-meaning "fix" from a contributor who checked a popular website instead of the regulation.
+
+P-8 verifies the registry actually works. Without it, P-1–P-4 could all pass on a hard-coded `× 10` that ignores the rule set entirely — which would break the moment a second scheme is added.
+
+### Differential tests
+Identical inputs run through the client and server paths must produce identical output. A mismatch is a Sev-2 defect (`07` §7.3).
+
+### Real-grade-card tests
+Reported SGPA on real grade cards compared against ours. **The only test that validates our reading of the regulation against VTU's actual practice** — and therefore the most valuable one in the project. Required before Alpha; blocked on obtaining grade cards with consent.
+
+## 22.4 Authorization testing
+
+Table-driven, generated from the route registry so a new endpoint cannot escape it:
+
+```
+for each route in routeRegistry:
+  for each actor in [anonymous, wrong-owner, correct-owner, admin]:
+    assert response status == expected[route][actor]
+```
+
+**A route absent from the expectations table fails the suite.** This is the structural defence against the IDOR class (`13` §T-01) — the test cannot be forgotten, because adding a route without an entry breaks the build.
+
+Additional cases: expired session, revoked session, replayed consumed login token, session fixation attempt, admin endpoint accessed by a non-allowlisted account, ownership failures returning 404 rather than 403.
+
+## 22.5 Security testing
+
+| Test | Assertion |
+|---|---|
+| SQL injection | Payloads in every string input produce no error and no data leak |
+| XSS | Script payloads in stored fields are escaped on render |
+| Path traversal | `../` in any path parameter is rejected |
+| Upload: wrong type | A PNG renamed `.pdf` is rejected at the magic-byte check |
+| Upload: decompression bomb | Rejected without memory exhaustion |
+| Upload: embedded JavaScript | Rejected |
+| Upload: oversized | Rejected at the proxy |
+| Upload: malformed PDF | Extraction child process dies; parent stays healthy |
+| CSRF | Cross-origin POST without a valid origin is rejected |
+| Headers | Every required security header present with the correct value |
+| Log redaction | Email, USN, name, tokens and marks never appear in log output |
+| Rate limits | Each dimension enforced; 429 carries `Retry-After` |
+| Secret exposure | No secret in the client bundle (build-time check) |
+| Enumeration | Sign-in responses identical for registered and unregistered addresses |
+
+The log-redaction test asserts a **negative** across generated log output, which is unusual and necessary: NFR-011 is otherwise unverifiable and would silently rot.
+
+## 22.6 Ingestion testing
+
+All fixture-based; **no test makes a network request**, which keeps CI fast and guarantees CI never touches an external source.
+
+| Test | Assertion |
+|---|---|
+| Golden parse | Fixture → exact expected normalized output |
+| Truncated HTML | Fails cleanly; never emits partial data |
+| Empty response | Fails cleanly |
+| Structure changed | Fails cleanly, marks unhealthy, blocks publishing |
+| Encoding variants | Handled or rejected, never mangled |
+| Change detection | Two fixtures differing by one item → exactly one change event |
+| Canonicalisation | Cosmetically different, semantically identical pages → identical hash |
+| Anomaly detection | 90% of items changed → publication blocked |
+| Robots enforcement | Enabling a disallowed source fails at the constraint |
+| Backoff | Simulated 429 produces the correct delay schedule |
+| Provenance completeness | Every published record has all provenance fields |
+
+Every real-world parser failure is added to the fixture corpus (`14` §9), so the suite grows to match reality rather than to match imagination.
+
+## 22.7 E2E tests
+
+Only the paths whose breakage would make the product unusable:
+
+| # | Journey |
+|---|---|
+| E2E-1 | First visit → calculate SGPA → see the derivation with its clause citation |
+| E2E-2 | Set up profile → add attendance → bunk planner returns a correct figure |
+| E2E-3 | Marks-needed, including the ineligible and unreachable branches |
+| E2E-4 | Enter a semester result → SGPA/CGPA/backlogs update |
+| E2E-5 | Create an account → sign in via magic link → merge choice presented |
+| E2E-6 | Export data → delete account → confirm data is gone |
+| E2E-7 | Browse a subject → open a paper → view module priority with evidence |
+| E2E-8 | Enable notifications → receive a test push |
+| E2E-9 | Offline: calculators and attendance still work with the API unreachable |
+
+Run on Chromium and WebKit, desktop and a 360×740 mobile viewport. E2E-9 is included because offline capability is an architectural promise (`07` §7.7), and untested promises are assumptions.
+
+## 22.8 Accessibility testing
+
+| Test | Method | Gate |
+|---|---|---|
+| Automated axe scan | Playwright + axe-core, every page | Zero violations |
+| Contrast | Automated token-pair check, both themes | AA |
+| Keyboard | Scripted traversal of every critical flow | 100% operable |
+| Focus visibility | Visual regression | Always visible |
+| Screen reader | Manual: NVDA (Windows), VoiceOver (iOS) | Before Alpha |
+| Reduced motion | Verify animations are suppressed | Pass |
+| Zoom | 200% with no loss of content or function | Pass |
+
+Automated tools catch perhaps 40% of real accessibility defects, so the manual screen-reader pass before Alpha is not optional. See `27`.
+
+## 22.9 Performance testing
+
+| Test | Target |
+|---|---|
+| Lighthouse mobile | Performance ≥ 90, Accessibility 100, Best Practices ≥ 95 |
+| Bundle size | < 200 KB gzipped initial; CI fails on a > 10% regression |
+| API p95 | < 300 ms under normal load |
+| Calculator latency | < 50 ms |
+| Load test | 100 concurrent users, 5 minutes, error rate < 1% |
+| Result-day simulation | 10× normal read traffic; verifies CDN and cache absorb it and that **upstream source requests do not increase** |
+
+The last row tests an architectural invariant, not a performance number: user demand must never translate into upstream load (`14` §5).
+
+## 22.10 Data quality tests
+
+Run against production data on a schedule, alerting on failure — these catch problems that unit tests structurally cannot:
+
+| Check | Assertion |
+|---|---|
+| Provenance completeness | No published external record lacks provenance |
+| Rule-set verification | No active rule set lacks `verified_at` |
+| Orphans | No `semester_subjects` without a parent record |
+| Attendance sanity | No record with attended > conducted |
+| Grade consistency | Every stored grade matches recomputation from its marks under its rule set |
+| Backlog consistency | Every active backlog corresponds to a failing `semester_subject` |
+| Duplicate documents | No two documents share a SHA-256 |
+| Source health | No source unhealthy for more than 48 h without acknowledgement |
+
+The grade-consistency check is the most valuable: it would detect a rules-engine regression across the entire existing dataset, including records written before the regression was introduced.
+
+## 22.11 Test data
+
+| Purpose | Data |
+|---|---|
+| Unit tests | Inline fixtures |
+| Integration | Seeded per test in a transaction, rolled back after |
+| E2E | Dedicated seed script, isolated database |
+| Parsers | Captured real responses, committed |
+| PDFs | Synthetic for security tests; real papers for accuracy tests where licensing permits (`17` §11) |
+| Grade cards | Real, with consent, **anonymised** — USN and name removed before committing |
+
+**No real student data ever enters the repository or a non-production environment un-anonymised.** Grade-card fixtures keep marks and credits (the parts under test) and drop identity entirely.
+
+## 22.12 CI pipeline
+
+```
+PR opened
+  ├─ lint + typecheck               ~1 min
+  ├─ unit + property tests          ~2 min
+  ├─ integration (Postgres service) ~3 min
+  ├─ build (bundle-size check)      ~1 min
+  ├─ E2E (Playwright)               ~5 min
+  ├─ accessibility (axe)            ~2 min
+  ├─ security (audit + secrets)     ~1 min
+  └─ Lighthouse CI                  ~2 min
+                                    ≈ 12 min total
+
+Blocking: any failure. No merge on red.
+```
+
+Fast checks run first so obvious failures surface in a minute rather than twelve.
+
+## 22.13 Definition of done (per feature)
+
+A feature is done when **all** hold:
+
+1. Requirement exists in `02` with an ID
+2. Design exists where the UI is non-trivial
+3. Implementation complete
+4. Tests written and passing at the risk-weighted level for its area
+5. Error states implemented and tested
+6. Security impact reviewed against `13`
+7. Accessibility verified (automated plus keyboard)
+8. Performance impact measured for anything on the critical path
+9. Provenance present for any external academic data
+10. Documentation updated — including these documents when behaviour changes
+11. Acceptance criteria in `02` demonstrably pass
+
+**"It works on my machine and the UI looks right" satisfies none of items 4–11.**
+
+## 22.14 Release gates
+
+| Gate | Experimental | Alpha |
+|---|---|---|
+| All tests green | Required | Required |
+| Rules engine 100% branch coverage | Required | Required |
+| Authorization matrix complete | N/A (no accounts) | Required |
+| Accessibility: zero automated violations | Required | Required |
+| Manual screen-reader pass | Recommended | **Required** |
+| Security review | Recommended | **Required** |
+| Load test passed | Not required | Required |
+| Backup restore rehearsed | Not required | **Required** |
+| Data quality checks passing | Required | Required |
+| Real-grade-card validation | Not required | **Required** |

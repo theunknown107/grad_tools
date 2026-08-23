@@ -1,0 +1,161 @@
+# 23 — Performance and Scaling
+
+**Status:** Phase 1 draft
+**Philosophy:** keep it simple until measurement proves complexity is necessary. The realistic Alpha scale is hundreds of users, not millions, and designing for the latter would guarantee never reaching the former.
+
+---
+
+## 23.1 The performance that actually matters
+
+Persona A opens GradTools on a mid-range Android phone on patchy 4G, between classes, to answer one question. The binding constraints are **first load** and **perceived responsiveness**, not backend throughput.
+
+| Priority | Target | Why |
+|---|---|---|
+| 1 | First contentful paint < 2.0 s on 4G | Below this, the student closes the tab |
+| 2 | Calculator response < 50 ms | It must feel like a local tool, because it is one |
+| 3 | Initial JS < 200 KB gzipped | Every 100 KB is roughly a second on a slow connection |
+| 4 | API p95 < 300 ms | Only affects sync and content, not daily use |
+| 5 | Throughput | Irrelevant at current scale |
+
+**The architectural decision that dominates all of these:** the calculators, attendance and timetable run entirely client-side from local data (`07` §7.7). The most-used features have no network dependency at all, so their performance is unaffected by connectivity, server load or geography.
+
+## 23.2 Frontend budget
+
+| Resource | Budget | Enforcement |
+|---|---|---|
+| Initial JS (gzip) | 200 KB | CI fails on > 10% regression |
+| Initial CSS | 30 KB | CI |
+| Fonts | 2 files, ~60 KB, subset Latin | Review |
+| Largest Contentful Paint | < 2.0 s (4G, mid-range) | Lighthouse CI |
+| Cumulative Layout Shift | < 0.1 | Lighthouse CI |
+| Interaction to Next Paint | < 200 ms | Lighthouse CI |
+| Total transfer, first visit | < 400 KB | Review |
+
+**Techniques applied:**
+- Route-level code splitting; the dashboard and calculators are in the initial bundle, papers/syllabus/admin are lazy.
+- Charts (`recharts`, the largest UI dependency) load only on screens that render one.
+- Fonts self-hosted, subset, preloaded for the body weight, `font-display: swap`.
+- Skeletons dimensioned to match final content, protecting CLS.
+- Service worker caches the app shell, so repeat visits load from disk.
+- No third-party scripts at all — no analytics, no tag manager, no embeds. This is worth more than most optimisations combined, and it is a privacy decision (`12` §7) paying a performance dividend.
+
+**Explicitly not done:** server-side rendering, streaming, islands, prefetch-everything. The app is behind-the-fold utility with no SEO requirement; SSR would add a rendering tier for no measured user benefit.
+
+## 23.3 Backend budget
+
+| Operation | p50 | p95 |
+|---|---|---|
+| `GET /auth/me` | 20 ms | 60 ms |
+| `GET /results` | 30 ms | 100 ms |
+| `PUT /results/:semester` | 60 ms | 200 ms |
+| `GET /papers` (paginated) | 40 ms | 150 ms |
+| `GET /subjects/:code/module-priority` | 30 ms | 120 ms (precomputed) |
+| `GET /announcements` | 20 ms | 80 ms (cached) |
+| `POST /papers/upload` (accept only) | 200 ms | 800 ms |
+
+Module priority is precomputed by a background job (`18` §11), never on request. Upload returns as soon as the file is stored; processing is asynchronous.
+
+## 23.4 Database
+
+| Practice | Detail |
+|---|---|
+| Indexes | Only for known query paths (`09` §9.8); partial indexes where the interesting rows are a small fraction |
+| N+1 prevention | Joins or batched loads; a test asserts query counts on the heaviest endpoints |
+| Connection pool | 10 connections, well under managed-tier limits |
+| Slow query log | > 100 ms logged and reviewed |
+| Pagination | Cursor-based; no `OFFSET` on large tables |
+| JSONB | Only for provenance, evidence and preferences — never for anything queried by predicate |
+| Data volume | Alpha: hundreds of students × 8 semesters × ~8 subjects ≈ tens of thousands of rows. **Trivially small.** |
+
+At Alpha volume, Postgres will serve nearly everything from memory. The realistic risks are a missing index on a new query and an accidental N+1, not data volume — so those are what the tests target.
+
+## 23.5 Caching
+
+Full table in `07` §7.8. The performance-relevant points:
+
+- Static assets are content-hashed and cached for a year.
+- Reference content (syllabus, subjects, papers metadata) uses `max-age=300, stale-while-revalidate=3600` — near-instant repeat loads with bounded staleness.
+- Announcements use `max-age=60, stale-while-revalidate=600`.
+- Student-scoped responses are `private, no-store`; caching them would be a privacy defect for a marginal gain.
+- In-process LRU holds the source registry, rule sets and subject tables — small, hot, rarely changing.
+- The client caches API reads for 60 s via TanStack Query.
+
+## 23.6 Result-day spike
+
+The one predictable load event. Expected shape: 10–50× normal read traffic, concentrated on announcements, over a few hours.
+
+| Mechanism | Effect |
+|---|---|
+| CDN + `stale-while-revalidate` | Most requests never reach the API |
+| Precomputed, cached announcements | The API serves from cache |
+| Read path independent of upstream | **User demand cannot increase source load** |
+| Calculators client-side | Students computing SGPA generate zero traffic |
+| Polling interval unchanged | Never shortened under load; lengthened if the source degrades |
+
+**The invariant, restated because it is the one that matters:** a user request never triggers an upstream fetch. Only the scheduler does. This is verified by a load test (`22` §9) that asserts upstream request count stays flat while user traffic multiplies.
+
+## 23.7 Document processing
+
+The only genuinely expensive workload.
+
+| Stage | Cost |
+|---|---|
+| Validation | < 1 s |
+| Text extraction (text layer) | 1–5 s |
+| OCR (scanned) | 30–120 s |
+| Segmentation | < 1 s |
+| Embeddings (~50 questions) | 2–10 s |
+| Clustering per subject | < 5 s |
+
+Handling: queued, never synchronous; concurrency of 1–2 so it cannot starve the API; per-job CPU, memory and wall-clock limits; bulk imports run off-peak. The user-visible operation is the upload accept, which is fast; everything after is asynchronous.
+
+## 23.8 Scaling triggers
+
+Nothing is scaled preemptively. Each row states the measurement that triggers the change.
+
+| Trigger (measured) | Action |
+|---|---|
+| API p95 > 500 ms sustained | Profile; index or cache before adding capacity |
+| Container memory > 80% sustained | Increase to 1 GB |
+| PDF processing degrades API latency | Extract the worker to its own process (`06` §6.3) |
+| Job throughput > 1/s sustained | Adopt Redis + BullMQ |
+| Question corpus > 50k, or similarity p95 > 200 ms | Adopt pgvector |
+| Database CPU > 70% sustained | Review queries, then upgrade the tier |
+| Single instance saturated | Add a second instance behind a load balancer — this is the point at which session storage, rate-limit counters and job claiming must already be shared, which they are by design |
+| Read-heavy load persists after caching | Read replica |
+
+**The design already anticipates horizontal scaling without requiring it now:** sessions live in Postgres (not memory), rate limits count in Postgres (not memory), jobs are claimed with `SKIP LOCKED`. Adding a second instance is a configuration change, not a rewrite — which is why deferring the extra infrastructure is safe rather than reckless.
+
+## 23.9 Cost envelope
+
+| Stage | Monthly (approximate) |
+|---|---|
+| Experimental | ~$0 — free tiers throughout |
+| Stage 2 | $0–10 |
+| Alpha | $20–40 (API container, Postgres with PITR, object storage, domain, email) |
+| Pilot | $40–80 |
+
+Cost matters because this is a self-funded student project, and a design that only works on a $200/month platform is a design that stops.
+
+**Cost-driven decisions already taken:** local embeddings rather than a per-query API (`19` §9), no vector database, no APM subscription, no managed queue, the hosted LLM disabled by default.
+
+## 23.10 Anti-patterns rejected
+
+| Rejected | Why |
+|---|---|
+| Microservices | Nothing scales independently; would multiply latency and failure modes |
+| Kubernetes | One container |
+| Multi-region | Users are in one state |
+| Aggressive prefetching | Wastes mobile data — a real cost for the target user |
+| Infinite scroll | Breaks back navigation and accessibility; pagination is better here |
+| Client-side heavy computation | The heaviest client computation is an SGPA over ~8 rows |
+| Premature denormalisation | Data volume does not justify it |
+| Caching before measuring | Adds invalidation bugs to solve a problem that may not exist |
+
+## 23.11 Monitoring
+
+Tracked continuously (`24`): Core Web Vitals from real users where measurable without third-party scripts, API latency percentiles per endpoint, error rate, database connections and slow queries, job queue depth and oldest pending age, ingestion duration and success rate, bundle size per build.
+
+**Alert thresholds:** API p95 > 1 s for 5 minutes; error rate > 5%; oldest pending job > 1 hour; any source unhealthy for 24 hours; database connections > 80% of pool.
+
+Thresholds are deliberately loose. A solo operator paged by a noisy alert twice a week stops reading alerts, at which point monitoring is worse than none.

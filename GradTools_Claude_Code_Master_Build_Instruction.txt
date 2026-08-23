@@ -1,0 +1,1174 @@
+GRADTOOLS — CLAUDE CODE MASTER BUILD INSTRUCTION
+=================================================
+
+Document type:
+Master implementation instruction for Claude Code
+
+Project:
+GradTools
+
+Primary objective:
+Build a student-focused academic utility platform that initially targets VTU and VTU-affiliated colleges, beginning as an experimental website and later becoming an Alpha release suitable for demonstration to the user's college and, eventually, VTU.
+
+IMPORTANT:
+This file is the controlling instruction for the Claude Code development workflow. Claude Code must follow it thoroughly. Do not silently skip phases, invent requirements, or move from documentation into implementation without the required approval.
+
+================================================================
+0. PROJECT CONTEXT
+================================================================
+
+GradTools is based on the Project Ideas Playbook concepts W8, W12, W13 and M1, expanded into one integrated academic utility platform.
+
+Relevant source concepts:
+- W8 — VTU Results & Notification Watcher
+- W12 — Syllabus-to-Question-Bank Mapper
+- W13 — SEE Prediction Engine
+- M1 — Bunk, CGPA & Marks-Needed Companion
+
+GradTools combines those concepts with:
+- results and result notifications
+- exam and academic announcements
+- result/status caching
+- SGPA and CGPA calculations
+- backlog tracking
+- marks statistics
+- academic calculators
+- recommendations/suggestions
+- previous-year question papers
+- model question papers
+- syllabus browsing
+- question-frequency analysis
+- academic/timetable management
+- attendance tracking
+- bunk/attendance planning
+- student profile
+- later: deeper academic intelligence and institutional integrations
+
+Product thesis:
+"Students currently have to switch between multiple disconnected sources and tools to accomplish routine academic tasks. GradTools brings useful academic functions together in one simple, functional student application."
+
+Do not position GradTools as a replacement for VTU.
+
+Intended institutional positioning:
+"GradTools is a student-facing utility layer that makes existing academic information easier to access, understand, organize and use."
+
+Development strategy:
+A. Build GradTools as an experimental website.
+B. Use it personally and with a small group of students.
+C. Stabilize it and release an Alpha version.
+D. Use the working Alpha as the demonstration product for the user's college.
+E. Only after product evidence and institutional interest exist, explore a formal relationship/integration with VTU.
+
+The product must therefore be designed for eventual institutional credibility from the beginning, without pretending that it already has institutional endorsement.
+
+================================================================
+1. ROLE OF CLAUDE CODE
+================================================================
+
+Act simultaneously as:
+- lead software architect
+- senior full-stack engineer
+- frontend engineer
+- backend engineer
+- database engineer
+- data-ingestion engineer
+- scraping/retrieval engineer
+- academic data engineer
+- security engineer
+- privacy engineer
+- UX/UI engineer
+- accessibility engineer
+- QA/test engineer
+- DevOps/release engineer
+- performance engineer
+- technical writer
+- product engineer
+- code reviewer
+
+MANDATORY TOOLING RULE:
+Inspect available Claude Code skills, agents, MCP servers, plugins, connectors and workflows before implementation and again when a new technical area appears.
+
+Use every relevant tool that materially improves the result. Do not use tooling merely for show.
+
+Potentially relevant areas include:
+- browser/UI inspection
+- GitHub/repository management
+- database/PostgreSQL inspection
+- web/document research
+- PDF parsing
+- browser automation
+- security scanning
+- dependency auditing
+- test execution
+- accessibility testing
+- performance analysis
+- deployment
+- cloud/platform APIs
+
+Do not assume a particular MCP exists. Inspect first.
+
+================================================================
+2. HUMAN-IN-THE-LOOP RULE
+================================================================
+
+Claude must ASK the human questions whenever requirements materially affect:
+- product features
+- student workflows
+- UX/UI
+- authentication
+- privacy
+- security
+- student data
+- USN handling
+- DOB handling
+- college data
+- result data
+- scraping
+- rate limits
+- notifications
+- data retention
+- academic rules
+- VTU scheme logic
+- prediction logic
+- AI usage
+- database structure with long-term consequences
+- public/private data boundaries
+- deployment
+- institutional usage
+- legal/compliance-sensitive behavior
+- third-party services
+- monetization
+- analytics
+- account deletion
+- data export
+
+Do not ask about trivial implementation details that can safely be decided by engineering standards.
+
+When multiple viable options exist, present:
+- recommended option
+- alternatives
+- trade-offs
+- impact
+- exact decision needed from the human
+
+Use an explicit "DECISION REQUIRED" format.
+
+Never hide an unresolved high-impact decision inside implementation.
+
+================================================================
+3. EXECUTION MODEL
+================================================================
+
+PHASE 0 — DISCOVERY AND TOOLING
+PHASE 1 — DOCUMENTATION ONLY
+PHASE 2 — ARCHITECTURE / DATA MODEL APPROVAL
+PHASE 3 — EXPERIMENTAL WEBSITE
+PHASE 4 — DATA/ACADEMIC ENGINE
+PHASE 5 — PRIVATE PILOT
+PHASE 6 — ALPHA BUILD
+PHASE 7 — COLLEGE DEMONSTRATION PREPARATION
+PHASE 8 — INSTITUTIONAL INTEGRATION DISCOVERY
+
+DO NOT implement application code in Phase 1.
+
+After Phase 1 documentation is complete:
+1. cross-check all documents
+2. identify contradictions
+3. produce unresolved decisions
+4. produce risk register
+5. STOP
+6. wait for explicit human approval
+
+Do not automatically continue.
+
+================================================================
+4. REQUIRED PROJECT DOCUMENTATION SET
+================================================================
+
+Claude Code MUST create ALL of the following 32 Markdown files during Phase 1.
+
+The filenames below are canonical. Do not rename them without human approval.
+
+01_PRODUCT_VISION.md
+Purpose: Product vision, problem, target users, positioning, scope, non-goals and long-term direction.
+Must cover: product promise, user personas, fragmented workflow, initial VTU scope, expansion strategy, success definition.
+
+02_PRODUCT_REQUIREMENTS.md
+Purpose: Complete functional requirements.
+Must cover: feature catalogue, MVP, experimental features, Alpha features, future features, priorities, dependencies, acceptance criteria.
+
+03_USER_FLOWS.md
+Purpose: Detailed user journeys.
+Must cover: first visit, student setup, dashboard, results, notifications, SGPA, CGPA, backlogs, marks, attendance, bunk planning, timetable, PYQs, model papers, syllabus, recommendations, settings, deletion and recovery flows.
+
+04_UX_SPECIFICATION.md
+Purpose: Interaction design.
+Must cover: information hierarchy, navigation, mobile/desktop behavior, loading, empty/error states, confirmations, forms, notifications, search, filters, accessibility, keyboard behavior and responsive behavior.
+
+05_UI_DESIGN_SYSTEM.md
+Purpose: Visual system.
+Must cover: design principles, typography, spacing, color tokens, surfaces, borders, buttons, forms, cards, tables, charts, status indicators, breakpoints, themes, motion, icons and contrast.
+Default direction: simple, modern, practical, student-focused, premium without bloat.
+Avoid giant cards, meaningless statistics, fake analytics, excessive glassmorphism, excessive neon, excessive gradients, random animation and generic AI-dashboard visuals.
+
+06_TECH_STACK_AND_DEPENDENCIES.md
+Purpose: Freeze the technical stack after analysis.
+Must evaluate and recommend frontend, TypeScript, backend, database, cache, jobs, auth, notifications, PDF tooling, scraping/browser automation, AI/local models, testing, deployment and observability.
+Every dependency requires a reason.
+
+07_SYSTEM_ARCHITECTURE.md
+Purpose: Full system architecture.
+Must include browser, API, DB, cache, workers, academic engine, ingestion, notifications, storage, AI, admin, external sources, trust boundaries, failure boundaries and scaling.
+External integrations must be replaceable.
+
+08_DATA_MODEL.md
+Purpose: Canonical domain model.
+Must consider: Student, College, University, Scheme, Branch, Semester, Subject, Course Offering, Result, Result Subject, Grade, Backlog, Marks, Attendance Record, Timetable, Timetable Slot, Syllabus, Syllabus Topic, Question Paper, Question, Question Occurrence, Model Paper, Notification, External Source, Ingestion Job, Data Version, Recommendation, User Preference and Audit Record as appropriate.
+Avoid unnecessary entities.
+
+09_DATABASE_SCHEMA.md
+Purpose: PostgreSQL implementation design.
+Must include: tables, columns, types, keys, constraints, indexes, soft-delete decisions, audit fields, migrations, versioning, retention and seeds.
+
+10_API_SPECIFICATION.md
+Purpose: Complete backend API contract.
+Must include: endpoints, methods, request/response schemas, errors, auth, authorization, pagination, filters, sorting, rate limits, idempotency, caching and versioning.
+
+11_AUTH_IDENTITY_AND_ACCESS.md
+Purpose: Identity and access model.
+Must analyze: anonymous usage, local profile, optional accounts, email login, future college/SSO integration, roles, sessions, recovery, logout, deletion and privilege boundaries.
+Do not collect identity data without a product reason.
+
+12_PRIVACY_AND_DATA_GOVERNANCE.md
+Purpose: Data inventory and governance.
+Must address: name, USN, DOB, college, branch, academic records, attendance, timetables, notification subscriptions, uploads, analytics and logs; retention, export, deletion, minimization, access and public/private boundaries.
+
+13_SECURITY_THREAT_MODEL.md
+Purpose: Full threat model.
+Analyze malicious users, malicious pasted data, uploaded PDFs, external sources, scraper abuse, credential attacks, account takeover, IDOR, XSS, CSRF, SQL injection, SSRF, command injection, file attacks, prompt injection, notification abuse, rate-limit bypass, data leakage, admin compromise and dependency compromise.
+
+14_SCRAPING_AND_DATA_INGESTION.md
+Purpose: Master external-data ingestion strategy.
+Must define source registry, official/unofficial distinction, fetching, parsers, browser automation where needed, retries, backoff, rate limits, caching, change detection, validation, provenance, timestamps, versions, failures, legal/ethical boundaries and robots/terms review.
+Never assume automated access is allowed.
+Never collect credentials or bypass CAPTCHAs.
+
+15_VTU_INTEGRATION_STRATEGY.md
+Purpose: VTU-specific integration.
+Separate experimental public-data ingestion from future institutional/official integration.
+Cover results, notifications, exam information, syllabus, scheme, model papers, previous papers where appropriately available, academic calendars and college information.
+Must include migration path from public-source adapters to official feeds if VTU later supports them.
+Never invent VTU APIs or capabilities.
+
+16_ACADEMIC_RULES_ENGINE.md
+Purpose: Canonical source for academic calculations and VTU-specific rules.
+Must define and verify SGPA, CGPA, grade points, credits, grade conversion, semester rules, backlog handling, required marks, attendance and bunk calculations, target CGPA calculations.
+Every rule requires source, scope, version, assumptions and test cases.
+
+17_PYQ_AND_DOCUMENT_PROCESSING.md
+Purpose: Question-paper/PDF pipeline.
+Must cover PDF ingestion, OCR fallback, validation, question segmentation, normalization, duplicate detection, subject detection, module mapping, provenance, confidence, human review, storage, reprocessing and versioning.
+
+18_ACADEMIC_INTELLIGENCE.md
+Purpose: Analytics and intelligence.
+Must define frequency analysis, topic clustering, semantic similarity, repeated-question detection, module heatmaps, dead/rare topic detection, historical priority, recommendation scoring and future prediction methodology/evaluation.
+Never present a statistical estimate as a guaranteed prediction.
+
+19_RECOMMENDATION_AND_AI_POLICY.md
+Purpose: AI boundaries.
+AI may help with document classification, semantic matching, grouping, explanations and recommendation summaries.
+AI must not be the only authority for SGPA, CGPA, attendance, authorization, rate limiting or core data integrity.
+Must define local AI, hosted AI, privacy, failures, hallucinations, prompt injection, source grounding, confidence and fallback behavior.
+
+20_NOTIFICATION_SYSTEM.md
+Purpose: Notification architecture.
+Must cover result notifications, exam notifications, academic notices, timetable reminders, attendance alerts and optional study reminders; Web Push, optional email/Telegram, preferences, retries, deduplication, quiet hours, unsubscribe and abuse prevention.
+
+21_ADMIN_AND_DATA_OPERATIONS.md
+Purpose: Internal operations tooling.
+Must cover source health, ingestion jobs, failed parses, review, corrections, provenance, versioning, audit logs, reports, notification status and system health.
+Admin tooling is essential because academic sources may change.
+
+22_TESTING_AND_QA.md
+Purpose: QA strategy.
+Must include unit, integration, API, database, parser, calculation, property-based where useful, E2E, accessibility, security, regression, data-quality, scraper-fixture and performance tests.
+
+23_PERFORMANCE_AND_SCALING.md
+Purpose: Performance targets.
+Consider first load, mobile networks, API latency, DB queries, cache hit rate, PDF processing, ingestion load, notifications and result-day spikes.
+Do not over-engineer before traffic exists.
+
+24_OBSERVABILITY_AND_OPERATIONS.md
+Purpose: Runtime operation.
+Define logs, metrics, tracing if needed, health endpoints, source health, ingestion health, error reporting, alerting, backup, restoration and incident handling.
+
+25_DEPLOYMENT_AND_ENVIRONMENTS.md
+Purpose: Environment and deployment strategy.
+Define local, experimental website, staging, Alpha, future production, environment variables, secrets, migrations, deployment, previews, domain and rollback.
+
+26_GIT_AND_DEVELOPMENT_WORKFLOW.md
+Purpose: Repository workflow.
+Define branches, commits, PRs, feature workflow, issue tracking, code review, generated-code review, migration handling, tags and changelog.
+
+27_ACCESSIBILITY_AND_RESPONSIVE_UX.md
+Purpose: Accessibility and cross-device requirements.
+Cover keyboard navigation, focus, screen readers, semantic HTML, contrast, reduced motion, touch targets, mobile/tablet/desktop and low-end device performance.
+
+28_CONTENT_AND_COPY_GUIDELINES.md
+Purpose: Product language.
+Define terminology, tone, result wording, uncertainty language, error language, notification language, prediction disclaimers and institutional neutrality.
+Never imply official VTU endorsement without verified proof.
+
+29_INSTITUTIONAL_PILOT_PLAN.md
+Purpose: College pilot strategy.
+Define pilot objectives, target users, onboarding, feedback collection, success metrics, privacy expectations, demo scenario, approval requirements and limitations.
+
+30_ALPHA_RELEASE_PLAN.md
+Purpose: Alpha definition.
+Define feature freeze, supported colleges/schemes/data sources, onboarding, feedback, bug reports, release notes, rollback criteria and launch checklist.
+
+31_ROADMAP_AND_MILESTONES.md
+Purpose: Master roadmap.
+Define phases, milestones, dependencies, exit criteria, volume, risks, human decisions, Claude responsibilities and definition of done.
+
+32_OPEN_QUESTIONS_AND_DECISIONS.md
+Purpose: Single source of truth for unresolved decisions.
+Every item must contain ID, question, reason, options, recommendation, human decision, decision date and consequence.
+
+================================================================
+5. DOCUMENTATION VOLUME
+================================================================
+
+Do not create 32 shallow files.
+
+Target total Phase-1 documentation volume: approximately 35,000–70,000 words, depending on findings.
+
+Approximate distribution:
+Product/UX/UI: 4k–8k
+Architecture/data/API: 8k–15k
+Security/privacy: 5k–10k
+Ingestion/VTU/academic intelligence: 8k–15k
+Testing/operations/deployment: 5k–10k
+Roadmap/decisions: 3k–7k
+
+These are guidance, not quotas. Never pad documents to hit word counts.
+
+Where useful, use:
+- architecture diagrams
+- sequence diagrams
+- entity relationship diagrams
+- decision tables
+- API tables
+- acceptance criteria tables
+- data-flow diagrams
+- risk matrices
+
+================================================================
+6. SOURCE OF TRUTH POLICY
+================================================================
+
+Priority order:
+1. Human-approved project requirements
+2. Official VTU/college documents and verified institutional sources
+3. Verified technical documentation
+4. Repository reality
+5. Measured test results
+6. Engineering judgement
+
+Do not use model memory as authoritative evidence for VTU rules.
+
+For every academic rule record provenance.
+For every externally sourced data type record:
+- source
+- retrieval time
+- source URL if applicable
+- extraction method
+- validation state
+- version/hash when practical
+
+If something cannot be verified, write "NOT VERIFIED" rather than guessing.
+
+================================================================
+7. DATA QUALITY PRINCIPLES
+================================================================
+
+Treat correctness as a first-class product feature.
+
+External academic data lifecycle:
+RAW -> PARSED -> NORMALIZED -> VALIDATED -> PUBLISHED
+
+Never skip validation.
+
+Prefer explicit freshness indicators such as:
+"Last updated: ..."
+
+If source data is uncertain:
+- mark it
+- avoid overconfident UI
+- retain provenance
+- prevent silent overwrite where possible
+
+For results:
+correctness > speed
+
+It is acceptable to say:
+"GradTools detected a change in the configured public result source."
+
+Do not say:
+"Your official result is released"
+unless that has actually been established.
+
+================================================================
+8. SCRAPING RULES
+================================================================
+
+Scraping is a subsystem, not the core architecture.
+
+All external sources must be accessed through replaceable adapters.
+
+Conceptual interface:
+ExternalSource -> fetch -> parse -> normalize -> validate -> publish
+
+Every scraper must have:
+- timeout
+- retry policy
+- backoff
+- rate limit
+- cache
+- fixture tests
+- failure state
+- provenance
+- change detection
+
+Never:
+- bypass CAPTCHA
+- collect or proxy student credentials
+- aggressively hammer a source
+- evade technical restrictions
+- describe unofficial access as official
+
+If automated access is uncertain, STOP and ask the human before implementation.
+
+================================================================
+9. RATE LIMITING
+================================================================
+
+Do NOT use AI for rate limiting.
+
+Rate limiting must be deterministic and enforced by application/infrastructure logic.
+
+Potential dimensions:
+- IP
+- account
+- endpoint
+- source
+- time window
+- burst
+
+During experimental scraping use conservative limits.
+
+For result-day spikes, scale through:
+- caching
+- stale-while-revalidate where appropriate
+- background ingestion
+- CDN/cache
+- deduplication
+
+Never scale by sending more requests directly to VTU.
+
+================================================================
+10. FRONTEND PRINCIPLES
+================================================================
+
+The experimental website must be:
+- simple
+- fast
+- responsive
+- useful
+- easy to understand within seconds
+
+Likely navigation structure:
+Dashboard
+Results
+Academics
+  - SGPA
+  - CGPA
+  - Marks
+  - Backlogs
+Attendance
+Timetable
+Papers
+  - Previous Papers
+  - Model Papers
+Syllabus
+Notifications
+Profile
+Settings
+
+Do not implement every screen immediately.
+
+First prove the core workflow.
+
+Mobile-first is important.
+
+Avoid a wall of dashboard cards. Prefer meaningful information density.
+
+================================================================
+11. BACKEND PRINCIPLES
+================================================================
+
+Backend must:
+- validate all input
+- enforce authorization
+- use typed contracts
+- isolate external providers
+- use transactions where required
+- cache where appropriate
+- expose structured errors
+- log useful operational events
+- never trust client-side calculations as authoritative stored values
+- keep business logic out of UI components
+
+================================================================
+12. DATABASE PRINCIPLES
+================================================================
+
+PostgreSQL is the default unless architecture review gives a strong contrary reason.
+
+Use normalized academic metadata.
+
+Version institution/scheme-specific rules.
+
+Do not hard-code one scheme forever.
+
+Conceptual hierarchy:
+University -> Scheme -> College -> Branch -> Semester -> Subject
+
+If two schemes differ, they must not silently share calculation logic.
+
+================================================================
+13. AI PRINCIPLES
+================================================================
+
+AI is for language/semantic work, not truth-critical deterministic logic.
+
+Good uses:
+- question-to-syllabus mapping
+- semantic duplicate detection
+- question grouping
+- natural-language academic explanations
+- recommendation summaries
+
+Bad uses:
+- SGPA calculation
+- CGPA calculation
+- attendance calculation
+- authorization
+- rate limiting
+- source authenticity
+- database integrity
+
+Where AI is used:
+- record model/version
+- ground against source data
+- preserve evidence
+- protect against prompt injection
+- define fallback
+- use confidence where meaningful
+
+================================================================
+14. SECURITY BASELINE
+================================================================
+
+Minimum baseline:
+- secure headers
+- strong input validation
+- output encoding
+- parameterized SQL
+- strict authorization
+- secure sessions
+- CSRF controls where applicable
+- XSS defenses
+- upload restrictions
+- MIME/extension validation
+- file-size limits
+- SSRF defenses
+- rate limiting
+- audit logging for privileged actions
+- secrets outside source control
+- dependency auditing
+- least privilege
+- secure errors
+- no sensitive data in logs
+
+Treat user content and external documents as hostile.
+
+================================================================
+15. EXPERIMENTAL WEBSITE
+================================================================
+
+The first implementation is NOT the Alpha product.
+
+Purpose:
+prove the product concept.
+
+Questions the experiment must answer:
+1. Do students understand what GradTools does?
+2. Which features do they use?
+3. Which features confuse them?
+4. Which calculations are trusted?
+5. What academic information do they repeatedly seek?
+6. Which workflow generates the strongest value?
+7. Does consolidating the workflows actually reduce friction?
+
+The experiment may use:
+- mock data
+- manually seeded data
+- fixtures
+- a small validated data set
+- limited public-source ingestion
+
+Test data must never be presented as live official data.
+
+================================================================
+16. ALPHA PRODUCT
+================================================================
+
+Alpha foundation should include, as approved by the human:
+- student profile
+- college/scheme/branch/semester selection
+- SGPA
+- CGPA
+- backlog tracking
+- attendance
+- timetable
+- marks analytics
+- papers
+- syllabus
+- notifications
+- result monitoring where reliable
+
+Data requirements:
+- provenance
+- freshness
+- source health
+- validation
+
+Quality requirements:
+- tests
+- error handling
+- security baseline
+- responsive UI
+- accessibility baseline
+- monitoring
+- backup
+- release documentation
+
+Alpha must explicitly list unsupported colleges, schemes, data sources and features.
+
+================================================================
+17. INSTITUTIONAL STRATEGY
+================================================================
+
+Do not contact VTU first.
+
+Intended progression:
+1. Build
+2. Test personally
+3. Small student group
+4. Gather evidence
+5. Present to college
+6. Request pilot/feedback
+7. Improve
+8. Approach VTU with a working, evidence-backed product
+
+Pitch emphasis:
+- simple
+- functional
+- student-focused
+- multiple routine tasks in one place
+- easier access to existing academic information
+- not a replacement for official university systems
+
+Do not claim:
+- official endorsement
+- official integration
+- official API access
+- official results
+- official partnership
+unless verified and documented.
+
+================================================================
+18. DEVELOPMENT MILESTONES
+================================================================
+
+MILESTONE 0 — DISCOVERY
+Volume: 1–3 sessions
+Tasks:
+- inspect repository
+- inspect skills/agents/MCPs
+- inspect project context
+- identify constraints
+- ask initial decisions
+Exit: tool inventory + project understanding + no implementation
+
+MILESTONE 1 — DOCUMENTATION
+Volume: 32 Markdown files, approx. 35k–70k words total
+Tasks:
+- create all documents
+- cross-reference
+- resolve contradictions
+- record decisions/questions
+- create risk register
+Exit: all docs complete and internally consistent
+STOP FOR HUMAN REVIEW.
+
+MILESTONE 2 — ARCHITECTURE APPROVAL
+Volume: 1–3 sessions
+Tasks:
+- resolve human decisions
+- revise docs
+- freeze initial architecture
+- create implementation backlog
+Exit: architecture approved
+
+MILESTONE 3 — EXPERIMENTAL FOUNDATION
+Volume: approx. 1–2 weeks focused development
+Build:
+- React frontend
+- backend skeleton
+- DB
+- design system
+- routes
+- student shell
+- demo/mock data
+- calculator foundation
+- test foundation
+Exit: website loads and core navigation works
+
+MILESTONE 4 — CORE ACADEMIC UTILITIES
+Volume: approx. 1–2 weeks
+Build:
+- SGPA
+- CGPA
+- marks
+- backlogs
+- target-grade calculations
+- attendance
+- bunk manager
+- timetable
+Exit: deterministic calculations pass comprehensive tests
+
+MILESTONE 5 — ACADEMIC CONTENT
+Volume: approx. 1–3 weeks
+Build:
+- syllabus model
+- paper repository
+- document import tooling
+- PDF processing
+- question extraction
+- normalization
+- module mapping
+- frequency analytics
+Exit: test corpus passes pipeline
+
+MILESTONE 6 — RESULT/NOTICE INGESTION
+Volume: approx. 1–3 weeks, depending on external source behavior
+Build:
+- source registry
+- adapter architecture
+- first validated VTU public-source provider
+- cache
+- change detection
+- notification events
+Exit: safe monitoring, no aggressive polling, graceful failures
+
+MILESTONE 7 — INTELLIGENCE
+Volume: approx. 1–2 weeks
+Build:
+- repeated question detection
+- historical priority
+- recommendation engine
+- optional AI explanation
+- confidence/evidence UI
+Exit: no prediction presented as guaranteed
+
+MILESTONE 8 — ADMIN/DATA QUALITY
+Volume: approx. 1 week
+Build:
+- source health
+- ingestion health
+- failed jobs
+- corrections
+- provenance
+- audit events
+Exit: operator can understand why data failed
+
+MILESTONE 9 — HARDENING
+Volume: approx. 1–2 weeks
+Tasks:
+- security review
+- accessibility
+- performance
+- E2E tests
+- dependency audit
+- upload security
+- rate limits
+- error handling
+- backup/restore
+- observability
+Exit: Alpha readiness review passes
+
+MILESTONE 10 — EXPERIMENTAL USER TEST
+Volume: 1–3 weeks of real-world observation
+Tasks:
+- small student cohort
+- collect feedback
+- measure usage
+- fix critical problems
+Exit: evidence-based Alpha feature freeze
+
+MILESTONE 11 — ALPHA RELEASE
+Volume: approx. 1 week
+Tasks:
+- production deployment
+- release notes
+- known limitations
+- bug report mechanism
+- data-source validation
+- security check
+Exit: shareable Alpha
+
+MILESTONE 12 — COLLEGE DEMONSTRATION
+Volume: 1–2 weeks preparation
+Tasks:
+- demo script
+- screenshots
+- usage evidence
+- pilot proposal
+- privacy explanation
+- data-source explanation
+- limitations
+Exit: presentation-ready product
+
+================================================================
+19. DEFINITION OF DONE
+================================================================
+
+A feature is not done merely because code compiles or the UI looks good.
+
+Done means:
+1. requirement exists
+2. design exists where needed
+3. implementation exists
+4. tests exist
+5. error states exist
+6. security impact reviewed
+7. accessibility impact reviewed
+8. performance impact considered
+9. provenance exists for external academic data
+10. documentation updated
+11. acceptance criteria pass
+
+================================================================
+20. CLAUDE CODE IMPLEMENTATION LOOP
+================================================================
+
+For every feature:
+
+1. Read the relevant docs.
+2. Inspect the current repository.
+3. Inspect relevant skills/agents/MCPs.
+4. Identify dependencies.
+5. State plan, reason, files, tests and risks.
+6. Ask the human only when a meaningful decision remains unresolved.
+7. Implement the smallest coherent increment.
+8. Run tests.
+9. Run lint/typecheck/build as applicable.
+10. Review the changes.
+11. Fix failures.
+12. Update documentation.
+13. Report implemented, tested, known issues and next step.
+
+Do not claim success without verification.
+
+================================================================
+21. TESTING REQUIREMENT
+================================================================
+
+Tests are created alongside implementation.
+
+Highest-risk areas require especially strong tests:
+- SGPA
+- CGPA
+- grade calculations
+- attendance
+- bunk calculations
+- question normalization
+- duplicate detection
+- module mapping
+- scraper parsing
+- change detection
+- authorization
+- student-data access
+- admin controls
+- uploads
+- notifications
+
+Use real fixtures only when appropriately sourced. Synthetic fixtures are acceptable for early development.
+
+================================================================
+22. DOCUMENTATION CROSS-CHECK
+================================================================
+
+Before leaving documentation phase, Claude must cross-check:
+- PRODUCT_REQUIREMENTS vs USER_FLOWS
+- USER_FLOWS vs UX_SPECIFICATION
+- UX vs UI_DESIGN_SYSTEM
+- TECH_STACK vs SYSTEM_ARCHITECTURE
+- SYSTEM_ARCHITECTURE vs DATA_MODEL
+- DATA_MODEL vs DATABASE_SCHEMA
+- DATABASE_SCHEMA vs API_SPECIFICATION
+- API_SPECIFICATION vs AUTH_IDENTITY_AND_ACCESS
+- SECURITY_THREAT_MODEL vs architecture
+- PRIVACY vs data model
+- SCRAPING vs VTU_INTEGRATION_STRATEGY
+- ACADEMIC_RULES vs calculators
+- PYQ processing vs academic intelligence
+- AI policy vs academic intelligence
+- TESTING vs critical features
+- DEPLOYMENT vs architecture
+- ALPHA_RELEASE_PLAN vs actual scope
+
+Every contradiction must be documented.
+
+================================================================
+23. REQUIRED HUMAN QUESTIONS
+================================================================
+
+During discovery, ask questions in grouped batches.
+
+PRODUCT:
+- exact Alpha feature set
+- first-screen priorities
+- accounts vs anonymous/local profile
+- exact VTU/college scope
+- non-autonomous college scope
+- college-specific requirements
+
+SECURITY/PRIVACY:
+- which student fields should be stored
+- whether USN is stored
+- whether DOB is stored
+- local-first vs cloud profiles
+- analytics policy
+- retention/deletion
+
+FRONTEND:
+- design language
+- dashboard priorities
+- mobile-first expectations
+- themes
+- branding
+- tone
+
+BACKEND:
+- hosting
+- DB choice
+- auth
+- initial users
+- admin roles
+
+SCRAPING/DATA:
+- priority sources
+- refresh frequency
+- acceptable access methods
+- manual ingestion for experiment
+- provenance requirements
+
+ACADEMIC:
+- exact supported scheme
+- grade rules
+- attendance rules
+- college-specific differences
+- backlog rules
+
+PAPERS/AI:
+- PDF corpus availability
+- mapping verification
+- local vs hosted AI
+- wording for probability/prediction
+
+INSTITUTIONAL:
+- college demo format
+- evidence to collect
+- college admin role
+- future data-sharing expectations
+
+================================================================
+24. PROJECT MEMORY / STRATEGIC CONSTRAINTS
+================================================================
+
+Remember throughout the project:
+- first goal is a useful website, not the entire final platform
+- website is an experiment
+- Alpha is the showcaseable product
+- college is first institutional target
+- VTU is later
+- product must remain useful without official VTU integration
+- external integrations must be replaceable
+- deterministic calculations must not depend on AI
+- provenance matters
+- no false institutional affiliation
+- value should be obvious within seconds
+- strongest pitch is utility/consolidation, not technical novelty
+
+================================================================
+25. PERFORMANCE PHILOSOPHY
+================================================================
+
+Keep it simple until measurements prove complexity is necessary.
+
+Do not prematurely introduce:
+- microservices
+- Kubernetes
+- event buses
+- multiple databases
+- elaborate AI-agent systems
+- vector databases without a measured need
+
+Prefer a modular monolith or similarly simple architecture initially.
+
+================================================================
+26. FAILURE PHILOSOPHY
+================================================================
+
+When an external source fails:
+- do not fabricate data
+- use last validated cached state where appropriate
+- show freshness
+- surface degraded state internally
+- retry safely
+
+When AI fails:
+- fall back to deterministic analysis where possible
+
+When DB/storage fails:
+- preserve input in memory where practical
+- fail gracefully
+- never silently corrupt data
+
+When a scraper changes:
+- mark parser unhealthy
+- stop publishing uncertain results
+- create an operator-visible failure
+- update fixtures/tests before restoration
+
+================================================================
+27. NO-MAGIC CLAIMS
+================================================================
+
+Do not claim:
+"AI predicts VTU questions accurately."
+Prefer:
+"GradTools ranks topics using historical evidence."
+
+Do not claim:
+"Official VTU results."
+unless verified.
+Prefer:
+"Detected in the configured public result source."
+
+Do not claim 100% accuracy.
+Use tested metrics where available.
+
+Do not claim VTU-approved without documented proof.
+
+================================================================
+28. RELEASE PHILOSOPHY
+================================================================
+
+Every release must have:
+- version
+- scope
+- changelog
+- known issues
+- data-source status
+- test status
+- deployment status
+- rollback plan
+
+Experimental versions may contain mock/manually seeded data but must label it clearly.
+
+Alpha is a demonstration/testing release, not an institutional production system.
+
+================================================================
+29. REQUIRED FINAL PHASE-1 REPORT
+================================================================
+
+After all 32 Markdown files are created, Claude Code must NOT implement application code.
+
+Produce a concise report containing:
+1. files created
+2. documentation volume summary
+3. architecture summary
+4. proposed stack
+5. major data-model decisions
+6. security decisions
+7. scraping strategy
+8. AI strategy
+9. Alpha scope
+10. major risks
+11. unresolved questions
+12. assumptions
+13. tools/skills/MCPs inspected
+14. dependencies requiring validation
+15. recommended next step
+
+Then STOP.
+
+Wait for explicit human approval.
+
+================================================================
+30. PHASE-2 START CONDITION
+================================================================
+
+Claude may begin application code only after the human explicitly approves moving from documentation to implementation.
+
+The human may approve all architecture, selected scope, a partial scope or a specific milestone only.
+
+Claude must respect the exact approved scope.
+
+================================================================
+31. FINAL ENGINEERING PRINCIPLE
+================================================================
+
+Build GradTools like a real product, not a generated student dashboard.
+
+The objective is not:
+"How much code can Claude write?"
+
+The objective is:
+"Can a real student use GradTools and immediately understand why it is useful?"
+
+The software should be:
+- correct
+- fast
+- maintainable
+- secure
+- accessible
+- explainable
+- evidence-driven
+- source-aware
+- institutionally presentable
+
+Use automation aggressively where it helps.
+Use human judgement where automation cannot establish truth.
+Use all relevant Claude Code skills, agents and MCPs throughout development.
+Never skip verification because generated code appears convincing.
+Never silently invent requirements.
+Never silently cross a trust boundary.
+Never move to the next major phase without satisfying the current phase's exit criteria.
+
+END OF MASTER INSTRUCTION
+=========================
