@@ -187,7 +187,10 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
       ) VALUES (
         'vtu-2022', 'cse', 1, ${subject.code}, ${subject.title},
         ${subject.credits}, ${subject.category},
-        50, 100, true, 5,
+        -- module_count is NULL: the scheme document gives credits and marks but
+        -- no module breakdown, so the structure is unverified (OQ-025). Five is
+        -- the scheme norm, not a verified fact about these subjects.
+        50, 100, true, NULL,
         ${CSE_SCHEME_URL}, 'Scheme of Teaching and Examinations 2022, I Semester (CSE Stream, Physics Group)',
         'verified', ${SCHEME_VERIFIED_AT}, ${VERIFIED_BY}, 'published'
       )

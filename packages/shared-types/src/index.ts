@@ -110,7 +110,15 @@ export const subjectSchema = z.object({
   cieMax: z.number(),
   seeMax: z.number(),
   hasSee: z.boolean(),
-  moduleCount: z.number().int(),
+  /**
+   * NULL when the syllabus structure has not been verified.
+   *
+   * Deliberately nullable rather than defaulted: five modules is the
+   * 2022-scheme norm, not a verified property of any given subject, and
+   * publishing a default next to an empty syllabus would state something the
+   * source does not support (docs/08 §8.3, docs/14 §14.10).
+   */
+  moduleCount: z.number().int().min(1).max(10).nullable(),
   provenance: provenanceSchema,
 });
 export type Subject = z.infer<typeof subjectSchema>;
@@ -233,12 +241,34 @@ export const referenceIdSchema = z
   .max(64)
   .regex(/^[a-z0-9][a-z0-9-]*$/i, 'Identifier must be alphanumeric with hyphens.');
 
+/**
+ * A subject is addressed by its UUID, never by its code.
+ *
+ * Database uniqueness is `(scheme_id, branch_id, code)`, so a code alone does
+ * not identify a subject — the same code recurs legitimately across branches and
+ * schemes. Addressing by code forced a `LIMIT 1` that silently picked one of
+ * several (M4.1 §2). To find a subject from a code, filter the collection.
+ */
+export const subjectIdSchema = z.string().uuid();
+
 export const subjectQuerySchema = z.object({
   scheme: referenceIdSchema.optional(),
   branch: referenceIdSchema.optional(),
   semester: z.coerce.number().int().min(1).max(8).optional(),
 });
 export type SubjectQuery = z.infer<typeof subjectQuerySchema>;
+
+/**
+ * Optional college context for rule-set selection.
+ *
+ * A scheme may carry a scheme-wide rule set and college-specific overrides at
+ * the same time. Without a college the caller gets the scheme-wide set; with
+ * one, the college's set takes precedence if it exists (M4.1 §3).
+ */
+export const ruleSetQuerySchema = z.object({
+  college: referenceIdSchema.optional(),
+});
+export type RuleSetQuery = z.infer<typeof ruleSetQuerySchema>;
 
 /** Route paths, exported so the client cannot drift from the server. */
 export const API_ROUTES = {
@@ -247,10 +277,13 @@ export const API_ROUTES = {
   universities: '/api/v1/universities',
   schemes: '/api/v1/schemes',
   scheme: (id: string) => `/api/v1/schemes/${id}`,
-  schemeRules: (id: string) => `/api/v1/schemes/${id}/rules`,
+  schemeRules: (id: string, college?: string) =>
+    college === undefined
+      ? `/api/v1/schemes/${id}/rules`
+      : `/api/v1/schemes/${id}/rules?college=${encodeURIComponent(college)}`,
   branches: '/api/v1/branches',
   colleges: '/api/v1/colleges',
   subjects: '/api/v1/subjects',
-  subject: (code: string) => `/api/v1/subjects/${code}`,
-  subjectSyllabus: (code: string) => `/api/v1/subjects/${code}/syllabus`,
+  subject: (id: string) => `/api/v1/subjects/${id}`,
+  subjectSyllabus: (id: string) => `/api/v1/subjects/${id}/syllabus`,
 } as const;

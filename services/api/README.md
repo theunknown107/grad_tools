@@ -51,8 +51,9 @@ createdb -h 127.0.0.1 -p 55432 -U gradtools gradtools_dev
 ```
 
 > **Windows note.** `initdb` fails with `0xC0000142` when the data directory
-> path contains an 8.3 short name such as `SALMAN~1`. Put the cluster
-> somewhere with a plain path (`D:\gradtools-pgtest`).
+> path contains an 8.3 short name (the `NAME~1` form Windows generates for
+> directories with spaces or long names). Put the cluster somewhere with a
+> plain path, e.g. `D:\gradtools-pgtest`.
 
 `trust` authentication is correct **only** for a throwaway local cluster bound
 to loopback. It must never be used anywhere else, which is also why no
