@@ -1,0 +1,34 @@
+{
+  "name": "@gradtools/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "GradTools reference-data API. Read-only public academic reference data. No student data (docs/33 §33.3).",
+  "main": "./src/main.ts",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "migrate": "tsx src/db/migrate.ts",
+    "seed": "tsx src/db/seed.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc --noEmit -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@gradtools/academic-rules": "workspace:*",
+    "@gradtools/shared-types": "workspace:*",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "helmet": "^8.2.0",
+    "pino": "^10.1.0",
+    "pino-http": "^11.0.0",
+    "postgres": "^3.4.7",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.7"
+  }
+}
