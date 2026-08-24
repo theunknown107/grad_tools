@@ -342,7 +342,8 @@ The question is void rather than answered: there is no date-of-birth field, ther
 **Why unresolved:** the regulation lists `AB` (Absent) among special grades but does not clearly state its grade point or CGPA treatment. GradTools currently assumes 0 points and failure-equivalent for progression (`16` A-16.4). **NOT FULLY VERIFIED.**
 **Options:** (a) verify against a real grade card containing an `AB`; (b) treat as F (current assumption); (c) exclude from CGPA like DX.
 **Recommendation:** **(a)**. The difference between (b) and (c) changes a student's CGPA materially, so an assumption is not adequate here.
-**Decision needed:** before Alpha, via grade-card validation.
+**Status after M4: still OPEN.** The artifact validated under `OQ-024` contains **no** `AB`, `IC` or `W` row — every one of its 9 courses is a pass. It therefore provides no evidence either way, and none was inferred. The engine continues to return `unverified_rule` for these grades rather than guessing.
+**Decision needed:** before Alpha, via a grade card that actually contains one of these grades.
 
 ### OQ-019 — Do real VTU papers carry a text layer?
 **Why unresolved:** unknown until papers are supplied. Determines whether OCR is an edge case or the main path, materially affecting M5's effort and the accuracy of everything downstream.
@@ -370,12 +371,23 @@ The question is void rather than answered: there is no date-of-birth field, ther
 ### OQ-023 — Annexure-I grade/percentage table transcription
 **Why unresolved:** the M4 roadmap criterion "transcribe Annexure-I" was never completed. The 2022 regulation's grade table is implemented in `academic-rules` from the clauses, but the annexure itself has not been transcribed row-for-row as an independent cross-check.
 **Impact:** low today — the implemented bands are clause-verified and tested. It matters as corroboration, not as a source of new values.
+**Status after M4: still OPEN, and deliberately not treated as addressed.** The `OQ-024` artifact prints no letter grades, so it corroborates no band. Its totals do land on 59, 79 and 80 — exactly the B/A/A+ edges `16` §16.3 identifies as the ones third-party calculators get wrong — which makes a future card *with* letter grades unusually valuable. One grade card is not a substitute for the official Annexure-I transcription in any case.
 **Decision needed:** before Alpha.
 
-### OQ-024 — Validation against real grade cards
-**Why unresolved:** no real VTU grade card has been used to validate the engine end to end. Every test is derived from the regulation, so a systematic misreading of the regulation would not be caught by any of them.
-**Impact:** this is the single most valuable outstanding verification in the project. It is also what `OQ-018` (the AB/IC/W rules) needs in order to close.
-**Decision needed:** as soon as a grade card can be supplied. Requires no fabricated data — one real card is enough to start.
+### OQ-024 — Validation against real grade cards · **PARTIALLY VERIFIED (M4)**
+**Artifact received:** a real VTU provisional result — UG, semester 4, 9 courses. Supplied by the project owner for their own result. Fixture at `packages/academic-rules/test/fixtures/real-grade-card.ts`; the raw image is **not** stored in the repository, and name and USN are absent from the fixture.
+
+**Verified by the artifact:**
+- Subject-code format including elective suffixes (`BCS405B`, `BCB456D`).
+- `Total = Internal + External` on all 9 rows.
+- The three simultaneous passing thresholds (22OB 6.3) hold for all 8 SEE-assessed rows, matching the printed `P`.
+- 22OB 6.1(3), a course with no SEE, **corroborated by a real row**: a Physical Education course prints an internal above the CIE maximum of 50, an external of 0, and still passes. Both facts are impossible under the ordinary CIE + SEE structure.
+- **A new finding (`16` A-16.7):** the printed `External` column is the SEE's contribution out of 50, not the raw script mark out of 100. `docs/16` §16.5 previously claimed the opposite; that claim has been corrected.
+
+**Still NOT verified, because this artifact does not print it:** credits, letter grades, grade points, **SGPA**, **CGPA**, percentage, class, and any `AB`/`IC`/`W` row.
+
+**Why it stays open:** the SGPA and CGPA formulas — the calculations with the most downstream impact — remain validated against the regulation alone. A provisional result carries no aggregate.
+**Decision needed:** supply a **consolidated marks card**, or a grade card printing credits, letter grades and SGPA. That closes it.
 
 ### OQ-025 — No verified per-subject syllabus source · **BLOCKER for syllabus content**
 **Why unresolved:** the verified scheme document (`csesch.pdf`) gives subject codes, titles, credits and CIE/SEE marks, but carries **no module breakdown**. Per-subject syllabus PDFs exist on the VTU site but have not been verified for the 2022 CSE scheme.
@@ -467,3 +479,4 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5a | DEC-018 | Reference data served from PostgreSQL through Express; student data stays local | Human |
 | M5a | DEC-019 | Publication gated on verification by database CHECK constraint, not application code | Engineering |
 | M5a | ED-27…ED-30 | Server engineering decisions in Part B | Engineering |
+| M4 | DEC-020 | A grade card's printed `External` is the SEE contribution out of 50; `16` §16.5's contrary claim corrected | Engineering (evidence: real artifact) |

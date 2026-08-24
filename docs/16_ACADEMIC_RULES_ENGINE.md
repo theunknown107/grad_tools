@@ -80,7 +80,37 @@
 | **SEE** | **100** | **50** (scaled by ½) |
 | **Course total** | | **100** |
 
-The SEE is written for 100 marks and contributes 50 to the course total. Every formula below is stated in terms of the raw SEE score out of 100, because that is the number a student actually sees on a grade card.
+The SEE is written for 100 marks and contributes 50 to the course total. Every formula below is stated in terms of the raw SEE score out of 100, because that is the scale the regulation's thresholds are written against.
+
+> **CORRECTED IN M4, against a real grade card (`32/OQ-024`).** This paragraph
+> previously justified the raw-100 scale by claiming it is "the number a student
+> actually sees on a grade card". **That claim was false.** A real VTU
+> provisional result prints three columns — `Internal`, `External`, `Total` —
+> and the printed relationship is a plain sum:
+>
+> ```
+> Total = Internal + External          e.g.  44 + 36 = 80
+> ```
+>
+> so the printed `External` is the SEE's **contribution out of 50**, not the raw
+> script mark out of 100. An external of 36 on the document is a raw SEE of 72.
+>
+> The evidence is unambiguous. One row shows external 19 with a result of **P**.
+> Read as a raw SEE out of 100 that is 19%, below the 35% SEE minimum, and the
+> course would have to be a fail — but VTU printed a pass. Read as a contribution
+> out of 50 it is 38%, and it passes. The printed scale is therefore 50.
+>
+> **No calculation was wrong**: `36` and `72/2` are the same contribution, and
+> the engine's arithmetic already matched the regulation. What was wrong was the
+> stated justification, and the interface hazard it invited — `calculateRequiredMarks`
+> returns `requiredSee` on the **raw 100 scale**, which is *twice* the number a
+> student reads off their own document. That function is not yet surfaced in any
+> screen; when it is, it must either be converted to the printed scale or
+> labelled unmistakably. Recorded as `A-16.7`.
+>
+> `validateCourseMarks` (`packages/academic-rules/src/marks.ts`) works in the
+> **printed** scale and rejects a raw SEE pasted into the external column.
+
 
 ## 16.6 Passing standards — VERIFIED (22OB 6.3)
 
@@ -323,16 +353,36 @@ Client and server compute independently on identical inputs and must agree exact
 ### Real-grade-card tests
 Once real grade cards are available, their reported SGPA is compared against ours. Any disagreement is investigated before Alpha — this is the only test that validates our reading of the regulation against VTU's actual practice, and it is the most valuable one. Recorded as a Milestone 4 requirement.
 
+**Status after M4 (`32/OQ-024`, PARTIALLY VERIFIED).** One real artifact has been
+validated: a semester-4 provisional result carrying 9 courses.
+`packages/academic-rules/test/real-grade-card.test.ts` runs against it.
+
+| Validated by the artifact | Not validated — the artifact does not print it |
+|---|---|
+| Subject-code format, including elective suffixes | Credits |
+| Internal, external and total marks | Letter grades |
+| `Total = Internal + External`, all 9 rows | Grade points |
+| Per-subject result status (`P`) | **SGPA** |
+| The three passing thresholds, 8 of 9 rows | **CGPA** |
+| A course with no SEE (22OB 6.1(3)) | Percentage and class |
+| The printed external scale (`A-16.7`) | `AB` / `IC` / `W` behaviour (`OQ-018`) |
+
+**The SGPA and CGPA formulas remain validated only against the regulation, not
+against VTU's output.** A provisional result carries no aggregate. Closing
+`OQ-024` requires a consolidated marks card or a grade card that prints credits,
+letter grades and SGPA.
+
 ## 16.12 Assumptions register
 
 | ID | Assumption | Risk | Resolution |
 |---|---|---|---|
-| `A-16.1` | Fractional mark percentages truncate toward zero before band lookup | Low — VTU reports integer totals | Confirm against a real grade card |
+| `A-16.1` | Fractional mark percentages truncate toward zero before band lookup | Low — VTU reports integer totals | **Premise corroborated** (`32/OQ-024`): all 9 rows of a real card are integers out of 100, so fractional percentages do not arise. The truncation *policy* itself remains untested, as no card has yet shown a fractional total |
 | `A-16.2` | The SEE 35% threshold is proportional and reading-independent | None — both readings coincide | Settled |
 | `A-16.3` | M = 50 resolves to Second Class (the regulation's bands overlap there) | Low | Confirm with a college source if it ever matters |
 | `A-16.4` | `AB` is treated as `F` for progression and as 0 points for SGPA | Medium — the regulation does not state a grade point for `AB` | **NOT FULLY VERIFIED.** `32/OQ-018` |
 | `A-16.5` | The target college applies these regulations unamended | Medium–high | `32/OQ-011` — requires a college document |
 | `A-16.6` | Non-credit courses (`PP`/`NP`) are excluded from SGPA and CGPA | Low — consistent with 22OB 6.2 and the activity-points clause | Confirm against a real grade card |
+| `A-16.7` | A grade card prints the SEE **contribution out of 50**, not the raw script mark out of 100 | Was High as an unstated confusion; now **VERIFIED** against a real grade card (`32/OQ-024`) | **Settled.** Enforced by `validateCourseMarks` and its tests |
 
 ## 16.13 Versioning
 
