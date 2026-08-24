@@ -106,7 +106,26 @@ export default tseslint.config(
   },
 
   {
-    files: ['**/*.test.ts', 'vitest.config.ts', 'eslint.config.mjs'],
+    // tests/visual-qa.mjs is a Node QA harness. Its page.evaluate callbacks are
+    // serialised and executed inside Chromium, so it legitimately references
+    // both Node globals (console, process) and browser globals (document).
+    files: ['tests/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        document: 'readonly',
+        getComputedStyle: 'readonly',
+        window: 'readonly',
+      },
+    },
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  {
+    files: ['**/*.test.ts', '**/*.test.tsx', 'vitest.config.ts', 'eslint.config.mjs'],
     rules: {
       'no-restricted-imports': 'off',
       'no-restricted-globals': 'off',

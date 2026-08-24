@@ -2,8 +2,19 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['packages/**/test/**/*.test.ts', 'tests/**/*.test.ts'],
-    environment: 'node',
+    projects: [
+      {
+        // Pure domain packages: no DOM, no browser globals.
+        test: {
+          name: 'packages',
+          include: ['packages/**/test/**/*.test.ts'],
+          environment: 'node',
+        },
+      },
+      // Web app: component tests need a DOM. Its config lives in the package
+      // because the React plugin and jsdom are that package's dependencies.
+      './apps/web/vitest.config.ts',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
