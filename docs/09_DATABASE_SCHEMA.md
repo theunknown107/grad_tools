@@ -682,6 +682,24 @@ What is **deliberately empty**, because no verified source exists:
 Demo student data described above is **not** implemented and cannot be: there is
 no student table to put it in.
 
+### 9.11.2 Migration 0002 — hardening (M4.1)
+
+Forward-only. `0001` was not edited; `0002` corrects it in place on any database
+that already has it, and the upgrade path is tested from a `0001`-only database
+carrying the old default.
+
+| Change | Why |
+|---|---|
+| `subjects.module_count` → nullable, default dropped | A `NOT NULL DEFAULT 5` made every subject assert five modules while its syllabus was empty. NULL now means *unverified*, and is not 0 |
+| Existing rows carrying the default → NULL | Narrowly scoped: only rows with `module_count = 5` **and** no syllabus rows |
+| `rule_sets_active_lookup` partial index | Serves the new precedence ordering rather than sorting it |
+| `subjects_published_lookup` partial index | Supports the collection filter that replaces code-addressed lookup |
+| `colleges` gains `source_url`, `source_clause`, `verification`, `verified_at`, `verified_by`, `publication` + the publish-requires-verification CHECK | It was the one publishable reference table with **no** provenance and **no** publication gate, served on `active` alone |
+
+The `colleges` gap was found while writing the rule-set precedence tests, which
+needed a college row. No incorrect data was ever served, because the table is
+empty — which is also why the backfill is a non-issue.
+
 ## 9.12 Retention
 
 | Data | Retention | Mechanism |

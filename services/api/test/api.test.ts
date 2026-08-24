@@ -13,7 +13,7 @@
  * See services/api/README.md for the one command that provides it.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { Writable } from 'node:stream';
 import type { Express } from 'express';
@@ -56,6 +56,16 @@ describeDb('reference API', () => {
     };
     app = createApp(config, sql, createLogger('silent', false));
   }, 60_000);
+
+  /** The id of a seeded subject, so tests address subjects the way callers do. */
+  async function subjectId(code: string): Promise<string> {
+    const rows = await sql<{ id: string }[]>`
+      SELECT id::text FROM subjects WHERE code = ${code} LIMIT 1
+    `;
+    const id = rows[0]?.id;
+    if (id === undefined) throw new Error(`Seed is missing subject ${code}.`);
+    return id;
+  }
 
   afterAll(async () => {
     await sql.end();
@@ -346,23 +356,262 @@ describeDb('reference API', () => {
       expect(res.body.data).toEqual([]);
     });
 
-    it('finds a subject by code, case-insensitively', async () => {
-      const res = await request(app).get('/api/v1/subjects/bmats101');
+    it('finds a subject by its id', async () => {
+      const id = await subjectId('BMATS101');
+      const res = await request(app).get(`/api/v1/subjects/${id}`);
       expect(res.status).toBe(200);
       expect(res.body.code).toBe('BMATS101');
       expect(res.body.credits).toBe(4);
     });
 
+    /*
+     * M4.1 §2. Uniqueness is (scheme_id, branch_id, code), so a code addresses a
+     * SET of subjects. The old code-addressed route resolved that with LIMIT 1,
+     * which silently returned one of several. A code is now rejected outright
+     * rather than guessed at.
+     */
+    it('rejects a subject code where an id is required', async () => {
+      const res = await request(app).get('/api/v1/subjects/BMATS101');
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_FAILED');
+    });
+
+    it('404s a well-formed id that matches no subject', async () => {
+      const res = await request(app).get('/api/v1/subjects/00000000-0000-0000-0000-000000000000');
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+
     it('returns an empty syllabus for a published subject with no verified modules', async () => {
-      const res = await request(app).get('/api/v1/subjects/BMATS101/syllabus');
+      const id = await subjectId('BMATS101');
+      const res = await request(app).get(`/api/v1/subjects/${id}/syllabus`);
       expect(res.status).toBe(200);
       expect(res.body.data).toEqual([]);
     });
 
     it('404s for a syllabus of a subject that does not exist', async () => {
-      const res = await request(app).get('/api/v1/subjects/ZZZ999/syllabus');
+      const res = await request(app).get(
+        '/api/v1/subjects/00000000-0000-0000-0000-000000000000/syllabus',
+      );
       expect(res.status).toBe(404);
       expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* Unverified facts cannot be stated (M4.1 §1)                            */
+  /* ---------------------------------------------------------------------- */
+
+  describe('module_count states unknown rather than a default', () => {
+    it('is NULL for every seeded subject, because no syllabus is verified', async () => {
+      const rows = await sql<{ code: string; module_count: number | null }[]>`
+        SELECT code, module_count FROM subjects WHERE publication = 'published'
+      `;
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) {
+        expect({ code: row.code, moduleCount: row.module_count }).toEqual({
+          code: row.code,
+          moduleCount: null,
+        });
+      }
+    });
+
+    it('is served as null, not as a number and not as zero', async () => {
+      const res = await request(app).get('/api/v1/subjects?scheme=vtu-2022&branch=cse&semester=1');
+      expect(res.status).toBe(200);
+      for (const subject of res.body.data as { moduleCount: unknown }[]) {
+        expect(subject.moduleCount).toBeNull();
+      }
+    });
+
+    it('still rejects an out-of-range count when one IS supplied', async () => {
+      await expect(
+        sql`
+          INSERT INTO subjects (scheme_id, branch_id, semester, code, title, credits,
+                                category, module_count, source_url)
+          VALUES ('vtu-2022', 'cse', 1, 'MODBAD', 'Bad module count', 3, 'core', 11,
+                  'https://example.org/x')
+        `,
+      ).rejects.toThrow(/module_count/);
+    });
+
+    it('accepts a verified count, so NULL is genuinely "unknown" and not "never"', async () => {
+      await sql`
+        INSERT INTO subjects (scheme_id, branch_id, semester, code, title, credits,
+                              category, module_count, source_url)
+        VALUES ('vtu-2022', 'cse', 1, 'MODOK', 'Known module count', 3, 'core', 5,
+                'https://example.org/x')
+        ON CONFLICT DO NOTHING
+      `;
+      const [row] = await sql<{ module_count: number }[]>`
+        SELECT module_count FROM subjects WHERE code = 'MODOK'
+      `;
+      expect(row?.module_count).toBe(5);
+      await sql`DELETE FROM subjects WHERE code = 'MODOK'`;
+    });
+  });
+
+  describe('colleges are publication-gated like every other reference table', () => {
+    it('refuses to publish an unverified college', async () => {
+      await expect(
+        sql`
+          INSERT INTO colleges (university_id, name, is_autonomous, source_url,
+                                verification, publication)
+          VALUES ('vtu', 'Unverified College', false, 'https://example.org/x',
+                  'unverified', 'published')
+        `,
+      ).rejects.toThrow(/publish_requires_verification/);
+    });
+
+    it('refuses to publish a college with no source_url', async () => {
+      await expect(
+        sql`
+          INSERT INTO colleges (university_id, name, is_autonomous,
+                                verification, verified_at, publication)
+          VALUES ('vtu', 'No Provenance College', false, 'verified', now(), 'published')
+        `,
+      ).rejects.toThrow(/publish_requires_verification/);
+    });
+
+    it('does not serve an unpublished college', async () => {
+      await sql`
+        INSERT INTO colleges (university_id, name, is_autonomous, source_url,
+                              verification, verified_at, publication)
+        VALUES ('vtu', 'Draft College', false, 'https://example.org/x',
+                'verified', now(), 'unpublished')
+        ON CONFLICT DO NOTHING
+      `;
+      const res = await request(app).get('/api/v1/colleges');
+      expect(res.status).toBe(200);
+      expect((res.body.data as { name: string }[]).some((c) => c.name === 'Draft College')).toBe(
+        false,
+      );
+      await sql`DELETE FROM colleges WHERE name = 'Draft College'`;
+    });
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* Rule-set precedence (M4.1 §3)                                          */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * The schema deliberately allows a scheme-wide rule set and a college-specific
+   * override to be active at the same time. The old query took the first row the
+   * planner produced, which is a coin toss, not a rule.
+   *
+   * Each case inserts what it needs and removes it afterwards, so the seeded
+   * scheme-wide rule set is the only thing that persists between them.
+   */
+  describe('rule-set precedence', () => {
+    const COLLEGE = '11111111-1111-1111-1111-111111111111';
+
+    async function addCollege() {
+      await sql`
+        INSERT INTO colleges (id, university_id, name, is_autonomous, source_url,
+                              verification, verified_at, publication)
+        VALUES (${COLLEGE}::uuid, 'vtu', 'Test College', false,
+                'https://example.org/college', 'verified', now(), 'published')
+        ON CONFLICT (id) DO NOTHING
+      `;
+    }
+
+    async function addCollegeRuleSet(opts: {
+      active: boolean;
+      verified: boolean;
+      version: number;
+    }) {
+      const verification = opts.verified ? 'verified' : 'unverified';
+      const verifiedAt = opts.verified ? new Date() : null;
+      // An unverified rule set cannot be published — that is the DB constraint
+      // under test elsewhere — so it is inserted unpublished here.
+      const publication = opts.verified ? 'published' : 'unpublished';
+      await sql`
+        INSERT INTO rule_sets (scheme_id, college_id, version, effective_from, active,
+          sgpa_formula_id, cgpa_formula_id, percentage_formula_id,
+          cie_max, cie_min_pct, see_max, see_min_pct, course_max, overall_min_pct,
+          attendance_required_pct, attendance_condonable_pct, attendance_dx_floor_pct,
+          source_url, source_clause, verification, verified_at, publication)
+        VALUES ('vtu-2022', ${COLLEGE}::uuid, ${opts.version}, '2022-01-01', ${opts.active},
+                'credit_weighted_mean', 'credit_weighted_mean', 'cgpa_x_10',
+                50, 40, 100, 35, 100, 40, 85, 10, 75,
+                'https://example.org/college-rules', 'College ordinance',
+                ${verification}, ${verifiedAt}, ${publication})
+      `;
+    }
+
+    async function clearCollegeRuleSets() {
+      await sql`DELETE FROM rule_sets WHERE college_id = ${COLLEGE}::uuid`;
+    }
+
+    beforeAll(addCollege);
+    afterEach(clearCollegeRuleSets);
+
+    it('returns the scheme-wide rule set when no college is requested', async () => {
+      const res = await request(app).get('/api/v1/schemes/vtu-2022/rules');
+      expect(res.status).toBe(200);
+      expect(res.body.collegeId).toBeNull();
+    });
+
+    it('returns the scheme-wide rule set when the college has none', async () => {
+      const res = await request(app).get(`/api/v1/schemes/vtu-2022/rules?college=${COLLEGE}`);
+      expect(res.status).toBe(200);
+      expect(res.body.collegeId).toBeNull();
+    });
+
+    it('prefers the college rule set when both are active', async () => {
+      await addCollegeRuleSet({ active: true, verified: true, version: 10 });
+
+      const res = await request(app).get(`/api/v1/schemes/vtu-2022/rules?college=${COLLEGE}`);
+      expect(res.status).toBe(200);
+      expect(res.body.collegeId).toBe(COLLEGE);
+      expect(res.body.version).toBe(10);
+    });
+
+    it('does not leak a college rule set to a caller who did not ask for one', async () => {
+      await addCollegeRuleSet({ active: true, verified: true, version: 11 });
+
+      const res = await request(app).get('/api/v1/schemes/vtu-2022/rules');
+      expect(res.status).toBe(200);
+      expect(res.body.collegeId).toBeNull();
+    });
+
+    it('falls back to scheme-wide when the college rule set is inactive', async () => {
+      await addCollegeRuleSet({ active: false, verified: true, version: 12 });
+
+      const res = await request(app).get(`/api/v1/schemes/vtu-2022/rules?college=${COLLEGE}`);
+      expect(res.status).toBe(200);
+      expect(res.body.collegeId).toBeNull();
+    });
+
+    it('falls back to scheme-wide when the college rule set is unverified', async () => {
+      await addCollegeRuleSet({ active: false, verified: false, version: 13 });
+
+      const res = await request(app).get(`/api/v1/schemes/vtu-2022/rules?college=${COLLEGE}`);
+      expect(res.status).toBe(200);
+      expect(res.body.collegeId).toBeNull();
+    });
+
+    it('404s when no rule set matches at all', async () => {
+      const res = await request(app).get('/api/v1/schemes/no-such-scheme/rules');
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('rejects a malformed college identifier', async () => {
+      const res = await request(app).get("/api/v1/schemes/vtu-2022/rules?college=' OR 1=1--");
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_FAILED');
+    });
+
+    it('is deterministic across repeated calls with both present', async () => {
+      await addCollegeRuleSet({ active: true, verified: true, version: 14 });
+
+      const versions = new Set<number>();
+      for (let i = 0; i < 8; i += 1) {
+        const res = await request(app).get(`/api/v1/schemes/vtu-2022/rules?college=${COLLEGE}`);
+        versions.add(res.body.version as number);
+      }
+      expect([...versions]).toEqual([14]);
     });
   });
 
@@ -382,8 +631,16 @@ describeDb('reference API', () => {
       const list = await request(app).get('/api/v1/subjects');
       expect(list.body.data.some((s: { code: string }) => s.code === 'HIDDEN1')).toBe(false);
 
-      const direct = await request(app).get('/api/v1/subjects/HIDDEN1');
+      // Addressed by its REAL id, so this proves publication filtering rather
+      // than merely proving that a bad identifier is rejected.
+      const [row] = await sql<{ id: string }[]>`
+        SELECT id::text FROM subjects WHERE code = 'HIDDEN1'
+      `;
+      const direct = await request(app).get(`/api/v1/subjects/${String(row?.id)}`);
       expect(direct.status).toBe(404);
+
+      const syllabus = await request(app).get(`/api/v1/subjects/${String(row?.id)}/syllabus`);
+      expect(syllabus.status).toBe(404);
     });
   });
 
@@ -413,8 +670,8 @@ describeDb('reference API', () => {
         API_ROUTES.branches,
         API_ROUTES.colleges,
         API_ROUTES.subjects,
-        API_ROUTES.subject('BMATS101'),
-        API_ROUTES.subjectSyllabus('BMATS101'),
+        API_ROUTES.subject(await subjectId('BMATS101')),
+        API_ROUTES.subjectSyllabus(await subjectId('BMATS101')),
       ];
 
       for (const path of paths) {

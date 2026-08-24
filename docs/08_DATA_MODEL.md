@@ -156,6 +156,18 @@ forced, recorded so the model and the schema do not drift:
   the model already says `module_count` exists to allow exceptions — a `CHECK`
   fixed at 5 would have contradicted that.
 
+**Corrected in M4.1:** `Subject.module_count` is **nullable**, and NULL means
+*the syllabus structure has not been verified*. It previously defaulted to 5, so
+every seeded subject asserted five modules while `syllabus_modules` held zero
+rows — a default published as though it were a verified fact. NULL is
+deliberately not 0: "verified as having no modules" and "unknown" are different
+claims, and collapsing them would repeat the error.
+
+**Also corrected in M4.1:** `College` gained the same provenance and publication
+fields every other publishable entity carries. It had none, and was served
+filtered on `active` alone. Nothing wrong was ever served — the table is empty —
+but the schema permitted an unverified college to reach the public API.
+
 **§8.4 is not implemented at all.** No student entity exists in the database, not
 even as an empty table, and the integration suite asserts their absence. Student
 records live in the browser (`33` §33.3).

@@ -255,6 +255,27 @@ The result always names the **binding constraint**, because that is the actionab
 
 Row 3 is the one most tools get wrong: with a strong CIE, the overall requirement is already satisfied, and the SEE head minimum of 35 becomes the binding floor.
 
+#### Both scales are returned (M4.1 §4)
+
+`calculateRequiredMarks` returns the requirement on **both** scales, always,
+because there are two different numbers for the same performance and they differ
+by a factor of two:
+
+| Field | Scale | Meaning |
+|---|---|---|
+| `rawSeeRequired` / `rawSeeMaximum` | out of 100 | The SEE script. What the regulation's thresholds are written against |
+| `printedExternalEquivalent` / `printedExternalMaximum` | out of 50 | What appears in a grade card's `External` column — the only figure a student can read off their own document (`A-16.7`) |
+
+A raw SEE of 58/100 is a printed external of 29/50.
+
+**The mathematics did not change.** The calculation still works in the raw scale,
+which is correct. What changed is that the result no longer returns a bare
+`requiredSee` that looks like a grade-card number and is not one. The printed
+equivalent is deliberately **not** rounded: it is a converted view of
+`rawSeeRequired`, and rounding it would produce a second figure that does not
+convert back. Regression tests assert the two fields differ and that the
+conversion is exactly the SEE's weight in the course total.
+
 ### Attendance calculations
 
 ```

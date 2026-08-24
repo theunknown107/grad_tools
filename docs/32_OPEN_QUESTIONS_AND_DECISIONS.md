@@ -253,6 +253,11 @@ Recorded so they are visible and reversible rather than buried in code.
 | ED-28 | No `UNIQUE (scheme_id, college_id, version)` on `rule_sets`; a `COALESCE` unique index instead | PostgreSQL treats NULLs as distinct, so the plain constraint silently fails to deduplicate exactly the scheme-wide rows (`college_id IS NULL`) that matter most. Found by a seed that was not actually idempotent; fixed in the schema rather than in the seed |
 | ED-29 | `createLogger` accepts an optional destination stream | Redaction is a security guarantee (NFR-011), so it must be tested against the shipped factory. The alternative — a test that re-declares the redaction path list — asserts nothing about production behaviour |
 | ED-30 | Oversized request bodies mapped to `PAYLOAD_TOO_LARGE`, not `INTERNAL_ERROR` | `body-parser` throws before routing and before any `ApiError` exists, so without an explicit branch a client mistake is reported as a server fault — wrong for the caller and noise for on-call |
+| ED-31 | `subjects.module_count` nullable, NULL = unverified; **not** 0 | A `NOT NULL DEFAULT 5` published a scheme norm as a per-subject fact next to an empty syllabus. 0 would mean "verified as having none", which is a different claim |
+| ED-32 | Subjects addressed by UUID; a code is a `400`, not a `LIMIT 1` | Uniqueness is `(scheme_id, branch_id, code)`, so a code names a set. Guessing which member to return is worse than refusing |
+| ED-33 | Rule-set precedence: college-specific, then scheme-wide, by explicit `ORDER BY (college_id IS NULL)` | The schema deliberately allows both to be active. `LIMIT 1` with no ORDER BY was a coin toss that looked stable only because one row existed |
+| ED-34 | `RequiredMarksOutcome` returns raw-100 **and** printed-50 figures, printed one unrounded | The two differ by a factor of two. A bare `requiredSee` looked like a grade-card number and was not one (`A-16.7`). Rounding the printed view would create a figure that does not convert back |
+| ED-35 | `colleges` gains provenance, verification and publication gating | It was the one publishable reference table with none, served on `active` alone. Nothing wrong was served — the table is empty — but the schema permitted it |
 
 Any of these may be reversed; each names the condition under which reversal would make sense.
 
@@ -480,3 +485,4 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5a | DEC-019 | Publication gated on verification by database CHECK constraint, not application code | Engineering |
 | M5a | ED-27…ED-30 | Server engineering decisions in Part B | Engineering |
 | M4 | DEC-020 | A grade card's printed `External` is the SEE contribution out of 50; `16` §16.5's contrary claim corrected | Engineering (evidence: real artifact) |
+| M4.1 | ED-31…ED-35 | Reference-data and rules hardening decisions in Part B | Engineering |
