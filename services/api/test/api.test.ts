@@ -399,6 +399,108 @@ describeDb('reference API', () => {
   });
 
   /* ---------------------------------------------------------------------- */
+  /* Taxonomy vs verified reference data (M4.2)                             */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Two different integrity models live in this schema on purpose, and the
+   * difference is easy to erode by accident. These tests pin both sides.
+   *
+   * The classification test: does the row make a checkable claim about the
+   * external world that could change a calculation or mislead a student?
+   *   yes -> verified reference data, provenance + publication gating
+   *   no  -> internal taxonomy, controlled by `active`
+   */
+  describe('taxonomy is deliberately not verified reference data', () => {
+    async function columnsOf(table: string): Promise<string[]> {
+      const rows = await sql<{ column_name: string }[]>`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = ${table}
+      `;
+      return rows.map((row) => row.column_name);
+    }
+
+    it.each(['universities', 'branches'])(
+      '%s carries no provenance or publication columns, by design',
+      async (table) => {
+        const columns = await columnsOf(table);
+        for (const absent of [
+          'source_url',
+          'source_clause',
+          'verification',
+          'verified_at',
+          'verified_by',
+          'publication',
+        ]) {
+          expect({ table, column: absent, present: columns.includes(absent) }).toEqual({
+            table,
+            column: absent,
+            present: false,
+          });
+        }
+      },
+    );
+
+    it.each(['universities', 'branches'])('%s uses `active` as its control', async (table) => {
+      expect(await columnsOf(table)).toContain('active');
+    });
+
+    /*
+     * The other side of the line. If someone later "tidies up" by stripping
+     * provenance from these tables to match the taxonomy ones, this fails.
+     */
+    it.each(['schemes', 'colleges', 'rule_sets', 'subjects', 'syllabus_modules'])(
+      '%s is verified reference data and keeps full provenance',
+      async (table) => {
+        const columns = await columnsOf(table);
+        for (const required of ['source_url', 'verification', 'verified_at', 'publication']) {
+          expect({ table, column: required, present: columns.includes(required) }).toEqual({
+            table,
+            column: required,
+            present: true,
+          });
+        }
+      },
+    );
+
+    it('serves only active universities', async () => {
+      await sql`
+        INSERT INTO universities (id, name, short_name, active)
+        VALUES ('retired-uni', 'Retired University', 'RU', false)
+        ON CONFLICT (id) DO UPDATE SET active = false
+      `;
+      const res = await request(app).get('/api/v1/universities');
+      expect(res.status).toBe(200);
+      const ids = (res.body.data as { id: string }[]).map((u) => u.id);
+      expect(ids).toContain('vtu');
+      expect(ids).not.toContain('retired-uni');
+      await sql`DELETE FROM universities WHERE id = 'retired-uni'`;
+    });
+
+    it('serves only active branches', async () => {
+      await sql`
+        INSERT INTO branches (id, university_id, code, name, active)
+        VALUES ('retired-branch', 'vtu', 'RB', 'Retired Branch', false)
+        ON CONFLICT (id) DO UPDATE SET active = false
+      `;
+      const res = await request(app).get('/api/v1/branches');
+      expect(res.status).toBe(200);
+      const ids = (res.body.data as { id: string }[]).map((b) => b.id);
+      expect(ids).toContain('cse');
+      expect(ids).not.toContain('retired-branch');
+      await sql`DELETE FROM branches WHERE id = 'retired-branch'`;
+    });
+
+    it('seeds exactly the approved taxonomy and nothing more', async () => {
+      const universities = await request(app).get('/api/v1/universities');
+      expect((universities.body.data as { id: string }[]).map((u) => u.id)).toEqual(['vtu']);
+
+      const branches = await request(app).get('/api/v1/branches');
+      expect((branches.body.data as { id: string }[]).map((b) => b.id)).toEqual(['cse']);
+    });
+  });
+
+  /* ---------------------------------------------------------------------- */
   /* Unverified facts cannot be stated (M4.1 §1)                            */
   /* ---------------------------------------------------------------------- */
 

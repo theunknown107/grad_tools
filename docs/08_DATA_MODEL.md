@@ -137,7 +137,9 @@ A course as defined by a scheme, branch and semester.
 ### SyllabusModule
 `id, subject_id, module_number (1–5), title, topics[], hours, source_url`
 
-Five modules per subject is the 2022-scheme norm and matches the SEE paper structure (two questions per module). `module_count` on Subject allows exceptions rather than hard-coding 5.
+Five modules is a structure **commonly encountered** in VTU 2022 materials, and it matches the SEE paper structure described there (two questions per module). It is **not** a property that may be assumed for any individual subject.
+
+`Subject.module_count` is therefore nullable, and `NULL` means **the syllabus structure has not been verified for this subject** — not zero, and not five. A count is written only when a source has been checked for that specific subject. There is no default, and one must not be reintroduced: a default is a guess wearing the clothes of data (`32/ED-31`).
 
 ### As built in M5a
 
@@ -146,8 +148,10 @@ forced, recorded so the model and the schema do not drift:
 
 - **Provenance is a shared, non-optional shape**, not per-entity fields.
   `source_url`, `source_clause`, `verification`, `verified_at`, `verified_by` and
-  `publication` appear on every publishable entity, and the API returns them
-  nested under `provenance`. A record without provenance cannot be inserted.
+  `publication` appear on every **verified reference** entity, and the API
+  returns them nested under `provenance`. Such a record cannot be inserted
+  without provenance. This does **not** extend to internal taxonomy — see
+  §8.3.1, added in M4.2 to remove exactly that ambiguity.
 - **`verification` is three-valued** (`draft | unverified | verified`), not a
   boolean. `draft` is "not yet reviewed"; `unverified` is "reviewed and the source
   does not support it". Collapsing them would lose the second state, which is the
@@ -171,6 +175,47 @@ but the schema permitted an unverified college to reach the public API.
 **§8.4 is not implemented at all.** No student entity exists in the database, not
 even as an empty table, and the integration suite asserts their absence. Student
 records live in the browser (`33` §33.3).
+
+### 8.3.1 Two integrity models, and the test that separates them (M4.2)
+
+§8.3 contains entities of two different kinds. Review found the difference was
+implied by the schema but never stated, which left it looking like an
+inconsistency. It is stated here so future entities are classified deliberately.
+
+**The test:** *does the row make a checkable claim about the external world that
+could change a calculation or mislead a student if it were wrong?*
+
+| | Entities | Controls |
+|---|---|---|
+| **Verified reference data** — yes | `Scheme`, `College`, `RuleSet`, `Subject`, `SyllabusModule` | `source_url`, `source_clause`, `verification`, `verified_at`, `verified_by`, `publication`; publication gated on verification by database CHECK |
+| **Internal taxonomy** — no | `University`, `Branch` | `active` alone. **No** provenance or publication columns, deliberately |
+
+**Why `University` and `Branch` are taxonomy.** `universities` holds one row,
+VTU, and exists "to make the model honest about scope rather than to support
+multi-tenancy" — it is the product's scope anchor, and "VTU is a university" is
+not a claim requiring a clause citation. `branches` rows are join keys the
+application chose (`cse`); the set of branches in a scheme *is* a verified fact,
+but it is carried by `Subject`, which has provenance.
+
+This is not a new decision. `docs/09` §9.4 already gave `source_url` to
+`schemes`, `rule_sets`, `subjects` and `syllabus_modules` while giving none to
+`universities` and `branches`, in the same code block — a distinction drawn, not
+forgotten. `docs/14` §14.10 scopes the provenance invariant to every published
+**external** record, and neither of these is ingested from anywhere.
+
+**Why `College` sits on the other side**, despite `docs/09` §9.4 originally
+grouping it with the taxonomy tables: a college's name, affiliation and
+especially `is_autonomous` are factual claims about a real institution, and
+`is_autonomous` decides whether VTU's rules apply at all. A wrong value silently
+corrupts every calculation for that college. M4.1 moved it, and this section
+records that the move was a reclassification rather than a schema tidy-up.
+
+**What was actually wrong.** Not the missing columns — the queries.
+`listUniversities()` applied no filter while `listBranches()` filtered `active`,
+so the two halves of the same model disagreed. `universities` had no `active`
+column at all. Migration `0003` adds it; both queries now apply it. Inventing a
+source URL for "VTU exists" to make the tables look uniform would have been
+fabricated provenance, which is worse than none (`docs/14` §14.10).
 
 ## 8.4 Student entities
 

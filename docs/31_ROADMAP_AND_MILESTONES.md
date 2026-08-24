@@ -102,8 +102,8 @@ The first server-side system: Express API, PostgreSQL, migrations, deterministic
 applies nothing; the seed is idempotent; publication and rule-set activation are
 gated by database CHECK constraints; the frontend reads real reference data over
 HTTP through `ReferenceRepository`; two tests assert student data never leaves the
-browser; the integration suite asserts no student table exists. 515 tests pass,
-64 of them against real PostgreSQL. Format, lint, typecheck and build are green;
+browser; the integration suite asserts no student table exists. 527 tests pass,
+76 of them against real PostgreSQL. Format, lint, typecheck and build are green;
 browser QA reports 0 accessibility violations, 0 horizontal overflow and 0 console
 errors.
 
