@@ -287,3 +287,9 @@ export const API_ROUTES = {
   subject: (id: string) => `/api/v1/subjects/${id}`,
   subjectSyllabus: (id: string) => `/api/v1/subjects/${id}/syllabus`,
 } as const;
+
+/* -------------------------------------------------------------------------- */
+/* Sources, rights and documents (M5)                                         */
+/* -------------------------------------------------------------------------- */
+
+export * from './sources.js';
