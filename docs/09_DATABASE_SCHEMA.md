@@ -653,8 +653,12 @@ CHECK (publication = 'unpublished'
 CHECK (NOT active OR verification = 'verified')
 ```
 
-`source_url` is `NOT NULL` with an `http(s)` format check on every publishable
-table, so a record without provenance cannot be inserted at all.
+`source_url` is `NOT NULL` with an `http(s)` format check on every **verified
+reference** table, so such a record cannot be inserted without provenance.
+
+**This does not apply to `universities` and `branches`**, which are internal
+taxonomy and deliberately carry no provenance or publication columns. See
+`08` §8.3.1 for the classification test, and migration `0003`.
 
 **One active rule set per scheme** uses a partial unique index over a `COALESCE`
 expression rather than a plain unique constraint (`ED-28`): PostgreSQL treats
@@ -699,6 +703,31 @@ carrying the old default.
 The `colleges` gap was found while writing the rule-set precedence tests, which
 needed a college row. No incorrect data was ever served, because the table is
 empty — which is also why the backfill is a non-issue.
+
+### 9.11.3 Migration 0003 — taxonomy contract (M4.2)
+
+Forward-only. `0001` and `0002` are not edited.
+
+Review asked why `universities` and `branches` have no verification or
+publication controls when every other reference table does. The answer is that
+they are **internal taxonomy**, not verified reference data (`08` §8.3.1), and
+`docs/09` §9.4 already reflected that — `schemes`, `rule_sets`, `subjects` and
+`syllabus_modules` each carry `source_url` in that code block while these two
+carry none.
+
+| Change | Why |
+|---|---|
+| `universities.active` added | Taxonomy's control is `active`. `branches` had it; `universities` did not, which is why `listUniversities()` filtered nothing while `listBranches()` filtered `active` |
+| `listUniversities()` now filters `active` | The actual defect: the two halves of one model disagreed |
+| `COMMENT ON TABLE` on both | So the absence of provenance reads as a decision in `psql`, not an oversight |
+
+No provenance columns were added. Inventing a source URL for "VTU exists" to
+make the tables look uniform would be fabricated provenance, which is worse than
+none (`14` §14.10, M4.2 §4).
+
+Tests pin **both** sides: `universities` and `branches` must *not* grow
+provenance columns, and `schemes`, `colleges`, `rule_sets`, `subjects` and
+`syllabus_modules` must *not* lose them.
 
 ## 9.12 Retention
 

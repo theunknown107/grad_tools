@@ -291,9 +291,14 @@ Two behaviours are deliberate and tested:
   `/subjects/BMATS101/syllabus` both return `{"data": []}` with `200`. "This
   subject exists and its syllabus is not verified yet" is a different fact from
   "no such subject", and only the second is a 404.
-- **Only published rows are served.** Every query filters
+- **Only published rows are served.** Every verified-reference query filters
   `publication = 'published'`, and every row is parsed through the shared Zod
   schema before it leaves the process. The database schema is not the contract.
+
+  `/universities` and `/branches` are the two exceptions, and deliberately so:
+  they serve **internal taxonomy**, which has no publication state. Their control
+  is `active`, which both now apply — until M4.2, `/universities` applied no
+  filter at all. See `08` §8.3.1 for why these two are classified differently.
 
 Pagination is **not yet implemented**. Collection responses are already wrapped
 as `{ "data": [...] }` so `page` can be added without a breaking change. The

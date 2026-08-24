@@ -45,9 +45,9 @@ of them needs a database:
 |---|---|---|---|
 | `packages` | node | 410 | — |
 | `web` | jsdom | 41 | — |
-| `api` | node | 64 | real PostgreSQL |
+| `api` | node | 76 | real PostgreSQL |
 
-Total: **515 tests, all passing.**
+Total: **527 tests, all passing.**
 
 `Docker in Docker` was not available on the development machine, so the API
 suite runs against a **disposable local PostgreSQL 18 cluster** on port 55432
@@ -80,6 +80,12 @@ no match) plus a determinism check that repeats the both-present lookup eight
 times; `module_count` served as `null` rather than a default; `colleges`
 publication gating; subject lookup by UUID, with a code now rejected as a `400`
 instead of silently resolved.
+
+**Added in M4.2:** the taxonomy/verified-reference split is pinned from both
+sides — `universities` and `branches` must not grow provenance columns, and
+`schemes`, `colleges`, `rule_sets`, `subjects` and `syllabus_modules` must not
+lose them — plus `active` filtering on both taxonomy endpoints and an assertion
+that the seed contains exactly the approved taxonomy and nothing more.
 
 ## 22.3 Academic rules engine — the highest standard
 

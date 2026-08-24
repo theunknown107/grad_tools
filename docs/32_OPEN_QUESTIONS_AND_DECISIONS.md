@@ -258,6 +258,7 @@ Recorded so they are visible and reversible rather than buried in code.
 | ED-33 | Rule-set precedence: college-specific, then scheme-wide, by explicit `ORDER BY (college_id IS NULL)` | The schema deliberately allows both to be active. `LIMIT 1` with no ORDER BY was a coin toss that looked stable only because one row existed |
 | ED-34 | `RequiredMarksOutcome` returns raw-100 **and** printed-50 figures, printed one unrounded | The two differ by a factor of two. A bare `requiredSee` looked like a grade-card number and was not one (`A-16.7`). Rounding the printed view would create a figure that does not convert back |
 | ED-35 | `colleges` gains provenance, verification and publication gating | It was the one publishable reference table with none, served on `active` alone. Nothing wrong was served — the table is empty — but the schema permitted it |
+| ED-36 | `universities` and `branches` are **internal taxonomy**, not verified reference data; no provenance columns added | The test: does the row make a checkable claim about the external world that could change a calculation? VTU is the product's scope anchor; `cse` is a join key. `docs/09` §9.4 already drew this line. Inventing a source URL for "VTU exists" would be fabricated provenance, which is worse than none. The real defect was the queries — `listUniversities()` filtered nothing — fixed by adding `universities.active` in `0003` |
 
 Any of these may be reversed; each names the condition under which reversal would make sense.
 
@@ -486,3 +487,4 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5a | ED-27…ED-30 | Server engineering decisions in Part B | Engineering |
 | M4 | DEC-020 | A grade card's printed `External` is the SEE contribution out of 50; `16` §16.5's contrary claim corrected | Engineering (evidence: real artifact) |
 | M4.1 | ED-31…ED-35 | Reference-data and rules hardening decisions in Part B | Engineering |
+| M4.2 | ED-36 | University/Branch classified as internal taxonomy; the two integrity models made explicit | Engineering |

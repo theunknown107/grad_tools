@@ -54,10 +54,21 @@ function parseRows<T>(schema: { parse: (value: unknown) => T }, rows: unknown[])
 /* Universities                                                               */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * Universities and branches are INTERNAL TAXONOMY, not verified reference data
+ * (M4.2, migration 0003). They deliberately carry no provenance or publication
+ * columns: neither makes a checkable claim about the world that could change a
+ * calculation. Their control is `active`, and both queries apply it — this one
+ * previously applied no filter at all, which is the defect M4.2 found.
+ *
+ * Everything else served from this module IS verified reference data and
+ * filters `publication = 'published'`. Do not merge the two models.
+ */
 export async function listUniversities(sql: Sql): Promise<University[]> {
   const rows = await sql`
     SELECT id, name, short_name AS "shortName"
     FROM universities
+    WHERE active
     ORDER BY name
   `;
   return parseRows(universitySchema, rows);
