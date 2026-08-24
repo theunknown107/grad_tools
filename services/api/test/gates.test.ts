@@ -121,6 +121,47 @@ describeDb('M5 gates', () => {
     });
 
     /*
+     * M5.1 §1. `enabled` means "GradTools may reach out on a schedule", which
+     * is only ever true of http_fetch. `manual_upload` and `manual_entry`
+     * describe material arriving from a human, so enabling one would mean
+     * polling a source that exists precisely because nobody polls it.
+     *
+     * 0004 required only `access_method <> 'none'`, which admitted both.
+     */
+    it.each(['none', 'manual_upload', 'manual_entry'])(
+      'refuses to enable a source whose access method is %s',
+      async (accessMethod) => {
+        await expect(
+          insertSource({ ...allGatesOpen, access_method: accessMethod }),
+        ).rejects.toThrow(/source_enable_requires_all_gates/);
+      },
+    );
+
+    it('permits enabling only an http_fetch source', async () => {
+      await insertSource({ ...allGatesOpen, access_method: 'http_fetch' });
+      const [row] = await sql<{ enabled: boolean; access_method: string }[]>`
+        SELECT enabled, access_method FROM sources WHERE id = 'test-src'
+      `;
+      expect(row).toEqual({ enabled: true, access_method: 'http_fetch' });
+    });
+
+    it('refuses to switch an enabled source to a manual method', async () => {
+      await insertSource({ ...allGatesOpen, access_method: 'http_fetch' });
+      await expect(
+        sql`UPDATE sources SET access_method = 'manual_upload' WHERE id = 'test-src'`,
+      ).rejects.toThrow(/source_enable_requires_all_gates/);
+    });
+
+    /* A manual source is still recordable — it just cannot be enabled. */
+    it('records a manual source perfectly well while disabled', async () => {
+      await insertSource({ access_method: 'manual_upload' });
+      const [row] = await sql<{ access_method: string; enabled: boolean }[]>`
+        SELECT access_method, enabled FROM sources WHERE id = 'test-src'
+      `;
+      expect(row).toEqual({ access_method: 'manual_upload', enabled: false });
+    });
+
+    /*
      * The two gates are independent, at the database level. robots.txt allows
      * the path; the terms have never been read; the source is still refused.
      * This is precisely VTU's announcements situation.
@@ -294,6 +335,9 @@ describeDb('M5 gates', () => {
           rights_status: 'permitted',
           rights_determined_at: new Date(),
           storage_key: `ab/cd/${'e'.repeat(64)}`,
+          // Quarantine must also have been cleared (M5.1 §2). Rights and
+          // validation are independent preconditions and both are required.
+          state: 'validated',
         },
         'a5',
       );
@@ -314,6 +358,7 @@ describeDb('M5 gates', () => {
             rights_status: 'user_private',
             presentation: 'link',
             source_url: 'https://example.org/x',
+            state: 'validated',
           },
           'b1',
         ),
@@ -345,6 +390,7 @@ describeDb('M5 gates', () => {
             presentation: 'link',
             source_url: 'https://example.org/paper.pdf',
             storage_key: `ab/cd/${'f'.repeat(64)}`,
+            state: 'validated',
           },
           'c2',
         ),
@@ -352,7 +398,10 @@ describeDb('M5 gates', () => {
     });
 
     it('allows a link document with a url and no stored bytes', async () => {
-      await doc({ presentation: 'link', source_url: 'https://example.org/paper.pdf' }, 'c3');
+      await doc(
+        { presentation: 'link', source_url: 'https://example.org/paper.pdf', state: 'validated' },
+        'c3',
+      );
       const [row] = await sql<{ presentation: string; storage_key: string | null }[]>`
         SELECT presentation, storage_key FROM documents WHERE title = 'TEST document'
       `;
@@ -376,6 +425,118 @@ describeDb('M5 gates', () => {
 
     it('refuses an implausible page count', async () => {
       await expect(doc({ page_count: 501 }, 'e3')).rejects.toThrow(/page_count/);
+    });
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* Quarantine-first publication (M5.1 §2)                                 */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Rights and validation are INDEPENDENT preconditions for being visible, and
+   * both are required.
+   *
+   *   presentation  RIGHTS  — may we show it at all
+   *   state         SAFETY  — has it passed validation
+   *
+   * 0004 gated only the rights half, and the public query filtered
+   * `state <> 'rejected'` — which admitted a `quarantined` document, one whose
+   * bytes had never been checked. Having permission to show something says
+   * nothing about whether it is safe to show.
+   */
+  describe('quarantine holds for publication', () => {
+    afterEach(async () => {
+      await sql`DELETE FROM documents WHERE title LIKE 'TEST %'`;
+    });
+
+    const insert = (fields: Record<string, unknown>, seedText: string) => sql`
+      INSERT INTO documents ${sql({
+        title: 'TEST doc',
+        sha256: seedText.padEnd(64, '0'),
+        byte_size: 1024,
+        mime_type: 'application/pdf',
+        ...fields,
+      })}
+    `;
+
+    it('refuses a quarantined document presented as link', async () => {
+      await expect(
+        insert(
+          { presentation: 'link', source_url: 'https://example.org/x', state: 'quarantined' },
+          '01a',
+        ),
+      ).rejects.toThrow(/document_public_requires_validation/);
+    });
+
+    it('refuses a quarantined document presented as host', async () => {
+      await expect(
+        insert(
+          {
+            presentation: 'host',
+            rights_status: 'permitted',
+            rights_determined_at: new Date(),
+            state: 'quarantined',
+          },
+          '02a',
+        ),
+      ).rejects.toThrow(/document_public_requires_validation/);
+    });
+
+    it('refuses flipping a quarantined document straight to link', async () => {
+      await insert({ presentation: 'private', state: 'quarantined' }, '03a');
+      await expect(
+        sql`
+          UPDATE documents SET presentation = 'link', source_url = 'https://example.org/x'
+          WHERE title = 'TEST doc'
+        `,
+      ).rejects.toThrow(/document_public_requires_validation/);
+    });
+
+    it.each(['validated', 'extracted'])('allows a %s link document', async (state) => {
+      await insert(
+        {
+          presentation: 'link',
+          source_url: 'https://example.org/x',
+          state,
+          // `extracted` additionally requires extraction to have concluded.
+          extraction_status: state === 'extracted' ? 'text_available' : 'pending',
+        },
+        '04a',
+      );
+      const [row] = await sql<{ state: string }[]>`
+        SELECT state FROM documents WHERE title = 'TEST doc'
+      `;
+      expect(row?.state).toBe(state);
+    });
+
+    /* Quarantine and blocked states are unaffected: they are not public. */
+    it.each(['quarantined', 'validated', 'extracted'])(
+      'allows a %s document to stay private',
+      async (state) => {
+        await insert(
+          {
+            presentation: 'private',
+            state,
+            extraction_status: state === 'extracted' ? 'text_available' : 'pending',
+          },
+          '05a',
+        );
+        const [row] = await sql<{ presentation: string }[]>`
+          SELECT presentation FROM documents WHERE title = 'TEST doc'
+        `;
+        expect(row?.presentation).toBe('private');
+      },
+    );
+
+    it('allows a rejected document to be blocked', async () => {
+      await insert(
+        { presentation: 'blocked', state: 'rejected', rejection_reason: 'not a pdf' },
+        '06a',
+      );
+      const [row] = await sql<{ presentation: string }[]>`
+        SELECT presentation FROM documents WHERE title = 'TEST doc'
+      `;
+      expect(row?.presentation).toBe('blocked');
     });
   });
 
@@ -419,6 +580,58 @@ describeDb('M5 gates', () => {
       const body = JSON.stringify(res.body);
       expect(body).not.toMatch(/storage_key|storageKey/);
       expect(body).not.toMatch(/[A-Za-z]:\\|\/var\/|\/home\//);
+    });
+
+    /*
+     * M5.1 §3. The by-id path is exactly where a visibility filter gets
+     * forgotten, so both read paths are asserted against the same set of
+     * documents rather than only the listing.
+     */
+    it.each([
+      ['private', { presentation: 'private', state: 'validated' }, 'aa1'],
+      ['blocked', { presentation: 'blocked', state: 'validated' }, 'aa2'],
+      ['rejected', { presentation: 'blocked', state: 'rejected', rejection_reason: 'bad' }, 'aa3'],
+    ])('hides a %s document from BOTH read paths', async (label, fields, seedText) => {
+      await sql`
+        INSERT INTO documents ${sql({
+          title: `TEST hidden ${label}`,
+          sha256: seedText.padEnd(64, '0'),
+          byte_size: 1024,
+          mime_type: 'application/pdf',
+          ...fields,
+        })}
+      `;
+      const [row] = await sql<{ id: string }[]>`
+        SELECT id::text FROM documents WHERE title = ${`TEST hidden ${label}`}
+      `;
+
+      const list = await request(app).get('/api/v1/documents');
+      expect(
+        (list.body.data as { title: string }[]).some((d) => d.title === `TEST hidden ${label}`),
+      ).toBe(false);
+
+      const byId = await request(app).get(`/api/v1/documents/${String(row?.id)}`);
+      expect(byId.status).toBe(404);
+    });
+
+    it('serves a validated link document from BOTH read paths', async () => {
+      await sql`
+        INSERT INTO documents (title, sha256, byte_size, mime_type, presentation, source_url, state)
+        VALUES ('TEST visible link', ${'e1'.padEnd(64, '0')}, 2048, 'application/pdf',
+                'link', 'https://example.org/original.pdf', 'validated')
+      `;
+      const [row] = await sql<{ id: string }[]>`
+        SELECT id::text FROM documents WHERE title = 'TEST visible link'
+      `;
+
+      const list = await request(app).get('/api/v1/documents');
+      expect(
+        (list.body.data as { title: string }[]).some((d) => d.title === 'TEST visible link'),
+      ).toBe(true);
+
+      const byId = await request(app).get(`/api/v1/documents/${String(row?.id)}`);
+      expect(byId.status).toBe(200);
+      expect(byId.body.sourceUrl).toBe('https://example.org/original.pdf');
     });
 
     it('exposes no route that serves a document file', async () => {

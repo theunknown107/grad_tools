@@ -336,3 +336,23 @@ Options if redistribution proves impermissible: link-only (metadata and analysis
 | Manual-correction preservation | Reprocess after a correction; the correction must survive |
 
 **Synthetic fixtures are used for the security tests** (bombs, malformed structures) because they must be deterministic and safe to commit. Real papers are used for accuracy tests once available, subject to §17.11.
+
+---
+
+## 17.13 Quarantine holds for publication (M5.1)
+
+§17.1's lifecycle is quarantine-first, but M5 enforced only the rights half of
+publication. A document could be marked `host` or `link` while still
+`quarantined`, i.e. before its bytes had been checked.
+
+Two independent preconditions, both required:
+
+| | Question | Enforced by |
+|---|---|---|
+| `presentation` | May we show it at all? | `document_host_requires_rights`, `document_user_private_stays_private` |
+| `state` | Is it safe to show? | `document_public_requires_validation` |
+
+Having permission to show a document says nothing about whether it is safe to
+show, and the reverse is equally true. Only `validated` and `extracted`
+documents can be public; `quarantined`, `rejected`, `private` and `blocked` are
+not.

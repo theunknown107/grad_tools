@@ -434,3 +434,23 @@ There is **no upload endpoint**. Document validation, storage and extraction are
 implemented and tested as modules; exposing them over HTTP needs the rate
 limiting, quarantine review and abuse handling of `17` §3, which is not this
 milestone.
+
+---
+
+#### Corrected in M5.1
+
+**Public document visibility now requires validation as well as rights.** The
+condition is:
+
+```sql
+presentation IN ('host','link') AND state IN ('validated','extracted')
+```
+
+It previously read `state <> 'rejected'`, which admitted a `quarantined`
+document into a public response. Quarantined, rejected, private and blocked
+documents are all invisible.
+
+The condition is defined **once** and shared by the list and the by-id paths, so
+they cannot drift — the by-id path is exactly where such a filter gets
+forgotten. The database enforces the same rule independently
+(`document_public_requires_validation`).

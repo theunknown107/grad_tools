@@ -339,3 +339,21 @@ Fetching is deliberately not part of the adapter interface. `parse`, `normalize`
 and `validate` are pure and fixture-testable; `fetch` is a gated capability that
 re-reads the source row and refuses private destinations. Nothing in M5 calls
 it, so the gate exists before the capability does.
+
+### 7.12.1 Narrowed in M5.1
+
+Two gates in the shared layer were correct in intent and too permissive in
+expression, and both are now stated exactly:
+
+- **`enabled` means automated outbound access.** It therefore requires
+  `access_method = 'http_fetch'`, not merely "some access method". A
+  `manual_upload` or `manual_entry` source describes a human handing us
+  material; it is recorded so its provenance exists, and it is never polled.
+- **Rights and validation are independent preconditions for visibility.**
+  Permission to show a document says nothing about whether it is safe to show.
+  Only `validated` or `extracted` documents can be `host` or `link`.
+
+Both are database constraints, and both are mirrored in the application with a
+specific refusal reason so a caller gets an explanation rather than a database
+error. Where the two ever disagree the database wins: it is the one that cannot
+be bypassed.

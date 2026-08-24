@@ -230,3 +230,23 @@ Steps 3, 7 and 10 are the load-bearing ones: never trust the declared type, neve
 | `OQ-014` | Does the chosen object-storage provider support a separate serving origin with attachment disposition? | Before uploads open |
 | `OQ-015` | Is a WAF available at the chosen host, and is it worth the cost at Alpha scale? | Before Alpha |
 | `OQ-016` | What is the disclosure channel for a security researcher reporting a vulnerability? | Before public Alpha |
+
+---
+
+## Hardened in M5.1
+
+**T-03 (hostile documents).** Quarantine now holds for publication as well as
+for processing. A document that has not passed validation cannot be presented
+publicly at all, enforced by `document_public_requires_validation`. Previously
+the rights gate and the validation gate were not both required, so a record
+could in principle be marked public before its bytes had been checked.
+
+**T-11 (SSRF and unauthorised outbound access).** The fetch gate is narrowed
+from "has some access method" to "is an `http_fetch` source". `manual_upload`
+and `manual_entry` describe human delivery; treating them as fetchable meant a
+scheduler could in principle have issued a request on behalf of a source that
+exists because nobody requests it. Both the constraint and
+`checkSourcePermission` now require `http_fetch` explicitly.
+
+Neither gap was ever exercised — no source is enabled and no document exists.
+Both are the kind of gap that is found either before it matters or long after.

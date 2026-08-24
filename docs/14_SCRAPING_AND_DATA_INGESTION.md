@@ -353,3 +353,19 @@ Jitter is added to every scheduled run so requests do not land on the hour, and 
 6. Continue publishing while unhealthy.
 7. Store data without provenance.
 8. Run against a source whose robots check is missing or negative.
+
+---
+
+### 14.3.2 Narrowed in M5.1
+
+The enable gate now requires `access_method = 'http_fetch'` rather than
+`access_method <> 'none'`.
+
+`enabled` is a statement about **automated outbound access**, and only one
+access method is automated. A `manual_upload` source describes a student handing
+us a file; a `manual_entry` source describes an operator typing a document in.
+Both are worth recording as provenance, and neither is something to poll.
+
+`checkSourcePermission` refuses them with `access_method_not_fetchable` — a
+distinct code from `source_disabled`, because a manual source is not a source
+someone forgot to switch on. It is not the kind of thing a fetch applies to.

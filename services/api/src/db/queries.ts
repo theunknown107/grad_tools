@@ -384,21 +384,42 @@ const DOCUMENT_COLUMNS = (sql: Sql) => sql`
 `;
 
 /**
+ * The two conditions a document must meet to be visible publicly.
+ *
+ * They are independent, and both are required (M5.1 §2):
+ *
+ *   presentation  RIGHTS   — may we show it at all
+ *   state         SAFETY   — has it passed validation
+ *
+ * Having permission to show a document says nothing about whether it is safe
+ * to show. A `quarantined` document has not had its bytes checked yet, so it
+ * stays invisible however generous its rights are.
+ *
+ * Expressed once and shared by both read paths, so the list and the by-id
+ * lookup cannot drift apart — the by-id path is exactly where such a filter
+ * gets forgotten. The database enforces the same rule independently
+ * (`document_public_requires_validation`, migration 0005).
+ */
+const PUBLICLY_VISIBLE = (sql: Sql) => sql`
+  presentation IN ('host', 'link')
+  AND state IN ('validated', 'extracted')
+`;
+
+/**
  * Documents the public may see.
  *
- * `private` is excluded at the query, not filtered later: a student's own
- * upload has no business appearing in a public listing, and the safest place
- * for that rule is the one every caller goes through. `blocked` is excluded
- * for the same reason.
+ * `private` and `blocked` are excluded at the query rather than filtered later:
+ * a student's own upload has no business appearing in a public listing, and the
+ * safest place for that rule is the one every caller goes through.
  *
  * Note this returns METADATA. Serving the file itself is a separate,
- * rights-gated concern, and no route in M5 serves one (M5 §17).
+ * rights-gated concern, and no route serves one (M5 §17).
  */
 export async function listPublicDocuments(sql: Sql): Promise<DocumentRecord[]> {
   const rows = await sql`
     SELECT ${DOCUMENT_COLUMNS(sql)}
     FROM documents
-    WHERE presentation IN ('host', 'link') AND state <> 'rejected'
+    WHERE ${PUBLICLY_VISIBLE(sql)}
     ORDER BY created_at DESC, id
   `;
   return parseRows(documentSchema, rows);
@@ -408,7 +429,7 @@ export async function findPublicDocument(sql: Sql, id: string): Promise<Document
   const rows = await sql`
     SELECT ${DOCUMENT_COLUMNS(sql)}
     FROM documents
-    WHERE id = ${id}::uuid AND presentation IN ('host', 'link') AND state <> 'rejected'
+    WHERE id = ${id}::uuid AND ${PUBLICLY_VISIBLE(sql)}
   `;
   return parseRows(documentSchema, rows)[0] ?? null;
 }
