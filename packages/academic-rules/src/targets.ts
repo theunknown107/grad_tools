@@ -135,7 +135,14 @@ export function calculateRequiredMarks(
 
   const rawRequired = Math.max(seeHeadMinimum, neededForOverall);
   // Marks are whole numbers; a student cannot score a fraction of a mark.
-  const requiredSee = Math.max(0, Math.ceil(rawRequired - CEIL_TOLERANCE));
+  const rawSeeRequired = Math.max(0, Math.ceil(rawRequired - CEIL_TOLERANCE));
+
+  /*
+   * The same requirement on the scale a grade card prints (A-16.7, M4.1 §4).
+   * Deliberately NOT rounded: it is a converted view of `rawSeeRequired`, and
+   * rounding it would produce a second number that does not convert back.
+   */
+  const printedExternalEquivalent = rawSeeRequired * seeScale;
 
   const bindingConstraint = neededForOverall > seeHeadMinimum ? 'overall_target' : 'see_minimum';
 
@@ -153,20 +160,31 @@ export function calculateRequiredMarks(
     steps: [
       { label: 'SEE minimum for the head', value: seeHeadMinimum },
       { label: 'SEE needed for the overall target', value: neededForOverall },
-      { label: 'Required SEE', value: requiredSee },
+      { label: 'Required raw SEE (out of 100)', value: rawSeeRequired },
+      { label: 'Equivalent printed External (out of 50)', value: printedExternalEquivalent },
     ],
   });
 
-  if (requiredSee > ruleSet.seeMax) {
+  if (rawSeeRequired > ruleSet.seeMax) {
     return fail(
       'unreachable',
-      `That target is no longer reachable: it would need ${String(requiredSee)} out of ` +
-        `${String(ruleSet.seeMax)} in the SEE.`,
+      `That target is no longer reachable: it would need ${String(rawSeeRequired)} out of ` +
+        `${String(ruleSet.seeMax)} in the SEE ` +
+        `(${String(printedExternalEquivalent)} out of ${String(seeWeight)} as printed on a grade card).`,
       explanation,
     );
   }
 
-  return succeed({ requiredSee, seeMax: ruleSet.seeMax, bindingConstraint }, explanation);
+  return succeed(
+    {
+      rawSeeRequired,
+      rawSeeMaximum: ruleSet.seeMax,
+      printedExternalEquivalent,
+      printedExternalMaximum: seeWeight,
+      bindingConstraint,
+    },
+    explanation,
+  );
 }
 
 /**
