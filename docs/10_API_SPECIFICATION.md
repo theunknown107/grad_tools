@@ -258,6 +258,50 @@ POST /papers/upload         (multipart/form-data, Idempotency-Key required)
 
 `202`, never `201`: the resource is not yet published. Validation and review happen asynchronously (`17` §3).
 
+### 10.7.1 As built in M5a — reference data
+
+The reference subset of the table above is **implemented and served**. Everything
+else in §10.7 (papers, questions, module priority, announcements) remains
+specification only.
+
+All paths carry the `/api/v1` prefix and are exported as constants from
+`@gradtools/shared-types` (`API_ROUTES`), so the client cannot drift from the
+server. A test asserts each constant resolves to a route that exists.
+
+| Method | Path | Status |
+|---|---|---|
+| GET | `/health` | implemented — liveness, no dependency checks |
+| GET | `/health/ready` | implemented — reports database reachability only |
+| GET | `/api/v1/universities` | implemented |
+| GET | `/api/v1/schemes` | implemented |
+| GET | `/api/v1/schemes/:id` | implemented |
+| GET | `/api/v1/schemes/:id/rules` | implemented — **metadata only**, never a computed value |
+| GET | `/api/v1/branches` | implemented |
+| GET | `/api/v1/colleges` | implemented — returns `[]`; no college is verified yet |
+| GET | `/api/v1/subjects` | implemented — `?scheme=&branch=&semester=` |
+| GET | `/api/v1/subjects/:code` | implemented |
+| GET | `/api/v1/subjects/:code/syllabus` | implemented — returns `[]`; no module source is verified (`OQ-025`) |
+
+`/api/v1/universities` was added beyond the original table: a scheme belongs to a
+university, and the client could not resolve that reference without it.
+
+Two behaviours are deliberate and tested:
+
+- An **empty list is not a 404.** `/subjects?semester=5` and
+  `/subjects/BMATS101/syllabus` both return `{"data": []}` with `200`. "This
+  subject exists and its syllabus is not verified yet" is a different fact from
+  "no such subject", and only the second is a 404.
+- **Only published rows are served.** Every query filters
+  `publication = 'published'`, and every row is parsed through the shared Zod
+  schema before it leaves the process. The database schema is not the contract.
+
+Pagination is **not yet implemented**. Collection responses are already wrapped
+as `{ "data": [...] }` so `page` can be added without a breaking change. The
+largest current response is 5 KB (§23), so there is nothing to paginate.
+
+No write endpoint exists. `POST`, `PUT`, `PATCH` and `DELETE` return `404` on
+every path, which is asserted by test.
+
 ## 10.8 Endpoints — Notifications and admin
 
 | Method | Path | Auth | Purpose |

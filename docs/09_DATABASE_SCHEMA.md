@@ -607,7 +607,8 @@ Partial indexes are used throughout because the interesting rows (pending jobs, 
 
 ## 9.10 Migrations
 
-- Managed by `drizzle-kit`; each migration is a reviewed, committed SQL file.
+- Managed by a **~40-line runner over numbered SQL files** (`services/api/src/db/migrate.ts`), not `drizzle-kit` (`ED-27`). Each migration is a reviewed, committed SQL file, applied inside a transaction, and recorded in a `schema_migrations` table so a second run applies nothing.
+- The runner is proven by test from a genuinely clean database: the integration suite drops and recreates the `public` schema on every run, applies migrations, then applies them again and asserts zero further changes.
 - **Forward-only.** No down-migrations in production; a mistake is corrected by a new forward migration (down-migrations are almost never tested and give false confidence).
 - **Expand/contract for breaking changes:** add the new column → backfill → dual-write → switch reads → drop the old column in a later release. Never rename in a single step.
 - Migrations run as a separate deploy step under a role with DDL rights; the application role has DML only.
@@ -625,6 +626,61 @@ Partial indexes are used throughout because the interesting rows (pending jobs, 
 | Demo student data | Fictional, clearly labelled | Local + experimental only, **never** in Alpha |
 
 Demo data is generated with an unmistakable marker (USN prefix `DEMO`, names like "Sample Student") so it can never be mistaken for real data, satisfying FR-106.
+
+### 9.11.1 As built in M5a
+
+Only the reference half of §9.4 exists in the database. **No student table has
+been created** — not even empty. An empty `students` table "ready for later"
+would quietly undercut the privacy claim, and the integration suite asserts the
+absence of `students`, `student_profiles`, `attendance_records`,
+`semester_records`, `timetable_slots` and `sessions` by querying
+`information_schema`.
+
+Tables created by `0001_reference_data.sql`: `universities`, `schemes`,
+`branches`, `colleges`, `rule_sets`, `subjects`, `syllabus_modules`, plus
+`schema_migrations`.
+
+Two integrity rules are enforced by the **database**, not by application code,
+because application code can be bypassed by a migration, a fix-up script or a
+future admin tool:
+
+```sql
+-- On every publishable table:
+CHECK (publication = 'unpublished'
+       OR (verification = 'verified' AND verified_at IS NOT NULL))
+
+-- On rule_sets, additionally:
+CHECK (NOT active OR verification = 'verified')
+```
+
+`source_url` is `NOT NULL` with an `http(s)` format check on every publishable
+table, so a record without provenance cannot be inserted at all.
+
+**One active rule set per scheme** uses a partial unique index over a `COALESCE`
+expression rather than a plain unique constraint (`ED-28`): PostgreSQL treats
+NULLs as distinct, so `UNIQUE (scheme_id, college_id, version)` silently fails to
+deduplicate exactly the scheme-wide rows (`college_id IS NULL`) that matter most.
+
+What is **seeded** (all verified, all published):
+
+| Table | Rows | Source |
+|---|---|---|
+| `universities` | 1 | VTU |
+| `schemes` | 1 | VTU 2022 (`22OB`) |
+| `branches` | 1 | CSE |
+| `rule_sets` | 1 | 22OB clauses 3.7, 4.1, 6.1–6.3, 6.6–6.8 |
+| `subjects` | 10 | CSE semester 1, 20 credits total, from the verified scheme PDF |
+
+What is **deliberately empty**, because no verified source exists:
+
+| Table | Why |
+|---|---|
+| `colleges` | No college has been verified. `DEC-003` fixes the scope to "a non-autonomous college", which is not a record |
+| `syllabus_modules` | The verified scheme document carries no module breakdown (`OQ-025`) |
+| `subjects` sem 3–8 | Not yet transcribed from a verified source |
+
+Demo student data described above is **not** implemented and cannot be: there is
+no student table to put it in.
 
 ## 9.12 Retention
 

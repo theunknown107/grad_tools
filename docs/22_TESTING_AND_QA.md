@@ -36,6 +36,44 @@ Overall line coverage is **not** a target. A repository at 85% coverage with an 
 
 **Integration tests run against a real PostgreSQL instance, never a mock or SQLite.** Constraints, transactions and `SKIP LOCKED` semantics are exactly what needs testing, and none of them exist in a substitute.
 
+### 22.2.1 As built in M5a
+
+Vitest runs three **projects**, because they need different environments and one
+of them needs a database:
+
+| Project | Environment | Tests | Requires |
+|---|---|---|---|
+| `packages` | node | 337 | — |
+| `web` | jsdom | 41 | — |
+| `api` | node | 45 | real PostgreSQL |
+
+Total: **423 tests, all passing.**
+
+`Docker in Docker` was not available on the development machine, so the API
+suite runs against a **disposable local PostgreSQL 18 cluster** on port 55432
+with `trust` auth bound to loopback — a real PostgreSQL instance, which is what
+the rule above actually requires. `services/api/README.md` documents both the
+Docker command and the no-Docker fallback.
+
+The suite is configured by `TEST_DATABASE_URL`. When it is unset the API project
+**skips with a loud warning** rather than failing, so a contributor without a
+database still gets a usable run. A skipped suite is explicitly **not** a passing
+one, and the milestone gate requires it to actually execute.
+
+Each run drops and recreates the `public` schema, so migrations are always proven
+from a genuinely clean database rather than from residue of a previous run.
+
+What the API suite covers: migration idempotency, schema shape, **absence of every
+student table**, provenance `NOT NULL` and URL-format checks, publication gating,
+rule-set activation gating, foreign keys, uniqueness, the attendance-floor check,
+seed idempotency, seed verified-only publication, seeded credit totals, health and
+readiness, every reference endpoint, empty-list-not-404 semantics, unpublished rows
+never being served, the error envelope, malformed and out-of-range parameters,
+internal-detail leakage, security headers, framework fingerprinting, correlation
+ids, cache headers, CORS allowlist behaviour in both directions, SQL-injection
+payloads through path and query parameters, absence of write methods, the 1 MB body
+limit, and log redaction.
+
 ## 22.3 Academic rules engine — the highest standard
 
 ### Golden tests
@@ -125,6 +163,21 @@ Additional cases: expired session, revoked session, replayed consumed login toke
 | Enumeration | Sign-in responses identical for registered and unregistered addresses |
 
 The log-redaction test asserts a **negative** across generated log output, which is unusual and necessary: NFR-011 is otherwise unverifiable and would silently rot.
+
+**Executed in M5a** (the rest await the features they test): SQL injection through
+path and query parameters, path-traversal-shaped identifiers rejected by the
+`referenceIdSchema` regex, security headers, CORS allowlist in both directions,
+body-size limit, safe error bodies with no stack/SQL/path leakage, readiness
+exposing only status, and log redaction.
+
+The redaction test drives the **shipped** `createLogger` factory through a capture
+stream (`ED-29`). A test that re-declared the redaction path list would assert
+nothing about production behaviour, which is the exact rot this section warns
+about.
+
+Not yet applicable: XSS on stored fields, upload checks, CSRF, rate limits and
+sign-in enumeration — none of those code paths exist. `pnpm audit` and bundle
+secret scanning are **NOT RUN** as gates yet; there is no CI pipeline.
 
 ## 22.6 Ingestion testing
 

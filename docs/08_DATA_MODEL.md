@@ -139,6 +139,27 @@ A course as defined by a scheme, branch and semester.
 
 Five modules per subject is the 2022-scheme norm and matches the SEE paper structure (two questions per module). `module_count` on Subject allows exceptions rather than hard-coding 5.
 
+### As built in M5a
+
+Every entity in §8.3 exists in the database. Three refinements the implementation
+forced, recorded so the model and the schema do not drift:
+
+- **Provenance is a shared, non-optional shape**, not per-entity fields.
+  `source_url`, `source_clause`, `verification`, `verified_at`, `verified_by` and
+  `publication` appear on every publishable entity, and the API returns them
+  nested under `provenance`. A record without provenance cannot be inserted.
+- **`verification` is three-valued** (`draft | unverified | verified`), not a
+  boolean. `draft` is "not yet reviewed"; `unverified` is "reviewed and the source
+  does not support it". Collapsing them would lose the second state, which is the
+  one worth acting on.
+- **`SyllabusModule.module_number` allows 1–10**, not 1–5. Five is the norm, and
+  the model already says `module_count` exists to allow exceptions — a `CHECK`
+  fixed at 5 would have contradicted that.
+
+**§8.4 is not implemented at all.** No student entity exists in the database, not
+even as an empty table, and the integration suite asserts their absence. Student
+records live in the browser (`33` §33.3).
+
 ## 8.4 Student entities
 
 ### Student

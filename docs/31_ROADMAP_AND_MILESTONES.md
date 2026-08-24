@@ -13,8 +13,9 @@
 | M1 | Documentation (these 32 files) | 1–2 sessions | ✅ **Complete — awaiting human approval** |
 | M2 | Architecture approval and backlog | 1–3 sessions | Human approval + decisions resolved |
 | M3 | Experimental foundation | 1–2 weeks | ✅ **Complete** — rules engine, vertical slice, site loads, navigation works |
-| M4 | Core academic utilities | 1–2 weeks | Calculations pass all tests |
-| M5 | Academic content | 1–3 weeks | Corpus passes the pipeline |
+| M4 | Core academic utilities | 1–2 weeks | 🟡 **Substantially delivered inside M3.** Two exit criteria outstanding, both blocked on external input (see §31.3) |
+| M5a | Reference data foundation | 1–2 weeks | Express API + PostgreSQL serving verified reference data |
+| M5b | Document pipeline | 1–3 weeks | Corpus passes the pipeline |
 | M6 | Result/notice ingestion | 1–3 weeks | Safe monitoring, graceful failure |
 | M7 | Intelligence | 1–2 weeks | No prediction claims; evidence shown |
 | M8 | Admin and data quality | 1 week | Operator can diagnose any failure |
@@ -23,14 +24,34 @@
 | M11 | Alpha release | 1 week | Shareable Alpha |
 | M12 | College demonstration prep | 1–2 weeks | Presentation-ready |
 
-**Total: roughly 3–5 months part-time**, dominated by M5 and M6, whose durations depend on external factors outside the developer's control.
+**Total: roughly 3–5 months part-time**, dominated by M5b and M6, whose durations depend on external factors outside the developer's control.
+
+### Milestone reconciliation (recorded at the start of M5a)
+
+Two inconsistencies had accumulated between this roadmap, the backlog in `33`, and what was actually built. Both are corrected here without renumbering anything, because milestone IDs are cited in commit messages and completion reports and renumbering would rewrite history.
+
+**1. M3 absorbed most of M4.** M3 was defined as "experimental foundation" (the site loads, navigation works) and M4 as "core academic utilities" (the calculators). In practice the rules engine shipped *first*, in M3's opening increment, and the vertical slice then consumed the rest of M4's scope. M4's exit criteria are therefore mostly met already:
+
+| M4 exit criterion | Status |
+|---|---|
+| 100% branch coverage on `academic-rules` | ✅ Met in M3 |
+| Property-based tests pass | ✅ Met in M3 (15 properties) |
+| Client and server agree | ✅ Trivially — one shared package, no duplicate implementation |
+| The regulation's Annexure-I worked example passes | ❌ **Outstanding.** The Annexure has not been transcribed from the source PDF |
+| Validated against real grade cards | ❌ **Outstanding.** Blocked on the human supplying anonymised grade cards |
+
+M4 stays open at 🟡 rather than being marked complete, because those last two are the criteria that actually validate our reading of the regulation against VTU's practice. Closing M4 on the strength of the ones we could self-assess would be exactly the "verification theatre" this project exists to avoid.
+
+**2. M5 bundled two unrelated bodies of work.** "Academic content" covered both the syllabus/reference-data model and the PDF/question pipeline. They share nothing but a chapter heading: the first needs a database and an API, the second needs document parsing and an unresolved licensing answer (`32/OQ-008`). They are now **M5a** (reference data foundation) and **M5b** (document pipeline), which also lets M5a proceed while M5b stays blocked.
+
+**Naming note:** the authorization for this work called it "M4". It is recorded here as **M5a** because roadmap M4 already has a distinct, partly-open meaning. The two labels refer to the same work; M5a is the authoritative one.
 
 ## 31.2 Dependency graph
 
 ```
 M0 ──► M1 ──► M2 ──┬──► M3 ──┬──► M4 ──────────────┬──► M9 ──► M10 ──► M11 ──► M12
                    │         │                     │
-                   │         └──► M5 ──► M7 ───────┤
+                   │         └──► M5a ─► M5b ─► M7 ─┤
                    │              ▲                │
                    └──► M6 ───────┘                │
                         (independent, can run      │
@@ -41,7 +62,7 @@ M0 ──► M1 ──► M2 ──┬──► M3 ──┬──► M4 ──�
 
 **Critical path:** M2 → M3 → M4 → M9 → M10 → M11 → M12. M4 is the highest-value work and should not be delayed by M5 or M6, which are riskier and less certain.
 
-**Parallelism:** M5 (document pipeline) and M6 (ingestion) are independent of each other and of M4. If M6 stalls on an external blocker, M5 continues.
+**Parallelism:** M5a (reference data), M5b (document pipeline) and M6 (ingestion) are independent of each other and of M4. If M6 stalls on an external blocker, M5a and M5b continue. M5b is itself blocked on `OQ-008` and `OQ-019`, which is the main reason it was split out of M5a.
 
 ## 31.3 Milestone detail
 
@@ -69,11 +90,38 @@ Monorepo, React SPA, Express API skeleton, Postgres with initial migrations, des
 
 **This milestone alone delivers a genuinely useful product.** If everything after it stalled, GradTools would still be worth using — which is the intended property.
 
-### M5 — Academic content
-Syllabus data model and seeding (manual, verified); document upload and validation pipeline with every security control from `17` §3; extraction (pdftotext, OCR fallback); question segmentation using the structural module mapping; paper library UI.
+**Status: 🟡 substantially delivered inside M3, two criteria outstanding.** See the reconciliation note in §31.1. The outstanding items are the Annexure-I transcription and real-grade-card validation, both of which need source material the project does not yet hold. They are tracked as `32/OQ-023` and `32/OQ-024`.
+
+### M5a — Reference data foundation · ✅ **DELIVERED**
+The first server-side system: Express API, PostgreSQL, migrations, deterministic seed, and the read-only reference API (universities, schemes, branches, subjects, syllabus modules, rule-set metadata). Frontend consumes reference data through an API-backed repository while student data stays local.
+
+**Exit:** migrations apply from a clean database; only verified reference data is publishable; the frontend reads real reference data over HTTP; no student data reaches the server.
+**Deliberately excluded:** authentication, student cloud persistence, admin UI, Redis, queues.
+
+**Exit criteria met.** Migrations apply from a clean database and a second run
+applies nothing; the seed is idempotent; publication and rule-set activation are
+gated by database CHECK constraints; the frontend reads real reference data over
+HTTP through `ReferenceRepository`; two tests assert student data never leaves the
+browser; the integration suite asserts no student table exists. 423 tests pass,
+45 of them against real PostgreSQL. Format, lint, typecheck and build are green;
+browser QA reports 0 accessibility violations, 0 horizontal overflow and 0 console
+errors.
+
+**Carried forward, deliberately:** `syllabus_modules` and `colleges` ship with
+**zero rows** because no verified source exists (`32/OQ-025`). The table, the
+route and the frontend empty state are implemented and tested; only the content
+is absent. This is the intended outcome, not an unfinished task — inventing
+curriculum data would be worse than an honest gap.
+
+**Also carried forward:** the M4 criteria `32/OQ-023` (Annexure-I transcription)
+and `32/OQ-024` (validation against a real grade card) remain open. `OQ-024` is
+the most valuable outstanding verification in the project.
+
+### M5b — Document pipeline
+Document upload and validation with every security control from `17` §3; extraction (pdftotext, OCR fallback); question segmentation using the structural module mapping; paper library UI.
 
 **Exit:** a test corpus passes end to end; security fixtures rejected correctly; the review queue works.
-**Risk:** depends on receiving papers and on whether they carry a text layer (`32/OQ-019`).
+**Risk:** depends on receiving papers, on whether they carry a text layer (`32/OQ-019`), and on the redistribution answer (`32/OQ-008`).
 
 ### M6 — Result/notice ingestion
 Source registry, adapter framework, the VTU announcements adapter, change detection, provenance, health monitoring, notification fan-out.
@@ -119,8 +167,9 @@ Demo script, evidence pack, privacy explanation, data-source explanation, limita
 | R-01 | A wrong academic calculation reaches a student | M | **Critical** | **High** | Clause-cited rules, property tests, real-grade-card validation, Sev-1 process | Dev |
 | R-02 | Question-paper licensing prohibits redistribution | M | High | **High** | Resolve `OQ-008` before M5 completes; the data model supports link-only and analysis-only fallbacks | Human |
 | R-03 | Papers are scanned images, making OCR the main path | M | Med | Med | Validate early (`OQ-019`); OCR is already designed in; extraction failure still leaves the library usable | Dev |
+| R-14 | M4's academic validation stays open indefinitely because grade cards never arrive | M | **High** | **High** | Tracked as `OQ-024`. The calculators are already property-tested and clause-cited; what is missing is confirmation against VTU's actual practice, which only real grade cards give | Human |
 | R-04 | Terms review blocks the announcements source | L | Med | Med | Framework built and testable regardless; manual entry is the fallback | Human |
-| R-05 | Syllabus data entry is larger than estimated | **H** | Med | **High** | Start in M3, not M5; begin with one branch; the critical path is acknowledged in `02` §2.6 | Dev |
+| R-05 | Syllabus data entry is larger than estimated | **H** | Med | **High** | Confirmed real in M5a: the schema and API exist, but the *content* needs a verified source per subject. Seed deliberately left partial rather than invented | Dev + Human |
 | R-06 | Students will not enter attendance manually | M | High | **High** | Test in M10; if it fails, reprioritise toward results and papers | Evidence |
 | R-07 | The embedding model exceeds the container budget | M | Med | Med | Measure in M2 (`06` §6.8); fall back to a sidecar or hosted, reopening `DEC-006` | Dev |
 | R-08 | Solo operator burnout / time | **H** | High | **High** | Milestones are independently valuable; M4 alone ships a useful product; no milestone requires a sprint | Human |
@@ -137,7 +186,7 @@ Demo script, evidence pack, privacy explanation, data-source explanation, limita
 | Milestone | Decisions required |
 |---|---|
 | M2 | Approve architecture and Alpha scope; resolve every blocking item in `32`; confirm hosting; confirm the college and branch |
-| M5 | `OQ-008` licensing; supply the paper corpus |
+| M5b | `OQ-008` licensing; supply the paper corpus |
 | M6 | `OQ-006` terms review; approve enabling the source |
 | M9 | Approve the security review outcome |
 | M10 | Approve the feature freeze |

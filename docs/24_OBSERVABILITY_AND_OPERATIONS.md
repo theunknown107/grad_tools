@@ -46,6 +46,28 @@ names · marks · grades · attendance figures · request bodies of student-data
 
 Enforced by `pino`'s redaction configuration **and** by a test asserting these strings never appear in generated log output (`22` §5). A redaction policy that is only a configuration file rots the first time someone adds a `logger.info(req.body)`.
 
+#### As built in M5a
+
+The redaction list is implemented in `services/api/src/observability/logger.ts`
+and covers `authorization`, `cookie`, `set-cookie`, `password`, `token`,
+`sessionToken`, `email`, `usn`, `displayName` and `name`, each also as a wildcard
+(`*.email`) and under `req.body.*`, because a leak is usually an object logged
+wholesale rather than a field logged deliberately. `config` and `DATABASE_URL`
+have serialisers that censor them outright, so logging the whole config object
+cannot expose the connection string.
+
+The test drives the **shipped** `createLogger` factory through a capture stream
+(`ED-29`) and asserts the secrets do not survive into the written output.
+
+There is no student data on the server in M5a, so nothing can leak today. The
+policy is enforced now so it is already true on the day the first student-scoped
+route is written, rather than being retrofitted across log calls that have
+already shipped.
+
+`student_ref` is **not implemented** — there is no student to reference.
+`req_id` is implemented, is returned to the client as `X-Request-Id`, and is the
+same value the error envelope carries as `reference`.
+
 ### Levels
 
 | Level | Use | Retention |

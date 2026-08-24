@@ -249,6 +249,10 @@ Recorded so they are visible and reversible rather than buried in code.
 | ED-24 | Inter, against the Taste skill's default-avoidance | Taste's own override permits Inter for "neutral / Linear-style" briefs, which is precisely this brief, and `docs/05` §5.3 mandates it |
 | ED-25 | Em-dash removed from UI prose | Applying the Taste skill's most mechanical AI-tell check. 4 remain as "no value" glyphs in data cells, a typographic convention rather than prose flourish |
 | ED-26 | Feature-owned page components; no separate `pages/` directory | A `pages/` layer that only re-exports feature components is an abstraction with no behaviour (`33` §33.1 warns against exactly this) |
+| ED-27 | `postgres.js` + hand-written numbered SQL migrations, **not** Drizzle | `07` §7.4 named Drizzle as a candidate, not a commitment. M5a's schema is ~6 reference tables whose whole value is in CHECK constraints, partial unique indexes and a `COALESCE` expression index — none of which a query builder expresses better than SQL, and all of which it obscures. `postgres.js` tagged templates are parameterised by construction, so the injection guarantee is not weakened. Revisit if a student-data schema with many relations arrives |
+| ED-28 | No `UNIQUE (scheme_id, college_id, version)` on `rule_sets`; a `COALESCE` unique index instead | PostgreSQL treats NULLs as distinct, so the plain constraint silently fails to deduplicate exactly the scheme-wide rows (`college_id IS NULL`) that matter most. Found by a seed that was not actually idempotent; fixed in the schema rather than in the seed |
+| ED-29 | `createLogger` accepts an optional destination stream | Redaction is a security guarantee (NFR-011), so it must be tested against the shipped factory. The alternative — a test that re-declares the redaction path list — asserts nothing about production behaviour |
+| ED-30 | Oversized request bodies mapped to `PAYLOAD_TOO_LARGE`, not `INTERNAL_ERROR` | `body-parser` throws before routing and before any `ApiError` exists, so without an explicit branch a client mistake is reported as a server fault — wrong for the caller and noise for on-call |
 
 Any of these may be reversed; each names the condition under which reversal would make sense.
 
@@ -363,6 +367,21 @@ The question is void rather than answered: there is no date-of-birth field, ther
 **Recommendation:** **(a)** in M2. Note that (c) would reopen `DEC-006` as a privacy decision, since question text would then leave our infrastructure.
 **Decision needed:** M2, based on measurement.
 
+### OQ-023 — Annexure-I grade/percentage table transcription
+**Why unresolved:** the M4 roadmap criterion "transcribe Annexure-I" was never completed. The 2022 regulation's grade table is implemented in `academic-rules` from the clauses, but the annexure itself has not been transcribed row-for-row as an independent cross-check.
+**Impact:** low today — the implemented bands are clause-verified and tested. It matters as corroboration, not as a source of new values.
+**Decision needed:** before Alpha.
+
+### OQ-024 — Validation against real grade cards
+**Why unresolved:** no real VTU grade card has been used to validate the engine end to end. Every test is derived from the regulation, so a systematic misreading of the regulation would not be caught by any of them.
+**Impact:** this is the single most valuable outstanding verification in the project. It is also what `OQ-018` (the AB/IC/W rules) needs in order to close.
+**Decision needed:** as soon as a grade card can be supplied. Requires no fabricated data — one real card is enough to start.
+
+### OQ-025 — No verified per-subject syllabus source · **BLOCKER for syllabus content**
+**Why unresolved:** the verified scheme document (`csesch.pdf`) gives subject codes, titles, credits and CIE/SEE marks, but carries **no module breakdown**. Per-subject syllabus PDFs exist on the VTU site but have not been verified for the 2022 CSE scheme.
+**Consequence, accepted deliberately:** `syllabus_modules` ships with **zero rows**. The table, the API route and the frontend empty state are all implemented and tested; the content is absent because inventing it would be worse than an honest gap (`14` §14.10).
+**Decision needed:** supply or confirm the per-subject syllabus source. Until then the endpoint correctly returns an empty list, and the UI says the data is not available yet.
+
 ---
 
 ## Part D — Contradictions found in cross-review
@@ -445,3 +464,6 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M3 | DEC-016 | Repository pattern with async interfaces from the start | Engineering |
 | M3 | DEC-017 | Contrast tokens corrected against measurement | Engineering |
 | M3 | ED-21…ED-26 | Frontend engineering decisions in Part B | Engineering |
+| M5a | DEC-018 | Reference data served from PostgreSQL through Express; student data stays local | Human |
+| M5a | DEC-019 | Publication gated on verification by database CHECK constraint, not application code | Engineering |
+| M5a | ED-27…ED-30 | Server engineering decisions in Part B | Engineering |

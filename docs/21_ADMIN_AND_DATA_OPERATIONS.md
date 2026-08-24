@@ -92,6 +92,27 @@ Subjects, syllabus modules, schemes and rule sets are managed here.
 
 The preview step is what catches the realistic error: an operator adjusting a grade band without realising it shifts every borderline student's grade.
 
+### 21.7.1 As built in M5a
+
+**No admin UI exists.** Reference data is managed by two committed, reviewed
+scripts, both idempotent and both runnable from the repository:
+
+```bash
+pnpm --filter @gradtools/api migrate   # forward-only numbered SQL
+pnpm --filter @gradtools/api seed      # deterministic reference seed
+```
+
+The two guards above that do not depend on a UI are already **enforced by the
+database**, so they hold no matter what tool writes the row: `active` cannot be
+set on an unverified rule set, and `source_url` is `NOT NULL` with an `http(s)`
+format check. Publication carries the same gate — an unverified row cannot be
+published at all.
+
+The guards that do need a UI — new-version-never-in-place, preview before
+activation — are **not implemented**, and are not needed while the only writer is
+a reviewed seed script under version control. They become required the moment a
+human can edit a rule set at runtime.
+
 ## 21.8 System health
 
 | Panel | Content |

@@ -14,6 +14,8 @@ export default defineConfig({
       // Web app: component tests need a DOM. Its config lives in the package
       // because the React plugin and jsdom are that package's dependencies.
       './apps/web/vitest.config.ts',
+      // API: integration tests against a real PostgreSQL instance.
+      './services/api/vitest.config.ts',
     ],
     coverage: {
       provider: 'v8',

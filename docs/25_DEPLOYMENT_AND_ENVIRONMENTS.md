@@ -158,6 +158,21 @@ Deploy sequence:
 - Index creation uses `CONCURRENTLY`.
 - Any migration touching a large table documents its locking behaviour before merge.
 
+### 25.6.1 As built in M5a
+
+The runner exists (`services/api/src/db/migrate.ts`) and implements the parts of
+the sequence that apply without a deployment target: it is forward-only, applies
+each file inside a transaction, records applied files in `schema_migrations`, and
+is a separate step from starting the application.
+
+**Nothing has been deployed.** Steps 1, 3–6 of the sequence above are `NOT RUN`;
+there is no image, no environment and no pipeline yet. The runner is exercised
+locally and by the integration suite from a clean database.
+
+`CONCURRENTLY` is not used in `0001` because it creates the initial schema, where
+every table is empty and no lock is contended. It becomes mandatory from the
+first migration that touches a populated table.
+
 ## 25.7 Deployment pipeline
 
 ```

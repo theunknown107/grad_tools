@@ -119,6 +119,29 @@ The interfaces are **async** even though Stage 1 never makes a network call. A s
 
 **Repositories persist and retrieve. They never calculate.** Every academic value comes from `@gradtools/academic-rules` at the point of display, so local and future server modes cannot drift apart.
 
+#### As built in M5a — the boundary splits by data ownership
+
+M5a proves the second row of the diagram above, but only for **reference data**.
+The split is the point, not an accident of implementation order:
+
+```
+Reference data (public)   React -> ReferenceRepository -> fetch -> Express -> PostgreSQL
+Student data   (private)  React -> RepositoryBundle    -> IndexedDB, and nowhere else
+```
+
+`apps/web/src/repositories/reference.ts` makes real `fetch` calls to Express —
+nothing is faked and no latency is simulated — and parses every response through
+the shared Zod contract, so a server that drifts from the contract fails at the
+boundary with a clear error rather than rendering something wrong further down.
+Two web tests assert the other half: recording attendance and editing the profile
+send **nothing** to the server.
+
+The one deviation from the diagram: reference reads do not go through
+`RepositoryBundle`. Reference data is not student storage, has no local
+implementation to swap to, and its failure modes (network, server, contract) are
+ones the student-data path cannot have. Folding it into the bundle would make one
+interface answer to two different sets of rules.
+
 ### The rules-engine boundary
 
 `packages/academic-rules` is pure and shared. This produces the central architectural property of GradTools:
@@ -238,6 +261,14 @@ Steps 6, 9 and 10 are the ones that are commonly skipped and each corresponds to
 | In-process LRU | Source registry, scheme rule sets, subject tables | 5 min | Admin write |
 | Client (TanStack Query) | API reads | 60 s stale time | Mutation invalidation |
 | Client (IndexedDB) | Profile, attendance, results | Indefinite | User action |
+
+**As built in M5a:** the HTTP row for subjects and syllabus is implemented exactly
+as specified (`public, max-age=300, stale-while-revalidate=3600`). The in-process
+LRU is **not implemented** — measured query time is 0.075 ms (`23` §23.3.1), so a
+cache would add invalidation bugs to solve nothing, which §23.10 explicitly
+rejects. TanStack Query is **not used**; the reference hooks are a ~60-line
+`useAsync` with `AbortController` cancellation and retry, and no library was
+warranted for six read-only queries with no mutations to invalidate.
 
 **Result-day spike strategy (`23`):** absorbed by CDN and stale-while-revalidate on the announcements endpoint, never by increasing the polling rate against the external source. Under load the source polling interval is *lengthened*, not shortened.
 

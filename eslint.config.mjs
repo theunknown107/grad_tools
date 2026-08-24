@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -102,6 +103,22 @@ export default tseslint.config(
           message: 'academic-rules must not read the clock (16 §16.2).',
         },
       ],
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // React components and hooks.
+  //
+  // rules-of-hooks and exhaustive-deps catch the two React bugs that survive
+  // TypeScript: a conditional hook call, and a stale closure over props. Neither
+  // is visible to the type system, so lint is the only guard.
+  // ---------------------------------------------------------------------------
+  {
+    files: ['apps/web/src/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
     },
   },
 

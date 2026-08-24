@@ -55,6 +55,52 @@ Persona A opens GradTools on a mid-range Android phone on patchy 4G, between cla
 
 Module priority is precomputed by a background job (`18` §11), never on request. Upload returns as soon as the file is stored; processing is asynchronous.
 
+### 23.3.1 Measured in M5a — reference endpoints
+
+Observed, not projected. Local Chromium-free measurement: Express on Node against
+PostgreSQL 18 on loopback, 10 sequential requests per endpoint after one warm-up,
+median reported. A loopback measurement excludes network latency and TLS, so
+treat these as a **floor**, not a production forecast.
+
+| Endpoint | Response bytes | p50 | slowest of 10 |
+|---|---|---|---|
+| `GET /health` | 15 | 2.3 ms | 23.4 ms |
+| `GET /health/ready` | 45 | 2.6 ms | 3.1 ms |
+| `GET /api/v1/universities` | 88 | 2.6 ms | 3.3 ms |
+| `GET /api/v1/schemes` | 435 | 2.8 ms | 3.1 ms |
+| `GET /api/v1/schemes/vtu-2022/rules` | 718 | 2.7 ms | 3.0 ms |
+| `GET /api/v1/branches` | 98 | 3.3 ms | 4.3 ms |
+| `GET /api/v1/colleges` | 11 | 3.6 ms | 4.7 ms |
+| `GET /api/v1/subjects?scheme&branch&semester` | 5 049 | 4.3 ms | 108.9 ms |
+| `GET /api/v1/subjects/BMATS101` | 501 | 3.4 ms | 5.1 ms |
+| `GET /api/v1/subjects/BMATS101/syllabus` | 11 | 4.0 ms | 28.7 ms |
+
+Database time for the heaviest query (10 subjects, filtered and sorted), from
+`EXPLAIN (ANALYZE, BUFFERS)`:
+
+```
+Index Scan using subjects_scheme_id_branch_id_code_key on subjects
+Planning Time: 6.821 ms
+Execution Time: 0.075 ms
+```
+
+Three things this measurement settles:
+
+1. **The query is an index scan, not a sequential scan**, which is what §23.4
+   says the tests should target. Execution is 0.075 ms — the request time is
+   almost entirely Node and serialisation, not the database.
+2. **Nothing here needs pagination.** The largest response is 5 KB.
+3. **Nothing here needs Redis.** Every endpoint is already an order of magnitude
+   inside the §23.3 budget, and reference data is served with
+   `Cache-Control: public, max-age=300, stale-while-revalidate=3600`, so repeat
+   loads do not reach the origin at all. §23.10 rejects caching before
+   measuring; this is the measurement, and it says no.
+
+The occasional double-digit outlier is Node GC and connection scheduling on a
+laptop, not query cost — the p50 and the 0.075 ms execution time are the honest
+numbers. These figures are from a **single machine with 22 rows total**; they
+say the architecture is not pathological, and nothing about scale.
+
 ## 23.4 Database
 
 | Practice | Detail |
