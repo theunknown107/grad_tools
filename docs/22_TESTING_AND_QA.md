@@ -45,9 +45,9 @@ of them needs a database:
 |---|---|---|---|
 | `packages` | node | 337 | — |
 | `web` | jsdom | 41 | — |
-| `api` | node | 45 | real PostgreSQL |
+| `api` | node | 46 | real PostgreSQL |
 
-Total: **423 tests, all passing.**
+Total: **424 tests, all passing.**
 
 `Docker in Docker` was not available on the development machine, so the API
 suite runs against a **disposable local PostgreSQL 18 cluster** on port 55432
