@@ -1,0 +1,163 @@
+/** Timetable. Authority: docs/27 §27.9 (desktop grid, mobile agenda) */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.addGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .addGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .addGrid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.addActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4);
+  align-items: flex-start;
+}
+
+.addError {
+  width: 100%;
+}
+
+/* --- Week grid (desktop only) ---------------------------------------------- */
+.weekGrid {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .weekGrid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--space-3);
+    align-items: start;
+  }
+}
+
+.dayColumn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.dayHeading {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.dayEmpty {
+  padding: var(--space-4) var(--space-3);
+  font-size: var(--text-caption);
+  color: var(--text-subtle);
+}
+
+/* --- Agenda (mobile only) -------------------------------------------------- */
+.agenda {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+@media (min-width: 900px) {
+  .agenda {
+    display: none;
+  }
+}
+
+.agendaNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.agendaTitle {
+  font-size: var(--text-h3);
+  line-height: var(--text-h3-lh);
+}
+
+/* Reuses the chevron rather than shipping a second icon for one direction. */
+.flip {
+  transform: rotate(180deg);
+}
+
+/* --- Slots ----------------------------------------------------------------- */
+.slotList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.slot:last-child {
+  border-bottom: none;
+}
+
+.slotTime {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  flex: 0 0 auto;
+  min-width: 68px;
+}
+
+.slotTimeEnd {
+  color: var(--text-subtle);
+}
+
+.slotBody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.slotSubject {
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.slotMeta {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}

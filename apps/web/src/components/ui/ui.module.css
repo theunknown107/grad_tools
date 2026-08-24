@@ -1,0 +1,413 @@
+/**
+ * Shared UI primitives.
+ * Authority: docs/05 §5.7. Every value is a token.
+ */
+
+/* --- Panel: the neutral container. Not a "stat card". ---------------------- */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.panelTitle {
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.panelBody {
+  padding: var(--space-4);
+}
+
+.panelBodyFlush {
+  padding: 0;
+}
+
+/* --- Button ---------------------------------------------------------------- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-fast) var(--ease-enter),
+    border-color var(--motion-fast) var(--ease-enter),
+    color var(--motion-fast) var(--ease-enter);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.secondary {
+  background: var(--surface-raised);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.secondary:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--text-subtle);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0 var(--space-3);
+}
+.ghost:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: transparent;
+}
+.danger:hover:not(:disabled) {
+  background: var(--danger-weak);
+}
+
+/* Icon-only buttons still meet the 44px touch target. */
+.iconButton {
+  padding: 0;
+  width: var(--touch-target-min);
+  flex: 0 0 auto;
+}
+
+.linkButton {
+  text-decoration: none;
+}
+
+/*
+ * The compact variant stays at the 44px touch minimum on touch-sized
+ * viewports and only shrinks where a pointer is the likely input
+ * (docs/27 §27.8). Caught by the touch-target sweep in tests/visual-qa.mjs.
+ */
+.small {
+  min-height: var(--touch-target-min);
+  font-size: var(--text-caption);
+}
+
+@media (min-width: 1024px) {
+  .small {
+    min-height: 36px;
+  }
+}
+
+/* --- Field ----------------------------------------------------------------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.hint {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-subtle);
+}
+
+.error {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--danger);
+}
+
+.input,
+.select {
+  min-height: var(--touch-target-min);
+  width: 100%;
+  padding: 0 var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--text-body);
+  transition: border-color var(--motion-fast) var(--ease-enter);
+}
+
+.input:hover:not(:disabled),
+.select:hover:not(:disabled) {
+  border-color: var(--text-subtle);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.select {
+  cursor: pointer;
+  appearance: none;
+  padding-right: var(--space-7);
+  /* Chevron drawn with a token colour rather than an image asset. */
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentcolor 50%),
+    linear-gradient(135deg, currentcolor 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% + 2px),
+    calc(100% - 13px) calc(50% + 2px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* --- Status pill ----------------------------------------------------------- */
+/* Colour is never the only signal: every pill carries an icon and a label. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.pillSuccess {
+  background: var(--success-weak);
+  color: var(--success);
+}
+.pillWarning {
+  background: var(--warning-weak);
+  color: var(--warning);
+}
+.pillDanger {
+  background: var(--danger-weak);
+  color: var(--danger);
+}
+.pillNeutral {
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.pillAccent {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+
+/* --- Empty state ----------------------------------------------------------- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  color: var(--text-muted);
+}
+
+.emptyText {
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  max-width: 52ch;
+}
+
+/* --- Table ----------------------------------------------------------------- */
+/* Wide tables scroll inside this container; the page body never scrolls. */
+.tableScroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th {
+  text-align: left;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.numeric {
+  text-align: right;
+}
+
+/* --- Explanation disclosure ------------------------------------------------ */
+.explain {
+  border-top: 1px solid var(--border);
+}
+
+.explainSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-4);
+  cursor: pointer;
+  font-size: var(--text-small);
+  color: var(--accent);
+  list-style: none;
+  user-select: none;
+}
+
+.explainSummary::-webkit-details-marker {
+  display: none;
+}
+
+.explainSummary:hover {
+  background: var(--surface);
+}
+
+.explainBody {
+  padding: 0 var(--space-4) var(--space-4);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  color: var(--text-muted);
+}
+
+.formula {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.stepList {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-3) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.step {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-variant-numeric: tabular-nums;
+  padding: var(--space-1) 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.provenance {
+  margin-top: var(--space-3);
+  font-size: var(--text-caption);
+  color: var(--text-subtle);
+}
+
+/* --- Meter ----------------------------------------------------------------- */
+.meter {
+  position: relative;
+  height: 8px;
+  background: var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--motion-base) var(--ease-enter);
+}
+
+.meterThreshold {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text);
+  opacity: 0.65;
+}
+
+/* --- Inline notice --------------------------------------------------------- */
+.notice {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  border: 1px solid;
+}
+
+.noticeWarning {
+  background: var(--warning-weak);
+  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+  color: var(--text);
+}
+
+.noticeDanger {
+  background: var(--danger-weak);
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  color: var(--text);
+}
+
+.noticeInfo {
+  background: var(--accent-weak);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--text);
+}
+
+.noticeIcon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}

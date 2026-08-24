@@ -1,0 +1,150 @@
+/**
+ * Academics screens.
+ * Authority: docs/05 §5.12 (academic number display)
+ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.panelNotice {
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.noticeAction {
+  margin-top: var(--space-2);
+}
+
+/* Column headers are shown only where the grid actually has columns
+   (>=768px). On phones each row becomes a labelled stack instead. */
+.rowsHeader,
+.semesterHeader {
+  display: none;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row,
+.semesterRow {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  grid-template-columns: 1fr auto;
+  align-items: end;
+}
+
+/*
+ * The semester row carries a select plus two numeric fields. Pairing them two
+ * per line squeezes the select to a bare chevron at 320px (found in visual QA),
+ * so it stacks until the full four-column layout takes over at 768px.
+ */
+.semesterRow {
+  grid-template-columns: 1fr;
+}
+
+.semesterRow > button {
+  justify-self: end;
+}
+
+.row > :global(.remove),
+.semesterRow > :global(.remove) {
+  align-self: end;
+}
+
+@media (min-width: 768px) {
+  .rowsHeader,
+  .semesterHeader {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.4fr var(--touch-target-min);
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--text-caption);
+    font-weight: var(--weight-semibold);
+    color: var(--text-muted);
+  }
+
+  .row,
+  .semesterRow {
+    grid-template-columns: 2fr 1fr 1.4fr var(--touch-target-min);
+    align-items: end;
+  }
+
+  /* With a visible header row the per-field labels are redundant noise. */
+  .row label,
+  .semesterRow label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+/* --- The answer ------------------------------------------------------------ */
+/* Value first, qualifier beneath, derivation one tap away (docs/05 §5.12). */
+.answer {
+  padding: var(--space-5) var(--space-4);
+}
+
+.answerValue {
+  font-size: var(--text-display);
+  line-height: var(--text-display-lh);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.answerPlaceholder {
+  font-size: var(--text-display);
+  line-height: var(--text-display-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--text-subtle);
+}
+
+.answerCaption {
+  margin-top: var(--space-1);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  color: var(--text-muted);
+}
+
+.derived {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.derivedItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-h3);
+  line-height: var(--text-h3-lh);
+  font-variant-numeric: tabular-nums;
+  align-items: flex-start;
+}
+
+.derivedLabel {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+  font-weight: var(--weight-regular);
+}
+
+.percentageNote {
+  padding: 0 var(--space-4) var(--space-4);
+}

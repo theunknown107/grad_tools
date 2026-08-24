@@ -1,0 +1,46 @@
+/** Profile screen. */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--reading-max);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.savedNote {
+  font-size: var(--text-caption);
+  color: var(--success);
+}
+
+.prose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  color: var(--text-muted);
+  max-width: 68ch;
+}
+
+.muted {
+  color: var(--text-subtle);
+}

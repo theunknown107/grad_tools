@@ -1,0 +1,140 @@
+/**
+ * Global base styles.
+ *
+ * Authority: docs/05 §5.3-§5.9, docs/27 (accessibility)
+ * Everything here references tokens.css. No raw values.
+ */
+
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body-lh);
+  font-weight: var(--weight-regular);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Wide content scrolls inside its own container; the page body never does. */
+body {
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--text-h1);
+  line-height: var(--text-h1-lh);
+}
+h2 {
+  font-size: var(--text-h2);
+  line-height: var(--text-h2-lh);
+}
+h3 {
+  font-size: var(--text-h3);
+  line-height: var(--text-h3-lh);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Digits must align vertically in every table and calculator (docs/05 §5.3). */
+input[type='number'],
+input[inputmode='numeric'],
+table,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Native number spinners add width and invite mis-clicks on a marks field. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+/*
+ * Focus is restyled, never suppressed (docs/27 §27.4).
+ * :focus-visible keeps the ring off mouse clicks but always on for keyboard.
+ */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: var(--accent-weak);
+  color: var(--text);
+}
+
+/* Screen-reader-only, but focusable when it needs to be (skip link). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * Reduced motion removes movement but never the state change itself
+ * (docs/05 §5.9). A panel that expands instantly is correct; one that fails
+ * to expand is broken.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

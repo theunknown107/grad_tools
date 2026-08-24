@@ -1,0 +1,82 @@
+/** Results screen. Authority: docs/05, M3 continuation §19 */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.editorMeta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 640px) {
+  .editorMeta {
+    grid-template-columns: 1fr 1.6fr;
+  }
+}
+
+.subjectRows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.subjectRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  align-items: end;
+}
+
+@media (min-width: 720px) {
+  .subjectRow {
+    grid-template-columns: 2fr 1fr 1fr var(--touch-target-min);
+  }
+}
+
+.editorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+/* --- Saved result ---------------------------------------------------------- */
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summaryLabel {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+}
+
+.summaryValue {
+  font-size: var(--text-h2);
+  line-height: var(--text-h2-lh);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.discrepancy {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}

@@ -1,0 +1,257 @@
+/**
+ * App shell layout.
+ * Authority: docs/04 §4.3 (navigation), docs/27 §27.9 (responsive)
+ *
+ * Mobile: bottom tab bar, 5 destinations, thumb-reachable.
+ * Desktop (>=1024px): persistent left sidebar with grouped sections.
+ */
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.skipLink {
+  position: absolute;
+  left: var(--space-2);
+  top: -100px;
+  z-index: var(--z-toast);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-small);
+  transition: top var(--motion-fast) var(--ease-enter);
+}
+
+.skipLink:focus {
+  top: var(--space-2);
+}
+
+/* --- Top bar (mobile) ------------------------------------------------------ */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  height: var(--header-height);
+  padding: 0 var(--gutter);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  /* Meets the 44px touch minimum without changing the visual mark size. */
+  min-height: var(--touch-target-min);
+  gap: var(--space-2);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: var(--weight-semibold);
+}
+
+.semesterBadge {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Body ------------------------------------------------------------------ */
+.body {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.sidebar {
+  display: none;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-5) var(--gutter);
+  /* Clears the fixed bottom nav so content is never hidden behind it. */
+  padding-bottom: calc(var(--bottom-nav-height) + var(--space-6));
+  max-width: var(--content-max);
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* --- Bottom nav (mobile) --------------------------------------------------- */
+.bottomNav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-nav);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  height: var(--bottom-nav-height);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bottomLink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--touch-target-min);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 11px;
+  line-height: 14px;
+  transition: color var(--motion-fast) var(--ease-enter);
+}
+
+.bottomLink:hover {
+  color: var(--text);
+}
+
+.bottomLinkActive {
+  color: var(--accent);
+  font-weight: var(--weight-medium);
+}
+
+/* --- Desktop --------------------------------------------------------------- */
+@media (min-width: 1024px) {
+  .topbar {
+    display: none;
+  }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    width: var(--sidebar-width);
+    flex: 0 0 var(--sidebar-width);
+    padding: var(--space-5) var(--space-4);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    overflow-y: auto;
+  }
+
+  .navGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .navGroupLabel {
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    padding: var(--space-2) var(--space-3) var(--space-1);
+  }
+
+  .navLink {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 34px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: var(--text-small);
+    transition:
+      background-color var(--motion-fast) var(--ease-enter),
+      color var(--motion-fast) var(--ease-enter);
+  }
+
+  .navLink:hover {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .navLinkActive {
+    background: var(--accent-weak);
+    color: var(--accent);
+    font-weight: var(--weight-medium);
+  }
+
+  .sidebarFooter {
+    margin-top: auto;
+    font-size: var(--text-caption);
+    line-height: var(--text-caption-lh);
+    color: var(--text-subtle);
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-3);
+  }
+
+  .bottomNav {
+    display: none;
+  }
+
+  .main {
+    padding: var(--space-7) var(--space-7);
+    padding-bottom: var(--space-9);
+  }
+}
+
+/* --- Page header ----------------------------------------------------------- */
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.pageTitle {
+  font-size: var(--text-h1);
+  line-height: var(--text-h1-lh);
+}
+
+.pageSubtitle {
+  margin-top: var(--space-1);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  color: var(--text-muted);
+  max-width: 68ch;
+}
+
+/* --- Disclaimer ------------------------------------------------------------ */
+.disclaimer {
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-subtle);
+  max-width: 68ch;
+}
