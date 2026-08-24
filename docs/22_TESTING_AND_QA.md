@@ -43,11 +43,11 @@ of them needs a database:
 
 | Project | Environment | Tests | Requires |
 |---|---|---|---|
-| `packages` | node | 337 | — |
+| `packages` | node | 404 | — |
 | `web` | jsdom | 41 | — |
 | `api` | node | 46 | real PostgreSQL |
 
-Total: **424 tests, all passing.**
+Total: **491 tests, all passing.**
 
 `Docker in Docker` was not available on the development machine, so the API
 suite runs against a **disposable local PostgreSQL 18 cluster** on port 55432
@@ -127,7 +127,19 @@ P-8 verifies the registry actually works. Without it, P-1–P-4 could all pass o
 Identical inputs run through the client and server paths must produce identical output. A mismatch is a Sev-2 defect (`07` §7.3).
 
 ### Real-grade-card tests
-Reported SGPA on real grade cards compared against ours. **The only test that validates our reading of the regulation against VTU's actual practice** — and therefore the most valuable one in the project. Required before Alpha; blocked on obtaining grade cards with consent.
+Reported SGPA on real grade cards compared against ours. **The only test that validates our reading of the regulation against VTU's actual practice** — and therefore the most valuable one in the project. Required before Alpha.
+
+**Partially satisfied in M4** (`32/OQ-024`). One real artifact — a semester-4
+provisional result, [exam session withheld], 9 courses — is validated by
+`packages/academic-rules/test/real-grade-card.test.ts`. It confirms the mark
+structure, the passing thresholds, a no-SEE course, and the scale of the printed
+external column.
+
+**It does not satisfy the sentence above.** A provisional result prints no SGPA,
+no CGPA, no credits and no letter grades, so the SGPA comparison this section
+actually describes has still never been run. The fixture asserts the absence of
+those columns, so the gap cannot be quietly forgotten. Closing it needs a
+consolidated marks card.
 
 ## 22.4 Authorization testing
 
