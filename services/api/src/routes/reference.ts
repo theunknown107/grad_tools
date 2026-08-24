@@ -11,7 +11,13 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import { API_ROUTES, referenceIdSchema, subjectQuerySchema } from '@gradtools/shared-types';
+import {
+  API_ROUTES,
+  referenceIdSchema,
+  ruleSetQuerySchema,
+  subjectIdSchema,
+  subjectQuerySchema,
+} from '@gradtools/shared-types';
 import type { Sql } from '../db/client.js';
 import * as queries from '../db/queries.js';
 import { notFound } from '../http/errors.js';
@@ -62,7 +68,10 @@ export function createReferenceRouter(sql: Sql): Router {
    */
   router.get('/api/v1/schemes/:id/rules', async (req: Request, res: Response) => {
     const id = referenceIdSchema.parse(req.params.id);
-    const ruleSet = await queries.findActiveRuleSetForScheme(sql, id);
+    // Optional `?college=` selects a college-specific rule set where one is
+    // active, falling back to the scheme-wide set (M4.1 §3).
+    const { college } = ruleSetQuerySchema.parse(req.query);
+    const ruleSet = await queries.findActiveRuleSetForScheme(sql, id, college);
     if (!ruleSet) throw notFound(`No active published rule set for scheme "${id}".`);
     res.setHeader('Cache-Control', REFERENCE_CACHE);
     res.json(ruleSet);
@@ -81,10 +90,18 @@ export function createReferenceRouter(sql: Sql): Router {
     sendList(res, await queries.listSubjects(sql, query));
   });
 
-  router.get('/api/v1/subjects/:code', async (req: Request, res: Response) => {
-    const code = referenceIdSchema.parse(req.params.code);
-    const subject = await queries.findSubjectByCode(sql, code);
-    if (!subject) throw notFound(`No published subject with code "${code}".`);
+  /**
+   * A subject by its UUID.
+   *
+   * Addressed by id rather than by code because `(scheme_id, branch_id, code)`
+   * is what is unique — the same code recurs across branches and schemes, so a
+   * code-addressed route had to pick one arbitrarily (M4.1 §2). A caller who
+   * has a code filters the collection instead.
+   */
+  router.get('/api/v1/subjects/:id', async (req: Request, res: Response) => {
+    const id = subjectIdSchema.parse(req.params.id);
+    const subject = await queries.findSubjectById(sql, id);
+    if (!subject) throw notFound(`No published subject with id "${id}".`);
     res.setHeader('Cache-Control', REFERENCE_CACHE);
     res.json(subject);
   });
@@ -98,11 +115,11 @@ export function createReferenceRouter(sql: Sql): Router {
    * because the second is a data-completeness state the UI should say out loud
    * rather than presenting as a missing page.
    */
-  router.get('/api/v1/subjects/:code/syllabus', async (req: Request, res: Response) => {
-    const code = referenceIdSchema.parse(req.params.code);
-    const subject = await queries.findSubjectByCode(sql, code);
-    if (!subject) throw notFound(`No published subject with code "${code}".`);
-    sendList(res, await queries.listSyllabusModules(sql, code));
+  router.get('/api/v1/subjects/:id/syllabus', async (req: Request, res: Response) => {
+    const id = subjectIdSchema.parse(req.params.id);
+    const subject = await queries.findSubjectById(sql, id);
+    if (!subject) throw notFound(`No published subject with id "${id}".`);
+    sendList(res, await queries.listSyllabusModules(sql, id));
   });
 
   return router;

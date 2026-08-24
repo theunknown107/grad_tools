@@ -39,8 +39,10 @@ export interface ReferenceRepository {
   listSchemes(signal?: AbortSignal): Promise<Scheme[]>;
   listBranches(signal?: AbortSignal): Promise<Branch[]>;
   listSubjects(query: SubjectQuery, signal?: AbortSignal): Promise<Subject[]>;
-  getSchemeRules(schemeId: string, signal?: AbortSignal): Promise<RuleSetMeta>;
-  listSyllabus(subjectCode: string, signal?: AbortSignal): Promise<SyllabusModule[]>;
+  /** `collegeId` selects a college-specific rule set, falling back to scheme-wide. */
+  getSchemeRules(schemeId: string, collegeId?: string, signal?: AbortSignal): Promise<RuleSetMeta>;
+  /** By subject **id**, not code: a code does not identify one subject (M4.1 §2). */
+  listSyllabus(subjectId: string, signal?: AbortSignal): Promise<SyllabusModule[]>;
 }
 
 /**
@@ -145,13 +147,13 @@ export const apiReferenceRepository: ReferenceRepository = {
       .data;
   },
 
-  async getSchemeRules(schemeId, signal) {
-    const body = await fetchJson(API_ROUTES.schemeRules(schemeId), signal);
+  async getSchemeRules(schemeId, collegeId, signal) {
+    const body = await fetchJson(API_ROUTES.schemeRules(schemeId, collegeId), signal);
     return parseOrThrow<RuleSetMeta>(ruleSetMetaSchema, body, 'rule set');
   },
 
-  async listSyllabus(subjectCode, signal) {
-    const body = await fetchJson(API_ROUTES.subjectSyllabus(subjectCode), signal);
+  async listSyllabus(subjectId, signal) {
+    const body = await fetchJson(API_ROUTES.subjectSyllabus(subjectId), signal);
     return parseOrThrow<{ data: SyllabusModule[] }>(
       listResponseSchema(syllabusModuleSchema),
       body,

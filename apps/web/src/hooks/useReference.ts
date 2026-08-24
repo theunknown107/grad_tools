@@ -107,12 +107,12 @@ export function useSubjects(scheme?: string, branch?: string, semester?: number)
  * the client; this exists so the UI can show which thresholds and clause
  * citations are in force without hard-coding them (M5a §9).
  */
-export function useSchemeRules(schemeId: string | null) {
+export function useSchemeRules(schemeId: string | null, collegeId?: string) {
   return useAsync(
     (signal) =>
       schemeId === null
         ? Promise.resolve(null)
-        : apiReferenceRepository.getSchemeRules(schemeId, signal),
-    [schemeId],
+        : apiReferenceRepository.getSchemeRules(schemeId, collegeId, signal),
+    [schemeId, collegeId],
   );
 }

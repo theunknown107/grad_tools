@@ -128,7 +128,7 @@ export async function listColleges(sql: Sql): Promise<College[]> {
       is_autonomous AS "isAutonomous",
       city
     FROM colleges
-    WHERE active
+    WHERE publication = 'published' AND active
     ORDER BY name
   `;
   return parseRows(collegeSchema, rows);
@@ -145,9 +145,25 @@ export async function listColleges(sql: Sql): Promise<College[]> {
  * value directly: it calls @gradtools/academic-rules, which owns every
  * calculation (M5a §9).
  */
+/*
+ * Precedence, stated explicitly rather than left to the planner (M4.1 §3):
+ *
+ *   1. the requested college's active rule set, if one exists
+ *   2. otherwise the scheme-wide active rule set
+ *   3. otherwise nothing
+ *
+ * The ORDER BY does the work: "college_id IS NULL" is false for a
+ * college-specific row, and false sorts before true, so the college's row wins.
+ *
+ * The previous query had no ORDER BY and took the first row the planner
+ * produced. That was not a rule, it was a coin toss that happened to look
+ * stable while exactly one rule set existed — and the schema deliberately
+ * allows a scheme-wide set and a college override to coexist.
+ */
 export async function findActiveRuleSetForScheme(
   sql: Sql,
   schemeId: string,
+  collegeId?: string,
 ): Promise<RuleSetMeta | null> {
   const rows = await sql`
     SELECT
@@ -181,7 +197,15 @@ export async function findActiveRuleSetForScheme(
         'verifiedBy',   verified_by
       ) AS provenance
     FROM rule_sets
-    WHERE publication = 'published' AND active AND scheme_id = ${schemeId}
+    WHERE publication = 'published'
+      AND active
+      AND scheme_id = ${schemeId}
+      AND (
+        college_id IS NULL
+        ${collegeId === undefined ? sql`` : sql`OR college_id::text = ${collegeId}`}
+      )
+    -- Precedence: college-specific first, then scheme-wide. See above.
+    ORDER BY (college_id IS NULL)
     LIMIT 1
   `;
   const parsed = parseRows(ruleSetMetaSchema, rows);
@@ -233,21 +257,25 @@ export async function listSubjects(sql: Sql, query: SubjectQuery): Promise<Subje
   return parseRows(subjectSchema, rows);
 }
 
-export async function findSubjectByCode(sql: Sql, code: string): Promise<Subject | null> {
+/**
+ * A subject by its UUID.
+ *
+ * Not by code: uniqueness is `(scheme_id, branch_id, code)`, so a code alone
+ * identifies a set, not a row. Looking up by code required `LIMIT 1`, which
+ * silently returned one of several matches once a second branch or scheme was
+ * seeded (M4.1 §2). Callers holding a code use `listSubjects` instead.
+ */
+export async function findSubjectById(sql: Sql, id: string): Promise<Subject | null> {
   const rows = await sql`
     SELECT ${SUBJECT_COLUMNS(sql)}
     FROM subjects
-    WHERE publication = 'published' AND upper(code) = upper(${code})
-    LIMIT 1
+    WHERE publication = 'published' AND id = ${id}::uuid
   `;
   const parsed = parseRows(subjectSchema, rows);
   return parsed[0] ?? null;
 }
 
-export async function listSyllabusModules(
-  sql: Sql,
-  subjectCode: string,
-): Promise<SyllabusModule[]> {
+export async function listSyllabusModules(sql: Sql, subjectId: string): Promise<SyllabusModule[]> {
   const rows = await sql`
     SELECT
       m.id::text,
@@ -266,7 +294,7 @@ export async function listSyllabusModules(
     JOIN subjects s ON s.id = m.subject_id
     WHERE m.publication = 'published'
       AND s.publication = 'published'
-      AND upper(s.code) = upper(${subjectCode})
+      AND s.id = ${subjectId}::uuid
     ORDER BY m.module_number
   `;
   return parseRows(syllabusModuleSchema, rows);
