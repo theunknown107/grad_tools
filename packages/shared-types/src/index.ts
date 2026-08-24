@@ -1,0 +1,256 @@
+/**
+ * @gradtools/shared-types
+ *
+ * Zod schemas that ARE the API contract.
+ *
+ * Authority: docs/10_API_SPECIFICATION.md §10.1.3
+ *
+ * Both the API and the web app import these. A change that breaks the contract
+ * fails to compile on both sides rather than failing silently at runtime, which
+ * is the entire reason the package exists (docs/06 §6.5).
+ *
+ * This package contains NO student data types. Student records are local-only
+ * in Stage 1 and never cross the network (docs/33 §33.3).
+ */
+
+import { z } from 'zod';
+
+/* -------------------------------------------------------------------------- */
+/* Provenance                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every reference record carries where it came from.
+ *
+ * Non-optional by design: a record without provenance is not publishable
+ * (docs/14 §14.10). The API cannot emit one because the schema forbids it.
+ */
+export const provenanceSchema = z.object({
+  sourceUrl: z.string().url(),
+  sourceClause: z.string().nullable(),
+  verifiedAt: z.string(),
+  verifiedBy: z.string().nullable(),
+});
+export type Provenance = z.infer<typeof provenanceSchema>;
+
+/**
+ * Publication lifecycle for reference data.
+ *
+ * Only `published` records reach the public API, and a record can only become
+ * `published` once it is verified (enforced by a database CHECK constraint,
+ * see docs/09 §9.4 and services/api/src/db/migrations).
+ */
+export const verificationStateSchema = z.enum(['draft', 'unverified', 'verified']);
+export type VerificationState = z.infer<typeof verificationStateSchema>;
+
+export const publicationStateSchema = z.enum(['unpublished', 'published']);
+export type PublicationState = z.infer<typeof publicationStateSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Reference entities                                                         */
+/* -------------------------------------------------------------------------- */
+
+export const universitySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  shortName: z.string(),
+});
+export type University = z.infer<typeof universitySchema>;
+
+export const schemeSchema = z.object({
+  id: z.string(),
+  universityId: z.string(),
+  code: z.string(),
+  regulationCode: z.string(),
+  name: z.string(),
+  effectiveFrom: z.string(),
+  effectiveTo: z.string().nullable(),
+  provenance: provenanceSchema,
+});
+export type Scheme = z.infer<typeof schemeSchema>;
+
+export const branchSchema = z.object({
+  id: z.string(),
+  universityId: z.string(),
+  code: z.string(),
+  name: z.string(),
+});
+export type Branch = z.infer<typeof branchSchema>;
+
+export const collegeSchema = z.object({
+  id: z.string(),
+  universityId: z.string(),
+  name: z.string(),
+  code: z.string().nullable(),
+  isAutonomous: z.boolean(),
+  city: z.string().nullable(),
+});
+export type College = z.infer<typeof collegeSchema>;
+
+export const subjectCategorySchema = z.enum([
+  'core',
+  'elective',
+  'lab',
+  'mandatory',
+  'non_credit',
+  'project',
+  'internship',
+]);
+export type SubjectCategory = z.infer<typeof subjectCategorySchema>;
+
+export const subjectSchema = z.object({
+  id: z.string(),
+  schemeId: z.string(),
+  branchId: z.string(),
+  semester: z.number().int().min(1).max(8),
+  code: z.string(),
+  title: z.string(),
+  credits: z.number(),
+  category: subjectCategorySchema,
+  cieMax: z.number(),
+  seeMax: z.number(),
+  hasSee: z.boolean(),
+  moduleCount: z.number().int(),
+  provenance: provenanceSchema,
+});
+export type Subject = z.infer<typeof subjectSchema>;
+
+export const syllabusModuleSchema = z.object({
+  id: z.string(),
+  subjectId: z.string(),
+  moduleNumber: z.number().int().min(1).max(10),
+  title: z.string(),
+  topics: z.array(z.string()),
+  hours: z.number().int().nullable(),
+  provenance: provenanceSchema,
+});
+export type SyllabusModule = z.infer<typeof syllabusModuleSchema>;
+
+/**
+ * Rule-set METADATA only.
+ *
+ * The database stores what the rules are; it does not implement them. Every
+ * calculation stays in @gradtools/academic-rules, and the client calls that
+ * package rather than asking the server to compute (docs/16, M5a §9).
+ *
+ * `formulaIds` are identifiers the rules engine resolves against its own
+ * registry. The API never returns an evaluated formula or a computed figure.
+ */
+export const ruleSetMetaSchema = z.object({
+  id: z.string(),
+  schemeId: z.string(),
+  collegeId: z.string().nullable(),
+  version: z.number().int(),
+  active: z.boolean(),
+  effectiveFrom: z.string(),
+  effectiveTo: z.string().nullable(),
+  formulaIds: z.object({
+    sgpa: z.string(),
+    cgpa: z.string(),
+    percentage: z.string(),
+  }),
+  thresholds: z.object({
+    cieMax: z.number(),
+    cieMinPct: z.number(),
+    seeMax: z.number(),
+    seeMinPct: z.number(),
+    courseMax: z.number(),
+    overallMinPct: z.number(),
+    attendanceRequiredPct: z.number(),
+    attendanceCondonablePct: z.number(),
+    attendanceDxFloorPct: z.number(),
+  }),
+  provenance: provenanceSchema,
+});
+export type RuleSetMeta = z.infer<typeof ruleSetMetaSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Envelopes                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/** Collection responses are wrapped so pagination can be added without a break. */
+export function listResponseSchema<T extends z.ZodTypeAny>(item: T) {
+  return z.object({ data: z.array(item) });
+}
+
+/**
+ * The error envelope from docs/10 §10.3.
+ *
+ * `message` is safe to display. Internal detail never appears here; it is
+ * logged against `reference` instead (docs/13 §T-16).
+ */
+export const errorCodeSchema = z.enum([
+  'VALIDATION_FAILED',
+  'NOT_FOUND',
+  'RATE_LIMITED',
+  'INTERNAL_ERROR',
+  'DEPENDENCY_UNAVAILABLE',
+  'PAYLOAD_TOO_LARGE',
+]);
+export type ErrorCode = z.infer<typeof errorCodeSchema>;
+
+export const errorResponseSchema = z.object({
+  error: z.object({
+    code: errorCodeSchema,
+    message: z.string(),
+    details: z.array(z.object({ field: z.string(), issue: z.string() })).optional(),
+    reference: z.string(),
+  }),
+});
+export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Health                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Liveness. Deliberately performs no dependency checks: a liveness probe that
+ * fails when a non-essential dependency is down makes the platform restart a
+ * working container (docs/10 §10.11).
+ */
+export const healthResponseSchema = z.object({ status: z.literal('ok') });
+export type HealthResponse = z.infer<typeof healthResponseSchema>;
+
+/** Readiness. Reports dependency reachability, and nothing more. */
+export const readinessResponseSchema = z.object({
+  status: z.enum(['ready', 'degraded']),
+  checks: z.object({ database: z.enum(['up', 'down']) }),
+});
+export type ReadinessResponse = z.infer<typeof readinessResponseSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Request parameter schemas                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Reference identifiers are slugs (`vtu`, `vtu-2022`, `cse`) or UUIDs.
+ * Constrained so a malformed identifier is rejected at the edge rather than
+ * reaching the data layer (docs/13 §T-09).
+ */
+export const referenceIdSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z0-9][a-z0-9-]*$/i, 'Identifier must be alphanumeric with hyphens.');
+
+export const subjectQuerySchema = z.object({
+  scheme: referenceIdSchema.optional(),
+  branch: referenceIdSchema.optional(),
+  semester: z.coerce.number().int().min(1).max(8).optional(),
+});
+export type SubjectQuery = z.infer<typeof subjectQuerySchema>;
+
+/** Route paths, exported so the client cannot drift from the server. */
+export const API_ROUTES = {
+  health: '/health',
+  ready: '/health/ready',
+  universities: '/api/v1/universities',
+  schemes: '/api/v1/schemes',
+  scheme: (id: string) => `/api/v1/schemes/${id}`,
+  schemeRules: (id: string) => `/api/v1/schemes/${id}/rules`,
+  branches: '/api/v1/branches',
+  colleges: '/api/v1/colleges',
+  subjects: '/api/v1/subjects',
+  subject: (code: string) => `/api/v1/subjects/${code}`,
+  subjectSyllabus: (code: string) => `/api/v1/subjects/${code}/syllabus`,
+} as const;
