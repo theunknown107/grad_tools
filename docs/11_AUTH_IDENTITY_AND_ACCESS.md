@@ -205,6 +205,49 @@ The last row is a hard product boundary. GradTools does not ask for, accept, sto
 
 Expired login tokens are purged nightly after 24 h; expired sessions after 30 days (`09` §9.12).
 
+## 11.10a Identity provider: Supabase Auth (approved direction, not implemented)
+
+**Human decision `DEC-014` (M3).** When authentication is enabled, **Supabase Auth is the identity provider**. It is not the application layer.
+
+```
+Supabase Auth  ->  auth_user_id  ->  student_profile.id  ->  academic records
+```
+
+| Layer | Owner | Rationale |
+|---|---|---|
+| Identity | Supabase Auth | Google, Apple and email providers without building an OAuth stack |
+| Application API | **Express** | Remains authoritative. Business logic does not move into Edge Functions because they exist |
+| Data store | **PostgreSQL** | Remains authoritative and relational |
+| Domain calculations | **`@gradtools/academic-rules`** | Unchanged. No identity concern reaches the rules engine |
+
+**Binding constraints:**
+
+1. **The domain layer never imports a Supabase SDK.** `packages/academic-rules` has zero dependencies by lint rule and by test; `apps/web/src/domain` imports nothing but its own types. Verified by `packages/academic-rules/test/purity.test.ts`.
+2. **Supabase's user row is not the academic profile.** They are 1:1 but distinct entities (`08` §Student). This is what later permits account deletion, provider switching, provider linking and email changes without touching a single academic record.
+3. **`auth_user_id` is the only identity key.** Never USN, email, name or college. Those are attributes with their own lifecycles: a USN correction or an email change must be an ordinary profile edit, not a re-keying migration.
+
+This supersedes §11.2's line that university SSO "does not exist to us" only in the narrow sense that a provider is now *chosen*; no integration exists, none is built, and no claim of one may be made.
+
+### What M3 implemented
+
+`apps/web/src/domain/identity.ts` — types only, no runtime behaviour:
+
+- `AuthUserId` and `StudentProfileId` as branded, non-interchangeable types
+- `AuthUser` (future shape; **no date of birth**, and none may be added — `DEC-008`)
+- `ProfileOwnership`, modelling the local-to-account transition
+
+`StudentProfile.authUserId` exists and is **always `null` in Stage 1**. Claiming a local profile for an account is later a field update, not a migration, because every academic record already points at `StudentProfileId`.
+
+### Onboarding order when auth arrives (`DEC-015`)
+
+```
+Welcome  ->  Sign in / Register  ->  identity established  ->  academic profile  ->  Dashboard
+```
+
+**Not** profile-then-auth. Collecting academic metadata before an identity exists creates duplicate profiles, complicates recovery, and asks for data before the student has any reason to trust the product with it.
+
+Stage 1 is the "try it without an account" branch of that same flow, which is why the profile is local, optional and skippable.
+
 ## 11.11 Future: institutional identity
 
 If a college pilot proceeds, an obvious request will be college-verified accounts. Recording the position now so it is not improvised later:

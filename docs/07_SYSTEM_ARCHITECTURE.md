@@ -104,6 +104,21 @@ Every provider produces the same normalized shape and records its `authority` (`
 
 **The interface is not permission to scrape.** Every prohibition in `14` §7 applies to providers identically.
 
+### The repository boundary (Stage 1 storage)
+
+Implemented in M3. The web app reaches storage only through repository interfaces:
+
+```
+Stage 1:  React -> RepositoryBundle -> LocalRepository -> IndexedDB
+Later:    React -> RepositoryBundle -> ApiRepository   -> Express -> PostgreSQL
+```
+
+`RepositoryBundle` is supplied through React context, so the entire storage layer is swapped in one place. Tests already exercise this by injecting an in-memory bundle, which is what demonstrates the seam is real rather than decorative.
+
+The interfaces are **async** even though Stage 1 never makes a network call. A synchronous localStorage API would be simpler today and would force every caller to be rewritten when an API-backed repository arrives. There are no fake network calls and no simulated latency: the application is genuinely local-first, and only the shape of the boundary anticipates the change.
+
+**Repositories persist and retrieve. They never calculate.** Every academic value comes from `@gradtools/academic-rules` at the point of display, so local and future server modes cannot drift apart.
+
 ### The rules-engine boundary
 
 `packages/academic-rules` is pure and shared. This produces the central architectural property of GradTools:

@@ -150,6 +150,9 @@ Student {
   email                 unique, required (the only account identifier)
   email_verified_at
   display_name?         nullable
+  authUserId?           nullable      — FUTURE (DEC-014). Always null in Stage 1.
+                                        The canonical identity, issued by the auth
+                                        provider. NEVER usn/email/name/college.
   usn?                  nullable      — DEC-002: stored plaintext by human decision
   college_id?, scheme_id?, branch_id?, current_semester?
   created_at, last_seen_at

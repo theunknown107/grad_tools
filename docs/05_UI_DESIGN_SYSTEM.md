@@ -41,7 +41,7 @@ Defined as CSS custom properties. Light is the base; dark redefines only the val
 | `--border-strong` | `#C8CDD6` | `#3A4250` | Input borders |
 | `--text` | `#12151A` | `#EEF1F5` | Primary text |
 | `--text-muted` | `#5B6472` | `#9AA4B2` | Secondary text |
-| `--text-subtle` | `#828C9B` | `#6F7987` | Timestamps, captions |
+| `--text-subtle` | `#67707D` | `#8B95A3` | Timestamps, captions |
 
 ### Accent and status
 
@@ -49,12 +49,22 @@ Defined as CSS custom properties. Light is the base; dark redefines only the val
 |---|---|---|---|
 | `--accent` | `#1F5FD6` | `#5B93F5` | Primary actions, links, focus |
 | `--accent-weak` | `#EAF1FD` | `#16243D` | Accent backgrounds |
-| `--success` | `#15803D` | `#4ADE80` | Safe attendance, passed, verified |
+| `--success` | `#136B33` | `#4ADE80` | Safe attendance, passed, verified |
 | `--warning` | `#B45309` | `#FBBF24` | Below requirement, stale data, unverified |
 | `--danger` | `#B91C1C` | `#F87171` | DX risk, failed, destructive |
 | `--info` | `#0E7490` | `#22D3EE` | Neutral informational |
 
 **Contrast:** every text/background pairing meets WCAG AA (4.5:1 body, 3:1 large text and UI boundaries) in both themes. This is verified by an automated test, not by eye — see `22` §Accessibility tests.
+
+> **Corrected during M3 implementation.** The values originally published here were asserted, not measured, and two of them failed:
+>
+> | Token | Was | Measured | Now | Now measures |
+> |---|---|---|---|---|
+> | `--text-subtle` (light) | `#828C9B` | **3.40:1** on `--bg` | `#67707D` | 5.01:1 |
+> | `--text-subtle` (dark) | `#6F7987` | **3.95:1** on `--surface` | `#8B95A3` | 5.75:1 |
+> | `--success` (light) | `#15803D` | 4.50:1 on `--success-weak`, rejected by axe at 13px | `#136B33` | 5.93:1 |
+>
+> Both were caught by the axe-core sweep in `tests/visual-qa.mjs`, which is exactly the automated check this section promised. The lesson is recorded rather than quietly patched: a documented contrast claim is worth nothing until something measures it.
 
 **Semantic pairing rule:** status colour never appears alone. Every status is colour + text label + icon shape. The attendance states are `Safe` (check), `Below requirement` (triangle), `DX risk` (octagon).
 
@@ -114,6 +124,8 @@ Elevation is expressed primarily by **border and background**, not shadow. Shado
 | 1 | `--surface` + 1 px `--border` | Cards, list rows |
 | 2 | `--surface-raised` + shadow-sm | Popovers, dropdowns |
 | 3 | `--surface-raised` + shadow-md | Dialogs, bottom sheets |
+
+**Z-index scale** (added in M3, applying the UI/UX Pro Max `z-index-management` rule): `--z-base: 0`, `--z-sticky: 10`, `--z-nav: 20`, `--z-overlay: 30`, `--z-toast: 50`. Components reference these tokens; arbitrary `z-index` values are not used.
 
 ```
 --radius-sm: 6px    inputs, chips
@@ -250,6 +262,6 @@ Fixed-width monospace badge showing the letter and, on hover/focus, the grade po
 ## 5.13 Implementation notes
 
 - CSS custom properties for all tokens; no hard-coded colour or spacing in components.
-- Tailwind is acceptable **only** if configured to expose exactly these tokens and arbitrary values are lint-blocked; otherwise the token system decays within weeks.
+- **Implemented with plain CSS Modules rather than Tailwind** (M3 decision, `32/ED-21`). This section already warned that Tailwind decays the token system unless arbitrary values are lint-blocked; CSS Modules reach the same result with no configuration to maintain and no escape hatch to police. Every declaration references a `var(--token)`.
 - Component library: build the ~15 components listed here rather than adopting a large kit. Use unstyled, accessible primitives (Radix) for dialog, popover, select and tabs — these are the ones that are genuinely hard to get right for keyboard and screen readers.
 - Every component ships with its states documented and an accessibility note.

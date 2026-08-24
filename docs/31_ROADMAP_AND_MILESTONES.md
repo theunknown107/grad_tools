@@ -12,7 +12,7 @@
 | M0 | Discovery and tooling | 1–3 sessions | ✅ **Complete** |
 | M1 | Documentation (these 32 files) | 1–2 sessions | ✅ **Complete — awaiting human approval** |
 | M2 | Architecture approval and backlog | 1–3 sessions | Human approval + decisions resolved |
-| M3 | Experimental foundation | 1–2 weeks | Site loads, navigation works |
+| M3 | Experimental foundation | 1–2 weeks | ✅ **Complete** — rules engine, vertical slice, site loads, navigation works |
 | M4 | Core academic utilities | 1–2 weeks | Calculations pass all tests |
 | M5 | Academic content | 1–3 weeks | Corpus passes the pipeline |
 | M6 | Result/notice ingestion | 1–3 weeks | Safe monitoring, graceful failure |
@@ -55,6 +55,12 @@ Monorepo, React SPA, Express API skeleton, Postgres with initial migrations, des
 
 **Exit:** the site loads under 2 s on 4G, navigation works, CI is green, demo data is unmistakably labelled.
 **Explicitly out:** accounts, real data, ingestion.
+
+**Status: complete.** Delivered in two increments:
+- *Increment 1* — monorepo, strict TypeScript, lint, test harness, `@gradtools/academic-rules` at 100% coverage (337 tests).
+- *Increment 2* — the experimental vertical slice: app shell, dashboard, SGPA/CGPA, attendance, bunk planner, manual results, timetable, profile. Design tokens, repository boundary, future identity boundary. 366 tests total, 0 axe violations, production build 92.9 kB gzipped.
+
+**Not yet started:** the Express API and PostgreSQL. Stage 1 is genuinely local-first, so neither was needed for the slice, and both remain later milestones.
 
 ### M4 — Core academic utilities *(highest value)*
 `packages/academic-rules` in full: grade mapping, SGPA, CGPA, percentage, class, marks-needed, target CGPA, attendance and bunk calculations. Result entry, backlog derivation, attendance UI, timetable. Local-first persistence.

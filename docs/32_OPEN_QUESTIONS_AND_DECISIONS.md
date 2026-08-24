@@ -159,6 +159,64 @@
 
 ---
 
+### DEC-014 — Supabase Auth as the identity provider (not the application layer)
+**Question:** Which authentication provider, and what is its scope?
+**Decision:** **Supabase Auth is the identity provider.** It is not the business-logic layer.
+
+```
+Supabase Auth  ->  auth_user_id  ->  student_profile.id  ->  academic records
+```
+
+**Date:** M3 (human)
+**Boundaries, binding:**
+- **Express remains the authoritative application API.** Business logic does not move into Edge Functions because they exist.
+- **PostgreSQL remains the authoritative store.**
+- **`@gradtools/academic-rules` remains the domain.** No identity concern reaches it.
+- **The domain layer never imports a Supabase SDK.** Enforced by the zero-dependency lint rule and `purity.test.ts`.
+- **`auth_user_id` is the only identity key.** Never USN, email, name or college.
+- **The provider's user row is not the academic profile.** 1:1 but distinct, which is what later permits account deletion, provider switching, provider linking and email changes without touching an academic record.
+
+**Implemented in M3:** types only (`apps/web/src/domain/identity.ts`). `StudentProfile.authUserId` exists and is always `null`. **No authentication is implemented, and none may be claimed.**
+**Documents:** `07`, `08`, `11`
+
+---
+
+### DEC-015 — Onboarding order once authentication exists
+**Question:** Does academic profile setup come before or after identity?
+**Decision:** **After.** `Welcome -> Sign in / Register -> identity established -> academic profile -> Dashboard`.
+**Date:** M3 (human)
+**Rationale:** collecting academic metadata before an identity exists creates duplicate profiles, complicates recovery, and asks for data before the student has a reason to trust the product with it.
+**Stage 1 position:** the "try it without an account" branch of the same flow, which is why the local profile is optional and skippable.
+**Documents:** `03`, `11`
+
+---
+
+### DEC-016 — Repository pattern with async interfaces
+**Question:** How does a local-first app avoid a rewrite when a server arrives?
+**Decision:** All storage goes through `RepositoryBundle`, supplied by React context. Interfaces are **async even though Stage 1 makes no network call**.
+**Date:** M3 (engineering)
+**Rationale:** a synchronous localStorage API is simpler today and forces every caller to be rewritten when an API repository arrives, because that one is unavoidably async. Async now makes the future swap a genuine swap.
+**Not architecture theatre:** there are no fake network calls, no simulated latency and no server code. Tests inject an in-memory bundle, which is what demonstrates the seam is real.
+**Documents:** `07`, `33`
+
+---
+
+### DEC-017 — Contrast tokens corrected against measurement
+**Question:** Did the published design tokens actually meet WCAG AA?
+**Finding:** **No.** `docs/05` asserted AA compliance for every pairing. The axe-core sweep proved two failures:
+
+| Token | Was | Measured | Now | Now measures |
+|---|---|---|---|---|
+| `--text-subtle` (light) | `#828C9B` | **3.40:1** | `#67707D` | 5.01:1 |
+| `--text-subtle` (dark) | `#6F7987` | **3.95:1** | `#8B95A3` | 5.75:1 |
+| `--success` (light) | `#15803D` | 4.50:1, axe-rejected at 13px | `#136B33` | 5.93:1 |
+
+**Date:** M3 (engineering, from measurement)
+**Lesson recorded rather than quietly patched:** a documented contrast claim is worth nothing until something measures it. `tests/visual-qa.mjs` is now that something, and it runs against the real built app.
+**Documents:** `05`
+
+---
+
 ## Part B — Decisions made by engineering (low-risk, standard practice)
 
 Recorded so they are visible and reversible rather than buried in code.
@@ -185,6 +243,12 @@ Recorded so they are visible and reversible rather than buried in code.
 | ED-18 | Class equivalence at M = 50 resolves to Second Class | The regulation's own bands overlap there (`16` `A-16.3`) |
 | ED-19 | Tabular figures mandatory in all numeric tables | Misaligned digits make a marks table look wrong |
 | ED-20 | No emoji in product copy | Reads as unserious in a product shown to faculty; inconsistent screen-reader behaviour |
+| ED-21 | Plain CSS Modules rather than Tailwind | `docs/05` §5.13 warned Tailwind decays the token system unless arbitrary values are lint-blocked. CSS Modules reach the same result with no config to maintain and no escape hatch to police |
+| ED-22 | No component library (Radix, shadcn, MUI) | The slice needs ~12 primitives and no modal. Every imported component would still need restyling to the approved tokens |
+| ED-23 | Lucide icons, against the Taste skill's preference | `docs/05` §5.8 approves Lucide, and an approved spec outranks a generic tool preference. One family, one stroke width |
+| ED-24 | Inter, against the Taste skill's default-avoidance | Taste's own override permits Inter for "neutral / Linear-style" briefs, which is precisely this brief, and `docs/05` §5.3 mandates it |
+| ED-25 | Em-dash removed from UI prose | Applying the Taste skill's most mechanical AI-tell check. 4 remain as "no value" glyphs in data cells, a typographic convention rather than prose flourish |
+| ED-26 | Feature-owned page components; no separate `pages/` directory | A `pages/` layer that only re-exports feature components is an abstraction with no behaviour (`33` §33.1 warns against exactly this) |
 
 Any of these may be reversed; each names the condition under which reversal would make sense.
 
@@ -376,3 +440,8 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M2 | DEC-011 | `ResultProvider` abstraction; scope language, not incapacity language | Human |
 | M2 | DEC-012 | Positioning: academic utility layer, results one component among many | Human |
 | M2 | DEC-013 | Hosting: Railway Hobby for experimental, re-evaluate at Alpha for PITR | Engineering (pending approval) |
+| M3 | DEC-014 | Supabase Auth as identity provider only; Express/Postgres/academic-rules stay authoritative | Human |
+| M3 | DEC-015 | Onboarding order: identity before academic profile | Human |
+| M3 | DEC-016 | Repository pattern with async interfaces from the start | Engineering |
+| M3 | DEC-017 | Contrast tokens corrected against measurement | Engineering |
+| M3 | ED-21…ED-26 | Frontend engineering decisions in Part B | Engineering |

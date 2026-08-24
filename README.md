@@ -8,13 +8,21 @@ Built for students following the **VTU 2022 scheme (22OB)**.
 
 ## Status
 
-**Milestone M3, first increment.** The academic rules engine and its test infrastructure exist. There is no UI, no API, no database and no deployment yet — those are later, individually approved milestones.
+**Milestone M3 complete.** The rules engine and the experimental vertical slice are built and browser-accessible. There is no API, no database, no authentication and no deployment yet: those are later, individually approved milestones.
 
-| Component                 | State                              |
-| ------------------------- | ---------------------------------- |
-| `packages/academic-rules` | Implemented, 100% covered          |
-| Testing infrastructure    | Implemented                        |
-| Web app, API, database    | **Not started** — later milestones |
+| Component                 | State                                                                                                    |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `packages/academic-rules` | Implemented, 100% covered                                                                                |
+| `apps/web`                | Experimental vertical slice: dashboard, SGPA/CGPA, attendance, bunk planner, results, timetable, profile |
+| Testing infrastructure    | 366 tests, plus a real-browser visual and accessibility harness                                          |
+| API, database, auth       | **Not started** — later milestones                                                                       |
+
+Stage 1 is genuinely local-first: everything a student enters stays in their browser, and the app makes no network call for student data.
+
+```bash
+pnpm install
+pnpm --filter @gradtools/web dev     # http://localhost:5173
+```
 
 ## Documentation
 
