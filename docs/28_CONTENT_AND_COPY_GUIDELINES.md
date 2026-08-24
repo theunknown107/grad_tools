@@ -256,3 +256,30 @@ For the college demonstration (`29`), the same rules apply with additional disci
 - Every user-facing string is reviewed against §28.3's prohibited-claims register before merge.
 - Notification templates additionally have an **automated test** asserting no prohibited phrase appears (`22` §10) — templates are edited casually and are the highest-consequence copy in the product.
 - New copy patterns are added to this document in the same PR that introduces them.
+
+---
+
+## Source and rights copy (M5)
+
+**"Source: VTU" must never imply permission.** Naming a publisher is
+attribution. Attribution is not a licence, and copy that shows only the source
+invites the reader to assume the rest (M5 §25).
+
+Every piece of material therefore shows two things: where it came from, and what
+GradTools can actually do with it.
+
+| State | Status line | Detail |
+|---|---|---|
+| `host` | Available here | GradTools has permission to provide this document. |
+| `link` | External document | GradTools does not host this file. It opens on the publisher's own site. |
+| `private` | Private to you | You added this. It stays on your device and is never shared. |
+| `blocked` | Not available | This material cannot be provided. |
+
+**No internal jargon reaches a student.** Not `rights_status`, not `UNKNOWN`,
+not `OQ-008`, not "redistribution", not "quarantine". A test asserts those
+strings never appear in the rendered badge, in any state. The student's question
+is "what happens when I click", and the honest answer to that is also the
+accurate one.
+
+Each state is distinguished by words and an icon, never by colour alone, and
+every outbound link names its destination for screen readers.

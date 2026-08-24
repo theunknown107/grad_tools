@@ -196,3 +196,24 @@ The last two are invariants rather than targets: a non-zero value is a defect, n
 | Feature flags per user | No use case yet; global flags via environment variables suffice |
 | Analytics dashboard | Aggregate counters only (`12` §7); a rich dashboard would invite collecting more than needed |
 | Self-service admin invitation | Environment allowlist is sufficient and safer for one operator |
+
+---
+
+## 21.13 Source and document operations (M5)
+
+Still no admin UI. Sources and documents carry enough status for one to be built
+without a schema change: `health`, `consecutive_failures`, `last_checked_at`,
+`parser_version`, `verification`, `robots_status`, `terms_status`,
+`rights_status`, `enabled` on sources; `state`, `extraction_status`,
+`rights_status`, `presentation`, `rejection_reason` on documents.
+
+Two operator actions the constraints already guarantee, whatever tool is
+eventually built:
+
+- **A source cannot be switched on past its gates.** Not by an admin screen, not
+  by a script, not by a direct `UPDATE`.
+- **A document cannot be published without a dated rights determination**, and a
+  student's own document cannot be published at all.
+
+The takedown path `17` §11 requires is one `UPDATE` setting `presentation` to
+`blocked`, which the constraints permit from any state.

@@ -471,3 +471,43 @@ Drives retention, encryption, logging and export in `12`.
 | **Public reference** | Schemes, subjects, syllabus, rule sets | Freely readable, cacheable |
 | **Public content** | Question papers, announcements | Readable, but subject to the licensing question in `32/OQ-008` |
 | **Operational** | Jobs, source health, audit | Operator-only, no personal fields |
+
+---
+
+## 8.11 Source, rights and documents (M5)
+
+Three entities, and one distinction that must not be collapsed.
+
+**PROVENANCE ≠ RIGHTS.** Provenance answers *where did this come from*; rights
+answer *may we store, display or redistribute it*. Knowing the first tells you
+nothing about the second: a VTU question paper has impeccable provenance and
+completely unknown rights. They are separate fields, so attribution can never
+quietly stand in for permission.
+
+### Source
+The single registry both M5 tracks share. `id, kind, publisher, canonical_url,
+authority, access_method, robots_status + checked_at + note, terms_status +
+reviewed_at + note, rights_status, verification + verified_at, enabled, health,
+consecutive_failures, last_checked_at, parser_version, poll_interval_seconds,
+notes`.
+
+Documents and announcements both point here rather than each carrying their own
+`source_url` and rights fields.
+
+### Document
+`id, source_id?, title, sha256, byte_size, mime_type, page_count, storage_key,
+original_filename, state, extraction_status, rights_status,
+rights_determined_at, presentation, source_url, license_note, rejection_reason`.
+
+`source_id` is nullable: a student's own upload has provenance (they supplied
+it) but no external source row. There is deliberately **no uploader identity
+column** — Stage 1 has no accounts, and a test asserts the absence.
+
+`presentation` is the user-visible consequence of the rights answer:
+`host | link | private | blocked` (§17.11.1).
+
+### SourceChange
+`id, source_id, external_id, change_type, title, item_url, payload_hash,
+parser_version, detected_at`. Detection is **recorded, never delivered** —
+a test asserts the table has no `notified_at`, `delivered_at` or `recipient`
+column, so notification cannot be bolted on without a deliberate schema change.

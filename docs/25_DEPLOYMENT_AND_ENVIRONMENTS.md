@@ -249,3 +249,29 @@ The experimental environment has **accounts disabled entirely**, which is what m
 | `OQ-021` | Domain name and registrar | Before the experimental launch |
 | `OQ-013` | Where the DOB encryption key lives and how it rotates | Before any DOB is stored |
 | `OQ-014` | Whether the chosen object store supports a separate serving origin with attachment disposition | Before uploads open |
+
+---
+
+### 25.6.2 Migrations are now concurrency-safe (M5)
+
+The runner takes a PostgreSQL advisory lock before applying anything. Without
+it, two instances starting together both read `schema_migrations`, both see a
+pending migration, and the second fails on a duplicate type — which is precisely
+what step 2 of the deploy sequence does under a rolling deploy. The lock blocks
+rather than failing, so the second caller waits and finds nothing to apply.
+
+### 25.6.3 Document storage (M5)
+
+Documents are stored through an `ObjectStore` interface with a local-filesystem
+driver. **No cloud provider is chosen** (M5 §7): S3, R2 or Blob storage is one
+more implementation, not a change to any caller.
+
+Three properties make the local driver safe to run outside a container:
+
+1. Keys derive from the content hash, so nothing attacker-controlled reaches a
+   path — traversal is designed out rather than filtered.
+2. The root is configured **outside the repository and outside any served
+   directory**. The web server never maps a URL onto it.
+3. Every resolved path is re-checked to be inside the root, which property 1
+   should make unreachable — asserted anyway, because "should be unreachable" is
+   how traversal bugs get written.

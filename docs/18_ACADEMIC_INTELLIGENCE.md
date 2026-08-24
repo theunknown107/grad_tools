@@ -203,3 +203,22 @@ A method-version change triggers full recomputation for affected subjects. Old v
 | Answer generation | Far outside scope; enormous accuracy liability |
 | Study-plan generation | Would need calendar integration and would be advice, not evidence |
 | Genuine predictive modelling | Only after the §18.8 evaluation exists, and only stated with measured accuracy |
+
+---
+
+## Status after M5
+
+**Nothing in this document is implemented.** M5 deliberately stops at
+deterministic ingestion: document → text → positioned sections. No question
+segmentation, no module mapping, no frequency analysis, no embeddings, no
+clustering, no recommendations.
+
+The reason is ordering, not scope aversion. Every technique here consumes
+extracted question text, and extracted question text does not exist yet — it has
+been proven on synthetic fixtures only. Building analysis on an unvalidated
+extractor would produce numbers no one could check, which is the failure mode
+this document's own evidence requirements exist to prevent.
+
+`document_sections` is the seam these features will read from. A test asserts
+sections carry no question or marks fields today, so nothing downstream can
+quietly start depending on a guess.

@@ -84,6 +84,45 @@ CONSTRAINT source_enable_requires_robots_check CHECK (
 
 No code path, admin mistake or future contributor can enable a source that robots.txt disallows. This is the mechanism that enforces §14.7 permanently rather than by good intentions.
 
+### 14.3.1 As built in M5
+
+Implemented in migration `0004` as `sources`, with the gate widened: `enabled`
+requires robots **and** terms **and** verification **and** a real access method.
+
+```sql
+CONSTRAINT source_enable_requires_all_gates CHECK (
+  enabled = false
+  OR (robots_status = 'allowed'   AND robots_checked_at IS NOT NULL
+      AND terms_status = 'permitted' AND terms_reviewed_at IS NOT NULL
+      AND verification = 'verified'  AND verified_at IS NOT NULL
+      AND access_method <> 'none')
+)
+```
+
+**Why terms became part of the constraint rather than a note.** The two gates
+answer different questions and can disagree, and VTU's own hosts demonstrate it.
+Both `robots.txt` files were fetched on **2026-08-24**:
+
+| Host | robots.txt | Gate result |
+|---|---|---|
+| `results.vtu.ac.in` | `User-agent: *` / `Disallow: /` | **Disallowed.** Seeded `prohibited`, permanently unenclosable |
+| `vtu.ac.in` | disallows only `/wp-admin/` | **Allowed** — announcements are not refused by robots |
+
+`vtu-announcements` is nonetheless **disabled**, because its terms of use have
+never been reviewed (`OQ-006`). A machine-readable crawl policy is not a licence
+to reuse content. Had the gate been robots-only, this source would have been
+enableable on the strength of a check that answers a different question.
+
+A status also cannot be asserted without its evidence date
+(`source_robots_status_needs_check`, `source_terms_status_needs_review`), so
+"allowed" always carries a record of when that was established.
+
+**Fetching is not an adapter's to perform.** `parse`, `normalize` and `validate`
+are pure and live on the adapter; `fetch` lives in `sources/fetch.ts`, consults
+the source row, and additionally refuses any destination resolving to a private
+or loopback address (SSRF, `13` §T-11). Nothing in M5 calls it — the gate exists
+before the capability does.
+
 ## 14.4 Fetching
 
 | Control | Value | Reason |

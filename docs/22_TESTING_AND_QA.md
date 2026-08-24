@@ -44,10 +44,10 @@ of them needs a database:
 | Project | Environment | Tests | Requires |
 |---|---|---|---|
 | `packages` | node | 410 | — |
-| `web` | jsdom | 41 | — |
-| `api` | node | 76 | real PostgreSQL |
+| `web` | jsdom | 54 | — |
+| `api` | node | 212 | real PostgreSQL |
 
-Total: **527 tests, all passing.**
+Total: **676 tests, all passing.**
 
 `Docker in Docker` was not available on the development machine, so the API
 suite runs against a **disposable local PostgreSQL 18 cluster** on port 55432
@@ -80,6 +80,29 @@ no match) plus a determinism check that repeats the both-present lookup eight
 times; `module_count` served as `null` rather than a default; `colleges`
 publication gating; subject lookup by UUID, with a code now rejected as a `400`
 instead of silently resolved.
+
+**Added in M5** (149 tests).
+
+*Documents* — every rejection path has a synthetic fixture: empty, oversized,
+not-a-PDF, decompression bomb, embedded active content, encrypted, truncated.
+Plus filename safety (traversal, control characters, Windows device names),
+content-addressed storage keys, storage-root escape, duplicate detection, and
+extraction reporting text_available / ocr_required / extraction_failed.
+
+*Sources* — the permission gate refused for each of eight independent reasons;
+SSRF coverage over loopback, RFC1918, link-local, cloud metadata, CGNAT and
+IPv4-mapped IPv6; scheme refusal; adapter golden output; malformed and hostile
+markup; change detection for new / modified / removed, including the property
+that an unchanged poll records nothing.
+
+*Gates (real PostgreSQL)* — every constraint in migration 0004, asserted by
+attempting the forbidden write and expecting the database to refuse it.
+
+**The schema is prepared once**, in `test/global-setup.ts`, rather than per
+file. Two files each dropping the schema in their own `beforeAll` let their
+hooks interleave, and one found its tables gone mid-setup. One owner, once,
+before anything else runs.
+
 
 **Added in M4.2:** the taxonomy/verified-reference split is pinned from both
 sides — `universities` and `branches` must not grow provenance columns, and

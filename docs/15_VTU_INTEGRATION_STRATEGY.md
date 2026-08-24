@@ -214,3 +214,22 @@ The product footer states, permanently: **"GradTools is an independent student p
 | `OQ-008` | Redistribution rights for VTU question papers | Before the paper library is public (Milestone 5) |
 | `OQ-011` | Confirmation that the target college applies VTU 2022 regulations unamended | Before Alpha |
 | `OQ-017` | Is the announcements page server-rendered HTML or JS-rendered? Determines whether a DOM parser suffices or a headless browser is needed — the latter is a materially larger dependency and would be reconsidered rather than assumed | Milestone 6 |
+
+---
+
+## As built in M5
+
+`results.vtu.ac.in/robots.txt` was re-fetched on **2026-08-24** and returns
+`User-agent: *` / `Disallow: /`, confirming the original finding. It is now
+recorded as a `sources` row — `robots_status = 'disallowed'`,
+`terms_status = 'prohibited'`, `rights_status = 'prohibited'`,
+`access_method = 'none'` — so the finding is **enforced by a database
+constraint** rather than described in a document. A test asserts that a direct
+`UPDATE ... SET enabled = true` on that row is refused.
+
+**No result-retrieval adapter exists anywhere in the repository.** A test
+asserts that every source of kind `results` has a null `parser_version`.
+
+`vtu.ac.in` announcements: robots permits the paths, an adapter framework and
+synthetic fixtures exist, and the source is disabled pending the terms review
+(`OQ-006`). It has never been fetched.

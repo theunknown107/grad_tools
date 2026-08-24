@@ -407,3 +407,30 @@ Responses carry `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`; 429
 - The API test suite asserts responses against those schemas, so a handler cannot drift from the contract without failing a test.
 - Every documented error code has a test that provokes it.
 - Authorization tests are table-driven: for each endpoint, calls as anonymous / wrong-owner / correct-owner / admin, asserting the expected status. This table is the defence against IDOR and is required to cover 100% of student-scoped endpoints (`22` §Security tests).
+
+---
+
+### 10.7.2 Sources and documents (M5)
+
+| Method | Path | Status |
+|---|---|---|
+| GET | `/api/v1/sources` | implemented |
+| GET | `/api/v1/sources/:id` | implemented |
+| GET | `/api/v1/documents` | implemented — **metadata only** |
+| GET | `/api/v1/documents/:id` | implemented — **metadata only** |
+
+**The source registry is public on purpose.** Publishing what GradTools reads,
+whether robots and terms permit it, and whether it is switched on turns a claim
+into something a student or a college can check (`14` §14.7.1). Every seeded
+source currently reports `enabled: false`, and this endpoint is how that is
+verifiable from outside.
+
+**No route serves a document file**, in this milestone or in this file. A
+`link` document returns metadata and the original URL; a `private` document does
+not appear in the listing at all. A test walks `/file`, `/download`, `/content`
+and `/raw` and asserts 404 on each.
+
+There is **no upload endpoint**. Document validation, storage and extraction are
+implemented and tested as modules; exposing them over HTTP needs the rate
+limiting, quarantine review and abuse handling of `17` §3, which is not this
+milestone.
