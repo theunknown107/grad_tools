@@ -31,15 +31,35 @@ import { useEffect, useState } from 'react';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import { asStudentProfileId } from '../../domain/identity.js';
 import type { StudentProfile } from '../../domain/types.js';
+import { AsyncSection } from '../../components/AsyncSection.js';
 import { PageHeader } from '../../components/AppShell.js';
-import { Button, Notice, Panel, SelectField, TextField } from '../../components/ui/index.js';
+import {
+  Button,
+  Notice,
+  Panel,
+  SelectField,
+  TextField,
+  monoClass,
+  numericClass,
+  TableScroll,
+  tableClass,
+} from '../../components/ui/index.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useProfile } from '../../hooks/useCollection.js';
+import { useBranches, useSchemes, useSubjects } from '../../hooks/useReference.js';
 import { isStorageAvailable } from '../../repositories/local/store.js';
 import styles from './profile.module.css';
 
 export function ProfilePage() {
   const { profile, loading, save } = useProfile();
+
+  /*
+   * Reference data comes from the server; the student's SELECTION stays local.
+   * That split is the whole point of this milestone: the list of schemes is
+   * public academic fact, the choice of one is personal data (M5a §20).
+   */
+  const schemes = useSchemes();
+  const branches = useBranches();
 
   const [displayName, setDisplayName] = useState('');
   const [usn, setUsn] = useState('');
@@ -127,15 +147,45 @@ export function ProfilePage() {
                 setSaved(false);
               }}
             />
-            <TextField
-              label="Branch"
-              placeholder="Computer Science"
-              value={branch}
-              onChange={(event) => {
-                setBranch(event.target.value);
-                setSaved(false);
-              }}
-            />
+            <div className={styles.referenceField}>
+              <AsyncSection
+                state={branches.state}
+                retry={branches.retry}
+                label="branches"
+                isEmpty={(list) => list.length === 0}
+                empty={
+                  <TextField
+                    label="Branch"
+                    hint="No branches available from the server; type yours instead."
+                    placeholder="Computer Science"
+                    value={branch}
+                    onChange={(event) => {
+                      setBranch(event.target.value);
+                      setSaved(false);
+                    }}
+                  />
+                }
+              >
+                {(list) => (
+                  <SelectField
+                    label="Branch"
+                    hint="From the GradTools reference data."
+                    value={branch}
+                    onChange={(event) => {
+                      setBranch(event.target.value);
+                      setSaved(false);
+                    }}
+                  >
+                    <option value="">Not set</option>
+                    {list.map((item) => (
+                      <option key={item.id} value={item.name}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </SelectField>
+                )}
+              </AsyncSection>
+            </div>
             <SelectField
               label="Current semester"
               value={semester}
@@ -151,9 +201,29 @@ export function ProfilePage() {
                 </option>
               ))}
             </SelectField>
-            <SelectField label="Scheme" value={vtu2022RuleSet.schemeId} disabled>
-              <option value={vtu2022RuleSet.schemeId}>VTU 2022 (22OB)</option>
-            </SelectField>
+            <div className={styles.referenceField}>
+              <AsyncSection
+                state={schemes.state}
+                retry={schemes.retry}
+                label="schemes"
+                isEmpty={(list) => list.length === 0}
+              >
+                {(list) => (
+                  <SelectField
+                    label="Scheme"
+                    hint="Only verified schemes are offered."
+                    value={vtu2022RuleSet.schemeId}
+                    disabled={list.length <= 1}
+                  >
+                    {list.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} ({item.regulationCode})
+                      </option>
+                    ))}
+                  </SelectField>
+                )}
+              </AsyncSection>
+            </div>
           </div>
 
           <div className={styles.actions}>
@@ -167,6 +237,8 @@ export function ProfilePage() {
             )}
           </div>
         </Panel>
+
+        <SubjectsPanel semester={semester === '' ? null : Number(semester)} />
 
         <Panel title="Where your data lives">
           <div className={styles.prose}>
@@ -198,5 +270,81 @@ export function ProfilePage() {
         </Panel>
       </div>
     </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Subjects for the selected semester                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The first screen to read real reference data over HTTP.
+ *
+ * It is deliberately honest about incompleteness: GradTools has verified
+ * semester-1 CSE subjects and nothing beyond that, so a student on semester 3
+ * is told the data is missing rather than shown an empty table that looks like
+ * a bug (M5a §16, §21).
+ */
+function SubjectsPanel({ semester }: { semester: number | null }) {
+  const subjects = useSubjects('vtu-2022', 'cse', semester === null ? undefined : semester);
+
+  return (
+    <Panel title="Subjects in the reference data">
+      <AsyncSection
+        state={subjects.state}
+        retry={subjects.retry}
+        label="subjects"
+        isEmpty={(list) => list.length === 0}
+        empty={
+          <div className={styles.prose}>
+            <p>
+              No verified subjects for
+              {semester === null ? ' this selection' : ` semester ${String(semester)}`} yet.
+            </p>
+            <p className={styles.muted}>
+              GradTools only publishes subject data it has verified against a VTU source document.
+              Semester 1 for Computer Science is verified; the remaining semesters are not yet, so
+              they are absent rather than guessed.
+            </p>
+          </div>
+        }
+      >
+        {(list) => (
+          <>
+            <TableScroll>
+              <table className={tableClass}>
+                <caption className="visually-hidden">
+                  Verified subjects from the GradTools reference data
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Code</th>
+                    <th scope="col">Title</th>
+                    <th scope="col" className={numericClass}>
+                      Credits
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((subject) => (
+                    <tr key={subject.id}>
+                      <td className={monoClass}>{subject.code}</td>
+                      <td>{subject.title}</td>
+                      <td className={numericClass}>{subject.credits}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableScroll>
+            <p className={styles.provenance}>
+              {list.length} verified {list.length === 1 ? 'subject' : 'subjects'} ·{' '}
+              <a href={list[0]?.provenance.sourceUrl} target="_blank" rel="noreferrer noopener">
+                View the source document
+              </a>
+            </p>
+          </>
+        )}
+      </AsyncSection>
+    </Panel>
   );
 }

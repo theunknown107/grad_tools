@@ -44,3 +44,18 @@
 .muted {
   color: var(--text-subtle);
 }
+
+/* A reference-backed field owns its own loading and error space, so the grid
+   does not jump when the request resolves. */
+.referenceField {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.provenance {
+  margin-top: var(--space-3);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-subtle);
+}

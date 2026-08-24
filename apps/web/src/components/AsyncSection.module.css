@@ -1,0 +1,18 @@
+/** Async state presentation. Authority: docs/04 §4.4-§4.6 */
+
+.loading {
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  color: var(--text-muted);
+  padding: var(--space-2) 0;
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.retry {
+  display: flex;
+}

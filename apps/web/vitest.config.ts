@@ -15,5 +15,8 @@ export default defineConfig({
     include: ['test/**/*.test.{ts,tsx}'],
     environment: 'jsdom',
     globals: false,
+    // userEvent drives real DOM events one at a time; a form with several
+    // selects legitimately exceeds the 5s default in jsdom.
+    testTimeout: 20_000,
   },
 });
