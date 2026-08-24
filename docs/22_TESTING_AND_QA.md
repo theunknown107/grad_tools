@@ -43,11 +43,11 @@ of them needs a database:
 
 | Project | Environment | Tests | Requires |
 |---|---|---|---|
-| `packages` | node | 404 | — |
+| `packages` | node | 410 | — |
 | `web` | jsdom | 41 | — |
-| `api` | node | 46 | real PostgreSQL |
+| `api` | node | 64 | real PostgreSQL |
 
-Total: **491 tests, all passing.**
+Total: **515 tests, all passing.**
 
 `Docker in Docker` was not available on the development machine, so the API
 suite runs against a **disposable local PostgreSQL 18 cluster** on port 55432
@@ -73,6 +73,13 @@ internal-detail leakage, security headers, framework fingerprinting, correlation
 ids, cache headers, CORS allowlist behaviour in both directions, SQL-injection
 payloads through path and query parameters, absence of write methods, the 1 MB body
 limit, and log redaction.
+
+**Added in M4.1:** rule-set precedence across all six cases (scheme-wide only,
+college-specific only, both active, inactive college set, unverified college set,
+no match) plus a determinism check that repeats the both-present lookup eight
+times; `module_count` served as `null` rather than a default; `colleges`
+publication gating; subject lookup by UUID, with a code now rejected as a `400`
+instead of silently resolved.
 
 ## 22.3 Academic rules engine — the highest standard
 

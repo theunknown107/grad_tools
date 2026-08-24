@@ -275,12 +275,12 @@ server. A test asserts each constant resolves to a route that exists.
 | GET | `/api/v1/universities` | implemented |
 | GET | `/api/v1/schemes` | implemented |
 | GET | `/api/v1/schemes/:id` | implemented |
-| GET | `/api/v1/schemes/:id/rules` | implemented — **metadata only**, never a computed value |
+| GET | `/api/v1/schemes/:id/rules` | implemented — **metadata only**, never a computed value. Optional `?college=` |
 | GET | `/api/v1/branches` | implemented |
 | GET | `/api/v1/colleges` | implemented — returns `[]`; no college is verified yet |
 | GET | `/api/v1/subjects` | implemented — `?scheme=&branch=&semester=` |
-| GET | `/api/v1/subjects/:code` | implemented |
-| GET | `/api/v1/subjects/:code/syllabus` | implemented — returns `[]`; no module source is verified (`OQ-025`) |
+| GET | `/api/v1/subjects/:id` | implemented — **UUID**, not code |
+| GET | `/api/v1/subjects/:id/syllabus` | implemented — returns `[]`; no module source is verified (`OQ-025`) |
 
 `/api/v1/universities` was added beyond the original table: a scheme belongs to a
 university, and the client could not resolve that reference without it.
@@ -298,6 +298,34 @@ Two behaviours are deliberate and tested:
 Pagination is **not yet implemented**. Collection responses are already wrapped
 as `{ "data": [...] }` so `page` can be added without a breaking change. The
 largest current response is 5 KB (§23), so there is nothing to paginate.
+
+#### Corrected in M4.1
+
+**Subjects are addressed by UUID, not by code.** Database uniqueness is
+`(scheme_id, branch_id, code)`, so a code identifies a *set*, not a row — the
+same code recurs legitimately across branches and schemes. The code-addressed
+route resolved that with `LIMIT 1`, silently returning one of several matches.
+A code is now rejected with `400`, not guessed at; a caller holding a code
+filters the collection:
+
+```http
+GET /api/v1/subjects?scheme=vtu-2022&branch=cse&semester=1
+```
+
+**Rule-set selection is deterministic.** `?college=<id>` is optional and the
+precedence is explicit:
+
+1. the requested college's active rule set, if one exists
+2. otherwise the scheme-wide active rule set
+3. otherwise `404`
+
+The schema deliberately allows both to be active at once, so the previous
+`... WHERE active LIMIT 1` with no `ORDER BY` was a coin toss that only looked
+stable while exactly one rule set existed. A college rule set is never returned
+to a caller who did not ask for one.
+
+**`moduleCount` is nullable.** `null` means the syllabus structure is not
+verified. It is not `0`, and clients must not render it as one.
 
 No write endpoint exists. `POST`, `PUT`, `PATCH` and `DELETE` return `404` on
 every path, which is asserted by test.
