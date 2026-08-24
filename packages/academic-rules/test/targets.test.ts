@@ -5,7 +5,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { calculateRequiredMarks, calculateRequiredSGPA, vtu2022RuleSet } from '../src/index.js';
+import {
+  calculateRequiredMarks,
+  calculateRequiredSGPA,
+  isOk,
+  vtu2022RuleSet,
+} from '../src/index.js';
 import type { MarksTarget, RuleSet } from '../src/index.js';
 
 const rs = vtu2022RuleSet;
@@ -22,7 +27,7 @@ describe('calculateRequiredMarks — the docs/16 §16.9 worked table', () => {
   ])('CIE %s -> requires %s in the SEE (%s)', (cie, target, expected, binding) => {
     const result = calculateRequiredMarks(cie, target, rs);
     expect(result.ok).toBe(true);
-    expect(result.ok && result.value.requiredSee).toBe(expected);
+    expect(result.ok && result.value.rawSeeRequired).toBe(expected);
     expect(result.ok && result.value.bindingConstraint).toBe(binding);
   });
 
@@ -48,7 +53,7 @@ describe('calculateRequiredMarks — the binding constraint is the actionable pa
     // This is the row most third-party tools get wrong.
     const result = calculateRequiredMarks(45, PASS, rs);
     expect(result.ok && result.value.bindingConstraint).toBe('see_minimum');
-    expect(result.ok && result.value.requiredSee).toBe(35);
+    expect(result.ok && result.value.rawSeeRequired).toBe(35);
   });
 
   it('names the overall target when it exceeds the SEE minimum', () => {
@@ -59,7 +64,7 @@ describe('calculateRequiredMarks — the binding constraint is the actionable pa
   it('never returns a requirement below the SEE head minimum', () => {
     for (let cie = 20; cie <= 50; cie += 1) {
       const result = calculateRequiredMarks(cie, PASS, rs);
-      expect(result.ok && result.value.requiredSee).toBeGreaterThanOrEqual(35);
+      expect(result.ok && result.value.rawSeeRequired).toBeGreaterThanOrEqual(35);
     }
   });
 });
@@ -77,9 +82,9 @@ describe('calculateRequiredMarks — soundness and minimality', () => {
         const target: MarksTarget = { kind: 'percentage', percentage: targetPct };
         const result = calculateRequiredMarks(cie, target, rs);
         if (!result.ok) continue;
-        const achieved = courseTotal(cie, result.value.requiredSee);
+        const achieved = courseTotal(cie, result.value.rawSeeRequired);
         expect(achieved).toBeGreaterThanOrEqual(targetPct - 1e-9);
-        expect(result.value.requiredSee).toBeGreaterThanOrEqual(35);
+        expect(result.value.rawSeeRequired).toBeGreaterThanOrEqual(35);
       }
     }
   });
@@ -90,7 +95,7 @@ describe('calculateRequiredMarks — soundness and minimality', () => {
         const target: MarksTarget = { kind: 'percentage', percentage: targetPct };
         const result = calculateRequiredMarks(cie, target, rs);
         if (!result.ok || result.value.bindingConstraint !== 'overall_target') continue;
-        const achieved = courseTotal(cie, result.value.requiredSee - 1);
+        const achieved = courseTotal(cie, result.value.rawSeeRequired - 1);
         expect(achieved).toBeLessThan(targetPct);
       }
     }
@@ -101,7 +106,7 @@ describe('calculateRequiredMarks — targets and validation', () => {
   it('accepts an explicit percentage target', () => {
     const result = calculateRequiredMarks(30, { kind: 'percentage', percentage: 60 }, rs);
     // needs (60-30)/0.5 = 60
-    expect(result.ok && result.value.requiredSee).toBe(60);
+    expect(result.ok && result.value.rawSeeRequired).toBe(60);
   });
 
   it('rejects an unknown target grade', () => {
@@ -148,8 +153,8 @@ describe('calculateRequiredMarks — targets and validation', () => {
     const evenSplit: RuleSet = { ...rs, id: 'test-even', seeMax: 50 };
     // scale = (100-50)/50 = 1.0, so needing 20 more marks means 20 SEE marks.
     const result = calculateRequiredMarks(20, PASS, evenSplit);
-    expect(result.ok && result.value.requiredSee).toBe(20);
-    expect(result.ok && result.value.seeMax).toBe(50);
+    expect(result.ok && result.value.rawSeeRequired).toBe(20);
+    expect(result.ok && result.value.rawSeeMaximum).toBe(50);
   });
 });
 
@@ -209,5 +214,82 @@ describe('calculateRequiredSGPA', () => {
   it('rejects an unverified rule set', () => {
     const result = calculateRequiredSGPA(8, 80, 80, 8.5, { ...rs, verifiedAt: null });
     expect(result.ok).toBe(false);
+  });
+});
+
+/**
+ * 100-vs-50 scale confusion (M4.1 §4, docs/16 A-16.7).
+ *
+ * The two numbers describe the same performance and differ by a factor of two,
+ * so mistaking one for the other doubles or halves a student's answer. A real
+ * grade card prints the 50-scale figure; the regulation's thresholds are written
+ * against the 100-scale one. Both are returned, always.
+ */
+describe('required marks — SEE scale is explicit', () => {
+  const rs = vtu2022RuleSet;
+  const seeWeight = rs.courseMax - rs.cieMax;
+
+  it('reports both scales, and they are consistent', () => {
+    const result = calculateRequiredMarks(30, { kind: 'pass' }, rs);
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+
+    const v = result.value;
+    expect(v.rawSeeMaximum).toBe(rs.seeMax); // 100
+    expect(v.printedExternalMaximum).toBe(seeWeight); // 50
+    expect(v.rawSeeMaximum).not.toBe(v.printedExternalMaximum);
+
+    // The conversion is the SEE's weight in the course total, nothing else.
+    expect(v.printedExternalEquivalent).toBeCloseTo(v.rawSeeRequired * (seeWeight / rs.seeMax), 10);
+  });
+
+  it('the printed equivalent is exactly half the raw figure under VTU 2022', () => {
+    for (const cie of [20, 25, 30, 35, 40, 45, 50]) {
+      const result = calculateRequiredMarks(cie, { kind: 'pass' }, rs);
+      if (!isOk(result)) continue;
+      expect(result.value.printedExternalEquivalent * 2).toBeCloseTo(
+        result.value.rawSeeRequired,
+        10,
+      );
+    }
+  });
+
+  it('never reports a raw figure that is within the printed maximum by accident', () => {
+    // A caller that reads `rawSeeRequired` as if it were a grade-card number
+    // would be wrong by a factor of two. This asserts the two fields genuinely
+    // differ whenever the requirement is non-zero, so a test that confuses them
+    // cannot pass silently.
+    const result = calculateRequiredMarks(20, { kind: 'percentage', percentage: 90 }, rs);
+    if (!isOk(result)) return;
+    expect(result.value.rawSeeRequired).toBeGreaterThan(0);
+    expect(result.value.rawSeeRequired).not.toBe(result.value.printedExternalEquivalent);
+  });
+
+  it('scores the required raw mark and reaches the target, on the raw scale', () => {
+    // Soundness restated against the named field, so a future rename cannot
+    // quietly repoint this at the printed figure.
+    const cie = 30;
+    const result = calculateRequiredMarks(cie, { kind: 'pass' }, rs);
+    if (!isOk(result)) return;
+
+    const total = cie + result.value.rawSeeRequired * (seeWeight / rs.seeMax);
+    expect(total).toBeGreaterThanOrEqual((rs.overallMinPct / 100) * rs.courseMax);
+  });
+
+  it('an unreachable target names both scales in its message', () => {
+    const result = calculateRequiredMarks(20, { kind: 'percentage', percentage: 100 }, rs);
+    expect(isOk(result)).toBe(false);
+    if (isOk(result)) return;
+    expect(result.reason).toBe('unreachable');
+    expect(result.detail).toContain(String(rs.seeMax));
+    expect(result.detail).toContain('grade card');
+  });
+
+  it('the explanation labels both scales', () => {
+    const result = calculateRequiredMarks(30, { kind: 'pass' }, rs);
+    if (!isOk(result)) return;
+    const labels = result.explanation.steps.map((step) => step.label).join(' | ');
+    expect(labels).toContain('out of 100');
+    expect(labels).toContain('out of 50');
   });
 });

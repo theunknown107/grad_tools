@@ -205,9 +205,41 @@ export interface AttendanceOutcome {
 /** Which of the simultaneous thresholds actually determines the required SEE mark. */
 export type BindingConstraint = 'see_minimum' | 'overall_target';
 
+/**
+ * The answer to "what do I need in the SEE?", stated on BOTH scales.
+ *
+ * Authority: docs/16 §16.5, A-16.7 · M4.1 §4
+ *
+ * There are two different numbers for the same performance, and confusing them
+ * doubles or halves a student's answer:
+ *
+ *   RAW SEE          the examination script, out of `rawSeeMaximum` (100).
+ *                    This is the scale the regulation's thresholds are written
+ *                    against, and what the calculation works in.
+ *
+ *   PRINTED EXTERNAL the contribution printed in the `External` column of a VTU
+ *                    grade card, out of `printedExternalMaximum` (50). This is
+ *                    the only number a student can read off their own document,
+ *                    verified against a real grade card (docs/32 OQ-024).
+ *
+ * A raw SEE of 58/100 is a printed external of 29/50. Both fields are returned,
+ * always, so no caller has to remember which scale it is holding — the previous
+ * shape returned a bare `requiredSee` that looked like a grade-card number and
+ * was not one.
+ */
 export interface RequiredMarksOutcome {
-  readonly requiredSee: number;
-  readonly seeMax: number;
+  /** Marks needed on the SEE script itself, out of `rawSeeMaximum`. */
+  readonly rawSeeRequired: number;
+  /** The SEE script maximum — 100 under VTU 2022. */
+  readonly rawSeeMaximum: number;
+  /**
+   * The same requirement as it would appear in a grade card's `External`
+   * column, out of `printedExternalMaximum`. May be fractional: it is a
+   * converted view of `rawSeeRequired`, not a separately achievable target.
+   */
+  readonly printedExternalEquivalent: number;
+  /** The `External` column maximum — 50 under VTU 2022 (`courseMax - cieMax`). */
+  readonly printedExternalMaximum: number;
   readonly bindingConstraint: BindingConstraint;
 }
 
