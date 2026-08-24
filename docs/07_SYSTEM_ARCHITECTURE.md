@@ -297,3 +297,45 @@ All configuration comes from environment variables, validated by a Zod schema at
 6. Publishing is blocked while a source is unhealthy.
 7. Admin is a separate authorization plane with full audit.
 8. No student PII in logs, metrics, error reports or analytics.
+
+---
+
+## 7.12 The shared source layer (M5)
+
+Both content subsystems sit on one source model rather than each inventing its
+own:
+
+```
+                 +--------------------------------------+
+                 |  sources                             |
+                 |  provenance . rights . robots gate   |
+                 |  terms gate . verification . health  |
+                 +----------------+---------------------+
+                                  |
+                 +----------------+---------------+
+                 v                                v
+        documents                        source_changes
+        (M5A: papers, files)             (M5B: announcements)
+                 |
+                 v
+        document_sections
+```
+
+**Why shared.** A document and an announcement ask the same two questions:
+where is this from, and may we show it. Two separate answers drift, and rights
+end up duplicated on every table that holds material, at which point one of them
+is eventually wrong.
+
+**The distinction the layer exists to preserve:** provenance is not rights.
+Where something came from and whether we may redistribute it are independent
+facts, kept in separate fields so attribution can never stand in for permission.
+
+**Two independent gates guard access.** `robots_status` is a machine-readable
+crawl policy; `terms_status` is a human judgement about reuse. Both must pass,
+and passing one says nothing about the other. VTU demonstrates this precisely
+(`14` section 14.3.1).
+
+Fetching is deliberately not part of the adapter interface. `parse`, `normalize`
+and `validate` are pure and fixture-testable; `fetch` is a gated capability that
+re-reads the source row and refuses private destinations. Nothing in M5 calls
+it, so the gate exists before the capability does.

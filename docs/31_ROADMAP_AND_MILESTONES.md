@@ -15,7 +15,7 @@
 | M3 | Experimental foundation | 1–2 weeks | ✅ **Complete** — rules engine, vertical slice, site loads, navigation works |
 | M4 | Core academic utilities | 1–2 weeks | 🟡 **Substantially delivered inside M3.** Two exit criteria outstanding, both blocked on external input (see §31.3) |
 | M5a | Reference data foundation | 1–2 weeks | Express API + PostgreSQL serving verified reference data |
-| M5b | Document pipeline | 1–3 weeks | Corpus passes the pipeline |
+| M5 | Shared source + academic content foundation | 2–4 weeks | Source/rights layer, both tracks |
 | M6 | Result/notice ingestion | 1–3 weeks | Safe monitoring, graceful failure |
 | M7 | Intelligence | 1–2 weeks | No prediction claims; evidence shown |
 | M8 | Admin and data quality | 1 week | Operator can diagnose any failure |
@@ -117,11 +117,65 @@ curriculum data would be worse than an honest gap.
 and `32/OQ-024` (validation against a real grade card) remain open. `OQ-024` is
 the most valuable outstanding verification in the project.
 
-### M5b — Document pipeline
-Document upload and validation with every security control from `17` §3; extraction (pdftotext, OCR fallback); question segmentation using the structural module mapping; paper library UI.
+### M5 — Shared source + academic content foundation · ✅ **DELIVERED**
 
-**Exit:** a test corpus passes end to end; security fixtures rejected correctly; the review queue works.
-**Risk:** depends on receiving papers, on whether they carry a text layer (`32/OQ-019`), and on the redistribution answer (`32/OQ-008`).
+**Roadmap change, recorded here (`DEC-021`).** M5b (documents) and M6 (external
+sources) were previously sequential. They are now **two parallel tracks over one
+shared layer**, because the thing they were queued behind is the same in both
+cases: knowing where material came from and whether it may be shown.
+
+```
+                 ┌─────────────────────────────────────┐
+                 │  Shared Source / Provenance /       │
+                 │  Rights / Verification / Publication│
+                 │  / Source Health                    │
+                 └────────────┬────────────────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+   M5A Document / paper pipeline    M5B Permitted external sources
+```
+
+Splitting them the old way meant either building the source model twice or
+blocking one track on the other. Sharing it means a document and an announcement
+answer "where is this from" and "may we show it" the same way.
+
+**Historical milestone numbers are unchanged.** M5a (reference data, delivered)
+keeps its name and its commit references. This milestone is **M5**, and its two
+tracks are **M5A** and **M5B** — capitalised to distinguish them from the earlier
+lowercase M5a/M5b.
+
+**M5A — Document / paper pipeline.** Quarantine-first lifecycle: validation
+against hostile input, content-addressed storage behind an object-store
+interface, `pdftotext` extraction in a limited child process, structural
+sectioning. No question segmentation and no module mapping — those need the
+extraction proven first.
+
+**M5B — Permitted external sources.** Source registry with robots, terms, rights
+and verification gates as database constraints; adapter contract with pure
+`parse`/`normalize`/`validate` and a gated `fetch`; change detection that records
+rather than delivers.
+
+**Exit met:** shared registry and rights model exist and are constraint-enforced;
+HOST/LINK/PRIVATE/BLOCKED behave and are tested; every source is disabled by
+default and none can be enabled past the gates; document quarantine and
+validation reject every hostile fixture; extraction reports `text_available`,
+`ocr_required` or `extraction_failed` without ever silently OCR-ing; the VTU
+adapter framework exists and its source stays disabled; no result scraping
+exists.
+
+**Deliberately excluded:** question segmentation, module mapping, OCR, AI,
+notification delivery, admin dashboard, authentication, Supabase, student cloud
+persistence.
+
+**Carried forward:** `OQ-008` (redistribution) keeps the public tier
+unreachable; `OQ-006` (VTU terms) keeps the announcements source disabled;
+`OQ-019` (do real papers carry a text layer) is unanswerable until real papers
+arrive — the pipeline is proven on synthetic fixtures.
+
+### M5b — Document pipeline · superseded
+Folded into **M5 / M5A** above. Retained as a heading so earlier references
+resolve.
 
 ### M6 — Result/notice ingestion
 Source registry, adapter framework, the VTU announcements adapter, change detection, provenance, health monitoring, notification fan-out.

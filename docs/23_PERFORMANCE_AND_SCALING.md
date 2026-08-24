@@ -205,3 +205,45 @@ Tracked continuously (`24`): Core Web Vitals from real users where measurable wi
 **Alert thresholds:** API p95 > 1 s for 5 minutes; error rate > 5%; oldest pending job > 1 hour; any source unhealthy for 24 hours; database connections > 80% of pool.
 
 Thresholds are deliberately loose. A solo operator paged by a noisy alert twice a week stops reading alerts, at which point monitoring is worse than none.
+
+---
+
+## 23.12 Measured in M5 — documents and sources
+
+Observed on the development machine against synthetic fixtures. Median of
+repeated runs. Synthetic PDFs are small and simple, so **extraction on real
+scanned papers will be substantially slower** — these figures bound the pipeline
+overhead, not real-world document cost.
+
+| Operation | Input | Median |
+|---|---|---|
+| Validation | 1-page PDF, 624 B | 0.007 ms |
+| Validation | 12-page PDF, 3,989 B | 0.024 ms |
+| Validation | 120-page PDF, 37,458 B | 0.160 ms |
+| Extraction (`pdftotext`, child process) | 1 page | 28.6 ms |
+| Extraction | 12 pages | 30.3 ms |
+| Extraction | 120 pages | 48.7 ms |
+| Adapter parse + normalize + validate | 3-item fixture | 0.020 ms |
+| Change detection | 3 items | 0.0007 ms |
+
+| Endpoint | Response bytes | p50 |
+|---|---|---|
+| `GET /api/v1/sources` | 1,857 | 3.4 ms |
+| `GET /api/v1/sources/:id` | 936 | 3.0 ms |
+| `GET /api/v1/documents` | 11 (empty) | 2.5 ms |
+
+**What the numbers settle.**
+
+1. **Validation is free.** Sub-millisecond even at 120 pages, because it never
+   decompresses and never opens a parser. There is no case for moving it off the
+   request path.
+2. **Extraction is dominated by process startup**, not by page count — 1 page
+   and 120 pages differ by 20 ms while the floor is ~28 ms. Batching would help
+   far more than parallelism if extraction ever becomes hot.
+3. **No queue is warranted yet.** §23.10 rejects infrastructure added before
+   measurement. At ~30 ms per document there is nothing to defer, and adding
+   BullMQ would buy retry semantics for a workload with no backlog. The trigger
+   to revisit is real scanned papers with OCR, where per-document cost rises by
+   orders of magnitude — that is when a queue earns its place (M5 §23).
+4. **12 pages of extracted text is 627 characters across 12 sections**, so
+   `document_sections` rows are small and per-document row counts are modest.

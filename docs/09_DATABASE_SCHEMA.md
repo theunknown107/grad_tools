@@ -751,3 +751,37 @@ provenance columns, and `schemes`, `colleges`, `rule_sets`, `subjects` and
 | `gradtools_readonly` | `SELECT` on non-personal tables; for ad-hoc operational queries |
 
 Least privilege here specifically limits the blast radius of a SQL injection that gets past Drizzle's parameterisation: the app role cannot drop tables or read what it has no grant on.
+
+---
+
+### 9.11.4 Migration 0004 — sources and documents (M5)
+
+Forward-only. Adds `sources`, `documents`, `document_sections`,
+`source_changes` and their enums.
+
+The safety rules are CHECK constraints rather than application logic, for the
+reason §14.3 gives: code enforces a policy only until someone writes different
+code.
+
+| Constraint | Refuses |
+|---|---|
+| `source_enable_requires_all_gates` | Enabling without robots **and** terms **and** verification **and** an access method |
+| `source_robots_status_needs_check` | Asserting a robots status with no check date |
+| `source_terms_status_needs_review` | Asserting a terms status with no review date |
+| `document_host_requires_rights` | Hosting without a dated `permitted` rights determination |
+| `document_user_private_stays_private` | Presenting a student's own document as anything but private |
+| `document_link_requires_url` | A link with nothing to link to |
+| `document_stored_only_when_held` | Storing bytes for a link-only or blocked document |
+| `document_rejected_has_reason` | Rejecting with no reason |
+| `source_changes_dedupe` | Re-recording an unchanged item on every poll |
+
+`documents.sha256` is UNIQUE, so identical bytes are stored once regardless of
+how often they arrive, and the storage key is derived from that hash — nothing
+attacker-controlled reaches a path.
+
+**The migration runner now takes an advisory lock.** Two processes running
+migrations concurrently both read `schema_migrations`, both conclude a migration
+is pending, and the second fails on a duplicate type. That is what a rolling
+deploy of two instances does; it was found by two test files racing.
+`pg_advisory_lock` blocks rather than failing, so the second caller waits and
+finds nothing to apply.

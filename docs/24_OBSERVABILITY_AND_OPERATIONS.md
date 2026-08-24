@@ -229,3 +229,23 @@ The quarterly re-verification of academic rules is easy to skip and important: V
 - A simple status page (static, hosted separately from the API so it survives an outage).
 - In-app banner for known degradation, stating what is affected and what still works.
 - **Honest uptime.** The product states it is an Alpha operated by one person and does not promise a 99.9% SLA it cannot meet. Overpromising availability is the easiest credibility to lose and the least necessary to claim.
+
+---
+
+## 24.13 Source and document observability (M5)
+
+`sources` carries `health`, `consecutive_failures` and `last_checked_at`;
+`documents` carries `state`, `extraction_status` and `rejection_reason`. Both
+are columns rather than metrics because the state is the operational fact, and a
+metric derived from a column can be added later without changing what is stored.
+
+Nothing writes `health` yet: no scheduler exists and no source has been fetched,
+so every row reads `unknown` — which is accurate rather than a gap.
+
+**Rejections are recorded with a reason, and the reason never echoes file
+content.** A test asserts a marker string embedded in a hostile fixture does not
+appear in the rejection message, so a rejection reason cannot become an
+exfiltration channel into the logs.
+
+Extraction reports its own duration, which is what `23` §23.12 was measured
+from.

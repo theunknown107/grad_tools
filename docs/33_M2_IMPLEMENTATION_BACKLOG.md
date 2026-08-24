@@ -216,8 +216,8 @@ deriveBacklogs(semesters, ruleSet)                                   → RuleRes
 > | **M2.3 (backend), M2.4 (PostgreSQL)** | **M5a** | ✅ Delivered |
 > | **M2.14 (syllabus)** | **M5a**, hardened in **M4.1** | ✅ Model, API and empty state delivered; `module_count` now states *unverified* rather than defaulting to 5; **content blocked** on `OQ-025` |
 > | M2.19 (security baseline), M2.20 (observability) | M3 client-side, **M5a** server-side | ✅ Server half delivered |
-> | M2.15 (papers/documents) | M5b | ⏸ Blocked on `OQ-008`, `OQ-019` |
-> | M2.16 (notifications) | M6 | ⏸ Not started |
+> | M2.15 (papers/documents) | **M5 / M5A** | 🟡 Safe document lifecycle delivered. Public redistribution still blocked on `OQ-008`; real-paper validation still blocked on `OQ-019` |
+> | M2.16 (notifications) | **M5 / M5B** (detection) + M6 (delivery) | 🟡 Source registry, adapter contract and change **detection** delivered. Delivery not started, and deliberately has no schema hook |
 > | M2.21 (deployment) | M9 / M11 | ⏸ Not started |
 
 

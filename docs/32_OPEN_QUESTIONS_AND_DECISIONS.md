@@ -259,6 +259,13 @@ Recorded so they are visible and reversible rather than buried in code.
 | ED-34 | `RequiredMarksOutcome` returns raw-100 **and** printed-50 figures, printed one unrounded | The two differ by a factor of two. A bare `requiredSee` looked like a grade-card number and was not one (`A-16.7`). Rounding the printed view would create a figure that does not convert back |
 | ED-35 | `colleges` gains provenance, verification and publication gating | It was the one publishable reference table with none, served on `active` alone. Nothing wrong was served — the table is empty — but the schema permitted it |
 | ED-36 | `universities` and `branches` are **internal taxonomy**, not verified reference data; no provenance columns added | The test: does the row make a checkable claim about the external world that could change a calculation? VTU is the product's scope anchor; `cse` is a join key. `docs/09` §9.4 already drew this line. Inventing a source URL for "VTU exists" would be fabricated provenance, which is worse than none. The real defect was the queries — `listUniversities()` filtered nothing — fixed by adding `universities.active` in `0003` |
+| ED-37 | One shared `sources` registry for both M5 tracks, rather than per-subsystem source fields | Documents and announcements ask the same two questions: where is this from, and may we show it. Two answers drift, and rights end up duplicated on every table that holds material |
+| ED-38 | Terms review is part of the enable CONSTRAINT, not a note beside it | robots and terms answer different questions and can disagree. VTU proves it: `vtu.ac.in` robots permits announcements while its terms are unreviewed. A robots-only gate would have let that source be enabled on the strength of a check that does not address reuse |
+| ED-39 | Four presentation modes (`host`/`link`/`private`/`blocked`) rather than a two-tier public/private flag | While `OQ-008` is open, "we know where it is" is the useful state and a flag cannot express it. `link` additionally refuses to store bytes: holding a file we may not redistribute is the risk, not the metadata |
+| ED-40 | Storage keys derived from the content hash, never from a filename | Path traversal is designed out rather than filtered. With no attacker-controlled input reaching a path there is nothing to escape, and deduplication comes free from the same decision |
+| ED-41 | `fetch` is not a method on `SourceAdapter` | An adapter describes how to read a source; it does not carry permission to read it. Separating them makes `parse`/`normalize`/`validate` pure and fixture-testable, and makes the permission check impossible to forget |
+| ED-42 | `ocr_required` is reported, never acted on | Silently OCR-ing every scan would make a document whose text was guessed indistinguishable from one whose text was read, and everything downstream depends on that difference |
+| ED-43 | Migration runner takes a `pg_advisory_lock` | Two processes migrating concurrently both see a pending migration and the second fails on a duplicate type, which is exactly what a rolling deploy does. Found by two test files racing |
 
 Any of these may be reversed; each names the condition under which reversal would make sense.
 
@@ -374,6 +381,22 @@ The question is void rather than answered: there is no date-of-birth field, ther
 **Recommendation:** **(a)** in M2. Note that (c) would reopen `DEC-006` as a privacy decision, since question text would then leave our infrastructure.
 **Decision needed:** M2, based on measurement.
 
+### OQ-026 - VTU announcements terms of use - **BLOCKER for M5B activation**
+**Status after M5: OPEN.** This is `OQ-006` restated with its evidence in hand.
+**What is now known:** `vtu.ac.in/robots.txt`, fetched 2026-08-24, disallows only `/wp-admin/`. Robots therefore does **not** block reading announcements.
+**What is still unknown:** whether VTU's terms of use permit a third party to read, store and re-present those announcements. Nobody has reviewed them.
+**Consequence:** the `vtu-announcements` source is seeded **disabled**, and the database constraint refuses to enable it. The adapter framework and fixtures exist and have never been run against VTU.
+**Decision needed:** a human review of vtu.ac.in's terms. A reading task, not an engineering one.
+
+### OQ-027 - Object storage provider
+**Why unresolved:** M5 ships an `ObjectStore` interface with a local-filesystem driver. No cloud provider is chosen, and the choice interacts with hosting (`OQ-020`) and with retention.
+**Impact:** low now. The interface means the decision is one implementation, not a rewrite.
+**Decision needed:** before any deployment that accepts uploads.
+
+### OQ-028 - Document retention
+**Why unresolved:** how long a private document is kept, and what becomes of it when a student stops using GradTools, has never been decided. Stage 1 has no accounts, so nothing is retained on a server today.
+**Decision needed:** before student uploads are accepted over the network. Requires a human answer, not a default.
+
 ### OQ-023 — Annexure-I grade/percentage table transcription
 **Why unresolved:** the M4 roadmap criterion "transcribe Annexure-I" was never completed. The 2022 regulation's grade table is implemented in `academic-rules` from the clauses, but the annexure itself has not been transcribed row-for-row as an independent cross-check.
 **Impact:** low today — the implemented bands are clause-verified and tested. It matters as corroboration, not as a source of new values.
@@ -488,3 +511,8 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M4 | DEC-020 | A grade card's printed `External` is the SEE contribution out of 50; `16` §16.5's contrary claim corrected | Engineering (evidence: real artifact) |
 | M4.1 | ED-31…ED-35 | Reference-data and rules hardening decisions in Part B | Engineering |
 | M4.2 | ED-36 | University/Branch classified as internal taxonomy; the two integrity models made explicit | Engineering |
+| M5 | DEC-021 | M5b and M6 become parallel tracks M5A/M5B over one shared source layer | Human |
+| M5 | DEC-022 | Public paper tier stays hard-disabled; rights-unknown material is link-only | Human |
+| M5 | DEC-023 | `results.vtu.ac.in` robots re-verified 2026-08-24 and seeded as permanently blocked | Human + verified constraint |
+| M5 | DEC-024 | Documents stored via an object-store interface, local driver, outside the repository | Human |
+| M5 | ED-37...ED-43 | Source and document engineering decisions in Part B | Engineering |

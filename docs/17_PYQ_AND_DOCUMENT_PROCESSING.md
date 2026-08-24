@@ -54,6 +54,25 @@ This is the highest-risk input surface in GradTools (`13` §T-03). Every check, 
 | 10 | Encryption | encrypted → reject | Cannot be validated or extracted |
 | 11 | Structural parse | must open cleanly | Malformed → reject |
 
+### As built in M5
+
+Checks 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 and 11 are implemented in
+`services/api/src/documents/validate.ts`, at the byte level — the module opens
+no PDF with a real parser. Every rejection path has a fixture and a test.
+
+Two implementation notes worth recording:
+
+- **The decompression check reads declared `/Length` values rather than
+  decompressing.** Computing the true expanded size is precisely what a bomb
+  wants; the declaration is enough to catch it without performing the attack.
+- **Bytes are read as `latin1`, never `utf8`.** latin1 maps every byte to one
+  code unit, so offsets survive and no sequence is silently replaced — utf8
+  decoding of binary mangles exactly the regions a hostile file cares about.
+
+A page-count bug was found here and fixed: `/Type /Pages`, the page-tree node,
+contains `/Type /Page` as a substring, so a plain substring count reported one
+page too many on every document.
+
 **Then, and only then**, extraction runs — in a **child process**, never in the API process:
 
 ```
@@ -71,6 +90,26 @@ Crash, OOM or timeout → document rejected, parent unaffected
 This is what makes a poppler zero-day a rejected document rather than a compromised server.
 
 **Serving:** validated documents are served from a **separate origin** with `Content-Disposition: attachment` and `X-Content-Type-Options: nosniff`, so a PDF that survives everything above still cannot script the application origin.
+
+### Extraction as built in M5
+
+`pdftotext -layout -enc UTF-8` via `execFile` (no shell), with a 60 s wall-clock
+kill, an 8 MB output cap and `SIGKILL` on timeout. Three reported outcomes:
+
+| Status | Meaning |
+|---|---|
+| `text_available` | A usable text layer was read |
+| `ocr_required` | Fewer than 24 meaningful characters per page — a scan |
+| `extraction_failed` | The document could not be parsed |
+
+**OCR is not performed.** `ocr_required` is a report, not a trigger (M5 §15).
+The few stray glyphs a scan yields are discarded rather than stored, because a
+handful of noise characters look like content and are worse than nothing.
+
+Sectioning stops at pages and blank-line-separated blocks. Question segmentation
+and module mapping are deferred to the intelligence milestone; a test asserts
+sections carry no `questionNumber` or `marks`, so the absence is deliberate and
+stays that way.
 
 ## 17.4 Text extraction
 
@@ -229,6 +268,48 @@ Every decision is audited (`09` §audit_records). Approved corrections become fi
 - If it resolves positively, flipping documents to the public tier is a data operation, not a rewrite.
 
 **Nothing is served publicly by default.** The tier defaults to `private`, so an omission fails closed.
+
+### 17.11.1 As built in M5
+
+Expressed as constraints in migration `0004`, not as application logic:
+
+```sql
+CONSTRAINT document_host_requires_rights CHECK (
+  presentation <> 'host'
+  OR (rights_status = 'permitted' AND rights_determined_at IS NOT NULL))
+
+CONSTRAINT document_user_private_stays_private CHECK (
+  rights_status <> 'user_private' OR presentation = 'private')
+
+CONSTRAINT document_link_requires_url CHECK (
+  presentation <> 'link' OR source_url IS NOT NULL)
+
+CONSTRAINT document_stored_only_when_held CHECK (
+  presentation IN ('host','private') OR storage_key IS NULL)
+```
+
+Four presentation modes replace the two-tier flag, because "we have it and may
+share it" and "we know where it is" are different states and the second is the
+useful one while `OQ-008` is open:
+
+| Mode | Meaning | File held? |
+|---|---|---|
+| `host` | Permission recorded; we serve it | yes |
+| `link` | Metadata plus the original URL | **no** — refused by constraint |
+| `private` | The uploader's own copy | yes |
+| `blocked` | Cannot be used safely | no |
+
+`private` is the default, so an omission fails closed. **While `OQ-008` is
+unresolved, no document can legitimately reach `host` at all**, and a
+`user_private` document cannot be made public by any combination of fields — a
+test asserts that even an `UPDATE` flipping an existing private document is
+refused.
+
+`link` deliberately refuses a stored file. Holding the bytes of a document we
+have no permission to redistribute is the redistribution risk, not the metadata.
+
+**No route serves a document file.** A test walks `/file`, `/download`,
+`/content` and `/raw` on a real document id and asserts 404 on each.
 
 Interim handling, designed so the answer can be applied later without rework:
 - Every document stores `source_url` and `license_note` recording what is known about its origin.

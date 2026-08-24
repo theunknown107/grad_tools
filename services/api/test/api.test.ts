@@ -43,11 +43,12 @@ describeDb('reference API', () => {
   beforeAll(async () => {
     sql = createClient(DATABASE_URL as string);
 
-    // Prove migrations work from a genuinely clean database every run, rather
-    // than testing against whatever state a previous run happened to leave.
-    await sql`DROP SCHEMA public CASCADE`;
-    await sql`CREATE SCHEMA public`;
-
+    /*
+     * The clean-database guarantee lives in test/global-setup.ts, which drops
+     * and recreates `public` once before any file runs. Dropping it here as
+     * well would pull the schema out from under whichever file happened to be
+     * setting itself up at the same moment.
+     */
     await runMigrations(sql);
     await seed(sql);
 
