@@ -17,6 +17,7 @@ import {
   ruleSetQuerySchema,
   subjectIdSchema,
   subjectQuerySchema,
+  SOURCE_ROUTES,
 } from '@gradtools/shared-types';
 import type { Sql } from '../db/client.js';
 import * as queries from '../db/queries.js';
@@ -120,6 +121,50 @@ export function createReferenceRouter(sql: Sql): Router {
     const subject = await queries.findSubjectById(sql, id);
     if (!subject) throw notFound(`No published subject with id "${id}".`);
     sendList(res, await queries.listSyllabusModules(sql, id));
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* Sources and documents (M5)                                             */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * The source registry, published deliberately.
+   *
+   * Showing what GradTools reads, whether robots and terms permit it, and
+   * whether it is switched on turns a claim into something a student or a
+   * college can check (docs/14 §14.7.1). Every seeded source is currently
+   * disabled, and this endpoint is how that is verifiable from outside.
+   */
+  router.get(SOURCE_ROUTES.sources, async (_req: Request, res: Response) => {
+    sendList(res, await queries.listSources(sql));
+  });
+
+  router.get('/api/v1/sources/:id', async (req: Request, res: Response) => {
+    const id = referenceIdSchema.parse(req.params.id);
+    const source = await queries.findSource(sql, id);
+    if (!source) throw notFound(`No source with id "${id}".`);
+    res.setHeader('Cache-Control', REFERENCE_CACHE);
+    res.json(source);
+  });
+
+  /**
+   * Document METADATA only.
+   *
+   * There is no route that serves a document file, in this milestone or in this
+   * file. Hosting requires a rights determination that does not exist yet
+   * (OQ-008), so a `link` document is metadata plus the original URL and a
+   * `private` document does not appear here at all (M5 §9, §17).
+   */
+  router.get(SOURCE_ROUTES.documents, async (_req: Request, res: Response) => {
+    sendList(res, await queries.listPublicDocuments(sql));
+  });
+
+  router.get('/api/v1/documents/:id', async (req: Request, res: Response) => {
+    const id = subjectIdSchema.parse(req.params.id);
+    const document = await queries.findPublicDocument(sql, id);
+    if (!document) throw notFound(`No document with id "${id}".`);
+    res.setHeader('Cache-Control', REFERENCE_CACHE);
+    res.json(document);
   });
 
   return router;
