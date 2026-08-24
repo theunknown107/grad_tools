@@ -785,3 +785,38 @@ is pending, and the second fails on a duplicate type. That is what a rolling
 deploy of two instances does; it was found by two test files racing.
 `pg_advisory_lock` blocks rather than failing, so the second caller waits and
 finds nothing to apply.
+
+---
+
+### 9.11.5 Migration 0005 — gate hardening (M5.1)
+
+Forward-only. Two gates from `0004` were correct in intent and too permissive in
+expression. Neither ever let anything through — no source is enabled and no
+document exists — but both allowed a state the design forbids.
+
+**1. Only `http_fetch` may be enabled.**
+
+`0004` required `access_method <> 'none'`, which reads as "reachable somehow"
+and is not the question. `enabled` means *GradTools may reach out to this source
+on a schedule*, and that is only ever true of `http_fetch`. `manual_upload` and
+`manual_entry` describe material arriving from a **human** — a student uploading
+their own paper, an operator transcribing a scheme — so enabling one would mean
+polling a source that exists precisely because nobody polls it.
+
+The enum keeps all four values: "arrived by upload" versus "typed in by an
+operator" is real provenance worth recording. Only one of them is fetchable.
+
+**2. Quarantine holds for publication.**
+
+`0004` gated only the RIGHTS half of publication, so a `quarantined` document —
+one whose bytes have never been checked — could be marked `host` or `link`.
+
+```sql
+CONSTRAINT document_public_requires_validation CHECK (
+  presentation IN ('private','blocked') OR state IN ('validated','extracted'))
+```
+
+Rights and validation are **independent** preconditions and both are required.
+Having permission to show a document says nothing about whether it is safe to
+show. Putting it in a constraint rather than in the query means a second caller,
+an admin tool or a fix-up script cannot forget it.

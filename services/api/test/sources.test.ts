@@ -74,7 +74,11 @@ describe('source permission gate', () => {
     ['terms prohibited', { termsStatus: 'prohibited' as const }, 'terms_not_permitted'],
     ['terms restricted', { termsStatus: 'restricted' as const }, 'terms_not_permitted'],
     ['unverified', { verification: 'unverified' as const }, 'source_unverified'],
-    ['access method none', { accessMethod: 'none' as const }, 'access_method_none'],
+    ['access method none', { accessMethod: 'none' as const }, 'access_method_not_fetchable'],
+    // M5.1 §1: a human-delivery source is not merely disabled, it is not the
+    // kind of thing a fetch applies to.
+    ['manual upload', { accessMethod: 'manual_upload' as const }, 'access_method_not_fetchable'],
+    ['manual entry', { accessMethod: 'manual_entry' as const }, 'access_method_not_fetchable'],
   ])('refuses a %s source', (_label, overrides, expected) => {
     const decision = checkSourcePermission(permittedSource(overrides));
     expect(decision.allowed).toBe(false);
@@ -92,6 +96,35 @@ describe('source permission gate', () => {
     );
     expect(decision.allowed).toBe(false);
     if (!decision.allowed) expect(decision.refusal).toBe('terms_not_permitted');
+  });
+
+  /*
+   * M5.1 §1. `enabled` means "GradTools may reach out on a schedule", which is
+   * only ever true of http_fetch. A manual source is recorded so its provenance
+   * exists; polling one is a category error, not a configuration choice.
+   */
+  it.each(['none', 'manual_upload', 'manual_entry'] as const)(
+    'refuses to fetch a %s source even with every other gate open and enabled',
+    (accessMethod) => {
+      const decision = checkSourcePermission(permittedSource({ accessMethod, enabled: true }));
+      expect(decision.allowed).toBe(false);
+      if (!decision.allowed) expect(decision.refusal).toBe('access_method_not_fetchable');
+    },
+  );
+
+  it('permits only http_fetch when every other gate is open', () => {
+    expect(checkSourcePermission(permittedSource({ accessMethod: 'http_fetch' })).allowed).toBe(
+      true,
+    );
+  });
+
+  it('refuses a manual source before touching the network', async () => {
+    const outcome = await fetchSource(
+      permittedSource({ accessMethod: 'manual_upload' }),
+      'https://example.org/',
+    );
+    expect(outcome.ok).toBe(false);
+    expect(outcome.refusal).toBe('access_method_not_fetchable');
   });
 
   it('treats unknown as refusal, never as permission', () => {

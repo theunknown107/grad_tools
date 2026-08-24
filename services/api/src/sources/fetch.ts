@@ -37,7 +37,7 @@ export type FetchRefusal =
   | 'robots_not_allowed'
   | 'terms_not_permitted'
   | 'source_unverified'
-  | 'access_method_none'
+  | 'access_method_not_fetchable'
   | 'unsupported_scheme'
   | 'private_address'
   | 'host_not_resolvable';
@@ -55,18 +55,27 @@ export type FetchDecision = FetchAllowed | FetchRefused;
 /**
  * Whether this source may be fetched at all.
  *
- * Mirrors `source_enable_requires_all_gates` in migration 0004. Duplicating the
+ * Mirrors `source_enable_requires_all_gates` (migrations 0004, narrowed in
+ * 0005). Duplicating the
  * condition is deliberate: the constraint is the guarantee, and this is the
  * explanation. A caller gets a specific reason instead of a database error, and
  * if the two ever disagree the database wins — it is the one that cannot be
  * bypassed.
  */
 export function checkSourcePermission(source: Source): FetchDecision {
-  if (source.accessMethod === 'none') {
+  /*
+   * Only `http_fetch` is automatable (M5.1 §1). `manual_upload` and
+   * `manual_entry` describe material arriving from a human — a student's own
+   * upload, an operator transcribing a document — so a fetch against one is a
+   * category error, not merely a disabled source. `none` is recorded-only.
+   */
+  if (source.accessMethod !== 'http_fetch') {
     return {
       allowed: false,
-      refusal: 'access_method_none',
-      detail: `Source "${source.id}" is recorded for reference only and is never accessed automatically.`,
+      refusal: 'access_method_not_fetchable',
+      detail:
+        `Source "${source.id}" has access method "${source.accessMethod}" and is never ` +
+        `fetched automatically. Only "http_fetch" sources are.`,
     };
   }
   if (source.robotsStatus !== 'allowed') {

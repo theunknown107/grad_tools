@@ -266,6 +266,9 @@ Recorded so they are visible and reversible rather than buried in code.
 | ED-41 | `fetch` is not a method on `SourceAdapter` | An adapter describes how to read a source; it does not carry permission to read it. Separating them makes `parse`/`normalize`/`validate` pure and fixture-testable, and makes the permission check impossible to forget |
 | ED-42 | `ocr_required` is reported, never acted on | Silently OCR-ing every scan would make a document whose text was guessed indistinguishable from one whose text was read, and everything downstream depends on that difference |
 | ED-43 | Migration runner takes a `pg_advisory_lock` | Two processes migrating concurrently both see a pending migration and the second fails on a duplicate type, which is exactly what a rolling deploy does. Found by two test files racing |
+| ED-44 | `enabled` requires `access_method = 'http_fetch'`, not `<> 'none'` | `enabled` is a statement about automated outbound access, and only one method is automated. `manual_upload` and `manual_entry` describe a human handing us material; enabling one would mean polling a source that exists because nobody polls it. The enum keeps all four values because the provenance distinction is real |
+| ED-45 | Public visibility requires validation as well as rights | Rights and safety are independent questions. Permission to show a document says nothing about whether its bytes have been checked. Expressed as a constraint rather than a query filter, so a second caller or an admin tool cannot forget it |
+| ED-46 | The public-visibility condition is defined once and shared by both read paths | The by-id lookup is exactly where such a filter gets forgotten; sharing the fragment makes the list and the single-document paths incapable of drifting |
 
 Any of these may be reversed; each names the condition under which reversal would make sense.
 
@@ -516,3 +519,4 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5 | DEC-023 | `results.vtu.ac.in` robots re-verified 2026-08-24 and seeded as permanently blocked | Human + verified constraint |
 | M5 | DEC-024 | Documents stored via an object-store interface, local driver, outside the repository | Human |
 | M5 | ED-37...ED-43 | Source and document engineering decisions in Part B | Engineering |
+| M5.1 | ED-44...ED-46 | Fetch and publication gate hardening in Part B | Engineering |

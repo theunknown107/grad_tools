@@ -168,6 +168,13 @@ exists.
 notification delivery, admin dashboard, authentication, Supabase, student cloud
 persistence.
 
+**Hardened in M5.1.** Two gates were narrowed after review. `enabled` now
+requires `access_method = 'http_fetch'`, so a manual-delivery source can never
+become an automated one; and a document must be `validated` or `extracted`
+before it can be `host` or `link`, so quarantine holds for publication as well
+as for processing. Neither gap had ever been exercised. 702 tests pass, 238
+against real PostgreSQL.
+
 **Carried forward:** `OQ-008` (redistribution) keeps the public tier
 unreachable; `OQ-006` (VTU terms) keeps the announcements source disabled;
 `OQ-019` (do real papers carry a text layer) is unanswerable until real papers

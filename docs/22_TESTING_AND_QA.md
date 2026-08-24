@@ -45,9 +45,9 @@ of them needs a database:
 |---|---|---|---|
 | `packages` | node | 410 | — |
 | `web` | jsdom | 54 | — |
-| `api` | node | 212 | real PostgreSQL |
+| `api` | node | 238 | real PostgreSQL |
 
-Total: **676 tests, all passing.**
+Total: **702 tests, all passing.**
 
 `Docker in Docker` was not available on the development machine, so the API
 suite runs against a **disposable local PostgreSQL 18 cluster** on port 55432
@@ -102,6 +102,20 @@ attempting the forbidden write and expecting the database to refuse it.
 file. Two files each dropping the schema in their own `beforeAll` let their
 hooks interleave, and one found its tables gone mid-setup. One owner, once,
 before anything else runs.
+
+**Added in M5.1** (26 tests). Both narrowed gates, from both sides:
+`manual_upload` and `manual_entry` refused at the permission check and refused
+by the constraint even with every other gate open; an enabled source refused
+when switched to a manual method; a manual source still recordable while
+disabled. On the document side, quarantined documents refused as `host` and as
+`link`, refused when flipped from private, and hidden from **both** read paths —
+the by-id path is asserted separately from the listing, because that is where a
+visibility filter gets forgotten.
+
+Several existing M5 tests had to state `state: 'validated'` explicitly once the
+new constraint landed. That is the constraint working: they were inserting
+public documents in quarantine, which is the state the fix forbids.
+
 
 
 **Added in M4.2:** the taxonomy/verified-reference split is pinned from both

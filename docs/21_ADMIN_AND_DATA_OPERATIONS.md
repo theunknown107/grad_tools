@@ -217,3 +217,16 @@ eventually built:
 
 The takedown path `17` §11 requires is one `UPDATE` setting `presentation` to
 `blocked`, which the constraints permit from any state.
+
+---
+
+### 21.13.1 Two more things the constraints guarantee (M5.1)
+
+Whatever admin tooling is eventually built:
+
+- **A manual source cannot be turned into an automated one by enabling it.**
+  Switching `access_method` to `manual_upload` or `manual_entry` on an enabled
+  source is refused, as is enabling one.
+- **A document cannot be published out of quarantine.** Marking a document
+  `host` or `link` before it has been validated is refused, whatever its rights
+  say.
