@@ -204,6 +204,79 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
     `;
   }
 
+  /* ------------------------------------------------------------------------ */
+  /* Source registry (M5)                                                     */
+  /* ------------------------------------------------------------------------ */
+
+  /*
+   * Both rows are DISABLED, and the database constraint keeps them that way.
+   *
+   * The robots findings below were obtained by fetching each host's
+   * /robots.txt on 2026-08-24 and are recorded verbatim. robots.txt is a
+   * public policy file published precisely to be read, and reading it is the
+   * only automated request GradTools has made to either host.
+   *
+   * The two hosts came back differently, which is exactly why the gates are
+   * independent:
+   *
+   *   results.vtu.ac.in   "User-agent: *  Disallow: /"   -> everything refused
+   *   vtu.ac.in           disallows only /wp-admin/      -> announcements not
+   *                                                          refused by robots
+   *
+   * vtu.ac.in is STILL disabled, because robots is only one gate. Its terms of
+   * use have never been reviewed (OQ-006), and a crawl policy is not a licence
+   * to reuse content. Nothing here asserts permission that was not obtained.
+   */
+  await sql`
+    INSERT INTO sources (
+      id, kind, publisher, canonical_url, authority, access_method,
+      robots_status, robots_checked_at, robots_note,
+      terms_status, terms_note,
+      rights_status, verification, verified_at, verified_by, enabled, notes
+    ) VALUES (
+      'vtu-announcements', 'announcements', 'Visvesvaraya Technological University',
+      'https://vtu.ac.in/', 'official', 'none',
+      'allowed', '2026-08-24',
+      'https://vtu.ac.in/robots.txt fetched 2026-08-24: "User-agent: *" with "Disallow: /wp-admin/" and "Allow: /wp-admin/admin-ajax.php". Announcement paths are not disallowed.',
+      'unknown',
+      'Terms of use have NOT been reviewed. OQ-006 is open. Robots permitting access is not permission to reuse content.',
+      'unknown', 'verified', ${SCHEME_VERIFIED_AT}, ${VERIFIED_BY}, false,
+      'Adapter framework and fixtures exist; the source has never been fetched. Enabling requires a terms review (OQ-006).'
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      robots_status = EXCLUDED.robots_status,
+      robots_checked_at = EXCLUDED.robots_checked_at,
+      robots_note = EXCLUDED.robots_note,
+      terms_status = EXCLUDED.terms_status,
+      terms_note = EXCLUDED.terms_note,
+      notes = EXCLUDED.notes
+  `;
+
+  await sql`
+    INSERT INTO sources (
+      id, kind, publisher, canonical_url, authority, access_method,
+      robots_status, robots_checked_at, robots_note,
+      terms_status, terms_reviewed_at, terms_note,
+      rights_status, verification, verified_at, verified_by, enabled, notes
+    ) VALUES (
+      'vtu-results', 'results', 'Visvesvaraya Technological University',
+      'https://results.vtu.ac.in/', 'official', 'none',
+      'disallowed', '2026-08-24',
+      'https://results.vtu.ac.in/robots.txt fetched 2026-08-24: "User-agent: *" / "Disallow: /". All automated access is refused by the site owner.',
+      'prohibited', '2026-08-24',
+      'Automated individual result retrieval is out of scope (DEC-004, DEC-011). No adapter exists.',
+      'prohibited', 'verified', ${SCHEME_VERIFIED_AT}, ${VERIFIED_BY}, false,
+      'Recorded so the finding is enforced rather than merely documented. The enable constraint makes this row impossible to switch on.'
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      robots_status = EXCLUDED.robots_status,
+      robots_checked_at = EXCLUDED.robots_checked_at,
+      robots_note = EXCLUDED.robots_note,
+      terms_status = EXCLUDED.terms_status,
+      terms_reviewed_at = EXCLUDED.terms_reviewed_at,
+      terms_note = EXCLUDED.terms_note
+  `;
+
   // syllabus_modules is intentionally left empty. See the header note.
 
   const [counts] = await sql<

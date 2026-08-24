@@ -20,6 +20,10 @@
  */
 
 import {
+  documentSchema,
+  sourceSchema,
+  type DocumentRecord,
+  type Source,
   branchSchema,
   collegeSchema,
   ruleSetMetaSchema,
@@ -309,4 +313,113 @@ export async function listSyllabusModules(sql: Sql, subjectId: string): Promise<
     ORDER BY m.module_number
   `;
   return parseRows(syllabusModuleSchema, rows);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sources and documents (M5)                                                 */
+/* -------------------------------------------------------------------------- */
+
+const SOURCE_COLUMNS = (sql: Sql) => sql`
+  id,
+  kind,
+  publisher,
+  canonical_url AS "canonicalUrl",
+  authority,
+  access_method AS "accessMethod",
+  robots_status AS "robotsStatus",
+  to_char(robots_checked_at, 'YYYY-MM-DD') AS "robotsCheckedAt",
+  robots_note AS "robotsNote",
+  terms_status AS "termsStatus",
+  to_char(terms_reviewed_at, 'YYYY-MM-DD') AS "termsReviewedAt",
+  terms_note AS "termsNote",
+  rights_status AS "rightsStatus",
+  verification,
+  to_char(verified_at, 'YYYY-MM-DD') AS "verifiedAt",
+  enabled,
+  health,
+  consecutive_failures AS "consecutiveFailures",
+  to_char(last_checked_at, 'YYYY-MM-DD') AS "lastCheckedAt",
+  parser_version AS "parserVersion",
+  poll_interval_seconds AS "pollIntervalSeconds",
+  notes
+`;
+
+/**
+ * The source registry is public on purpose.
+ *
+ * Publishing what GradTools reads, whether it is allowed to, and whether it is
+ * switched on is a trust feature: a student or a college can check the claim
+ * rather than take it on faith (docs/14 §14.7.1).
+ */
+export async function listSources(sql: Sql): Promise<Source[]> {
+  const rows = await sql`
+    SELECT ${SOURCE_COLUMNS(sql)} FROM sources ORDER BY id
+  `;
+  return parseRows(sourceSchema, rows);
+}
+
+export async function findSource(sql: Sql, id: string): Promise<Source | null> {
+  const rows = await sql`
+    SELECT ${SOURCE_COLUMNS(sql)} FROM sources WHERE id = ${id}
+  `;
+  return parseRows(sourceSchema, rows)[0] ?? null;
+}
+
+const DOCUMENT_COLUMNS = (sql: Sql) => sql`
+  id::text,
+  source_id AS "sourceId",
+  title,
+  sha256,
+  byte_size::int AS "byteSize",
+  mime_type AS "mimeType",
+  page_count AS "pageCount",
+  state,
+  extraction_status AS "extractionStatus",
+  rights_status AS "rightsStatus",
+  presentation,
+  source_url AS "sourceUrl",
+  license_note AS "licenseNote",
+  rejection_reason AS "rejectionReason",
+  to_char(created_at, 'YYYY-MM-DD') AS "createdAt"
+`;
+
+/**
+ * Documents the public may see.
+ *
+ * `private` is excluded at the query, not filtered later: a student's own
+ * upload has no business appearing in a public listing, and the safest place
+ * for that rule is the one every caller goes through. `blocked` is excluded
+ * for the same reason.
+ *
+ * Note this returns METADATA. Serving the file itself is a separate,
+ * rights-gated concern, and no route in M5 serves one (M5 §17).
+ */
+export async function listPublicDocuments(sql: Sql): Promise<DocumentRecord[]> {
+  const rows = await sql`
+    SELECT ${DOCUMENT_COLUMNS(sql)}
+    FROM documents
+    WHERE presentation IN ('host', 'link') AND state <> 'rejected'
+    ORDER BY created_at DESC, id
+  `;
+  return parseRows(documentSchema, rows);
+}
+
+export async function findPublicDocument(sql: Sql, id: string): Promise<DocumentRecord | null> {
+  const rows = await sql`
+    SELECT ${DOCUMENT_COLUMNS(sql)}
+    FROM documents
+    WHERE id = ${id}::uuid AND presentation IN ('host', 'link') AND state <> 'rejected'
+  `;
+  return parseRows(documentSchema, rows)[0] ?? null;
+}
+
+/** Last seen payload hash per item, which is what change detection diffs against. */
+export async function lastSeenHashes(sql: Sql, sourceId: string): Promise<Map<string, string>> {
+  const rows = await sql<{ external_id: string; payload_hash: string }[]>`
+    SELECT DISTINCT ON (external_id) external_id, payload_hash
+    FROM source_changes
+    WHERE source_id = ${sourceId} AND change_type <> 'removed'
+    ORDER BY external_id, detected_at DESC
+  `;
+  return new Map(rows.map((row) => [row.external_id, row.payload_hash]));
 }
