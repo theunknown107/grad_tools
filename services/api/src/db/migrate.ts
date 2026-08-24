@@ -40,7 +40,39 @@ export async function listMigrations(): Promise<string[]> {
   return entries.filter((name) => name.endsWith('.sql')).sort((a, b) => a.localeCompare(b));
 }
 
+/**
+ * Advisory-lock key for the migration runner.
+ *
+ * PostgreSQL's two-argument form takes a pair of 32-bit integers, which avoids
+ * the 64-bit round-trip entirely. The values are arbitrary but fixed: the only
+ * requirement is that every process migrating this database uses the same pair.
+ */
+const MIGRATION_LOCK_CLASS = 0x6772; // 'gr'
+const MIGRATION_LOCK_KEY = 0x6474; // 'dt'
+
+/**
+ * Applies pending migrations, one process at a time.
+ *
+ * THE LOCK IS NOT TEST SCAFFOLDING. Two processes running this concurrently
+ * both read `schema_migrations`, both conclude a migration is pending, and both
+ * try to apply it — and the second fails on a duplicate type or table rather
+ * than skipping. That is exactly what a rolling deploy of two instances does,
+ * and it was found by two test files racing.
+ *
+ * `pg_advisory_lock` blocks rather than failing, so the second caller waits and
+ * then finds nothing left to apply. The lock is session-scoped and released in
+ * `finally`, so a failed migration cannot leave it held.
+ */
 export async function runMigrations(sql: Sql): Promise<MigrationResult> {
+  await sql`SELECT pg_advisory_lock(${MIGRATION_LOCK_CLASS}, ${MIGRATION_LOCK_KEY})`;
+  try {
+    return await applyPending(sql);
+  } finally {
+    await sql`SELECT pg_advisory_unlock(${MIGRATION_LOCK_CLASS}, ${MIGRATION_LOCK_KEY})`;
+  }
+}
+
+async function applyPending(sql: Sql): Promise<MigrationResult> {
   await ensureMigrationTable(sql);
 
   const alreadyApplied = new Set(
