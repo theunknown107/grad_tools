@@ -388,9 +388,37 @@ Stated precisely: **in the supplied 65-document test corpus, 56 of 65 produced n
 **Why it stays open:** the sample size and selection do not support a general claim, and the follow-on question — whether OCR output would be accurate enough to build on — has not been touched.
 **Decision needed:** an OCR strategy, informed by this evidence. **Future OCR required** — not implemented.
 
-### OQ-019a — Is OCR output good enough to build on? · **OPEN**
-**Why unresolved:** raised by the OQ-019 evidence. If ~86% of a real corpus needs OCR, then extraction accuracy for that path decides whether question-level intelligence is feasible at all. Nothing downstream should be designed until an OCR sample has been measured the way `pdftotext` was here.
-**Decision needed:** before any question-segmentation or intelligence milestone.
+### OQ-019a — Is OCR output good enough to build on? · **PARTIALLY VERIFIED (M5A.1)**
+**Benchmark:** 10 scan-like documents (33 pages) through two **fully local** engines — Tesseract 5.5.3 and the OCR engine built into Windows. Nothing was sent to a hosted service; no document left the machine. Full method and examples in `17` §17.11b.
+
+**Answer, for the readable part:** yes, with a caveat that decides the engine.
+
+| Engine | GOOD | PARTIAL | POOR | FAILED | End to end |
+|---|---|---|---|---|---|
+| Tesseract | 6 | 4 | 0 | 0 | ~3.0 s/page (≈1.5–2 s tuned) |
+| Windows OCR | 7 | 3 | 0 | 0 | ~2.5 s/page |
+
+**The caveat:** Windows OCR scores marginally better on words and is unusable on
+structure — on a two-column paper it reads the question-label column top to
+bottom, detached from the question text. Tesseract with `--psm 6` keeps
+`question | marks | Bloom's | CO` on one line. For GradTools, structure is the
+product, so Tesseract wins despite lower raw accuracy. Windows OCR is also
+Windows-only and therefore not deployable.
+
+**Still unverified, and why this stays open:**
+- **Kannada script: 0 codepoints recovered by either engine.** Neither has a Kannada language pack. `BKBKK107`/`BKSKK107` are mandatory courses. Fixable (`kan` traineddata) but not done and not measured.
+- **Mathematics does not survive**, matching the text-layer finding — `tan⁡(∅)` became `tan = e $ v4 ayy`.
+- **"Readable" is a lower bar than "segmentable".** Whether this output supports question-level extraction is a different question and has not been tested.
+- One 10-document sample, one machine.
+
+**Decision made (`DEC-021`):** local OCR with Tesseract **when OCR is implemented**. Not implemented in this milestone.
+**Decision needed:** the three measurements above, before any question-segmentation or intelligence milestone.
+
+### OQ-029 — VTU 2022 has more than one question-paper format · **OPEN**
+**Discovered in M5A.1** while grading the OCR benchmark: 4 of 10 sampled papers are 50-question MCQ papers (`Max Marks: 50`, "Question Paper Version", "darken the circles") with **no modules and no Bloom's/CO columns**. The other 6 are the descriptive 100-mark format with `Module-1..5`.
+**Why it matters:** a first rubric that assumed one format scored 4 real papers POOR when the OCR had read them correctly. Any future segmentation or intelligence work must detect the format before assuming a structure, or it will report good papers as broken.
+**Unknown:** how many formats exist in total, and whether the mapping from course code to format is reliable.
+**Decision needed:** before question segmentation.
 
 ### OQ-027 — Production object storage · **OPEN**
 **Why unresolved:** M5A ships an `ObjectStore` interface with a local-filesystem driver, deliberately choosing no cloud provider. Production storage must provide: private access by default, signed URLs when serving is eventually permitted, encryption at rest, lifecycle rules, durable storage, predictable cost, and a serving origin separate from the application.
@@ -551,6 +579,8 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M4.1 | ED-31…ED-35 | Reference-data and rules hardening decisions in Part B | Engineering |
 | M4.2 | ED-36 | University/Branch classified as internal taxonomy; the two integrity models made explicit | Engineering |
 | M5A | ED-37…ED-41 | Document lifecycle, validator corrections and the localhost boundary in Part B | Engineering (ED-38/39 evidence: real corpus) |
+| M5A.1 | DEC-021 | OCR, when implemented, will be **local Tesseract** — privacy is decisive and structural fidelity beats raw accuracy | Engineering (evidence: 10-document benchmark) |
+| M5A.1 | ED-42 | `ocr_required` presented as a processing outcome, not an error | 54 of 63 accepted PDFs were scans; calling that a failure would tell most students their good paper had broken, and would devalue the message that does mean failure |
 | M5 | DEC-021 | M5b and M6 become parallel tracks M5A/M5B over one shared source layer | Human |
 | M5 | DEC-022 | Public paper tier stays hard-disabled; rights-unknown material is link-only | Human |
 | M5 | DEC-023 | `results.vtu.ac.in` robots re-verified 2026-08-24 and seeded as permanently blocked | Human + verified constraint |

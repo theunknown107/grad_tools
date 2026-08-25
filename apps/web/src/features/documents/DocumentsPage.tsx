@@ -27,24 +27,43 @@ import { useAsync } from '../../hooks/useReference.js';
 import { apiBaseUrl } from '../../repositories/reference.js';
 import styles from './documents.module.css';
 
-/** Extraction outcomes, in the words a student would use. */
-const EXTRACTION_LABEL: Record<string, { label: string; detail: string }> = {
+/**
+ * Extraction outcomes, in the words a student would use.
+ *
+ * `tone` matters as much as the words. `ocr_required` is a LEGITIMATE
+ * PROCESSING OUTCOME, not a failure: the document was read correctly and
+ * correctly found to contain no text layer. Only `extraction_failed` means
+ * something went wrong.
+ *
+ * The distinction is not cosmetic. In the supplied corpus 54 of 63 accepted
+ * PDFs were scans (docs/32 OQ-019), so presenting that as an error would tell
+ * most students their perfectly good paper had broken — and would train them to
+ * ignore the one message that does mean something is wrong.
+ */
+const EXTRACTION_LABEL: Record<
+  string,
+  { label: string; detail: string; tone: 'neutral' | 'ok' | 'info' | 'error' }
+> = {
   pending: {
     label: 'Not read yet',
     detail: 'This document has been checked but not read.',
+    tone: 'neutral',
   },
   text_available: {
     label: 'Text read',
     detail: 'The text was read directly from the document.',
+    tone: 'ok',
   },
   ocr_required: {
-    label: 'Scanned image',
+    label: 'Needs image reading',
     detail:
-      'This document is a scan, so there is no text to read. Reading it would need image recognition, which GradTools does not do yet.',
+      'No usable text layer was found: this document is a scan of a printed page. Reading it would need image recognition, which GradTools does not do yet.',
+    tone: 'info',
   },
   extraction_failed: {
     label: 'Could not read',
     detail: 'The document could not be read. It may be damaged.',
+    tone: 'error',
   },
 };
 
@@ -229,8 +248,15 @@ function DocumentRow({
     <article className={styles.card} data-state={doc.state}>
       <div className={styles.cardHead}>
         <h3 className={styles.title}>{doc.title}</h3>
-        <span className={styles.state} data-state={doc.state}>
-          {STATE_LABEL[doc.state] ?? doc.state}
+        <span className={styles.state} data-state={doc.state} data-tone={extraction?.tone}>
+          {/*
+            For a processed document the extraction outcome is the useful
+            label. "Read" would be actively wrong on a scan that produced no
+            text, even though its lifecycle state really is `extracted`.
+          */}
+          {doc.state === 'extracted' && extraction !== undefined
+            ? extraction.label
+            : (STATE_LABEL[doc.state] ?? doc.state)}
         </span>
       </div>
 
@@ -257,7 +283,14 @@ function DocumentRow({
       {doc.state === 'rejected' ? (
         <p className={styles.rejection}>{doc.rejectionReason}</p>
       ) : (
-        <p className={styles.extraction}>{extraction?.detail}</p>
+        /*
+         * `data-tone` carries the meaning, so a scan reads as information and
+         * only a real failure reads as an error. Never colour alone: the
+         * wording differs too.
+         */
+        <p className={styles.extraction} data-tone={extraction?.tone}>
+          {extraction?.detail}
+        </p>
       )}
 
       {doc.state !== 'rejected' && (

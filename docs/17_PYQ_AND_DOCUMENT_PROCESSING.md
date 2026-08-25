@@ -412,7 +412,139 @@ No question segmentation. Sectionizing stops at pages and blank-line-separated
 blocks. Given that a maths paper loses a sixth of its characters, inferring
 question boundaries from this text would be building on sand.
 
-## 17.12 Testing
+## 17.11b OCR feasibility benchmark (M5A.1)
+
+Evidence gathering, not implementation. **No OCR is implemented, and nothing in
+GradTools calls an OCR engine.**
+
+### Method
+
+10 scan-like documents from the supplied corpus, chosen for variation: 2–6
+pages, 145–542 KB/page, six subject families, both question-paper formats, and a
+Kannada-script paper. 33 pages, 11.4 MB total.
+
+Two engines, **both fully local — nothing left the machine, no hosted API was
+contacted, and no document was uploaded anywhere**:
+
+| Engine | Version | Install | Runs on |
+|---|---|---|---|
+| Tesseract | 5.5.3 | `winget`, ~100 MB with `eng` | Windows, Linux, macOS |
+| Windows.Media.Ocr | ships with Windows 11 | none — already present | **Windows only** |
+
+Rasterization by `pdftoppm` (poppler 25.07.0) at 300 DPI, then 150 DPI for the
+tuning comparison.
+
+### A rubric correction, made mid-benchmark
+
+The first rubric graded every paper against `Module-1..5`, `Q.n`, and the
+marks/Bloom's/CO columns — and scored 4 of 10 documents POOR. Inspecting the
+output showed the fault was the rubric's: **VTU 2022 uses at least two
+question-paper formats**, and four of the sample were the second kind.
+
+| Format | Marks | Structure |
+|---|---|---|
+| Descriptive | 100 | `Module-1..5`, `Q.1..Q.10`, marks / Bloom's level / CO columns |
+| MCQ | 50 | 50 one-mark items, "Question Paper Version", "darken the circles", **no modules, no Bloom's column** |
+
+Re-graded against the format each document actually uses:
+
+| Engine | GOOD | PARTIAL | POOR | FAILED |
+|---|---|---|---|---|
+| Tesseract | 6 | 4 | 0 | 0 |
+| Windows OCR | 7 | 3 | 0 | 0 |
+
+The lesson generalises beyond OCR: a paper that does not match the expected
+template is not a broken paper, and any future question-intelligence work has to
+detect the format before assuming a structure.
+
+### The finding that decides it
+
+Raw character accuracy favours Windows OCR. **Structural fidelity favours
+Tesseract, decisively.**
+
+On a two-column descriptive paper, Windows OCR reads the left-hand label column
+top to bottom and emits it detached from the question text:
+
+```
+Q.4
+a.
+b.
+c.
+b.
+c.
+Module-I
+With usual notations, prove that tan (t) = r-
+```
+
+Tesseract with `--psm 6` keeps the row together, marks column included:
+
+```
+Show that the curves = a(1 +sin@) and r= b(1 - Sin®) intersect each other | 7 | L2 | CO1
+```
+
+For GradTools the second is usable and the first is not. The entire point of
+reading a paper is knowing which question carries which marks and belongs to
+which module; an engine that separates the labels from the text destroys exactly
+that, however well it reads individual words.
+
+Windows OCR does read some anchors better — it recovered the subject code
+`BCS403` where Tesseract produced `, GBCSGHENE`, and found `USN` on 10/10
+documents against Tesseract's 1/10.
+
+### What is lost even when OCR succeeds
+
+- **Kannada script: nothing at all.** Both engines recovered **0** Kannada
+  codepoints from the Kannada paper and emitted Latin gibberish instead.
+  Tesseract has no `kan` language pack installed and Windows has only en-GB and
+  en-US. `BKBKK107` and `BKSKK107` are mandatory courses, so this is a real gap
+  with a known fix (install the language data) that has **not** been done or
+  measured.
+- **Mathematical notation.** `tan⁡(∅)` became `tan = e $ v4 ayy`. Formulas do not
+  survive, matching the finding for text-layer maths papers in §17.11a.
+- **Table columns** survive partially under `--psm 6` and not at all otherwise.
+
+### Cost, measured
+
+| | Tesseract | Windows OCR |
+|---|---|---|
+| OCR only | 1 111 ms/page | 588 ms/page |
+| Rasterization (300 DPI) | 1 901 ms/page | (shared) |
+| **End to end** | **~3.0 s/page** | ~2.5 s/page |
+| A 4-page paper | ~12 s | ~10 s |
+| Peak memory | 126 MB | 197 MB |
+
+**Rasterization, not OCR, is the bottleneck.** And 300 DPI is the wrong setting
+for this corpus: at 150 DPI, across four documents, rasterization is ~3× faster,
+OCR ~1.5× faster, and quality is comparable or better — the source scans are
+low-resolution, so upsampling adds interpolation noise rather than information.
+150 DPI recovered the subject code on 2 of 4 documents where 300 DPI recovered
+it on none.
+
+Even tuned, ~1.5–2 s/page cannot go in the synchronous request path that M5A
+measured at 12–202 ms per document. **OCR is the trigger for background
+processing that `ED-41` anticipated.**
+
+### Recommendation
+
+**(A) Local OCR with Tesseract, when OCR is implemented** — not now.
+
+- **Accuracy:** adequate and, crucially, structurally usable. 6 GOOD / 4 PARTIAL.
+- **Privacy:** decisive. The corpus is third-party academic material of
+  unresolved rights (`OQ-008`) and student uploads are private by construction.
+  Sending either to a hosted API would contradict the guarantee the Documents
+  screen makes. A local engine keeps that guarantee true.
+- **Cost:** zero marginal, versus roughly $1–1.50 per 1 000 pages for hosted OCR
+  — before the privacy question, which is the one that actually decides it.
+- **Operational complexity:** one binary plus language data; runs on Linux, so
+  it deploys where the API deploys.
+- **Windows OCR is not a candidate for production** despite being faster and
+  free: it is Windows-only, and the server is not.
+
+**Before any OCR ships, three things must be measured that this benchmark did
+not:** Kannada accuracy with `kan` traineddata, the 150-DPI setting across a
+larger sample, and whether OCR output is accurate enough for question
+segmentation — which is a different and higher bar than "readable".
+
 
 | Test | Method |
 |---|---|

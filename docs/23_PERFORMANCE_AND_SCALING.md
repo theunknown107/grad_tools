@@ -132,7 +132,28 @@ no worker pool, no BullMQ.** The trigger to revisit is a document type that
 takes seconds — most plausibly OCR, which is not implemented and would be the
 point at which asynchronous processing genuinely earns its place.
 
-## 23.4 Database
+### 23.3.3 Measured in M5A.1 — OCR cost
+
+10 scan-like documents, 33 pages, both engines local. Full method in docs/17
+§17.11b.
+
+| Stage | Tesseract | Windows OCR |
+|---|---|---|
+| Rasterize @300 DPI | 1 901 ms/page | (shared) |
+| OCR | 1 111 ms/page | 588 ms/page |
+| **Total** | **~3.0 s/page** | ~2.5 s/page |
+| Peak memory | 126 MB | 197 MB |
+
+At 150 DPI rasterization is ~3× faster and OCR ~1.5× faster, at comparable
+quality — the source scans are low-resolution and upsampling adds noise.
+Tuned, roughly **1.5–2 s/page**.
+
+**This does not fit the synchronous path.** M5A measured real documents at
+12–202 ms; a 4-page scan would take 6–12 s. OCR is precisely the trigger
+`ED-41` named for revisiting background processing — and the first thing in this
+project that genuinely justifies a queue, rather than one added because the
+architecture mentions one.
+
 
 | Practice | Detail |
 |---|---|
