@@ -13,6 +13,39 @@
 
 **The reframing:** students do not actually need a prediction. They need to know where to spend limited revision time. "Module 3 has appeared in 8 of the last 8 papers, worth an average of 20 marks" is more useful *and* more defensible than "Module 3 is 87% likely to appear."
 
+## 18.0a What the source text can and cannot support (M5A.2)
+
+Everything in this document assumes trustworthy question text. The OCR
+qualification measured how far that assumption holds, and it holds unevenly.
+
+| Field | Descriptive papers | MCQ papers | Confidence |
+|---|---|---|---|
+| Page boundaries | reliable | reliable | **high** |
+| Module (1–5) | recovered and propagates | n/a — no modules | **high** |
+| Question number | recovered | recovered | **high** |
+| Marks | recovered | n/a — uniformly 1 | **high** |
+| Bloom's level / CO | recovered together with marks | n/a | **high** |
+| Sub-question letter (a/b/c) | **3–4 of 15–20 rows** | n/a | **low** |
+| Question text (prose) | readable, noisy | readable | medium |
+| Question text (mathematics) | **destroyed** | n/a | **none** |
+
+**Two consequences for anything built on top.**
+
+*Sub-question identity is the weak link.* Marks, module and CO attach reliably
+to a row, but which of `a`, `b`, `c` a row belongs to is recovered only about a
+fifth of the time — the letter merges into the text or is lost at the column
+edge. Any feature keyed on "question 3(b)" is building on the least reliable
+field available; features keyed on module and marks are on solid ground.
+
+*Mathematics is searchable, not reconstructable.* `x²p² + xyp − 6y²` came back
+as `x’p? + xyp-6y7 4S`. Frequency analysis over maths topics can work from the
+prose stems; presenting a reconstructed equation to a student cannot, and must
+not be attempted from this text.
+
+Nothing in this document is implemented. This section exists so that the first
+intelligence feature is designed against measured input quality rather than an
+assumed one.
+
 ## 18.2 Prerequisites
 
 Every feature here depends on inputs that do not yet exist:

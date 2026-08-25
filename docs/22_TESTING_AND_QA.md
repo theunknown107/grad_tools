@@ -118,6 +118,13 @@ public documents in quarantine, which is the state the fix forbids.
 
 
 
+**M5A.2 added no OCR tests, deliberately.** The qualification needs the
+gitignored corpus, ~100 MB of engine and language data, and a rasterizer — none
+of which belong in CI, and all of which would make the suite depend on a
+machine's installed software. It is recorded as measurement in docs/17 §17.11d.
+The 20 real PDFs remain uncommitted; every automated test still uses synthetic
+fixtures.
+
 **Added in M5A.1:** the extraction-outcome semantics — a scan is described as a
 processing outcome with informational tone and labelled by its outcome rather
 than as "Read", a genuine failure still reads as a failure, and the words

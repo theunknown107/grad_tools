@@ -210,6 +210,25 @@ engines, mathematics does not survive, and ~1.5–2 s/page does not fit the
 synchronous path — OCR is the trigger for background processing that `ED-41`
 anticipated.
 
+### M5A.2 — OCR qualification · ✅ **DELIVERED (evidence only)**
+20 scan-like documents through Tesseract at a corrected configuration. **No OCR
+implemented.**
+
+**Resolved:** Kannada works with `kan.traineddata` and `-l eng+kan` (3 922
+codepoints, both scripts surviving, coherent question text) — M5A.1's "zero
+recovery" was an artefact of having only `eng` installed. PSM 3 for descriptive
+and PSM 6 for MCQ beat the single `--psm 6` preference. 150 DPI confirmed at
+~1.07 s/page, 2.8× faster than 300 DPI.
+
+**Segmentation is feasible for module, question number, marks and CO** — 15–20
+complete rows per descriptive paper with all three attached. **Sub-question
+letters are recovered only 3–4 times in 15–20 rows**, and mathematics does not
+survive at all.
+
+**`OQ-019a` stays PARTIALLY VERIFIED**, because two of the seven fields are not
+dependable. `DEC-021` (local Tesseract) is confirmed and upgraded to **(B)
+implement with a later quality loop**.
+
 ### M5b — Document pipeline · superseded
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.

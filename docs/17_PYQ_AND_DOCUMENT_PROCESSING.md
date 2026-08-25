@@ -564,6 +564,137 @@ segmentation — which is a different and higher bar than "readable".
 
 ---
 
+## 17.11c Two different quality questions, two different rubrics (M5A.2)
+
+These are repeatedly confused, so they are separated here permanently.
+
+| | **Native text extraction** (§17.11a) | **OCR** (§17.11b, §17.11d) |
+|---|---|---|
+| Applies to | PDFs that already carry a text layer | scans, which have none |
+| Tool | `pdftotext` | Tesseract over a rasterized page |
+| Cost | 12–202 ms per document | ~1.1 s per **page** |
+| Failure mode | text is present but mangled (maths fonts) | text is invented from pixels |
+| "GOOD" means | the characters are what the PDF actually stores | the characters plausibly match the printed page |
+| Measured by | replacement-glyph ratio, structural anchors | structural anchors only |
+
+**A native-text score and an OCR score are not comparable and must never be
+averaged.** The same document cannot receive both: `pdftotext` yields either a
+usable text layer or nothing, and only in the second case does OCR apply.
+
+## 17.11d OCR qualification (M5A.2)
+
+Still evidence only. **No OCR is implemented.**
+
+### Sample
+
+20 scan-like documents, 65 pages, from the supplied local corpus — chosen for
+engineering diversity (2–6 pages, six subject families, both formats, both
+scripts, best and worst scans). **Not statistically representative of VTU.**
+
+### Configuration, corrected
+
+M5A.1 preferred `--psm 6` at 150 DPI. The subset comparison shows **the right
+mode depends on the format**:
+
+| | PSM 3 (auto) | PSM 6 (uniform block) | PSM 11 (sparse) |
+|---|---|---|---|
+| Descriptive: complete marks rows | **13** | 5 | 14 |
+| MCQ: numbered items (paper has 50) | 34 | **59** | 76 |
+
+`--psm 3` for descriptive, `--psm 6` for MCQ. 150 DPI confirmed: **~1.07 s/page
+end to end** (444 ms rasterize + 630 ms OCR), against ~3.0 s/page at 300 DPI in
+M5A.1.
+
+### Results — 12 GOOD, 8 PARTIAL, 0 POOR, 0 FAILED
+
+Format detection: **20/20 correct**, after three iterations. The iterations are
+the finding, not an embarrassment — each failure was a real property of the
+corpus:
+
+1. **Marks totals do not identify a format.** `BCY358A` is a *descriptive* paper
+   worth 50 marks ("Answer any FIVE full questions, choosing ONE full question
+   from each module"). A "Marks: 50 ⇒ MCQ" rule misclassifies it.
+2. **The detector must tolerate OCR noise in the words it keys on.** On the
+   Kannada paper "fifty questions" came back as "fifty ಕೈತ", so requiring a
+   readable noun after "fifty" failed on a document read correctly in every
+   other respect.
+3. **Detection must be language-aware.** A Kannada-medium paper carries its
+   instructions in Kannada, so an English-only detector returns UNKNOWN for a
+   perfectly good document.
+
+The resulting design — several independent cues per format, in both languages,
+strongest side wins — is what §17.12 records.
+
+### Kannada — resolved, with `kan.traineddata`
+
+M5A.1 reported zero Kannada recovery. That was true for `-l eng` and remains
+true; adding the language data changes it completely.
+
+| Config | Kannada codepoints | English header | Max Marks | Verdict |
+|---|---|---|---|---|
+| `-l eng` | **0** | ✅ | ✅ | Kannada lost entirely |
+| `-l kan` | 4 039 | ❌ | ❌ | Latin text destroyed |
+| **`-l eng+kan`** | **3 922** | ✅ | ✅ | **both scripts survive** |
+
+`eng+kan` is the answer for these papers, which are genuinely bilingual — an
+English header over Kannada body text.
+
+Recovered Kannada is real, not glyph soup: `ಸಾಂಸ್ಕತಿಕ ಕನ್ನಡ` (the subject),
+`ಸೂಚನೆಗಳು` ("Instructions"), and
+`ಎಲ್ಲ ೫೦ ಪ್ರಶ್ನೆಗಳಿಗೂ ಉತ್ಪರಿಸಿರಿ. ಪ್ರತಿ ಪ್ರಶ್ನೆಗೆ ಒಂದು ಅಂಕ.` — "Answer all 50
+questions, one mark each." Question text is coherent:
+`ಕಬ್ಬಿಗರ ಕಾವ್ಯ ಇದರ ಕರ್ತೃ ಯಾರು?` — "Who is the author of Kabbigara Kavya?".
+Token statistics support this: 652 Kannada tokens, mean length 6.7 characters,
+only 4% single-glyph — word-shaped, not noise.
+
+**Verdict: GOOD for structure and discovery, PARTIAL for authoritative
+transcription.** Per-glyph errors are visible even in the phrases above
+(`ಉತ್ಪರಿಸಿರಿ` for `ಉತ್ತರಿಸಿರಿ`). **Caveat stated plainly: this was judged by
+recognising known words and phrases, not by a fluent reader reviewing the whole
+output. A Kannada speaker should confirm before anything depends on it.**
+
+### Mathematics — unchanged, and decisive
+
+Across three maths and physics papers: **0 Greek letters, 0 mathematical
+operators, 0 superscripts, 0 subscripts.**
+
+Question *stems* survive well — "Find the radius of curvature at the point…",
+"Find the Maclaurin's expansion of log(1 + eˣ) upto the term containing…".
+Mathematical *content* does not: `x²p² + xyp − 6y²` became `x’p? + xyp-6y7 4S`.
+
+> **Text may be suitable for discovery but not for authoritative mathematical
+> question reconstruction.**
+
+No equation-correction layer is proposed. It would be a research project, and
+the honest alternative is to treat maths papers as searchable but not
+reconstructable.
+
+## 17.12 Format detection must precede parsing (M5A.2)
+
+VTU 2022 uses at least two question-paper formats, and the difference is
+structural rather than cosmetic:
+
+```
+PDF -> text (native or OCR)
+        |
+   PaperFormatDetector          several cues per format, both languages
+        |
+   +----+--------+-----------+
+   |             |           |
+DESCRIPTIVE     MCQ      UNKNOWN
+100 or 50 mk    50 mk     -> do not guess; hold for review
+Module-1..5     50 items
+Q.1..Q.10       4 options
+marks/L/CO      no modules
+```
+
+**`UNKNOWN` must be a real outcome, not a fallback to the commoner format.** A
+paper that does not match a known template is not a broken paper — the first
+rubric in M5A.1 scored four correctly-read papers POOR for exactly that mistake.
+
+**Not implemented.** This records the shape the parser must take when it is
+built.
+
 ## 17.13 Quarantine holds for publication (M5.1)
 
 §17.1's lifecycle is quarantine-first, but M5 enforced only the rights half of

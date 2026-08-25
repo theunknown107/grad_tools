@@ -412,7 +412,34 @@ Windows-only and therefore not deployable.
 - One 10-document sample, one machine.
 
 **Decision made (`DEC-021`):** local OCR with Tesseract **when OCR is implemented**. Not implemented in this milestone.
-**Decision needed:** the three measurements above, before any question-segmentation or intelligence milestone.
+
+---
+
+**M5A.2 UPDATE — the three measurements were taken. Two resolved, one did not.**
+
+| M5A.1 unknown | M5A.2 outcome |
+|---|---|
+| Kannada accuracy with `kan.traineddata` | **RESOLVED.** `-l eng+kan` recovers 3 922 Kannada codepoints with the English header intact and coherent question text. GOOD for discovery, PARTIAL for authoritative transcription — and judged by recognising known phrases, not by a fluent reader |
+| 150 DPI on a larger sample | **RESOLVED.** 20 documents, 65 pages: ~1.07 s/page, 2.8× faster than 300 DPI at comparable quality. Also corrected the PSM choice — it is format-dependent (PSM 3 descriptive, PSM 6 MCQ), not a single global setting |
+| Is the output segmentable? | **PARTIALLY.** Five of seven fields are dependable; two are not |
+
+**Segmentation, field by field** (20 documents; 5 inspected by hand):
+
+| Field | Verdict |
+|---|---|
+| Page boundaries, module, question number, marks, Bloom's/CO | **dependable** — 15–20 complete rows per descriptive paper, all three attached |
+| Sub-question letter (a/b/c) | **NOT dependable** — 3–4 of 15–20 rows |
+| Question text | prose readable and noisy; **mathematics destroyed** |
+
+**Therefore OQ-019a REMAINS PARTIALLY VERIFIED.** Calling it verified would
+claim segmentability that two of seven fields do not support. Features keyed on
+module and marks rest on solid ground; features keyed on "question 3(b)" or on
+reconstructed equations do not.
+
+**Decision needed:** whether sub-question identity is required by the first
+intelligence feature. If it is not, OCR can proceed; if it is, it needs a
+different approach — positional extraction rather than more parsing of flat
+text.
 
 ### OQ-029 — VTU 2022 has more than one question-paper format · **OPEN**
 **Discovered in M5A.1** while grading the OCR benchmark: 4 of 10 sampled papers are 50-question MCQ papers (`Max Marks: 50`, "Question Paper Version", "darken the circles") with **no modules and no Bloom's/CO columns**. The other 6 are the descriptive 100-mark format with `Module-1..5`.

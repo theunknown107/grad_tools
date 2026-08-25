@@ -167,6 +167,30 @@ architecture mentions one.
 
 At Alpha volume, Postgres will serve nearly everything from memory. The realistic risks are a missing index on a new query and an accidental N+1, not data volume — so those are what the tests target.
 
+### 23.3.4 Measured in M5A.2 — OCR at the tuned configuration
+
+20 scan-like documents, 65 pages, Tesseract 5.5.3, 150 DPI, format-appropriate
+page-segmentation mode. Fully local.
+
+| Stage | ms/page |
+|---|---|
+| Rasterize (`pdftoppm`, 150 DPI) | 444 |
+| OCR (`tesseract`) | 630 |
+| **End to end** | **1 074** |
+
+Roughly **2.8× faster than the 300 DPI configuration** measured in M5A.1
+(~3.0 s/page), at comparable or better quality — these scans are low-resolution
+and upsampling adds interpolation noise, not information.
+
+`eng+kan` costs more than `eng` alone: ~1.08 s/page against ~0.6 s/page on the
+same paper. Language selection is therefore a per-document decision with a real
+price, not a global setting.
+
+**Still far outside the synchronous path.** A 4-page paper is ~4.3 s and a
+6-page paper ~6.5 s, against the 12–202 ms that native text extraction costs.
+OCR remains the trigger for background processing that `ED-41` named, and the
+first thing in this project that genuinely earns a queue.
+
 ## 23.5 Caching
 
 Full table in `07` §7.8. The performance-relevant points:
