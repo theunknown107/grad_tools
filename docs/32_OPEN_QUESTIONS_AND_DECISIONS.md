@@ -258,6 +258,11 @@ Recorded so they are visible and reversible rather than buried in code.
 | ED-33 | Rule-set precedence: college-specific, then scheme-wide, by explicit `ORDER BY (college_id IS NULL)` | The schema deliberately allows both to be active. `LIMIT 1` with no ORDER BY was a coin toss that looked stable only because one row existed |
 | ED-34 | `RequiredMarksOutcome` returns raw-100 **and** printed-50 figures, printed one unrounded | The two differ by a factor of two. A bare `requiredSee` looked like a grade-card number and was not one (`A-16.7`). Rounding the printed view would create a figure that does not convert back |
 | ED-35 | `colleges` gains provenance, verification and publication gating | It was the one publishable reference table with none, served on `active` alone. Nothing wrong was served — the table is empty — but the schema permitted it |
+| ED-37 | Validate before storing; a rejected document leaves a row and no bytes | Storing first would put unexamined files on disk, and a validator that runs after storage protects nothing. The row keeps rejection auditable without retaining what was rejected |
+| ED-38 | Active-content markers matched as complete PDF name tokens, not substrings | `/JS` is two characters and occurs by chance in compressed image streams. Substring matching rejected 3 of 63 real papers while catching nothing |
+| ED-39 | `/OpenAction` refused only when it carries an `/S` action | docs/17 §17.3 always said "with an action". Rejecting benign view destinations refused 4 more real papers; a validator that rejects 12% of legitimate input gets worked around |
+| ED-40 | `HOST` defaults to loopback and a non-loopback bind refuses to start | Stage 1 private routes are unauthenticated by design, so the bind address is the control. CORS is a browser policy and does not apply to `curl` |
+| ED-41 | Synchronous extraction; no queue or worker pool | Measured: 12.6–202.5 ms per real document. §23.10 rejects infrastructure added before measurement. OCR would be the trigger to revisit |
 | ED-36 | `universities` and `branches` are **internal taxonomy**, not verified reference data; no provenance columns added | The test: does the row make a checkable claim about the external world that could change a calculation? VTU is the product's scope anchor; `cse` is a join key. `docs/09` §9.4 already drew this line. Inventing a source URL for "VTU exists" would be fabricated provenance, which is worse than none. The real defect was the queries — `listUniversities()` filtered nothing — fixed by adding `universities.active` in `0003` |
 | ED-37 | One shared `sources` registry for both M5 tracks, rather than per-subsystem source fields | Documents and announcements ask the same two questions: where is this from, and may we show it. Two answers drift, and rights end up duplicated on every table that holds material |
 | ED-38 | Terms review is part of the enable CONSTRAINT, not a note beside it | robots and terms answer different questions and can disagree. VTU proves it: `vtu.ac.in` robots permits announcements while its terms are unreviewed. A robots-only gate would have let that source be enabled on the strength of a check that does not address reuse |
@@ -361,10 +366,41 @@ The question is void rather than answered: there is no date-of-birth field, ther
 **Status after M4: still OPEN.** The artifact validated under `OQ-024` contains **no** `AB`, `IC` or `W` row — every one of its 9 courses is a pass. It therefore provides no evidence either way, and none was inferred. The engine continues to return `unverified_rule` for these grades rather than guessing.
 **Decision needed:** before Alpha, via a grade card that actually contains one of these grades.
 
-### OQ-019 — Do real VTU papers carry a text layer?
-**Why unresolved:** unknown until papers are supplied. Determines whether OCR is an edge case or the main path, materially affecting M5's effort and the accuracy of everything downstream.
-**Recommendation:** test 10 papers as soon as they arrive, before building the pipeline around either assumption.
-**Decision needed:** none — an engineering validation task, but it may change the M5 estimate significantly.
+### OQ-019 — Do real VTU papers carry a text layer? · **PARTIALLY VERIFIED (M5A)**
+**Why it mattered:** it determines whether OCR is an edge case or the main path, and therefore the effort behind everything downstream of extraction.
+
+**Evidence.** A local corpus of **65 real academic PDFs** was supplied and run through the shipped validation and extraction path (`pdftotext -layout -enc UTF-8`). The corpus is gitignored and never committed.
+
+| Outcome | Count |
+|---|---|
+| Produced usable text (`text_available`) | **9** |
+| Produced no meaningful text (`ocr_required`) | **54** |
+| Not a PDF at all — HTML carrying `<script>`, named `.pdf` | **2** |
+
+Stated precisely: **in the supplied 65-document test corpus, 56 of 65 produced no meaningful text through `pdftotext`.**
+
+**What this does and does not establish:**
+- ✅ Real papers are a **mixed** corpus. Both kinds genuinely occur.
+- ✅ Scan-like PDFs were the **large majority of this sample**, so OCR is very likely to matter rather than being an edge case.
+- ❌ It does **not** generalise to all VTU papers. This is one local sample, of unknown provenance and selection, from one contributor.
+- ❌ OCR **quality, cost and implementation remain entirely unverified**. No OCR exists in the codebase.
+
+**Why it stays open:** the sample size and selection do not support a general claim, and the follow-on question — whether OCR output would be accurate enough to build on — has not been touched.
+**Decision needed:** an OCR strategy, informed by this evidence. **Future OCR required** — not implemented.
+
+### OQ-019a — Is OCR output good enough to build on? · **OPEN**
+**Why unresolved:** raised by the OQ-019 evidence. If ~86% of a real corpus needs OCR, then extraction accuracy for that path decides whether question-level intelligence is feasible at all. Nothing downstream should be designed until an OCR sample has been measured the way `pdftotext` was here.
+**Decision needed:** before any question-segmentation or intelligence milestone.
+
+### OQ-027 — Production object storage · **OPEN**
+**Why unresolved:** M5A ships an `ObjectStore` interface with a local-filesystem driver, deliberately choosing no cloud provider. Production storage must provide: private access by default, signed URLs when serving is eventually permitted, encryption at rest, lifecycle rules, durable storage, predictable cost, and a serving origin separate from the application.
+**Status:** the abstraction exists and is exercised; the provider decision is untouched. Swapping in S3/R2/Blob is one more implementation of the interface.
+**Decision needed:** before any deployment that stores real student documents.
+
+### OQ-028 — Document retention policy · **OPEN**
+**Why unresolved:** no retention rule has been decided, and inventing one would be worse than admitting there isn't one.
+**Interim behaviour, stated honestly in the UI:** an imported document stays until the student removes it. The Documents screen says exactly that rather than implying a policy.
+**Decision needed:** before Alpha, alongside `OQ-027` — retention and storage cost are the same conversation.
 
 ### OQ-020 — Hosting provider selection · **RECOMMENDATION MADE (`DEC-013`), pending approval**
 **Evaluated against** the real architectural requirement: persistent process, PostgreSQL, in-process background jobs and cron, PDF/OCR workloads, future workers, scheduled ingestion, possible local model inference, cost at experimental scale, upgrade path, backups and observability.
@@ -514,6 +550,7 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M4 | DEC-020 | A grade card's printed `External` is the SEE contribution out of 50; `16` §16.5's contrary claim corrected | Engineering (evidence: real artifact) |
 | M4.1 | ED-31…ED-35 | Reference-data and rules hardening decisions in Part B | Engineering |
 | M4.2 | ED-36 | University/Branch classified as internal taxonomy; the two integrity models made explicit | Engineering |
+| M5A | ED-37…ED-41 | Document lifecycle, validator corrections and the localhost boundary in Part B | Engineering (ED-38/39 evidence: real corpus) |
 | M5 | DEC-021 | M5b and M6 become parallel tracks M5A/M5B over one shared source layer | Human |
 | M5 | DEC-022 | Public paper tier stays hard-disabled; rights-unknown material is link-only | Human |
 | M5 | DEC-023 | `results.vtu.ac.in` robots re-verified 2026-08-24 and seeded as permanently blocked | Human + verified constraint |

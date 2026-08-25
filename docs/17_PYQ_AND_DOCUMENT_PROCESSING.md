@@ -319,6 +319,99 @@ Interim handling, designed so the answer can be applied later without rework:
 
 Options if redistribution proves impermissible: link-only (metadata and analysis, with the student fetching the document from its original location); analysis-only (frequency data derived from papers without hosting them); or seek permission. The data model supports all three, because `Document` and `QuestionPaper` are separate entities (`08` §8.5) — the analysis survives without the file.
 
+## 17.11a As built in M5A — the private path, measured on real documents
+
+The pipeline is implemented for the **private** path only, and was exercised
+against a supplied corpus of **65 real academic PDFs** (gitignored, never
+committed, never redistributed).
+
+### The order, which is the security property
+
+```
+import -> hash -> validate -> (reject)  | (QUARANTINE -> store -> validated)
+                                                       -> extract -> sections
+```
+
+Nothing is stored before it is validated. A rejected file leaves a database row
+saying what was refused and why, and **no bytes on disk** — rejection is
+auditable without retaining the thing that was rejected. `quarantined` is the
+state a document is created in and extraction refuses to run on it, so a storage
+failure leaves a document that cannot be processed rather than one that looks
+validated with nothing behind it.
+
+### What the real corpus showed
+
+| Outcome | Count |
+|---|---|
+| `text_available` | 9 |
+| `ocr_required` | 54 |
+| Rejected — not a PDF at all | 2 |
+
+**56 of 65 produced no meaningful text.** Precisely that, and no wider claim:
+one local sample (`32/OQ-019`, PARTIALLY VERIFIED).
+
+The two rejections are worth noting: both were **HTML pages carrying `<script>`,
+saved with a `.pdf` name**. The magic-byte check caught them, which is exactly
+the case §17.3 check 2 exists for — and it turned up naturally in a real corpus
+rather than in a contrived fixture.
+
+### Two validator defects found by real documents
+
+Both were **false positives that rejected genuine question papers**, and both
+were only discoverable by running real files:
+
+| Defect | Effect | Fix |
+|---|---|---|
+| `/JS` matched as a plain substring | 3 papers rejected. `/JS` is two characters and appears by chance in compressed image streams; every observed hit was followed by binary noise, not a delimiter | Match complete **PDF name tokens** — the marker must be followed by a PDF delimiter or whitespace |
+| Any `/OpenAction` rejected | 4 papers rejected. `/OpenAction [3 0 R /FitH null]` is a benign "open at this view" destination produced by ordinary authoring tools | §17.3 check 8 always said "`/OpenAction` **with an action**". Only a dictionary carrying an `/S` action subtype — or an unresolvable indirect reference — is refused |
+
+Acceptance went from 56/65 to **63/65** with no loss of protection: the hostile
+fixtures (embedded JavaScript, decompression bomb, encrypted, truncated,
+non-PDF) are all still rejected. A validator that refuses 12% of legitimate
+input is not a strict validator, it is one people learn to work around.
+
+### Extraction quality, sampled and graded
+
+Ten documents were inspected rather than merely counted. Non-zero text is not
+the same as good extraction.
+
+| Document | Pages | Status | Quality |
+|---|---|---|---|
+| Biology for Engineers | 2 | `text_available` | **GOOD** |
+| Engineering science (`1BESC104C`) | 4 | `text_available` | **GOOD** |
+| Physics (`1BPHYS102`) | 2 | `text_available` | **GOOD** |
+| DBMS solutions | 36 | `text_available` | **PARTIAL** — clean text, but no module labels to anchor structure |
+| Maths (`1BMATC101`) | 2 | `text_available` | **POOR** |
+| 4 scanned papers | 2–6 | `ocr_required` | n/a — correctly identified, not reported as failures |
+| `Jan-2024.pdf` | — | rejected | n/a — HTML, not a PDF |
+
+**What survives:** page separation (form feeds match the page count exactly),
+module headings (`Module-1`…`Module-5`), question numbering (`Q 1.`, `a`, `b`,
+`c`), the `USN` header, and the marks/L/CO column headers.
+
+**What does not:** mathematical notation. The two maths papers lose **15–17% of
+their characters to U+FFFD replacement glyphs** — the maths font has no usable
+encoding, so formulas are destroyed while surrounding prose extracts cleanly.
+Every other sampled document had **zero** replacement characters. This is a
+per-document-type problem, not a general one, and it means a maths paper's text
+is not trustworthy input for anything downstream.
+
+**Table structure is mangled.** `-layout` preserves horizontal position, but the
+marks/level/outcome columns break across lines and interleave with question
+text. Recovering them needs positional extraction, not more parsing of this
+output.
+
+### What is deliberately absent
+
+No OCR. `ocr_required` is a **reported outcome**, not a trigger: 54 documents in
+this corpus carry no text, and OCR-ing them silently would make "text we read"
+and "text we guessed" indistinguishable at exactly the moment that distinction
+starts to matter. **Future OCR required** (`32/OQ-019a`).
+
+No question segmentation. Sectionizing stops at pages and blank-line-separated
+blocks. Given that a maths paper loses a sixth of its characters, inferring
+question boundaries from this text would be building on sand.
+
 ## 17.12 Testing
 
 | Test | Method |

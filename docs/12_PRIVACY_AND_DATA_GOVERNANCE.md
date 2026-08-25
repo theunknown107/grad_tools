@@ -5,6 +5,32 @@
 
 ---
 
+## 12.0a Imported documents (M5A)
+
+A document a student imports is theirs. It is created `user_private` /
+`private`, and the database refuses any other presentation for a `user_private`
+record — so it cannot be published by an API call, a direct `UPDATE`, a
+re-import or a reprocess. Several independent constraints refuse it, not one.
+
+**Scope of the storage claim, stated precisely.** In the Stage 1 local
+deployment, private documents are written to the configured local object-store
+root (`DOCUMENT_STORAGE_ROOT`), outside the repository and outside any served
+directory. The Documents screen tells the student this in plain words.
+
+That claim is **true of the current local deployment only**. It is not a promise
+about a future hosted deployment: production object storage is `OQ-027` and
+undecided, and the wording will have to change when it is. Nothing in the UI
+implies the guarantee survives a move to the cloud.
+
+**Retention** is `OQ-028`, open. The interim behaviour — the document stays
+until the student removes it — is what the screen says, rather than implying a
+policy nobody has chosen.
+
+**No uploader identity is stored.** `documents` has no `user_id`,
+`auth_user_id`, `student_id` or email column, and a test asserts their absence.
+Stage 1 has no accounts, so "private" means "on this machine". When identity
+arrives, these routes gain an owner predicate and an authorization guard.
+
 ## 12.1 Position
 
 GradTools handles academic records belonging to students who are, in many cases, adults with limited leverage over the institutions holding their data. The product's institutional credibility rests more on this document than on any feature.
