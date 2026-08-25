@@ -37,6 +37,7 @@ const ROUTES = [
   { path: '/attendance', name: 'attendance' },
   { path: '/results', name: 'results' },
   { path: '/timetable', name: 'timetable' },
+  { path: '/documents', name: 'documents' },
   { path: '/profile', name: 'profile' },
   { path: '/does-not-exist', name: 'notfound' },
 ];

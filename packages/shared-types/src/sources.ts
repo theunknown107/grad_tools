@@ -212,9 +212,60 @@ export type SourceChange = z.infer<typeof sourceChangeSchema>;
 /* Routes                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/** One extracted block of text, with its position in the document. */
+export const documentSectionSchema = z.object({
+  id: z.string(),
+  documentId: z.string(),
+  pageNumber: z.number().int().positive(),
+  ordinal: z.number().int().min(0),
+  content: z.string(),
+  extractorVersion: z.string(),
+});
+export type DocumentSection = z.infer<typeof documentSectionSchema>;
+
+/**
+ * What an import attempt produced.
+ *
+ * `rejected` is a normal outcome, not an error: accepting documents means
+ * malformed input is expected traffic. `duplicate` returns the existing
+ * document untouched -- the same bytes are one document however often they
+ * arrive, and a re-import never resets a document someone already reviewed.
+ */
+export const importOutcomeSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('imported'), id: z.string(), sha256: z.string().length(64) }),
+  z.object({ kind: z.literal('duplicate'), id: z.string(), sha256: z.string().length(64) }),
+  z.object({
+    kind: z.literal('rejected'),
+    id: z.string(),
+    sha256: z.string().length(64),
+    code: z.string(),
+    reason: z.string(),
+  }),
+]);
+export type ImportOutcome = z.infer<typeof importOutcomeSchema>;
+
+export const processOutcomeSchema = z.object({
+  extractionStatus: extractionStatusSchema,
+  sectionCount: z.number().int().min(0),
+  durationMs: z.number(),
+  extractorVersion: z.string(),
+});
+export type ProcessOutcome = z.infer<typeof processOutcomeSchema>;
+
 export const SOURCE_ROUTES = {
   sources: '/api/v1/sources',
   source: (id: string) => `/api/v1/sources/${id}`,
   documents: '/api/v1/documents',
   document: (id: string) => `/api/v1/documents/${id}`,
+  documentImport: '/api/v1/documents/import',
+  documentSections: (id: string) => `/api/v1/documents/${id}/sections`,
+  documentProcess: (id: string) => `/api/v1/documents/${id}/process`,
+  /**
+   * The private working set: documents the operator imported on this machine.
+   *
+   * Separate from `documents`, which is the PUBLIC listing. Merging them would
+   * mean one endpoint whose visibility depends on a parameter, and that is
+   * exactly the shape that leaks (M5A section 8).
+   */
+  documentsPrivate: '/api/v1/documents/private',
 } as const;

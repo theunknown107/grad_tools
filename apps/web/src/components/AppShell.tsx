@@ -12,6 +12,7 @@ import {
   CalendarDays,
   CalcIcon,
   ClipboardList,
+  FileTextIcon,
   GraduationCap,
   LayoutDashboard,
   UserRound,
@@ -49,6 +50,13 @@ const DESTINATIONS: readonly Destination[] = [
     label: 'Results',
     shortLabel: 'Results',
     icon: GraduationCap,
+    group: 'Academics',
+  },
+  {
+    to: '/documents',
+    label: 'Documents',
+    shortLabel: 'Docs',
+    icon: FileTextIcon,
     group: 'Academics',
   },
   {

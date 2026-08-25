@@ -21,6 +21,8 @@
 
 import {
   documentSchema,
+  documentSectionSchema,
+  type DocumentSection,
   sourceSchema,
   type DocumentRecord,
   type Source,
@@ -443,4 +445,51 @@ export async function lastSeenHashes(sql: Sql, sourceId: string): Promise<Map<st
     ORDER BY external_id, detected_at DESC
   `;
   return new Map(rows.map((row) => [row.external_id, row.payload_hash]));
+}
+
+/**
+ * The operator's own private working set.
+ *
+ * Deliberately a SEPARATE function from `listPublicDocuments` rather than a
+ * parameter on it. A single query whose visibility depends on an argument is
+ * the shape that eventually leaks: one caller forgets the argument and private
+ * documents appear in a public response. Two functions cannot make that
+ * mistake.
+ *
+ * Stage 1 has no accounts, so "private" means "on this machine, belonging to
+ * whoever runs it". When identity arrives this gains an owner predicate; until
+ * then it is not reachable from any public route.
+ */
+export async function listPrivateDocuments(sql: Sql): Promise<DocumentRecord[]> {
+  const rows = await sql`
+    SELECT ${DOCUMENT_COLUMNS(sql)}
+    FROM documents
+    WHERE presentation = 'private'
+    ORDER BY created_at DESC, id
+  `;
+  return parseRows(documentSchema, rows);
+}
+
+/** Any document by id, public or not. For the private working set only. */
+export async function findDocument(sql: Sql, id: string): Promise<DocumentRecord | null> {
+  const rows = await sql`
+    SELECT ${DOCUMENT_COLUMNS(sql)} FROM documents WHERE id = ${id}::uuid
+  `;
+  return parseRows(documentSchema, rows)[0] ?? null;
+}
+
+export async function listDocumentSections(sql: Sql, id: string): Promise<DocumentSection[]> {
+  const rows = await sql`
+    SELECT
+      id::text,
+      document_id::text  AS "documentId",
+      page_number        AS "pageNumber",
+      ordinal,
+      content,
+      extractor_version  AS "extractorVersion"
+    FROM document_sections
+    WHERE document_id = ${id}::uuid
+    ORDER BY page_number, ordinal
+  `;
+  return parseRows(documentSectionSchema, rows);
 }

@@ -18,6 +18,7 @@ export {
   ChevronRight,
   ClipboardList,
   ExternalLink as ExternalLinkIcon,
+  FileText as FileTextIcon,
   GraduationCap,
   Info,
   Lock as LockIcon,
