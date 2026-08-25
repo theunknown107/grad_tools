@@ -198,6 +198,18 @@ sample does not generalise and OCR quality is untouched (`OQ-019a`). `OQ-027`
 (production object storage) and `OQ-028` (retention) remain open and are stated
 in the UI rather than assumed.
 
+### M5A.1 — OCR feasibility benchmark · ✅ **DELIVERED (evidence only)**
+Two fully local OCR engines benchmarked over 10 scan-like documents. **No OCR
+implemented.** Outcome: `OQ-019a` PARTIALLY VERIFIED, `DEC-021` recommends local
+Tesseract when OCR is built, and `OQ-029` records that VTU uses more than one
+question-paper format — found because a first rubric wrongly scored 4 correctly
+read papers as POOR.
+
+**Known before OCR can ship:** Kannada recovery is currently zero on both
+engines, mathematics does not survive, and ~1.5–2 s/page does not fit the
+synchronous path — OCR is the trigger for background processing that `ED-41`
+anticipated.
+
 ### M5b — Document pipeline · superseded
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.

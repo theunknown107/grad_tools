@@ -92,17 +92,48 @@ describe('DocumentsPage', () => {
   });
 
   /*
-   * The common case for real papers. It must read as an explanation, not as a
-   * failure, and must not promise OCR that does not exist.
+   * M5A.1 §9. `ocr_required` is a legitimate processing OUTCOME: the document
+   * was read correctly and correctly found to have no text layer. In the
+   * supplied corpus 54 of 63 accepted PDFs were scans, so presenting that as an
+   * error would tell most students their good paper had broken.
    */
   it('explains a scanned document instead of reporting a failure', async () => {
     mockApi([doc({ extractionStatus: 'ocr_required' })]);
     render(<DocumentsPage />);
 
-    expect(await screen.findByText(/this document is a scan/i)).toBeTruthy();
+    expect(await screen.findByText(/no usable text layer was found/i)).toBeTruthy();
     expect(screen.getByText(/does not do yet/i)).toBeTruthy();
     // No "Show text" button, because there is none.
     expect(screen.queryByRole('button', { name: /show text/i })).toBeNull();
+  });
+
+  it('does not describe a scan as a failure or an error', async () => {
+    const { container } = render(<DocumentsPage />);
+    cleanup();
+    mockApi([doc({ extractionStatus: 'ocr_required' })]);
+    const view = render(<DocumentsPage />);
+    await screen.findByText(/no usable text layer was found/i);
+
+    const text = view.container.textContent ?? '';
+    for (const wrong of [/extraction failed/i, /could not read/i, /error/i, /damaged/i]) {
+      expect(text).not.toMatch(wrong);
+    }
+    expect(container).toBeTruthy();
+  });
+
+  it('labels a scan by its outcome rather than calling it "Read"', async () => {
+    mockApi([doc({ extractionStatus: 'ocr_required' })]);
+    render(<DocumentsPage />);
+    expect(await screen.findByText('Needs image reading')).toBeTruthy();
+    expect(screen.queryByText('Read')).toBeNull();
+  });
+
+  /* A real failure must still read as one, or the distinction is worthless. */
+  it('still reports a genuine extraction failure as a failure', async () => {
+    mockApi([doc({ extractionStatus: 'extraction_failed' })]);
+    render(<DocumentsPage />);
+    expect(await screen.findByText(/could not be read/i)).toBeTruthy();
+    expect(screen.getByText('Could not read')).toBeTruthy();
   });
 
   it('shows why a document was not accepted', async () => {

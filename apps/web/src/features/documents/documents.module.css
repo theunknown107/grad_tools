@@ -191,6 +191,31 @@
   color: var(--danger);
 }
 
+/*
+ * Extraction tone. `ocr_required` is informational, not an error: the document
+ * processed correctly and simply has no text layer. Only a genuine failure gets
+ * the danger colour, so that colour keeps meaning something.
+ */
+.extraction[data-tone='ok'] {
+  color: var(--text-muted);
+}
+
+.extraction[data-tone='info'] {
+  color: var(--text);
+}
+
+.extraction[data-tone='error'] {
+  color: var(--danger);
+}
+
+.state[data-tone='info'] {
+  --state-accent: var(--info);
+}
+
+.state[data-tone='error'] {
+  --state-accent: var(--danger);
+}
+
 .actions {
   display: flex;
   gap: var(--space-3);

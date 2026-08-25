@@ -118,6 +118,14 @@ public documents in quarantine, which is the state the fix forbids.
 
 
 
+**Added in M5A.1:** the extraction-outcome semantics — a scan is described as a
+processing outcome with informational tone and labelled by its outcome rather
+than as "Read", a genuine failure still reads as a failure, and the words
+"error", "failed" and "damaged" never appear on a scanned document. The OCR
+benchmark itself is **not** a test: it needs the gitignored corpus and external
+engines, so it is recorded as measurement in docs/17 §17.11b rather than
+pretending to be reproducible in CI.
+
 **Added in M5A:** the private document workflow end to end against real
 PostgreSQL — import, quarantine, validation, storage, extraction, section
 persistence, duplicate detection, rejection, state transitions — plus the
