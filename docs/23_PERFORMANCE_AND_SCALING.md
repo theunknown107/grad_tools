@@ -101,6 +101,37 @@ laptop, not query cost — the p50 and the 0.075 ms execution time are the hones
 numbers. These figures are from a **single machine with 22 rows total**; they
 say the architecture is not pathological, and nothing about scale.
 
+### 23.3.2 Measured in M5A — document processing on real PDFs
+
+Observed on the supplied corpus, through the shipped path (`pdftotext -layout
+-enc UTF-8`). One machine, one sample; nothing extrapolated.
+
+| Document | Pages | Bytes | Validation | Extraction | Chars | Sections |
+|---|---|---|---|---|---|---|
+| DBMS solutions | 36 | 1 139 328 | 1.05 ms | 202.5 ms | 33 847 | 476 |
+| Biology for Engineers | 2 | 988 236 | 0.66 ms | 15.7 ms | 1 677 | 42 |
+| Maths (`1BMATC101`) | 2 | 377 918 | 0.31 ms | 26.1 ms | 3 948 | 57 |
+| Engineering science | 4 | 343 078 | 0.28 ms | 26.2 ms | 4 968 | 84 |
+| Physics | 2 | 175 805 | 0.18 ms | 21.0 ms | 3 441 | 42 |
+| Scan (`BCS403`) | 3 | 446 724 | 0.37 ms | 13.1 ms | 0 | 0 |
+| Scan (`BUHK408`) | 4 | 1 698 916 | 1.09 ms | 16.1 ms | 0 | 0 |
+| Scan (`BPWSK106`) | 6 | 2 182 138 | 1.41 ms | 12.6 ms | 0 | 0 |
+
+Over HTTP end to end, including database writes: import 88–188 ms, process
+67–138 ms.
+
+**Validation is effectively free** — under 1.5 ms even for a 2 MB file, because
+it never decompresses anything. **Extraction is dominated by process startup**:
+a 2-page document costs ~16 ms and a 36-page document ~200 ms, so the marginal
+cost per page is small against the fixed cost of spawning `pdftotext`.
+
+**Conclusion: the synchronous path is right for experimental use.** The slowest
+real document took ~200 ms, which is an acceptable request. §23.10 rejects
+adding infrastructure before measuring, and this is the measurement: **no queue,
+no worker pool, no BullMQ.** The trigger to revisit is a document type that
+takes seconds — most plausibly OCR, which is not implemented and would be the
+point at which asynchronous processing genuinely earns its place.
+
 ## 23.4 Database
 
 | Practice | Detail |

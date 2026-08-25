@@ -180,6 +180,24 @@ unreachable; `OQ-006` (VTU terms) keeps the announcements source disabled;
 `OQ-019` (do real papers carry a text layer) is unanswerable until real papers
 arrive — the pipeline is proven on synthetic fixtures.
 
+### M5A — Document / paper pipeline · ✅ **DELIVERED (private path)**
+The safe document lifecycle: import, quarantine, validation against hostile
+input, content-addressed object storage behind an interface, `pdftotext`
+extraction in a child process, and structural section persistence. A private
+documents UI. No OCR, no question segmentation, no AI, no public file serving.
+
+**Exercised on real documents.** 65 supplied academic PDFs went through the
+shipped path; 9 yielded usable text, 54 were scans, 2 were HTML masquerading as
+PDFs and were rejected by the magic-byte check. The exercise found and fixed two
+validator false positives that were rejecting 7 legitimate papers (docs/17
+§17.11a).
+
+**Carried forward:** `OQ-019` is **PARTIALLY VERIFIED** — real papers are
+confirmed to be a mixed corpus and scans dominated this sample, but one local
+sample does not generalise and OCR quality is untouched (`OQ-019a`). `OQ-027`
+(production object storage) and `OQ-028` (retention) remain open and are stated
+in the UI rather than assumed.
+
 ### M5b — Document pipeline · superseded
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.
