@@ -8,7 +8,7 @@
  * pool so a rolling deploy does not sever in-flight queries.
  */
 
-import { loadConfig } from './config.js';
+import { assertSafeExposure, loadConfig } from './config.js';
 import { createClient } from './db/client.js';
 import { createApp } from './http/app.js';
 import { createLogger } from './observability/logger.js';
@@ -17,6 +17,8 @@ function start(): void {
   let config;
   try {
     config = loadConfig();
+    // Before anything listens: refuse to publish unauthenticated routes.
+    assertSafeExposure(config);
   } catch (error) {
     // Deliberately console, not the logger: the logger needs config to exist.
     // eslint-disable-next-line no-console
@@ -29,9 +31,19 @@ function start(): void {
   const sql = createClient(config.DATABASE_URL);
   const app = createApp(config, sql, logger);
 
-  const server = app.listen(config.PORT, () => {
+  /*
+   * Bound explicitly. `app.listen(PORT)` alone binds every interface, which
+   * would put the unauthenticated Stage 1 document routes on the network
+   * (docs/13 §T-19).
+   */
+  const server = app.listen(config.PORT, config.HOST, () => {
     logger.info(
-      { port: config.PORT, env: config.APP_ENV, ingestion: config.INGESTION_ENABLED },
+      {
+        host: config.HOST,
+        port: config.PORT,
+        env: config.APP_ENV,
+        ingestion: config.INGESTION_ENABLED,
+      },
       'gradtools api listening',
     );
   });

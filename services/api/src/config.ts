@@ -20,6 +20,26 @@ const configSchema = z.object({
   APP_ENV: z.enum(['local', 'test', 'experimental', 'staging', 'alpha']).default('local'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
 
+  /**
+   * The interface the API binds to. **This is a security control, not a
+   * convenience setting.**
+   *
+   * Stage 1 has no authentication, and the private document routes
+   * (`/api/v1/documents/import`, `/private`, `/:id/process`, `/:id/sections`)
+   * are unauthenticated by design because there is no one to authenticate yet.
+   * Binding to `0.0.0.0` would therefore publish an anonymous read-and-write
+   * document service to every host that can reach the machine.
+   *
+   * CORS does NOT prevent this. CORS is a browser policy; curl, Postman and any
+   * non-browser client ignore it entirely. The bind address is the control that
+   * actually holds.
+   *
+   * Defaults to loopback. Production must set it explicitly, and
+   * `assertSafeExposure` below refuses a non-loopback bind while the routes are
+   * still unauthenticated (docs/13 §T-19, docs/25 §25.4).
+   */
+  HOST: z.string().min(1).default('127.0.0.1'),
+
   /** Secret. Never logged, never returned by any endpoint. */
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 
@@ -33,6 +53,15 @@ const configSchema = z.object({
    * environment (docs/25 §25.4). No ingestion exists in M5a; the variable is
    * validated here so the default cannot drift.
    */
+  /**
+   * Object-storage root for document bytes.
+   *
+   * MUST be outside the repository and outside any served directory: the web
+   * server never maps a URL onto this path, and files are read back through the
+   * application (docs/25 §25.6.3). No cloud provider is chosen yet (`OQ-027`).
+   */
+  DOCUMENT_STORAGE_ROOT: z.string().min(1).default('./.local-storage'),
+
   INGESTION_ENABLED: z
     .string()
     .default('false')
@@ -67,4 +96,39 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       .map((origin) => origin.trim())
       .filter((origin) => origin !== ''),
   };
+}
+
+/** Addresses that mean "every interface on this machine". */
+const WILDCARD_HOSTS = new Set(['0.0.0.0', '::', '*']);
+
+function isLoopback(host: string): boolean {
+  const bare = host.replace(/^\[|\]$/g, '').toLowerCase();
+  return bare === 'localhost' || bare === '::1' || /^127\./.test(bare);
+}
+
+/**
+ * Refuses to start with unauthenticated private routes on a public interface.
+ *
+ * Called at boot, before the server listens. A misconfiguration that would
+ * expose the document routes is a startup failure, not a quiet risk discovered
+ * later — the same principle the rest of this file follows, applied to the one
+ * setting whose default being wrong would matter most.
+ *
+ * `ALLOW_PUBLIC_BIND=true` is the deliberate escape hatch for a deployment that
+ * has put its own authentication in front (a reverse proxy, a private network).
+ * It must be set on purpose; nothing infers it.
+ */
+export function assertSafeExposure(config: Config, env: NodeJS.ProcessEnv = process.env): void {
+  if (isLoopback(config.HOST)) return;
+  if (env.ALLOW_PUBLIC_BIND === 'true') return;
+
+  const where = WILDCARD_HOSTS.has(config.HOST) ? 'every network interface' : `"${config.HOST}"`;
+  throw new Error(
+    `Refusing to start: HOST is set to ${where}, which would expose the ` +
+      `unauthenticated private document routes to the network.\n` +
+      `  Stage 1 has no authentication, so the bind address is the only control ` +
+      `protecting them (CORS does not apply to non-browser clients).\n` +
+      `  Use HOST=127.0.0.1, or set ALLOW_PUBLIC_BIND=true if this deployment ` +
+      `authenticates these routes some other way.`,
+  );
 }

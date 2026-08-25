@@ -133,6 +133,28 @@ Client-side variables are prefixed `VITE_` and contain **no secrets**; a build-t
 
 **`INGESTION_ENABLED` defaults to off in every environment.** Combined with the per-source `enabled` flag and the robots constraint (`09` §9.7), three independent things must be true before any external request is made. This is deliberate belt-and-braces on the highest-consequence external behaviour.
 
+### 25.4.1 HOST — a security control, not a convenience (M5A)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `HOST` | `127.0.0.1` | The interface the API binds to |
+| `ALLOW_PUBLIC_BIND` | unset | Deliberate override for a deployment that authenticates the private routes some other way |
+| `DOCUMENT_STORAGE_ROOT` | `./.local-storage` | Object-store root. Must be outside the repository and outside any served directory |
+
+Stage 1 has no authentication, so the private document routes are
+unauthenticated by design. The bind address is what keeps them off the network,
+and **CORS is not a substitute** — it is a browser policy that `curl` ignores.
+
+`assertSafeExposure()` runs before the server listens and **refuses to start**
+on a non-loopback `HOST` unless `ALLOW_PUBLIC_BIND=true` is set on purpose. A
+misconfiguration is therefore a loud startup failure, consistent with how the
+rest of §25.4 treats configuration.
+
+**Production must set `HOST` explicitly** rather than inheriting a default. The
+loopback default is correct for local and experimental use; it is not a
+deployment strategy, and silently assuming localhost in production would hide a
+decision that ought to be made.
+
 ## 25.5 Secrets
 
 - Stored only in the host platform's secret manager. Never in the repository, never in the image, never in logs, never in the client bundle.

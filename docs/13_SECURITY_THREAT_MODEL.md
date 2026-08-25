@@ -149,6 +149,33 @@ The grade-card paste parser receiving crafted input.
 
 **Mitigations:** input length capped; the parser is a bounded regex/structural extractor, not an evaluator, and no input is ever passed to `eval`, a template engine or a shell; parsing runs with a timeout; **the parse endpoint writes nothing**, so worst case is a bad preview the student discards.
 
+## 13.4a T-19 — Unauthenticated private routes exposed to the network (M5A)
+
+**The threat.** Stage 1 has no authentication, so the private document routes —
+`POST /api/v1/documents/import`, `GET /api/v1/documents/private`,
+`POST /:id/process`, `GET /:id/sections` — are unauthenticated by design: there
+is nobody to authenticate yet. Binding the API to `0.0.0.0` would therefore
+publish an **anonymous read-and-write document service** to every host that can
+reach the machine.
+
+**CORS is not the control.** CORS is a browser policy. `curl`, Postman and every
+non-browser client ignore it completely. Relying on the CORS allowlist here
+would be relying on attackers using a browser.
+
+**The control.** The bind address, enforced at boot:
+
+- `HOST` is validated configuration and **defaults to `127.0.0.1`**.
+- `assertSafeExposure()` runs before the server listens and **refuses to start**
+  if `HOST` is non-loopback, so a misconfiguration is a loud startup failure
+  rather than a quiet exposure.
+- `ALLOW_PUBLIC_BIND=true` is the deliberate escape hatch for a deployment that
+  authenticates these routes some other way. Nothing infers it.
+
+**The rule, binding:** *unauthenticated private-document routes must never be
+reachable from an untrusted network.* When authentication exists, exposure can
+be enabled intentionally, behind it. Until then the loopback bind is what makes
+the privacy claim true rather than aspirational.
+
 ## 13.5 Security baseline (implementation checklist)
 
 | Control | Requirement |
