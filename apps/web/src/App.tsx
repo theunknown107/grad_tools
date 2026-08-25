@@ -6,6 +6,7 @@
  */
 
 import { Route, Routes } from 'react-router-dom';
+import { DocumentsPage } from './features/documents/DocumentsPage.js';
 import { AppShell, Disclaimer } from './components/AppShell.js';
 import { DashboardPage } from './features/dashboard/DashboardPage.js';
 import { AcademicsPage } from './features/academics/AcademicsPage.js';
@@ -24,6 +25,7 @@ export function App() {
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/timetable" element={<TimetablePage />} />
+        <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

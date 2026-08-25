@@ -33,15 +33,84 @@ export const MAX_OBJECTS = 100_000;
 /**
  * Active content that has no legitimate place in a question paper
  * (docs/17 §17.3 check 8). Presence of any of these is fatal, not a warning.
+ *
+ * `/OpenAction` is NOT in this list, and that is deliberate — see
+ * `hasHostileOpenAction` below.
  */
-const ACTIVE_CONTENT = [
-  '/JavaScript',
-  '/JS',
-  '/Launch',
-  '/EmbeddedFile',
-  '/RichMedia',
-  '/OpenAction',
-] as const;
+const ACTIVE_CONTENT = ['/JavaScript', '/JS', '/Launch', '/EmbeddedFile', '/RichMedia'] as const;
+
+/**
+ * Characters that end a PDF name token.
+ *
+ * PDF whitespace (NUL, TAB, LF, FF, CR, space) and the delimiters. A name runs
+ * until one of these, so `/JSomething` is a DIFFERENT name from `/JS` and a
+ * plain substring search cannot tell them apart.
+ */
+const NAME_TERMINATORS = new Set([
+  0, 9, 10, 12, 13, 32, 0x28, 0x29, 0x3c, 0x3e, 0x5b, 0x5d, 0x7b, 0x7d, 0x2f, 0x25,
+]);
+
+/**
+ * Whether `marker` appears as a complete PDF name token.
+ *
+ * CORRECTED IN M5A AGAINST REAL DOCUMENTS. A plain `text.includes('/JS')`
+ * rejected 3 of 56 genuine VTU question papers, because a compressed image
+ * stream contains arbitrary bytes and `/JS` is only two characters — it turns
+ * up in binary noise by chance. Every observed hit was followed by high-byte
+ * garbage rather than by a delimiter.
+ *
+ * Requiring a terminator keeps the check honest in both directions: a real
+ * `/JavaScript` action is still caught, and a coincidence in a JPEG is not.
+ */
+function hasNameToken(text: string, marker: string): boolean {
+  let index = text.indexOf(marker);
+  while (index !== -1) {
+    const next = index + marker.length;
+    if (next >= text.length || NAME_TERMINATORS.has(text.charCodeAt(next))) {
+      return true;
+    }
+    index = text.indexOf(marker, next);
+  }
+  return false;
+}
+
+/**
+ * Whether `/OpenAction` introduces an ACTION rather than a view destination.
+ *
+ * docs/17 §17.3 check 8 says "`/OpenAction` with an action", and the
+ * distinction is the whole point:
+ *
+ *   /OpenAction [3 0 R /FitH null]        a destination. "open at this view".
+ *   /OpenAction << /S /JavaScript ... >>  an action. Runs something.
+ *
+ * The first is produced by ordinary authoring tools and is completely benign;
+ * 4 of 56 real question papers carry one. Rejecting it made the validator
+ * refuse legitimate documents while catching nothing, which is the worst
+ * possible trade in a security check — it trains people to bypass it.
+ *
+ * Only a dictionary form carrying an `/S` action subtype is refused. An
+ * indirect reference (`/OpenAction 5 0 R`) is refused too: the action it points
+ * at cannot be resolved without a real parser, and an unresolvable action is
+ * not something to wave through.
+ */
+function hasHostileOpenAction(text: string): boolean {
+  let index = text.indexOf('/OpenAction');
+  while (index !== -1) {
+    const rest = text.slice(index + '/OpenAction'.length, index + '/OpenAction'.length + 64);
+    const trimmed = rest.replace(/^[\s]+/, '');
+
+    if (trimmed.startsWith('<<')) {
+      // Inline action dictionary. Hostile if it declares an action subtype.
+      if (/\/S\s*\//.test(trimmed.slice(0, 64))) return true;
+    } else if (/^\d+\s+\d+\s+R/.test(trimmed)) {
+      // Indirect reference: unresolvable here, so not assumed safe.
+      return true;
+    }
+    // Anything else (`[...]`, a bare name) is a destination. Benign.
+    index = text.indexOf('/OpenAction', index + 1);
+  }
+  return false;
+}
 
 export type RejectionCode =
   | 'empty'
@@ -181,14 +250,17 @@ export function validateDocument(bytes: Buffer): ValidationResult {
     return fail('encrypted', 'The PDF is encrypted, so its contents cannot be checked.');
   }
 
-  // Check 8: active content.
+  // Check 8: active content, matched as whole PDF name tokens.
   for (const marker of ACTIVE_CONTENT) {
-    if (text.includes(marker)) {
+    if (hasNameToken(text, marker)) {
       return fail(
         'active_content',
         'The PDF contains active content such as embedded scripts or files, which is not accepted.',
       );
     }
+  }
+  if (hasHostileOpenAction(text)) {
+    return fail('active_content', 'The PDF runs an action when opened, which is not accepted.');
   }
 
   // Check 7: object-graph explosion.

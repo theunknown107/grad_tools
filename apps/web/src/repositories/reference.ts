@@ -69,7 +69,7 @@ export class ReferenceError extends Error {
  * bundle, so a secret must never be read here. The database URL lives on the
  * server and the browser never sees it (M5a §13).
  */
-function apiBaseUrl(): string {
+export function apiBaseUrl(): string {
   const configured: unknown = import.meta.env.VITE_API_URL;
   return typeof configured === 'string' && configured !== ''
     ? configured.replace(/\/$/, '')

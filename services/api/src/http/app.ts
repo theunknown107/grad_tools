@@ -16,10 +16,22 @@ import { randomUUID } from 'node:crypto';
 import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
+import { LocalObjectStore, type ObjectStore } from '../documents/storage.js';
+import { createDocumentRouter } from '../routes/documents.js';
 import { createReferenceRouter } from '../routes/reference.js';
 import { errorHandler, notFoundHandler } from './errors.js';
 
-export function createApp(config: Config, sql: Sql, logger: Logger): Express {
+export function createApp(
+  config: Config,
+  sql: Sql,
+  logger: Logger,
+  /*
+   * Injected so tests can use an in-memory store. The default is the local
+   * filesystem driver rooted at the configured path, which lives outside the
+   * repository and outside any served directory (docs/25 §25.6.3).
+   */
+  store: ObjectStore = new LocalObjectStore(config.DOCUMENT_STORAGE_ROOT),
+): Express {
   const app = express();
 
   // Express advertises itself by default; there is no reason to tell an
@@ -128,6 +140,7 @@ export function createApp(config: Config, sql: Sql, logger: Logger): Express {
     });
   });
 
+  app.use(createDocumentRouter(sql, store));
   app.use(createReferenceRouter(sql));
 
   app.use(notFoundHandler);
