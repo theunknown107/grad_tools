@@ -248,6 +248,21 @@ embeddings, prediction — sub-question identity is recovered only 3–4 times i
 15–20 rows, so anything keyed on it would rest on the least reliable field
 available (`OQ-019a`).
 
+### M5A.4 — Positional extraction · ✅ **DELIVERED (prototype + evidence)**
+A deterministic positional layer: one `PositionedToken` representation fed by
+both `pdftotext -tsv` (native) and `tesseract tsv` (scans), line grouping by
+vertical overlap, and a structural parser producing questions, sub-questions,
+marks, Bloom's level and CO with bounding boxes and structural confidence
+states. **No AI, no embeddings, no semantic classification.**
+
+**The OQ-019a answer:** sub-question recovery goes from 3–4 of 15–20 rows on
+flattened text to essentially complete on native PDFs and substantially improved
+on scans. Marks/Bloom's/CO are recovered by column position rather than by regex.
+
+**Two limits found and recorded:** positional extraction is a
+descriptive-paper technique — MCQ gains little — and the worst scan yields
+nothing rather than unreliable rows, by deliberate choice.
+
 ### M5b — Document pipeline · superseded
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.

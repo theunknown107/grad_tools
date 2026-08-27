@@ -29,6 +29,19 @@ qualification measured how far that assumption holds, and it holds unevenly.
 | Question text (prose) | readable, noisy | readable | medium |
 | Question text (mathematics) | **destroyed** | n/a | **none** |
 
+> **UPDATED IN M5A.4.** The table above measured FLATTENED text. Positional
+> extraction changes two rows materially (docs/17 §17.16):
+>
+> | Field | Flattened | Positional (native) | Positional (OCR) |
+> |---|---|---|---|
+> | Sub-question letter | 3–4 of 15–20 | **essentially complete** | partial, far better |
+> | Marks / Bloom's / CO | by regex, fragile | **by column position** | by column position |
+>
+> Sub-question identity is no longer the blocker it was for native-text papers,
+> and is substantially improved for scans. The two consequences below still
+> hold, and one is now sharper: **positional extraction is a descriptive-paper
+> technique**. An MCQ paper is a single-column flow where geometry adds little.
+
 **Two consequences for anything built on top.**
 
 *Sub-question identity is the weak link.* Marks, module and CO attach reliably

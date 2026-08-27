@@ -441,6 +441,40 @@ intelligence feature. If it is not, OCR can proceed; if it is, it needs a
 different approach — positional extraction rather than more parsing of flat
 text.
 
+---
+
+**M5A.4 UPDATE — positional extraction was built and measured. The blocker is
+substantially resolved.**
+
+| Field | Flattened text | Positional (native) | Positional (OCR) |
+|---|---|---|---|
+| Sub-question letter | **3–4 of 15–20** | **essentially complete** (47 across 20 questions) | partial: 11–14 per paper |
+| Marks / Bloom's / CO | fragile regex | by **column position** | by column position |
+| Question number, module, page | dependable | dependable | dependable |
+| Mathematics | destroyed | destroyed | destroyed |
+
+Position is what does it: `a.` occupies its own narrow cell that flattening
+merges into the question text, and the marks column is a location rather than a
+pattern.
+
+**Still not resolved, and why this stays PARTIALLY VERIFIED:**
+- **MCQ gains little.** A single-column flow gives geometry nothing to work
+  with: 44 items of 50 (English), 27 of 50 (Kannada), with instruction lines
+  still appearing as items. Positional extraction is a *descriptive-paper*
+  technique.
+- **Kannada item numbering is unreliable** — observed `8, 8, 8, 0, 20` where
+  consecutive numbers belong. The text is usable for discovery; the numbering is
+  not.
+- **Mathematics is unchanged**: structure survives, content does not.
+- **A badly damaged scan yields nothing** rather than unreliable rows, by
+  deliberate choice.
+- Eight documents, one corpus.
+
+**Decision needed:** whether the first intelligence feature can be built on
+descriptive papers with native text and good scans — where the structure is now
+dependable — while MCQ and poor scans are handled as a separate problem. That is
+a product-scope question, not an engineering one.
+
 ### OQ-029 — VTU 2022 has more than one question-paper format · **OPEN**
 **Discovered in M5A.1** while grading the OCR benchmark: 4 of 10 sampled papers are 50-question MCQ papers (`Max Marks: 50`, "Question Paper Version", "darken the circles") with **no modules and no Bloom's/CO columns**. The other 6 are the descriptive 100-mark format with `Module-1..5`.
 **Why it matters:** a first rubric that assumed one format scored 4 real papers POOR when the OCR had read them correctly. Any future segmentation or intelligence work must detect the format before assuming a structure, or it will report good papers as broken.
@@ -608,6 +642,9 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5A | ED-37…ED-41 | Document lifecycle, validator corrections and the localhost boundary in Part B | Engineering (ED-38/39 evidence: real corpus) |
 | M5A.3 | DEC-022 | OCR implemented as specified by DEC-021: local Tesseract, asynchronous, no hosted service | Engineering |
 | M5A.1 | DEC-021 | OCR, when implemented, will be **local Tesseract** — privacy is decisive and structural fidelity beats raw accuracy | Engineering (evidence: 10-document benchmark) |
+| M5A.4 | ED-50 | Positional TSV, not hOCR | Same information and speed, half the bytes, no XML — but decisively, `pdftotext -tsv` emits the same schema, so native PDFs and scans share one representation. hOCR has no native counterpart |
+| M5A.4 | ED-51 | Lines grouped by vertical overlap, not by the tools' line numbers | On a two-column paper the question text and its marks column are different blocks whose line numbers restart. Overlap is what reassembles `question \| marks \| L \| CO` as one row |
+| M5A.4 | ED-52 | A numbered row with nothing in the right-hand table is an instruction, not a question | Positional and needs no reading of the words. Trade-off accepted: a question whose entire marks column was lost is skipped rather than kept — which is why the worst scan yields nothing rather than unreliable rows |
 | M5A.3 | ED-48 | Worker refuses to start without `tesseract` and `pdftoppm` | A worker that starts and fails every job burns each job's retry budget and marks good documents unreadable for a reason unrelated to them. One clear message at boot beats a trail of false failures |
 | M5A.3 | ED-49 | Shutdown drains the in-flight job rather than cancelling it | A half-processed document would leave its row `processing` with sections partly written. The recovery path exists for crashes, not for shutdowns we chose |
 | M5A.3 | ED-43 | Job queue is a PostgreSQL table with `FOR UPDATE SKIP LOCKED`; no Redis or BullMQ | The database already provides atomic claim and durable state. A broker adds an operational dependency and a second source of truth to solve a problem one query solves (docs/23 §23.10) |

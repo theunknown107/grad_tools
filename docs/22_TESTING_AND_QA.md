@@ -118,6 +118,16 @@ public documents in quarantine, which is the state the fix forbids.
 
 
 
+**Added in M5A.4:** positional geometry and the structural parser, tested with
+**synthetic TSV fixtures built in the test file** — both column orders, both
+coordinate systems, marker rows, cross-block row grouping, page boundaries,
+sub-question labels, marks/Bloom's/CO column association, the numbered
+instruction block, conflicting geometry, and `unknown` extracting nothing.
+
+No PDF, no OCR engine and no database is needed, so the whole layer is
+deterministic in CI. The fixtures caught a real defect the real papers had
+hidden: `L2` was being stripped to `2` and stored as marks.
+
 **Added in M5A.3-final:** the worker loop, tested against a real database but
 with an injected clock and sleep so the suite never waits on real time — idle
 sleeping, scheduled recovery, recovery-before-first-claim, prompt stop on abort,
