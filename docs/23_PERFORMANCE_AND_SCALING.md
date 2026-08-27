@@ -222,6 +222,24 @@ through `SKIP LOCKED` with no broker and nothing to configure between them.
 The idle loop costs one indexed query every 3 s per worker, and stalled recovery
 one indexed UPDATE every 5 minutes. Neither is traffic worth economising on.
 
+### 23.3.6 Positional extraction (M5A.4)
+
+| Stage | Cost |
+|---|---|
+| `pdftotext -tsv` (4-page native paper) | 32 ms |
+| `tesseract tsv` (one page) | 759 ms |
+| TSV parse (1 042 tokens) | 2.4 ms |
+| Line grouping (130 lines) | 2.1 ms |
+| Format detection | 0.6 ms |
+| Structural parser | 1.9 ms |
+
+**The positional layer itself costs ~7 ms** — parse, group, detect and parse
+structure together. A native 4-page paper is fully structured in **39 ms**, well
+inside a request; a scan is dominated entirely by OCR and stays a background job.
+
+TSV and hOCR cost the same to generate (759 vs 779 ms); hOCR is 2.1× the bytes
+and needs an XML parser. Nothing in this layer needs optimising.
+
 ## 23.5 Caching
 
 Full table in `07` §7.8. The performance-relevant points:

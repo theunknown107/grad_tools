@@ -812,6 +812,152 @@ Sub-question identity is recovered only 3–4 times in 15–20 rows (§17.11d), 
 anything keyed on "question 3(b)" would be built on the least reliable field
 available.
 
+## 17.16 Positional extraction (M5A.4)
+
+Feasibility, answered with a working prototype. **No AI, no embeddings, no
+semantic classification** — geometry and regular expressions only, because the
+question was how much structure is recoverable *deterministically*.
+
+### TSV, not hOCR — and the reason is the native path
+
+| | Tesseract TSV | Tesseract hOCR |
+|---|---|---|
+| One page | 759 ms | 779 ms |
+| Size | 20 733 bytes | 43 370 bytes |
+| Parsing | split on tabs | XML |
+
+Same information, same speed, half the size. But the decisive fact is that
+**poppler's `pdftotext -tsv` emits the same column schema**, so a native PDF and
+a scan can feed one representation. hOCR has no native counterpart.
+
+### One representation, two sources
+
+```
+native PDF   pdftotext -tsv  ─┐
+                              ├─► PositionedToken ─► line grouping ─► parser
+scanned PDF  tesseract tsv   ─┘
+```
+
+They are not byte-compatible, and the three differences are the whole reason
+`geometry.ts` exists:
+
+1. **Column order differs.** Poppler emits `par_num, block_num`; Tesseract emits
+   `block_num, par_num`. Parsing by index would silently swap two grouping keys.
+   Both are parsed by **header name**.
+2. **Units differ.** Poppler reports PDF points; Tesseract reports pixels at the
+   rasterization DPI. Everything is converted to points so one set of geometric
+   thresholds serves both.
+3. **Poppler emits marker rows** (`###PAGE###`, `###FLOW###`) that are layout,
+   not words.
+
+**Line grouping is by vertical overlap, not by the tools' line numbers.** On a
+two-column paper the question text and its marks column are different *blocks*,
+and block line numbers restart — which is exactly why flattening loses the
+association.
+
+### Results on real papers
+
+| Document | Source | Format | Q | sub-Q | marks | L | CO | MCQ |
+|---|---|---|---|---|---|---|---|---|
+| `1BESC104C` (2 model papers in one file) | native | descriptive | **20** | **47** | 67 | 67 | 67 | — |
+| `1BMATC101` (maths) | native | descriptive | 12 | 33 | 42 | 42 | 0 | — |
+| `BCHEM102` | OCR | descriptive | **10** | 11 | 19 | 19 | 19 | — |
+| `BMATS101` (maths) | OCR | descriptive | 8 | 14 | 21 | 20 | 14 | — |
+| `BCS403` (poor scan) | OCR | descriptive | 6 | 13 | 17 | 16 | 13 | — |
+| `BENGK106` | OCR | mcq | — | — | — | — | — | 44 |
+| `BKSKK107` (Kannada) | OCR | mcq | — | — | — | — | — | 27 |
+| `BCY358A` (worst scan) | OCR | descriptive | **0** | 0 | 0 | 0 | 0 | — |
+
+`1BESC104C` returns exactly 20 questions because the file genuinely contains
+**two** model papers of Q1–Q10 each — verified by inspection, not assumed.
+`BCHEM102` returns exactly 10.
+
+### The sub-question answer — OQ-019a
+
+| Approach | Sub-question labels |
+|---|---|
+| Flattened OCR text (M5A.2) | **3–4 of 15–20 rows** |
+| Positional, native PDF | **47 across 20 questions** — essentially complete a/b/c |
+| Positional, OCR scan | 11–14 per paper — **partial but far better** |
+
+Position is what makes the difference: `a.` occupies its own narrow cell at a
+predictable x, and flattening merges it into the question text. The parser looks
+for a lone letter token near the left of a row *before* trying any inline
+pattern.
+
+The right-hand `marks | L | CO` columns are recovered the same way — by where
+they are, not by a regex over a line that may have collapsed. A bare `6` in
+prose and a `6` in the marks cell are indistinguishable in flat text.
+
+### Two defects found by running the prototype
+
+**Numbered instructions look exactly like questions.** "1. Answer any FIVE full
+questions…" matched a bare question number and produced three false questions.
+The discriminator is positional and needs no reading: an instruction has nothing
+in the right-hand table. A first attempt also required "before the first Module
+heading" and failed on the two-paper file, where the second paper's instructions
+arrive with a module already set.
+
+*The trade-off, stated:* a genuine question whose entire marks column was lost is
+now skipped rather than kept. Across this corpus that removed 6 false questions
+and cost none — but it is why `BCY358A`, the worst scan, returns **0** rather
+than a handful of unreliable rows. That case is reported separately, never
+averaged in.
+
+**`L2` was being read as marks 2.** Stripping non-digits turned the Bloom's token
+into a number. Caught by a synthetic fixture; it would have quietly corrupted
+marks on every row where the marks cell itself was lost.
+
+### Mathematics — structure survives, content does not
+
+`BMATS101` yields 8 questions, 14 sub-questions, 21 marks and 20 Bloom's levels
+while its formulas remain unreadable. The distinction is now demonstrated rather
+than asserted:
+
+> **text = partially usable · structure = usable · maths = unreliable**
+
+### Kannada
+
+`eng+kan` gives 27 MCQ items and readable Kannada question text. **Item numbering
+is unreliable** — observed `8, 8, 8, 0, 20` where consecutive numbers belong —
+because the leading digit of a Kannada-script line is frequently misread. The
+text is usable for discovery; the numbering is not authoritative.
+
+### MCQ is helped much less than descriptive
+
+An MCQ paper is a single-column flow, so geometry adds little over flat text: 44
+items of 50 for English, 27 of 50 for Kannada, with numbered instruction lines
+still appearing as items and options grouped unreliably. **Positional extraction
+is a descriptive-paper technique.**
+
+### Confidence states — structural, never an accuracy score
+
+| State | Rule |
+|---|---|
+| `high` | question number + text body + marks found **in the right-hand column** |
+| `medium` | number and text found; marks missing or outside the marks column |
+| `low` | inferred from a single weak cue — a sub-label with no owning question |
+| `review_required` | cues contradict: two question numbers on one row, or marks outside 1–20 |
+
+No numeric percentage, for the reason `ED-46` gives: there is no ground truth, so
+a number would be invented. These states describe how much the *geometry* agreed,
+which is answerable.
+
+### Performance
+
+| Stage | Cost |
+|---|---|
+| `pdftotext -tsv` (4-page native) | 32 ms |
+| `tesseract tsv` (one page) | 759 ms |
+| TSV parse (1 042 tokens) | 2.4 ms |
+| Line grouping (130 lines) | 2.1 ms |
+| Format detection | 0.6 ms |
+| Structural parser | 1.9 ms |
+
+**The whole positional layer costs ~7 ms.** A native 4-page paper is fully
+structured in **39 ms**; a scan is dominated entirely by OCR. Nothing here needs
+optimising.
+
 ## 17.13 Quarantine holds for publication (M5.1)
 
 §17.1's lifecycle is quarantine-first, but M5 enforced only the rights half of
