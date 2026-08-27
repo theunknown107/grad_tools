@@ -115,8 +115,26 @@ human can edit a rule set at runtime.
 
 ### 21.7.2 Running the OCR worker (M5A.3)
 
-There is still no admin UI. The worker is a module with two entry points, both
-callable from a small script:
+There is still no admin UI. The worker is a long-running process:
+
+```
+pnpm --filter @gradtools/api worker
+```
+
+It claims OCR jobs, sleeps 3 s when the queue is empty, recovers stalled jobs at
+startup and every 5 minutes, and stops on Ctrl-C after the current job finishes.
+A second Ctrl-C exits immediately.
+
+**It refuses to start without `tesseract` and `pdftoppm`**, naming whichever is
+missing. That is deliberate: a worker that starts and fails every job burns each
+job's retry budget and leaves good documents marked unreadable for a reason that
+has nothing to do with them.
+
+Run **more than one** for more throughput. `FOR UPDATE SKIP LOCKED` means they
+divide the queue with no coordination; verified with two processes against one
+database (docs/22).
+
+The underlying functions remain available for one-off operator use:
 
 ```
 runOneJob(deps)      claim and process exactly one job; null when idle

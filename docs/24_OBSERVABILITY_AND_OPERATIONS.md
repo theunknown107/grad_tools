@@ -81,6 +81,10 @@ One structured line per transition, each carrying `jobId`, `documentId` and
 | `ocr retried` | warn — with the attempt number |
 | `ocr failed` | error — terminal, after attempts are exhausted |
 | `requeued stalled ocr jobs` | warn |
+| `ocr worker started` | info — worker id and intervals |
+| `ocr worker stopped` | info — processed, idle ticks, recoveries, iterations |
+| `shutting down after the current job` | info |
+| `worker loop error` | error — an unexpected failure outside a job; the loop continues |
 
 **Document CONTENT is never logged**, at any level. The completion line carries
 counts and configuration — how much text, in which language, at which settings —

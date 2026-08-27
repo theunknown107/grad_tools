@@ -118,6 +118,21 @@ public documents in quarantine, which is the state the fix forbids.
 
 
 
+**Added in M5A.3-final:** the worker loop, tested against a real database but
+with an injected clock and sleep so the suite never waits on real time — idle
+sleeping, scheduled recovery, recovery-before-first-claim, prompt stop on abort,
+and surviving an unexpected error without dying.
+
+**Shutdown policy is tested directly rather than by signal.** Windows Node has
+no catchable SIGINT for a spawned child, so end-to-end signal delivery cannot be
+verified on this machine. The decision was extracted into `createShutdownHandler`
+and proven there — first signal drains, second exits, never aborts twice — and
+`main.ts` is one line per signal. **The signal path itself remains verified only
+on the logic level; it is untested on Linux, where the worker will deploy.**
+
+Manually verified with two real worker processes against one database: 4 jobs,
+split 2/2, `attempts = 1` on every job — no job claimed twice.
+
 **Added in M5A.3:** the OCR lifecycle. Format detection and configuration
 selection are pure functions and are tested exhaustively without a PDF, an
 engine or a database — including the three cases that broke earlier detectors: a

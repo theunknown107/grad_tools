@@ -155,6 +155,33 @@ loopback default is correct for local and experimental use; it is not a
 deployment strategy, and silently assuming localhost in production would hide a
 decision that ought to be made.
 
+### 25.4.2 The OCR worker process (M5A.3)
+
+A second process, from the same image and the same configuration:
+
+```
+pnpm --filter @gradtools/api start    # the API
+pnpm --filter @gradtools/api worker   # the OCR worker
+```
+
+The worker binds nothing and serves nothing, so `HOST` does not apply to it —
+but it reads the same configuration and fails identically on a misconfiguration,
+which is why `assertSafeExposure` runs there too.
+
+| Variable | Purpose |
+|---|---|
+| `TESSERACT_BIN` | Path to `tesseract`, when not on `PATH` |
+| `PDFTOPPM_BIN` | Path to `pdftoppm`, when not on `PATH` |
+| `TESSDATA_PREFIX` | Directory holding `eng.traineddata` and `kan.traineddata` |
+| `DOCUMENT_STORAGE_ROOT` | Shared with the API — both processes need the same object store |
+
+**The worker must reach the same object store as the API.** With the local
+filesystem driver that means the same path; production storage is `OQ-027` and
+undecided.
+
+Scale by running more worker processes. They coordinate through PostgreSQL, so
+there is no leader, no broker and nothing to configure between them.
+
 ## 25.5 Secrets
 
 - Stored only in the host platform's secret manager. Never in the repository, never in the image, never in logs, never in the client bundle.

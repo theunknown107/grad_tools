@@ -230,6 +230,10 @@ dependable. `DEC-021` (local Tesseract) is confirmed and upgraded to **(B)
 implement with a later quality loop**.
 
 ### M5A.3 — Production OCR pipeline · ✅ **DELIVERED**
+Includes the long-running worker runtime (`pnpm --filter @gradtools/api worker`):
+idle sleeping, startup and periodic stalled recovery, dependency check at boot,
+anonymous worker ids, and drain-then-exit shutdown. Concurrency proven with two
+real processes against one database.
 OCR implemented: local Tesseract, 150 DPI, format-dependent PSM, `eng+kan` where
 Kannada is detected, run as a background job on a PostgreSQL-backed queue with
 `SKIP LOCKED`, retries with backoff, and stalled-job recovery.

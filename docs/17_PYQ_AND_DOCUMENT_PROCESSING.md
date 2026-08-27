@@ -786,6 +786,25 @@ nothing on precisely the papers that need flagging.
 
 Three documents, 13 pages, drained in 18.6 s including database writes.
 
+### The worker runtime
+
+```
+pnpm --filter @gradtools/api worker
+```
+
+A separate long-running process. It serves no HTTP, listens on no port, and is
+reachable from nothing.
+
+| Behaviour | Value | Why |
+|---|---|---|
+| Idle sleep | 3 s, **interruptible** | Not a busy loop. A plain `setTimeout` would make Ctrl-C wait out the full interval |
+| Backlog | no sleep between jobs | Sleeping between items would only make a backlog longer |
+| Stalled recovery | every 5 min, **and once at startup** | Well inside the 30-minute stall window. Running it first means a worker starting after a crash picks up what the dead one dropped, rather than waiting |
+| Startup check | refuses to start without `tesseract` and `pdftoppm` | A worker that starts and fails every job is worse than one that does not start: it burns each job's retry budget and marks good documents unreadable for a reason unrelated to them |
+| Worker id | `ocr-<8 random chars>` | Enough to tell two workers apart in a log. Never the hostname or username |
+| Shutdown | first signal drains, second exits | Aborting does not cancel the in-flight job: a half-processed document would leave its row `processing` with sections partly written |
+| Loop errors | logged, loop continues | A worker that exits on a database blip needs a supervisor to notice; better that it retries |
+
 ### Deliberately not built
 
 No question segmentation, no module mapping, no embeddings, no prediction.
