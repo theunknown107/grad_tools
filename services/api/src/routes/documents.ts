@@ -27,6 +27,7 @@ import { SOURCE_ROUTES, subjectIdSchema } from '@gradtools/shared-types';
 import type { Sql } from '../db/client.js';
 import * as queries from '../db/queries.js';
 import { importDocument, processDocument } from '../documents/ingest.js';
+import * as queue from '../jobs/queue.js';
 import { MAX_BYTES } from '../documents/validate.js';
 import type { ObjectStore } from '../documents/storage.js';
 import { ApiError, notFound } from '../http/errors.js';
@@ -106,6 +107,77 @@ export function createDocumentRouter(sql: Sql, store: ObjectStore): Router {
     if (!document) throw notFound(`No document with id "${id}".`);
     res.setHeader('Cache-Control', 'private, no-store');
     res.json({ data: await queries.listDocumentSections(sql, id) });
+  });
+
+  /**
+   * Ask for OCR on a document with no text layer.
+   *
+   * Enqueues a job and returns immediately. The request never waits for OCR:
+   * it is ~1.07 s/page measured (docs/23 §23.3.4), which is not a request.
+   *
+   * NOT A GENERAL JOB RUNNER (M5A.3 §12). It accepts no job type, no
+   * parameters and no URL — only the id of a document that already exists, has
+   * passed validation, and actually needs OCR. Everything about the work is
+   * decided here, not by the caller.
+   */
+  router.post('/api/v1/documents/:id/ocr', async (req: Request, res: Response) => {
+    const id = subjectIdSchema.parse(req.params.id);
+
+    const document = await queries.findDocument(sql, id);
+    if (!document) throw notFound(`No document with id "${id}".`);
+
+    if (document.state !== 'validated' && document.state !== 'extracted') {
+      throw new ApiError(
+        'VALIDATION_FAILED',
+        'This document has not been checked yet, so it cannot be read.',
+      );
+    }
+
+    /*
+     * Only documents that actually need OCR. A text-layer document already has
+     * its text, and re-reading it by image would be slower and worse.
+     *
+     * `ocr_queued` and `ocr_processing` are ALLOWED through deliberately: a
+     * second click must be harmless, not an error. `enqueue` dedupes against
+     * the partial unique index and reports `alreadyQueued`, so the caller gets
+     * a truthful 200 rather than a failure for doing nothing wrong.
+     */
+    const eligible = [
+      'ocr_required',
+      'ocr_needs_review',
+      'extraction_failed',
+      'ocr_queued',
+      'ocr_processing',
+    ];
+    if (!eligible.includes(document.extractionStatus)) {
+      throw new ApiError(
+        'VALIDATION_FAILED',
+        'This document already has readable text, so it does not need image reading.',
+      );
+    }
+
+    const { job, alreadyQueued } = await queue.enqueue(sql, 'ocr', id);
+    if (!alreadyQueued) {
+      await sql`
+        UPDATE documents SET extraction_status = 'ocr_queued', updated_at = now()
+         WHERE id = ${id}::uuid
+      `;
+    }
+
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.status(alreadyQueued ? 200 : 202).json({
+      jobId: job?.id ?? null,
+      alreadyQueued,
+    });
+  });
+
+  /** Progress. Cheap enough to poll while a document is being read. */
+  router.get('/api/v1/documents/:id/status', async (req: Request, res: Response) => {
+    const id = subjectIdSchema.parse(req.params.id);
+    const status = await queries.findDocumentStatus(sql, id);
+    if (!status) throw notFound(`No document with id "${id}".`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json(status);
   });
 
   return router;

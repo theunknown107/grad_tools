@@ -146,6 +146,10 @@ export type Source = z.infer<typeof sourceSchema>;
 /* -------------------------------------------------------------------------- */
 
 export const documentStateSchema = z.enum(['quarantined', 'validated', 'rejected', 'extracted']);
+
+/** Detected question-paper format. `unknown` is a real outcome (docs/17 section 17.12). */
+export const paperFormatSchema = z.enum(['descriptive', 'mcq', 'unknown']);
+export type PaperFormat = z.infer<typeof paperFormatSchema>;
 export type DocumentState = z.infer<typeof documentStateSchema>;
 
 /**
@@ -155,10 +159,34 @@ export type DocumentState = z.infer<typeof documentStateSchema>;
  * silently OCR everything (M5 §15). A scanned paper is marked and left for a
  * later, explicit decision.
  */
+/**
+ * The EXTRACTION lifecycle, which is not the document lifecycle.
+ *
+ *   documents.state             is this file safe, and have we processed it
+ *   documents.extractionStatus  how we got the text, and how far we trust it
+ *
+ * Kept separate because they answer different questions: a scan reaches
+ * `extracted` with no text at all, so one field cannot carry both facts
+ * (M5A.3 section 3).
+ *
+ *   pending           validated, not yet read
+ *   text_available    read directly from the PDF's own text layer -- the fast path
+ *   ocr_required      no text layer; OCR is needed and has not been asked for
+ *   ocr_queued        an OCR job exists and is waiting for a worker
+ *   ocr_processing    a worker is reading it now
+ *   ocr_extracted     OCR produced text that looks dependable
+ *   ocr_needs_review  OCR produced text a person should look at before it is
+ *                     trusted: unknown paper format, or mathematics
+ *   extraction_failed nothing usable could be read
+ */
 export const extractionStatusSchema = z.enum([
   'pending',
   'text_available',
   'ocr_required',
+  'ocr_queued',
+  'ocr_processing',
+  'ocr_extracted',
+  'ocr_needs_review',
   'extraction_failed',
 ]);
 export type ExtractionStatus = z.infer<typeof extractionStatusSchema>;
@@ -181,8 +209,51 @@ export const documentSchema = z.object({
   licenseNote: z.string().nullable(),
   rejectionReason: z.string().nullable(),
   createdAt: z.string(),
+
+  /**
+   * Detected paper format. Chooses the OCR configuration and nothing else in
+   * this milestone -- it is not a parser. `unknown` is a real answer, not a
+   * fallback to the commoner format.
+   */
+  paperFormat: paperFormatSchema.nullable(),
+
+  /**
+   * How the OCR was performed. Deliberately NO numeric accuracy score: there is
+   * no ground truth, so a percentage would be invented rather than measured
+   * (M5A.3 section 9). Qualitative state carries the meaning.
+   */
+  ocrEngine: z.string().nullable(),
+  ocrEngineVersion: z.string().nullable(),
+  ocrLanguages: z.string().nullable(),
+  ocrPsm: z.number().int().nullable(),
+  ocrDpi: z.number().int().nullable(),
+  ocrDurationMs: z.number().int().nullable(),
+  ocrCharCount: z.number().int().nullable(),
+
+  /** True when the text should not be trusted without a human look. */
+  needsReview: z.boolean(),
+  reviewReason: z.string().nullable(),
 });
 export type DocumentRecord = z.infer<typeof documentSchema>;
+
+/** What a client polls while a document is being read. */
+export const documentStatusSchema = z.object({
+  id: z.string(),
+  state: documentStateSchema,
+  extractionStatus: extractionStatusSchema,
+  paperFormat: paperFormatSchema.nullable(),
+  needsReview: z.boolean(),
+  reviewReason: z.string().nullable(),
+  sectionCount: z.number().int().min(0),
+  job: z
+    .object({
+      status: z.enum(['queued', 'processing', 'completed', 'failed']),
+      attempts: z.number().int().min(0),
+      maxAttempts: z.number().int().min(1),
+    })
+    .nullable(),
+});
+export type DocumentStatus = z.infer<typeof documentStatusSchema>;
 
 /* -------------------------------------------------------------------------- */
 /* Source change events                                                       */
@@ -260,6 +331,8 @@ export const SOURCE_ROUTES = {
   documentImport: '/api/v1/documents/import',
   documentSections: (id: string) => `/api/v1/documents/${id}/sections`,
   documentProcess: (id: string) => `/api/v1/documents/${id}/process`,
+  documentOcr: (id: string) => `/api/v1/documents/${id}/ocr`,
+  documentStatus: (id: string) => `/api/v1/documents/${id}/status`,
   /**
    * The private working set: documents the operator imported on this machine.
    *

@@ -113,6 +113,35 @@ activation — are **not implemented**, and are not needed while the only writer
 a reviewed seed script under version control. They become required the moment a
 human can edit a rule set at runtime.
 
+### 21.7.2 Running the OCR worker (M5A.3)
+
+There is still no admin UI. The worker is a module with two entry points, both
+callable from a small script:
+
+```
+runOneJob(deps)      claim and process exactly one job; null when idle
+drain(deps, limit)   run until the queue empties or `limit` jobs have run
+recoverStalled(deps) return jobs abandoned by a killed worker
+```
+
+`drain` takes a limit so an operator running it by hand cannot start an
+unbounded batch by accident.
+
+**Two states an operator will actually see:**
+
+- `ocr_needs_review` — the text exists and should be checked before anything
+  depends on it. Either the paper format was unidentifiable, or it contains
+  mathematics, which OCR does not reconstruct. `review_reason` says which.
+- `jobs.status = 'failed'` — attempts exhausted. The row keeps its error and is
+  never deleted; the document says so rather than sitting silently.
+
+Re-running OCR on a document is safe: sections are replaced rather than
+appended, so a re-run is idempotent.
+
+The worker needs `tesseract` and `pdftoppm` on `PATH`, or `TESSERACT_BIN` and
+`PDFTOPPM_BIN` set. Kannada additionally needs `kan.traineddata` reachable via
+`TESSDATA_PREFIX`.
+
 ## 21.8 System health
 
 | Panel | Content |

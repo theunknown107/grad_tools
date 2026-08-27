@@ -191,6 +191,29 @@ price, not a global setting.
 OCR remains the trigger for background processing that `ED-41` named, and the
 first thing in this project that genuinely earns a queue.
 
+### 23.3.5 OCR as a background job (M5A.3)
+
+Measured through the shipped pipeline, real scans, including database writes:
+**3 documents, 13 pages, 18.6 s** — roughly 1.4 s/page end to end, consistent
+with the 1.07 s/page engine measurement plus the format probe and persistence.
+
+| Document | Pages | OCR ms | Sections |
+|---|---|---|---|
+| `BCS403` (poor scan) | 3 | 6 255 | 110 |
+| `BKSKK107` (Kannada, `eng+kan`) | 6 | 8 290 | 56 |
+| `BMATS101` (maths) | 4 | 4 007 | 8 |
+
+`eng+kan` is visibly more expensive per page, which is why it is selected per
+document rather than globally.
+
+**This is why OCR is not in the request path.** A 6-page scan is ~8 s against
+the 12–202 ms that native text extraction costs. `ED-41` named OCR as the
+trigger for background processing before it existed; it now is one, and it
+remains the *only* thing in this project that has earned a queue.
+
+Throughput was measured on one machine with three documents and is not a
+production figure.
+
 ## 23.5 Caching
 
 Full table in `07` §7.8. The performance-relevant points:

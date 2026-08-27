@@ -606,7 +606,13 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M4.1 | ED-31…ED-35 | Reference-data and rules hardening decisions in Part B | Engineering |
 | M4.2 | ED-36 | University/Branch classified as internal taxonomy; the two integrity models made explicit | Engineering |
 | M5A | ED-37…ED-41 | Document lifecycle, validator corrections and the localhost boundary in Part B | Engineering (ED-38/39 evidence: real corpus) |
+| M5A.3 | DEC-022 | OCR implemented as specified by DEC-021: local Tesseract, asynchronous, no hosted service | Engineering |
 | M5A.1 | DEC-021 | OCR, when implemented, will be **local Tesseract** — privacy is decisive and structural fidelity beats raw accuracy | Engineering (evidence: 10-document benchmark) |
+| M5A.3 | ED-43 | Job queue is a PostgreSQL table with `FOR UPDATE SKIP LOCKED`; no Redis or BullMQ | The database already provides atomic claim and durable state. A broker adds an operational dependency and a second source of truth to solve a problem one query solves (docs/23 §23.10) |
+| M5A.3 | ED-44 | Extraction lifecycle is a separate column from document lifecycle | `extracted` would otherwise mean both "we ran extraction" and "we have usable text". A scan reaches `extracted` with no text at all |
+| M5A.3 | ED-45 | OCR language retry triggers on failure to CLASSIFY, not on empty output | A Kannada page read with `eng` returns confident Latin gibberish, not nothing. An emptiness check accepts it and the retry never fires — observed on a real paper |
+| M5A.3 | ED-46 | No numeric OCR accuracy score, ever | There is no ground truth, so a percentage would be invented rather than measured. Qualitative state plus a readable reason carries the meaning |
+| M5A.3 | ED-47 | Mathematics flagged for review even when OCR succeeds | OCR recovers zero operators, Greek letters, superscripts or subscripts. The text is usable for search and must not be presented as the original |
 | M5A.1 | ED-42 | `ocr_required` presented as a processing outcome, not an error | 54 of 63 accepted PDFs were scans; calling that a failure would tell most students their good paper had broken, and would devalue the message that does mean failure |
 | M5 | DEC-021 | M5b and M6 become parallel tracks M5A/M5B over one shared source layer | Human |
 | M5 | DEC-022 | Public paper tier stays hard-disabled; rights-unknown material is link-only | Human |
