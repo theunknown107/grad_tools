@@ -176,6 +176,30 @@ reachable from an untrusted network.* When authentication exists, exposure can
 be enabled intentionally, behind it. Until then the loopback bind is what makes
 the privacy claim true rather than aspirational.
 
+## 13.4b T-20 — The OCR worker's input is hostile (M5A.3)
+
+OCR is the first thing that hands document bytes to two external binaries, so
+the controls that made validation safe have to hold here too.
+
+| Control | How |
+|---|---|
+| No shell | `execFile` with an **argument array**. Nothing user-controlled reaches a command line: the input path is a temp file we create, and language and PSM come from a closed set our own detector chose |
+| Timeouts | 60 s per page, 10 min per document, 2 min for rasterization — each `SIGKILL` |
+| Output cap | 8 MB, so a pathological page cannot exhaust memory |
+| Cleanup | The temp directory is removed in a `finally`, whether OCR succeeded, failed or timed out |
+| No network | The worker fetches nothing. Bytes come from our own object store |
+| No arbitrary paths | The storage key is content-addressed hex; rasterized pages live in a per-run temp directory and never in document storage |
+| Not a job runner | `POST /ocr` takes no job type, no parameters, no URL — see docs/10 |
+
+**A crashing Tesseract is a failed job, not a compromised server**: it runs as a
+child process, and its failure is caught, retried, and finally recorded as
+`ocr_needs_review` with a readable reason.
+
+**Nothing is sent anywhere.** No hosted OCR, no cloud vision API. The documents
+are the student's own or third-party material of unresolved rights, and the
+Documents screen promises they stay on this machine (docs/12) — a hosted call
+would make that promise false.
+
 ## 13.5 Security baseline (implementation checklist)
 
 | Control | Requirement |

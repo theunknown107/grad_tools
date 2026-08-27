@@ -197,7 +197,7 @@ Upload / operator import
          extraction (sandboxed child process: CPU, memory, wall-clock limits)
                │  pdftotext -layout  →  text layer present?
                │        yes ──────────────────────► structured text
-               │        no  ──► tesseract OCR ────► text + lower confidence
+               │        no  ──► OCR JOB QUEUED ──► worker ──► text + review state
                ▼
          segmentation → questions (VTU SEE structure: 10 questions, 2 per module,
                                     5 modules, 20 marks each — see `17`)
@@ -271,6 +271,31 @@ rejects. TanStack Query is **not used**; the reference hooks are a ~60-line
 warranted for six read-only queries with no mutations to invalidate.
 
 **Result-day spike strategy (`23`):** absorbed by CDN and stale-while-revalidate on the announcements endpoint, never by increasing the polling rate against the external source. Under load the source polling interval is *lengthened*, not shortened.
+
+### 7.8.1 The first background worker (M5A.3)
+
+Everything in GradTools answered inside the request until OCR. OCR is ~1.07 s
+per page measured, so it cannot, and it is the first — and so far only —
+workload that has earned a queue.
+
+```
+API                          worker
+ │  POST /documents/:id/ocr    │
+ ├─ enqueue (idempotent) ──────┤
+ └─ 202, immediately           ├─ claim   FOR UPDATE SKIP LOCKED
+                               ├─ rasterize, detect format, tesseract
+                               ├─ persist sections + metadata
+                               └─ complete
+```
+
+**The queue is a PostgreSQL table.** `FOR UPDATE SKIP LOCKED` gives atomic claim
+and the table gives durable state, which are the two hard parts; a broker would
+add an operational dependency and a second source of truth for no gain at this
+scale (§7.11, docs/23 §23.10). Redis, BullMQ and friends remain rejected.
+
+The API and the worker share the ingestion and OCR modules but neither imports
+the other. Nothing in a request path can reach the worker, and the worker holds
+no HTTP surface.
 
 ## 7.9 Scaling path
 

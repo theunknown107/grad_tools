@@ -729,6 +729,41 @@ Tests pin **both** sides: `universities` and `branches` must *not* grow
 provenance columns, and `schemes`, `colleges`, `rule_sets`, `subjects` and
 `syllabus_modules` must *not* lose them.
 
+### 9.11.4 Migration 0006 — the OCR pipeline (M5A.3)
+
+Forward-only. `0001`–`0005` are not edited.
+
+| Change | Why |
+|---|---|
+| `extraction_status` gains `ocr_queued`, `ocr_processing`, `ocr_extracted`, `ocr_needs_review` | OCR is a background job with real intermediate states a user can see |
+| `documents` gains `paper_format`, `ocr_engine`, `ocr_engine_version`, `ocr_languages`, `ocr_psm`, `ocr_dpi`, `ocr_duration_ms`, `ocr_char_count` | Enough to explain and reproduce a result. **No numeric accuracy score** — there is no ground truth, so a percentage would be invented rather than measured |
+| `documents.needs_review` + `review_reason`, with `document_review_has_reason` | A review flag with no reason tells an operator nothing |
+| `jobs` table | The queue |
+
+**The queue is PostgreSQL, not Redis.** `FOR UPDATE SKIP LOCKED` provides atomic
+claim, and the table provides durable state — the two hard parts. A broker would
+add an operational dependency and a second source of truth to solve a problem
+one query already solves (docs/23 §23.10).
+
+Two indexes carry the guarantees:
+
+```sql
+-- At most one ACTIVE job per document: enqueueing twice is a no-op rather than
+-- two workers doing the same seconds-long work. Partial, so a completed or
+-- failed job does not block a later re-run.
+CREATE UNIQUE INDEX jobs_one_active_per_document
+    ON jobs (document_id, job_type)
+ WHERE status IN ('queued', 'processing');
+
+-- Serves the claim query's ORDER BY.
+CREATE INDEX jobs_claimable ON jobs (job_type, run_after) WHERE status = 'queued';
+```
+
+`run_after` implements backoff: a job that failed recently is invisible to
+claimants until its delay elapses. A worker killed mid-job leaves its row
+`processing`, which `requeueStalled` returns to the queue — without it the
+partial unique index would block that document from ever retrying.
+
 ## 9.12 Retention
 
 | Data | Retention | Mechanism |

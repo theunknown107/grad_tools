@@ -216,6 +216,20 @@
   --state-accent: var(--danger);
 }
 
+/* The review caveat. Informational, never an error: the text is usable, it
+   simply should not be treated as the original. */
+.review {
+  margin: 0;
+  padding: var(--space-3);
+  max-width: 60ch;
+  border-left: 3px solid var(--info);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text);
+}
+
 .actions {
   display: flex;
   gap: var(--space-3);

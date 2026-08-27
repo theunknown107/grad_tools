@@ -20,7 +20,7 @@
  * policy that has not been decided (M5A §16).
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SOURCE_ROUTES, type DocumentRecord, type DocumentSection } from '@gradtools/shared-types';
 import { AsyncSection } from '../../components/AsyncSection.js';
 import { useAsync } from '../../hooks/useReference.js';
@@ -57,7 +57,28 @@ const EXTRACTION_LABEL: Record<
   ocr_required: {
     label: 'Needs image reading',
     detail:
-      'No usable text layer was found: this document is a scan of a printed page. Reading it would need image recognition, which GradTools does not do yet.',
+      'No usable text layer was found: this document is a scan of a printed page. It can be read with image recognition.',
+    tone: 'info',
+  },
+  ocr_queued: {
+    label: 'Queued',
+    detail: 'Waiting to be read. This runs in the background, so you can leave this page.',
+    tone: 'info',
+  },
+  ocr_processing: {
+    label: 'Reading',
+    detail: 'Reading the scanned pages now. This takes a few seconds per page.',
+    tone: 'info',
+  },
+  ocr_extracted: {
+    label: 'Text read from scan',
+    detail: 'Scanned document — image recognition was used to read the text.',
+    tone: 'ok',
+  },
+  ocr_needs_review: {
+    label: 'Read, needs a check',
+    detail:
+      'Text was extracted, but some layout or notation may need review. Compare it against the original before relying on it.',
     tone: 'info',
   },
   extraction_failed: {
@@ -66,6 +87,9 @@ const EXTRACTION_LABEL: Record<
     tone: 'error',
   },
 };
+
+/** Statuses where the document is in the middle of being read. */
+const IN_PROGRESS = new Set(['ocr_queued', 'ocr_processing']);
 
 const STATE_LABEL: Record<string, string> = {
   quarantined: 'Checking',
@@ -243,6 +267,22 @@ function DocumentRow({
   readonly onProcessed: () => void;
 }) {
   const extraction = EXTRACTION_LABEL[doc.extractionStatus];
+  const inProgress = IN_PROGRESS.has(doc.extractionStatus);
+
+  /*
+   * Poll only while something is actually happening, and stop as soon as it
+   * is not. A background job means the page has no other way to learn it
+   * finished; polling a finished document forever would be waste.
+   */
+  useEffect(() => {
+    if (!inProgress) return;
+    const timer = setInterval(() => {
+      onProcessed();
+    }, 3000);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [inProgress, onProcessed]);
 
   return (
     <article className={styles.card} data-state={doc.state}>
@@ -293,19 +333,78 @@ function DocumentRow({
         </p>
       )}
 
+      {doc.needsReview && doc.reviewReason !== null && (
+        <p className={styles.review}>{doc.reviewReason}</p>
+      )}
+
       {doc.state !== 'rejected' && (
         <div className={styles.actions}>
-          <ProcessButton document={doc} onProcessed={onProcessed} />
-          {doc.state === 'extracted' && doc.extractionStatus === 'text_available' && (
-            <button type="button" className={styles.secondary} onClick={onToggle}>
-              {isOpen ? 'Hide text' : 'Show text'}
-            </button>
+          {doc.extractionStatus === 'ocr_required' ||
+          doc.extractionStatus === 'ocr_needs_review' ? (
+            <OcrButton document={doc} onQueued={onProcessed} />
+          ) : (
+            !inProgress && <ProcessButton document={doc} onProcessed={onProcessed} />
           )}
+          {doc.state === 'extracted' &&
+            ['text_available', 'ocr_extracted', 'ocr_needs_review'].includes(
+              doc.extractionStatus,
+            ) && (
+              <button type="button" className={styles.secondary} onClick={onToggle}>
+                {isOpen ? 'Hide text' : 'Show text'}
+              </button>
+            )}
         </div>
       )}
 
       {isOpen && <SectionList documentId={doc.id} />}
     </article>
+  );
+}
+
+/**
+ * Asks for image reading. Returns as soon as the job is queued.
+ *
+ * Deliberately never says "AI": this is optical character recognition, and
+ * calling it AI would both overstate it and understate the caveats. It also
+ * never claims accuracy — the caveats live in the review note instead.
+ */
+function OcrButton({
+  document: doc,
+  onQueued,
+}: {
+  readonly document: DocumentRecord;
+  readonly onQueued: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.primary}
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          setError(null);
+          void fetchJson(SOURCE_ROUTES.documentOcr(doc.id), { method: 'POST' })
+            .then(onQueued)
+            .catch(() => {
+              setError('Could not start reading this document.');
+            })
+            .finally(() => {
+              setBusy(false);
+            });
+        }}
+      >
+        {busy
+          ? 'Starting…'
+          : doc.extractionStatus === 'ocr_needs_review'
+            ? 'Read again'
+            : 'Read the scan'}
+      </button>
+      {error !== null && <span className={styles.error}>{error}</span>}
+    </>
   );
 }
 

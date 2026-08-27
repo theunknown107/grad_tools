@@ -21,6 +21,8 @@
 
 import {
   documentSchema,
+  documentStatusSchema,
+  type DocumentStatus,
   documentSectionSchema,
   type DocumentSection,
   sourceSchema,
@@ -382,7 +384,17 @@ const DOCUMENT_COLUMNS = (sql: Sql) => sql`
   source_url AS "sourceUrl",
   license_note AS "licenseNote",
   rejection_reason AS "rejectionReason",
-  to_char(created_at, 'YYYY-MM-DD') AS "createdAt"
+  to_char(created_at, 'YYYY-MM-DD') AS "createdAt",
+  paper_format       AS "paperFormat",
+  ocr_engine         AS "ocrEngine",
+  ocr_engine_version AS "ocrEngineVersion",
+  ocr_languages      AS "ocrLanguages",
+  ocr_psm            AS "ocrPsm",
+  ocr_dpi            AS "ocrDpi",
+  ocr_duration_ms    AS "ocrDurationMs",
+  ocr_char_count     AS "ocrCharCount",
+  needs_review       AS "needsReview",
+  review_reason      AS "reviewReason"
 `;
 
 /**
@@ -492,4 +504,42 @@ export async function listDocumentSections(sql: Sql, id: string): Promise<Docume
     ORDER BY page_number, ordinal
   `;
   return parseRows(documentSectionSchema, rows);
+}
+
+/**
+ * Everything a client needs to render progress, in one query.
+ *
+ * The job is LEFT JOINed rather than fetched separately: a document with no
+ * active job is the normal case, and two round trips to say "nothing is
+ * happening" would be wasteful on a polled endpoint.
+ */
+export async function findDocumentStatus(sql: Sql, id: string): Promise<DocumentStatus | null> {
+  const rows = await sql`
+    SELECT
+      d.id::text,
+      d.state,
+      d.extraction_status AS "extractionStatus",
+      d.paper_format      AS "paperFormat",
+      d.needs_review      AS "needsReview",
+      d.review_reason     AS "reviewReason",
+      (SELECT count(*)::int FROM document_sections s WHERE s.document_id = d.id)
+        AS "sectionCount",
+      CASE WHEN j.id IS NULL THEN NULL ELSE
+        json_build_object(
+          'status', j.status,
+          'attempts', j.attempts,
+          'maxAttempts', j.max_attempts
+        )
+      END AS job
+    FROM documents d
+    LEFT JOIN LATERAL (
+      SELECT id, status, attempts, max_attempts
+      FROM jobs
+      WHERE document_id = d.id AND job_type = 'ocr'
+      ORDER BY created_at DESC
+      LIMIT 1
+    ) j ON true
+    WHERE d.id = ${id}::uuid
+  `;
+  return parseRows(documentStatusSchema, rows)[0] ?? null;
 }

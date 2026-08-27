@@ -68,6 +68,29 @@ already shipped.
 `req_id` is implemented, is returned to the client as `X-Request-Id`, and is the
 same value the error envelope carries as `reference`.
 
+#### OCR job logging (M5A.3)
+
+One structured line per transition, each carrying `jobId`, `documentId` and
+`durationMs`:
+
+| Event | Level |
+|---|---|
+| `ocr job claimed` | info |
+| `ocr started` | info |
+| `ocr completed` | info — with format, languages, PSM, pages, chars, sections, `needsReview` |
+| `ocr retried` | warn — with the attempt number |
+| `ocr failed` | error — terminal, after attempts are exhausted |
+| `requeued stalled ocr jobs` | warn |
+
+**Document CONTENT is never logged**, at any level. The completion line carries
+counts and configuration — how much text, in which language, at which settings —
+and never the text itself. Extracted question text is exactly the sort of
+material that would be unrecoverable once it reached a log aggregator.
+
+Filesystem paths are not logged either: a storage key is content-addressed hex
+and a temp directory reveals the host layout, neither of which helps diagnosis
+enough to justify emitting them.
+
 ### Levels
 
 | Level | Use | Retention |

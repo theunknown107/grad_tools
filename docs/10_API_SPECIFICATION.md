@@ -332,6 +332,27 @@ to a caller who did not ask for one.
 **`moduleCount` is nullable.** `null` means the syllabus structure is not
 verified. It is not `0`, and clients must not render it as one.
 
+#### OCR endpoints (M5A.3)
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/v1/documents/:id/ocr` | Queue OCR. Returns **202** with a job id, or **200** when a job is already active |
+| GET | `/api/v1/documents/:id/status` | Progress: extraction status, paper format, review flag, section count, job state |
+
+`POST /ocr` **is not a general job runner.** It accepts no job type, no
+parameters and no URL — only the id of a document that already exists, has
+passed validation, and actually needs OCR. Everything about the work is decided
+server-side. A body containing `jobType`, `url` or `command` is ignored, which
+is asserted by test.
+
+It returns immediately. OCR is ~1.07 s/page measured (docs/23 §23.3.4), which is
+not a request; the work happens in a worker and the client polls `/status`.
+
+A second request is **not an error**: `enqueue` dedupes against the partial
+unique index and reports `alreadyQueued`, so a repeat click is harmless.
+
+Both responses are `private, no-store`.
+
 No write endpoint exists. `POST`, `PUT`, `PATCH` and `DELETE` return `404` on
 every path, which is asserted by test.
 

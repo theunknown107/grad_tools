@@ -118,6 +118,22 @@ public documents in quarantine, which is the state the fix forbids.
 
 
 
+**Added in M5A.3:** the OCR lifecycle. Format detection and configuration
+selection are pure functions and are tested exhaustively without a PDF, an
+engine or a database — including the three cases that broke earlier detectors: a
+descriptive paper worth 50 marks, an MCQ keyword mangled by OCR into a Kannada
+glyph, and a paper whose instructions are entirely in Kannada.
+
+Queue and worker are tested against **real PostgreSQL**, because `FOR UPDATE
+SKIP LOCKED` is the whole concurrency guarantee and no mock reproduces it. Two
+workers racing for one job is tested by actually issuing two concurrent claims.
+
+**Tesseract itself is stubbed in the worker tests.** Running it would make the
+suite depend on a machine's installed binaries and add seconds per test; the
+engine is qualified by measurement (docs/17 §17.11d), and what these tests own
+is the lifecycle around it. The real end-to-end run over actual scans is
+recorded in docs/17 §17.15.
+
 **M5A.2 added no OCR tests, deliberately.** The qualification needs the
 gitignored corpus, ~100 MB of engine and language data, and a rasterizer — none
 of which belong in CI, and all of which would make the suite depend on a

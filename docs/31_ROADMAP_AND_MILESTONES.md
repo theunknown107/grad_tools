@@ -229,6 +229,21 @@ survive at all.
 dependable. `DEC-021` (local Tesseract) is confirmed and upgraded to **(B)
 implement with a later quality loop**.
 
+### M5A.3 — Production OCR pipeline · ✅ **DELIVERED**
+OCR implemented: local Tesseract, 150 DPI, format-dependent PSM, `eng+kan` where
+Kannada is detected, run as a background job on a PostgreSQL-backed queue with
+`SKIP LOCKED`, retries with backoff, and stalled-job recovery.
+
+Verified end to end on real scans: a poor-quality DBMS paper and a Kannada MCQ
+paper both reached `ocr_extracted` (the latter correctly detected as
+`mcq` / `eng+kan` / PSM 6), and a maths paper reached `ocr_needs_review` with
+the caveat that formulas are not reconstructable.
+
+**Deliberately still absent:** question segmentation, module mapping,
+embeddings, prediction — sub-question identity is recovered only 3–4 times in
+15–20 rows, so anything keyed on it would rest on the least reliable field
+available (`OQ-019a`).
+
 ### M5b — Document pipeline · superseded
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.

@@ -34,6 +34,16 @@ function doc(overrides: Record<string, unknown> = {}) {
     licenseNote: null,
     rejectionReason: null,
     createdAt: '2026-08-24',
+    paperFormat: null,
+    ocrEngine: null,
+    ocrEngineVersion: null,
+    ocrLanguages: null,
+    ocrPsm: null,
+    ocrDpi: null,
+    ocrDurationMs: null,
+    ocrCharCount: null,
+    needsReview: false,
+    reviewReason: null,
     ...overrides,
   };
 }
@@ -102,9 +112,59 @@ describe('DocumentsPage', () => {
     render(<DocumentsPage />);
 
     expect(await screen.findByText(/no usable text layer was found/i)).toBeTruthy();
-    expect(screen.getByText(/does not do yet/i)).toBeTruthy();
-    // No "Show text" button, because there is none.
+    // M5A.3: OCR now exists, so the screen offers it rather than apologising.
+    expect(screen.getByText(/can be read with image recognition/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /read the scan/i })).toBeTruthy();
+    // Still no text to show.
     expect(screen.queryByRole('button', { name: /show text/i })).toBeNull();
+  });
+
+  /*
+   * M5A.3 §13. The progress states must read as progress, never as AI and never
+   * as a promise of accuracy.
+   */
+  it.each([
+    ['ocr_queued', /waiting to be read/i, 'Queued'],
+    ['ocr_processing', /reading the scanned pages/i, 'Reading'],
+  ])('shows %s as progress', async (status, detail, label) => {
+    mockApi([doc({ extractionStatus: status })]);
+    render(<DocumentsPage />);
+    expect(await screen.findByText(detail)).toBeTruthy();
+    expect(screen.getByText(label)).toBeTruthy();
+  });
+
+  it('describes a successfully read scan without claiming accuracy', async () => {
+    mockApi([doc({ extractionStatus: 'ocr_extracted' })]);
+    render(<DocumentsPage />);
+    expect(await screen.findByText(/image recognition was used to read the text/i)).toBeTruthy();
+    expect(screen.getByText('Text read from scan')).toBeTruthy();
+  });
+
+  it('surfaces the review caveat for text that needs checking', async () => {
+    mockApi([
+      doc({
+        extractionStatus: 'ocr_needs_review',
+        needsReview: true,
+        reviewReason: 'This paper contains mathematics. Formulas and symbols are not reliable.',
+      }),
+    ]);
+    render(<DocumentsPage />);
+    expect(await screen.findByText(/some layout or notation may need review/i)).toBeTruthy();
+    expect(screen.getByText(/formulas and symbols are not reliable/i)).toBeTruthy();
+  });
+
+  /* Never "AI", never a claim of accuracy (M5A.3 §13). */
+  it('never says AI or claims accuracy', async () => {
+    for (const status of ['ocr_queued', 'ocr_processing', 'ocr_extracted', 'ocr_needs_review']) {
+      cleanup();
+      mockApi([doc({ extractionStatus: status })]);
+      const view = render(<DocumentsPage />);
+      await screen.findByText('BCS403 paper.pdf');
+      const text = view.container.textContent ?? '';
+      for (const wrong of [/\bAI\b/, /artificial intelligence/i, /100%/, /accurate/i]) {
+        expect(text).not.toMatch(wrong);
+      }
+    }
   });
 
   it('does not describe a scan as a failure or an error', async () => {

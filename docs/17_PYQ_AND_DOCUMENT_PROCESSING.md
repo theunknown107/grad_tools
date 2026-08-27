@@ -118,17 +118,32 @@ Stage 1  pdftotext -layout
            ├─ ≥ 200 characters extracted → text-layer PDF, extraction_confidence 0.9
            └─ < 200 characters           → likely scanned → Stage 2
 
-Stage 2  OCR (Tesseract, eng, 300 DPI render)
-           ├─ success → extraction_confidence 0.5–0.7, flagged for review
-           └─ failure → document held as 'validated' but unextracted;
-                        still downloadable, simply not analysed
+Stage 2  OCR — asynchronous, see §17.15 for the implemented pipeline
+           ├─ success → ocr_extracted; needs_review when the format is UNKNOWN
+           └─ failure → retried, then ocr_needs_review; the document is never
+                        discarded and stays available
 ```
+
+> **Superseded, M5A.3.** This block previously read
+> "OCR (Tesseract, eng, 300 DPI render)" and implied OCR ran inline. All three
+> details were wrong once measured:
+>
+> | Was | Is | Why |
+> |---|---|---|
+> | `eng` only | `eng` or `eng+kan` per document | `eng` alone recovers **zero** Kannada (§17.11d) |
+> | 300 DPI | **150 DPI** | 2.8× faster at comparable quality; these scans are low-resolution, so upsampling adds noise |
+> | inline | **background job** | measured at ~1.07 s/page — see §17.15 |
+> | one PSM | format-dependent | PSM 3 descriptive, PSM 6 MCQ |
+>
+> `extraction_confidence` as a number is **not implemented and will not be**: a
+> numeric accuracy score would be invented rather than measured (§17.11d).
+> Qualitative states carry the meaning instead.
 
 `-layout` is used rather than plain extraction because question papers are strongly column- and table-structured, and preserving layout is what makes question-number and marks detection tractable. This was verified during Phase 1: the VTU regulation PDF was unreadable to a generic extractor and extracted cleanly with `pdftotext -layout`.
 
 **A document that cannot be analysed is still useful.** It remains downloadable — students want the PDF far more than they want our analysis of it. Extraction failure degrades the intelligence features, never the library.
 
-**Unknown until the corpus arrives:** whether real VTU papers carry a text layer or are scans. This determines whether OCR is an edge case or the main path, and it materially affects Milestone 5's effort. Recorded as `32/OQ-019` and as a validation task in `06` §6.8.
+**Answered in M5A** (`32/OQ-019`, PARTIALLY VERIFIED): in the supplied 65-document corpus, **56 of 65 produced no meaningful text**. OCR is the main path for that sample, not an edge case. That figure describes one local corpus and does not generalise to VTU as a whole.
 
 ## 17.5 Question segmentation
 
@@ -412,7 +427,13 @@ No question segmentation. Sectionizing stops at pages and blank-line-separated
 blocks. Given that a maths paper loses a sixth of its characters, inferring
 question boundaries from this text would be building on sand.
 
-## 17.11b OCR feasibility benchmark (M5A.1)
+## 17.11b OCR feasibility benchmark (M5A.1) · **HISTORICAL**
+
+> Kept as the record of how the engine was chosen. Two of its conclusions were
+> superseded by M5A.2 and must not be read as current guidance:
+> **`--psm 6` globally** (it is format-dependent) and **"Kannada: zero
+> recovery"** (an artefact of having only `eng` installed — see §17.11d).
+> Its engine choice and privacy reasoning stand.
 
 Evidence gathering, not implementation. **No OCR is implemented, and nothing in
 GradTools calls an OCR engine.**
@@ -694,6 +715,83 @@ rubric in M5A.1 scored four correctly-read papers POOR for exactly that mistake.
 
 **Not implemented.** This records the shape the parser must take when it is
 built.
+
+## 17.15 The OCR pipeline as built (M5A.3)
+
+OCR is implemented, local, and **asynchronous**.
+
+```
+text_available ──► done. The PDF had its own text layer; nothing else runs.
+
+ocr_required ──► POST /documents/:id/ocr ──► ocr_queued
+                                                │
+                                    worker claims (SKIP LOCKED)
+                                                ▼
+                                          ocr_processing
+                                                │
+                    rasterize 150 DPI ─► probe page 1 ─► detect format
+                                                │
+                                    tesseract, format-appropriate PSM
+                                                ▼
+                              ┌──── ocr_extracted        text looks dependable
+                              └──── ocr_needs_review     unknown format, or maths
+```
+
+### Two lifecycles, deliberately separate
+
+| Column | Question it answers |
+|---|---|
+| `documents.state` | is this file safe, and have we processed it |
+| `documents.extraction_status` | how we got the text, and how far we trust it |
+
+Collapsing them would make `extracted` mean both "we ran extraction" and "we
+have usable text" — and a scan reaches `extracted` with no text at all.
+
+### Configuration, all of it measured
+
+| Setting | Value | Why |
+|---|---|---|
+| DPI | **150**, never silently raised | 2.8× faster than 300 DPI at comparable quality; the scans are low-resolution, so upsampling adds noise (docs/23 §23.3.4) |
+| PSM | **3** descriptive, **6** MCQ | 13 complete marks rows vs 5; 59 numbered items vs 34 (§17.11d) |
+| Language | `eng`, or `eng+kan` where Kannada is seen | `eng` alone recovers zero Kannada; `kan` alone destroys the Latin header; `eng+kan` everywhere would cost ~1.8× on every English paper |
+| Unknown format | PSM 3 **and flagged for review** | A paper matching no template is not a broken paper, and must not be presented as cleanly read |
+
+### Language detection is triggered by failure to classify, not by empty output
+
+A Kannada page read with `eng` does **not** come back empty — it comes back as
+confident Latin gibberish. An emptiness check accepts that happily and the
+`eng+kan` retry never fires; this was observed on a real paper, which was
+processed as `unknown`/`eng` until the trigger was changed to *"the detector
+could not classify it"*. The retry then costs one extra page only for documents
+that could not otherwise be identified.
+
+### Maths is flagged even when OCR succeeds
+
+A paper detected as mathematical is stored with `needs_review` and a plain-words
+reason, because OCR recovers **zero** Greek letters, operators, superscripts or
+subscripts (§17.11d). The text is real and useful for search; it is not the
+original, and the UI says so.
+
+Detection keys on the **subject and question stems**, not on symbols — the
+symbols are exactly what does not survive, so looking for them would find
+nothing on precisely the papers that need flagging.
+
+### Verified end to end on real scans
+
+| Document | Result | Format | Lang | PSM | Sections |
+|---|---|---|---|---|---|
+| `BCS403` (DBMS, poor scan) | `ocr_extracted` | descriptive | eng | 3 | 110 |
+| `BKSKK107` (Kannada MCQ) | `ocr_extracted` | **mcq** | **eng+kan** | 6 | 56 |
+| `BMATS101` (maths) | `ocr_needs_review` | descriptive | eng | 3 | 8 |
+
+Three documents, 13 pages, drained in 18.6 s including database writes.
+
+### Deliberately not built
+
+No question segmentation, no module mapping, no embeddings, no prediction.
+Sub-question identity is recovered only 3–4 times in 15–20 rows (§17.11d), so
+anything keyed on "question 3(b)" would be built on the least reliable field
+available.
 
 ## 17.13 Quarantine holds for publication (M5.1)
 
