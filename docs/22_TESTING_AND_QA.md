@@ -118,6 +118,33 @@ public documents in quarantine, which is the state the fix forbids.
 
 
 
+**Added in M5A.6:** the review workbench — 21 API tests against real
+PostgreSQL and 12 web tests. Covered: accept, correct, reject; machine value
+preserved; reviewed value persisted; effective value resolution; a second
+correction replacing the first; accept clearing an earlier correction; MCQ item
+and OPTION review; sub-question Bloom's/CO review; an unknown record kind; a
+field that is not correctable; a wrong-typed correction; a review with no
+reviewer; parser-version isolation; queue ordering, contents, bounds and
+current-run-only; and the five audit questions.
+
+**Browser QA (M5A.6), run against a real API holding 14 extracted papers and 71
+adjudicated records:**
+
+| Check | Result |
+|---|---|
+| axe-core WCAG 2.1 A + AA at 320/390/768/1280 | 0 violations — **after a fix** |
+| Horizontal overflow | 0 at every viewport |
+| Accept, correct, reject | All three recorded; rejected record stays visible |
+| MCQ correction form | Item number, question text, options — and no module/marks/Bloom/CO |
+| Machine value visible after correction | 5 struck-through values, 11 "Machine read:" lines |
+| Keyboard | Controls reachable and operable |
+| Console errors | 0 |
+
+It found a real accessibility defect that unit tests could not: `opacity: 0.62`
+on a rejected record dropped **15 nodes** below AA contrast. Replaced with a
+dashed edge — the state is already carried in words, so the fade was decoration
+that cost readability.
+
 **Added in M5A.5:** question persistence and review, **against real
 PostgreSQL** — 34 tests. A real database is the point: the unique key that makes
 persistence idempotent, the composite foreign key that stops a descriptive

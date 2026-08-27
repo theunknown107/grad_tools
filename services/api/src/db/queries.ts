@@ -31,6 +31,8 @@ import {
   type ExtractedQuestion,
   extractedMcqItemSchema,
   type ExtractedMcqItem,
+  reviewQueueItemSchema,
+  type ReviewQueueItem,
   sourceSchema,
   type DocumentRecord,
   type Source,
@@ -707,12 +709,15 @@ const QUESTION_SELECT = (sql: Sql) => sql`
         'needsReview', sq.needs_review,
         'reviewState', sq.review_state,
         'reviewed', CASE WHEN COALESCE(
-                      sq.reviewed_label, sq.reviewed_sub_text, sq.reviewed_marks::text
+                      sq.reviewed_label, sq.reviewed_sub_text, sq.reviewed_marks::text,
+                      sq.reviewed_bloom_level, sq.reviewed_course_outcome
                     ) IS NULL THEN NULL
                     ELSE json_build_object(
                       'label', sq.reviewed_label,
                       'text',  sq.reviewed_sub_text,
-                      'marks', sq.reviewed_marks
+                      'marks', sq.reviewed_marks,
+                      'bloomLevel', sq.reviewed_bloom_level,
+                      'courseOutcome', sq.reviewed_course_outcome
                     )
                     END,
         'reviewNote', sq.review_note,
@@ -762,10 +767,13 @@ export async function listPaperMcqItems(sql: Sql, paperId: string): Promise<Extr
       m.confidence,
       m.needs_review    AS "needsReview",
       m.review_state    AS "reviewState",
-      CASE WHEN COALESCE(m.reviewed_item_number::text, m.reviewed_item_text) IS NULL THEN NULL
+      CASE WHEN COALESCE(
+             m.reviewed_item_number::text, m.reviewed_item_text, m.reviewed_options::text
+           ) IS NULL THEN NULL
            ELSE json_build_object(
              'itemNumber', m.reviewed_item_number,
-             'text',       m.reviewed_item_text
+             'text',       m.reviewed_item_text,
+             'options',    m.reviewed_options
            )
       END AS "reviewed",
       m.review_note  AS "reviewNote",
@@ -776,4 +784,77 @@ export async function listPaperMcqItems(sql: Sql, paperId: string): Promise<Extr
     ORDER BY m.ordinal
   `;
   return parseRows(extractedMcqItemSchema, rows);
+}
+
+/**
+ * Everything still waiting for a person, worst first.
+ *
+ * ORDER: review_required -> low -> medium -> high, then paper and position, so
+ * a reviewer works down a page rather than jumping between documents.
+ *
+ * NOT A SCORE (M5A.6 §7). `review_priority` is an ordering. A number would have
+ * to be invented, would imply a precision nothing here has, and would blend two
+ * incomparable things — how much the geometry agreed, and how much work a
+ * record needs — into one misleading figure (docs/32 ED-46).
+ *
+ * One UNION over three differently-shaped tables, because a reviewer works
+ * through RECORDS: three lists would make "what is left?" three questions.
+ * Rejected and accepted rows are absent by definition — the queue is what
+ * nobody has looked at yet, not an archive.
+ */
+export async function listReviewQueue(sql: Sql, limit = 50): Promise<ReviewQueueItem[]> {
+  const rows = await sql`
+    WITH pending AS (
+      SELECT
+        'question'::text AS kind, q.id, q.paper_id, q.ordinal,
+        COALESCE('Q' || q.question_number, 'Unnumbered') AS label,
+        q.question_text AS text, q.page_number, q.confidence, q.needs_review,
+        q.ordinal AS sort_a, 0 AS sort_b
+      FROM extracted_questions q
+      WHERE q.review_state = 'unreviewed'
+
+      UNION ALL
+
+      SELECT
+        'sub-question', sq.id, q.paper_id, sq.ordinal,
+        COALESCE('Q' || q.question_number, 'Q?') || ' ' || COALESCE(sq.label, '?'),
+        sq.sub_text, sq.page_number, sq.confidence, sq.needs_review,
+        q.ordinal, sq.ordinal + 1
+      FROM extracted_sub_questions sq
+      JOIN extracted_questions q ON q.id = sq.question_id
+      WHERE sq.review_state = 'unreviewed'
+
+      UNION ALL
+
+      SELECT
+        'mcq-item', m.id, m.paper_id, m.ordinal,
+        'Item ' || COALESCE(m.item_number::text, '?'),
+        m.item_text, m.page_number, m.confidence, m.needs_review,
+        m.ordinal, 0
+      FROM extracted_mcq_items m
+      WHERE m.review_state = 'unreviewed'
+    )
+    SELECT
+      p.kind,
+      p.id::text,
+      p.paper_id::text     AS "paperId",
+      ep.document_id::text AS "documentId",
+      d.title              AS "documentTitle",
+      ep.paper_format      AS "paperFormat",
+      ep.extraction_source AS "extractionSource",
+      p.label,
+      p.text,
+      p.page_number        AS "pageNumber",
+      p.confidence,
+      p.needs_review       AS "needsReview"
+    FROM pending p
+    JOIN extracted_papers ep ON ep.id = p.paper_id
+    JOIN documents d ON d.id = ep.document_id
+    -- Only the run a reader is actually shown. A superseded run's rows are kept
+    -- for audit; queueing them would ask a person to review history.
+    WHERE ep.is_current
+    ORDER BY review_priority(p.confidence), d.title, p.sort_a, p.sort_b
+    LIMIT ${limit}
+  `;
+  return parseRows(reviewQueueItemSchema, rows);
 }

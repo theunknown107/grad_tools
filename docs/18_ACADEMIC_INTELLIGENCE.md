@@ -61,6 +61,23 @@ qualification measured how far that assumption holds, and it holds unevenly.
 > ENGINE read (OCR), how much the GEOMETRY agreed (structural confidence), and
 > what a HUMAN concluded (review state).
 
+> **M5A.6 UPDATE — the trust filter now has measured meaning, and it is not
+> the one you would guess.** On 71 adjudicated records (docs/17 §17.18):
+>
+> - `low` / `medium` are dependable warnings: 10% and 0% accepted as-is.
+> - **`high` was accepted only 50% of the time.** It means the geometry agreed,
+>   not that the text is right — most high-confidence corrections were truncated
+>   question text.
+>
+> So `WHERE confidence = 'high'` is **not** a correctness filter. For anything
+> that reads question TEXT — frequency analysis, clustering, similarity — the
+> only defensible filter today is `review_state IN ('accepted','corrected')`,
+> and the reviewed corpus is small.
+>
+> **Structural fields are the dependable part.** Module 100%, sub-question label
+> 97%, MCQ item number 100%. Question number is layout-dependent: 9/9 where it
+> sits on the first row of its cell, 0/15 where it is vertically centred.
+
 **Two consequences for anything built on top.**
 
 *Sub-question identity is the weak link.* Marks, module and CO attach reliably

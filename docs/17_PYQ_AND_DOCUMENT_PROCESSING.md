@@ -1066,3 +1066,105 @@ Notation is stored EXACTLY as read — no repair, no normalisation, and nothing
 sent to a model.
 
 > **structure = usable · text = partially usable · maths = unreliable**
+
+## 17.18 The reviewed corpus (M5A.6)
+
+M5A.5 made extraction durable. This makes it **checkable**, and then checks it.
+
+```
+persistent questions ─► review workbench ─► adjudicated corpus ─► metrics
+```
+
+### THE REVIEWER WAS AN AI AGENT, NOT A HUMAN
+
+Every review recorded in this milestone is stored under `agent-adjudication`.
+The judgements were made by rendering each page and comparing it against the
+stored records field by field — real independent evidence, and **not** the human
+ground truth M5A.6 asked for. One predicate finds or removes the lot:
+
+```sql
+WHERE reviewed_by = 'agent-adjudication'
+```
+
+Everything below is scoped to that, and nothing below is a claim about VTU
+papers in general.
+
+### What was reviewed
+
+14 papers were loaded and extracted (438 records). **71 records across 4 papers
+were adjudicated page by page:**
+
+| Paper | Source | Records | Accepted | Corrected | Rejected |
+|---|---|---|---|---|---|
+| `1BESC104C` p1 | native | 5 Q + 14 sub | 7 | 12 | 0 |
+| `1BPHYS102` p1 | native | 15 Q + 14 sub | 3 | 26 | 0 |
+| `BCHEM102` p1 | ocr | 4 Q + 10 sub | 10 | 4 | 0 |
+| `BENGK106` p1 | ocr mcq | 9 items | 3 | 3 | 3 |
+
+### Structural agreement — 71 adjudicated records only
+
+| Field | Agreement | What drove it |
+|---|---|---|
+| Module | **24/24 (100%)** | Module headings are unambiguous |
+| Sub-question label | **37/38 (97%)** | One part mislabelled `a` for `b` |
+| MCQ item number | **6/6 (100%)** | On records that were genuinely items |
+| Course outcome | 27/38 (71%) | |
+| Marks | 26/38 (68%) | |
+| Bloom's level | 26/38 (68%) | |
+| Question number | **9/24 (38%)** | See `1BPHYS102` below |
+| Sub-question text, exact | **0/12 (0%)** | See the truncation defect below |
+
+**Aggregates hide which paper drove which number, so both are reported.** On
+`1BESC104C` and `BCHEM102`, question numbers were 9/9. On `1BPHYS102` they were
+0/15, and that paper alone moves the aggregate from 100% to 38%.
+
+### Two defects the review found
+
+**1. Text is truncated at the marks column.** `analyseRow` treats every token
+past 70% of the page width as a marks-column token and removes it from the
+question body. In a justified table cell the text reaches that far, so the last
+word or two of a line is deleted:
+
+| Machine | Actual |
+|---|---|
+| "...a full-wave rectifier." | "...a full-wave **bridge** rectifier." |
+| "...of an amplifier." | "...of an **ideal operational** amplifier." |
+| "...phase shift response..." | "...phase shift **and frequency** response..." |
+
+**Zero of 12 native sub-question texts were exact.** Every one carried high
+structural confidence, because the marks column WAS found — the confidence
+signal is about geometry and says nothing about whether the text survived.
+
+**2. A question number that is not on its first row is not recovered.**
+`1BPHYS102` centres `Q.1` vertically across its three sub-rows. The parser found
+no number on any of them, produced one record per row, and marked all 15 `low`.
+`1BESC104C` puts the number on the first row and scored 9/9. **Layout, not
+quality, decides this.**
+
+**Not fixed in this milestone, deliberately.** Changing the parser now would
+invalidate the corpus that was just built to evaluate parser changes. The corpus
+is the baseline; the fix is measured against it.
+
+### Does structural confidence predict the review outcome?
+
+| Confidence | Accepted | Corrected | Rejected | Accepted |
+|---|---|---|---|---|
+| `low` | 3 | 26 | 0 | **10%** |
+| `medium` | 0 | 2 | 0 | **0%** |
+| `high` | 20 | 17 | 3 | **50%** |
+
+**`low` and `medium` are trustworthy warnings** — they nearly always mean
+something is wrong. **`high` means the geometry agreed, and only that.** Half of
+the high-confidence records still needed a correction, almost all of them for
+truncated text. Measured, not assumed (M5A.6 §12).
+
+**Confidence cannot see a record that was never created.** `BCHEM102` lost two
+sub-parts entirely and the survivors stayed `high`. Missing records are
+invisible to every confidence signal there is.
+
+### MCQ: no instruction discriminator
+
+The descriptive parser suppresses numbered instructions by their empty marks
+column (`ED-52`). An MCQ paper has no marks column, so "2. Use only Black ball
+point pen…" is indistinguishable from an item by shape alone. **3 of 9 records
+on page 1 were instructions**, and all three carried `high` confidence.

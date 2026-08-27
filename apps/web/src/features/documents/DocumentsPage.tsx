@@ -21,17 +21,12 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  SOURCE_ROUTES,
-  type DocumentRecord,
-  type DocumentSection,
-  type ExtractedPaper,
-  type ExtractedQuestion,
-  type StructuralConfidence,
-} from '@gradtools/shared-types';
+import { SOURCE_ROUTES, type DocumentRecord, type DocumentSection } from '@gradtools/shared-types';
 import { AsyncSection } from '../../components/AsyncSection.js';
 import { useAsync } from '../../hooks/useReference.js';
 import { apiBaseUrl } from '../../repositories/reference.js';
+import { PaperPanel } from './PaperReview.js';
+import { ReviewQueue } from './ReviewQueue.js';
 import styles from './documents.module.css';
 
 /**
@@ -157,6 +152,8 @@ export function DocumentsPage() {
       </aside>
 
       <ImportPanel onImported={reload} />
+
+      <ReviewQueue reloadToken={reloadToken} />
 
       <section aria-labelledby="library-heading">
         <h2 id="library-heading">Your documents</h2>
@@ -462,203 +459,6 @@ function ProcessButton({
       </button>
       {error !== null && <span className={styles.error}>{error}</span>}
     </>
-  );
-}
-
-/**
- * What the parser found, in the words a student would use.
- *
- * NEVER "accuracy". The parser reports how much the LAYOUT agreed, which is a
- * question geometry can answer; how correct the reading is, it cannot. So the
- * labels describe the evidence, not a score.
- */
-const CONFIDENCE_LABEL: Record<StructuralConfidence, { label: string; tone: string }> = {
-  high: { label: 'Clear', tone: 'ok' },
-  medium: { label: 'Partly clear', tone: 'info' },
-  low: { label: 'Unclear', tone: 'info' },
-  review_required: { label: 'Needs review', tone: 'warn' },
-};
-
-const REVIEW_LABEL: Record<string, string> = {
-  unreviewed: 'Not checked',
-  accepted: 'Checked',
-  corrected: 'Corrected',
-  rejected: 'Dismissed',
-};
-
-/**
- * The questions found in a document.
- *
- * Deliberately NOT an admin panel. It answers one student question — "what did
- * GradTools actually find in my paper?" — and answers it honestly, including
- * when the answer is "nothing".
- *
- * The effective value of every field is `reviewed ?? machine`, which is why
- * both are served: a corrected value is shown, and the fact that it was
- * corrected is shown with it rather than quietly replacing the original.
- */
-function PaperPanel({ documentId }: { readonly documentId: string }) {
-  const paper = useAsync<ExtractedPaper | null>(async () => {
-    const body = (await fetchJson(SOURCE_ROUTES.documentPaper(documentId))) as {
-      data: ExtractedPaper | null;
-    };
-    return body.data;
-  }, [documentId]);
-
-  return (
-    <AsyncSection
-      state={paper.state}
-      retry={paper.retry}
-      label="questions"
-      isEmpty={(value) => value === null}
-      empty={
-        <p className={styles.empty}>
-          No question structure has been worked out for this document yet.
-        </p>
-      }
-    >
-      {/* `isEmpty` already sent null down the empty branch; this satisfies the type. */}
-      {(value) => (value === null ? null : <PaperDetail paper={value} />)}
-    </AsyncSection>
-  );
-}
-
-function PaperDetail({ paper }: { readonly paper: ExtractedPaper }) {
-  const questions = useAsync<ExtractedQuestion[]>(async () => {
-    const body = (await fetchJson(SOURCE_ROUTES.paperQuestions(paper.id))) as {
-      data: ExtractedQuestion[];
-    };
-    return body.data;
-  }, [paper.id]);
-
-  const unchecked = paper.reviewSummary.unreviewed;
-
-  return (
-    <div className={styles.paper}>
-      <dl className={styles.meta}>
-        <div>
-          <dt>Paper type</dt>
-          <dd>{PAPER_FORMAT_LABEL[paper.paperFormat]}</dd>
-        </div>
-        <div>
-          <dt>Read from</dt>
-          {/*
-            Provenance, in plain words. "Scanned pages" is not a hedge: it is
-            the difference between the publisher's own text and our reading of
-            an image, and it is the first thing that explains a wrong answer.
-          */}
-          <dd>
-            {paper.extractionSource === 'native' ? "The document's own text" : 'Scanned pages'}
-          </dd>
-        </div>
-        <div>
-          <dt>Questions</dt>
-          <dd>{paper.paperFormat === 'mcq' ? paper.mcqItemCount : paper.questionCount}</dd>
-        </div>
-        <div>
-          <dt>Checked by a person</dt>
-          <dd>
-            {paper.reviewSummary.total - unchecked} of {paper.reviewSummary.total}
-          </dd>
-        </div>
-      </dl>
-
-      <p className={styles.sectionCount}>
-        Worked out automatically by {paper.parserVersion} (version {paper.extractionVersion}).
-        Nothing here has been checked against the original unless it says so.
-      </p>
-
-      {paper.needsReview && paper.reviewReason !== null && (
-        <p className={styles.review}>{paper.reviewReason}</p>
-      )}
-
-      <AsyncSection
-        state={questions.state}
-        retry={questions.retry}
-        label="questions"
-        isEmpty={(items) => items.length === 0}
-        empty={
-          <p className={styles.empty}>
-            {paper.paperFormat === 'mcq'
-              ? 'This is a multiple-choice paper. Its items are not listed here yet.'
-              : 'No questions could be worked out from this document.'}
-          </p>
-        }
-      >
-        {(items) => (
-          <ol className={styles.questionList}>
-            {items.map((question) => (
-              <li key={question.id}>
-                <QuestionRow question={question} />
-              </li>
-            ))}
-          </ol>
-        )}
-      </AsyncSection>
-    </div>
-  );
-}
-
-const PAPER_FORMAT_LABEL: Record<string, string> = {
-  descriptive: 'Written answers',
-  mcq: 'Multiple choice',
-  // `unknown` is a real answer, not a fallback to the commoner format.
-  unknown: 'Could not be identified',
-};
-
-function QuestionRow({ question }: { readonly question: ExtractedQuestion }) {
-  const confidence = CONFIDENCE_LABEL[question.confidence];
-  const marks = question.reviewed?.marks ?? question.marks;
-  const module = question.reviewed?.module ?? question.module;
-  const number = question.reviewed?.questionNumber ?? question.questionNumber;
-  const text = question.reviewed?.text ?? question.text;
-
-  return (
-    <article className={styles.question}>
-      <div className={styles.questionHead}>
-        <h4 className={styles.questionNumber}>
-          {number === null || number === '?' ? 'Unnumbered' : `Q${number}`}
-        </h4>
-        <span className={styles.state} data-tone={confidence?.tone}>
-          {confidence?.label}
-        </span>
-      </div>
-
-      {/*
-        Rendered as TEXT. React escapes it, and the API escapes it again on the
-        wire: extracted text comes out of a PDF anyone could have crafted and is
-        never treated as markup.
-      */}
-      <p className={styles.questionText}>{text}</p>
-
-      <p className={styles.questionFacts}>
-        {module !== null && <span>Module {module}</span>}
-        {marks !== null && <span>{marks} marks</span>}
-        {question.bloomLevel !== null && <span>{question.bloomLevel}</span>}
-        {question.courseOutcome !== null && <span>{question.courseOutcome}</span>}
-        <span>Page {question.pageNumber}</span>
-        <span>{REVIEW_LABEL[question.reviewState] ?? question.reviewState}</span>
-      </p>
-
-      {/* The badge above already says "Needs review"; this says what to do. */}
-      {question.needsReview && (
-        <p className={styles.review}>Compare this against the original before relying on it.</p>
-      )}
-
-      {question.subQuestions.length > 0 && (
-        <ul className={styles.subList}>
-          {question.subQuestions.map((sub) => (
-            <li key={sub.id}>
-              <span className={styles.subLabel}>{sub.reviewed?.label ?? sub.label ?? '·'}</span>
-              <span>{sub.reviewed?.text ?? sub.text}</span>
-              {(sub.reviewed?.marks ?? sub.marks) !== null && (
-                <span className={styles.subMarks}>{sub.reviewed?.marks ?? sub.marks} marks</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </article>
   );
 }
 

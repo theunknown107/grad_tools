@@ -315,3 +315,47 @@ successful bilingual reading. The engine's language list is now established
 before the request: a missing pack means English and a stated reason, and the
 worker warns at startup. Installed languages belong on the operator's checklist
 alongside binary availability.
+
+## 21.15 The review workbench (M5A.6)
+
+The operator surface for turning machine output into confirmed data.
+
+### The queue
+
+`GET /api/v1/review/queue` — one flat list across questions, sub-questions and
+MCQ items, ordered `review_required → low → medium → high`, then by document and
+position so a reviewer works down a page rather than jumping between documents.
+
+**An ordering, never a score.** A number would have to be invented and would
+blend two incomparable things: how much the geometry agreed, and how much work a
+record needs (`ED-46`). The order is defined once, in the `review_priority`
+function in migration 0008.
+
+The queue holds only `unreviewed` records on the CURRENT run. A superseded run's
+rows are kept for audit; queueing them would ask a person to review history.
+
+### Three verbs
+
+| Action | Meaning | Effect on the machine value |
+|---|---|---|
+| Accept | The machine value stands | Untouched; any earlier correction is cleared |
+| Correct | Here is the right value | Untouched; the correction is stored beside it |
+| Reject | This is not a question at all | Untouched; **the row stays** |
+
+`reject` never deletes. A removed row cannot tell a later reader whether the
+parser was wrong or the scan was — and that distinction is the whole point of
+the corpus.
+
+### The five audit questions
+
+For any reviewed record: what the machine produced (the machine columns), what a
+person changed it to (`reviewed_*`), when and by whom (`reviewed_at`,
+`reviewed_by`, `review_note`), and under which parser and extraction version
+(its paper). All five come from the record and its paper, with no separate log.
+
+### Reviewer identity is recorded, never assumed
+
+The UI says "Checked", not "checked by a person": who did the checking is a fact
+in `reviewed_by`, not something a count can assert. The M5A.6 corpus was
+adjudicated by an AI agent and is stored under `agent-adjudication` precisely so
+it can be told apart from human review — or removed with one predicate.

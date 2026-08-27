@@ -252,6 +252,8 @@ export async function recordReview(
                    reviewed_label    = ${value(corrections.label)},
                    reviewed_sub_text = ${value(corrections.text)},
                    reviewed_marks    = ${value(corrections.marks)},
+                   reviewed_bloom_level    = ${value(corrections.bloomLevel)},
+                   reviewed_course_outcome = ${value(corrections.courseOutcome)},
                    review_note = ${note}, reviewed_at = now(), reviewed_by = ${review.reviewedBy}
              WHERE id = ${id}::uuid
              RETURNING id
@@ -261,6 +263,11 @@ export async function recordReview(
                SET review_state = ${reviewState},
                    reviewed_item_number = ${value(corrections.itemNumber)},
                    reviewed_item_text   = ${value(corrections.text)},
+                   reviewed_options     = ${
+                     corrections.options === undefined || corrections.options === null
+                       ? null
+                       : sql.json([...corrections.options])
+                   },
                    review_note = ${note}, reviewed_at = now(), reviewed_by = ${review.reviewedBy}
              WHERE id = ${id}::uuid
              RETURNING id
