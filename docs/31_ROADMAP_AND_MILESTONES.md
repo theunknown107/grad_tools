@@ -263,6 +263,30 @@ on scans. Marks/Bloom's/CO are recovered by column position rather than by regex
 descriptive-paper technique — MCQ gains little — and the worst scan yields
 nothing rather than unreliable rows, by deliberate choice.
 
+### M5A.5 — Structured question persistence + human review · ✅ **DELIVERED**
+Parser output became durable academic data: `extracted_papers` →
+`extracted_questions` → `extracted_sub_questions`, plus `extracted_mcq_items` as
+a separate shape. Every record carries its document, page, bounding box, parser
+version and extraction version.
+
+**Machine values are immutable; human corrections live beside them**, so the
+effective value is `reviewed ?? machine` and the original is never lost.
+Reprocessing with a new parser version ADDS a version and leaves prior reviews
+intact; re-running the same version does nothing at all.
+
+**Three trust signals kept apart:** OCR confidence, structural confidence, human
+review state. No numeric accuracy score anywhere.
+
+Verified on seven real papers (native 20 Q / 47 sub reproduced exactly), 901
+tests, and browser QA with 0 axe violations and 0 overflow at four viewports.
+
+**Two real defects found by running it:** `pdftotext` ambiguity between Xpdf and
+poppler silently disabled native positional extraction, and `-l eng+kan` without
+the language pack degraded to English with no error at all.
+
+**Kannada is NOT re-verified in this milestone** — the language pack is not
+installed on the development machine.
+
 ### M5b — Document pipeline · superseded
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.

@@ -511,3 +511,70 @@ column** — Stage 1 has no accounts, and a test asserts the absence.
 parser_version, detected_at`. Detection is **recorded, never delivered** —
 a test asserts the table has no `notified_at`, `delivered_at` or `recipient`
 column, so notification cannot be bolted on without a deliberate schema change.
+
+## 8.12 Extracted question structure (M5A.5)
+
+M5A.4 proved that positional extraction recovers question structure
+deterministically (docs/17 §17.16). M5A.5 makes that output durable and
+reviewable — the difference between a prototype and academic data anything may
+be built on.
+
+```
+document
+   └── extracted_paper          one run of one parser over one document
+         ├── extracted_question         (descriptive papers)
+         │     └── extracted_sub_question
+         └── extracted_mcq_item         (MCQ papers)
+```
+
+### A paper is a RUN, not a description of the document
+
+`ExtractedPaper` does not carry the document's title, hash, rights or
+presentation. Those belong to the document, are one join away, and duplicating
+them would create two answers to the same question — one of which would go
+stale. What the paper carries is what is true of the RUN: which parser, which
+version, which source of geometry, what it found.
+
+| Field | Why it is here |
+|---|---|
+| `documentId` | The only link back. Everything about the file is read through it |
+| `paperFormat` | descriptive · mcq · **unknown**. `unknown` is a real outcome and is stored as one |
+| `extractionSource` | `native` (the publisher's own typesetting) or `ocr` (our reading of an image) |
+| `parserVersion` | Geometry + grouping + structural rules, versioned as one thing |
+| `extractionVersion` | Orders the runs for one document. A new parser adds a version |
+| `isCurrent` | Which run a reader is shown. Older runs stay queryable |
+
+### Why sub-questions are their own entity
+
+Sub-question identity is what OQ-019a was about, and what positional extraction
+actually recovered (3–4 of 15–20 rows flattened → essentially complete on native
+text). A record that can be addressed, reviewed and corrected on its own is the
+only shape that lets a person fix the one part the parser misread.
+
+### Why MCQ items are a separate entity
+
+An MCQ paper has no modules, no Bloom's level, no CO and no per-question marks —
+the format never contained them (docs/17 §17.11d). Giving MCQ items those fields
+and leaving them null would invite something downstream to read "missing" where
+the truthful answer is "not applicable to this format". The database enforces
+the separation through a composite foreign key on `(paper_id, paper_format)`, so
+a descriptive question cannot attach to an MCQ paper at all.
+
+### Machine values and human values are different fields
+
+Every machine column is written once and never updated. A person's correction
+goes in a `reviewed_*` column beside it, so the effective value is
+`COALESCE(reviewed_x, x)` and the original is always still visible. An audit
+trail that cannot show what the machine said is not an audit trail.
+
+### THREE CONFIDENCES, THREE FIELDS
+
+| | Question it answers | Where it lives |
+|---|---|---|
+| OCR confidence | How well did the ENGINE read characters? | `documents.ocr_*` |
+| Structural confidence | How much did the GEOMETRY agree? | `*.confidence` |
+| Review state | What did a HUMAN conclude? | `*.review_state` |
+
+Any one can be high while the next is low: a crisp scan of a table the parser
+misread; a perfectly parsed row whose mathematics is nonsense. Collapsing any
+two would let "the OCR was confident" start to read as "this is correct".

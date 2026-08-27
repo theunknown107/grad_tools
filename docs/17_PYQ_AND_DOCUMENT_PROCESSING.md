@@ -975,3 +975,94 @@ Having permission to show a document says nothing about whether it is safe to
 show, and the reverse is equally true. Only `validated` and `extracted`
 documents can be public; `quarantined`, `rejected`, `private` and `blocked` are
 not.
+
+## 17.17 Persisted question structure (M5A.5)
+
+M5A.4 answered *can we?*. This answers *and then what?* — the parser's output
+becomes durable, provenanced and reviewable.
+
+```
+PDF ─► native text | OCR ─► TSV ─► PositionedToken ─► lines ─► format
+                                                              ─► parser
+                                                              ─► ExtractedPaper
+                                                              ─► database
+                                                              ─► human review
+```
+
+### ONE RECOGNITION PASS, TWO OUTPUTS
+
+Tesseract accepts several output configs in one invocation, so `txt tsv`
+recognises once and writes both. The text is byte-identical to the old `stdout`
+path (verified against a real scan; only the file writer's CRLF differs, and
+that is normalised).
+
+This matters because it is the difference between paying for OCR once and twice.
+Asking for geometry separately would repeat a ~759 ms/page workload to recompute
+information the engine had already produced and was about to discard.
+
+| Path | Geometry from | Cost | Where structure is built |
+|---|---|---|---|
+| Native text | `pdftotext -tsv` | 32 ms / 4-page paper | Inline, in the process request |
+| Scan | `tesseract ... txt tsv` | free — same pass as the text | In the OCR job |
+
+### `pdftotext` is an ambiguous name
+
+Xpdf ships one and poppler ships another, and **only poppler's supports
+`-tsv`**. A machine with both on PATH silently gets whichever comes first, and
+positional extraction then fails on every native document while text extraction
+keeps working — observed on the development machine during this milestone's
+real-document validation, where it produced 0 questions from two papers that had
+yielded 20 and 12 in M5A.4. Both stages now honour `PDFTOTEXT_BIN`.
+
+### Real-document validation
+
+Seven papers, all local, none committed. `pnpm verify` green; every row below is
+a measured run, not an estimate.
+
+| Document | Source | Format | Q | sub-Q | MCQ | high | med | low | Persisted |
+|---|---|---|---|---|---|---|---|---|---|
+| `1BESC104C` (2 model papers) | native | descriptive | **20** | **47** | — | 20 | 0 | 0 | ✅ v1 |
+| `1BMATC101` (maths) | native | descriptive | 12 | 33 | — | 5 | 0 | 7 | ✅ v1 |
+| `BCHEM102` | ocr | descriptive | 10 | 11 | — | 9 | 1 | 0 | ✅ v1 |
+| `BMATS101` (maths) | ocr | descriptive | 8 | 14 | — | 8 | 0 | 0 | ✅ v1 |
+| `BENGK106` | ocr | mcq | — | — | 48 | 48 | 0 | 0 | ✅ v1 |
+| `BKSKK107` (Kannada) | ocr | **unknown** | 0 | 0 | 0 | — | — | — | ✅ v1 |
+| `BCY358A` (worst scan) | ocr | descriptive | **0** | 0 | — | — | — | — | ✅ v1 |
+
+The native figures reproduce M5A.4 exactly (20/47 and 12/33), and a second run
+of each returned `unchanged` — idempotency demonstrated on real documents, not
+only on fixtures.
+
+**`BCY358A` persists a paper with zero questions on purpose.** "We ran the
+parser and it found nothing" is a result worth keeping; an absent row could not
+be told apart from a document nobody has tried.
+
+### Kannada: NOT VERIFIED in this run, and why
+
+`BKSKK107` classified as `unknown` and yielded nothing. The cause is the
+machine, not the pipeline: `kan.traineddata` is **not installed** here —
+`tesseract --list-langs` reports `eng` and `osd` only.
+
+What made this worth fixing rather than noting: `-l eng+kan` did **not fail**.
+It returned English-only output byte-for-byte identical to an `eng` run, with
+zero Kannada codepoints and no error, and 3 855 characters of confident Latin
+text. A bilingual paper would have been reported as successfully read.
+
+The engine's languages are now asked for before the request, once:
+
+- Kannada present → `eng+kan`, unchanged from M5A.3.
+- Kannada absent → `eng`, `needsReview = true`, and a reason that says the pack
+  is missing and the text is not dependable.
+- The worker warns at startup rather than letting each document discover it.
+
+Kannada extraction itself remains as qualified in M5A.2. **Re-validating it here
+requires installing the language pack, and has not been done.**
+
+### Mathematics
+
+Unchanged and now demonstrated on stored data: `BMATS101` yields 8 questions, 14
+sub-questions and 8 high-confidence rows while its formulas remain unreadable.
+Notation is stored EXACTLY as read — no repair, no normalisation, and nothing
+sent to a model.
+
+> **structure = usable · text = partially usable · maths = unreliable**

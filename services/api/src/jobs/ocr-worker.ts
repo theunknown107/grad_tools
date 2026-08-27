@@ -20,6 +20,8 @@ import type { Sql } from '../db/client.js';
 import type { ObjectStore } from '../documents/storage.js';
 import { sectionize } from '../documents/extract.js';
 import { runOcr } from '../documents/ocr.js';
+import { structureFromOcrTsv } from '../documents/positional.js';
+import { persistExtraction } from '../documents/persist.js';
 import * as queue from './queue.js';
 
 /** How long a `processing` job may sit before it is presumed abandoned. */
@@ -125,6 +127,35 @@ export async function runOneJob(deps: WorkerDeps): Promise<JobOutcome | null> {
       `;
     });
 
+    /*
+     * Structure, from the geometry OCR ALREADY produced.
+     *
+     * The TSV came out of the same recognition pass as the text (docs/17
+     * §17.17), so this costs milliseconds rather than a second recognition of
+     * every page. Persisting it here rather than in a later request is what
+     * keeps the expensive work to exactly one pass.
+     *
+     * OUTSIDE the transaction above on purpose: a paper that fails to persist
+     * must not roll back text a person can already use. The failure is logged
+     * and the document keeps its sections.
+     */
+    let paperOutcome = null;
+    if (result.ok) {
+      try {
+        const extraction = structureFromOcrTsv(
+          result.pages.map((page) => ({ pageNumber: page.pageNumber, tsv: page.tsv })),
+          result.config.dpi,
+          result.format,
+        );
+        paperOutcome = await persistExtraction(sql, job.documentId, extraction);
+      } catch (cause) {
+        logger.warn(
+          { jobId: job.id, documentId: job.documentId, err: cause },
+          'ocr text stored but question structure could not be persisted',
+        );
+      }
+    }
+
     await queue.complete(sql, job.id);
     const durationMs = Date.now() - started;
 
@@ -140,6 +171,10 @@ export async function runOneJob(deps: WorkerDeps): Promise<JobOutcome | null> {
         pages: result.pages.length,
         chars: result.charCount,
         sections: sections.length,
+        questions: paperOutcome?.questionCount ?? 0,
+        subQuestions: paperOutcome?.subQuestionCount ?? 0,
+        mcqItems: paperOutcome?.mcqItemCount ?? 0,
+        paper: paperOutcome?.kind ?? 'none',
         needsReview: result.needsReview,
         status,
       },

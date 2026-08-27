@@ -43,6 +43,15 @@ const PDFTOPPM_BIN = process.env.PDFTOPPM_BIN ?? 'pdftoppm';
 export interface OcrPageResult {
   readonly pageNumber: number;
   readonly text: string;
+  /**
+   * Word-level geometry for the same page, from the SAME recognition pass.
+   *
+   * Tesseract accepts several output configs in one invocation, so `txt tsv`
+   * costs one recognition rather than two. Asking for the geometry separately
+   * would double a ~759 ms/page workload to obtain information the engine
+   * already computed and was about to throw away (docs/17 §17.17).
+   */
+  readonly tsv: string;
 }
 
 export interface OcrResult {
@@ -83,6 +92,75 @@ function run(bin: string, args: readonly string[], timeoutMs: number): Promise<s
     );
   });
 }
+
+/**
+ * Which languages the installed engine can actually read.
+ *
+ * ASKED, NEVER ASSUMED. `tesseract -l eng+kan` on a machine without
+ * `kan.traineddata` does not necessarily fail loudly — during M5A.5 §18 it
+ * returned English-only output byte-for-byte identical to an `eng` run, with no
+ * error and no Kannada recovered at all. A bilingual paper would then be read
+ * as English gibberish and reported as a successful reading.
+ *
+ * That is precisely the silent degradation docs/26 forbids, so the answer is
+ * established once and the caller says what it did.
+ */
+let languageCache: Promise<ReadonlySet<string>> | null = null;
+
+export function availableLanguages(): Promise<ReadonlySet<string>> {
+  languageCache ??= run(TESSERACT_BIN, ['--list-langs'], 10_000)
+    .then(parseLanguageList)
+    // No engine means no languages. Reported as an empty set rather than
+    // thrown: the caller's job is to say what it could not do, and the missing
+    // engine is already refused at worker startup.
+    .catch(() => new Set<string>());
+  return languageCache;
+}
+
+/**
+ * Parses `tesseract --list-langs`.
+ *
+ * The first line is a heading — `List of available languages in "..." (3):` —
+ * and taking it as a language would make this claim one nobody installed.
+ */
+export function parseLanguageList(stdout: string): ReadonlySet<string> {
+  return new Set(
+    stdout
+      .split(/\r?\n/)
+      .slice(1)
+      .map((line) => line.trim())
+      .filter((line) => line !== ''),
+  );
+}
+
+/** Test seam. Nothing in production resets this. */
+export function resetLanguageCache(): void {
+  languageCache = null;
+}
+
+/**
+ * Never ask for a language the engine does not have.
+ *
+ * The request would appear to succeed and return English-only text, and the
+ * result would claim it had been read bilingually. Falling back to `eng` and
+ * SAYING SO is the honest failure: the reading still happens, and nothing
+ * downstream is told it is dependable (M5A.5 §12).
+ *
+ * Pure, so the decision is testable without an engine.
+ */
+export function withAvailableLanguages(config: OcrConfig, hasKannada: boolean): OcrConfig {
+  if (hasKannada || !config.languages.includes('kan')) return config;
+  return {
+    ...config,
+    languages: 'eng',
+    needsReview: true,
+    reviewReason: KANNADA_UNAVAILABLE_REASON,
+  };
+}
+
+export const KANNADA_UNAVAILABLE_REASON =
+  'This document may be in Kannada, but the Kannada language pack is not installed on ' +
+  'this machine, so it was read as English only. The text is not dependable.';
 
 /** Engine version, for the metadata record. Best effort; never fatal. */
 export async function tesseractVersion(): Promise<string> {
@@ -178,11 +256,15 @@ export async function runOcr(bytes: Buffer): Promise<OcrResult> {
      * only for documents we could not otherwise identify.
      */
     const firstImage = images[0];
-    let probe = firstImage === undefined ? '' : await ocrPage(firstImage, 'eng', 3);
+    const probeBase = join(dir, 'probe');
+    let probe =
+      firstImage === undefined ? '' : (await ocrPage(firstImage, probeBase, 'eng', 3)).text;
     let evidence = detectFormat(probe);
 
-    if (evidence.format === 'unknown' && firstImage !== undefined) {
-      const bilingual = await ocrPage(firstImage, 'eng+kan', 3);
+    const hasKannadaPack = (await availableLanguages()).has('kan');
+
+    if (evidence.format === 'unknown' && firstImage !== undefined && hasKannadaPack) {
+      const bilingual = (await ocrPage(firstImage, `${probeBase}-kan`, 'eng+kan', 3)).text;
       const bilingualEvidence = detectFormat(bilingual);
       if (bilingualEvidence.format !== 'unknown' || bilingualEvidence.hasKannada) {
         probe = bilingual;
@@ -190,7 +272,9 @@ export async function runOcr(bytes: Buffer): Promise<OcrResult> {
       }
     }
 
-    const config = configFor(evidence);
+    let config = configFor(evidence);
+
+    config = withAvailableLanguages(config, hasKannadaPack);
 
     // Pass 2: the whole document, with the chosen configuration.
     const pages: OcrPageResult[] = [];
@@ -198,10 +282,13 @@ export async function runOcr(bytes: Buffer): Promise<OcrResult> {
       if (Date.now() - started > OCR_DOCUMENT_TIMEOUT_MS) {
         return fail('Reading this document took too long.', config, evidence.format);
       }
-      pages.push({
-        pageNumber: index + 1,
-        text: await ocrPage(image, config.languages, config.psm),
-      });
+      const page = await ocrPage(
+        image,
+        join(dir, `out-${String(index + 1)}`),
+        config.languages,
+        config.psm,
+      );
+      pages.push({ pageNumber: index + 1, text: page.text, tsv: page.tsv });
     }
 
     const text = pages.map((page) => page.text).join('\f');
@@ -247,16 +334,46 @@ export async function runOcr(bytes: Buffer): Promise<OcrResult> {
   }
 }
 
-async function ocrPage(imagePath: string, languages: string, psm: number): Promise<string> {
+/**
+ * Recognises one page, returning both the text and its geometry.
+ *
+ * ONE PASS, TWO OUTPUTS. `txt tsv` are output configs, not modes: Tesseract
+ * recognises once and writes both files. The text is byte-identical to what
+ * `stdout` produces (verified against a real scan), apart from the CRLF line
+ * endings the file writer uses on Windows, which are normalised here so the
+ * result does not depend on the operating system.
+ *
+ * Writing to files rather than stdout is what makes that possible — `stdout`
+ * can only carry one of them.
+ */
+async function ocrPage(
+  imagePath: string,
+  outputBase: string,
+  languages: string,
+  psm: number,
+): Promise<{ text: string; tsv: string }> {
   try {
-    const out = await run(
+    await run(
       TESSERACT_BIN,
-      [imagePath, 'stdout', '-l', languages, '--psm', String(psm)],
+      [imagePath, outputBase, '-l', languages, '--psm', String(psm), 'txt', 'tsv'],
       OCR_PAGE_TIMEOUT_MS,
     );
-    return out.slice(0, MAX_TEXT_BYTES);
+    const [text, tsv] = await Promise.all([
+      readTextFile(`${outputBase}.txt`),
+      readTextFile(`${outputBase}.tsv`),
+    ]);
+    return { text, tsv };
   } catch {
     // One unreadable page does not fail the document; it contributes nothing.
+    return { text: '', tsv: '' };
+  }
+}
+
+async function readTextFile(path: string): Promise<string> {
+  try {
+    const raw = await readFile(path, 'utf8');
+    return raw.replace(/\r\n/g, '\n').slice(0, MAX_TEXT_BYTES);
+  } catch {
     return '';
   }
 }

@@ -42,6 +42,25 @@ qualification measured how far that assumption holds, and it holds unevenly.
 > hold, and one is now sharper: **positional extraction is a descriptive-paper
 > technique**. An MCQ paper is a single-column flow where geometry adds little.
 
+> **M5A.5 UPDATE — the structure is now DURABLE, and its trust level is
+> explicit.** Extracted questions are stored with page, bounding box, structural
+> confidence and a human review state (docs/17 §17.17). Anything built on this
+> dataset can therefore ask a question it could not ask before:
+>
+> ```sql
+> WHERE confidence = 'high' AND review_state <> 'rejected'
+> ```
+>
+> **Nothing downstream should treat unreviewed low-confidence rows as fact.**
+> They are kept, not deleted, precisely so a person can look — but frequency
+> analysis, topic clustering or any later intelligence must filter on
+> confidence, or it will measure the parser's mistakes and report them as
+> academic patterns.
+>
+> Three separate trust signals, never to be blended into one score: how well the
+> ENGINE read (OCR), how much the GEOMETRY agreed (structural confidence), and
+> what a HUMAN concluded (review state).
+
 **Two consequences for anything built on top.**
 
 *Sub-question identity is the weak link.* Marks, module and CO attach reliably

@@ -39,6 +39,15 @@ export const MIN_CHARS_PER_PAGE = 24;
 
 export const EXTRACTOR_VERSION = 'pdftotext-v1';
 
+/**
+ * Binary location, overridable by environment for deployment.
+ *
+ * The same override the positional parser uses, and for the same reason: Xpdf
+ * and poppler both ship a `pdftotext`, they are not the same program, and the
+ * two stages must not end up reading the same document with different tools.
+ */
+const PDFTOTEXT_BIN = process.env.PDFTOTEXT_BIN ?? 'pdftotext';
+
 export interface ExtractionResult {
   readonly status: ExtractionStatus;
   readonly text: string;
@@ -51,7 +60,7 @@ export interface ExtractionResult {
 function runPdfToText(path: string): Promise<{ stdout: string }> {
   return new Promise((resolvePromise, rejectPromise) => {
     execFile(
-      'pdftotext',
+      PDFTOTEXT_BIN,
       // -layout preserves column structure, which question papers rely on.
       // -enc UTF-8 makes the output deterministic across locales.
       ['-layout', '-enc', 'UTF-8', '-q', path, '-'],

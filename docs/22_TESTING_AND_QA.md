@@ -118,6 +118,40 @@ public documents in quarantine, which is the state the fix forbids.
 
 
 
+**Added in M5A.5:** question persistence and review, **against real
+PostgreSQL** — 34 tests. A real database is the point: the unique key that makes
+persistence idempotent, the composite foreign key that stops a descriptive
+question attaching to an MCQ paper, the partial index that permits one current
+run, and the CHECKs that make a review attributable are all database
+guarantees, and none of them exists in a mock.
+
+Covered: paper/question/sub-question persistence · bounding boxes · confidence ·
+review states · machine vs reviewed values · duplicate processing · parser
+versioning · native/OCR provenance · descriptive fields · MCQ fields · unknown
+format · mathematics stored unrepaired · Kannada stored without repairing the
+numbering · the HTTP surface · hostile extracted text.
+
+Plus 6 tests for installed OCR languages, after a silent degradation found in
+real-document validation (docs/17 §17.17), and 9 web tests for the questions
+panel.
+
+**Browser QA (M5A.5), actually run, not inferred from unit tests:** the built
+app served against a real API holding one real extracted paper, driven in
+Chromium at 320 / 390 / 768 / 1280.
+
+| Check | Result |
+|---|---|
+| axe-core, WCAG 2.1 A + AA, four viewports | 0 violations |
+| Horizontal overflow | 0 at every viewport — **after a fix** |
+| Keyboard: focus the toggle, press Enter | Collapses correctly |
+| Console errors | 0 |
+
+It found a real defect that unit tests could not: the Documents page scrolled
+horizontally by 42px at 320px, present since M5A. A file input carries a large
+intrinsic min-content width and a grid column sized to `auto` cannot shrink
+below it. Fixed with `grid-template-columns: minmax(0, 1fr)` on both grids and
+an explicit width on the input.
+
 **Added in M5A.4:** positional geometry and the structural parser, tested with
 **synthetic TSV fixtures built in the test file** — both column orders, both
 coordinate systems, marker rows, cross-block row grouping, page boundaries,

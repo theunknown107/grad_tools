@@ -25,6 +25,12 @@ import {
   type DocumentStatus,
   documentSectionSchema,
   type DocumentSection,
+  extractedPaperSchema,
+  type ExtractedPaper,
+  extractedQuestionSchema,
+  type ExtractedQuestion,
+  extractedMcqItemSchema,
+  type ExtractedMcqItem,
   sourceSchema,
   type DocumentRecord,
   type Source,
@@ -542,4 +548,232 @@ export async function findDocumentStatus(sql: Sql, id: string): Promise<Document
     WHERE d.id = ${id}::uuid
   `;
   return parseRows(documentStatusSchema, rows)[0] ?? null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Extracted question structure (M5A.5)                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A paper, with its two summaries computed in the database.
+ *
+ * The counts are aggregated here rather than by loading every question and
+ * counting in JavaScript: the paper header is rendered without the questions,
+ * and shipping a hundred rows to produce four numbers would be waste on the
+ * one query a reviewer opens most.
+ *
+ * `reviewSummary` counts HUMAN states and `confidenceSummary` counts MACHINE
+ * ones. They are separate objects because they are separate questions, and a
+ * single blended "quality" number would let one silently stand for the other
+ * (M5A.5 §7).
+ */
+const PAPER_SELECT = (sql: Sql) => sql`
+  p.id::text,
+  p.document_id::text     AS "documentId",
+  p.paper_format          AS "paperFormat",
+  p.extraction_source     AS "extractionSource",
+  p.parser_version        AS "parserVersion",
+  p.extraction_version    AS "extractionVersion",
+  p.is_current            AS "isCurrent",
+  p.page_count            AS "pageCount",
+  p.question_count        AS "questionCount",
+  p.mcq_item_count        AS "mcqItemCount",
+  p.needs_review          AS "needsReview",
+  p.review_reason         AS "reviewReason",
+  to_char(p.created_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS "createdAt",
+  (
+    SELECT json_build_object(
+      'total',      count(*)::int,
+      'unreviewed', count(*) FILTER (WHERE r.review_state = 'unreviewed')::int,
+      'accepted',   count(*) FILTER (WHERE r.review_state = 'accepted')::int,
+      'corrected',  count(*) FILTER (WHERE r.review_state = 'corrected')::int,
+      'rejected',   count(*) FILTER (WHERE r.review_state = 'rejected')::int,
+      'needsReview', count(*) FILTER (WHERE r.needs_review)::int
+    )
+    FROM (
+      SELECT review_state, needs_review FROM extracted_questions WHERE paper_id = p.id
+      UNION ALL
+      SELECT review_state, needs_review FROM extracted_mcq_items  WHERE paper_id = p.id
+    ) r
+  ) AS "reviewSummary",
+  (
+    SELECT json_build_object(
+      'high',           count(*) FILTER (WHERE c.confidence = 'high')::int,
+      'medium',         count(*) FILTER (WHERE c.confidence = 'medium')::int,
+      'low',            count(*) FILTER (WHERE c.confidence = 'low')::int,
+      'reviewRequired', count(*) FILTER (WHERE c.confidence = 'review_required')::int
+    )
+    FROM (
+      SELECT confidence FROM extracted_questions WHERE paper_id = p.id
+      UNION ALL
+      SELECT confidence FROM extracted_mcq_items WHERE paper_id = p.id
+    ) c
+  ) AS "confidenceSummary"
+`;
+
+/** The run a reader should be shown, or null when nothing has been extracted. */
+export async function findCurrentPaper(
+  sql: Sql,
+  documentId: string,
+): Promise<ExtractedPaper | null> {
+  const rows = await sql`
+    SELECT ${PAPER_SELECT(sql)}
+      FROM extracted_papers p
+     WHERE p.document_id = ${documentId}::uuid AND p.is_current
+  `;
+  return parseRows(extractedPaperSchema, rows)[0] ?? null;
+}
+
+/** Every run over a document, newest first. Superseded runs are kept, not dropped. */
+export async function listPapersForDocument(
+  sql: Sql,
+  documentId: string,
+): Promise<ExtractedPaper[]> {
+  const rows = await sql`
+    SELECT ${PAPER_SELECT(sql)}
+      FROM extracted_papers p
+     WHERE p.document_id = ${documentId}::uuid
+     ORDER BY p.extraction_version DESC
+  `;
+  return parseRows(extractedPaperSchema, rows);
+}
+
+export async function findPaper(sql: Sql, id: string): Promise<ExtractedPaper | null> {
+  const rows = await sql`
+    SELECT ${PAPER_SELECT(sql)} FROM extracted_papers p WHERE p.id = ${id}::uuid
+  `;
+  return parseRows(extractedPaperSchema, rows)[0] ?? null;
+}
+
+/**
+ * The MACHINE values at the top level, a person's corrections in `reviewed`.
+ *
+ * Both are served, never one merged over the other (M5A.5 §9). A client that
+ * wants the effective value writes `reviewed?.marks ?? marks`; a client
+ * auditing the extraction can still see exactly what the parser produced.
+ *
+ * `reviewed` is null unless a correction exists, so "nobody changed anything"
+ * is distinguishable from "somebody set it back to the same value".
+ */
+const QUESTION_SELECT = (sql: Sql) => sql`
+  q.id::text,
+  q.paper_id::text      AS "paperId",
+  q.ordinal,
+  q.question_number     AS "questionNumber",
+  q.module,
+  q.question_text       AS "text",
+  q.marks,
+  q.bloom_level         AS "bloomLevel",
+  q.course_outcome      AS "courseOutcome",
+  q.page_number         AS "pageNumber",
+  json_build_object(
+    'x', q.bbox_x, 'y', q.bbox_y, 'width', q.bbox_width, 'height', q.bbox_height
+  ) AS "boundingBox",
+  q.confidence,
+  q.needs_review        AS "needsReview",
+  q.review_state        AS "reviewState",
+  CASE WHEN COALESCE(
+         q.reviewed_question_number, q.reviewed_module, q.reviewed_question_text,
+         q.reviewed_marks::text, q.reviewed_bloom_level, q.reviewed_course_outcome
+       ) IS NULL THEN NULL
+       ELSE json_build_object(
+         'questionNumber', q.reviewed_question_number,
+         'module',         q.reviewed_module,
+         'text',           q.reviewed_question_text,
+         'marks',          q.reviewed_marks,
+         'bloomLevel',     q.reviewed_bloom_level,
+         'courseOutcome',  q.reviewed_course_outcome
+       )
+  END AS "reviewed",
+  q.review_note   AS "reviewNote",
+  to_char(q.reviewed_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS "reviewedAt",
+  q.reviewed_by   AS "reviewedBy",
+  COALESCE((
+    SELECT json_agg(
+      json_build_object(
+        'id', sq.id::text,
+        'questionId', sq.question_id::text,
+        'ordinal', sq.ordinal,
+        'label', sq.label,
+        'text', sq.sub_text,
+        'marks', sq.marks,
+        'bloomLevel', sq.bloom_level,
+        'courseOutcome', sq.course_outcome,
+        'pageNumber', sq.page_number,
+        'boundingBox', json_build_object(
+          'x', sq.bbox_x, 'y', sq.bbox_y, 'width', sq.bbox_width, 'height', sq.bbox_height
+        ),
+        'confidence', sq.confidence,
+        'needsReview', sq.needs_review,
+        'reviewState', sq.review_state,
+        'reviewed', CASE WHEN COALESCE(
+                      sq.reviewed_label, sq.reviewed_sub_text, sq.reviewed_marks::text
+                    ) IS NULL THEN NULL
+                    ELSE json_build_object(
+                      'label', sq.reviewed_label,
+                      'text',  sq.reviewed_sub_text,
+                      'marks', sq.reviewed_marks
+                    )
+                    END,
+        'reviewNote', sq.review_note,
+        'reviewedAt', to_char(sq.reviewed_at, 'YYYY-MM-DD"T"HH24:MI:SSOF'),
+        'reviewedBy', sq.reviewed_by
+      ) ORDER BY sq.ordinal
+    )
+    FROM extracted_sub_questions sq WHERE sq.question_id = q.id
+  ), '[]'::json) AS "subQuestions"
+`;
+
+export async function listPaperQuestions(sql: Sql, paperId: string): Promise<ExtractedQuestion[]> {
+  const rows = await sql`
+    SELECT ${QUESTION_SELECT(sql)}
+      FROM extracted_questions q
+     WHERE q.paper_id = ${paperId}::uuid
+     ORDER BY q.ordinal
+  `;
+  return parseRows(extractedQuestionSchema, rows);
+}
+
+export async function findQuestion(sql: Sql, id: string): Promise<ExtractedQuestion | null> {
+  const rows = await sql`
+    SELECT ${QUESTION_SELECT(sql)} FROM extracted_questions q WHERE q.id = ${id}::uuid
+  `;
+  return parseRows(extractedQuestionSchema, rows)[0] ?? null;
+}
+
+/**
+ * MCQ items. A separate query because they are a separate shape: no module, no
+ * Bloom's level, no CO, no marks, because the format never had them
+ * (M5A.5 §13).
+ */
+export async function listPaperMcqItems(sql: Sql, paperId: string): Promise<ExtractedMcqItem[]> {
+  const rows = await sql`
+    SELECT
+      m.id::text,
+      m.paper_id::text  AS "paperId",
+      m.ordinal,
+      m.item_number     AS "itemNumber",
+      m.item_text       AS "text",
+      m.options,
+      m.page_number     AS "pageNumber",
+      json_build_object(
+        'x', m.bbox_x, 'y', m.bbox_y, 'width', m.bbox_width, 'height', m.bbox_height
+      ) AS "boundingBox",
+      m.confidence,
+      m.needs_review    AS "needsReview",
+      m.review_state    AS "reviewState",
+      CASE WHEN COALESCE(m.reviewed_item_number::text, m.reviewed_item_text) IS NULL THEN NULL
+           ELSE json_build_object(
+             'itemNumber', m.reviewed_item_number,
+             'text',       m.reviewed_item_text
+           )
+      END AS "reviewed",
+      m.review_note  AS "reviewNote",
+      to_char(m.reviewed_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS "reviewedAt",
+      m.reviewed_by  AS "reviewedBy"
+    FROM extracted_mcq_items m
+    WHERE m.paper_id = ${paperId}::uuid
+    ORDER BY m.ordinal
+  `;
+  return parseRows(extractedMcqItemSchema, rows);
 }

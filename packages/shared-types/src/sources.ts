@@ -256,6 +256,269 @@ export const documentStatusSchema = z.object({
 export type DocumentStatus = z.infer<typeof documentStatusSchema>;
 
 /* -------------------------------------------------------------------------- */
+/* Extracted question structure (M5A.5)                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Where the geometry came from.
+ *
+ * Both feed one parser (docs/17 §17.16), but the distinction is real
+ * provenance: a native token stream is the publisher's own typesetting, an OCR
+ * one is our best reading of an image.
+ */
+export const extractionSourceSchema = z.enum(['native', 'ocr']);
+export type ExtractionSource = z.infer<typeof extractionSourceSchema>;
+
+/**
+ * STRUCTURAL confidence. Three things are deliberately kept apart (M5A.5 §7):
+ *
+ *   OCR confidence         how well the ENGINE read characters
+ *   structural confidence  how much the GEOMETRY agreed -- this field
+ *   review state           what a HUMAN concluded
+ *
+ * Any of them can be high while the next is low. A crisp scan of a table the
+ * parser misread; a perfectly parsed row whose mathematics is nonsense. None of
+ * them is a numeric accuracy score, because there is no ground truth to measure
+ * one against (docs/32 ED-46).
+ */
+export const structuralConfidenceSchema = z.enum(['high', 'medium', 'low', 'review_required']);
+export type StructuralConfidence = z.infer<typeof structuralConfidenceSchema>;
+
+/**
+ * What a PERSON concluded. Not the same field as the machine's `needsReview`.
+ *
+ *   unreviewed  nobody has looked
+ *   accepted    a person read it and the machine value stands
+ *   corrected   a person changed something; the corrections are alongside
+ *   rejected    a person judged the record spurious. NOT deleted (M5A.5 §6)
+ */
+export const questionReviewStateSchema = z.enum([
+  'unreviewed',
+  'accepted',
+  'corrected',
+  'rejected',
+]);
+export type QuestionReviewState = z.infer<typeof questionReviewStateSchema>;
+
+export const boundingBoxSchema = z.object({
+  x: z.number().int(),
+  y: z.number().int(),
+  width: z.number().int().min(0),
+  height: z.number().int().min(0),
+});
+export type BoundingBox = z.infer<typeof boundingBoxSchema>;
+
+/** Human corrections to a question. `null` means the machine value stands. */
+export const questionCorrectionSchema = z.object({
+  questionNumber: z.string().nullable(),
+  module: z.string().nullable(),
+  text: z.string().nullable(),
+  marks: z.number().int().nullable(),
+  bloomLevel: z.string().nullable(),
+  courseOutcome: z.string().nullable(),
+});
+export type QuestionCorrection = z.infer<typeof questionCorrectionSchema>;
+
+export const subQuestionCorrectionSchema = z.object({
+  label: z.string().nullable(),
+  text: z.string().nullable(),
+  marks: z.number().int().nullable(),
+});
+
+export const mcqCorrectionSchema = z.object({
+  itemNumber: z.number().int().nullable(),
+  text: z.string().nullable(),
+});
+
+/**
+ * A sub-question -- the a/b/c parts.
+ *
+ * The top-level fields are the MACHINE values and are never overwritten.
+ * `reviewed` carries a human's corrections beside them, so the effective value
+ * is `reviewed?.x ?? x` and the original is always still visible (M5A.5 §9).
+ */
+export const extractedSubQuestionSchema = z.object({
+  id: z.string(),
+  questionId: z.string(),
+  ordinal: z.number().int().min(0),
+  label: z.string().nullable(),
+  text: z.string(),
+  marks: z.number().int().nullable(),
+  bloomLevel: z.string().nullable(),
+  courseOutcome: z.string().nullable(),
+  pageNumber: z.number().int().positive(),
+  boundingBox: boundingBoxSchema,
+  confidence: structuralConfidenceSchema,
+  needsReview: z.boolean(),
+  reviewState: questionReviewStateSchema,
+  reviewed: subQuestionCorrectionSchema.nullable(),
+  reviewNote: z.string().nullable(),
+  reviewedAt: z.string().nullable(),
+  reviewedBy: z.string().nullable(),
+});
+export type ExtractedSubQuestion = z.infer<typeof extractedSubQuestionSchema>;
+
+export const extractedQuestionSchema = z.object({
+  id: z.string(),
+  paperId: z.string(),
+  ordinal: z.number().int().min(0),
+
+  /* Machine values. Immutable once written. */
+  questionNumber: z.string().nullable(),
+  module: z.string().nullable(),
+  text: z.string(),
+  marks: z.number().int().nullable(),
+  bloomLevel: z.string().nullable(),
+  courseOutcome: z.string().nullable(),
+
+  /* Provenance: which page, and where on it (M5A.5 §4). */
+  pageNumber: z.number().int().positive(),
+  boundingBox: boundingBoxSchema,
+
+  confidence: structuralConfidenceSchema,
+  needsReview: z.boolean(),
+
+  reviewState: questionReviewStateSchema,
+  reviewed: questionCorrectionSchema.nullable(),
+  reviewNote: z.string().nullable(),
+  reviewedAt: z.string().nullable(),
+  reviewedBy: z.string().nullable(),
+
+  subQuestions: z.array(extractedSubQuestionSchema),
+});
+export type ExtractedQuestion = z.infer<typeof extractedQuestionSchema>;
+
+/**
+ * An MCQ item.
+ *
+ * A separate shape from a descriptive question, with no module, Bloom's level,
+ * CO or marks -- the format never contained them (M5A.5 §13). Absent fields are
+ * absent, not null placeholders inviting something downstream to read "missing"
+ * where the truth is "not applicable".
+ */
+export const extractedMcqItemSchema = z.object({
+  id: z.string(),
+  paperId: z.string(),
+  ordinal: z.number().int().min(0),
+  itemNumber: z.number().int().nullable(),
+  text: z.string(),
+  options: z.array(z.object({ label: z.string(), text: z.string() })),
+  pageNumber: z.number().int().positive(),
+  boundingBox: boundingBoxSchema,
+  confidence: structuralConfidenceSchema,
+  needsReview: z.boolean(),
+  reviewState: questionReviewStateSchema,
+  reviewed: mcqCorrectionSchema.nullable(),
+  reviewNote: z.string().nullable(),
+  reviewedAt: z.string().nullable(),
+  reviewedBy: z.string().nullable(),
+});
+export type ExtractedMcqItem = z.infer<typeof extractedMcqItemSchema>;
+
+/** How many records sit in each state. What the UI shows as "review status". */
+export const reviewSummarySchema = z.object({
+  total: z.number().int().min(0),
+  unreviewed: z.number().int().min(0),
+  accepted: z.number().int().min(0),
+  corrected: z.number().int().min(0),
+  rejected: z.number().int().min(0),
+  needsReview: z.number().int().min(0),
+});
+export type ReviewSummary = z.infer<typeof reviewSummarySchema>;
+
+export const confidenceSummarySchema = z.object({
+  high: z.number().int().min(0),
+  medium: z.number().int().min(0),
+  low: z.number().int().min(0),
+  reviewRequired: z.number().int().min(0),
+});
+export type ConfidenceSummary = z.infer<typeof confidenceSummarySchema>;
+
+/**
+ * One deterministic extraction run over one document.
+ *
+ * A paper is the RESULT OF A RUN, not a description of the document: the
+ * document's title, hash, rights and presentation are one join away and are
+ * deliberately not copied here (M5A.5 §3).
+ */
+export const extractedPaperSchema = z.object({
+  id: z.string(),
+  documentId: z.string(),
+  paperFormat: paperFormatSchema,
+  extractionSource: extractionSourceSchema,
+  parserVersion: z.string(),
+  extractionVersion: z.number().int().positive(),
+  isCurrent: z.boolean(),
+  pageCount: z.number().int().min(0),
+  questionCount: z.number().int().min(0),
+  mcqItemCount: z.number().int().min(0),
+  needsReview: z.boolean(),
+  reviewReason: z.string().nullable(),
+  createdAt: z.string(),
+  reviewSummary: reviewSummarySchema,
+  confidenceSummary: confidenceSummarySchema,
+});
+export type ExtractedPaper = z.infer<typeof extractedPaperSchema>;
+
+/**
+ * What persisting an extraction produced.
+ *
+ * `unchanged` is the idempotent case: this parser has already run over this
+ * document, and its output -- along with any human review recorded against it
+ * -- is left exactly as it is (M5A.5 §16).
+ */
+export const persistOutcomeSchema = z.object({
+  kind: z.enum(['persisted', 'unchanged', 'no_structure']),
+  paperId: z.string().nullable(),
+  extractionVersion: z.number().int().nullable(),
+  parserVersion: z.string(),
+  extractionSource: extractionSourceSchema.nullable(),
+  paperFormat: paperFormatSchema.nullable(),
+  questionCount: z.number().int().min(0),
+  subQuestionCount: z.number().int().min(0),
+  mcqItemCount: z.number().int().min(0),
+  durationMs: z.number(),
+});
+export type PersistOutcome = z.infer<typeof persistOutcomeSchema>;
+
+/**
+ * A single review action.
+ *
+ * `reviewedBy` is an operator label, never a student identity: these routes are
+ * loopback-only for Stage 1 and there are no accounts (M5A.5 §8).
+ */
+export const reviewRequestSchema = z
+  .object({
+    action: z.enum(['accept', 'correct', 'reject']),
+    reviewedBy: z.string().min(1).max(120),
+    note: z.string().max(2000).optional(),
+    /** Only read for `correct`. Any subset of the correctable fields. */
+    corrections: z
+      .object({
+        questionNumber: z.string().max(16).nullish(),
+        label: z.string().max(8).nullish(),
+        module: z.string().max(16).nullish(),
+        text: z.string().max(8000).nullish(),
+        marks: z.number().int().min(1).max(100).nullish(),
+        bloomLevel: z.string().max(16).nullish(),
+        courseOutcome: z.string().max(16).nullish(),
+        itemNumber: z.number().int().min(0).nullish(),
+      })
+      .optional(),
+  })
+  .refine(
+    (value) =>
+      value.action !== 'correct' ||
+      Object.values(value.corrections ?? {}).some((field) => field !== undefined),
+    { message: 'A correction must change at least one field.' },
+  );
+export type ReviewRequest = z.infer<typeof reviewRequestSchema>;
+
+/** What a review may be recorded against. A closed set, never a table name. */
+export const reviewTargetSchema = z.enum(['question', 'sub-question', 'mcq-item']);
+export type ReviewTarget = z.infer<typeof reviewTargetSchema>;
+
+/* -------------------------------------------------------------------------- */
 /* Source change events                                                       */
 /* -------------------------------------------------------------------------- */
 
@@ -320,6 +583,12 @@ export const processOutcomeSchema = z.object({
   sectionCount: z.number().int().min(0),
   durationMs: z.number(),
   extractorVersion: z.string(),
+  /**
+   * What the positional parser stored, or null when there was no text layer to
+   * parse. Reported alongside the text extraction rather than as a separate
+   * call because they read the same bytes in the same request (M5A.5 §1).
+   */
+  paper: persistOutcomeSchema.nullable(),
 });
 export type ProcessOutcome = z.infer<typeof processOutcomeSchema>;
 
@@ -341,4 +610,19 @@ export const SOURCE_ROUTES = {
    * exactly the shape that leaks (M5A section 8).
    */
   documentsPrivate: '/api/v1/documents/private',
+
+  /* -- Extracted question structure (M5A.5) -------------------------------- */
+
+  /** Runs the positional parser over a document and persists the result. */
+  documentExtract: (id: string) => `/api/v1/documents/${id}/extract`,
+  /** The document's current extraction run, or null when it has none. */
+  documentPaper: (id: string) => `/api/v1/documents/${id}/paper`,
+  paperQuestions: (id: string) => `/api/v1/papers/${id}/questions`,
+  paperMcqItems: (id: string) => `/api/v1/papers/${id}/mcq-items`,
+  question: (id: string) => `/api/v1/questions/${id}`,
+  /**
+   * The one narrow mutation. `kind` is a closed set, never a table name, and
+   * these routes are loopback-only for Stage 1 (M5A.5 §8).
+   */
+  review: (kind: string, id: string) => `/api/v1/extracted/${kind}/${id}/review`,
 } as const;

@@ -23,10 +23,17 @@
 
 import { Router, type Request, type Response } from 'express';
 import express from 'express';
-import { SOURCE_ROUTES, subjectIdSchema } from '@gradtools/shared-types';
+import {
+  SOURCE_ROUTES,
+  reviewRequestSchema,
+  reviewTargetSchema,
+  subjectIdSchema,
+} from '@gradtools/shared-types';
 import type { Sql } from '../db/client.js';
 import * as queries from '../db/queries.js';
 import { importDocument, processDocument } from '../documents/ingest.js';
+import { extractNativeStructure } from '../documents/positional.js';
+import { persistExtraction, recordReview } from '../documents/persist.js';
 import * as queue from '../jobs/queue.js';
 import { MAX_BYTES } from '../documents/validate.js';
 import type { ObjectStore } from '../documents/storage.js';
@@ -179,6 +186,134 @@ export function createDocumentRouter(sql: Sql, store: ObjectStore): Router {
     res.setHeader('Cache-Control', 'private, no-store');
     res.json(status);
   });
+
+  /* ---------------------------------------------------------------------- */
+  /* Extracted question structure (M5A.5)                                    */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Runs the positional parser over a document with a text layer, and stores
+   * what it finds.
+   *
+   * NATIVE ONLY. A scan's structure is produced by the OCR job from the
+   * geometry that same recognition pass emitted (docs/17 §17.17); re-reading
+   * its images here would repeat a ~759 ms/page workload inside a request.
+   * Asking for it on a scan is refused with a sentence saying so rather than
+   * quietly doing something slower and worse.
+   *
+   * Idempotent: a second call for the same parser version returns `unchanged`
+   * and touches nothing, so any review already recorded survives (M5A.5 §16).
+   */
+  router.post('/api/v1/documents/:id/extract', async (req: Request, res: Response) => {
+    const id = subjectIdSchema.parse(req.params.id);
+
+    const document = await queries.findDocument(sql, id);
+    if (!document) throw notFound(`No document with id "${id}".`);
+    if (document.state !== 'validated' && document.state !== 'extracted') {
+      throw new ApiError(
+        'VALIDATION_FAILED',
+        'This document has not been checked yet, so it cannot be read.',
+      );
+    }
+    if (document.extractionStatus !== 'text_available') {
+      throw new ApiError(
+        'VALIDATION_FAILED',
+        'Question structure for a scanned document is produced when the scan is read.',
+      );
+    }
+    /*
+     * The storage key is read here rather than taken from the served document:
+     * it is deliberately absent from the document contract, because an opaque
+     * key is infrastructure and nothing outside this process needs it.
+     */
+    const [stored] = await sql`
+      SELECT storage_key FROM documents WHERE id = ${id}::uuid
+    `;
+    const storageKey = (stored as { storage_key: string | null } | undefined)?.storage_key ?? null;
+    if (storageKey === null) {
+      throw new ApiError('VALIDATION_FAILED', 'This document has no stored file to read.');
+    }
+
+    const bytes = await store.get(storageKey);
+    const extraction = await extractNativeStructure(bytes);
+
+    res.setHeader('Cache-Control', 'private, no-store');
+    if (extraction === null) {
+      res.json({ kind: 'no_structure', paperId: null, questionCount: 0 });
+      return;
+    }
+    res.json(await persistExtraction(sql, id, extraction));
+  });
+
+  /** The document's current extraction run. `null` when it has none. */
+  router.get('/api/v1/documents/:id/paper', async (req: Request, res: Response) => {
+    const id = subjectIdSchema.parse(req.params.id);
+    const document = await queries.findDocument(sql, id);
+    if (!document) throw notFound(`No document with id "${id}".`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({
+      data: await queries.findCurrentPaper(sql, id),
+      // Superseded runs are listed, not hidden: seeing that a parser upgrade
+      // changed the answer is the point of versioning them (M5A.5 §16).
+      history: await queries.listPapersForDocument(sql, id),
+    });
+  });
+
+  router.get('/api/v1/papers/:id/questions', async (req: Request, res: Response) => {
+    const id = subjectIdSchema.parse(req.params.id);
+    const paper = await queries.findPaper(sql, id);
+    if (!paper) throw notFound(`No extracted paper with id "${id}".`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ data: await queries.listPaperQuestions(sql, id) });
+  });
+
+  router.get('/api/v1/papers/:id/mcq-items', async (req: Request, res: Response) => {
+    const id = subjectIdSchema.parse(req.params.id);
+    const paper = await queries.findPaper(sql, id);
+    if (!paper) throw notFound(`No extracted paper with id "${id}".`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ data: await queries.listPaperMcqItems(sql, id) });
+  });
+
+  router.get('/api/v1/questions/:id', async (req: Request, res: Response) => {
+    const id = subjectIdSchema.parse(req.params.id);
+    const question = await queries.findQuestion(sql, id);
+    if (!question) throw notFound(`No question with id "${id}".`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json(question);
+  });
+
+  /**
+   * The one mutation on extracted data.
+   *
+   * DELIBERATELY NARROW (M5A.5 §8). Three actions, a closed set of record kinds
+   * and a closed set of correctable fields — no generic patch, no field name
+   * from the caller, and nothing that could name a table or a column. `kind` is
+   * validated against an enum and then used to choose one of three fixed
+   * statements, never interpolated anywhere.
+   *
+   * The machine's values are not writable by any request this router accepts.
+   * A correction is stored beside them and the original stays (M5A.5 §9).
+   *
+   * This is an operator-local surface, like everything else in this file: the
+   * API binds to loopback and there are no accounts yet. When accounts arrive
+   * this route gains an authorization guard before anything else does.
+   */
+  router.post(
+    '/api/v1/extracted/:kind/:id/review',
+    express.json({ limit: '64kb' }),
+    async (req: Request, res: Response) => {
+      const kind = reviewTargetSchema.parse(req.params.kind);
+      const id = subjectIdSchema.parse(req.params.id);
+      const review = reviewRequestSchema.parse(req.body);
+
+      const updated = await recordReview(sql, kind, id, review);
+      if (!updated) throw notFound(`No ${kind} with id "${id}".`);
+
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.json({ id, kind, action: review.action });
+    },
+  );
 
   return router;
 }

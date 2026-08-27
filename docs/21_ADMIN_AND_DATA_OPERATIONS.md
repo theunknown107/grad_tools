@@ -277,3 +277,41 @@ Whatever admin tooling is eventually built:
 - **A document cannot be published out of quarantine.** Marking a document
   `host` or `link` before it has been validated is refused, whatever its rights
   say.
+
+## 21.14 Question review operations (M5A.5)
+
+The first operator surface over academic CONTENT rather than over sources.
+
+### What an operator can see
+
+| Question | Where it is answered |
+|---|---|
+| What did the parser find? | `GET /api/v1/documents/:id/paper` — format, source, counts |
+| How much did the geometry agree? | `confidenceSummary`: high · medium · low · review_required |
+| What has a person checked? | `reviewSummary`: unreviewed · accepted · corrected · rejected |
+| Did an upgrade change the answer? | `history` — every run, newest first, all still queryable |
+| Where did this row come from? | Every record carries page number and bounding box |
+
+### What an operator can change
+
+`accept`, `correct`, `reject` — nothing else. The machine's values are not
+writable by any request the API accepts; a correction is stored beside them.
+`reject` marks a record spurious and KEEPS it, because a deleted row cannot tell
+a later reader whether the parser was wrong or the scan was.
+
+### Reprocessing after a parser fix
+
+Bump `PARSER_VERSION` and re-run. That creates a new `extraction_version`, moves
+`is_current`, and leaves the previous run and every review recorded against it
+untouched. Running the same version again does nothing at all, so a re-run is
+never a way to lose someone's work.
+
+### A failure this milestone surfaced
+
+`tesseract -l eng+kan` on a machine WITHOUT `kan.traineddata` returned
+English-only output byte-for-byte identical to an `eng` run, with no error and
+no Kannada recovered — a silent degradation that would have been reported as a
+successful bilingual reading. The engine's language list is now established
+before the request: a missing pack means English and a stated reason, and the
+worker warns at startup. Installed languages belong on the operator's checklist
+alongside binary availability.

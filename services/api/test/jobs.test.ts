@@ -223,7 +223,7 @@ describeDb('OCR jobs', () => {
     function stubOcr(overrides: Partial<ocr.OcrResult> = {}) {
       vi.spyOn(ocr, 'runOcr').mockResolvedValue({
         ok: true,
-        pages: [{ pageNumber: 1, text: 'Module-1 Explain normalization.' }],
+        pages: [{ pageNumber: 1, text: 'Module-1 Explain normalization.', tsv: '' }],
         text: 'Module-1 Explain normalization.\n\nQ.1 a. Discuss anomalies.',
         format: 'descriptive',
         config: { languages: 'eng', psm: 3, dpi: 150, needsReview: false, reviewReason: null },
