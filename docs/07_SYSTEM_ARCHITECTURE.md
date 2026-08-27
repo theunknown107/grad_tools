@@ -297,6 +297,17 @@ The API and the worker share the ingestion and OCR modules but neither imports
 the other. Nothing in a request path can reach the worker, and the worker holds
 no HTTP surface.
 
+**Two processes, one image, one configuration:**
+
+```
+pnpm --filter @gradtools/api start    # API   — binds 127.0.0.1, serves HTTP
+pnpm --filter @gradtools/api worker   # worker — binds nothing, serves nothing
+```
+
+Scale by running more workers. They coordinate through PostgreSQL alone, so
+there is no leader election, no broker and nothing to configure between them —
+which is the practical benefit of having put the queue in the database.
+
 ## 7.9 Scaling path
 
 | Stage | Deployment |

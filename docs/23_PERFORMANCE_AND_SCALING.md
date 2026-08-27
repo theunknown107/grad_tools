@@ -214,6 +214,14 @@ remains the *only* thing in this project that has earned a queue.
 Throughput was measured on one machine with three documents and is not a
 production figure.
 
+**Concurrency, measured.** Two worker processes against one database drained 4
+real OCR jobs, split 2/2, with `attempts = 1` on every job — no double
+processing. Throughput scales by running more worker processes; they coordinate
+through `SKIP LOCKED` with no broker and nothing to configure between them.
+
+The idle loop costs one indexed query every 3 s per worker, and stalled recovery
+one indexed UPDATE every 5 minutes. Neither is traffic worth economising on.
+
 ## 23.5 Caching
 
 Full table in `07` §7.8. The performance-relevant points:
