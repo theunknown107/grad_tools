@@ -323,11 +323,27 @@ export const subQuestionCorrectionSchema = z.object({
   label: z.string().nullable(),
   text: z.string().nullable(),
   marks: z.number().int().nullable(),
+  /**
+   * A VTU paper's right-hand table has a row per SUB-PART, not per question, so
+   * a sub-question carries its own Bloom's level and CO. The parser read them
+   * from the start; only the correction path was missing (migration 0008).
+   */
+  bloomLevel: z.string().nullable(),
+  courseOutcome: z.string().nullable(),
 });
+
+export const mcqOptionSchema = z.object({ label: z.string(), text: z.string() });
+export type McqOption = z.infer<typeof mcqOptionSchema>;
 
 export const mcqCorrectionSchema = z.object({
   itemNumber: z.number().int().nullable(),
   text: z.string().nullable(),
+  /**
+   * Options are the substance of an MCQ item: a correct stem with scrambled
+   * options is not a usable record. `null` means uncorrected, which is distinct
+   * from `[]` meaning a person says this item has no options.
+   */
+  options: z.array(mcqOptionSchema).nullable(),
 });
 
 /**
@@ -402,7 +418,7 @@ export const extractedMcqItemSchema = z.object({
   ordinal: z.number().int().min(0),
   itemNumber: z.number().int().nullable(),
   text: z.string(),
-  options: z.array(z.object({ label: z.string(), text: z.string() })),
+  options: z.array(mcqOptionSchema),
   pageNumber: z.number().int().positive(),
   boundingBox: boundingBoxSchema,
   confidence: structuralConfidenceSchema,
@@ -503,6 +519,11 @@ export const reviewRequestSchema = z
         bloomLevel: z.string().max(16).nullish(),
         courseOutcome: z.string().max(16).nullish(),
         itemNumber: z.number().int().min(0).nullish(),
+        /** MCQ options only. Capped, because a real item has four. */
+        options: z
+          .array(z.object({ label: z.string().max(8), text: z.string().max(2000) }))
+          .max(12)
+          .nullish(),
       })
       .optional(),
   })
@@ -513,6 +534,30 @@ export const reviewRequestSchema = z
     { message: 'A correction must change at least one field.' },
   );
 export type ReviewRequest = z.infer<typeof reviewRequestSchema>;
+
+/**
+ * One row of the review queue.
+ *
+ * Flattened on purpose. A reviewer works through RECORDS, not through a tree,
+ * and three differently-shaped lists would make "what is left to check?" three
+ * questions instead of one.
+ */
+export const reviewQueueItemSchema = z.object({
+  kind: z.enum(['question', 'sub-question', 'mcq-item']),
+  id: z.string(),
+  paperId: z.string(),
+  documentId: z.string(),
+  documentTitle: z.string(),
+  paperFormat: paperFormatSchema,
+  extractionSource: extractionSourceSchema,
+  /** `Q1`, `Q1 a`, `Item 4` — what to call it in a list. */
+  label: z.string(),
+  text: z.string(),
+  pageNumber: z.number().int().positive(),
+  confidence: structuralConfidenceSchema,
+  needsReview: z.boolean(),
+});
+export type ReviewQueueItem = z.infer<typeof reviewQueueItemSchema>;
 
 /** What a review may be recorded against. A closed set, never a table name. */
 export const reviewTargetSchema = z.enum(['question', 'sub-question', 'mcq-item']);
@@ -625,4 +670,6 @@ export const SOURCE_ROUTES = {
    * these routes are loopback-only for Stage 1 (M5A.5 §8).
    */
   review: (kind: string, id: string) => `/api/v1/extracted/${kind}/${id}/review`,
+  /** Everything still waiting for a person, worst first. */
+  reviewQueue: '/api/v1/review/queue',
 } as const;

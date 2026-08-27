@@ -420,3 +420,179 @@
   border-color: var(--warn-border, var(--border));
   color: var(--text-muted);
 }
+
+/* Review workbench (M5A.6). A record's review state is carried by a left edge
+   rather than a fill, so a reviewed row reads as marked without the list
+   turning into a block of colour. */
+.question[data-review='accepted'] {
+  border-left-color: var(--ok, var(--accent));
+}
+
+.question[data-review='corrected'] {
+  border-left-color: var(--accent);
+}
+
+/* A dashed edge, NOT opacity. Fading a dismissed record dropped every word
+   inside it below AA contrast -- 15 nodes, found by browser QA. The state is
+   already carried in words ("Dismissed"), so the fade was decoration that cost
+   readability (docs/27 section 27.5). */
+.question[data-review='rejected'] {
+  border-left-style: dashed;
+  border-left-color: var(--border-strong);
+}
+
+.reviewState {
+  font-variant: all-small-caps;
+  letter-spacing: 0.04em;
+}
+
+.reviewActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.reviewButton {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.reviewButton:hover {
+  border-color: var(--accent);
+}
+
+.reviewButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.reviewButton[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+
+/* A corrected value shows the machine's original struck through beside it.
+   Hiding the original would make a corrected record indistinguishable from one
+   the parser got right, and that difference is the whole point of the corpus. */
+.corrected {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: baseline;
+}
+
+.machineValue {
+  color: var(--text-subtle);
+  text-decoration-thickness: 1px;
+}
+
+.correction {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.correctionField {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.correctionField label {
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+}
+
+.correctionField input {
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.correctionField input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sub {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+}
+
+.sub[data-review='rejected'] {
+  border-left: 2px dashed var(--border-strong);
+  padding-left: var(--space-2);
+}
+
+.subMain {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.subText {
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
+/* The queue: an ordered worklist, not a dashboard. */
+.queue {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.queueItem {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.queueItem[data-confidence='review_required'] {
+  border-left-color: var(--accent);
+}
+
+.queueLabel {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.queueText {
+  overflow-wrap: anywhere;
+  font-size: var(--text-sm);
+}
+
+.queueMeta {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+}
+
+/* The machine's original, kept visible under a corrected text. Quiet, because
+   the corrected value is what a reader wants first -- but present, because a
+   corrected record must stay distinguishable from one the parser got right. */
+.machineText {
+  display: block;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+  overflow-wrap: anywhere;
+}

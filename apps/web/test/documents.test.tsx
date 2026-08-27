@@ -49,24 +49,40 @@ function doc(overrides: Record<string, unknown> = {}) {
 }
 
 /** Routes fetch by path so the page can be driven without a server. */
+/** Every review POST the page made, so a test can assert what was sent. */
+let reviewCalls: { url: string; body: Record<string, unknown> }[] = [];
+
 function mockApi(
   documents: unknown[],
   sections: unknown[] = [],
-  extracted?: { paper: unknown; questions: unknown[] },
+  extracted?: {
+    paper: unknown;
+    questions: unknown[];
+    mcqItems?: unknown[];
+    queue?: unknown[];
+  },
 ) {
   vi.stubGlobal(
     'fetch',
-    vi.fn((input: RequestInfo | URL) => {
+    vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes('/review') && init?.method === 'POST') {
+        reviewCalls.push({ url, body: JSON.parse(String(init.body)) as Record<string, unknown> });
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+      }
       // /questions is tested FIRST: the questions route is /api/v1/papers/:id/
       // questions, which also contains '/paper'.
-      const body = url.includes('/sections')
-        ? { data: sections }
-        : url.includes('/questions')
-          ? { data: extracted?.questions ?? [] }
-          : url.includes('/paper')
-            ? { data: extracted?.paper ?? null, history: [] }
-            : { data: documents };
+      const body = url.includes('/review/queue')
+        ? { data: extracted?.queue ?? [] }
+        : url.includes('/mcq-items')
+          ? { data: extracted?.mcqItems ?? [] }
+          : url.includes('/sections')
+            ? { data: sections }
+            : url.includes('/questions')
+              ? { data: extracted?.questions ?? [] }
+              : url.includes('/paper')
+                ? { data: extracted?.paper ?? null, history: [] }
+                : { data: documents };
       return Promise.resolve({ ok: true, json: () => Promise.resolve(body) } as Response);
     }),
   );
@@ -132,6 +148,7 @@ describe('DocumentsPage', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    reviewCalls = [];
   });
 
   it('states plainly that the documents are private and where they live', async () => {
@@ -338,7 +355,11 @@ describe('DocumentsPage', () => {
       vi.fn(() => Promise.reject(new Error('network'))),
     );
     render(<DocumentsPage />);
-    expect(await screen.findByRole('button', { name: /try again/i })).toBeTruthy();
+    // Two independent sections fetch on this page -- the review queue and the
+    // library -- so an unreachable server offers a retry for each rather than
+    // taking the whole page down with one.
+    const retries = await screen.findAllByRole('button', { name: /try again/i });
+    expect(retries.length).toBeGreaterThan(0);
   });
 
   /* ------------------------------------------------------------------ */
@@ -506,6 +527,346 @@ describe('DocumentsPage', () => {
       });
 
       expect(await screen.findByText('<img src=x onerror=alert(1)> Explain')).toBeTruthy();
+      expect(document.querySelector('img')).toBeNull();
+    });
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Review workbench (M5A.6)                                            */
+  /* ------------------------------------------------------------------ */
+
+  describe('review workbench', () => {
+    function mcqItem(overrides: Record<string, unknown> = {}) {
+      return {
+        id: '55555555-5555-5555-5555-555555555555',
+        paperId: '22222222-2222-2222-2222-222222222222',
+        ordinal: 0,
+        itemNumber: 1,
+        text: 'Which of these is a noun',
+        options: [
+          { label: 'a', text: 'run' },
+          { label: 'b', text: 'table' },
+        ],
+        pageNumber: 1,
+        boundingBox: { x: 1, y: 2, width: 30, height: 10 },
+        confidence: 'high',
+        needsReview: false,
+        reviewState: 'unreviewed',
+        reviewed: null,
+        reviewNote: null,
+        reviewedAt: null,
+        reviewedBy: null,
+        ...overrides,
+      };
+    }
+
+    async function openQuestions(extracted: Record<string, unknown>) {
+      mockApi([doc()], [], extracted as never);
+      render(<DocumentsPage />);
+      await screen.findByText('BCS403 paper.pdf');
+      await userEvent.click(screen.getByRole('button', { name: 'Show questions' }));
+    }
+
+    /* -- accept ---------------------------------------------------------- */
+
+    it('records an accept for the question it was clicked on', async () => {
+      await openQuestions({ paper: paper(), questions: [question()] });
+      await screen.findByText('Q1');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Correct as read' }));
+
+      expect(reviewCalls.length).toBe(1);
+      expect(reviewCalls[0]?.url).toContain('/extracted/question/');
+      expect(reviewCalls[0]?.body.action).toBe('accept');
+      // An accept carries no corrections: "the machine was right" and "here is
+      // my replacement" are contradictory claims.
+      expect(reviewCalls[0]?.body.corrections).toBeUndefined();
+      expect(reviewCalls[0]?.body.reviewedBy).toBeTruthy();
+    });
+
+    /* -- reject ---------------------------------------------------------- */
+
+    it('records a reject without removing the record from view', async () => {
+      await openQuestions({ paper: paper(), questions: [question()] });
+      await screen.findByText('Q1');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Not a question' }));
+
+      expect(reviewCalls[0]?.body.action).toBe('reject');
+      // The row stays on screen: a removed record cannot tell a later reader
+      // whether the parser was wrong or the scan was.
+      expect(screen.getByText('Explain the phases of a compiler')).toBeTruthy();
+    });
+
+    /* -- correct --------------------------------------------------------- */
+
+    it('sends only the correctable fields, pre-filled with what is on screen', async () => {
+      await openQuestions({ paper: paper(), questions: [question()] });
+      await screen.findByText('Q1');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Fix a value' }));
+
+      const marks = screen.getByLabelText('Marks') as HTMLInputElement;
+      expect(marks.value).toBe('8');
+      await userEvent.clear(marks);
+      await userEvent.type(marks, '10');
+      await userEvent.click(screen.getByRole('button', { name: 'Save correction' }));
+
+      expect(reviewCalls[0]?.body.action).toBe('correct');
+      const corrections = reviewCalls[0]?.body.corrections as Record<string, unknown>;
+      expect(corrections.marks).toBe(10);
+      expect(corrections.text).toBe('Explain the phases of a compiler');
+      // Nothing that is not a correctable field is ever sent.
+      expect(Object.keys(corrections).sort()).toEqual([
+        'bloomLevel',
+        'courseOutcome',
+        'marks',
+        'module',
+        'questionNumber',
+        'text',
+      ]);
+    });
+
+    it('sends null for a field the reviewer cleared', async () => {
+      await openQuestions({ paper: paper(), questions: [question()] });
+      await screen.findByText('Q1');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Fix a value' }));
+      await userEvent.clear(screen.getByLabelText('Module'));
+      await userEvent.click(screen.getByRole('button', { name: 'Save correction' }));
+
+      const corrections = reviewCalls[0]?.body.corrections as Record<string, unknown>;
+      // Cleared means "the machine value stands", not "keep my old correction".
+      expect(corrections.module).toBeNull();
+    });
+
+    /* -- the machine value is never hidden -------------------------------- */
+
+    /*
+     * THE POINT OF THE WORKBENCH (M5A.6 §6). A corrected record must remain
+     * distinguishable from one the parser got right first time, or the corpus
+     * cannot be used to evaluate the parser later.
+     */
+    it('shows the machine value struck through beside a correction', async () => {
+      await openQuestions({
+        paper: paper(),
+        questions: [
+          question({
+            reviewState: 'corrected',
+            reviewed: {
+              questionNumber: null,
+              module: null,
+              text: null,
+              marks: 10,
+              bloomLevel: null,
+              courseOutcome: null,
+            },
+          }),
+        ],
+      });
+
+      expect(await screen.findByText('10 marks')).toBeTruthy();
+      const original = screen.getByText('8');
+      expect(original.tagName).toBe('DEL');
+      expect(screen.getByText('Corrected')).toBeTruthy();
+    });
+
+    /* -- sub-questions ---------------------------------------------------- */
+
+    it('reviews a sub-question independently of its question', async () => {
+      await openQuestions({
+        paper: paper(),
+        questions: [
+          question({
+            subQuestions: [
+              {
+                id: '44444444-4444-4444-4444-444444444444',
+                questionId: '33333333-3333-3333-3333-333333333333',
+                ordinal: 0,
+                label: 'a',
+                text: 'Describe lexical analysis',
+                marks: 6,
+                bloomLevel: 'L2',
+                courseOutcome: 'CO1',
+                pageNumber: 1,
+                boundingBox: { x: 10, y: 40, width: 200, height: 12 },
+                confidence: 'high',
+                needsReview: false,
+                reviewState: 'unreviewed',
+                reviewed: null,
+                reviewNote: null,
+                reviewedAt: null,
+                reviewedBy: null,
+              },
+            ],
+          }),
+        ],
+      });
+      await screen.findByText('Describe lexical analysis');
+
+      // Two sets of controls, each directly under what it acts on: the part's
+      // buttons follow the part, and the question's follow the whole card.
+      const accepts = screen.getAllByRole('button', { name: 'Correct as read' });
+      expect(accepts.length).toBe(2);
+      await userEvent.click(accepts[0] as HTMLElement);
+
+      expect(reviewCalls[0]?.url).toContain('/extracted/sub-question/');
+    });
+
+    it("offers a sub-question's Bloom's level and CO for correction", async () => {
+      await openQuestions({
+        paper: paper(),
+        questions: [
+          question({
+            subQuestions: [
+              {
+                id: '44444444-4444-4444-4444-444444444444',
+                questionId: '33333333-3333-3333-3333-333333333333',
+                ordinal: 0,
+                label: 'a',
+                text: 'Describe lexical analysis',
+                marks: 6,
+                bloomLevel: 'L2',
+                courseOutcome: 'CO1',
+                pageNumber: 1,
+                boundingBox: { x: 10, y: 40, width: 200, height: 12 },
+                confidence: 'high',
+                needsReview: false,
+                reviewState: 'unreviewed',
+                reviewed: null,
+                reviewNote: null,
+                reviewedAt: null,
+                reviewedBy: null,
+              },
+            ],
+          }),
+        ],
+      });
+      await screen.findByText('Describe lexical analysis');
+
+      const fix = screen.getAllByRole('button', { name: 'Fix a value' });
+      await userEvent.click(fix[0] as HTMLElement);
+      await userEvent.click(screen.getByRole('button', { name: 'Save correction' }));
+
+      const corrections = reviewCalls[0]?.body.corrections as Record<string, unknown>;
+      expect(corrections.bloomLevel).toBe('L2');
+      expect(corrections.courseOutcome).toBe('CO1');
+      expect(corrections.label).toBe('a');
+    });
+
+    /* -- MCQ -------------------------------------------------------------- */
+
+    /*
+     * An MCQ paper has no module, Bloom's level, CO or marks, and none is
+     * offered for correction: the format never had them, and a blank field
+     * invites a reviewer to invent one (M5A.6 §5).
+     */
+    it('reviews MCQ items without offering fields the format never had', async () => {
+      await openQuestions({
+        paper: paper({ paperFormat: 'mcq', questionCount: 0, mcqItemCount: 1 }),
+        questions: [],
+        mcqItems: [mcqItem()],
+      });
+
+      expect(await screen.findByText('Item 1')).toBeTruthy();
+      expect(screen.getByText('Which of these is a noun')).toBeTruthy();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Fix a value' }));
+      expect(screen.getByLabelText('Item number')).toBeTruthy();
+      expect(screen.getByLabelText('Option A')).toBeTruthy();
+      expect(screen.getByLabelText('Option B')).toBeTruthy();
+      expect(screen.queryByLabelText('Module')).toBeNull();
+      expect(screen.queryByLabelText('Marks')).toBeNull();
+      expect(screen.queryByLabelText("Bloom's level")).toBeNull();
+      expect(screen.queryByLabelText('Course outcome')).toBeNull();
+    });
+
+    it('sends corrected MCQ options', async () => {
+      await openQuestions({
+        paper: paper({ paperFormat: 'mcq', questionCount: 0, mcqItemCount: 1 }),
+        questions: [],
+        mcqItems: [mcqItem()],
+      });
+      await screen.findByText('Item 1');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Fix a value' }));
+      const optionA = screen.getByLabelText('Option A');
+      await userEvent.clear(optionA);
+      await userEvent.type(optionA, 'sprint');
+      await userEvent.click(screen.getByRole('button', { name: 'Save correction' }));
+
+      const corrections = reviewCalls[0]?.body.corrections as Record<string, unknown>;
+      expect(corrections.options).toEqual([
+        { label: 'a', text: 'sprint' },
+        { label: 'b', text: 'table' },
+      ]);
+      expect(corrections.itemNumber).toBe(1);
+    });
+
+    /* -- the queue -------------------------------------------------------- */
+
+    it('lists what is waiting, least clear first, with no score', async () => {
+      mockApi([doc()], [], {
+        paper: paper(),
+        questions: [],
+        queue: [
+          {
+            kind: 'question',
+            id: 'q1',
+            paperId: '22222222-2222-2222-2222-222222222222',
+            documentId: '11111111-1111-1111-1111-111111111111',
+            documentTitle: 'BCS403 paper.pdf',
+            paperFormat: 'descriptive',
+            extractionSource: 'ocr',
+            label: 'Q4',
+            text: 'Explain deadlock avoidance',
+            pageNumber: 2,
+            confidence: 'review_required',
+            needsReview: true,
+          },
+        ],
+      } as never);
+      render(<DocumentsPage />);
+
+      expect(await screen.findByText('Question Q4')).toBeTruthy();
+      expect(screen.getByText('Explain deadlock avoidance')).toBeTruthy();
+      expect(screen.getByText(/page 2/)).toBeTruthy();
+      // Never a number: an ordering, not a score.
+      expect(screen.queryByText(/%/)).toBeNull();
+      expect(screen.queryByText(/score/i)).toBeNull();
+    });
+
+    it('says so when nothing is waiting', async () => {
+      mockApi([doc()], [], { paper: null, questions: [], queue: [] } as never);
+      render(<DocumentsPage />);
+      expect(await screen.findByText(/Nothing is waiting/)).toBeTruthy();
+    });
+
+    /* Extracted text in the queue is text, never markup. */
+    it('renders untrusted queue text as text', async () => {
+      mockApi([doc()], [], {
+        paper: null,
+        questions: [],
+        queue: [
+          {
+            kind: 'question',
+            id: 'q1',
+            paperId: '2',
+            documentId: '1',
+            documentTitle: 'x.pdf',
+            paperFormat: 'descriptive',
+            extractionSource: 'ocr',
+            label: 'Q1',
+            text: '<img src=x onerror=alert(1)>',
+            pageNumber: 1,
+            confidence: 'low',
+            needsReview: false,
+          },
+        ],
+      } as never);
+      render(<DocumentsPage />);
+
+      expect(await screen.findByText('<img src=x onerror=alert(1)>')).toBeTruthy();
       expect(document.querySelector('img')).toBeNull();
     });
   });

@@ -470,6 +470,23 @@ pattern.
   deliberate choice.
 - Eight documents, one corpus.
 
+**M5A.6 UPDATE — STILL PARTIALLY VERIFIED, and now for a measured reason.**
+
+Sub-question STRUCTURE holds up under adjudication: label agreement 37/38 (97%)
+across 71 reviewed records. Sub-question TEXT does not: 0/12 native texts were
+exact, all truncated at the marks column (OQ-032).
+
+So the answer to OQ-019a splits in two:
+
+| | Verdict |
+|---|---|
+| Can we identify the sub-questions? | **Yes** — 97% on the reviewed sample |
+| Can we trust what they say? | **Not yet** — every adjudicated text needed correction |
+
+That is why this does not close. Sub-question identity was the original
+question and is substantially answered; the corpus then found that identity
+without dependable text is not enough for anything that reads the words.
+
 **Decision needed:** whether the first intelligence feature can be built on
 descriptive papers with native text and good scans — where the structure is now
 dependable — while MCQ and poor scans are handled as a separate problem. That is
@@ -642,6 +659,11 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5A | ED-37…ED-41 | Document lifecycle, validator corrections and the localhost boundary in Part B | Engineering (ED-38/39 evidence: real corpus) |
 | M5A.3 | DEC-022 | OCR implemented as specified by DEC-021: local Tesseract, asynchronous, no hosted service | Engineering |
 | M5A.1 | DEC-021 | OCR, when implemented, will be **local Tesseract** — privacy is decisive and structural fidelity beats raw accuracy | Engineering (evidence: 10-document benchmark) |
+| M5A.6 | ED-60 | The review queue is an ORDER, not a score | `review_required → low → medium → high`, defined once in a SQL function. A number would have to be invented and would blend how much the geometry agreed with how much work a record needs |
+| M5A.6 | ED-61 | A corrected TEXT shows the machine's original underneath rather than struck through | Strikethrough is unreadable on a paragraph. The original is never hidden: a corrected record must stay distinguishable from one the parser got right, or the corpus cannot evaluate the parser |
+| M5A.6 | ED-62 | The two defects the review found were NOT fixed in this milestone | The corpus exists to evaluate parser changes. Changing the parser in the same milestone that built the baseline would leave nothing to measure against |
+| M5A.6 | ED-63 | Agent adjudication is stored under `agent-adjudication`, never as human review | The judgements are real evidence and are not human ground truth. One predicate tells them apart or removes them |
+| M5A.6 | ED-64 | Rejected records keep full text contrast; the state is carried by a dashed edge and a word | `opacity: 0.62` put 15 nodes below AA contrast. The state was already in words, so the fade was decoration that cost readability |
 | M5A.5 | ED-53 | Identity is `(document_id, parser_version)`; a new parser version creates a new `extraction_version` rather than overwriting | Makes re-running the parser a no-op and reprocessing additive. Human review recorded against an earlier run survives an upgrade, which "replace the rows" could not offer |
 | M5A.5 | ED-54 | Machine columns immutable; corrections in `reviewed_*` beside them | Effective value is `COALESCE(reviewed_x, x)` and the original stays visible. An audit trail that cannot show what the machine said is not one |
 | M5A.5 | ED-55 | `rejected` is a review state, never a delete | A removed row cannot tell a later reader whether the parser was wrong or the scan was. Low-confidence material is evidence, not noise |
@@ -692,3 +714,54 @@ user's machine.
 **Consequence if deferred:** bilingual papers are read as English and marked for
 review. Nothing produces wrong data silently; some documents are simply less
 useful than they could be.
+
+---
+
+### OQ-031 — Human ground truth does not exist yet
+
+**Status:** OPEN · raised M5A.6
+
+**Why:** M5A.6 asked for 10–20 real papers reviewed by a human. What exists is
+**71 records across 4 papers adjudicated by an AI agent** reading the rendered
+pages — genuine independent evidence, stored honestly under
+`agent-adjudication`, and not the same thing.
+
+Every metric in docs/17 §17.18 inherits that limitation. They are defensible as
+"what an independent reader saw when comparing the pages to the records"; they
+are not defensible as human-confirmed ground truth.
+
+**Decision needed:** whether a person reviews these 71 records (the workbench is
+built and the queue is ordered, so it is now a sitting task rather than an
+engineering one), or whether agent adjudication is accepted as the baseline for
+parser evaluation with the caveat carried forward.
+
+**Consequence if deferred:** parser changes can still be measured against a
+consistent baseline. Nothing downstream may describe the corpus as
+human-verified.
+
+---
+
+### OQ-032 — Question text is truncated at the marks column
+
+**Status:** OPEN · raised M5A.6 · **measured**
+
+**Why:** `analyseRow` removes every token past 70% of the page width as a
+marks-column token. In a justified table cell the question text reaches that
+far, so the last word or two of each line is deleted. **0 of 12 adjudicated
+native sub-question texts were exact** (docs/17 §17.18), and every one of them
+carried `high` structural confidence.
+
+This is the single largest measured defect in the extraction pipeline, and it
+was invisible before a reviewer compared records to pages.
+
+**Options:**
+1. Detect the marks column from the actual x-positions of the numeric column
+   rather than a fixed 70% fraction.
+2. Require a marks-column token to be a lone short token, not merely far right.
+3. Both, then re-run against this corpus and compare.
+
+**Recommendation:** (3). The corpus now exists precisely so a change like this
+can be measured rather than argued.
+
+**Decision needed:** none from the human — this is an engineering fix awaiting
+its own milestone. Recorded so it is not lost.

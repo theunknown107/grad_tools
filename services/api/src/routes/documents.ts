@@ -284,6 +284,25 @@ export function createDocumentRouter(sql: Sql, store: ObjectStore): Router {
   });
 
   /**
+   * The review queue: everything still waiting for a person, worst first.
+   *
+   * ORDER, NOT SCORE (M5A.6 section 7): review_required, low, medium, high. A
+   * number would have to be invented and would blend two incomparable things --
+   * how much the geometry agreed, and how much work a record needs.
+   *
+   * One flat list across questions, sub-questions and MCQ items, because a
+   * reviewer works through RECORDS: three lists would make 'what is left?'
+   * three questions instead of one.
+   */
+  router.get('/api/v1/review/queue', async (req: Request, res: Response) => {
+    // Bounded by the server, never by the caller alone: an unbounded list is a
+    // way to ask for the whole table in one request.
+    const limit = Math.min(Number(req.query.limit ?? 50) || 50, 200);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ data: await queries.listReviewQueue(sql, limit) });
+  });
+
+  /**
    * The one mutation on extracted data.
    *
    * DELIBERATELY NARROW (M5A.5 §8). Three actions, a closed set of record kinds

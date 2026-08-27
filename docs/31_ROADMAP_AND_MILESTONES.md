@@ -287,6 +287,29 @@ the language pack degraded to English with no error at all.
 **Kannada is NOT re-verified in this milestone** — the language pack is not
 installed on the development machine.
 
+### M5A.6 — Review workbench + corpus ground truth · ✅ **DELIVERED**
+A review surface over extracted questions: accept, correct or reject each
+question, sub-question and MCQ item, with the machine's original always visible
+beside a correction. A queue orders what is left `review_required → low →
+medium → high` — an ordering, never a score. Migration 0008 added the three
+correctable fields the workbench needed (sub-question Bloom's and CO, MCQ
+options) and the queue's priority function.
+
+**14 real papers loaded, 71 records adjudicated across 4 of them.** Module 100%,
+sub-question label 97%, MCQ item number 100%; question number 38% overall but
+9/9 where the number sits on its cell's first row.
+
+**Two parser defects measured, and deliberately NOT fixed here:** question text
+is truncated at the marks column (0/12 native texts exact), and a vertically
+centred question number is never recovered. Fixing the parser now would
+invalidate the corpus built to evaluate parser changes.
+
+**The confidence model was measured, not assumed:** `low`/`medium` are
+dependable warnings; **`high` was accepted only 50% of the time**.
+
+**The reviewer was an AI agent, not a human** — recorded as
+`agent-adjudication`. Human ground truth remains outstanding.
+
 ### M5b — Document pipeline · superseded
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.

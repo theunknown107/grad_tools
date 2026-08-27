@@ -259,6 +259,21 @@ for the same reason as before: OCR is seconds, and no request should wait on it.
 Persistence itself is one transaction of small inserts and does not appear in
 the measurements. No optimisation is warranted.
 
+### 23.3.8 Review queue (M5A.6)
+
+The queue is one `UNION ALL` over three tables, filtered to `unreviewed` rows on
+the current run. Each branch has a partial index on
+`review_priority(confidence)` restricted to `review_state = 'unreviewed'` — the
+rows the queue asks for are a shrinking minority of a growing table, so the
+index stays small as the corpus grows.
+
+Measured on the 14-paper corpus (438 pending records): the queue endpoint
+returns 50 rows well inside a request, and the page renders them without
+paging. The server caps `limit` at 200 however large the caller asks for, so no
+request can ask for the whole table.
+
+Review mutations are single-row `UPDATE`s and do not appear in the numbers.
+
 ## 23.5 Caching
 
 Full table in `07` §7.8. The performance-relevant points:

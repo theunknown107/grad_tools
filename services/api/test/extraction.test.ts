@@ -702,4 +702,403 @@ describeDb('extracted question persistence', () => {
       expect(response.status).toBe(404);
     });
   });
+
+  /* ---------------------------------------------------------------------- */
+  /* Review workbench (M5A.6)                                               */
+  /* ---------------------------------------------------------------------- */
+
+  describe('review workbench', () => {
+    async function descriptivePaper(): Promise<{ documentId: string; paperId: string }> {
+      const documentId = await newDocument();
+      const outcome = await persistExtraction(
+        sql,
+        documentId,
+        extractionFrom(descriptiveWords(), 'descriptive'),
+      );
+      return { documentId, paperId: outcome.paperId ?? '' };
+    }
+
+    async function mcqPaper(): Promise<{ documentId: string; paperId: string }> {
+      const documentId = await newDocument();
+      const outcome = await persistExtraction(sql, documentId, extractionFrom(mcqWords(), 'mcq'));
+      return { documentId, paperId: outcome.paperId ?? '' };
+    }
+
+    /* -- the fields 0008 added ------------------------------------------- */
+
+    /*
+     * A VTU paper's right-hand table has a row per SUB-PART. 0007 parsed the
+     * sub-question's Bloom's level and CO and gave no way to fix them, which is
+     * worse than not extracting them: the row looks reviewed once accepted,
+     * with the wrong value underneath.
+     */
+    it("corrects a sub-question's Bloom's level and CO without touching the machine values", async () => {
+      const { paperId } = await descriptivePaper();
+      const [question] = await queries.listPaperQuestions(sql, paperId);
+      const sub = question?.subQuestions[0];
+
+      await recordReview(sql, 'sub-question', sub?.id ?? '', {
+        action: 'correct',
+        reviewedBy: 'operator',
+        corrections: { bloomLevel: 'L4', courseOutcome: 'CO3' },
+      });
+
+      const [after] = await queries.listPaperQuestions(sql, paperId);
+      const reviewed = after?.subQuestions[0];
+      expect(reviewed?.bloomLevel).toBe('L2'); // machine, untouched
+      expect(reviewed?.courseOutcome).toBe('CO1'); // machine, untouched
+      expect(reviewed?.reviewed?.bloomLevel).toBe('L4');
+      expect(reviewed?.reviewed?.courseOutcome).toBe('CO3');
+      expect(reviewed?.reviewState).toBe('corrected');
+    });
+
+    /*
+     * Options are the substance of an MCQ item. A correct stem with scrambled
+     * options is not a usable record, and 0007 stored them with no way to fix
+     * them.
+     */
+    it('corrects MCQ options and keeps the machine options beside them', async () => {
+      const { paperId } = await mcqPaper();
+      const [item] = await queries.listPaperMcqItems(sql, paperId);
+      expect(item?.options.length).toBeGreaterThan(0);
+
+      await recordReview(sql, 'mcq-item', item?.id ?? '', {
+        action: 'correct',
+        reviewedBy: 'operator',
+        corrections: {
+          options: [
+            { label: 'a', text: 'run' },
+            { label: 'b', text: 'table' },
+          ],
+        },
+      });
+
+      const [after] = await queries.listPaperMcqItems(sql, paperId);
+      expect(after?.options).toEqual(item?.options); // machine, untouched
+      expect(after?.reviewed?.options).toEqual([
+        { label: 'a', text: 'run' },
+        { label: 'b', text: 'table' },
+      ]);
+    });
+
+    it('corrects an MCQ item number', async () => {
+      const { paperId } = await mcqPaper();
+      const [item] = await queries.listPaperMcqItems(sql, paperId);
+
+      await recordReview(sql, 'mcq-item', item?.id ?? '', {
+        action: 'correct',
+        reviewedBy: 'operator',
+        corrections: { itemNumber: 7 },
+      });
+
+      const [after] = await queries.listPaperMcqItems(sql, paperId);
+      expect(after?.itemNumber).toBe(1);
+      expect(after?.reviewed?.itemNumber).toBe(7);
+    });
+
+    /* -- re-review -------------------------------------------------------- */
+
+    /*
+     * "The machine was right" and "here is my replacement" are contradictory
+     * claims. Accepting after correcting must therefore CLEAR the correction,
+     * not leave a stale one sitting under an `accepted` badge.
+     */
+    it('accepting after correcting clears the correction', async () => {
+      const { paperId } = await descriptivePaper();
+      const [question] = await queries.listPaperQuestions(sql, paperId);
+      const id = question?.id ?? '';
+
+      await recordReview(sql, 'question', id, {
+        action: 'correct',
+        reviewedBy: 'operator',
+        corrections: { marks: 12 },
+      });
+      expect((await queries.findQuestion(sql, id))?.reviewed?.marks).toBe(12);
+
+      await recordReview(sql, 'question', id, { action: 'accept', reviewedBy: 'operator' });
+
+      const after = await queries.findQuestion(sql, id);
+      expect(after?.reviewState).toBe('accepted');
+      expect(after?.reviewed).toBeNull();
+      expect(after?.marks).toBe(8);
+    });
+
+    it('a second correction replaces the first rather than merging into it', async () => {
+      const { paperId } = await descriptivePaper();
+      const [question] = await queries.listPaperQuestions(sql, paperId);
+      const id = question?.id ?? '';
+
+      await recordReview(sql, 'question', id, {
+        action: 'correct',
+        reviewedBy: 'operator',
+        corrections: { marks: 12, module: '3' },
+      });
+      await recordReview(sql, 'question', id, {
+        action: 'correct',
+        reviewedBy: 'operator',
+        corrections: { marks: 14 },
+      });
+
+      const after = await queries.findQuestion(sql, id);
+      expect(after?.reviewed?.marks).toBe(14);
+      // The dropped field is CLEARED, not silently kept: an omitted field means
+      // "the machine value stands", and a stale correction would contradict it.
+      expect(after?.reviewed?.module).toBeNull();
+    });
+
+    /* -- parser-version isolation ---------------------------------------- */
+
+    /*
+     * Review belongs to the RUN it was recorded against. A reviewer's
+     * conclusion about what parser A produced says nothing about parser B's
+     * output, and carrying it across would fabricate agreement.
+     */
+    it('keeps review with its own parser version and does not carry it forward', async () => {
+      const documentId = await newDocument();
+      const v1 = await persistExtraction(
+        sql,
+        documentId,
+        extractionFrom(descriptiveWords(), 'descriptive', 'ocr', 'positional-test-v0'),
+      );
+      const [oldQuestion] = await queries.listPaperQuestions(sql, v1.paperId ?? '');
+      await recordReview(sql, 'question', oldQuestion?.id ?? '', {
+        action: 'correct',
+        reviewedBy: 'operator',
+        corrections: { marks: 12 },
+      });
+
+      const v2 = await persistExtraction(
+        sql,
+        documentId,
+        extractionFrom(descriptiveWords(), 'descriptive'),
+      );
+
+      const [newQuestion] = await queries.listPaperQuestions(sql, v2.paperId ?? '');
+      expect(newQuestion?.reviewState).toBe('unreviewed');
+      expect(newQuestion?.reviewed).toBeNull();
+
+      // And the old run still has its review.
+      const [stillOld] = await queries.listPaperQuestions(sql, v1.paperId ?? '');
+      expect(stillOld?.reviewed?.marks).toBe(12);
+    });
+
+    /* -- the queue -------------------------------------------------------- */
+
+    /*
+     * ORDER, NOT SCORE (M5A.6 §7): review_required, low, medium, high. A number
+     * would have to be invented and would blend two incomparable things.
+     */
+    it('orders the queue by how little the geometry agreed', async () => {
+      const { paperId } = await descriptivePaper();
+      await sql`
+        UPDATE extracted_questions SET confidence = 'review_required'
+         WHERE paper_id = ${paperId}::uuid AND ordinal = 1
+      `;
+
+      const queue = await queries.listReviewQueue(sql, 50);
+      const forPaper = queue.filter((row) => row.paperId === paperId);
+
+      expect(forPaper[0]?.confidence).toBe('review_required');
+      const rank = { review_required: 0, low: 1, medium: 2, high: 3 };
+      const ranks = forPaper.map((row) => rank[row.confidence]);
+      expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+    });
+
+    it('carries enough context to find the record without another request', async () => {
+      const { paperId } = await descriptivePaper();
+      const [row] = (await queries.listReviewQueue(sql, 50)).filter((q) => q.paperId === paperId);
+
+      expect(row?.documentTitle).toContain('extract-');
+      expect(row?.label).toMatch(/^Q\d|^Q\?|^Unnumbered/);
+      expect(row?.pageNumber).toBe(1);
+      expect(row?.extractionSource).toBe('ocr');
+    });
+
+    /* The queue is what nobody has looked at yet, not an archive. */
+    it('drops a record from the queue once it has been reviewed', async () => {
+      const { paperId } = await descriptivePaper();
+      const before = (await queries.listReviewQueue(sql, 200)).filter((q) => q.paperId === paperId);
+      const target = before[0];
+      expect(target).toBeDefined();
+
+      await recordReview(sql, target?.kind ?? 'question', target?.id ?? '', {
+        action: 'accept',
+        reviewedBy: 'operator',
+      });
+
+      const after = (await queries.listReviewQueue(sql, 200)).filter((q) => q.paperId === paperId);
+      expect(after.some((q) => q.id === target?.id)).toBe(false);
+      expect(after.length).toBe(before.length - 1);
+    });
+
+    it('includes sub-questions and MCQ items, not only questions', async () => {
+      const descriptive = await descriptivePaper();
+      const mcq = await mcqPaper();
+      const queue = await queries.listReviewQueue(sql, 200);
+
+      const kinds = new Set(
+        queue
+          .filter((q) => q.paperId === descriptive.paperId || q.paperId === mcq.paperId)
+          .map((q) => q.kind),
+      );
+      expect(kinds.has('question')).toBe(true);
+      expect(kinds.has('sub-question')).toBe(true);
+      expect(kinds.has('mcq-item')).toBe(true);
+    });
+
+    /*
+     * A superseded run's rows are kept for audit. Queueing them would ask a
+     * person to review history.
+     */
+    it('queues only the current run', async () => {
+      const documentId = await newDocument();
+      const v1 = await persistExtraction(
+        sql,
+        documentId,
+        extractionFrom(descriptiveWords(), 'descriptive', 'ocr', 'positional-test-v0'),
+      );
+      await persistExtraction(sql, documentId, extractionFrom(descriptiveWords(), 'descriptive'));
+
+      const queue = await queries.listReviewQueue(sql, 200);
+      expect(queue.some((row) => row.paperId === v1.paperId)).toBe(false);
+      expect(queue.some((row) => row.documentId === documentId)).toBe(true);
+    });
+
+    it('bounds the queue by the requested limit', async () => {
+      await descriptivePaper();
+      expect((await queries.listReviewQueue(sql, 2)).length).toBeLessThanOrEqual(2);
+    });
+
+    /* -- the HTTP surface -------------------------------------------------- */
+
+    it('serves the queue over HTTP, privately', async () => {
+      await descriptivePaper();
+      const response = await request(app).get('/api/v1/review/queue?limit=5');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.length).toBeGreaterThan(0);
+      expect(response.body.data.length).toBeLessThanOrEqual(5);
+      expect(response.headers['cache-control']).toContain('no-store');
+    });
+
+    /* A caller cannot ask for the whole table in one request. */
+    it('caps the queue limit however large the caller asks for', async () => {
+      await descriptivePaper();
+      const response = await request(app).get('/api/v1/review/queue?limit=100000');
+      expect(response.status).toBe(200);
+      expect(response.body.data.length).toBeLessThanOrEqual(200);
+    });
+
+    it('ignores a nonsense limit rather than failing', async () => {
+      await descriptivePaper();
+      const response = await request(app).get('/api/v1/review/queue?limit=not-a-number');
+      expect(response.status).toBe(200);
+    });
+
+    /*
+     * The mutation is narrow BY CONSTRUCTION (M5A.6 §15). Unknown fields are
+     * stripped by the schema rather than reaching a statement, so no caller can
+     * name a column.
+     */
+    it('ignores a field that is not correctable rather than writing it', async () => {
+      const { paperId } = await descriptivePaper();
+      const list = await request(app).get(`/api/v1/papers/${paperId}/questions`);
+      const id = list.body.data[0].id as string;
+
+      const response = await request(app)
+        .post(`/api/v1/extracted/question/${id}/review`)
+        .send({
+          action: 'correct',
+          reviewedBy: 'operator',
+          corrections: { marks: 9, confidence: 'high', review_state: 'accepted', id: 'x' },
+        });
+
+      expect(response.status).toBe(200);
+      const after = await queries.findQuestion(sql, id);
+      expect(after?.reviewed?.marks).toBe(9);
+      // The machine's own confidence is not a reviewable field and did not move.
+      expect(after?.confidence).toBe('high');
+      expect(after?.reviewState).toBe('corrected');
+    });
+
+    it('refuses a correction whose type is wrong', async () => {
+      const { paperId } = await descriptivePaper();
+      const list = await request(app).get(`/api/v1/papers/${paperId}/questions`);
+
+      const response = await request(app)
+        .post(`/api/v1/extracted/question/${list.body.data[0].id}/review`)
+        .send({ action: 'correct', reviewedBy: 'operator', corrections: { marks: 'lots' } });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('refuses a review with no reviewer', async () => {
+      const { paperId } = await descriptivePaper();
+      const list = await request(app).get(`/api/v1/papers/${paperId}/questions`);
+
+      const response = await request(app)
+        .post(`/api/v1/extracted/question/${list.body.data[0].id}/review`)
+        .send({ action: 'accept' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('refuses an action that is not accept, correct or reject', async () => {
+      const { paperId } = await descriptivePaper();
+      const list = await request(app).get(`/api/v1/papers/${paperId}/questions`);
+
+      const response = await request(app)
+        .post(`/api/v1/extracted/question/${list.body.data[0].id}/review`)
+        .send({ action: 'delete', reviewedBy: 'operator' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('records an MCQ option correction over HTTP', async () => {
+      const { paperId } = await mcqPaper();
+      const list = await request(app).get(`/api/v1/papers/${paperId}/mcq-items`);
+      const id = list.body.data[0].id as string;
+
+      const response = await request(app)
+        .post(`/api/v1/extracted/mcq-item/${id}/review`)
+        .send({
+          action: 'correct',
+          reviewedBy: 'operator',
+          corrections: { options: [{ label: 'a', text: 'corrected option' }] },
+        });
+
+      expect(response.status).toBe(200);
+      const [after] = await queries.listPaperMcqItems(sql, paperId);
+      expect(after?.reviewed?.options).toEqual([{ label: 'a', text: 'corrected option' }]);
+    });
+
+    /* -- audit ------------------------------------------------------------- */
+
+    /*
+     * M5A.6 §17: for every reviewed record, answer what the machine produced,
+     * what a person changed, when, and under which parser and extraction
+     * version. All five come from the record and its paper.
+     */
+    it('answers the five audit questions for a corrected record', async () => {
+      const { documentId, paperId } = await descriptivePaper();
+      const [question] = await queries.listPaperQuestions(sql, paperId);
+      await recordReview(sql, 'question', question?.id ?? '', {
+        action: 'correct',
+        reviewedBy: 'operator',
+        note: 'Marks column was misread.',
+        corrections: { marks: 10 },
+      });
+
+      const after = await queries.findQuestion(sql, question?.id ?? '');
+      const paper = await queries.findCurrentPaper(sql, documentId);
+
+      expect(after?.marks).toBe(8); // what the machine produced
+      expect(after?.reviewed?.marks).toBe(10); // what a person changed it to
+      expect(after?.reviewedAt).not.toBeNull(); // when
+      expect(after?.reviewedBy).toBe('operator'); // who
+      expect(after?.reviewNote).toBe('Marks column was misread.'); // why
+      expect(paper?.parserVersion).toBe(PARSER_VERSION); // which parser
+      expect(paper?.extractionVersion).toBe(1); // which extraction
+    });
+  });
 });
