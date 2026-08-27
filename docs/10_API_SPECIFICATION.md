@@ -356,6 +356,53 @@ Both responses are `private, no-store`.
 No write endpoint exists. `POST`, `PUT`, `PATCH` and `DELETE` return `404` on
 every path, which is asserted by test.
 
+## 10.7a Endpoints — Extracted question structure (M5A.5)
+
+Private, loopback-only, like every document route (docs/10 §10.7). There are no
+accounts yet; these gain an owner predicate and an authorization guard the
+moment there are.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/documents/:id/extract` | Run the positional parser over a native-text document and store the result |
+| `GET` | `/api/v1/documents/:id/paper` | The current run (`data`) and every run (`history`) |
+| `GET` | `/api/v1/papers/:id/questions` | Questions with their sub-questions |
+| `GET` | `/api/v1/papers/:id/mcq-items` | MCQ items. A separate shape, not questions with empty columns |
+| `GET` | `/api/v1/questions/:id` | One question |
+| `POST` | `/api/v1/extracted/:kind/:id/review` | Record one review. `kind` ∈ question · sub-question · mcq-item |
+
+**`POST /extract` is native-only.** A scan's structure is produced by the OCR
+job from geometry that recognition pass already emitted (docs/17 §17.17);
+re-reading its images in a request would repeat ~759 ms/page to recompute what
+we are holding. Asking for it on a scan is refused with a sentence saying so.
+
+**The review mutation is deliberately narrow.** Three actions, a closed set of
+record kinds, and a closed set of correctable fields. No generic patch, no field
+name from the caller, and nothing that could name a table or a column: `kind` is
+validated against an enum and then selects one of three fixed statements.
+
+```jsonc
+// POST /api/v1/extracted/question/<id>/review
+{
+  "action": "correct",              // accept · correct · reject
+  "reviewedBy": "operator",         // an operator label, never a student identity
+  "note": "The marks column was misread.",
+  "corrections": { "marks": 10 }    // only read for `correct`; must change something
+}
+```
+
+**Responses carry both values.** The machine's fields are at the top level and
+are never writable through this API; a person's corrections come back under
+`reviewed`, which is `null` when there are none. A client that wants the
+effective value writes `reviewed?.marks ?? marks`; a client auditing the
+extraction can still see exactly what the parser produced.
+
+**Every response is `Cache-Control: private, no-store`,** and every JSON
+response now escapes `<`, `>` and `&` (`app.set('json escape', true)`).
+Extracted text comes out of a PDF anyone could have crafted, and a response that
+is never valid HTML cannot be turned into markup by a client that mis-handles
+the content type.
+
 ## 10.8 Endpoints — Notifications and admin
 
 | Method | Path | Auth | Purpose |

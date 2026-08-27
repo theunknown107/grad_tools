@@ -9,6 +9,11 @@
  * is the point: this code runs on OCR output and cannot assume clean text.
  */
 
+import {
+  parseLanguageList,
+  withAvailableLanguages,
+  KANNADA_UNAVAILABLE_REASON,
+} from '../src/documents/ocr.js';
 import { describe, expect, it } from 'vitest';
 import {
   BASELINE_DPI,
@@ -187,5 +192,76 @@ describe('mathematics detection', () => {
   it('does not flag an ordinary paper', () => {
     expect(looksMathematical(DESCRIPTIVE)).toBe(false);
     expect(looksMathematical(MCQ)).toBe(false);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Installed languages (M5A.5 §12)                                            */
+/* -------------------------------------------------------------------------- */
+
+describe('installed languages', () => {
+  /*
+   * The first line of `--list-langs` is a heading. Taking it as a language
+   * would make this claim one nobody installed.
+   */
+  it('reads the engine language list, skipping its heading', () => {
+    const languages = parseLanguageList(
+      'List of available languages in "/usr/share/tessdata" (3):\neng\nkan\nosd\n',
+    );
+
+    expect([...languages].sort()).toEqual(['eng', 'kan', 'osd']);
+  });
+
+  it('reports no languages for empty output rather than inventing one', () => {
+    expect(parseLanguageList('').size).toBe(0);
+  });
+
+  /*
+   * THE FAILURE THIS EXISTS FOR (observed in M5A.5 §18): a machine without
+   * `kan.traineddata` ran `-l eng+kan` and returned English-only text with no
+   * error and no Kannada recovered. Nothing failed, so nothing could be
+   * detected after the fact — the absence has to be established BEFORE the
+   * request and reported.
+   */
+  it('falls back to English and says so when Kannada is not installed', () => {
+    const bilingual = configFor({
+      format: 'mcq',
+      mcqCues: 4,
+      descriptiveCues: 0,
+      hasKannada: true,
+    });
+    expect(bilingual.languages).toBe('eng+kan');
+
+    const fallback = withAvailableLanguages(bilingual, false);
+    expect(fallback.languages).toBe('eng');
+    expect(fallback.needsReview).toBe(true);
+    expect(fallback.reviewReason).toBe(KANNADA_UNAVAILABLE_REASON);
+  });
+
+  it('leaves the configuration alone when Kannada is installed', () => {
+    const bilingual = configFor({
+      format: 'mcq',
+      mcqCues: 4,
+      descriptiveCues: 0,
+      hasKannada: true,
+    });
+    expect(withAvailableLanguages(bilingual, true)).toEqual(bilingual);
+  });
+
+  /* An English-only paper is untouched either way. */
+  it('leaves an English-only configuration alone when Kannada is missing', () => {
+    const english = configFor({
+      format: 'descriptive',
+      mcqCues: 0,
+      descriptiveCues: 4,
+      hasKannada: false,
+    });
+    expect(withAvailableLanguages(english, false)).toEqual(english);
+  });
+
+  /* The reason is a sentence a person can act on, not a code. */
+  it('explains the Kannada fallback in words', () => {
+    expect(KANNADA_UNAVAILABLE_REASON).toContain('Kannada language pack is not installed');
+    expect(KANNADA_UNAVAILABLE_REASON).toContain('not dependable');
   });
 });

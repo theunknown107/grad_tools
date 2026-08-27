@@ -49,15 +49,80 @@ function doc(overrides: Record<string, unknown> = {}) {
 }
 
 /** Routes fetch by path so the page can be driven without a server. */
-function mockApi(documents: unknown[], sections: unknown[] = []) {
+function mockApi(
+  documents: unknown[],
+  sections: unknown[] = [],
+  extracted?: { paper: unknown; questions: unknown[] },
+) {
   vi.stubGlobal(
     'fetch',
     vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
-      const body = url.includes('/sections') ? { data: sections } : { data: documents };
+      // /questions is tested FIRST: the questions route is /api/v1/papers/:id/
+      // questions, which also contains '/paper'.
+      const body = url.includes('/sections')
+        ? { data: sections }
+        : url.includes('/questions')
+          ? { data: extracted?.questions ?? [] }
+          : url.includes('/paper')
+            ? { data: extracted?.paper ?? null, history: [] }
+            : { data: documents };
       return Promise.resolve({ ok: true, json: () => Promise.resolve(body) } as Response);
     }),
   );
+}
+
+function paper(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '22222222-2222-2222-2222-222222222222',
+    documentId: '11111111-1111-1111-1111-111111111111',
+    paperFormat: 'descriptive',
+    extractionSource: 'native',
+    parserVersion: 'positional-v1',
+    extractionVersion: 1,
+    isCurrent: true,
+    pageCount: 3,
+    questionCount: 1,
+    mcqItemCount: 0,
+    needsReview: false,
+    reviewReason: null,
+    createdAt: '2026-08-27T10:00:00+05:30',
+    reviewSummary: {
+      total: 1,
+      unreviewed: 1,
+      accepted: 0,
+      corrected: 0,
+      rejected: 0,
+      needsReview: 0,
+    },
+    confidenceSummary: { high: 1, medium: 0, low: 0, reviewRequired: 0 },
+    ...overrides,
+  };
+}
+
+function question(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '33333333-3333-3333-3333-333333333333',
+    paperId: '22222222-2222-2222-2222-222222222222',
+    ordinal: 0,
+    questionNumber: '1',
+    module: '1',
+    text: 'Explain the phases of a compiler',
+    marks: 8,
+    bloomLevel: 'L2',
+    courseOutcome: 'CO1',
+    pageNumber: 1,
+    boundingBox: { x: 10, y: 20, width: 300, height: 12 },
+    confidence: 'high',
+    needsReview: false,
+    reviewState: 'unreviewed',
+    reviewed: null,
+    reviewNote: null,
+    reviewedAt: null,
+    reviewedBy: null,
+    subQuestions: [],
+    ...overrides,
+  };
 }
 
 describe('DocumentsPage', () => {
@@ -274,5 +339,174 @@ describe('DocumentsPage', () => {
     );
     render(<DocumentsPage />);
     expect(await screen.findByRole('button', { name: /try again/i })).toBeTruthy();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Extracted question structure (M5A.5)                                */
+  /* ------------------------------------------------------------------ */
+
+  describe('questions', () => {
+    async function openQuestions(extracted: { paper: unknown; questions: unknown[] }) {
+      mockApi([doc()], [], extracted);
+      render(<DocumentsPage />);
+      await screen.findByText('BCS403 paper.pdf');
+      await userEvent.click(screen.getByRole('button', { name: 'Show questions' }));
+    }
+
+    it('shows the paper type, where it was read from, and the parser version', async () => {
+      await openQuestions({ paper: paper(), questions: [question()] });
+
+      expect(await screen.findByText('Written answers')).toBeTruthy();
+      expect(screen.getByText("The document's own text")).toBeTruthy();
+      expect(screen.getByText(/positional-v1/)).toBeTruthy();
+    });
+
+    it('lists each question with its module, marks and page', async () => {
+      await openQuestions({ paper: paper(), questions: [question()] });
+
+      expect(await screen.findByText('Q1')).toBeTruthy();
+      expect(screen.getByText('Explain the phases of a compiler')).toBeTruthy();
+      expect(screen.getByText('Module 1')).toBeTruthy();
+      expect(screen.getByText('8 marks')).toBeTruthy();
+      expect(screen.getByText('Page 1')).toBeTruthy();
+    });
+
+    /*
+     * The word "accuracy" must never appear. The parser reports how much the
+     * LAYOUT agreed, which is answerable; how correct the reading is, it
+     * cannot know (docs/32 ED-46).
+     */
+    it('describes confidence as clarity, never as an accuracy score', async () => {
+      await openQuestions({ paper: paper(), questions: [question()] });
+
+      expect(await screen.findByText('Clear')).toBeTruthy();
+      expect(screen.queryByText(/accuracy/i)).toBeNull();
+      expect(screen.queryByText(/%/)).toBeNull();
+    });
+
+    it('says plainly when a question needs review', async () => {
+      await openQuestions({
+        paper: paper({ needsReview: true, reviewReason: '1 question should be checked.' }),
+        questions: [question({ confidence: 'review_required', needsReview: true })],
+      });
+
+      expect(await screen.findByText('Needs review')).toBeTruthy();
+      expect(screen.getByText('1 question should be checked.')).toBeTruthy();
+    });
+
+    /* A correction is shown, and so is the fact that it is a correction. */
+    it('shows a corrected value rather than the machine value', async () => {
+      await openQuestions({
+        paper: paper({
+          reviewSummary: {
+            total: 1,
+            unreviewed: 0,
+            accepted: 0,
+            corrected: 1,
+            rejected: 0,
+            needsReview: 0,
+          },
+        }),
+        questions: [
+          question({
+            reviewState: 'corrected',
+            reviewed: {
+              questionNumber: null,
+              module: null,
+              text: null,
+              marks: 10,
+              bloomLevel: null,
+              courseOutcome: null,
+            },
+          }),
+        ],
+      });
+
+      expect(await screen.findByText('10 marks')).toBeTruthy();
+      expect(screen.queryByText('8 marks')).toBeNull();
+      expect(screen.getByText('Corrected')).toBeTruthy();
+    });
+
+    it('lists sub-questions under their question', async () => {
+      await openQuestions({
+        paper: paper(),
+        questions: [
+          question({
+            subQuestions: [
+              {
+                id: '44444444-4444-4444-4444-444444444444',
+                questionId: '33333333-3333-3333-3333-333333333333',
+                ordinal: 0,
+                label: 'a',
+                text: 'Describe lexical analysis',
+                marks: 6,
+                bloomLevel: 'L2',
+                courseOutcome: 'CO1',
+                pageNumber: 1,
+                boundingBox: { x: 10, y: 40, width: 200, height: 12 },
+                confidence: 'high',
+                needsReview: false,
+                reviewState: 'unreviewed',
+                reviewed: null,
+                reviewNote: null,
+                reviewedAt: null,
+                reviewedBy: null,
+              },
+            ],
+          }),
+        ],
+      });
+
+      expect(await screen.findByText('Describe lexical analysis')).toBeTruthy();
+      expect(screen.getByText('a')).toBeTruthy();
+    });
+
+    /*
+     * `unknown` is a real outcome and says so. Presenting it as a broken app
+     * would be wrong: the document was read correctly and correctly found to
+     * match no template we know.
+     */
+    it('says the format could not be identified rather than guessing', async () => {
+      await openQuestions({
+        paper: paper({
+          paperFormat: 'unknown',
+          questionCount: 0,
+          needsReview: true,
+          reviewReason: 'The paper format could not be identified.',
+          reviewSummary: {
+            total: 0,
+            unreviewed: 0,
+            accepted: 0,
+            corrected: 0,
+            rejected: 0,
+            needsReview: 0,
+          },
+        }),
+        questions: [],
+      });
+
+      expect(await screen.findByText('Could not be identified')).toBeTruthy();
+      expect(screen.getByText(/No questions could be worked out/)).toBeTruthy();
+    });
+
+    it('says so when nothing has been extracted yet', async () => {
+      await openQuestions({ paper: null, questions: [] });
+      expect(await screen.findByText(/No question structure has been worked out/)).toBeTruthy();
+    });
+
+    /*
+     * Extracted text is rendered as TEXT. It came out of a PDF anyone could
+     * have crafted, and React escaping is what stops it becoming markup
+     * (docs/13 §T-21).
+     */
+    it('renders hostile extracted text as text, never as markup', async () => {
+      await openQuestions({
+        paper: paper(),
+        questions: [question({ text: '<img src=x onerror=alert(1)> Explain' })],
+      });
+
+      expect(await screen.findByText('<img src=x onerror=alert(1)> Explain')).toBeTruthy();
+      expect(document.querySelector('img')).toBeNull();
+    });
   });
 });

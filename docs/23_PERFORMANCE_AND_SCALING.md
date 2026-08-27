@@ -240,6 +240,25 @@ inside a request; a scan is dominated entirely by OCR and stays a background job
 TSV and hOCR cost the same to generate (759 vs 779 ms); hOCR is 2.1× the bytes
 and needs an XML parser. Nothing in this layer needs optimising.
 
+### 23.3.7 Question persistence (M5A.5)
+
+| Stage | Cost |
+|---|---|
+| Native paper: import → text → TSV → parse → persist 20 Q / 47 sub | **212 ms** |
+| Native paper, re-run (idempotent no-op) | ~5 ms |
+| Scanned paper: OCR → parse → persist, 6 pages | 4.3–7.0 s, **entirely OCR** |
+| Geometry from OCR (parse + group + parse structure) | ~7 ms |
+
+**The measured win is that OCR now happens once.** Emitting `txt tsv` in one
+recognition pass means the geometry costs nothing beyond the text, where asking
+for it separately would have doubled a ~759 ms/page workload.
+
+The native path stays inside a request. The scanned path stays a background job,
+for the same reason as before: OCR is seconds, and no request should wait on it.
+
+Persistence itself is one transaction of small inserts and does not appear in
+the measurements. No optimisation is warranted.
+
 ## 23.5 Caching
 
 Full table in `07` §7.8. The performance-relevant points:

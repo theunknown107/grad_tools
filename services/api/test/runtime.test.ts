@@ -205,7 +205,7 @@ describeDb('worker loop', () => {
   function stubOcr() {
     vi.spyOn(ocr, 'runOcr').mockResolvedValue({
       ok: true,
-      pages: [{ pageNumber: 1, text: 'Module-1 text' }],
+      pages: [{ pageNumber: 1, text: 'Module-1 text', tsv: '' }],
       text: 'Module-1 text',
       format: 'descriptive',
       config: { languages: 'eng', psm: 3, dpi: 150, needsReview: false, reviewReason: null },

@@ -10,6 +10,11 @@
 
 .page {
   display: grid;
+  /* minmax(0, 1fr), not the implicit auto: a grid column sized to max-content
+     cannot shrink below its widest child, and a file input carries a large
+     intrinsic width. Without this the page scrolls horizontally at 320px --
+     found by browser QA during M5A.5, present since M5A (docs/27 section 27.4). */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6);
   max-width: 62rem;
 }
@@ -47,6 +52,8 @@
 
 .import {
   display: grid;
+  /* Same reason as .page: this grid also holds the file input. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
   padding: var(--space-4);
   border: 1px solid var(--border);
@@ -64,6 +71,9 @@
 }
 
 .file {
+  /* An input's intrinsic width is not its layout width unless it is told so. */
+  width: 100%;
+  max-width: 100%;
   min-height: 44px;
   padding: var(--space-2);
   border: 1px solid var(--border-strong);
@@ -318,4 +328,95 @@
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* Extracted question structure (M5A.5). Deliberately quiet: a list of what was
+   found, not a dashboard of it. */
+.paper {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.questionList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.question {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-left: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.questionHead {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.questionNumber {
+  margin: 0;
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.questionText {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The facts a student scans for. Wrapped rather than tabulated: a marks column
+   that only sometimes has a value reads worse as a table than as a line. */
+.questionFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+}
+
+.subList {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0 0 0 var(--space-3);
+  list-style: none;
+  border-left: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.subList li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.subLabel {
+  flex: none;
+  min-width: 1.25rem;
+  font-family: var(--font-mono);
+  color: var(--text-subtle);
+}
+
+.subMarks {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-subtle);
+}
+
+.state[data-tone='warn'] {
+  border-color: var(--warn-border, var(--border));
+  color: var(--text-muted);
 }

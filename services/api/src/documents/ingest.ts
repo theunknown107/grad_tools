@@ -30,7 +30,10 @@ import type { Sql } from '../db/client.js';
 import type { ObjectStore } from './storage.js';
 import { storageKeyFor } from './storage.js';
 import { extractText, sectionize, EXTRACTOR_VERSION } from './extract.js';
+import { extractNativeStructure } from './positional.js';
+import { persistExtraction } from './persist.js';
 import { safeFilename, validateDocument } from './validate.js';
+import type { PersistOutcome } from '@gradtools/shared-types';
 
 export interface ImportRequest {
   readonly bytes: Buffer;
@@ -168,6 +171,8 @@ export interface ProcessOutcome {
   readonly sectionCount: number;
   readonly durationMs: number;
   readonly extractorVersion: string;
+  /** What the positional parser stored. Null when there was no text to parse. */
+  readonly paper: PersistOutcome | null;
 }
 
 /**
@@ -228,10 +233,28 @@ export async function processDocument(
     `;
   });
 
+  /*
+   * Structure, from the same bytes, in the same request.
+   *
+   * `pdftotext -tsv` costs 32 ms on a four-page paper against ~759 ms PER PAGE
+   * for OCR (docs/23 §23.3.6), so the native path can afford to do this inline
+   * while the scanned path cannot and does it in the OCR job instead.
+   *
+   * Only for a document that actually HAS a text layer. Running the positional
+   * parser over a scan's empty token stream would persist an empty paper and
+   * make "we found nothing" indistinguishable from "we have not read it yet".
+   */
+  let paper: PersistOutcome | null = null;
+  if (result.status === 'text_available') {
+    const extraction = await extractNativeStructure(bytes);
+    if (extraction !== null) paper = await persistExtraction(sql, id, extraction);
+  }
+
   return {
     extractionStatus: result.status,
     sectionCount: sections.length,
     durationMs: result.durationMs,
     extractorVersion: result.extractorVersion,
+    paper,
   };
 }

@@ -39,6 +39,17 @@ export function createApp(
   app.disable('x-powered-by');
 
   /*
+   * `<`, `>` and `&` are emitted as \uXXXX escapes in every JSON response.
+   *
+   * Defence in depth for M5A.5: extracted question text comes out of a PDF
+   * anyone could have crafted, and a response that is never valid HTML cannot
+   * be turned into markup by a client that mis-handles the content type. React
+   * escaping at render is the primary defence; this closes the gap before the
+   * bytes leave (docs/13 §T-21, M5A.5 §21).
+   */
+  app.set('json escape', true);
+
+  /*
    * Security headers.
    *
    * A JSON API needs a restrictive CSP even though it serves no HTML: it

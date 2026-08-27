@@ -16,7 +16,7 @@
 import { assertSafeExposure, loadConfig } from '../config.js';
 import { createClient } from '../db/client.js';
 import { LocalObjectStore } from '../documents/storage.js';
-import { ocrAvailable } from '../documents/ocr.js';
+import { availableLanguages, ocrAvailable } from '../documents/ocr.js';
 import { createLogger } from '../observability/logger.js';
 import { createShutdownHandler, generateWorkerId, logStartup, runWorkerLoop } from './runtime.js';
 
@@ -57,6 +57,19 @@ async function start(): Promise<void> {
     );
     process.exit(1);
     return;
+  }
+
+  /*
+   * Kannada is a WARNING, not a refusal: English-only OCR is still useful, and
+   * a worker that refused to start would be worse than one that says what it
+   * cannot do. Reported at startup rather than discovered per document, because
+   * a missing language pack degrades silently (docs/17 section 17.12).
+   */
+  if (!(await availableLanguages()).has('kan')) {
+    logger.warn(
+      'kan.traineddata is not installed: bilingual papers will be read as English only ' +
+        'and marked as needing review. Install it and set TESSDATA_PREFIX to enable Kannada.',
+    );
   }
 
   const sql = createClient(config.DATABASE_URL);

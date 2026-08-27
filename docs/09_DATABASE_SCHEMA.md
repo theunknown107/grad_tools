@@ -855,3 +855,74 @@ Rights and validation are **independent** preconditions and both are required.
 Having permission to show a document says nothing about whether it is safe to
 show. Putting it in a constraint rather than in the query means a second caller,
 an admin tool or a fix-up script cannot forget it.
+
+## 9.14 Extracted question tables (M5A.5)
+
+Migration `0007_extracted_questions.sql`. Forward-only; 0001–0006 are not
+edited.
+
+| Table | Holds |
+|---|---|
+| `extracted_papers` | One parser run over one document |
+| `extracted_questions` | Descriptive questions. `paper_format` pinned to `descriptive` |
+| `extracted_sub_questions` | The a/b/c parts, each with its own marks, box and review state |
+| `extracted_mcq_items` | MCQ items, with `options` as jsonb |
+
+### Identity, and why running the parser twice is a no-op
+
+```sql
+UNIQUE (document_id, parser_version)     -- the same parser twice is one run
+UNIQUE (document_id, extraction_version) -- versions are ordered per document
+CREATE UNIQUE INDEX ... ON extracted_papers (document_id) WHERE is_current;
+```
+
+`(document_id, parser_version)` is the identity. Re-running the same parser
+returns the existing run untouched — which is what protects any review already
+recorded against it. Running a NEW parser version creates a new
+`extraction_version`, flips `is_current`, and leaves every previous row exactly
+where it was. Reprocessing therefore adds; it never overwrites.
+
+Idempotence is the DATABASE's guarantee, not the application's good behaviour:
+a concurrent second run hits the unique key, and the caller reports the run that
+won rather than an error.
+
+### The format constraint, enforced rather than trusted
+
+```sql
+-- on extracted_papers
+UNIQUE (id, paper_format)
+
+-- on extracted_questions
+paper_format paper_format NOT NULL CHECK (paper_format = 'descriptive'),
+FOREIGN KEY (paper_id, paper_format)
+  REFERENCES extracted_papers (id, paper_format) ON DELETE CASCADE
+```
+
+The composite key costs one redundant column and buys a rule the database
+enforces: a descriptive question cannot attach to an MCQ or unknown paper. A
+rule that lives only in application code holds only until someone writes
+different application code (docs/14 §14.3).
+
+### Review columns
+
+Machine columns are immutable. Corrections live in `reviewed_*` beside them,
+under three CHECKs:
+
+| Constraint | What it prevents |
+|---|---|
+| `*_review_is_attributed` | A review state with no `reviewed_at` / `reviewed_by` — an unattributable human act |
+| `*_corrected_has_correction` | `corrected` with nothing actually changed |
+| `*_corrections_need_review` | A correction written onto an `unreviewed` row |
+
+`rejected` is a state, never a delete. Removing a low-confidence row would
+destroy the evidence a reviewer needs to tell a parser bug from a bad scan.
+
+### Indexes
+
+| Index | Serves |
+|---|---|
+| `extracted_papers_one_current` | The "show me this document's questions" query, and the one-current rule |
+| `extracted_papers_document` | Version history, newest first |
+| `extracted_questions_paper` | The ordered question list |
+| `extracted_questions_review_queue` | Partial: the rows a person still has to look at |
+| `extracted_sub_questions_question` | Sub-questions in order under their parent |

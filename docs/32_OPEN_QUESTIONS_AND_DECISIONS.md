@@ -642,6 +642,13 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5A | ED-37…ED-41 | Document lifecycle, validator corrections and the localhost boundary in Part B | Engineering (ED-38/39 evidence: real corpus) |
 | M5A.3 | DEC-022 | OCR implemented as specified by DEC-021: local Tesseract, asynchronous, no hosted service | Engineering |
 | M5A.1 | DEC-021 | OCR, when implemented, will be **local Tesseract** — privacy is decisive and structural fidelity beats raw accuracy | Engineering (evidence: 10-document benchmark) |
+| M5A.5 | ED-53 | Identity is `(document_id, parser_version)`; a new parser version creates a new `extraction_version` rather than overwriting | Makes re-running the parser a no-op and reprocessing additive. Human review recorded against an earlier run survives an upgrade, which "replace the rows" could not offer |
+| M5A.5 | ED-54 | Machine columns immutable; corrections in `reviewed_*` beside them | Effective value is `COALESCE(reviewed_x, x)` and the original stays visible. An audit trail that cannot show what the machine said is not one |
+| M5A.5 | ED-55 | `rejected` is a review state, never a delete | A removed row cannot tell a later reader whether the parser was wrong or the scan was. Low-confidence material is evidence, not noise |
+| M5A.5 | ED-56 | MCQ items are a separate table, enforced by a composite FK on `(paper_id, paper_format)` | An MCQ paper has no modules, Bloom's level, CO or marks. Null placeholders would invite "missing" to be read where the truth is "not applicable" — and the rule is enforced by the database, not by application code |
+| M5A.5 | ED-57 | OCR emits `txt tsv` in ONE recognition pass | The geometry then costs nothing beyond the text. Asking for it separately would double a ~759 ms/page workload to recompute what the engine already had |
+| M5A.5 | ED-58 | `PDFTOTEXT_BIN` is explicit, not left to PATH | Xpdf and poppler both ship a `pdftotext` and only poppler's supports `-tsv`. The wrong one disabled native positional extraction silently — 0 questions from papers that had yielded 20 and 12 |
+| M5A.5 | ED-59 | Installed OCR languages are asked for before the request, never inferred from failure | `-l eng+kan` without the pack returned English-only output with NO error and zero Kannada. There was no failure to detect afterwards, so the absence must be established first and reported |
 | M5A.4 | ED-50 | Positional TSV, not hOCR | Same information and speed, half the bytes, no XML — but decisively, `pdftotext -tsv` emits the same schema, so native PDFs and scans share one representation. hOCR has no native counterpart |
 | M5A.4 | ED-51 | Lines grouped by vertical overlap, not by the tools' line numbers | On a two-column paper the question text and its marks column are different blocks whose line numbers restart. Overlap is what reassembles `question \| marks \| L \| CO` as one row |
 | M5A.4 | ED-52 | A numbered row with nothing in the right-hand table is an instruction, not a question | Positional and needs no reading of the words. Trade-off accepted: a question whose entire marks column was lost is skipped rather than kept — which is why the worst scan yields nothing rather than unreliable rows |
@@ -659,3 +666,29 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5 | DEC-024 | Documents stored via an object-store interface, local driver, outside the repository | Human |
 | M5 | ED-37...ED-43 | Source and document engineering decisions in Part B | Engineering |
 | M5.1 | ED-44...ED-46 | Fetch and publication gate hardening in Part B | Engineering |
+
+---
+
+### OQ-030 — Is Kannada extraction still working?
+
+**Status:** OPEN · raised M5A.5
+
+**Why:** M5A.2 qualified Kannada with `kan.traineddata` installed and recovered
+3 922 codepoints. During M5A.5 real-document validation the same paper yielded
+`unknown` format and zero Kannada, because the language pack is **no longer
+installed on the development machine** (`tesseract --list-langs` → `eng`,
+`osd`).
+
+The pipeline now handles the absence honestly — English, a review flag, a stated
+reason, and a startup warning (ED-59). What is NOT established is whether
+Kannada extraction still performs as M5A.2 measured, because it has not been
+re-run with the pack present.
+
+**Decision needed:** whether to reinstall `kan.traineddata` and re-validate
+Kannada now, or to defer it until bilingual papers are actually in scope. This
+is a human decision because it involves installing a language model on the
+user's machine.
+
+**Consequence if deferred:** bilingual papers are read as English and marked for
+review. Nothing produces wrong data silently; some documents are simply less
+useful than they could be.
