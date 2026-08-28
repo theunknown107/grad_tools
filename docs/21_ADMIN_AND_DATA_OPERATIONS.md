@@ -400,3 +400,43 @@ What an operator still owns is unchanged — reference data, sources, documents
 and the extraction review workbench. A student's semesters, subjects, results
 and backlogs are outside that boundary entirely, and M6 did not move them into
 it.
+
+## 21.18 Announcement entry and verification (M7)
+
+The only way an announcement becomes student-visible.
+
+```
+POST /api/v1/announcements/entry     → draft, unpublished, invisible
+POST /api/v1/announcements/:id/publish (verifiedBy) → verified, published
+```
+
+Both are **loopback-only** — reachable from the machine running the API and
+nowhere else, the same boundary the document routes use. There is no public
+write and no admin UI in Stage 1.
+
+**Entry cannot publish.** The two acts are separate because storing a notice and
+vouching for it are different decisions; collapsing them would mean anything
+typed in was published by the act of typing it. `verifiedBy` is required — an
+unattributed verification is not a verification.
+
+### Operator entries have no source row
+
+`source_id` is `NULL`. Inventing a registry entry would put a fetch target in
+the source registry that nobody fetches, and would make an operator's typing
+look like an automated ingestion. `publisher` is a required field on every
+announcement instead.
+
+### Correcting a notice
+
+Re-entering changed content updates the row and **withdraws verification** — it
+returns to draft and unpublished, and must be verified again. The audience can
+be re-targeted without this happening, because re-targeting is a correction, not
+a new announcement.
+
+### Demo data
+
+`pnpm --filter @gradtools/api seed:demo` writes ten synthetic notices with
+`origin = 'demo_fixture'` and fictional publishers ("Demo University
+(synthetic)"). They pass the same publication gate as everything else, and the
+interface labels them **DEMO DATA**. It is a deliberate separate command: demo
+content never enters `seed.ts` and never reaches an environment by default.

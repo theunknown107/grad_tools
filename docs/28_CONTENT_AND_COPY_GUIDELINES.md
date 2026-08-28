@@ -298,3 +298,41 @@ every outbound link names its destination for screen readers.
 
 **Never** describe a subject strength as a percentile or a rank. The comparison
 is against the student's own average and nothing else, and the copy says so.
+
+## 28.11 Words for announcements (M7)
+
+GradTools shows notices. **It does not issue them**, and the copy never lets
+that blur.
+
+| Say | Not |
+|---|---|
+| "Academic notices. GradTools shows them; it does not issue them." | "Official announcements" |
+| "Demo data" (on every synthetic notice) | Nothing, or a subtle grey label |
+| "Deadline: 10 September (in 3 days)" | "Hurry — closing soon!" |
+| "Nothing here applies to you right now. Turn off the filter to see everything." | "No results" |
+| "No announcements yet. Notices appear here once a source is connected or an operator adds one." | "No announcements" |
+| "Could not reach the GradTools server. Try again" | An empty list |
+| "Open the original on `example.org` (opens in a new tab)" | "Read more" |
+| "It cannot notify you when the app is closed — that needs a server GradTools does not have yet." | "Enable notifications to stay updated" |
+| "Read state stays on this device." | Silence about it |
+
+### Urgency is a fact, not a tone
+
+The `urgent` badge appears only when a real deadline is within two days
+(§20.12). **Copy never adds urgency the data does not support** — no "important",
+no "act now", no exclamation marks manufactured from a category. A badge that
+sometimes overstates is a badge students learn to ignore, which costs exactly
+the notice that mattered.
+
+### Never impersonate VTU
+
+Demo publishers are visibly fictional ("Demo University (synthetic)"). The
+standing disclaimer — that GradTools is an independent student project, not
+affiliated with, endorsed by or connected to Visvesvaraya Technological
+University — sits on the same page as the feed.
+
+### Distinguish empty from broken
+
+An empty feed and an unreachable server are different sentences. Merging them
+teaches a student that "nothing new" and "GradTools is down" look identical,
+which makes the feed useless precisely when it matters.

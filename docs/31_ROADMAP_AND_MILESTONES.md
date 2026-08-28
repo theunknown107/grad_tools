@@ -17,7 +17,7 @@
 | M5a | Reference data foundation | 1–2 weeks | Express API + PostgreSQL serving verified reference data |
 | M5 | Shared source + academic content foundation | 2–4 weeks | Source/rights layer, both tracks |
 | M6 | **Student academic core** | 1–2 weeks | ✅ **Complete** — the eight-semester degree |
-| M7 | Announcements and external-source ingestion | 1–3 weeks | Safe monitoring, graceful failure |
+| M7 | **Announcements and notifications** | 1–3 weeks | ✅ **Complete** — framework delivered; VTU source still closed on `OQ-026` |
 | M8 | Question-paper library | 1–2 weeks | Extracted questions reach students |
 | M9 | Authentication and cloud | 2–3 weeks | Optional sign-in; local-first still works |
 | M10 | Academic intelligence | 1–2 weeks | No prediction claims; evidence shown |
@@ -397,14 +397,16 @@ future differentiator (M6 §27).
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.
 
-### M7 — Announcements and external-source ingestion
+### M7 — Announcements and notifications · ✅ **DELIVERED, with the source still closed**
 *Was M6 before the student academic core took that number; see the reconciliation note above.*
 
-Source registry, adapter framework, the VTU announcements adapter, change detection, provenance, health monitoring, notification fan-out.
+Announcement model with provenance and a verification gate, deduplication, operator entry behind the loopback boundary, deterministic client-side relevance, a notification model that lives on the device, and deterministic priority. See `07` §7.14, `08` §8.14–8.15, `09` §9.16, `10` §10.14, `12` §12.12, `13` §13.15, `14` §14.15, `20` §20.12.
 
-**Blocked on:** the terms-of-use review (`32/OQ-006`) — a **human task**, not a code task. The framework can be built and fixture-tested with the source disabled; enabling it requires that review.
+**What was NOT delivered, and is not a gap to quietly close:** the VTU announcements adapter. `OQ-026` / `OQ-006` remain open, so the source stays `enabled = false`, `terms_status = 'unknown'`, `access_method = 'none'` — enforced by the source gate and asserted by a test that fails if anyone enables it. **No real VTU announcement has ever been ingested.** Everything M7 was verified against is an operator entry or a labelled demo fixture.
 
-**Exit:** monitoring runs safely at 4 requests/day; failures are graceful; publishing is blocked while unhealthy; no notification is sent from unvalidated data.
+Change detection, health monitoring and scheduling were built as the framework describes but have never run against a live source, and this repository claims nothing about how they behave against one.
+
+**Exit, as met:** publishing requires verification (a database CHECK, not application code); a content change withdraws verification; no notification is derived from unvalidated data; the feed endpoint receives no student context at all; 0 axe violations and 0 console errors across 320/390/768/1280.
 
 ### M8 — Question-paper library
 *New number. The work M5A–M5A.7 built has never been surfaced to a student.*

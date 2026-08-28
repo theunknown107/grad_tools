@@ -276,3 +276,28 @@ exfiltration channel into the logs.
 
 Extraction reports its own duration, which is what `23` §23.12 was measured
 from.
+
+## 24.14 Announcement observability (M7)
+
+### What is worth watching
+
+| Signal | Why |
+|---|---|
+| Count of `draft` announcements | Work waiting for a human. A growing number means verification has stalled and students are seeing an increasingly stale feed |
+| Announcements whose verification was **withdrawn** by an update | A source rewriting notices after approval. A rising count is a source-quality signal, not a bug |
+| `last_seen_at` age per source | A source that stopped being reachable looks exactly like a source with nothing new. The timestamp distinguishes them |
+| Normalisation refusals (bad URL, empty title) | A source whose structure changed |
+| Feed p50 / p95 | Baselined in §23.13 |
+
+### What is deliberately not logged
+
+**Nothing about who read what.** There is no request-level student identity to
+log, because the feed endpoint receives none (§12.12). Read state never reaches
+the server, so there are no engagement metrics, and adding them would require
+changing the API contract — visibly.
+
+### Operational reality in Stage 1
+
+There is no dashboard and no alerting for announcements. The counts above are
+SQL queries an operator runs. Building an admin surface for them is deferred
+until there is a source producing enough volume to need one.

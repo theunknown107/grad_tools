@@ -597,3 +597,56 @@ A feature is done when **all** hold:
 | Backup restore rehearsed | Not required | **Required** |
 | Data quality checks passing | Required | Required |
 | Real-grade-card validation | Not required | **Required** |
+
+## 22.15 M7 — announcements and notifications
+
+**95 tests across three files.** 40 API tests against real PostgreSQL, 29 domain
+tests, 26 component tests.
+
+### What the API tests assert
+
+- The publication gate: an unverified row is not in the feed, and is **404** by
+  id — verified live as well as in tests (`404` before publish, `200` after).
+- Dedup by `(source_id, external_id)`, then by `(source_id, content_hash)`.
+- Unchanged content moves only `last_seen_at`; **changed content withdraws
+  verification** and unpublishes.
+- URL refusals: `javascript:`, `data:`, private hosts, credentialed URLs.
+- The deadline-before-publication CHECK.
+- **The VTU gate**: the source registry row reports `enabled = false`,
+  `terms_status = 'unknown'`, `access_method = 'none'`, and attempting to enable
+  it **throws**. This test exists so that a future change which quietly opens the
+  source fails the suite rather than shipping.
+- The feed endpoint accepts no student-context parameter.
+
+### What the domain tests assert
+
+Relevance as a **conjunction** (every non-null axis must match); `NULL` meaning
+"not targeted"; an unknown student value still showing the notice; deadline
+arithmetic on calendar days; **urgent only from a real deadline**; passed
+deadlines dropping back; read-then-changed becoming unread; dismissed surviving
+updates; one record per announcement id.
+
+### Browser QA (real Chromium, `@axe-core/playwright`)
+
+Run against a built bundle, a real API and a real PostgreSQL database seeded
+with demo fixtures.
+
+| Checked | Result |
+|---|---|
+| axe violations — 3 routes × 320/390/768/1280 | **0** |
+| Horizontal overflow, all widths | **0** |
+| Console errors | **0** |
+| Dashboard summary, list, filters, notification centre | Rendered |
+| Relevance filter | 11 notices for a matching student, 9 for a different one |
+| Unread count → mark read → mark all read → reload | 9 → 8 → none, and persisted |
+| Browser-notification permission on load | Not requested |
+| External link | Shows the host, `noopener noreferrer nofollow`, `_blank` |
+| Long body (1,559 chars) at 320px | No overflow |
+| Empty feed | "No announcements yet…" |
+| Unreachable API | "Could not reach the GradTools server. Try again" — distinct from empty |
+| Keyboard | Space toggles the filter checkbox |
+| Demo labelling | 11 of 11 labelled; no notice claims to be official VTU |
+
+The QA harness is scratch tooling and is **not committed** — it is rebuilt from
+this description when a milestone needs it, rather than kept as untested code in
+the repository.

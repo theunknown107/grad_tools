@@ -11,6 +11,7 @@
 
 export {
   AlertOctagon,
+  Bell as BellIcon,
   AlertTriangle,
   CalendarDays,
   Check,
@@ -23,6 +24,7 @@ export {
   Info,
   Lock as LockIcon,
   LayoutDashboard,
+  Megaphone,
   Plus,
   ShieldCheck as ShieldCheckIcon,
   Ban as SlashIcon,

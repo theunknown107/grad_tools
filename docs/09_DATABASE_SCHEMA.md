@@ -943,3 +943,50 @@ else that is *not* a student's own record remain server-backed and read-only.
 **What would force a table.** Signing in, syncing between devices, or a student
 sharing a record. None is in scope, and M6 §21 requires stopping to explain
 before adding one. Nothing in this milestone came close.
+
+## 9.16 The announcements table (M7, migration 0009)
+
+One table, two enums, five indexes. **Every rule that matters is a CHECK**, so
+it holds against a migration script, a psql session and a future service alike —
+not only against the code path that happens to exist today.
+
+### Enums
+
+| Type | Values |
+|---|---|
+| `announcement_category` | `results`, `exam_timetable`, `exam_registration`, `backlog`, `summer_semester`, `revaluation`, `fees`, `holiday`, `academic_calendar`, `college_notice`, `department_notice`, `general` |
+| `announcement_origin` | `external_source`, `operator_entry`, `demo_fixture` |
+
+Categories are an enum rather than free text because they drive filtering and
+muting; a typo would create a category no student can ever select.
+
+### Constraints
+
+| Constraint | Enforces |
+|---|---|
+| `announcement_publish_requires_verification` | A row may be `published` **only** if `verification = 'verified'` and `verified_at IS NOT NULL`. The publication gate is the database's, not the router's |
+| `announcement_external_needs_source` | `origin = 'external_source'` requires a `source_id`. A notice cannot claim to come from a source it does not name |
+| `announcement_deadline_after_publication` | `deadline_at >= published_at` when both exist. A deadline before its own notice is a data-entry error |
+| `announcement_branch_name_with_id` / `announcement_college_name_with_id` | An audience id must be accompanied by its name, because the client matches on names (§8.14) |
+| `canonical_url ~ '^https?://'` | Only http and https reach storage. The application allowlist (`normalize.ts`) is the first check, this is the one that cannot be bypassed |
+| `content_hash ~ '^[0-9a-f]{64}$'` | The hash is a hash |
+| `semester BETWEEN 1 AND 8` | An eight-semester degree |
+
+### Indexes
+
+| Index | Purpose |
+|---|---|
+| `announcements_source_identity` UNIQUE `(source_id, external_id)` WHERE both NOT NULL | Source-named identity |
+| `announcements_content_identity` UNIQUE `(source_id, content_hash)` WHERE `external_id IS NULL` | Content identity when the source names nothing |
+| `announcements_published_feed` | The feed query: published rows, newest first |
+| `announcements_category` | Category filtering |
+| `announcements_deadlines` | Deadline ordering |
+
+The two identity indexes are **partial**, which is what lets both coexist: a
+source that names its items uses the first and is excluded from the second.
+
+### No notification table
+
+There is none, and adding one is not an oversight to correct later without a
+decision: a per-student read flag needs a server-side student, which Stage 1
+does not have (§9.15). Read state lives in IndexedDB (§8.15).

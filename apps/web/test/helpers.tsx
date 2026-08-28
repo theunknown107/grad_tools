@@ -19,6 +19,7 @@ import type {
   StudentProfile,
   TimetableSlot,
 } from '../src/domain/types.js';
+import type { NotificationPreferences, NotificationRecord } from '../src/domain/notifications.js';
 import type { RepositoryBundle } from '../src/repositories/types.js';
 import { RepositoryProvider } from '../src/repositories/context.js';
 
@@ -30,6 +31,8 @@ export interface MemorySeed {
   semesters?: SemesterRecord[];
   semesterSubjects?: SemesterSubject[];
   backlogs?: BacklogRecord[];
+  notificationState?: NotificationRecord[];
+  notificationPreferences?: NotificationPreferences | null;
 }
 
 function listRepo<T extends { readonly id: string }>(initial: T[]) {
@@ -57,6 +60,9 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
   const semesters = listRepo<SemesterRecord>(seed.semesters ?? []);
   const semesterSubjects = listRepo<SemesterSubject>(seed.semesterSubjects ?? []);
   const backlogs = listRepo<BacklogRecord>(seed.backlogs ?? []);
+  let notificationState: NotificationRecord[] = [...(seed.notificationState ?? [])];
+  let notificationPreferences: NotificationPreferences | null =
+    seed.notificationPreferences ?? null;
 
   const bundle: RepositoryBundle = {
     profile: {
@@ -76,6 +82,20 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
     semesters,
     semesterSubjects,
     backlogs,
+    notifications: {
+      async listStates() {
+        return notificationState;
+      },
+      async saveStates(records) {
+        notificationState = [...records];
+      },
+      async getPreferences() {
+        return notificationPreferences;
+      },
+      async savePreferences(preferences) {
+        notificationPreferences = preferences;
+      },
+    },
   };
 
   return {
@@ -88,6 +108,8 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
       semesters: semesters.peek,
       semesterSubjects: semesterSubjects.peek,
       backlogs: backlogs.peek,
+      notificationState: () => notificationState,
+      notificationPreferences: () => notificationPreferences,
     },
   };
 }

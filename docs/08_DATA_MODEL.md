@@ -637,3 +637,91 @@ when it had not.
 one be added: a re-sit date is a university fact that must come from a verified
 source, and a student-entered one would look identical on screen and be trusted
 the same way (M6 §10).
+
+## 8.14 The announcement (M7)
+
+An announcement is a piece of published information with **provenance attached**
+— it records not only what was said but where it came from, who vouched for it,
+and when it was last seen unchanged.
+
+| Field | Meaning |
+|---|---|
+| `origin` | `external_source` \| `operator_entry` \| `demo_fixture`. The only honest answer to "where did this come from" |
+| `source_id` | The registry source it was fetched from. `NULL` for an operator entry — inventing a source row would put a fetch target in the registry that nobody fetches |
+| `publisher` | Who issued the notice, as text. Required on every record, including operator entries |
+| `external_id` | The source's own identifier, when it has one |
+| `content_hash` | SHA-256 over the *normalised* title, body, category, link and dates |
+| `verification` | `draft` \| `verified`. A record is invisible to students until this is `verified` |
+| `publication` | `unpublished` \| `published`. Gated by verification in a database CHECK, not in application code |
+| `first_seen_at` / `last_seen_at` | When it appeared and when it was last confirmed still there |
+| `normalizer_version` | Which normalisation produced this record, so a later correction is identifiable |
+
+### Identity and deduplication
+
+Two identities, tried in order:
+
+1. `(source_id, external_id)` — when the source names its own items, that name wins.
+2. `(source_id, content_hash)` — when it does not, the content is the identity.
+
+Both are partial unique indexes rather than application checks, so a concurrent
+re-fetch cannot produce two rows for one notice.
+
+**The hash covers normalised fields only.** Re-fetching a page whose whitespace
+or markup changed is not a new notice. A changed title, body, category, link or
+date is, which is exactly when an update should be recorded.
+
+**The audience is excluded from the hash.** Re-targeting an existing notice is
+an operator correction, not a new announcement.
+
+### When content changes, verification is withdrawn
+
+An updated announcement returns to `draft` / `unpublished`, and `verified_at`
+is cleared. Someone vouched for the text that was there; they did not vouch for
+whatever replaced it. The alternative — keeping the "verified" mark across an
+edit — would let a source silently change the content of a notice a human had
+already approved.
+
+### Audience: two columns per axis, on purpose
+
+| Axis | Stored as |
+|---|---|
+| Scheme | `scheme_id` (FK) |
+| Branch | `branch_id` (FK) **and** `branch_name` (text) |
+| College | `college_id` (FK) **and** `college_name` (text) |
+| Semester | `semester` (int) |
+
+The ids give referential integrity. The names exist because **the student
+profile stores names, not ids** (§8.13), and matching happens in the browser
+against the profile — so the name has to travel with the announcement or
+relevance could not be computed without asking the server who the student is.
+
+**A NULL axis means "not targeted on that axis", never "unknown".**
+
+## 8.15 Notification state (M7, local only)
+
+A notification is **not stored**. It is derived, per device, at read time:
+
+```
+notification = announcement  ×  local record  ×  relevance  ×  priority
+```
+
+The only persisted part is a small local record per announcement:
+
+| Field | Meaning |
+|---|---|
+| `announcementId` | Which announcement |
+| `state` | `read` \| `dismissed` |
+| `seenUpdatedAt` | The `updatedAt` this device has acknowledged |
+
+Rules that follow from this shape:
+
+- **A read announcement whose content later changes becomes unread again** — the
+  acknowledged `updatedAt` no longer matches. A student who read "the exam is on
+  the 4th" should not silently keep a read mark when it becomes the 11th.
+- **A dismissed announcement stays dismissed across updates.** Dismissal is a
+  decision about the notice, not about its current wording.
+- **One record per announcement id**, replaced rather than appended, so the store
+  cannot grow with every mark-as-read.
+
+Nothing here reaches the server, and there is no server-side notification table
+to reach.

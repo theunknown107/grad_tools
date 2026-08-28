@@ -286,3 +286,54 @@ IndexedDB at run time rather than committing a fixture (M6 §18).
 
 Unchanged: clearing site data removes everything, because everything is site
 data. There is no server copy to request the deletion of.
+
+## 12.12 The announcement feed cannot learn who is asking (M7)
+
+M7 is the first feature where a student sees content *chosen for them*. The
+usual way to build it is to send the profile to the server and let the server
+personalise. **GradTools does the opposite, structurally.**
+
+| Step | Where | What is sent |
+|---|---|---|
+| Fetch the feed | Server | Category and page. Nothing else |
+| Decide what is relevant | Device | Nothing leaves |
+| Decide what is urgent | Device | Nothing leaves |
+| Track read / unread / dismissed | Device | Nothing leaves |
+| Mute a category | Device | Nothing leaves |
+
+The request carries no branch, no semester, no college, no scheme, no profile id
+and no identifier of any kind. Two students on the same scheme in different
+branches send byte-identical requests.
+
+**This is a shape, not a promise.** A privacy policy that says "we do not
+profile you" depends on the operator continuing to mean it. An endpoint that
+accepts no student context cannot profile whoever it is run by, and the moment
+someone adds such a parameter the change is visible in the API contract, the
+tests and this document.
+
+The cost is real and accepted: the server cannot sort by relevance, so the
+device fetches more than it shows. Measured at 500 notices the local filter runs
+in well under a millisecond (§23.13), so the cost is paid in bandwidth, not in
+responsiveness.
+
+### Notification state
+
+Read, unread and dismissed live in IndexedDB. Consequences stated plainly to the
+student rather than assumed: **read state does not follow them to another
+device**, and clearing site data clears it. There is no server copy, so there is
+nothing to request the deletion of.
+
+### Browser notifications
+
+Permission is **never requested on page load**. It is requested only when a
+student presses the control that asks for it, and the UI states before they
+press it that the notification works only while GradTools is open — because
+without a server there is no push, and implying otherwise would be a promise the
+app cannot keep.
+
+### Demo content
+
+The synthetic notices seeded by `seed:demo` are labelled **DEMO DATA** in the
+interface and carry fictional publishers. They are never presented as official
+VTU communication, and the app's standing disclaimer that GradTools is not
+affiliated with or endorsed by VTU is on the page alongside them.

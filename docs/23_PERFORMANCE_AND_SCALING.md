@@ -433,3 +433,34 @@ overhead, not real-world document cost.
    orders of magnitude — that is when a queue earns its place (M5 §23).
 4. **12 pages of extracted text is 627 characters across 12 sections**, so
    `document_sections` rows are small and per-document row counts are modest.
+
+## 23.13 Measured in M7 — announcements and notifications
+
+Local PostgreSQL, 11 published announcements, 50 runs per endpoint.
+
+| Operation | p50 | p95 |
+|---|---|---|
+| `GET /announcements` (20) | 15.4 ms | 17.1 ms |
+| `GET /announcements?limit=100` | 15.4 ms | 16.5 ms |
+| `GET /announcements?category=results` | 15.6 ms | 16.3 ms |
+| `GET /announcements/filters` | 15.6 ms | 16.6 ms |
+
+Client-side, over a **synthetic 500-notice feed** — far larger than a real one,
+so these are ceilings rather than best cases (200 runs each):
+
+| Operation | p50 | p95 |
+|---|---|---|
+| Relevance filter | 0.01 ms | 0.04 ms |
+| `sortForStudent` | 3.77 ms | 4.19 ms |
+| `buildNotifications` | 0.18 ms | 0.29 ms |
+| Unread count | 0.00 ms | 0.01 ms |
+
+**This is the number that justifies the privacy design.** Client-side relevance
+was chosen so the server cannot profile (§12.12); the measurement says the cost
+of that choice is hundredths of a millisecond at five times a realistic feed
+size. The sort is the slowest local step because it recomputes priority per
+comparison — irrelevant at 100 notices, and the place to memoise if a feed ever
+reaches thousands.
+
+The feed is `Cache-Control: public, max-age=60`, which is only correct because
+the response is identical for every visitor.
