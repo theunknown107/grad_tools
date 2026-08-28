@@ -24,6 +24,7 @@ export {
   Info,
   Lock as LockIcon,
   LayoutDashboard,
+  Library as LibraryIcon,
   Megaphone,
   Plus,
   ShieldCheck as ShieldCheckIcon,

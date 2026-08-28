@@ -236,6 +236,109 @@ export const documentSchema = z.object({
 });
 export type DocumentRecord = z.infer<typeof documentSchema>;
 
+/* -------------------------------------------------------------------------- */
+/* The question-paper library (M8)                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What kind of document this is.
+ *
+ * `documents` was always generic. The library must not present a syllabus PDF
+ * as an examination paper, and `unknown` is the honest default for anything
+ * nobody has classified (M8 §7).
+ */
+export const documentKindSchema = z.enum(['question_paper', 'syllabus', 'other', 'unknown']);
+export type DocumentKind = z.infer<typeof documentKindSchema>;
+
+/**
+ * A paper as the library presents it.
+ *
+ * EVERY TAXONOMY FIELD IS NULLABLE, and null means "nobody has said", never
+ * "probably the usual value". A paper whose year is unknown shows no year
+ * rather than a guess, because a wrong year on a past paper sends a student to
+ * revise the wrong sitting (M8 §7).
+ *
+ * `availability` is `presentation` under the name a student would use for it,
+ * and it is the field that decides which actions the interface offers.
+ */
+export const questionPaperSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+
+  /** Set when the subject is in the catalogue; the taxonomy then comes from it. */
+  subjectId: z.string().nullable(),
+  subjectCode: z.string().nullable(),
+  subjectTitle: z.string().nullable(),
+  schemeId: z.string().nullable(),
+  branchId: z.string().nullable(),
+  branchName: z.string().nullable(),
+  semester: z.number().int().min(1).max(8).nullable(),
+
+  examYear: z.number().int().nullable(),
+  examSession: z.string().nullable(),
+
+  /** `unknown` is a real format, not a fallback to the commoner one. */
+  paperFormat: paperFormatSchema.nullable(),
+  pageCount: z.number().int().nullable(),
+
+  /**
+   * PROVENANCE — where it came from. Never a statement about permission
+   * (M8 §6): a paper can be perfectly attributed and still not redistributable.
+   */
+  sourceId: z.string().nullable(),
+  sourceName: z.string().nullable(),
+  sourceUrl: z.string().url().nullable(),
+
+  /** RIGHTS — what GradTools may actually do with it. A separate question. */
+  availability: presentationModeSchema,
+  rightsStatus: rightsStatusSchema,
+
+  /**
+   * Extraction, when a parser has already run over this paper. Structural
+   * counts only: nothing here claims the questions were read correctly, which
+   * is what `needsReview` exists to say (M8 §20).
+   */
+  questionCount: z.number().int().nullable(),
+  mcqItemCount: z.number().int().nullable(),
+  extractionSource: z.enum(['native', 'ocr']).nullable(),
+  parserVersion: z.string().nullable(),
+  needsReview: z.boolean().nullable(),
+
+  addedAt: z.string(),
+});
+
+export type QuestionPaper = z.infer<typeof questionPaperSchema>;
+
+/** One page of library results. */
+export const questionPaperPageSchema = z.object({
+  data: z.array(questionPaperSchema),
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+});
+
+/**
+ * The filter values present in the library right now.
+ *
+ * Served rather than hard-coded so the interface can hide a control that
+ * would return nothing whichever value is chosen (M8 §10).
+ */
+export const questionPaperFiltersSchema = z.object({
+  subjects: z.array(z.object({ code: z.string(), title: z.string().nullable() })),
+  schemes: z.array(z.string()),
+  branches: z.array(z.object({ id: z.string(), name: z.string() })),
+  semesters: z.array(z.number().int()),
+  years: z.array(z.number().int()),
+  formats: z.array(paperFormatSchema),
+  sources: z.array(z.object({ id: z.string(), name: z.string() })),
+});
+
+export type QuestionPaperFilters = z.infer<typeof questionPaperFiltersSchema>;
+
+/** How a library listing may be ordered. Nothing here claims importance (M8 §11). */
+export const paperSortSchema = z.enum(['newest', 'oldest', 'recently_added']);
+export type PaperSort = z.infer<typeof paperSortSchema>;
+
 /** What a client polls while a document is being read. */
 export const documentStatusSchema = z.object({
   id: z.string(),
@@ -819,4 +922,25 @@ export const SOURCE_ROUTES = {
    * cannot publish: an entry passes the same verification gate as a fetched one.
    */
   announcementEntry: '/api/v1/announcements/entry',
+
+  /* -- The question-paper library (M8) ------------------------------------- */
+
+  /**
+   * Publicly visible question papers.
+   *
+   * A LIBRARY VIEW OVER `documents`, not a second document model (M8 §4). The
+   * same publication and rights gates decide what appears here as decide the
+   * document listing; this route adds taxonomy, search and paging on top.
+   */
+  questionPapers: '/api/v1/question-papers',
+  questionPaper: (id: string) => `/api/v1/question-papers/${id}`,
+  /** The filter values that would actually return something. */
+  questionPaperFilters: '/api/v1/question-papers/filters',
+  /**
+   * The file itself, for `host` papers only.
+   *
+   * The id is opaque and the storage key is resolved server-side; no path,
+   * key or filename is ever accepted from a client (M8 §30).
+   */
+  questionPaperFile: (id: string) => `/api/v1/question-papers/${id}/file`,
 } as const;

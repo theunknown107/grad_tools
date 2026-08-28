@@ -337,3 +337,53 @@ The synthetic notices seeded by `seed:demo` are labelled **DEMO DATA** in the
 interface and carry fictional publishers. They are never presented as official
 VTU communication, and the app's standing disclaimer that GradTools is not
 affiliated with or endorsed by VTU is on the page alongside them.
+
+## 12.13 The library learns nothing about who is looking (M8)
+
+The same shape as the announcement feed (§12.12), applied to a screen where
+personalisation would be the obvious way to build it.
+
+| Step | Where | What is sent |
+|---|---|---|
+| Fetch the library | Server | Filters, a search term, a page |
+| Decide which papers are for this student's semester | Device | Nothing leaves |
+| Order the page around that | Device | Nothing leaves |
+
+The request carries no branch, no semester, no college, no scheme, no profile
+id and no identifier. **A student's semester influences what they see, and the
+server never learns what it is** — the browser fetches the public library and
+reorders it locally.
+
+The semester is a **hint, never a filter**. It moves papers up the page and
+offers a one-click shortcut; it never removes anything. A student revising for a
+backlog needs a semester-3 paper while sitting in semester 5, and a library that
+quietly hid them would be worse than no library (M8 §25, §26).
+
+### Search terms
+
+A search is the one parameter that reflects a person rather than a filter.
+Three consequences, all implemented:
+
+- It is **debounced** in the browser, so a settled word is one request rather
+  than one request per keystroke.
+- The response is `private, no-store`, so it never enters a shared cache.
+- Its value is **redacted from the request log**. The parameter's presence is
+  kept for diagnosis; what was typed is not (M8 §27).
+
+Nothing about USNs, names, private document titles or academic records is
+logged, because none of it is sent.
+
+### Private documents
+
+A student's own uploads remain `user_private`, which the database refuses to
+present any other way, and every library query excludes `private` and `blocked`
+at the query rather than filtering afterwards. Verified against five real
+imported papers: all five were invisible to the library and returned 404 by id
+(§22.16).
+
+### Demo content
+
+The synthetic papers seeded by `seed:demo-papers` are labelled **DEMO DATA** in
+the interface, carry a visibly fictional publisher, and are the only documents
+in the project that legitimately reach `host` — because GradTools wrote them and
+therefore holds the rights to them. `OQ-008` is untouched (M8 §42).

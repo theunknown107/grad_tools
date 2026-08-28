@@ -990,3 +990,49 @@ source that names its items uses the first and is excluded from the second.
 There is none, and adding one is not an oversight to correct later without a
 decision: a per-student read flag needs a server-side student, which Stage 1
 does not have (§9.15). Read state lives in IndexedDB (§8.15).
+
+## 9.17 The library columns (M8, migration 0010)
+
+No new table. One enum, seven columns and two indexes on `documents`.
+
+### Added
+
+| Column | Type | Notes |
+|---|---|---|
+| `document_kind` | `document_kind` NOT NULL DEFAULT `'unknown'` | `question_paper`, `syllabus`, `other`, `unknown` |
+| `subject_id` | uuid → `subjects` | When set, the taxonomy comes from the join |
+| `subject_code` | text (1–24) | Used only when `subject_id` is null |
+| `scheme_id` | text → `schemes` | Same |
+| `branch_id` | text → `branches` | Same |
+| `semester` | smallint 1–8 | Same |
+| `exam_year` | smallint 2015–2100 | The year printed on the paper. **Never inferred** |
+| `exam_session` | text (1–60) | Free text; VTU labels sittings inconsistently |
+
+### Constraints
+
+| Constraint | Enforces |
+|---|---|
+| `document_subject_is_stated_once` | `subject_id` and the loose columns are mutually exclusive, so the taxonomy cannot contradict itself |
+| `semester BETWEEN 1 AND 8` | An eight-semester degree |
+| `exam_year BETWEEN 2015 AND 2100` | A lower bound that is a data-entry check, not a claim about history |
+
+The rules the library depends on most were **already there** and are unchanged:
+`document_host_requires_rights`, `document_user_private_stays_private`,
+`document_link_requires_url`, `document_stored_only_when_held` and
+`document_public_requires_validation`. M8 relies on them rather than restating
+them, which is why an unvalidated paper cannot even be *stored* as publicly
+visible — a stronger guarantee than filtering one out of a query.
+
+### Indexes
+
+| Index | Purpose |
+|---|---|
+| `documents_library` — `(exam_year DESC NULLS LAST, created_at DESC)` WHERE the paper is a publicly visible question paper | The library's one listing query. Every filter narrows the same result set |
+| `documents_subject_lookup` — `(subject_id)` WHERE NOT NULL | The catalogue join |
+
+**Deliberately not added** (M8 §37): a per-column index for each filter, and a
+trigram index for search. Measured at 2,008 papers the planner uses
+`documents_library` and completes the listing in **0.44 ms** in-database
+(§23.14) — there is nothing for those indexes to improve, and an index no query
+reaches is write cost with no read benefit. They go in when a measurement asks
+for them.

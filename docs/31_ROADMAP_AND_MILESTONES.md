@@ -18,7 +18,7 @@
 | M5 | Shared source + academic content foundation | 2–4 weeks | Source/rights layer, both tracks |
 | M6 | **Student academic core** | 1–2 weeks | ✅ **Complete** — the eight-semester degree |
 | M7 | **Announcements and notifications** | 1–3 weeks | ✅ **Complete** — framework delivered; VTU source still closed on `OQ-026` |
-| M8 | Question-paper library | 1–2 weeks | Extracted questions reach students |
+| M8 | **Question-paper library** | 1–2 weeks | ✅ **Complete** — the library works; `OQ-008` keeps it nearly empty of real papers |
 | M9 | Authentication and cloud | 2–3 weeks | Optional sign-in; local-first still works |
 | M10 | Academic intelligence | 1–2 weeks | No prediction claims; evidence shown |
 | M11 | Admin and data quality | 1 week | Operator can diagnose any failure |
@@ -408,14 +408,16 @@ Change detection, health monitoring and scheduling were built as the framework d
 
 **Exit, as met:** publishing requires verification (a database CHECK, not application code); a content change withdraws verification; no notification is derived from unvalidated data; the feed endpoint receives no student context at all; 0 axe violations and 0 console errors across 320/390/768/1280.
 
-### M8 — Question-paper library
-*New number. The work M5A–M5A.7 built has never been surfaced to a student.*
+### M8 — Question-paper library · ✅ **DELIVERED, with the shelves nearly empty**
+*New number. The work M5A–M5A.7 built had never been surfaced to a student.*
 
-The extracted, reviewed question corpus reaches the student side: browse papers by subject and semester, read questions with their marks and modules, and see plainly which records a person has confirmed and which the parser produced alone.
+Browse, search and filter past papers by subject, code, scheme, branch, semester, year and format; open a hosted paper in the browser's own viewer; follow a link-only paper to its source. A view over `documents`, not a second document model. See `07` §7.15, `08` §8.16, `09` §9.17, `10` §10.15, `12` §12.13, `13` §13.16, `17` §17.20, `18` §18.10.
 
-**Blocked on:** human ground truth (`32/OQ-031`). Showing unreviewed extraction to students as though it were reliable is exactly what the review workbench exists to prevent.
+**The scope was read narrowly on purpose.** M8 is a finding tool. `OQ-031` blocks presenting extraction as reliable, so the library shows structural counts with the caveat attached and never a reviewed-versus-unreviewed claim about individual questions — the browsing surface exists, the corpus assertions do not.
 
-**Exit:** no unreviewed record is presented without saying so; rights and presentation gates (`32/OQ-008`) still hold; nothing is redistributed.
+**What is NOT delivered, and is not a gap to quietly close:** papers. `OQ-008` is open, so no third party's paper may be promoted to `host`, and the only documents that legitimately reach that state are the ten synthetic ones GradTools wrote itself. The library works; it is nearly empty of real material, and that is the rights model behaving correctly rather than failing.
+
+**Exit, as met:** rights and presentation gates hold and are enforced by the database, not by the router; `private` and `blocked` are 404 rather than 403; the file route accepts an opaque id and nothing else; no URL is fetched or proxied; no structural count is presented without saying it was not checked by a person; 0 axe violations and 0 app console errors across 320/390/768/1280.
 
 ### M9 — Authentication and cloud
 *New number. Anticipated by the repository boundary since M3, never scheduled.*

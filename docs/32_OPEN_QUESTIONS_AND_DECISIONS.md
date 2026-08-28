@@ -299,8 +299,9 @@ Every source starts in category 3. **No crawler is ever described as "safe" mere
 **Decision needed:** the human reads the terms and records the outcome in `external_sources.terms_note`.
 **Consequence if unresolved:** the announcements adapter cannot be enabled — the database constraint prevents it, and the source stays in category 3.
 
-### OQ-008 — Redistribution rights for question papers · **NARROWED — blocks public library only**
+### OQ-008 — Redistribution rights for question papers · **STILL OPEN after M8**
 **Why unresolved:** whether a third party may host and redistribute VTU question papers is genuinely unclear. **NOT VERIFIED.**
+**Status after M8: the public library is now BUILT and is nearly empty because of this question.** M8 shipped browsing, search, filtering, the paper page and the hosted-file route; the only documents that legitimately reach `host` are the ten synthetic papers GradTools wrote itself, and the database's `document_host_requires_rights` gate is what keeps it that way. Real material therefore lands as `link` or `private`. That is the rights model working, not the library failing — and it means the cost of leaving this question open is now visible rather than theoretical.
 **Resolved in M2 (`DEC-010`) — it no longer blocks the product.** The question was previously scoped as blocking M5 entirely; that was wrong. It blocks exactly one thing: *public redistribution of third-party documents.* Two tiers now share one pipeline:
 
 | | Private / experimental corpus | Public paper library |
@@ -920,3 +921,41 @@ to use the app at all.
 
 **Decision needed:** before a source is enabled — not before, since with no
 source there is nothing to verify.
+
+### OQ-034 — Who classifies a document as a question paper · **opened by M8**
+
+**Why unresolved:** `document_kind` defaults to `unknown` and nothing infers
+it, so a paper is invisible to the library until a person says what it is and
+which subject and sitting it belongs to. That was the right default — the
+alternative is guessing a year out of a filename — and it makes classification
+a manual step nobody has been assigned.
+
+**What this costs today:** nothing, because there are ten demo papers. It
+becomes the bottleneck the moment a source is enabled, in the same shape as
+announcement verification (`OQ-033`).
+
+**Options:** (a) an operator classifies each paper in an admin surface (M11);
+(b) a source adapter supplies taxonomy with the document and an operator
+confirms it; (c) accept a permanently partial library where unclassified papers
+are simply not findable.
+
+**Recommendation:** **(b)** where a source provides structured metadata, with
+(a) as the fallback. Never inference from filenames.
+
+**Decision needed:** before a paper source is enabled, not before.
+
+### OQ-035 — What "recently added" means once papers arrive in bulk · **opened by M8**
+
+**Why unresolved:** the library offers "recently added", ordered by
+`created_at`. A single bulk import of a few hundred papers would fill that
+ordering with one afternoon's work and make the control useless for months.
+
+**What M8 chose anyway:** the honest field. `created_at` is when GradTools got
+the document; there is no other timestamp that is not invented.
+
+**Options:** drop the sort once volume arrives; group bulk imports as a batch
+and order by batch; or leave it and accept that it answers "what did the
+operator do most recently", which is what it literally says.
+
+**Decision needed:** when a bulk import first happens. Not before, and not by
+guessing at it now.

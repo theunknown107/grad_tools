@@ -650,3 +650,72 @@ with demo fixtures.
 The QA harness is scratch tooling and is **not committed** — it is rebuilt from
 this description when a milestone needs it, rather than kept as untested code in
 the repository.
+
+## 22.16 M8 — the question-paper library
+
+**80 tests across three files.** 30 API tests against real PostgreSQL, 26
+domain tests, 24 component tests. No database test is skipped.
+
+### What the API tests assert
+
+- `host` and `link` appear; **`private` and `blocked` do not**, in the listing
+  and by id, where the answer is **404 rather than 403**.
+- A syllabus document does not appear in a question-paper library.
+- An unvalidated paper **cannot be stored** as publicly visible — the database
+  refuses the row, which is stronger than filtering it out.
+- The file route serves `host` only: 404 for `link` (no proxy), `private` and
+  `blocked`.
+- **Traversal has no input**: `../../etc/passwd`, `..%2f..%2f`, `C:\Windows`,
+  `aa/bb/cc` and malformed ids are all refused before a key is resolved.
+- `%` in a search is a character, not a wildcard.
+- Filters compose; an out-of-range value is ignored rather than fatal.
+- A catalogued subject supplies scheme, branch and semester; a missing year
+  stays null.
+- Unknown years sort **last**, in both directions.
+- The `documents` CHECKs hold: contradictory taxonomy, hosting without rights,
+  and a ninth semester are all refused.
+- The library returns the same result whatever a caller claims about
+  themselves, and a searched response is `private, no-store`.
+
+### What the domain and component tests assert
+
+A blocked paper gets no action even when it has a source URL; a link paper
+never offers a local open; absent metadata renders as nothing rather than a
+placeholder; the demo label follows the record's source, not its title; the
+semester hint reorders without filtering and **preserves the server's chosen
+order** within each group; no sort option claims importance; the extraction
+caveat is present and carries no accuracy figure; hostile titles render as text.
+
+### Browser QA (real Chromium, `@axe-core/playwright`)
+
+Against a built bundle, a real API and a real PostgreSQL database.
+
+| Checked | Result |
+|---|---|
+| axe violations — `/` and `/papers` at 320/390/768/1280, plus both detail pages | **0** |
+| Horizontal overflow, all widths | **0** |
+| Console errors | **0** app errors (two 404s, from the deliberate private/blocked probes) |
+| Papers listed / demo-labelled | 8 of 8 |
+| Private and blocked papers in the list | **0** |
+| Search `BCS403` → 2; no-match → empty state | as expected |
+| Filters: semester 4 → 4, year 2025 → 3, format mcq → 1, composed → 1 | as expected |
+| Sort oldest → 2022 paper; newest → 2025 paper | order respected |
+| Hosted paper | viewer frame loads, "Open in a new tab" present |
+| Link-only paper | "GradTools does not have a copy", **no frame**, original link shown |
+| Private / blocked by direct URL | "not in the library", no frame |
+| External link | host shown, `noopener noreferrer nofollow`, `_blank` |
+| Dashboard section and Browse all | present |
+| Keyboard | typing filters the list; Tab moves to the next control |
+
+### Real-document QA (§41)
+
+Five papers from the local corpus, imported through the private route. **None
+is committed; the corpus is gitignored.**
+
+| Paper | Outcome |
+|---|---|
+| Four native descriptive papers, one of them mathematics | Parsed: 10, 10, 18 and 22 questions |
+| One scan | `ocr_required`, and the extract route refused with a plain sentence rather than an error |
+| All five | `private` / `user_private` / `document_kind = 'unknown'`, **404 from the library by id and by file**, library total unchanged |
+
+The QA harness is scratch tooling and is not committed.

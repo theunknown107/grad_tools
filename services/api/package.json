@@ -13,7 +13,8 @@
     "seed": "tsx src/db/seed.ts",
     "seed:demo": "tsx src/db/seed-demo.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "tsc --noEmit -p tsconfig.build.json"
+    "build": "tsc --noEmit -p tsconfig.build.json",
+    "seed:demo-papers": "tsx src/db/seed-demo-papers.ts"
   },
   "dependencies": {
     "@gradtools/academic-rules": "workspace:*",

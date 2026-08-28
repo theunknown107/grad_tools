@@ -586,3 +586,61 @@ Requires `verifiedBy`. An unattributed verification is not a verification.
 | `GET /api/v1/notifications` | Needs a server-side student identity Stage 1 does not have (§9.16) |
 | `GET /api/v1/notifications/unread-count` | Same. Unread is computed on the device |
 | Any announcement write without loopback | Would be an unauthenticated public write to student-visible content |
+
+## 10.15 Endpoints — The question-paper library (M8)
+
+Three reads and one file. No writes: papers enter through the existing
+document routes (§10.7), not through the library.
+
+### `GET /api/v1/question-papers`
+
+| Query | Notes |
+|---|---|
+| `search` | Case-insensitive substring over the subject code, subject title, paper title, sitting and year. **Lexical, never semantic** (M8 §9, §46) |
+| `subject`, `scheme`, `branch`, `semester`, `year`, `format`, `source` | Compose with AND |
+| `sort` | `newest` (default), `oldest`, `recently_added` |
+| `limit`, `offset` | Default 20, capped at 100 |
+
+**No student-context parameter, and none may be added** (M8 §25). A branch or
+semester parameter used for personalisation is indistinguishable from one used
+for profiling, so relevance is computed in the browser instead.
+
+**An out-of-range filter is ignored rather than rejected.** These values arrive
+in URLs students edit and share, so `semester=99` is far more likely a stale
+link than an attack, and showing the library is a more useful answer than an
+error. This is deliberately different from the announcement category (§10.14),
+which is a closed set a client should never get wrong.
+
+**Caching depends on the search.** No search → `public, max-age=60`, because
+the response is identical for every visitor. With a search → `private,
+no-store`: a search term reflects a particular person, and a shared cache is
+the wrong place for it.
+
+### `GET /api/v1/question-papers/filters`
+
+The filter values that would actually return something, so the interface never
+offers a semester with no papers in it. Nulls are excluded — "unknown year" is
+not a year to filter by.
+
+### `GET /api/v1/question-papers/:id`
+
+A `private` or `blocked` paper is **404, not 403**. "It exists but is not
+yours" is itself a disclosure about someone else's document.
+
+### `GET /api/v1/question-papers/:id/file`
+
+The bytes, for `host` papers only — which the database will not permit without a
+dated rights determination.
+
+| Property | |
+|---|---|
+| Input | **One opaque uuid.** No path, key or filename is accepted from a client under any name (M8 §30) |
+| Not a proxy | A `link` paper returns 404. This route never fetches from an origin (M8 §15) |
+| `Content-Type` | Fixed `application/pdf`, with `nosniff`. The stored MIME type is not read, so a wrong value in that column cannot decide how a browser interprets the response |
+| `Content-Disposition` | `inline`, with a **generated** filename. The stored original filename is user-supplied text and never reaches a header |
+| Framing | The one place this API permits it: `frame-ancestors` is set to the same origins CORS trusts, and `X-Frame-Options` is removed so it cannot override the CSP |
+
+### Search terms are not logged
+
+The request logger redacts the `search` parameter's value from the logged URL
+(§12.13). The parameter's presence is kept; what a student typed is not.

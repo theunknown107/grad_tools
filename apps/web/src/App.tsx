@@ -1,8 +1,8 @@
 /**
  * Route table.
  *
- * Only Stage 1 destinations exist. Papers, Syllabus and Notifications are
- * later, individually approved milestones and are absent rather than stubbed.
+ * Only approved destinations exist. Syllabus is a later, individually
+ * approved milestone and is absent rather than stubbed.
  */
 
 import { Route, Routes } from 'react-router-dom';
@@ -17,6 +17,8 @@ import { AttendancePage } from './features/attendance/AttendancePage.js';
 import { ResultsPage } from './features/results/ResultsPage.js';
 import { TimetablePage } from './features/timetable/TimetablePage.js';
 import { ProfilePage } from './features/profile/ProfilePage.js';
+import { PapersPage } from './features/papers/PapersPage.js';
+import { PaperDetailPage } from './features/papers/PaperDetailPage.js';
 import { NotFoundPage } from './features/NotFoundPage.js';
 
 export function App() {
@@ -31,6 +33,8 @@ export function App() {
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/timetable" element={<TimetablePage />} />
+        <Route path="/papers" element={<PapersPage />} />
+        <Route path="/papers/:id" element={<PaperDetailPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />

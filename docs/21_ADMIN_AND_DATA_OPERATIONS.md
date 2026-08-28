@@ -440,3 +440,49 @@ a new announcement.
 (synthetic)"). They pass the same publication gate as everything else, and the
 interface labels them **DEMO DATA**. It is a deliberate separate command: demo
 content never enters `seed.ts` and never reaches an environment by default.
+
+## 21.19 Putting a paper in the library (M8)
+
+There is no library write endpoint. A paper reaches students through the
+document routes that already existed, plus the taxonomy that M8 added.
+
+1. **Import** the bytes (`POST /documents/import`) — arrives `user_private`.
+2. **Classify** it: set `document_kind = 'question_paper'` and the taxonomy —
+   the catalogued `subject_id`, or the loose subject/scheme/branch/semester,
+   never both (§9.17).
+3. **Determine rights.** `presentation` may only become `host` with a dated
+   `rights_status = 'permitted'`, which the database enforces.
+4. **Validate.** `state` must reach `validated` or `extracted`, or the row
+   cannot be publicly visible at all.
+
+Steps 3 and 4 are independent and both are required. **While `OQ-008` is open,
+step 3 cannot honestly be completed for a third party's paper** — so the
+default outcome for real material is `link` or `private`, and that is the
+intended outcome, not a limitation to work around (M8 §42).
+
+### Nothing is inferred at any step
+
+Not the year from a filename, not the semester from a number in a title, not
+the branch from subject text. An operator who does not know a field leaves it
+null, and the interface shows nothing rather than a guess.
+
+### Demo papers
+
+```
+pnpm --filter @gradtools/api seed:demo-papers
+```
+
+Ten synthetic papers covering every availability mode and every format,
+including deliberately incomplete metadata and one very long title. The PDFs are
+**generated at seed time, never committed** — which also means the demo corpus
+cannot accidentally acquire a real paper by someone dropping one into a
+fixtures directory (M8 §18, §19).
+
+It is a separate command from `seed:demo` and from `seed`. Nothing runs it
+implicitly.
+
+### Extraction is still a separate act
+
+Seeding writes documents; it does not parse them. Structure appears in the
+library only after the existing pipeline has run over a paper, which is why a
+freshly seeded library shows no question counts.

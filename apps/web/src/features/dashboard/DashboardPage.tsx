@@ -54,6 +54,7 @@ import {
 } from '../../hooks/useCollection.js';
 import { buildSemesterViews, currentSemester, summariseBacklogs } from '../../domain/academics.js';
 import { LatestAnnouncements } from '../announcements/AnnouncementsPage.js';
+import { RecentPapers } from '../papers/PapersPage.js';
 import styles from './dashboard.module.css';
 
 const ruleSet = vtu2022RuleSet;
@@ -114,6 +115,8 @@ export function DashboardPage() {
           {/* What is new, above the standing figures: a student opens the app
               to find out what has happened (M7 §25). */}
           <LatestAnnouncements />
+          {/* A resource on the dashboard, not the subject of it (M8 §24). */}
+          <RecentPapers />
           <AcademicOverview results={results} />
           <AttendanceConcerns attendance={attendance} />
           <TodaySchedule timetable={timetable} />

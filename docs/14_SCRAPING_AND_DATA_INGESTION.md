@@ -421,3 +421,31 @@ invented deadline is worse than no deadline — a student would plan around it.
 No model, no embedding, no classification. Category comes from the source or the
 operator; priority is computed from timestamps (§20.12). Urgency is never
 derived from wording.
+
+## 14.16 M8 fetched nothing
+
+The question-paper library is a **read-only view over documents that were
+already there** (§7.15). It added no adapter, no scheduler, no fetch and no
+source.
+
+**No VTU source was enabled, and none may be.** `vtu.ac.in` remains blocked on
+the terms review (`OQ-006` / `OQ-026`); `results.vtu.ac.in` remains
+`prohibited` by its own robots.txt. The gate is unchanged and untouched.
+
+**No third-party paper site was contacted.** The demo fixtures link to
+`example.org`, deliberately: pointing a fixture at a real paper site would be
+presenting somebody else's material as part of this library, which is the exact
+thing the rights model exists to prevent (M8 §43).
+
+### The one new source row is not a fetch target
+
+`seed:demo-papers` inserts a `demo-question-papers` source so the synthetic
+papers have honest provenance. It is `access_method = 'none'`, `enabled =
+false`, and nothing polls it. It exists to be *attributed*, not to be read.
+
+### Where a real paper would enter
+
+Unchanged: the private import route, which takes **bytes and not a URL**, so it
+cannot be turned into an SSRF gadget by any input (§14.9). A paper reaching the
+library from there would still need a rights determination it cannot have while
+`OQ-008` is open.

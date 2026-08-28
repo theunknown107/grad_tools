@@ -460,3 +460,56 @@ stated plainly to the student rather than quietly assumed.
 | `GET /notifications`, `/unread-count` | Would require a server-side student identity that Stage 1 does not have |
 | Web Push (VAPID, service worker) | Needs a server, a subscription store and an identity. The opt-in Notification API works only while the app is open, and the UI says so |
 | A public write endpoint | Announcement creation is loopback-only and cannot publish (§10.14) |
+
+## 7.15 The question-paper library (M8)
+
+M8 adds no new subsystem. It adds a **view**.
+
+```
+        documents            ← the record that already existed (§7.12)
+      + document_kind        ← is this a question paper at all
+      + taxonomy columns     ← which subject, which sitting
+            |
+     GET /api/v1/question-papers      list, filter, search, page
+     GET /api/v1/question-papers/:id  one paper
+     GET /api/v1/question-papers/:id/file   host only, opaque id
+            |
+     ─────── the device boundary ───────
+            |
+     domain/papers.ts   actions, semester hint, display facts
+            |
+     the browser's own PDF viewer, in an iframe
+```
+
+**There is no second document model** (M8 §4). A question paper is a document;
+its rights, its presentation mode, its validation state, its page count and its
+extraction all already lived on `documents` and `extracted_papers`. Duplicating
+any of it would have created two answers to the same question and a synchronisation
+job to keep them agreeing.
+
+**There is no second visibility rule.** The library reuses the M5.1 condition —
+`presentation IN ('host','link') AND state IN ('validated','extracted')` — and
+adds only the kind. A second rule is a second thing to get wrong, and the two
+would drift the first time one of them was corrected.
+
+### What was genuinely missing, and is what M8 added
+
+Taxonomy. Nothing in the schema recorded which subject a paper belonged to or
+which sitting it came from, so no interface could have let a student find a
+paper by subject and year however it was written. Migration `0010` closes that
+gap and closes nothing else (§9.17).
+
+### The privacy shape is the same as M7's
+
+The listing endpoint accepts filters and a search term and **no student
+context** — no branch, no semester, no profile (§12.13). Which papers matter to
+this student is decided in the browser, from a profile that never leaves it.
+
+### What M8 deliberately did not build
+
+| Not built | Why |
+|---|---|
+| A PDF renderer | The browser has one, and it is better than anything worth writing here (M8 §35) |
+| A fetch or proxy for `link` papers | GradTools does not have those files, and pulling them through the server would make it a proxy for material whose rights nobody established (M8 §15) |
+| Any authentication | Stage 1 is local-first; `private` is enforced by excluding it from every public query, not by a login (M8 §16, §44) |
+| Semantic search, similarity, recommendations | M8 is a deterministic library. The intelligence milestone is separate and unstarted (M8 §3, §46) |

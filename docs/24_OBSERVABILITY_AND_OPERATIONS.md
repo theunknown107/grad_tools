@@ -301,3 +301,29 @@ changing the API contract — visibly.
 There is no dashboard and no alerting for announcements. The counts above are
 SQL queries an operator runs. Building an admin surface for them is deferred
 until there is a source producing enough volume to need one.
+
+## 24.15 Library observability (M8)
+
+### What is worth watching
+
+| Signal | Why |
+|---|---|
+| Papers by `presentation` | `link` and `private` growing while `host` stays flat is the expected shape while `OQ-008` is open. `host` growing is a signal to check why |
+| Papers with `document_kind = 'unknown'` | Documents nobody has classified. They are invisible to students, so a rising count means work queued, not a fault |
+| Papers with a null `exam_year` or null subject | Findable, but not by the filters students actually use. A quality backlog, not an error |
+| Papers with no extraction run | The library shows them with no structure panel, which is correct and also means the pipeline has not reached them |
+| File-route 404 rate | A student following a stale link, or someone probing ids. Worth distinguishing by volume |
+
+### What is deliberately not logged
+
+**Search terms.** The request logger redacts the `search` parameter's value
+(§12.13); the parameter's presence survives, the text does not. There is no
+per-student request identity to log, so there are no engagement metrics for
+which papers a given person opened — and adding them would require changing the
+API contract, visibly.
+
+### Operational reality in Stage 1
+
+The counts above are SQL an operator runs. There is no dashboard and no
+alerting for the library, and building one is deferred until there is enough
+volume to need it.
