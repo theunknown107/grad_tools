@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { VTU_2022_RULE_SET_ID } from '@gradtools/academic-rules';
+import { getActiveRuleSetForScheme, VTU_2022_RULE_SET_ID } from '@gradtools/academic-rules';
 import {
   analyseStrengths,
   buildSemesterViews,
@@ -136,38 +136,86 @@ describe('the eight-semester degree', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('rule-set pinning', () => {
+  /* A. A pin that resolves is authoritative. */
   it('grades a semester under the rule set it was entered with', () => {
     const resolved = ruleSetForResult(result(1, [['BMATS101', 4, 'A']]));
-    expect(resolved.pinned).toBe(true);
+    expect(resolved.resolution).toBe('pinned');
     expect(resolved.ruleSet?.id).toBe(VTU_2022_RULE_SET_ID);
   });
 
   /*
-   * Records saved before M6 have no pin. They fall back to the scheme's active
-   * rule set, and the caller is told — "graded under the rules of its own time"
-   * and "graded under whatever is current" are different claims (M6 §6).
+   * C. Records saved before M6 have no pin. They fall back to the scheme's
+   * active rule set, and the caller is told - "graded under the rules of its own
+   * time" and "graded under whatever is current" are different claims (M6 6).
    */
   it('falls back for a record saved before pinning existed, and says so', () => {
     const resolved = ruleSetForResult(result(1, [['BMATS101', 4, 'A']], { ruleSetId: null }));
-    expect(resolved.pinned).toBe(false);
+    expect(resolved.resolution).toBe('fallback');
     expect(resolved.ruleSet?.id).toBe(VTU_2022_RULE_SET_ID);
   });
 
-  it('reports the pin state on every semester view', () => {
+  /*
+   * B. THE UNSAFE CASE. A record pins a rule set this build does not have. The
+   * scheme is perfectly valid and its active rule set is right there - and it
+   * must NOT be used. Falling back would re-grade a completed semester under a
+   * regulation it was never sat under, produce a plausible SGPA, and give no
+   * sign that anything had happened.
+   */
+  it('never falls back to the current rules when a pinned rule set is missing', () => {
+    const resolved = ruleSetForResult(
+      // Valid scheme, so the active rule set IS resolvable. It still must not win.
+      result(1, [['BMATS101', 4, 'A']], { ruleSetId: 'vtu-2029-imaginary' }),
+    );
+
+    expect(resolved.resolution).toBe('unavailable');
+    expect(resolved.ruleSet).toBeUndefined();
+    expect(resolved.missingRuleSetId).toBe('vtu-2029-imaginary');
+    // The fallback the scheme would have offered, proving it was available.
+    expect(getActiveRuleSetForScheme('vtu-2022')?.id).toBe(VTU_2022_RULE_SET_ID);
+  });
+
+  it('computes nothing for a semester whose pinned rule set is missing', () => {
+    const views = buildSemesterViews(
+      [],
+      [result(1, [['BMATS101', 4, 'O']], { ruleSetId: 'vtu-2029-imaginary' })],
+    );
+
+    expect(views[0]?.sgpaComputed).toBeNull();
+    expect(views[0]?.ruleSetResolution).toBe('unavailable');
+    expect(views[0]?.missingRuleSetId).toBe('vtu-2029-imaginary');
+  });
+
+  /* An ungradeable semester must not silently enter the cumulative figures. */
+  it('leaves an ungradeable semester out of CGPA rather than guessing at it', () => {
+    const views = buildSemesterViews(
+      [],
+      [
+        result(1, [['BMATS101', 4, 'O']]),
+        result(2, [['BMATS201', 4, 'P']], { ruleSetId: 'vtu-2029-imaginary' }),
+      ],
+    );
+    const standing = cumulativeStanding(views);
+
+    expect(standing.semestersCompleted).toBe(1);
+    expect(standing.cgpa).toBe(10);
+  });
+
+  /* A subject from an ungradeable semester has no grade point to compare. */
+  it('gives a subject from an ungradeable semester no grade point', () => {
+    const views = buildSemesterViews(
+      [],
+      [result(1, [['BMATS101', 4, 'O']], { ruleSetId: 'vtu-2029-imaginary' })],
+    );
+    expect(subjectPerformance(views)[0]?.gradePoint).toBeNull();
+  });
+
+  it('reports the resolution on every semester view', () => {
     const views = buildSemesterViews(
       [],
       [result(1, [['BMATS101', 4, 'A']]), result(2, [['BMATS201', 4, 'A']], { ruleSetId: null })],
     );
-    expect(views[0]?.ruleSetPinned).toBe(true);
-    expect(views[1]?.ruleSetPinned).toBe(false);
-  });
-
-  it('does not grade a semester whose pinned rule set is unknown to this build', () => {
-    const views = buildSemesterViews(
-      [],
-      [result(1, [['BMATS101', 4, 'A']], { ruleSetId: 'vtu-2029-imaginary', schemeId: 'nope' })],
-    );
-    expect(views[0]?.sgpaComputed).toBeNull();
+    expect(views[0]?.ruleSetResolution).toBe('pinned');
+    expect(views[1]?.ruleSetResolution).toBe('fallback');
   });
 });
 

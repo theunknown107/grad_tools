@@ -22,7 +22,7 @@ The pilot does not begin until **all** are true:
 | 1 | Alpha released and stable for 4+ weeks | Release notes, error rate |
 | 2 | Stage 2 testing complete with 10+ students | Usage evidence, feedback |
 | 3 | **Academic calculations validated against real grade cards** | `22` §3 |
-| 4 | Security review complete | `13`, `31` M9 |
+| 4 | Security review complete | `13`, `31` M12 |
 | 5 | Accessibility manual pass complete | `27` §13 |
 | 6 | Privacy documentation reviewer-ready | `12` |
 | 7 | Question-paper licensing question resolved | `32/OQ-008` |

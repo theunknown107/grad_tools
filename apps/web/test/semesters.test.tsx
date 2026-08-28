@@ -471,3 +471,57 @@ describe('current semester on the dashboard', () => {
     });
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* An unavailable historical rule set                                         */
+/* -------------------------------------------------------------------------- */
+
+describe('a semester whose rules this build does not have', () => {
+  function pinnedToMissing(): SemesterResult {
+    return {
+      ...result(2, [['BMATS201', 4, 'O']]),
+      // A valid scheme, so the current rules ARE available. They must not be used.
+      ruleSetId: 'vtu-2029-imaginary',
+    };
+  }
+
+  /*
+   * D. THE SCREEN SAYS SO. Silence here would be the worst outcome: a blank
+   * SGPA that looks like an entry the student forgot, beside semesters that
+   * worked.
+   */
+  it('says which rules are missing rather than leaving a silent blank', async () => {
+    const { bundle } = createMemoryRepositories({ results: [pinnedToMissing()] });
+    renderWith(<SemestersPage />, { repositories: bundle });
+
+    expect(await screen.findByText(/rules this version of GradTools does not have/)).toBeTruthy();
+    expect(screen.getByText(/vtu-2029-imaginary/)).toBeTruthy();
+  });
+
+  it('does not show an SGPA worked out under the current rules', async () => {
+    const { bundle } = createMemoryRepositories({ results: [pinnedToMissing()] });
+    renderWith(<SemestersPage />, { repositories: bundle });
+
+    await screen.findByText(/rules this version of GradTools does not have/);
+    // 'O' on 4 credits is 10.00 under the current rules. It must not appear.
+    expect(screen.queryByText('10.00')).toBeNull();
+  });
+
+  /* The fallback wording belongs to a record with NO pin, and only that. */
+  it('does not claim it was read under the current rules', async () => {
+    const { bundle } = createMemoryRepositories({ results: [pinnedToMissing()] });
+    renderWith(<SemestersPage />, { repositories: bundle });
+
+    await screen.findByText(/rules this version of GradTools does not have/);
+    expect(screen.queryByText(/read under the current rules/)).toBeNull();
+  });
+
+  it('still says so for a record saved before rule versions were recorded', async () => {
+    const { bundle } = createMemoryRepositories({
+      results: [{ ...result(2, [['BMATS201', 4, 'O']]), ruleSetId: null }],
+    });
+    renderWith(<SemestersPage />, { repositories: bundle });
+
+    expect(await screen.findByText(/read under the current rules/)).toBeTruthy();
+  });
+});

@@ -50,7 +50,7 @@ Everything at P0 and P1 in `02`, verified against Stage 2 evidence.
 
 ## 30.3 Feature freeze
 
-Freeze occurs at the end of Stage 2 (`31` M10), driven by evidence rather than ambition.
+Freeze occurs at the end of Stage 2 (`31` M13), driven by evidence rather than ambition.
 
 **Promotion criteria for a P2 feature:**
 - Requested or used by ≥ 30% of the Stage 2 cohort, **and**

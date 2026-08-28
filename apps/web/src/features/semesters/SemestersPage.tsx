@@ -215,15 +215,29 @@ export function SemestersPage() {
                   )}
 
                   {/*
-                    A semester graded under a rule set it did not pin is being
-                    read under today's rules. Said out loud, because a
-                    regulation change must not silently re-grade the past.
+                    A semester read under today's rules rather than its own is
+                    said out loud: a regulation change must not silently
+                    re-grade the past.
                   */}
-                  {view.result !== null && !view.ruleSetPinned && (
+                  {view.result !== null && view.ruleSetResolution === 'fallback' && (
                     <p className={styles.note}>
                       Saved before rule versions were recorded, so it is read under the current
                       rules.
                     </p>
+                  )}
+
+                  {/*
+                    THE RULES THIS SEMESTER WAS GRADED UNDER ARE MISSING. Nothing
+                    is calculated and nothing is substituted - an SGPA produced
+                    under a different regulation would look entirely normal and
+                    be wrong (M6 section 6).
+                  */}
+                  {view.ruleSetResolution === 'unavailable' && (
+                    <Notice tone="warning">
+                      This semester was graded under rules this version of GradTools does not have (
+                      {view.missingRuleSetId}). Its SGPA is left blank rather than worked out under
+                      the current rules.
+                    </Notice>
                   )}
 
                   <div className={styles.semesterActions}>

@@ -36,25 +36,46 @@ import type { BacklogRecord, SemesterRecord, SemesterResult, SemesterStatus } fr
 /* -------------------------------------------------------------------------- */
 
 /**
- * The rule set a saved semester must be graded under.
+ * How a saved semester's rule set was determined.
  *
- * A semester entered from M6 onward pins its `ruleSetId`, and that pin wins.
- * Records saved earlier have none, so they fall back to the scheme's active set
- * — and the caller is told, because "graded under the rules of its own time"
- * and "graded under whatever is current" are different claims (M6 §6).
+ *   pinned       the record named its rule set and it resolved. Authoritative
+ *   fallback     the record named none, so the scheme's active set is used
+ *   unavailable  the record named one this build does not have
  */
+export type RuleSetResolution = 'pinned' | 'fallback' | 'unavailable';
+
 export interface ResolvedRuleSet {
   readonly ruleSet: RuleSet | undefined;
-  /** True when the record pinned its own rule set. */
-  readonly pinned: boolean;
+  readonly resolution: RuleSetResolution;
+  /** The pinned identifier that could not be resolved. Shown to the student. */
+  readonly missingRuleSetId: string | null;
 }
 
+/**
+ * The rule set a saved semester must be graded under.
+ *
+ * A PIN IS NOT A HINT. If a record names a rule set and this build does not
+ * have it, the answer is `unavailable` — never the current one. Falling back
+ * there would re-grade a completed semester under a regulation it was never
+ * sat under, produce a plausible SGPA, and give no sign that anything had
+ * happened. That is the exact failure pinning exists to prevent (M6 §6).
+ *
+ * Only a record with NO pin may fall back, and the caller is told which case it
+ * is: "graded under the rules of its own time", "graded under whatever is
+ * current", and "we cannot grade this" are three different claims.
+ */
 export function ruleSetForResult(result: SemesterResult): ResolvedRuleSet {
   if (result.ruleSetId !== null) {
     const pinned = getRuleSet(result.ruleSetId);
-    if (pinned !== undefined) return { ruleSet: pinned, pinned: true };
+    return pinned === undefined
+      ? { ruleSet: undefined, resolution: 'unavailable', missingRuleSetId: result.ruleSetId }
+      : { ruleSet: pinned, resolution: 'pinned', missingRuleSetId: null };
   }
-  return { ruleSet: getActiveRuleSetForScheme(result.schemeId), pinned: false };
+  return {
+    ruleSet: getActiveRuleSetForScheme(result.schemeId),
+    resolution: 'fallback',
+    missingRuleSetId: null,
+  };
 }
 
 function coursesOf(result: SemesterResult): CourseGrade[] {
@@ -82,7 +103,9 @@ export interface SemesterView {
   readonly credits: number;
   readonly subjectCount: number;
   readonly ruleSetId: string | null;
-  readonly ruleSetPinned: boolean;
+  readonly ruleSetResolution: RuleSetResolution;
+  /** The pinned identifier this build does not have, when `unavailable`. */
+  readonly missingRuleSetId: string | null;
 }
 
 /** Rounding on a VTU grade card is two decimals; below that is not a conflict. */
@@ -106,12 +129,19 @@ export function buildSemesterViews(
 
     let sgpaComputed: number | null = null;
     let ruleSetId: string | null = null;
-    let pinned = false;
+    let resolution: RuleSetResolution = 'fallback';
+    let missingRuleSetId: string | null = null;
 
     if (result !== null) {
       const resolved = ruleSetForResult(result);
-      pinned = resolved.pinned;
+      resolution = resolved.resolution;
+      missingRuleSetId = resolved.missingRuleSetId;
       ruleSetId = resolved.ruleSet?.id ?? null;
+      /*
+       * NOTHING IS COMPUTED WHEN THE RULE SET IS UNAVAILABLE. `resolved.ruleSet`
+       * is undefined in that case, so no SGPA is produced and no substitute is
+       * reached for.
+       */
       if (resolved.ruleSet !== undefined) {
         const outcome = calculateSGPA(coursesOf(result), resolved.ruleSet);
         if (isOk(outcome)) sgpaComputed = outcome.value;
@@ -138,7 +168,8 @@ export function buildSemesterViews(
       credits: result?.subjects.reduce((total, subject) => total + subject.credits, 0) ?? 0,
       subjectCount: result?.subjects.length ?? 0,
       ruleSetId,
-      ruleSetPinned: pinned,
+      ruleSetResolution: resolution,
+      missingRuleSetId,
     };
   });
 }
