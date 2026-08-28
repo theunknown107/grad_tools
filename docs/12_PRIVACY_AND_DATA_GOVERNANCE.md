@@ -257,3 +257,32 @@ This is the clause most likely to be tested in a real pilot conversation, and it
 | Privacy review trigger | Any new personal field, any new third party, any new sharing | Must update this document **before** implementation |
 
 **A change that adds a personal data field or a third-party recipient is not implementable until this document is updated and the change is recorded in `32`.** That ordering is the governance mechanism; without it, privacy documentation drifts behind the code within a single sprint.
+
+## 12.11 The degree stays on the device (M6)
+
+M6 stores a student's entire academic history — every semester, subject, grade
+and backlog — and adds **no new collection point and no transmission**.
+
+| Data | Where it lives | Leaves the device? |
+|---|---|---|
+| Semester statuses | IndexedDB | No |
+| Semester subjects (code, title, credits) | IndexedDB | No |
+| Backlogs | IndexedDB | No |
+| Semester results and grades | IndexedDB | No |
+
+Still **no date of birth**, and none may be added (`DEC-008`). No USN is
+required for any M6 feature; the profile's optional USN is unchanged and is not
+read by the degree screen.
+
+### What is in the repository
+
+Nothing. Every test student is synthetic, and the codes used
+(`BCS301`, `BMATS101`) are shaped like VTU codes and belong to nobody. The
+public repository contains **zero real academic records**, and the browser QA
+that exercises a populated degree seeds its own synthetic student into
+IndexedDB at run time rather than committing a fixture (M6 §18).
+
+### Deleting it
+
+Unchanged: clearing site data removes everything, because everything is site
+data. There is no server copy to request the deletion of.

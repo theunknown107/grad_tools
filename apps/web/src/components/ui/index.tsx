@@ -156,11 +156,19 @@ export function TextField({
 export function SelectField({
   label,
   hint,
+  hideLabel = false,
   children,
   ...rest
 }: {
   label: string;
   hint?: string | undefined;
+  /**
+   * Hides the label VISUALLY ONLY. It stays in the accessibility tree, because
+   * a select with no name is unusable with a screen reader. For a control whose
+   * meaning is obvious from the row it sits in and would otherwise repeat eight
+   * times down the page.
+   */
+  hideLabel?: boolean | undefined;
   children: ReactNode;
 } & SelectHTMLAttributes<HTMLSelectElement>) {
   const id = useId();
@@ -168,7 +176,7 @@ export function SelectField({
 
   return (
     <div className={styles.field}>
-      <label className={styles.label} htmlFor={id}>
+      <label className={hideLabel ? (styles.srOnly ?? '') : styles.label} htmlFor={id}>
         {label}
       </label>
       <select
@@ -278,8 +286,21 @@ export function EmptyState({ children, action }: { children: ReactNode; action?:
 /* Table                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A horizontally scrollable table container.
+ *
+ * `tabIndex={0}` because a region that scrolls must be reachable by keyboard —
+ * without it a keyboard user cannot see the columns that are off-screen, which
+ * axe reports as `scrollable-region-focusable` and which is a real dead end on
+ * a narrow screen. No `role="region"` is added: an unnamed region would trade
+ * this violation for a different one.
+ */
 export function TableScroll({ children }: { children: ReactNode }) {
-  return <div className={styles.tableScroll}>{children}</div>;
+  return (
+    <div className={styles.tableScroll} tabIndex={0}>
+      {children}
+    </div>
+  );
 }
 
 export const tableClass = styles.table ?? '';

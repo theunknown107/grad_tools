@@ -9,7 +9,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
   AttendanceRecord,
+  BacklogRecord,
+  SemesterRecord,
   SemesterResult,
+  SemesterSubject,
   StudentProfile,
   TimetableSlot,
 } from '../domain/types.js';
@@ -83,6 +86,18 @@ export function useResults(): CollectionState<SemesterResult> {
 
 export function useTimetable(): CollectionState<TimetableSlot> {
   return useCollection(useRepositories().timetable);
+}
+
+export function useSemesters(): CollectionState<SemesterRecord> {
+  return useCollection(useRepositories().semesters);
+}
+
+export function useSemesterSubjects(): CollectionState<SemesterSubject> {
+  return useCollection(useRepositories().semesterSubjects);
+}
+
+export function useBacklogs(): CollectionState<BacklogRecord> {
+  return useCollection(useRepositories().backlogs);
 }
 
 export interface ProfileState {

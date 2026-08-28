@@ -82,10 +82,104 @@ export interface SemesterResult {
   readonly profileId: StudentProfileId;
   readonly semester: number;
   readonly schemeId: string;
+  /**
+   * The rule set this semester was graded under, PINNED at entry.
+   *
+   * Null on records saved before M6; those fall back to the scheme's active
+   * rule set and the UI says so. Pinning matters because a newer rule set must
+   * never silently re-grade a completed semester (M6 §6) — a regulation change
+   * applies to the semesters that come after it, not to the ones already sat.
+   */
+  readonly ruleSetId: string | null;
   /** Optional: the SGPA printed on the grade card, as entered by the student. */
   readonly sgpaAsserted: number | null;
   readonly subjects: readonly ResultSubject[];
   readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The eight-semester degree (M6)                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Where a semester sits in the degree.
+ *
+ *   planned      not started. The default for every semester ahead
+ *   in_progress  running now. At most one at a time
+ *   completed    finished, and normally carrying a result
+ */
+export const SEMESTER_STATUSES = ['planned', 'in_progress', 'completed'] as const;
+export type SemesterStatus = (typeof SEMESTER_STATUSES)[number];
+
+/** A VTU degree is eight semesters. Not a setting; the shape of the product. */
+export const SEMESTER_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+
+/**
+ * One semester of the student's degree.
+ *
+ * A STUDENT DOES NOT NECESSARILY START AT SEMESTER 1 (M6 §2). Someone joining
+ * GradTools in their third year has four completed semesters behind them and
+ * types them in; nothing here assumes a forward march from the beginning, and
+ * no status is derived from a date.
+ */
+export interface SemesterRecord {
+  readonly id: string;
+  readonly profileId: StudentProfileId;
+  /** 1-8. */
+  readonly number: number;
+  readonly status: SemesterStatus;
+  /** Optional, student-entered. Never used to infer status. */
+  readonly startedOn: string | null;
+  readonly completedOn: string | null;
+  readonly updatedAt: string;
+}
+
+/**
+ * A subject the student is taking this semester.
+ *
+ * Separate from `ResultSubject`, which is history: this one exists BEFORE any
+ * grade does, and is what attendance and the timetable point at so a subject is
+ * defined once rather than retyped in three places (M6 §14, §16).
+ */
+export interface SemesterSubject {
+  readonly id: string;
+  readonly profileId: StudentProfileId;
+  readonly semester: number;
+  readonly code: string;
+  readonly title: string;
+  readonly credits: number;
+  /** Student's own note. Rendered as text, never as markup. */
+  readonly notes: string | null;
+  readonly updatedAt: string;
+}
+
+/**
+ * A subject not yet cleared.
+ *
+ *   active     carried, not attempted since
+ *   attempted  sat again, result not known yet
+ *   cleared    passed
+ *
+ * NO EXAM DATE FIELD, and none may be added here. Exam dates are university
+ * facts that must come from a verified source (M6 §10); a student-entered date
+ * would look identical to one and be trusted the same way.
+ */
+export const BACKLOG_STATUSES = ['active', 'attempted', 'cleared'] as const;
+export type BacklogStatus = (typeof BACKLOG_STATUSES)[number];
+
+export interface BacklogRecord {
+  readonly id: string;
+  readonly profileId: StudentProfileId;
+  readonly subjectCode: string;
+  readonly subjectTitle: string;
+  /** The semester the subject was originally taken in. */
+  readonly originSemester: number;
+  readonly status: BacklogStatus;
+  /** How many times it has been sat. 0 when carried but not re-attempted. */
+  readonly attempts: number;
+  /** Set only when status is `cleared`, and only if the student knows it. */
+  readonly clearedInSemester: number | null;
   readonly updatedAt: string;
 }
 

@@ -283,3 +283,18 @@ accurate one.
 
 Each state is distinguished by words and an icon, never by colour alone, and
 every outbound link names its destination for screen readers.
+
+## 28.10 Words for a degree in progress (M6)
+
+| Say | Not | Why |
+|---|---|---|
+| "Not enough history yet — 2 graded subjects of 5 needed" | "Insufficient data" | Names what is missing and how much |
+| "Taken once" | "Unchanged" | A single point is not a flat line |
+| "The total credits for this scheme are not established in verified reference data" | "160 credits remaining" | The numerator is real; the denominator is not known |
+| "—" for a running semester's SGPA | a projection | It does not exist until the semester ends |
+| "Sat, awaiting result" | "Cleared" | Sitting an exam is not passing it |
+| "Strong / Weak / Typical", with the rule printed beside them | "You're weak at maths" | A classification a student cannot check is one they must take on trust |
+| "Everything here stays on this device" | silence | Where the data lives is the first question a student has |
+
+**Never** describe a subject strength as a percentile or a rank. The comparison
+is against the student's own average and nothing else, and the copy says so.

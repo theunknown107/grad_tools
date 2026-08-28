@@ -118,6 +118,49 @@ public documents in quarantine, which is the state the fix forbids.
 
 
 
+**Added in M6:** the student academic core — 32 tests over the pure analytics
+module and 22 over the screens, all with **synthetic students only**.
+
+The analytics tests pin the RULES, not the arithmetic: SGPA, CGPA and percentage
+come from `@gradtools/academic-rules`, and a test that re-derived them would be
+testing a second implementation into existence. One is an explicit regression
+guard that the discredited `(CGPA − 0.75) × 10` formula stays unreachable.
+
+Covered: the eight-semester shape · a student starting part-way through ·
+lifecycle changes · rule-set pinning and the pre-M6 fallback · asserted-vs-computed
+SGPA and its tolerance · CGPA and percentage · subject trend, including that a
+subject taken once has none · the strong/weak rule, including that even
+performance classifies nobody · "not enough history yet" · backlog states and
+that `attempted` is not `cleared` · graduation progress with and without a known
+total · local persistence across a remount · and two students at the same
+repository boundary seeing nothing of each other.
+
+**Browser QA (M6), real Chromium at 320 / 390 / 768 / 1280** against the built
+app with a synthetic third-year student seeded into IndexedDB at run time:
+
+| Check | Result |
+|---|---|
+| axe-core WCAG 2.1 A + AA, every viewport, four screens | 0 violations — **after two fixes** |
+| Horizontal overflow | 0 at every viewport — **after two fixes** |
+| Empty state before anything is entered | All eight semesters, and both refusals shown |
+| Populated degree | CGPA 8.32, 4 completed / 1 in progress / 3 planned |
+| Semester selector | Moves the current semester; only one at a time |
+| Long subject name | No overflow |
+| Keyboard | Reaches controls; Enter opens the subject list |
+| Console errors | 0 |
+
+It found two real defects that unit tests could not:
+
+1. **`scrollable-region-focusable`** — a table that scrolls horizontally was not
+   reachable by keyboard, so its off-screen columns were a dead end. `TableScroll`
+   is now focusable.
+2. **196px of horizontal page scroll at 320px** — traced, by experiment rather
+   than by guessing, to a single 1px visually-hidden `<span>`. The usual
+   visually-hidden recipe positions the box absolutely, which leaves it at its
+   static position; inside a table wider than the viewport that position is
+   off-screen and extends the page's scrollable area. Replaced with a
+   `clip-path` version that cannot move.
+
 **Added in M5A.7:** a parser-v2 regression suite of 25 tests, **pinning every
 defect from both sides**. Each case asserts what v1 does — the bug, reproduced —
 and then what v2 does. Keeping v1 in the assertion is what stops the fix quietly

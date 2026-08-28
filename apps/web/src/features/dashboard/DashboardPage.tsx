@@ -43,7 +43,16 @@ import {
   type PillTone,
 } from '../../components/ui/index.js';
 import { formatGpa, formatPercent, formatTime } from '../../lib/format.js';
-import { useAttendance, useProfile, useResults, useTimetable } from '../../hooks/useCollection.js';
+import {
+  useAttendance,
+  useBacklogs,
+  useProfile,
+  useResults,
+  useSemesters,
+  useSemesterSubjects,
+  useTimetable,
+} from '../../hooks/useCollection.js';
+import { buildSemesterViews, currentSemester, summariseBacklogs } from '../../domain/academics.js';
 import styles from './dashboard.module.css';
 
 const ruleSet = vtu2022RuleSet;
@@ -58,8 +67,12 @@ export function DashboardPage() {
   const { items: attendance, loading: attendanceLoading } = useAttendance();
   const { items: results, loading: resultsLoading } = useResults();
   const { items: timetable, loading: timetableLoading } = useTimetable();
+  const { items: semesters } = useSemesters();
+  const { items: semesterSubjects } = useSemesterSubjects();
+  const { items: backlogs } = useBacklogs();
 
   const loading = attendanceLoading || resultsLoading || timetableLoading;
+  const current = currentSemester(buildSemesterViews(semesters, results));
   const greeting = profile?.displayName?.trim();
 
   return (
@@ -82,6 +95,21 @@ export function DashboardPage() {
         <p className={styles.loading}>Loading your data…</p>
       ) : (
         <div className={styles.stack}>
+          {/*
+            THE CURRENT SEMESTER IS THE PRIMARY CONTEXT (M6 §11). What a student
+            opens the app for is the semester they are in; the history is one
+            click away and does not need to lead.
+          */}
+          {current !== null && (
+            <CurrentSemesterPanel
+              semesterNumber={current.number}
+              subjectCount={
+                semesterSubjects.filter((subject) => subject.semester === current.number).length
+              }
+              attendance={attendance.filter((record) => record.semester === current.number)}
+              backlogsOutstanding={summariseBacklogs(backlogs).outstanding}
+            />
+          )}
           <AcademicOverview results={results} />
           <AttendanceConcerns attendance={attendance} />
           <TodaySchedule timetable={timetable} />
@@ -89,6 +117,67 @@ export function DashboardPage() {
         </div>
       )}
     </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The semester the student is in                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The current semester, in four figures a student actually acts on.
+ *
+ * NOT FOUR GIANT CARDS (docs/05 anti-patterns). A dense row, and every figure
+ * is either real or an em dash — an SGPA does not exist until the semester ends,
+ * and showing a hopeful number there would be the worst kind of invention.
+ */
+function CurrentSemesterPanel({
+  semesterNumber,
+  subjectCount,
+  attendance,
+  backlogsOutstanding,
+}: {
+  readonly semesterNumber: number;
+  readonly subjectCount: number;
+  readonly attendance: readonly AttendanceRecord[];
+  readonly backlogsOutstanding: number;
+}) {
+  const attended = attendance.reduce((total, record) => total + record.attended, 0);
+  const conducted = attendance.reduce((total, record) => total + record.conducted, 0);
+  const overall = conducted > 0 ? calculateAttendance(attended, conducted, ruleSet) : null;
+
+  return (
+    <Panel
+      title={`Semester ${String(semesterNumber)} · In progress`}
+      flush
+      action={
+        <Link to="/semesters" className={buttonClassName('secondary')}>
+          My degree
+        </Link>
+      }
+    >
+      <dl className={styles.statRow}>
+        <div className={styles.stat}>
+          <dt>Attendance</dt>
+          <dd className={styles.statValue}>
+            {overall !== null && overall.ok ? formatPercent(overall.value.percentage) : '—'}
+          </dd>
+        </div>
+        <div className={styles.stat}>
+          <dt>Subjects</dt>
+          <dd className={styles.statValue}>{subjectCount === 0 ? '—' : subjectCount}</dd>
+        </div>
+        <div className={styles.stat}>
+          <dt>SGPA</dt>
+          {/* Not known until the semester has a result. Never estimated. */}
+          <dd className={styles.statValue}>—</dd>
+        </div>
+        <div className={styles.stat}>
+          <dt>Backlogs</dt>
+          <dd className={styles.statValue}>{backlogsOutstanding}</dd>
+        </div>
+      </dl>
+    </Panel>
   );
 }
 

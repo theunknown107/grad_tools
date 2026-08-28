@@ -25,7 +25,7 @@ import {
 } from '../../components/ui/index.js';
 import { formatTime } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
-import { useProfile, useTimetable } from '../../hooks/useCollection.js';
+import { useProfile, useSemesterSubjects, useTimetable } from '../../hooks/useCollection.js';
 import styles from './timetable.module.css';
 
 function sortSlots(slots: readonly TimetableSlot[]): TimetableSlot[] {
@@ -39,6 +39,7 @@ export function TimetablePage() {
   const [day, setDay] = useState<Weekday>('Mon');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
+  const { items: semesterSubjects } = useSemesterSubjects();
   const [subjectCode, setSubjectCode] = useState('');
   const [room, setRoom] = useState('');
   const [faculty, setFaculty] = useState('');
@@ -121,15 +122,24 @@ export function TimetablePage() {
                 setEndTime(event.target.value);
               }}
             />
+            {/* Suggested from the semester's subject list (M6 §16). */}
             <TextField
               label="Subject code"
               placeholder="BCS304"
               mono
+              list="semester-subject-codes"
               value={subjectCode}
               onChange={(event) => {
                 setSubjectCode(event.target.value);
               }}
             />
+            <datalist id="semester-subject-codes">
+              {semesterSubjects.map((subject) => (
+                <option key={subject.id} value={subject.code}>
+                  {subject.title}
+                </option>
+              ))}
+            </datalist>
             <TextField
               label="Room"
               hint="Optional"

@@ -12,7 +12,10 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ReactElement } from 'react';
 import type {
   AttendanceRecord,
+  BacklogRecord,
+  SemesterRecord,
   SemesterResult,
+  SemesterSubject,
   StudentProfile,
   TimetableSlot,
 } from '../src/domain/types.js';
@@ -24,6 +27,9 @@ export interface MemorySeed {
   attendance?: AttendanceRecord[];
   results?: SemesterResult[];
   timetable?: TimetableSlot[];
+  semesters?: SemesterRecord[];
+  semesterSubjects?: SemesterSubject[];
+  backlogs?: BacklogRecord[];
 }
 
 function listRepo<T extends { readonly id: string }>(initial: T[]) {
@@ -48,6 +54,9 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
   const attendance = listRepo<AttendanceRecord>(seed.attendance ?? []);
   const results = listRepo<SemesterResult>(seed.results ?? []);
   const timetable = listRepo<TimetableSlot>(seed.timetable ?? []);
+  const semesters = listRepo<SemesterRecord>(seed.semesters ?? []);
+  const semesterSubjects = listRepo<SemesterSubject>(seed.semesterSubjects ?? []);
+  const backlogs = listRepo<BacklogRecord>(seed.backlogs ?? []);
 
   const bundle: RepositoryBundle = {
     profile: {
@@ -64,6 +73,9 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
     attendance,
     results,
     timetable,
+    semesters,
+    semesterSubjects,
+    backlogs,
   };
 
   return {
@@ -73,6 +85,9 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
       attendance: attendance.peek,
       results: results.peek,
       timetable: timetable.peek,
+      semesters: semesters.peek,
+      semesterSubjects: semesterSubjects.peek,
+      backlogs: backlogs.peek,
     },
   };
 }

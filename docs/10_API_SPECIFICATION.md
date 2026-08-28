@@ -522,3 +522,12 @@ The condition is defined **once** and shared by the list and the by-id paths, so
 they cannot drift — the by-id path is exactly where such a filter gets
 forgotten. The database enforces the same rule independently
 (`document_public_requires_validation`).
+
+## 10.13 M6 added no endpoints
+
+The student academic core is entirely local. No route was added, changed or
+removed: the degree, its semesters, its subjects and its backlogs never leave
+the device, so there is nothing for an API to serve (M6 §17, §21).
+
+The reference endpoints are unchanged and remain the only server surface the
+student-facing app uses.

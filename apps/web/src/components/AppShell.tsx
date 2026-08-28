@@ -39,6 +39,13 @@ const DESTINATIONS: readonly Destination[] = [
     group: 'Overview',
   },
   {
+    to: '/semesters',
+    label: 'My degree',
+    shortLabel: 'Degree',
+    icon: GraduationCap,
+    group: 'Academics',
+  },
+  {
     to: '/academics',
     label: 'SGPA & CGPA',
     shortLabel: 'Academics',
