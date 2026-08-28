@@ -347,3 +347,30 @@ returns strings; the network belongs to an adapter, behind the source gates
 Bad input from a source is expected traffic, and an operator typing a bad link
 deserves a sentence rather than a stack trace. `normalizeAnnouncement` returns a
 verdict; the caller decides.
+
+## 13.16 The library serves a file for the first time (M8)
+
+M5 was explicit that no route served a document. M8 adds one, so the threats it
+opens are enumerated here rather than assumed closed.
+
+| ID | Threat | Control |
+|---|---|---|
+| T-40 | **IDOR** — reading someone else's private paper by guessing an id | Every library query carries the visibility condition; `private` and `blocked` are excluded in SQL, not filtered afterwards. The answer is **404, not 403**, so the response does not confirm the document exists |
+| T-41 | **Path traversal** via the file route | The only parameter is a uuid, validated before use; the storage key is resolved server-side from the database. No path, key or filename is accepted from a client under any name, so traversal has no input to work with (M8 §30) |
+| T-42 | **Arbitrary file read** by naming an object key | Same: keys are never client-supplied. The object store additionally re-checks that every resolved path is inside its root |
+| T-43 | **Open proxy** — using GradTools to fetch an arbitrary URL | The file route reads from local storage only. A `link` paper has no stored bytes and returns 404; nothing in this milestone fetches a URL (M8 §15, §31) |
+| T-44 | **Content-type confusion** — a stored PDF served as HTML and executing | The route declares `application/pdf` itself and never reads the stored MIME type, plus `X-Content-Type-Options: nosniff` |
+| T-45 | **Header injection via a filename** | `Content-Disposition` carries a generated `paper-<uuid>.pdf`. The stored original filename is user-supplied text and never reaches a header |
+| T-46 | **Clickjacking** through the new framing exception | Framing is permitted only for the file route and only from the origins CORS already trusts. `X-Frame-Options` is *removed* on that response rather than loosened — it has no origin list, so leaving it set would override the CSP in browsers that honour both. Every other response keeps `frame-ancestors 'none'` |
+| T-47 | **Stored XSS from extracted PDF text** | Extracted text is stored and rendered as text; React escapes it and there is no `dangerouslySetInnerHTML` anywhere in this milestone |
+| T-48 | **Display attack from PDF text** — a bidirectional override making a question read as something other than what it says | `safeText` strips C0/C1 controls, bidi overrides and isolates, zero-width characters and the BOM. React does not do this, and it is a display attack rather than a script one (M8 §21) |
+| T-49 | **Malicious external link** on a `link` paper | Only `http`/`https` reach storage (a CHECK constraint), the host is shown before the link is followed, and the anchor carries `rel="noopener noreferrer nofollow"` with `target="_blank"` |
+| T-50 | **Metadata leakage** — filesystem paths, storage keys, internal ids in responses | The library projection returns none of them: no `storage_key`, no `sha256`, no `original_filename`, no `mime_type` |
+| T-51 | **Cache leakage of a search** | A response carrying a search term is `private, no-store`; only the unsearched library is publicly cacheable |
+
+### What did not change
+
+`OQ-008` is still open, so **no third-party paper may be promoted to `host`**.
+The only documents that legitimately reach that state are the ones GradTools
+itself authored, and the database's `document_host_requires_rights` gate is what
+makes that a rule rather than a habit (M8 §42).

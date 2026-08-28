@@ -35,6 +35,10 @@ import {
   type ReviewQueueItem,
   announcementSchema,
   type Announcement,
+  questionPaperSchema,
+  type QuestionPaper,
+  questionPaperFiltersSchema,
+  type QuestionPaperFilters,
   type AnnouncementCategory,
   sourceSchema,
   type DocumentRecord,
@@ -988,4 +992,273 @@ export async function listAnnouncementFilters(sql: Sql): Promise<{
      ORDER BY count DESC, label
   `;
   return { categories: [...categories], sources: [...sources] };
+}
+
+/* -------------------------------------------------------------------------- */
+/* The question-paper library (M8)                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A library row.
+ *
+ * ONE JOIN, ASSEMBLED ONCE. The taxonomy has two possible homes — the subject
+ * catalogue, or the loose columns for a paper whose subject nobody has
+ * transcribed (docs/09 §9.17) — and `COALESCE` picks between them here so that
+ * no caller has to know there were ever two.
+ *
+ * `extracted_papers` is joined on `is_current` only: superseded parser runs
+ * stay queryable for audit, and a student should see the run a reader is meant
+ * to be shown, not the history.
+ */
+const PAPER_COLUMNS = (sql: Sql) => sql`
+  d.id::text,
+  d.title,
+  d.subject_id::text                      AS "subjectId",
+  COALESCE(s.code, d.subject_code)        AS "subjectCode",
+  s.title                                 AS "subjectTitle",
+  COALESCE(s.scheme_id, d.scheme_id)      AS "schemeId",
+  COALESCE(s.branch_id, d.branch_id)      AS "branchId",
+  b.name                                  AS "branchName",
+  COALESCE(s.semester, d.semester)::int   AS "semester",
+  d.exam_year::int                        AS "examYear",
+  d.exam_session                          AS "examSession",
+  d.paper_format                          AS "paperFormat",
+  d.page_count                            AS "pageCount",
+  d.source_id                             AS "sourceId",
+  src.publisher                           AS "sourceName",
+  d.source_url                            AS "sourceUrl",
+  d.presentation                          AS "availability",
+  d.rights_status                         AS "rightsStatus",
+  ep.question_count                       AS "questionCount",
+  ep.mcq_item_count                       AS "mcqItemCount",
+  ep.extraction_source                    AS "extractionSource",
+  ep.parser_version                       AS "parserVersion",
+  ep.needs_review                         AS "needsReview",
+  to_char(d.created_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS "addedAt"
+`;
+
+const PAPER_JOINS = (sql: Sql) => sql`
+  FROM documents d
+  LEFT JOIN subjects s          ON s.id = d.subject_id
+  LEFT JOIN branches b          ON b.id = COALESCE(s.branch_id, d.branch_id)
+  LEFT JOIN sources  src        ON src.id = d.source_id
+  LEFT JOIN extracted_papers ep ON ep.document_id = d.id AND ep.is_current
+`;
+
+/**
+ * Which papers a student may see.
+ *
+ * THE SAME TWO CONDITIONS AS `PUBLICLY_VISIBLE`, and deliberately no others
+ * (M8 §29): rights say whether we may show it, state says whether it is safe
+ * to show, and `private` and `blocked` fail the first. The only addition is
+ * the kind — a syllabus PDF is publicly visible and is not a question paper.
+ */
+const LIBRARY_VISIBLE = (sql: Sql) => sql`
+  d.document_kind = 'question_paper'
+  AND d.presentation IN ('host', 'link')
+  AND d.state IN ('validated', 'extracted')
+`;
+
+export interface PaperFilter {
+  readonly subjectCode?: string | undefined;
+  readonly schemeId?: string | undefined;
+  readonly branchId?: string | undefined;
+  readonly semester?: number | undefined;
+  readonly year?: number | undefined;
+  readonly format?: string | undefined;
+  readonly sourceId?: string | undefined;
+  readonly search?: string | undefined;
+  readonly sort?: string | undefined;
+  readonly limit: number;
+  readonly offset: number;
+}
+
+/**
+ * The library listing.
+ *
+ * SEARCH IS DETERMINISTIC AND LEXICAL (M8 §9, §46). A case-insensitive
+ * substring match over the subject code, the subject title, the paper title and
+ * the sitting — nothing is ranked, embedded, expanded or interpreted. A student
+ * who types `BCS403` gets the papers whose code contains `BCS403`, and can
+ * predict that before pressing the key, which is the property that makes a
+ * search box usable for finding one specific paper.
+ *
+ * `%` and `_` in the input are escaped, so a search for `100%` is a search for
+ * `100%` rather than a scan of the whole library.
+ */
+export async function listQuestionPapers(
+  sql: Sql,
+  filter: PaperFilter,
+): Promise<{ items: QuestionPaper[]; total: number }> {
+  const search =
+    filter.search === undefined || filter.search.trim() === ''
+      ? null
+      : `%${filter.search.trim().replace(/[\\%_]/g, '\\$&')}%`;
+
+  const where = sql`
+    WHERE ${LIBRARY_VISIBLE(sql)}
+      AND (${filter.subjectCode ?? null}::text IS NULL
+           OR COALESCE(s.code, d.subject_code) = ${filter.subjectCode ?? null})
+      AND (${filter.schemeId ?? null}::text IS NULL
+           OR COALESCE(s.scheme_id, d.scheme_id) = ${filter.schemeId ?? null})
+      AND (${filter.branchId ?? null}::text IS NULL
+           OR COALESCE(s.branch_id, d.branch_id) = ${filter.branchId ?? null})
+      AND (${filter.semester ?? null}::int IS NULL
+           OR COALESCE(s.semester, d.semester) = ${filter.semester ?? null})
+      AND (${filter.year ?? null}::int IS NULL OR d.exam_year = ${filter.year ?? null})
+      AND (${filter.format ?? null}::text IS NULL
+           OR d.paper_format = ${filter.format ?? null}::paper_format)
+      AND (${filter.sourceId ?? null}::text IS NULL OR d.source_id = ${filter.sourceId ?? null})
+      AND (${search}::text IS NULL
+           OR COALESCE(s.code, d.subject_code) ILIKE ${search} ESCAPE '\\'
+           OR s.title ILIKE ${search} ESCAPE '\\'
+           OR d.title ILIKE ${search} ESCAPE '\\'
+           OR d.exam_session ILIKE ${search} ESCAPE '\\'
+           OR d.exam_year::text ILIKE ${search} ESCAPE '\\')
+  `;
+
+  /*
+   * Ordering.
+   *
+   * NULL YEARS SORT LAST in every mode, `oldest` included. A paper with no
+   * stated year is not the oldest paper — it is a paper whose year nobody
+   * knows, and heading a year-ordered list with it would present absent
+   * information as an extreme value (M8 §11).
+   */
+  const order =
+    filter.sort === 'oldest'
+      ? sql`ORDER BY d.exam_year ASC NULLS LAST, d.created_at ASC, d.id`
+      : filter.sort === 'recently_added'
+        ? sql`ORDER BY d.created_at DESC, d.id`
+        : sql`ORDER BY d.exam_year DESC NULLS LAST, d.created_at DESC, d.id`;
+
+  const rows = await sql`
+    SELECT ${PAPER_COLUMNS(sql)} ${PAPER_JOINS(sql)} ${where}
+    ${order}
+    LIMIT ${filter.limit} OFFSET ${filter.offset}
+  `;
+
+  const [count] = await sql<{ total: string }[]>`
+    SELECT count(*)::text AS total ${PAPER_JOINS(sql)} ${where}
+  `;
+
+  return {
+    items: parseRows(questionPaperSchema, rows),
+    total: Number(count?.total ?? 0),
+  };
+}
+
+/**
+ * One paper, by opaque id.
+ *
+ * The same visibility rule as the listing, applied in the query rather than
+ * after it. A private or blocked paper is NOT FOUND rather than forbidden:
+ * "this exists but is not yours" is itself a disclosure about someone else's
+ * document (docs/13 §T-40).
+ */
+export async function findQuestionPaper(sql: Sql, id: string): Promise<QuestionPaper | null> {
+  const rows = await sql`
+    SELECT ${PAPER_COLUMNS(sql)} ${PAPER_JOINS(sql)}
+    WHERE d.id = ${id}::uuid AND ${LIBRARY_VISIBLE(sql)}
+  `;
+  return parseRows(questionPaperSchema, rows)[0] ?? null;
+}
+
+/**
+ * The storage key for a hosted paper.
+ *
+ * THE CLIENT NEVER NAMES A FILE (M8 §30). It sends an opaque id; this resolves
+ * the key the server itself stored. There is no parameter through which a path,
+ * a key or a filename could arrive, so traversal has no input to work with —
+ * the same argument the object store rests on, made one layer earlier.
+ *
+ * `presentation = 'host'` is required here, which by the database's own rights
+ * gate means a dated determination of `permitted` exists. A `link` paper has no
+ * stored bytes, and asking for them returns nothing rather than reaching out to
+ * the origin — GradTools is not a proxy (M8 §15).
+ *
+ * Returns the KEY ONLY. The stored `mime_type` is deliberately not returned:
+ * the route declares `application/pdf` itself, so a wrong or hostile value in
+ * that column cannot decide how a browser interprets the response.
+ */
+export async function findHostedPaperFile(
+  sql: Sql,
+  id: string,
+): Promise<{ storageKey: string } | null> {
+  const rows = await sql<{ storage_key: string }[]>`
+    SELECT storage_key
+    FROM documents
+    WHERE id = ${id}::uuid
+      AND document_kind = 'question_paper'
+      AND presentation = 'host'
+      AND state IN ('validated', 'extracted')
+      AND storage_key IS NOT NULL
+  `;
+  const row = rows[0];
+  return row === undefined ? null : { storageKey: row.storage_key };
+}
+
+/**
+ * The filter values that would actually return something.
+ *
+ * Computed from the visible library rather than from the reference tables, so
+ * the interface never offers a semester with no papers in it (M8 §10). Nulls
+ * are excluded throughout: "unknown year" is not a year to filter by, and
+ * offering it would imply a bucket the filter cannot express.
+ */
+export async function listQuestionPaperFilters(sql: Sql): Promise<QuestionPaperFilters> {
+  const [subjects, schemes, branches, semesters, years, formats, sources] = await Promise.all([
+    sql<{ code: string; title: string | null }[]>`
+      SELECT DISTINCT COALESCE(s.code, d.subject_code) AS code, s.title
+      ${PAPER_JOINS(sql)}
+      WHERE ${LIBRARY_VISIBLE(sql)} AND COALESCE(s.code, d.subject_code) IS NOT NULL
+      ORDER BY code
+    `,
+    sql<{ scheme_id: string }[]>`
+      SELECT DISTINCT COALESCE(s.scheme_id, d.scheme_id) AS scheme_id
+      ${PAPER_JOINS(sql)}
+      WHERE ${LIBRARY_VISIBLE(sql)} AND COALESCE(s.scheme_id, d.scheme_id) IS NOT NULL
+      ORDER BY scheme_id
+    `,
+    sql<{ id: string; name: string }[]>`
+      SELECT DISTINCT b.id, b.name
+      ${PAPER_JOINS(sql)}
+      WHERE ${LIBRARY_VISIBLE(sql)} AND b.id IS NOT NULL
+      ORDER BY name
+    `,
+    sql<{ semester: number }[]>`
+      SELECT DISTINCT COALESCE(s.semester, d.semester)::int AS semester
+      ${PAPER_JOINS(sql)}
+      WHERE ${LIBRARY_VISIBLE(sql)} AND COALESCE(s.semester, d.semester) IS NOT NULL
+      ORDER BY semester
+    `,
+    sql<{ exam_year: number }[]>`
+      SELECT DISTINCT d.exam_year::int AS exam_year
+      ${PAPER_JOINS(sql)}
+      WHERE ${LIBRARY_VISIBLE(sql)} AND d.exam_year IS NOT NULL
+      ORDER BY exam_year DESC
+    `,
+    sql<{ paper_format: string }[]>`
+      SELECT DISTINCT d.paper_format
+      ${PAPER_JOINS(sql)}
+      WHERE ${LIBRARY_VISIBLE(sql)} AND d.paper_format IS NOT NULL
+      ORDER BY paper_format
+    `,
+    sql<{ id: string; name: string }[]>`
+      SELECT DISTINCT src.id, src.publisher AS name
+      ${PAPER_JOINS(sql)}
+      WHERE ${LIBRARY_VISIBLE(sql)} AND src.id IS NOT NULL
+      ORDER BY name
+    `,
+  ]);
+
+  return questionPaperFiltersSchema.parse({
+    subjects: subjects.map((row) => ({ code: row.code, title: row.title })),
+    schemes: schemes.map((row) => row.scheme_id),
+    branches,
+    semesters: semesters.map((row) => row.semester),
+    years: years.map((row) => row.exam_year),
+    formats: formats.map((row) => row.paper_format),
+    sources,
+  });
 }

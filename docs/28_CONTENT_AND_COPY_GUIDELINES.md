@@ -336,3 +336,43 @@ University — sits on the same page as the feed.
 An empty feed and an unreachable server are different sentences. Merging them
 teaches a student that "nothing new" and "GradTools is down" look identical,
 which makes the feed useless precisely when it matters.
+
+## 28.12 Words for the question-paper library (M8)
+
+GradTools **shows** papers. It does not issue them, and it does not always
+hold them.
+
+| Say | Not |
+|---|---|
+| "Past papers in one place. GradTools shows them; it does not issue them." | "Official question papers" |
+| "Available here" / "At the original source" / "Not available" | "Free download" / "Restricted" |
+| "Source: Demo University (synthetic)" *and separately* "Available here" | A single badge that reads as both attribution and permission |
+| "GradTools does not have a copy of this paper. It is available from the original source." | Silently proxying the file |
+| "Open the original on `example.org` (opens in a new tab)" | "Download" |
+| "10 questions found" + "Found by reading the paper's layout, not its meaning." | "10 questions" alone |
+| "No question structure was found in this paper." | Showing nothing, which reads as "not parsed yet" |
+| "Format unknown" | "Other" |
+| "No paper matches those filters. Try a different subject, year or search term." | "No results" |
+| "Could not reach the GradTools server. Try again" | An empty library |
+| "Demo data" on every synthetic paper | A subtle grey label, or nothing |
+
+### Attribution is never permission
+
+The rule from §Source and rights copy (M5), restated because the library is
+where it is most likely to be softened: **"Source: VTU" must never imply that
+GradTools may redistribute VTU's material.** Every row prints where a paper came
+from and what a student can do with it as two separate statements, because they
+answer different questions.
+
+### Never claim importance
+
+No paper is described as important, useful, likely, expected, frequently asked
+or recommended. Nothing in M8 measured any of that, and the sort control offers
+no option that implies it. A library that guesses at importance is making a
+prediction, which is a different product and a later, separately approved one.
+
+### Absent is absent
+
+A field nobody recorded is omitted from the row. It is not "—", not "N/A", not
+"Unknown year". A row of placeholders reads as broken data; a shorter row reads
+as a paper about which less was recorded, which is what it is.

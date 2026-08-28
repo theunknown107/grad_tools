@@ -366,3 +366,36 @@ configuration, so it cannot be opened by editing an environment (§14.15).
 `POST /announcements/entry` and `/publish` are reachable only from the machine
 running the API. **Any deployment that puts a proxy in front of the API must not
 forward these paths**, exactly as for the document routes.
+
+## 25.14 M8 deployment notes
+
+One migration, no new service, no new infrastructure, **no new environment
+variable**.
+
+| Change | Effect |
+|---|---|
+| `0010_question_paper_library.sql` | One enum, seven columns, two indexes on `documents`. Forward-only and additive; every existing row becomes `document_kind = 'unknown'` and is therefore invisible to the library until classified |
+| `seed:demo-papers` | A separate command, never part of `seed.ts`, never run automatically |
+
+### The file route needs object storage to be reachable
+
+This is the first deployment in which the API reads bytes back out of the
+object store to serve them. `DOCUMENT_STORAGE_ROOT` must therefore be readable
+by the API process, and must remain **outside any directory the web server maps
+to a URL** — files are streamed by the application, never served by path
+(§13.16, T-42). The storage provider itself is still undecided (`OQ-027`); the
+`ObjectStore` interface means that choice is one implementation, not a rewrite.
+
+### Framing
+
+The API's default `frame-ancestors 'none'` is unchanged. The file route sets its
+own, from the same `WEB_ORIGIN` list CORS uses — so **a deployment whose web
+origin is not in that list will show an empty paper viewer** while everything
+else works. That is the first thing to check if a hosted paper looks blank.
+
+### The loopback boundary
+
+Unchanged. The document routes — import, process, extract, review — stay
+reachable only from the machine running the API, and any proxy in front of the
+API must not forward them. The three library reads and the file route are the
+public surface M8 adds.

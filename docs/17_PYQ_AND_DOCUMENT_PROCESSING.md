@@ -1331,3 +1331,48 @@ v2 record state : unreviewed      (nothing was inherited)
   destroyed. They are `low` and preserved rather than dropped, which is the
   intended direction, but they are not correctly slotted.
 - `1BESC104C` gains **2** low-confidence records at page transitions.
+
+## 17.20 Surfacing the corpus: the library (M8)
+
+M5A built a pipeline. M8 is the first milestone where a student can see
+anything it produced.
+
+### What the library shows about extraction
+
+| Shown | Source |
+|---|---|
+| "10 questions found" | `extracted_papers.question_count` on the current run |
+| "50 multiple-choice items" | `extracted_papers.mcq_item_count` |
+| "No question structure was found in this paper." | A run that completed and found nothing |
+| Nothing at all | No run has happened |
+
+Those last two are **different states and are said differently** — the same
+distinction that `ocr_required` versus `extraction_failed` draws (§17.11d). A
+paper nobody has parsed is not a paper the parser failed on.
+
+### The caveat is not optional
+
+Beside every count:
+
+> Found by reading the paper's layout, not its meaning. The structure has not
+> been checked by a person.
+
+**STRUCTURAL IS NOT SEMANTIC** (M8 §20, §48). The parser found where questions
+start and stop. Nobody has confirmed it read them correctly unless a human
+reviewed them, and `needs_review` is surfaced when the machine itself flagged
+the run.
+
+**No accuracy figure is shown anywhere**, because none was measured. There is
+still no human ground truth (`OQ-031`), and a percentage would be invented
+rather than measured — the same reason M5A.3 refused to score OCR.
+
+### The parser was not touched
+
+M8 changed nothing in OCR, the worker, TSV extraction, the positional parser,
+persistence or the review workbench (M8 §47). It reads what those produced.
+
+### Extraction is not part of seeding
+
+`seed:demo-papers` writes documents; it does not parse them. Running the parser
+is the existing pipeline's job, through the existing routes, exactly as for any
+other document.

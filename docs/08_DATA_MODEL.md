@@ -725,3 +725,69 @@ Rules that follow from this shape:
 
 Nothing here reaches the server, and there is no server-side notification table
 to reach.
+
+## 8.16 A question paper is a document (M8)
+
+No new entity. `documents` gained the two things a library needs and nothing
+else.
+
+### The kind
+
+| Column | Meaning |
+|---|---|
+| `document_kind` | `question_paper`, `syllabus`, `other`, `unknown` |
+
+`documents` was always generic — the source registry knows about question
+papers, syllabus documents and results alike — so the library needs to know
+which is which. **The default is `unknown`, not `question_paper`.** Every
+document that exists today happens to be a question paper, and defaulting to
+that would have written a guess into data. An unknown kind is invisible to the
+library, which is the safe direction: a paper missing from a list is a smaller
+error than a syllabus presented as an examination paper.
+
+### The taxonomy, stated exactly once
+
+Two possible homes, and a CHECK keeps them mutually exclusive:
+
+| When | Where the taxonomy comes from |
+|---|---|
+| The subject is in the catalogue | `subject_id` → `subjects`, which carries scheme, branch, semester, code and title |
+| The subject is not | `subject_code`, `scheme_id`, `branch_id`, `semester` on the document itself |
+
+The catalogue is deliberately incomplete — syllabus content is entered only
+where a verified source exists (`OQ-016`, `OQ-025`) — so a real paper for a
+subject nobody has transcribed must still be findable. Without the loose
+columns such a paper would have to either invent a subject row or carry no
+taxonomy at all.
+
+If both could be set they could disagree, and "which semester is this paper
+for" would have two answers with nothing to decide between them. Hence
+`document_subject_is_stated_once`.
+
+### The sitting
+
+| Column | Meaning |
+|---|---|
+| `exam_year` | The calendar year printed on the paper |
+| `exam_session` | The sitting as the publisher labels it |
+
+**Neither is ever inferred.** `BCS403-2024.pdf` is a claim by whoever named the
+file, not a fact about the paper, and a wrong year sends a student to revise the
+wrong sitting. The year stays null until a human or a source states it (M8 §7).
+
+`exam_session` is free text rather than an enum because VTU labels sittings
+inconsistently — "June/July 2024", "Model Question Paper", "Supplementary" —
+and an enum would force every unanticipated label into a wrong bucket.
+
+### Rights are still not provenance
+
+Unchanged and load-bearing (M8 §6):
+
+| Question | Field |
+|---|---|
+| Where did this come from? | `source_id`, `source_url` — **provenance** |
+| May GradTools redistribute it? | `rights_status`, `presentation` — **rights** |
+
+A paper can have excellent provenance and unknown rights. `source_url IS NOT
+NULL` never implies `presentation = 'host'`, and no code path treats it as
+though it did.

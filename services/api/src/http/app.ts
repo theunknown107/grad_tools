@@ -17,10 +17,24 @@ import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { LocalObjectStore, type ObjectStore } from '../documents/storage.js';
+import { createQuestionPaperRouter } from '../routes/question-papers.js';
 import { createAnnouncementRouter } from '../routes/announcements.js';
 import { createDocumentRouter } from '../routes/documents.js';
 import { createReferenceRouter } from '../routes/reference.js';
 import { errorHandler, notFoundHandler } from './errors.js';
+
+/**
+ * The URL as it may be written to a log.
+ *
+ * A LIBRARY SEARCH IS THE ONE QUERY PARAMETER THAT REFLECTS A PERSON rather
+ * than a filter (M8 §27). Students type all sorts of things into a search box,
+ * and none of it needs to survive in an operational log to diagnose a request.
+ * The parameter's presence is kept, its value is not.
+ */
+function redactQuery(url: string | undefined): string | undefined {
+  if (url === undefined || !url.includes('search=')) return url;
+  return url.replace(/([?&]search=)[^&]*/g, '$1[redacted]');
+}
 
 export function createApp(
   config: Config,
@@ -124,7 +138,7 @@ export function createApp(
       // Trim the default serialisers: the full header set is noisy and is the
       // most likely accidental carrier of something sensitive.
       serializers: {
-        req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+        req: (req) => ({ id: req.id, method: req.method, url: redactQuery(req.url) }),
         res: (res) => ({ statusCode: res.statusCode }),
       },
     }),
@@ -153,6 +167,7 @@ export function createApp(
   });
 
   app.use(createAnnouncementRouter(sql));
+  app.use(createQuestionPaperRouter(sql, store, config.allowedOrigins));
   app.use(createDocumentRouter(sql, store));
   app.use(createReferenceRouter(sql));
 

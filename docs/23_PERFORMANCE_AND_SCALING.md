@@ -464,3 +464,52 @@ reaches thousands.
 
 The feed is `Cache-Control: public, max-age=60`, which is only correct because
 the response is identical for every visitor.
+
+## 23.14 Measured in M8 — the question-paper library
+
+Local PostgreSQL, **2,008 publicly visible question papers** (a synthetic set
+built for measurement, not 20 rows), 40 runs per endpoint.
+
+| Operation | p50 | p95 |
+|---|---|---|
+| `GET /question-papers` (20) | 15.4 ms | 21.8 ms |
+| `GET /question-papers?limit=100` | 14.7 ms | 28.2 ms |
+| Filtered by semester | 15.4 ms | 23.7 ms |
+| Filtered by semester + year + format | 15.8 ms | 16.9 ms |
+| Search by subject code | 16.3 ms | 33.1 ms |
+| Search by free text | 31.0 ms | 38.5 ms |
+| Deep page (offset 1000) | 39.8 ms | 51.1 ms |
+| `GET /question-papers/filters` | 15.4 ms | 17.3 ms |
+| `GET /question-papers/:id` | 15.0 ms | 16.8 ms |
+| `GET /question-papers/:id/file` (1.4 kB) | 15.2 ms | 17.0 ms |
+
+### What the plan says
+
+```
+Limit (actual time=0.435..0.438 rows=20)
+  -> Incremental Sort  (Presorted Key: exam_year, created_at)
+       -> Index Scan using documents_library on documents
+```
+
+**0.44 ms in the database.** The ~15 ms floor across every row above is HTTP
+and connection overhead in this environment, not query time — which is why the
+filtered and unfiltered numbers are indistinguishable.
+
+### What this justifies, and what it does not
+
+**No search infrastructure.** `ILIKE` over a partial index answers a free-text
+search across 2,008 papers in 31 ms end to end. Elasticsearch, `pg_trgm` and a
+tsvector column are all unnecessary, and adding any of them would be
+infrastructure bought on a guess (M8 §38).
+
+**No per-filter indexes.** Every filter narrows the same indexed result set and
+none of them changed the timing.
+
+**Two things to watch rather than pre-solve.** Free-text search is twice the
+cost of a code search, and deep paging grows with the offset — both are the
+first places to look if the library reaches tens of thousands of papers. Neither
+is a problem at any size this product has.
+
+**Do not read scalability into this.** 2,008 synthetic rows on a local database
+says the design is not obviously wrong. It says nothing about a hosted database
+under concurrent load.

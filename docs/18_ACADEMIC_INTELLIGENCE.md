@@ -366,3 +366,27 @@ denominator under a real numerator (M6 §13).
 No projection of a semester still running. No predicted SGPA. No explanation of
 *why* a subject went badly — GradTools does not know, and inventing a reason
 would be the least defensible sentence in the product.
+
+## 18.10 M8 is not an intelligence milestone
+
+The question-paper library is **deterministic and lexical throughout** (M8 §3,
+§46). Nothing in it uses a model.
+
+| Not built in M8 | |
+|---|---|
+| Semantic search | Search is a case-insensitive substring match over the code, title, sitting and year (§10.15) |
+| Embeddings, similarity, clustering | None. No vector is computed or stored |
+| Topic classification | Category comes from the source or an operator, never from a classifier |
+| Repeated-question analysis, prediction, "important questions" | Absent. Nothing in the interface ranks a paper by importance, usefulness or likelihood |
+| AI summaries or recommendations | None |
+
+The ordering a student sees is: their own semester first, then whatever order
+they asked the server for. That is the whole of it, and the sort control offers
+no option that claims importance — asserted by a test, so a later convenience
+cannot quietly add one.
+
+**What M8 does provide the intelligence milestone** is the surface it would need
+to be visible on: a paper has a page, that page has a place for structure, and
+the distinction between "structural" and "semantically verified" is already
+written into the copy. Building on it still requires the corpus ground truth
+`OQ-031` describes.

@@ -16,6 +16,7 @@ import {
   FileTextIcon,
   GraduationCap,
   LayoutDashboard,
+  LibraryIcon,
   Megaphone,
   UserRound,
 } from './icons.js';
@@ -73,6 +74,13 @@ const DESTINATIONS: readonly Destination[] = [
     label: 'Results',
     shortLabel: 'Results',
     icon: GraduationCap,
+    group: 'Academics',
+  },
+  {
+    to: '/papers',
+    label: 'Question papers',
+    shortLabel: 'Papers',
+    icon: LibraryIcon,
     group: 'Academics',
   },
   {
