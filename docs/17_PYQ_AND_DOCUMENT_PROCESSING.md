@@ -1168,3 +1168,166 @@ The descriptive parser suppresses numbered instructions by their empty marks
 column (`ED-52`). An MCQ paper has no marks column, so "2. Use only Black ball
 point pen…" is indistinguishable from an item by shape alone. **3 of 9 records
 on page 1 were instructions**, and all three carried `high` confidence.
+
+## 17.19 Parser v2 (M5A.7)
+
+M5A.6 measured three defects. This fixes them **deterministically** — no LLM, no
+embeddings, no semantic classification, no equation reconstruction. The fixes
+are geometric, because the defects were.
+
+### v1 is frozen, not replaced
+
+`structure.ts` still exists and still runs. It produced the M5A.6 corpus, and a
+baseline you cannot re-run is not a baseline. Re-extracting a document under v2
+adds `extraction_version` 2 beside the v1 rows, moves `is_current`, and inherits
+**none** of v1's review state — verified on a real document below.
+
+### The root cause behind defects A and B
+
+v1 treated "the right-hand 30% of the page" as the marks column. Measured on
+every paper in the corpus, that boundary lands **90–100pt too far left**:
+
+| Paper | Page width | v1 boundary (0.7×) | Real marks column |
+|---|---|---|---|
+| `1BESC104C` | 565 | 396 | **484** |
+| `1BPHYS102` | 548 | 384 | **483** |
+| `1BMATC101` | 558 | 390 | **477** |
+| `BCHEM102` (OCR) | 551 | 386 | **469** |
+| `BCS403` (OCR) | 552 | 386 | **475** |
+
+Everything between those two numbers is question text, and v1 deleted it. On a
+paper whose marks sit on a different text line from the label, the same
+boundary also made whole rows look like instructions and dropped them — taking
+the question number with them, which is defect B.
+
+### Fix A — measure the column instead of assuming it
+
+`detectMarksColumn` looks for what a column actually is: a **narrow stack of
+short tokens at the same x, repeated down the page**. Marks, `L2` and `CO1` all
+qualify; prose does not.
+
+- The search is bounded to the right-hand part of the page. That bound is not
+  the answer — it exists because a mathematics paper's left-margin equation
+  numbers form a dense stack of their own and would otherwise win (measured on
+  `1BMATC101`, x=72 on a 558pt page).
+- A column must repeat on at least half as many rows as the densest one.
+- A table is several columns side by side, so two aligned stacks count even on a
+  two-row page; one stack alone must be taller.
+
+**No column found means no truncation** (M5A.7 §3). The page keeps every word,
+every record on it is flagged, and nothing on it may be `high` — there is no
+positional evidence to be confident about. v1 would have deleted the right-hand
+third and reported the remainder without comment.
+
+### Fix B — cells, not rows
+
+The right-hand columns now anchor **cells**: a cell begins at the row carrying
+its marks/L/CO and runs to the next such row. Everything else about the record
+is read from the cell's rows, wherever in them it appears.
+
+That single change carries three consequences:
+
+- Marks on a cell's first line attach to a label on its second (`1BPHYS102`).
+- A `Q.1` centred across parts (a), (b) and (c) — physically sitting beside
+  (b) — **owns the whole run**, because a new question starts when the LABELLING
+  restarts, not when a number is seen.
+- A question spanning a page break stays one question; the label run carries
+  across pages.
+
+A related latent bug surfaced and was fixed: the English article **"A"** is a
+lone letter matching `[a-d]`, and a real cell opens with it ("A semiconductor
+sample 0.5 mm thick…" on `1BPHYS102`). v1 took whichever lone letter came first
+and was right only by luck of ordering. Labels are now found at a **detected
+label column**, measured the same way.
+
+### Fix C — MCQ instructions, on structure alone
+
+An MCQ paper has no marks column, so `ED-52`'s discriminator cannot apply.
+Two structural cues must **both** agree before anything is dropped:
+
+1. The item numbering **restarts at 1** after climbing above it.
+2. Nothing before that restart carries an option row.
+
+Either alone would discard real items — a paper that simply begins above 1, or
+an item whose options OCR lost. The rule reads no English, so it removes a
+Kannada instruction block on identical evidence (fixture in the suite).
+
+### v1 → v2 on the real corpus
+
+Nine papers, re-extracted under both parsers in one run. **Not accuracy** — page
+1 is the only place adjudicated truth exists.
+
+| Paper | src | Q v1→v2 | numbered v1→v2 | sub v1→v2 | MCQ v1→v2 |
+|---|---|---|---|---|---|
+| `1BESC104C` | native | 20→22 | 20→20 | 47→47 | — |
+| `1BPHYS102` | native | 21→10 | **1→10** | 32→30 | — |
+| `1BMATC101` | native | 12→10 | **5→10** | 33→30 | — |
+| `BCHEM102` | ocr | 10→24 | 10→10 | 11→10 | — |
+| `BCIVC103` | ocr | 7→21 | 5→7 | 18→12 | — |
+| `BMATS101` | ocr | 8→25 | 8→9 | 14→12 | — |
+| `BENGK106` | ocr | — | — | — | **48→45** |
+| `BKSKK107` | ocr | unknown, 0 both | — | — | — |
+| `BCY358A` | ocr | 0→14 | 0→1 | 0→0 | — |
+
+### False positives and false negatives, page 1 only
+
+Counted against the M5A.6 adjudication, the only ground truth that exists —
+and that ground truth is **agent adjudication, not human** (OQ-031).
+
+| Paper | truth | v1 | v2 |
+|---|---|---|---|
+| `1BESC104C` | 5 Q | 5 (+0/−0) | 5 (+0/−0) |
+| `1BPHYS102` | 5 Q | 15 (**+10**/−0) | **5 (+0/−0)** |
+| `BCHEM102` | 4 Q | 4 (+0/−0) | 6 (**+2**/−0) |
+| `BENGK106` | 8 items | 9 (**+3 instructions**, −2) | **6 (+0 instructions, −2)** |
+
+**Higher is not better** (M5A.7 §10):
+
+- `1BPHYS102` — v1 emitted 15 numberless fragments where there are 5 questions,
+  and numbered **none** of them. v2 emits exactly 5 and numbers all 5.
+- `BENGK106` — v2 produces FEWER records and is strictly better: the three lost
+  records are the instruction block. The two missing items are a pre-existing
+  merge defect, unchanged by this milestone.
+- `BCHEM102` — v2 gains 2 false positives, and they are the two sub-parts **v1
+  dropped entirely**. OCR destroyed their label glyphs (`db.`, `¢.`), so v2
+  surfaces them as unlabelled `low`-confidence questions instead of parts of Q3.
+  Material recovered and flagged, in the wrong slot.
+- `BCY358A` (worst scan) — 0→14, of which 1 is numbered and 13 are `low`. v1
+  produced nothing at all. This is preservation, not validation.
+
+### The defect that started it, on a real page
+
+```
+v1  (b) With neat circuit diagram, explain the working of a full-wave rectifier.
+v2  (b) With neat circuit diagram, explain the working of a full-wave bridge rectifier.
+
+v1  (a) …of a power supply system the function of each block.
+v2  (a) …of a power supply system and describe the function of each block.
+
+v1  (c) …a Switched Mode Power Supply neat diagram. OR
+v2  (c) …a Switched Mode Power Supply (SMPS) with neat diagram. OR
+```
+
+All three match the adjudicated text exactly.
+
+### Review isolation, verified on a real document
+
+```
+versions kept   : positional-v1 = extraction 1, positional-v2 = extraction 2
+current run     : positional-v2
+v1 record state : accepted        (the agent review stayed where it was)
+v2 record state : unreviewed      (nothing was inherited)
+```
+
+### What v2 does NOT fix
+
+- **Mathematics** is unchanged: structure survives, notation does not, and
+  nothing is repaired (fixture G pins this).
+- **Kannada** is untouched; `BKSKK107` still classifies as `unknown` because the
+  language pack is not installed (OQ-030).
+- **Merged MCQ items** — `BENGK106` still loses 2 of 8 items on page 1 where OCR
+  ran two items together.
+- **OCR papers gain unlabelled question records** where the label glyph was
+  destroyed. They are `low` and preserved rather than dropped, which is the
+  intended direction, but they are not correctly slotted.
+- `1BESC104C` gains **2** low-confidence records at page transitions.

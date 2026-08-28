@@ -318,6 +318,21 @@ function Value({
   );
 }
 
+/**
+ * Who reached this conclusion, shown beside it.
+ *
+ * WHO REVIEWED IT IS PART OF WHAT THE REVIEW MEANS (M5A.7 §13). The M5A.6
+ * corpus was adjudicated by an AI agent and stored under `agent-adjudication`;
+ * that is diagnostic evidence, not human ground truth, and a reader who cannot
+ * see the difference would take it for one.
+ */
+function ReviewedBy({ state, by }: { readonly state: string; readonly by: string | null }) {
+  if (state === 'unreviewed' || by === null) return null;
+  return (
+    <span className={styles.reviewer}>{by === 'agent-adjudication' ? 'by agent' : `by ${by}`}</span>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Panel                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -334,11 +349,15 @@ export function PaperPanel({ documentId }: { readonly documentId: string }) {
     setReloadToken((n) => n + 1);
   }, []);
 
-  const paper = useAsync<ExtractedPaper | null>(async () => {
+  const paper = useAsync<{
+    current: ExtractedPaper | null;
+    history: ExtractedPaper[];
+  }>(async () => {
     const body = (await fetchJson(SOURCE_ROUTES.documentPaper(documentId))) as {
       data: ExtractedPaper | null;
+      history: ExtractedPaper[];
     };
-    return body.data;
+    return { current: body.data, history: body.history };
   }, [documentId, reloadToken]);
 
   return (
@@ -346,7 +365,7 @@ export function PaperPanel({ documentId }: { readonly documentId: string }) {
       state={paper.state}
       retry={paper.retry}
       label="questions"
-      isEmpty={(value) => value === null}
+      isEmpty={(value) => value.current === null}
       empty={
         <p className={styles.empty}>
           No question structure has been worked out for this document yet.
@@ -354,16 +373,22 @@ export function PaperPanel({ documentId }: { readonly documentId: string }) {
       }
     >
       {/* `isEmpty` already sent null down the empty branch; this satisfies the type. */}
-      {(value) => (value === null ? null : <PaperDetail paper={value} onReviewed={reload} />)}
+      {(value) =>
+        value.current === null ? null : (
+          <PaperDetail paper={value.current} history={value.history} onReviewed={reload} />
+        )
+      }
     </AsyncSection>
   );
 }
 
 function PaperDetail({
   paper,
+  history,
   onReviewed,
 }: {
   readonly paper: ExtractedPaper;
+  readonly history: readonly ExtractedPaper[];
   readonly onReviewed: () => void;
 }) {
   const unchecked = paper.reviewSummary.unreviewed;
@@ -408,6 +433,22 @@ function PaperDetail({
         Worked out automatically by {paper.parserVersion} (version {paper.extractionVersion}).
         Nothing here has been checked against the original unless it says so.
       </p>
+
+      {/*
+        Earlier runs are kept, and saying so is the point: a reviewer looking at
+        v2 records needs to know v1 records exist beside them, still carrying
+        their own review (M5A.7 §13).
+      */}
+      {history.length > 1 && (
+        <p className={styles.sectionCount}>
+          {history.length - 1} earlier run{history.length === 2 ? '' : 's'} kept for comparison:{' '}
+          {history
+            .filter((run) => run.id !== paper.id)
+            .map((run) => run.parserVersion)
+            .join(', ')}
+          .
+        </p>
+      )}
 
       {paper.needsReview && paper.reviewReason !== null && (
         <p className={styles.review}>{paper.reviewReason}</p>
@@ -527,6 +568,7 @@ export function QuestionRow({
         <span className={styles.reviewState}>
           {REVIEW_LABEL[question.reviewState] ?? question.reviewState}
         </span>
+        <ReviewedBy state={question.reviewState} by={question.reviewedBy} />
       </p>
 
       {/* The badge above already says "Needs review"; this says what to do. */}
@@ -635,6 +677,7 @@ function SubQuestionRow({
         <span className={styles.reviewState}>
           {REVIEW_LABEL[sub.reviewState] ?? sub.reviewState}
         </span>
+        <ReviewedBy state={sub.reviewState} by={sub.reviewedBy} />
       </p>
 
       {correcting ? (
@@ -783,6 +826,7 @@ export function McqItemRow({
         <span className={styles.reviewState}>
           {REVIEW_LABEL[item.reviewState] ?? item.reviewState}
         </span>
+        <ReviewedBy state={item.reviewState} by={item.reviewedBy} />
       </p>
 
       {item.needsReview && (
