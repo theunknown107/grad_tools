@@ -659,6 +659,14 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5A | ED-37…ED-41 | Document lifecycle, validator corrections and the localhost boundary in Part B | Engineering (ED-38/39 evidence: real corpus) |
 | M5A.3 | DEC-022 | OCR implemented as specified by DEC-021: local Tesseract, asynchronous, no hosted service | Engineering |
 | M5A.1 | DEC-021 | OCR, when implemented, will be **local Tesseract** — privacy is decisive and structural fidelity beats raw accuracy | Engineering (evidence: 10-document benchmark) |
+| M6 | ED-71 | The degree is eight semesters, always shown | A student's view of their degree must not depend on how much they have typed in. Someone in their third year sees the four behind, the one they are in, and the three ahead |
+| M6 | ED-72 | `SemesterResult` pins `ruleSetId` at entry | A regulation change applies to semesters sat after it, not to ones already completed. Records saved before M6 fall back to the active set AND say so |
+| M6 | ED-73 | Strong/weak is distance from the student's OWN mean, not a percentile | A percentile always produces a loser and would call the bottom of a uniformly excellent set "weak". Distance from one's own average can honestly classify nobody |
+| M6 | ED-74 | Nothing is classified below five graded subjects | "Not enough history yet" is a real answer. A first-semester student must not be told what they are bad at on two grades |
+| M6 | ED-75 | A subject taken once has NO trend | Reporting "unchanged" would dress a single data point up as a flat line |
+| M6 | ED-76 | Credits remaining is reported as unknown, never assumed | No verified per-scheme total exists in this build. A fabricated denominator under a real numerator would be the most quietly misleading number in the product |
+| M6 | ED-77 | Backlogs have no exam-date field | A re-sit date is a university fact needing a verified source. A student-entered one would look identical and be trusted the same way |
+| M6 | ED-78 | No server-side student table was added | Student data is local. The repository bundle is the boundary a future signed-in mode swaps, and nothing in M6 needed a schema |
 | M5A.7 | ED-65 | The marks column is MEASURED, not assumed | v1's 0.7 fraction was 90–100pt too far left on every paper in the corpus. A column is a narrow stack of short tokens repeated down the page; that is findable, and a fraction is a guess |
 | M5A.7 | ED-66 | No marks column found means no truncation, and nothing on that page may be `high` | Preserving text and flagging it beats deleting it silently. Without a column there is no positional evidence, so confidence would be unearned |
 | M5A.7 | ED-67 | The right-hand columns anchor CELLS; a new question starts when the LABELLING restarts, not when a number appears | A `Q.1` centred across (a), (b), (c) physically sits beside (b). Row-at-a-time parsing cannot express that, which is why v1 recovered no number at all on such a paper |
@@ -825,3 +833,53 @@ guess this project has avoided so far.
 
 **Decision needed:** none yet. Recorded so the count change is not mistaken for
 a regression.
+
+---
+
+### OQ-034 — The total credits for a degree are not established
+
+**Status:** OPEN · raised M6
+
+**Why:** Graduation progress can show credits earned and semesters completed —
+both are real. It cannot show credits REMAINING, because no verified total
+exists for a scheme in this build. The reference schema holds per-subject
+credits (`subjects.credits`), so a total is derivable in principle, but only for
+a scheme and branch whose subjects are complete, verified and published for all
+eight semesters. None is.
+
+**Options:**
+1. Derive the total by summing verified published subjects for the student's
+   scheme and branch, and show it only when all eight semesters are covered.
+2. Record a per-scheme total as verified reference data with its own source
+   citation, as the rule sets already are.
+3. Leave it unknown.
+
+**Recommendation:** (2). A degree's credit requirement is a regulation fact with
+a citable source, which is exactly what the reference tables are for; deriving
+it by summation would silently produce a wrong total the moment one subject is
+missing.
+
+**Decision needed:** none urgently — the screen is honest today. This is
+recorded so the gap is not mistaken for an oversight.
+
+---
+
+### OQ-035 — Semester 5 pilot readiness
+
+**Status:** OPEN · raised M6
+
+**Why:** The project owner begins semester 5 in September 2026, and M6 was built
+so that the before / during / after of a real semester is supported (M6 §3).
+What has NOT happened is a real student using it for a real semester.
+
+Nothing in the code knows about that date, and nothing may be made to: a
+semester's status is set by the student, never derived from the calendar
+(`ED-71`). The pilot is a roadmap commitment, not business logic.
+
+**What the pilot would establish:** whether entering four years of history is
+tolerable in one sitting, whether the strong/weak rule reads as fair, whether
+"not enough history yet" is understood rather than read as a bug, and whether
+attendance and the subject list stay in step over a term.
+
+**Decision needed:** none from engineering. Recorded so the milestone's purpose
+is not lost between now and September.

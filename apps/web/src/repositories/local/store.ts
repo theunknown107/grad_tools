@@ -17,7 +17,14 @@ import { del, get, set } from 'idb-keyval';
 /** Namespaced so a future multi-profile or account mode cannot collide. */
 const PREFIX = 'gradtools:v1:';
 
-export type StorageKey = 'profile' | 'attendance' | 'results' | 'timetable';
+export type StorageKey =
+  | 'profile'
+  | 'attendance'
+  | 'results'
+  | 'timetable'
+  | 'semesters'
+  | 'semesterSubjects'
+  | 'backlogs';
 
 function fullKey(key: StorageKey): string {
   return `${PREFIX}${key}`;

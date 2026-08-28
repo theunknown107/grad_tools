@@ -289,6 +289,18 @@ Running BOTH parsers, as the comparison did, costs one extra structural pass per
 document — not a second text extraction or a second OCR, because both parsers
 consume the same token stream.
 
+### 23.3.10 The student academic core (M6)
+
+Everything is local and small. A degree is at most 8 semesters, ~48 subjects and
+a handful of backlogs — four IndexedDB reads and a few hundred objects.
+
+The analytics module is pure and memoised per render with `useMemo`. Its cost is
+dominated by `calculateSGPA` once per completed semester: eight calls over a few
+dozen courses, which does not appear in a profile.
+
+No pagination, no virtualisation and no caching layer were added, because
+nothing here grows: the degree is bounded at eight semesters by definition.
+
 ## 23.5 Caching
 
 Full table in `07` §7.8. The performance-relevant points:

@@ -174,6 +174,9 @@ function ResultEditor({
       profileId,
       semester: Number(semester),
       schemeId: ruleSet.schemeId,
+      // Pinned at entry: a later rule set must never silently re-grade a
+      // semester that has already been sat (M6 §6).
+      ruleSetId: ruleSet.id,
       sgpaAsserted: sgpaAsserted.trim() === '' ? null : Number(sgpaAsserted),
       subjects: filled,
       createdAt: nowIso(),

@@ -389,3 +389,14 @@ real document during M5A.7: a v1 record reviewed as `accepted` remained
 development machine (18.3 vs 18.6), and `pg_ctl` refuses to start a mismatched
 server. Starting `postgres.exe` directly is the workaround; a stale
 `postmaster.pid` from an unclean shutdown must be removed first.
+
+## 21.17 M6 has no operator surface, by design
+
+The student academic core is local and has no admin dimension: there is no
+server record to inspect, correct or audit, and no operator can see a student's
+degree because it never leaves their device.
+
+What an operator still owns is unchanged — reference data, sources, documents
+and the extraction review workbench. A student's semesters, subjects, results
+and backlogs are outside that boundary entirely, and M6 did not move them into
+it.

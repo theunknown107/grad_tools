@@ -393,3 +393,25 @@ Both are database constraints, and both are mirrored in the application with a
 specific refusal reason so a caller gets an explanation rather than a database
 error. Where the two ever disagree the database wins: it is the one that cannot
 be bypassed.
+
+## 7.13 The student academic core (M6)
+
+M6 makes the eight-semester degree the product, and it does so **without adding
+a server**.
+
+```
+React ─► RepositoryBundle ─► LocalRepository ─► IndexedDB      (student data)
+      └► reference API ────────────────────► Express ─► Postgres (reference data)
+```
+
+Three repositories were added to the existing bundle — `semesters`,
+`semesterSubjects`, `backlogs` — following the shape the other four already
+have. **No server-side student table was introduced**, and none was needed: a
+student's degree is theirs, lives on their device, and the boundary that will
+one day let them sign in is the bundle, not a schema (M6 §21).
+
+The one genuinely new module is `apps/web/src/domain/academics.ts`. It is pure:
+no React, no I/O, no clock. It ORGANISES results across semesters and computes
+nothing — every SGPA, CGPA and percentage comes from
+`@gradtools/academic-rules`, because a second implementation living in the web
+app is precisely the drift the repository boundary exists to prevent.

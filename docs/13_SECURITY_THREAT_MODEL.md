@@ -301,3 +301,19 @@ exists because nobody requests it. Both the constraint and
 
 Neither gap was ever exercised — no source is enabled and no document exists.
 Both are the kind of gap that is found either before it matters or long after.
+
+## 13.14 M6 review — the student academic core
+
+| Threat | Assessment |
+|---|---|
+| **IDOR / cross-student access** | Not reachable. There is no server record and no identifier a request could name. Isolation is the repository bundle itself, and a test renders two bundles side by side to prove one cannot see the other |
+| **Stored XSS via subject names and notes** | Every student-entered string — subject title, backlog title, notes — is rendered as TEXT. No `dangerouslySetInnerHTML` exists anywhere in the M6 code, and a test renders `<img src=x onerror=alert(1)>` as a subject title and asserts no `<img>` reaches the DOM |
+| **Malicious input** | Credits come from a select, not free text. Statuses are enums. Semester numbers are 1–8. An empty subject code is refused rather than saved as a blank row |
+| **Accidental persistence of PII** | No new field collects identity. No DOB, no USN requirement, no email |
+| **PII in logs** | The web app logs nothing; there is no server involved |
+| **PII in tests** | Synthetic students only, asserted by review. The browser QA seeds its own data at run time rather than committing a fixture |
+| **Local storage exposure** | Unchanged and stated on screen: the data is on the device, and anyone with the device has it. This is the accepted Stage 1 posture (docs/12) |
+| **Export / import** | Not implemented in M6. Nothing serialises a student's degree to a file, so there is no import path to attack |
+
+**No new trust boundary was crossed.** M6 added no endpoint, no table, no
+authentication and no external call.

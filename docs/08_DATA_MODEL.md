@@ -578,3 +578,46 @@ trail that cannot show what the machine said is not an audit trail.
 Any one can be high while the next is low: a crisp scan of a table the parser
 misread; a perfectly parsed row whose mathematics is nonsense. Collapsing any
 two would let "the OCR was confident" start to read as "this is correct".
+
+## 8.13 The eight-semester degree (M6)
+
+Three student-owned entities, all local.
+
+| Entity | Holds | Why it is separate |
+|---|---|---|
+| `SemesterRecord` | number 1–8, `planned` / `in_progress` / `completed` | The degree's shape, independent of whether a result exists |
+| `SemesterSubject` | code, title, credits, notes | A subject the student is taking NOW — it exists before any grade does |
+| `BacklogRecord` | subject, origin semester, status, attempts | A subject not yet cleared, which is not a semester result |
+
+### A student does not start at semester 1
+
+Someone joining in their third year has four semesters behind them and types
+them in. Nothing derives status from a date, and the view always shows all
+eight — the shape of the degree does not depend on how much has been entered
+(M6 §2). A semester with a saved result counts as completed even if no status
+was set, so entering four years of history is not also four status changes.
+
+### `SemesterSubject` is not `ResultSubject`
+
+`ResultSubject` is history: a code, credits and a grade, inside a saved result.
+`SemesterSubject` is the present: what the student is taking, before any grade
+exists. Attendance and the timetable suggest from this list rather than each
+keeping their own copy, so a subject is named once (M6 §14, §16).
+
+### `SemesterResult.ruleSetId` — pinned at entry
+
+New in M6. A semester records the rule set it was graded under, so a later
+regulation cannot silently re-grade a semester already sat (M6 §6). Records
+saved before M6 have `null` and fall back to the scheme's active rule set — and
+the UI says so, because "graded under the rules of its own time" and "graded
+under whatever is current" are different claims.
+
+### The backlog model has NO exam date
+
+`active` → carried, not re-attempted · `attempted` → sat, result unknown ·
+`cleared` → passed.
+
+`attempted` is deliberately not `cleared`. And there is no date field, nor may
+one be added: a re-sit date is a university fact that must come from a verified
+source, and a student-entered one would look identical on screen and be trusted
+the same way (M6 §10).

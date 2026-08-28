@@ -33,7 +33,10 @@
 
 import type {
   AttendanceRecord,
+  BacklogRecord,
+  SemesterRecord,
   SemesterResult,
+  SemesterSubject,
   StudentProfile,
   TimetableSlot,
 } from '../domain/types.js';
@@ -62,6 +65,26 @@ export interface TimetableRepository {
   remove(id: string): Promise<void>;
 }
 
+/* -- The eight-semester degree (M6). Same shape, same boundary. ------------ */
+
+export interface SemesterRepository {
+  list(): Promise<SemesterRecord[]>;
+  upsert(record: SemesterRecord): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
+export interface SemesterSubjectRepository {
+  list(): Promise<SemesterSubject[]>;
+  upsert(subject: SemesterSubject): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
+export interface BacklogRepository {
+  list(): Promise<BacklogRecord[]>;
+  upsert(record: BacklogRecord): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
 /**
  * The full set of repositories the app depends on.
  *
@@ -75,4 +98,7 @@ export interface RepositoryBundle {
   readonly attendance: AttendanceRepository;
   readonly results: ResultRepository;
   readonly timetable: TimetableRepository;
+  readonly semesters: SemesterRepository;
+  readonly semesterSubjects: SemesterSubjectRepository;
+  readonly backlogs: BacklogRepository;
 }

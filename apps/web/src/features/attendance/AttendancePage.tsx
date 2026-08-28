@@ -41,7 +41,7 @@ import {
 } from '../../components/ui/index.js';
 import { formatCount, formatPercent } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
-import { useAttendance, useProfile } from '../../hooks/useCollection.js';
+import { useAttendance, useProfile, useSemesterSubjects } from '../../hooks/useCollection.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import styles from './attendance.module.css';
 
@@ -64,6 +64,7 @@ export function AttendancePage() {
   const { items, loading, save, remove } = useAttendance();
   const { profile } = useProfile();
 
+  const { items: semesterSubjects } = useSemesterSubjects();
   const [subjectCode, setSubjectCode] = useState('');
   const [attended, setAttended] = useState('');
   const [conducted, setConducted] = useState('');
@@ -100,7 +101,11 @@ export function AttendancePage() {
       profileId,
       semester: profile?.currentSemester ?? 1,
       subjectCode: subjectCode.trim().toUpperCase(),
-      subjectTitle: subjectCode.trim().toUpperCase(),
+      // The semester list is the one place a subject is named; reuse its title
+      // rather than storing the code twice.
+      subjectTitle:
+        semesterSubjects.find((subject) => subject.code === subjectCode.trim().toUpperCase())
+          ?.title ?? subjectCode.trim().toUpperCase(),
       attended: attendedValue,
       conducted: conductedValue,
       updatedAt: nowIso(),
@@ -120,15 +125,32 @@ export function AttendancePage() {
       <div className={styles.stack}>
         <Panel title="Add a course" flush>
           <div className={styles.addRow}>
+            {/*
+              THE SUBJECT IS DEFINED ONCE (M6 §16). The semester's subject list
+              suggests codes here rather than this screen keeping its own copy.
+              Still free text, because a student may be tracking something they
+              have not added to the semester yet.
+            */}
             <TextField
               label="Subject code"
               placeholder="BCS304"
               mono
+              list="semester-subject-codes"
+              hint={
+                semesterSubjects.length > 0 ? 'Your semester subjects are suggested.' : undefined
+              }
               value={subjectCode}
               onChange={(event) => {
                 setSubjectCode(event.target.value);
               }}
             />
+            <datalist id="semester-subject-codes">
+              {semesterSubjects.map((subject) => (
+                <option key={subject.id} value={subject.code}>
+                  {subject.title}
+                </option>
+              ))}
+            </datalist>
             <TextField
               label="Attended"
               inputMode="numeric"

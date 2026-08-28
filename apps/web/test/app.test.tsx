@@ -54,6 +54,7 @@ function result(
     profileId,
     semester,
     schemeId: 'vtu-2022',
+    ruleSetId: 'vtu-2022-v1',
     sgpaAsserted,
     createdAt: '',
     updatedAt: '',

@@ -1,0 +1,225 @@
+/** The degree screen. Authority: docs/05, M6 §12, §22 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* A flex item's default `min-width: auto` lets a wide table push the whole page
+   sideways. Found by browser QA: 196px of horizontal scroll at 320px, with the
+   subject table as the culprit. The table still scrolls inside its own
+   container; the page does not (docs/27 section 27.4). */
+.page > * {
+  min-width: 0;
+}
+
+/* Standing: a compact figure row, not a wall of cards (M6 §12). */
+.standing {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .standing {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.standing dt {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-subtle);
+}
+
+.standing dd {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xl);
+  font-weight: 600;
+  /* Aligned under its own label, not pushed to the far side of the column. */
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+}
+
+/* -- The eight semesters --------------------------------------------------- */
+
+.semesterList {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The status is carried by a left edge AND by a pill in words: never colour
+   alone (docs/27 section 27.5). */
+.semester {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.semester[data-status='in_progress'] {
+  border-left-color: var(--accent);
+}
+
+.semester[data-status='completed'] {
+  border-left-color: var(--success, var(--accent));
+}
+
+.semesterHead {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.semesterName {
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+/* A bar per semester: the only comparison worth making is against the
+   student's own semesters, and this shows it without a chart library. */
+.sgpaRow {
+  display: grid;
+  grid-template-columns: 3.2rem minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.sgpaValue {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sgpaTrack {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.sgpaFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.semesterMeta {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+}
+
+.disagree {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.semesterActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+
+.linkButton {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.linkButton:hover {
+  border-color: var(--accent);
+}
+
+.linkButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* -- Subjects within a semester -------------------------------------------- */
+
+.subjects {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.subjectForm,
+.backlogForm {
+  display: grid;
+  /* minmax(0, ...) so a long field cannot push the row wider than the page. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: end;
+}
+
+@media (min-width: 640px) {
+  .subjectForm {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) 6rem auto;
+  }
+
+  .backlogForm {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr) auto;
+  }
+}
+
+.subjectTitle {
+  font-weight: 400;
+  color: var(--text-subtle);
+}
+
+.attempts {
+  color: var(--text-subtle);
+  font-size: var(--text-sm);
+}
+
+/* NO ABSOLUTE POSITIONING.
+   The usual visually-hidden recipe positions the box absolutely, which leaves
+   it at its static position — and inside a table wider than the viewport that
+   is off-screen, extending the page's scrollable area. Browser QA measured
+   196px of horizontal page scroll at 320px from a single 1px span.
+   `clip-path` hides it just as well and cannot move it (docs/27 section 27.4). */
+.visuallyHidden {
+  display: inline-block;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

@@ -1,0 +1,277 @@
+/**
+ * The degree — eight semesters, past and ahead.
+ *
+ * Authority: docs/18 §18.9 · docs/28 · M6 §2, §11, §12, §13
+ *
+ * ---------------------------------------------------------------------------
+ * NO ACADEMIC ARITHMETIC EXISTS IN THIS FILE
+ * ---------------------------------------------------------------------------
+ * Every SGPA, CGPA and percentage is read from `../../domain/academics.js`,
+ * which reads it from `@gradtools/academic-rules`. React multiplies nothing.
+ *
+ * THE WHOLE DEGREE IS ALWAYS VISIBLE. A student in their third year sees the
+ * four semesters behind them, the one they are in, and the three ahead — the
+ * shape of the degree does not depend on how much has been typed in (M6 §2).
+ *
+ * Student-entered text (subject titles, notes) is rendered as TEXT. React
+ * escapes it and nothing here uses `dangerouslySetInnerHTML` (docs/13 §T-21).
+ */
+
+import { useMemo, useState } from 'react';
+import {
+  analyseStrengths,
+  buildSemesterViews,
+  cumulativeStanding,
+  graduationProgress,
+  subjectPerformance,
+  summariseBacklogs,
+  type SemesterView,
+} from '../../domain/academics.js';
+import type { SemesterRecord, SemesterStatus } from '../../domain/types.js';
+import { asStudentProfileId } from '../../domain/identity.js';
+import { PageHeader } from '../../components/AppShell.js';
+import { EmptyState, Notice, Panel, SelectField, StatusPill } from '../../components/ui/index.js';
+import { formatGpa, formatPercent } from '../../lib/format.js';
+import { newId, nowIso } from '../../lib/id.js';
+import { useBacklogs, useProfile, useResults, useSemesters } from '../../hooks/useCollection.js';
+import { BacklogPanel } from './BacklogPanel.js';
+import { SubjectInsights } from './SubjectInsights.js';
+import { SemesterSubjects } from './SemesterSubjects.js';
+import styles from './semesters.module.css';
+
+const STATUS_LABEL: Record<SemesterStatus, string> = {
+  planned: 'Planned',
+  in_progress: 'In progress',
+  completed: 'Completed',
+};
+
+const STATUS_TONE: Record<SemesterStatus, 'neutral' | 'accent' | 'success'> = {
+  planned: 'neutral',
+  in_progress: 'accent',
+  completed: 'success',
+};
+
+export function SemestersPage() {
+  const { profile } = useProfile();
+  const { items: results, loading: resultsLoading } = useResults();
+  const { items: semesters, save: saveSemester } = useSemesters();
+  const { items: backlogs } = useBacklogs();
+  const [openSemester, setOpenSemester] = useState<number | null>(null);
+
+  const profileId = profile?.id ?? asStudentProfileId('00000000-0000-0000-0000-000000000000');
+
+  const views = useMemo(() => buildSemesterViews(semesters, results), [semesters, results]);
+  const standing = useMemo(() => cumulativeStanding(views), [views]);
+  const performances = useMemo(() => subjectPerformance(views), [views]);
+  const strengths = useMemo(() => analyseStrengths(performances), [performances]);
+  const backlogSummary = useMemo(() => summariseBacklogs(backlogs), [backlogs]);
+
+  /*
+   * The credit requirement is NOT assumed. Nothing in this build establishes a
+   * verified total for a scheme, so it is null and the panel says so rather
+   * than putting a made-up denominator under a real numerator (M6 §13).
+   */
+  const progress = useMemo(() => graduationProgress(views, null), [views]);
+
+  async function setStatus(view: SemesterView, status: SemesterStatus) {
+    const existing = semesters.find((candidate) => candidate.number === view.number);
+    const record: SemesterRecord = {
+      id: existing?.id ?? newId(),
+      profileId,
+      number: view.number,
+      status,
+      startedOn: existing?.startedOn ?? null,
+      completedOn: existing?.completedOn ?? null,
+      updatedAt: nowIso(),
+    };
+    await saveSemester(record);
+
+    /*
+     * At most one semester runs at a time. Standing the others down here means
+     * the student never has to tidy up after themselves, and no screen has to
+     * cope with two "current" semesters.
+     */
+    if (status === 'in_progress') {
+      for (const other of semesters) {
+        if (other.number !== view.number && other.status === 'in_progress') {
+          await saveSemester({ ...other, status: 'planned', updatedAt: nowIso() });
+        }
+      }
+    }
+  }
+
+  const maxSgpa = 10;
+
+  return (
+    <div className={styles.page}>
+      <PageHeader
+        title="My degree"
+        subtitle="Eight semesters, from the ones behind you to the ones ahead. Everything here stays on this device."
+      />
+
+      {/* ---- Standing ------------------------------------------------- */}
+      <Panel title="Where you stand">
+        <dl className={styles.standing}>
+          <div>
+            <dt>CGPA</dt>
+            <dd>{standing.cgpa === null ? '—' : formatGpa(standing.cgpa)}</dd>
+          </div>
+          <div>
+            <dt>Percentage</dt>
+            <dd>{standing.percentage === null ? '—' : formatPercent(standing.percentage)}</dd>
+          </div>
+          <div>
+            <dt>Credits earned</dt>
+            <dd>{standing.creditsCompleted}</dd>
+          </div>
+          <div>
+            <dt>Semesters done</dt>
+            <dd>
+              {standing.semestersCompleted} of {progress.semestersTotal}
+            </dd>
+          </div>
+          <div>
+            <dt>Backlogs</dt>
+            <dd>{backlogSummary.outstanding}</dd>
+          </div>
+        </dl>
+
+        {standing.reason !== null && <p className={styles.note}>{standing.reason}</p>}
+
+        {/*
+          Semesters graded under different regulations cannot honestly be
+          averaged into one number without saying so (M6 §6).
+        */}
+        {standing.mixedRuleSets && (
+          <Notice tone="warning">
+            These semesters were graded under more than one set of rules. The combined figures are a
+            simplification.
+          </Notice>
+        )}
+
+        {/* The remainder is unknown, and the panel says which part is unknown. */}
+        <p className={styles.note}>
+          {progress.creditsRequired === null
+            ? progress.reason
+            : `${String(progress.creditsRemaining)} credits remaining of ${String(progress.creditsRequired)}.`}
+        </p>
+      </Panel>
+
+      {/* ---- The eight semesters --------------------------------------- */}
+      <Panel title="Semesters">
+        <p className={styles.note}>
+          Set where you are. A semester with a saved result counts as completed.
+        </p>
+        <ul className={styles.semesterList}>
+          {views.map((view) => {
+            const sgpa = view.sgpaComputed;
+            const isOpen = openSemester === view.number;
+            return (
+              <li key={view.number}>
+                <div className={styles.semester} data-status={view.status}>
+                  <div className={styles.semesterHead}>
+                    <h3 className={styles.semesterName}>Semester {view.number}</h3>
+                    <StatusPill tone={STATUS_TONE[view.status]}>
+                      {STATUS_LABEL[view.status]}
+                    </StatusPill>
+                  </div>
+
+                  {/*
+                    A bar per semester rather than a chart library: the only
+                    comparison worth making is between the student's own
+                    semesters, and a row of bars shows it without a dependency
+                    (docs/05 §5.12).
+                  */}
+                  <div className={styles.sgpaRow}>
+                    <span className={styles.sgpaValue}>
+                      {sgpa === null ? '—' : formatGpa(sgpa)}
+                    </span>
+                    <span
+                      className={styles.sgpaTrack}
+                      role="img"
+                      aria-label={
+                        sgpa === null
+                          ? `Semester ${String(view.number)}: no SGPA yet`
+                          : `Semester ${String(view.number)}: SGPA ${formatGpa(sgpa)} of 10`
+                      }
+                    >
+                      <span
+                        className={styles.sgpaFill}
+                        style={{ width: `${String(((sgpa ?? 0) / maxSgpa) * 100)}%` }}
+                      />
+                    </span>
+                    <span className={styles.semesterMeta}>
+                      {view.subjectCount > 0
+                        ? `${String(view.subjectCount)} subjects · ${String(view.credits)} credits`
+                        : 'No result entered'}
+                    </span>
+                  </div>
+
+                  {view.sgpaDisagrees && (
+                    <p className={styles.disagree}>
+                      Your grade card says {formatGpa(view.sgpaAsserted ?? 0)}; these grades work
+                      out to {formatGpa(sgpa ?? 0)}. Both are shown — check the entry.
+                    </p>
+                  )}
+
+                  {/*
+                    A semester graded under a rule set it did not pin is being
+                    read under today's rules. Said out loud, because a
+                    regulation change must not silently re-grade the past.
+                  */}
+                  {view.result !== null && !view.ruleSetPinned && (
+                    <p className={styles.note}>
+                      Saved before rule versions were recorded, so it is read under the current
+                      rules.
+                    </p>
+                  )}
+
+                  <div className={styles.semesterActions}>
+                    <SelectField
+                      label={`Semester ${String(view.number)} status`}
+                      hideLabel
+                      value={view.status}
+                      onChange={(event) => {
+                        void setStatus(view, event.target.value as SemesterStatus);
+                      }}
+                    >
+                      <option value="planned">Planned</option>
+                      <option value="in_progress">In progress</option>
+                      <option value="completed">Completed</option>
+                    </SelectField>
+                    <button
+                      type="button"
+                      className={styles.linkButton}
+                      aria-expanded={isOpen}
+                      onClick={() => {
+                        setOpenSemester(isOpen ? null : view.number);
+                      }}
+                    >
+                      {isOpen ? 'Hide subjects' : 'Subjects'}
+                    </button>
+                  </div>
+
+                  {isOpen && <SemesterSubjects semester={view.number} profileId={profileId} />}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </Panel>
+
+      {/* ---- Subjects --------------------------------------------------- */}
+      <SubjectInsights performances={performances} strengths={strengths} loading={resultsLoading} />
+
+      {/* ---- Backlogs --------------------------------------------------- */}
+      <BacklogPanel profileId={profileId} />
+
+      {results.length === 0 && !resultsLoading && (
+        <EmptyState>
+          Nothing here yet. Add a semester result on the Results page and this fills in.
+        </EmptyState>
+      )}
+    </div>
+  );
+}
+
+export { STATUS_LABEL as semesterStatusLabel };

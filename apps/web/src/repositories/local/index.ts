@@ -7,14 +7,20 @@
 
 import type {
   AttendanceRecord,
+  BacklogRecord,
+  SemesterRecord,
   SemesterResult,
+  SemesterSubject,
   StudentProfile,
   TimetableSlot,
 } from '../../domain/types.js';
 import type {
   AttendanceRepository,
+  BacklogRepository,
   RepositoryBundle,
   ResultRepository,
+  SemesterRepository,
+  SemesterSubjectRepository,
   StudentProfileRepository,
   TimetableRepository,
 } from '../types.js';
@@ -66,9 +72,21 @@ export const localResultRepository: ResultRepository =
 export const localTimetableRepository: TimetableRepository =
   createListRepository<TimetableSlot>('timetable');
 
+export const localSemesterRepository: SemesterRepository =
+  createListRepository<SemesterRecord>('semesters');
+
+export const localSemesterSubjectRepository: SemesterSubjectRepository =
+  createListRepository<SemesterSubject>('semesterSubjects');
+
+export const localBacklogRepository: BacklogRepository =
+  createListRepository<BacklogRecord>('backlogs');
+
 export const localRepositories: RepositoryBundle = {
   profile: localProfileRepository,
   attendance: localAttendanceRepository,
   results: localResultRepository,
   timetable: localTimetableRepository,
+  semesters: localSemesterRepository,
+  semesterSubjects: localSemesterSubjectRepository,
+  backlogs: localBacklogRepository,
 };

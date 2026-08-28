@@ -339,6 +339,35 @@ produces fewer records on `BENGK106` because it stopped inventing three.
 browser QA with 0 axe violations. **v2 output has not been adjudicated** — the
 M5A.6 metrics describe v1.
 
+### M6 — Student academic core · ✅ **DELIVERED**
+The eight-semester degree became the product. A student can enter four years of
+history, mark where they are, keep this semester's subjects, track backlogs, and
+see CGPA, percentage, subject trends and degree progress — **without touching
+the question-paper pipeline at all**.
+
+**All eight semesters, always.** `planned` / `in_progress` / `completed`, with a
+student who starts in their third year treated as the normal case. No status is
+derived from a date.
+
+**Every number comes from `@gradtools/academic-rules`.** A new pure module
+organises results across semesters and computes nothing; `SemesterResult` now
+pins its `ruleSetId` so a later regulation cannot re-grade a semester already
+sat.
+
+**Deterministic analytics, no AI.** Subject trend only where a subject was
+re-sat; strong/weak measured against the student's own average with the rule
+printed on screen; "not enough history yet" below five graded subjects; credits
+remaining reported as unknown rather than invented.
+
+**No server, no auth, no new table.** Three local repositories behind the
+existing bundle. The public repository holds zero real academic records.
+
+1018 tests; browser QA at four viewports with 0 axe violations and 0 overflow
+after fixing two real defects it found.
+
+**The paper-intelligence pipeline is parked**, not removed — it remains the
+future differentiator (M6 §27).
+
 ### M5b — Document pipeline · superseded
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.

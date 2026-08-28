@@ -926,3 +926,20 @@ destroy the evidence a reviewer needs to tell a parser bug from a bad scan.
 | `extracted_questions_paper` | The ordered question list |
 | `extracted_questions_review_queue` | Partial: the rows a person still has to look at |
 | `extracted_sub_questions_question` | Sub-questions in order under their parent |
+
+## 9.15 M6 added no tables, and that is the decision
+
+The student academic core introduced **no migration and no server-side student
+table**.
+
+Student academic records stay on the device (docs/12, M6 §18, §21). The
+repositories added in M6 — semesters, semester subjects, backlogs — are
+IndexedDB-backed like the four before them, behind the same async boundary that
+a future API-backed bundle will swap into.
+
+The reference schema is unchanged. Schemes, subjects, rule sets and everything
+else that is *not* a student's own record remain server-backed and read-only.
+
+**What would force a table.** Signing in, syncing between devices, or a student
+sharing a record. None is in scope, and M6 §21 requires stopping to explain
+before adding one. Nothing in this milestone came close.

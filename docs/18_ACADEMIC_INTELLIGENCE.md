@@ -318,3 +318,51 @@ this document's own evidence requirements exist to prevent.
 `document_sections` is the seam these features will read from. A test asserts
 sections carry no question or marks fields today, so nothing downstream can
 quietly start depending on a guess.
+
+## 18.9 Deterministic subject analytics (M6)
+
+The first analytics in GradTools that a student actually sees — and **none of
+it is AI**. Every classification is a rule printed on the same screen, so it can
+be applied by hand and disagreed with.
+
+### Subject trend
+
+A direction is reported **only where there is something to compare**: a subject
+that appears in more than one completed semester, which in a degree means it was
+carried and re-sat. A subject taken once is labelled "Taken once", not
+"unchanged" — a single point is not a flat line (M6 §8).
+
+### Strong and weak subjects
+
+```
+mean    = the student's own mean grade point across every graded subject
+strong  = grade point >= mean + 1
+weak    = grade point <= mean - 1
+typical = everything between
+```
+
+One grade point is exactly one letter band on VTU's ten-point scale, so the rule
+reads as "a whole grade above or below your own average".
+
+**Not a percentile** (M6 §9). A percentile ranks a student against nothing but
+themselves in a way that always produces a loser: it would call the bottom of a
+uniformly excellent set "weak". Distance from the student's own average produces
+**no classification at all** when performance is even, which is the honest
+answer in that case, and a test pins it.
+
+**Below five graded subjects nothing is classified.** The screen says "Not
+enough history yet" and names the number needed. A first-semester student must
+not be told what they are bad at on the strength of two grades.
+
+### Graduation progress
+
+Credits earned and semesters completed are real and always shown. **Credits
+remaining is not invented.** No verified total exists for a scheme in this
+build, so the screen says exactly that rather than putting a fabricated
+denominator under a real numerator (M6 §13).
+
+### What is deliberately absent
+
+No projection of a semester still running. No predicted SGPA. No explanation of
+*why* a subject went badly — GradTools does not know, and inventing a reason
+would be the least defensible sentence in the product.

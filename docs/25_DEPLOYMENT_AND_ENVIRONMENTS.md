@@ -324,3 +324,13 @@ Three properties make the local driver safe to run outside a container:
 3. Every resolved path is re-checked to be inside the root, which property 1
    should make unreachable — asserted anyway, because "should be unreachable" is
    how traversal bugs get written.
+
+## 25.9 M6 changed nothing about deployment
+
+No new environment variable, service, migration or build step. The student
+academic core is local-first and ships inside the existing web bundle.
+
+The September 2026 pilot is a **roadmap date, not configuration** (M6 §3).
+Nothing in the build, the environment or the business logic knows about it, and
+nothing may be made to: a semester's status is set by the student, never derived
+from the calendar.
