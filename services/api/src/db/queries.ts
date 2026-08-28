@@ -33,6 +33,9 @@ import {
   type ExtractedMcqItem,
   reviewQueueItemSchema,
   type ReviewQueueItem,
+  announcementSchema,
+  type Announcement,
+  type AnnouncementCategory,
   sourceSchema,
   type DocumentRecord,
   type Source,
@@ -857,4 +860,132 @@ export async function listReviewQueue(sql: Sql, limit = 50): Promise<ReviewQueue
     LIMIT ${limit}
   `;
   return parseRows(reviewQueueItemSchema, rows);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Announcements (M7)                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * THE PUBLICATION GATE, IN THE QUERY AS WELL AS THE SCHEMA.
+ *
+ * The database refuses to mark anything published without verification, and
+ * this refuses to read anything that is not published. Two independent reasons
+ * an unvalidated notice cannot reach a student, and neither depends on the
+ * other being right (M7 §11).
+ *
+ * Neither state is SELECTed: everything returned has already passed, and
+ * shipping the field would invite a client to decide for itself.
+ */
+const PUBLISHED_ANNOUNCEMENT = (sql: Sql) => sql`
+  a.publication = 'published' AND a.verification = 'verified'
+`;
+
+const ANNOUNCEMENT_COLUMNS = (sql: Sql) => sql`
+  a.id::text,
+  a.source_id     AS "sourceId",
+  a.origin,
+  a.publisher,
+  a.title,
+  a.body,
+  a.category,
+  a.canonical_url AS "canonicalUrl",
+  to_char(a.published_at,   'YYYY-MM-DD"T"HH24:MI:SSOF') AS "publishedAt",
+  to_char(a.event_start_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS "eventStartAt",
+  to_char(a.deadline_at,    'YYYY-MM-DD"T"HH24:MI:SSOF') AS "deadlineAt",
+  json_build_object(
+    'schemeId',    a.scheme_id,
+    'branchId',    a.branch_id,
+    'branchName',  a.branch_name,
+    'collegeId',   a.college_id::text,
+    'collegeName', a.college_name,
+    'semester',    a.semester
+  ) AS audience,
+  to_char(a.first_seen_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS "firstSeenAt",
+  to_char(a.last_seen_at,  'YYYY-MM-DD"T"HH24:MI:SSOF') AS "lastSeenAt",
+  to_char(a.updated_at,    'YYYY-MM-DD"T"HH24:MI:SSOF') AS "updatedAt"
+`;
+
+export interface AnnouncementQuery {
+  readonly category?: AnnouncementCategory | undefined;
+  readonly sourceId?: string | undefined;
+  readonly limit: number;
+  readonly offset: number;
+}
+
+/**
+ * The student feed: published notices, newest first.
+ *
+ * NO STUDENT CONTEXT IS ACCEPTED (M7 §13, §40). There is no branch, semester or
+ * profile parameter, because relevance is computed in the browser from data
+ * that never leaves the device. This endpoint cannot personalise, which is what
+ * makes it impossible for it to learn anything about who is asking.
+ */
+export async function listPublishedAnnouncements(
+  sql: Sql,
+  query: AnnouncementQuery,
+): Promise<{ items: Announcement[]; total: number }> {
+  const categoryFilter =
+    query.category === undefined ? sql`` : sql`AND a.category = ${query.category}`;
+  const sourceFilter =
+    query.sourceId === undefined ? sql`` : sql`AND a.source_id = ${query.sourceId}`;
+
+  const rows = await sql`
+    SELECT ${ANNOUNCEMENT_COLUMNS(sql)}
+      FROM announcements a
+     WHERE ${PUBLISHED_ANNOUNCEMENT(sql)} ${categoryFilter} ${sourceFilter}
+     ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC
+     LIMIT ${query.limit} OFFSET ${query.offset}
+  `;
+
+  const [counted] = await sql<{ total: number }[]>`
+    SELECT count(*)::int AS total
+      FROM announcements a
+     WHERE ${PUBLISHED_ANNOUNCEMENT(sql)} ${categoryFilter} ${sourceFilter}
+  `;
+
+  return { items: parseRows(announcementSchema, rows), total: counted?.total ?? 0 };
+}
+
+/** One published announcement. Unpublished ids are not found, not forbidden. */
+export async function findPublishedAnnouncement(
+  sql: Sql,
+  id: string,
+): Promise<Announcement | null> {
+  const rows = await sql`
+    SELECT ${ANNOUNCEMENT_COLUMNS(sql)}
+      FROM announcements a
+     WHERE a.id = ${id}::uuid AND ${PUBLISHED_ANNOUNCEMENT(sql)}
+  `;
+  return parseRows(announcementSchema, rows)[0] ?? null;
+}
+
+/**
+ * Which sources actually have published notices.
+ *
+ * The filter list is built from this rather than from the source registry, so a
+ * student is never offered a filter that returns nothing (M7 §24).
+ */
+export async function listAnnouncementFilters(sql: Sql): Promise<{
+  categories: { value: string; count: number }[];
+  sources: { value: string; label: string; count: number }[];
+}> {
+  const categories = await sql<{ value: string; count: number }[]>`
+    SELECT a.category AS value, count(*)::int AS count
+      FROM announcements a
+     WHERE ${PUBLISHED_ANNOUNCEMENT(sql)}
+     GROUP BY a.category
+     ORDER BY count DESC, value
+  `;
+  const sources = await sql<{ value: string; label: string; count: number }[]>`
+    SELECT COALESCE(a.source_id, 'operator') AS value,
+           COALESCE(s.publisher, 'Entered by an operator') AS label,
+           count(*)::int AS count
+      FROM announcements a
+      LEFT JOIN sources s ON s.id = a.source_id
+     WHERE ${PUBLISHED_ANNOUNCEMENT(sql)}
+     GROUP BY COALESCE(a.source_id, 'operator'), COALESCE(s.publisher, 'Entered by an operator')
+     ORDER BY count DESC, label
+  `;
+  return { categories: [...categories], sources: [...sources] };
 }

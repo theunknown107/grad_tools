@@ -334,3 +334,35 @@ The September 2026 pilot is a **roadmap date, not configuration** (M6 §3).
 Nothing in the build, the environment or the business logic knows about it, and
 nothing may be made to: a semester's status is set by the student, never derived
 from the calendar.
+
+## 25.13 M7 deployment notes
+
+One migration, no new service, no new infrastructure.
+
+| Change | Effect |
+|---|---|
+| `0009_announcements.sql` | One table, two enums, five indexes. Forward-only, additive; nothing existing is altered |
+| `seed-demo.ts` | **A separate command**, never part of `seed.ts` and never run automatically |
+
+### Demo data is opt-in, by command
+
+```
+pnpm --filter @gradtools/api seed:demo
+```
+
+Kept out of the ordinary seed on purpose: synthetic notices labelled DEMO DATA
+are useful in development and a liability anywhere a real student might read
+them. Nothing runs it implicitly, so no environment gets demo content by
+default.
+
+### Environment variables
+
+**None were added.** In particular there is no flag that enables a VTU
+announcement source — the gate is terms status in the database, not
+configuration, so it cannot be opened by editing an environment (§14.15).
+
+### The loopback boundary
+
+`POST /announcements/entry` and `/publish` are reachable only from the machine
+running the API. **Any deployment that puts a proxy in front of the API must not
+forward these paths**, exactly as for the document routes.

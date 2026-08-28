@@ -9,12 +9,14 @@
  */
 
 import {
+  BellIcon,
   CalendarDays,
   CalcIcon,
   ClipboardList,
   FileTextIcon,
   GraduationCap,
   LayoutDashboard,
+  Megaphone,
   UserRound,
 } from './icons.js';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -36,6 +38,20 @@ const DESTINATIONS: readonly Destination[] = [
     label: 'Dashboard',
     shortLabel: 'Home',
     icon: LayoutDashboard,
+    group: 'Overview',
+  },
+  {
+    to: '/announcements',
+    label: 'Announcements',
+    shortLabel: 'News',
+    icon: Megaphone,
+    group: 'Overview',
+  },
+  {
+    to: '/notifications',
+    label: 'Notifications',
+    shortLabel: 'Alerts',
+    icon: BellIcon,
     group: 'Overview',
   },
   {

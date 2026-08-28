@@ -24,7 +24,9 @@ export type StorageKey =
   | 'timetable'
   | 'semesters'
   | 'semesterSubjects'
-  | 'backlogs';
+  | 'backlogs'
+  | 'notificationState'
+  | 'notificationPreferences';
 
 function fullKey(key: StorageKey): string {
   return `${PREFIX}${key}`;

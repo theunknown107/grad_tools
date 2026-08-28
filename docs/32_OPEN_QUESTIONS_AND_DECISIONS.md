@@ -283,7 +283,7 @@ Any of these may be reversed; each names the condition under which reversal woul
 
 Every entry states why it is unresolved, the options, a recommendation, and exactly what decision is needed.
 
-### OQ-006 — Terms-of-use review for `vtu.ac.in` · **BLOCKING M6 — remains open**
+### OQ-006 — Terms-of-use review for `vtu.ac.in` · **STILL OPEN after M7**
 **Why unresolved:** robots.txt is verified and permits crawling of the announcement paths, but the site's terms of use have not been read. **robots.txt is necessary, not sufficient.**
 **Reinforced in M2:** `14` §14.7.1 now classifies every source into one of three categories, and the classification is stored on the source row:
 
@@ -526,7 +526,8 @@ a product-scope question, not an engineering one.
 **Recommendation:** **(a)** in M2. Note that (c) would reopen `DEC-006` as a privacy decision, since question text would then leave our infrastructure.
 **Decision needed:** M2, based on measurement.
 
-### OQ-026 - VTU announcements terms of use - **BLOCKER for M5B activation**
+### OQ-026 - VTU announcements terms of use - **BLOCKER, still open after M7**
+**Status after M7: OPEN, unchanged.** M7 shipped the announcement feature *around* this question rather than through it — the model, the gate, the dedup, the relevance and the notification centre all exist and are tested, and the source they were built for is still closed. A test asserts the source reports `enabled = false`, `terms_status = 'unknown'`, `access_method = 'none'`, and that enabling it throws; that test is the thing standing between an unresolved terms question and a live scraper.
 **Status after M5: OPEN.** This is `OQ-006` restated with its evidence in hand.
 **What is now known:** `vtu.ac.in/robots.txt`, fetched 2026-08-24, disallows only `/wp-admin/`. Robots therefore does **not** block reading announcements.
 **What is still unknown:** whether VTU's terms of use permit a third party to read, store and re-present those announcements. Nobody has reviewed them.
@@ -883,3 +884,39 @@ attendance and the subject list stay in step over a term.
 
 **Decision needed:** none from engineering. Recorded so the milestone's purpose
 is not lost between now and September.
+
+### OQ-032 — How announcements reach a student who is not in the app · **opened by M7**
+
+**Why unresolved:** M7 delivers everything about a notification except delivery.
+In-app unread state works; an opt-in browser notification works *while the app
+is open*; nothing reaches a student who has closed it.
+
+Real delivery means Web Push — VAPID keys, a service worker, a subscription
+store, and therefore a **server-side identity**, which Stage 1 deliberately does
+not have (`09` §9.16). The interface says so plainly rather than implying
+background delivery.
+
+**Options:** (a) wait for M9 and build Push on the identity it introduces;
+(b) email digests, which need an address and therefore the same identity;
+(c) accept that GradTools notifies only while open, and say so permanently.
+
+**Recommendation:** **(a)**, sequenced after M9. Push before identity means
+inventing a device-identity scheme purely to notify, which is a tracking
+identifier by another name.
+
+**Decision needed:** at M9, not before.
+
+### OQ-033 — Who verifies announcements at any scale · **opened by M7**
+
+**Why unresolved:** nothing is published without a human verifying it, and a
+content change withdraws that verification (`14` §14.15). That is correct and it
+does not scale: one operator is the entire verification capacity, and a source
+producing daily notices would outrun them.
+
+**What M7 chose anyway:** the bottleneck. An unverified notice not shown is a
+student who missed something; an unverified notice shown is a student misled by
+GradTools. The second is worse, and it is the failure that destroys the reason
+to use the app at all.
+
+**Decision needed:** before a source is enabled — not before, since with no
+source there is nothing to verify.

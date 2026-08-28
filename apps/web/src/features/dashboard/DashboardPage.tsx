@@ -53,6 +53,7 @@ import {
   useTimetable,
 } from '../../hooks/useCollection.js';
 import { buildSemesterViews, currentSemester, summariseBacklogs } from '../../domain/academics.js';
+import { LatestAnnouncements } from '../announcements/AnnouncementsPage.js';
 import styles from './dashboard.module.css';
 
 const ruleSet = vtu2022RuleSet;
@@ -110,6 +111,9 @@ export function DashboardPage() {
               backlogsOutstanding={summariseBacklogs(backlogs).outstanding}
             />
           )}
+          {/* What is new, above the standing figures: a student opens the app
+              to find out what has happened (M7 §25). */}
+          <LatestAnnouncements />
           <AcademicOverview results={results} />
           <AttendanceConcerns attendance={attendance} />
           <TodaySchedule timetable={timetable} />

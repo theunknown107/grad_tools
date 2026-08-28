@@ -9,6 +9,8 @@ import { Route, Routes } from 'react-router-dom';
 import { DocumentsPage } from './features/documents/DocumentsPage.js';
 import { AppShell, Disclaimer } from './components/AppShell.js';
 import { DashboardPage } from './features/dashboard/DashboardPage.js';
+import { AnnouncementsPage } from './features/announcements/AnnouncementsPage.js';
+import { NotificationsPage } from './features/announcements/NotificationsPage.js';
 import { SemestersPage } from './features/semesters/SemestersPage.js';
 import { AcademicsPage } from './features/academics/AcademicsPage.js';
 import { AttendancePage } from './features/attendance/AttendancePage.js';
@@ -22,6 +24,8 @@ export function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/announcements" element={<AnnouncementsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/semesters" element={<SemestersPage />} />
         <Route path="/academics" element={<AcademicsPage />} />
         <Route path="/attendance" element={<AttendancePage />} />

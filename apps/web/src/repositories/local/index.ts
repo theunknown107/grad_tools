@@ -14,9 +14,11 @@ import type {
   StudentProfile,
   TimetableSlot,
 } from '../../domain/types.js';
+import type { NotificationPreferences, NotificationRecord } from '../../domain/notifications.js';
 import type {
   AttendanceRepository,
   BacklogRepository,
+  NotificationRepository,
   RepositoryBundle,
   ResultRepository,
   SemesterRepository,
@@ -81,6 +83,21 @@ export const localSemesterSubjectRepository: SemesterSubjectRepository =
 export const localBacklogRepository: BacklogRepository =
   createListRepository<BacklogRecord>('backlogs');
 
+export const localNotificationRepository: NotificationRepository = {
+  async listStates() {
+    return (await readValue<NotificationRecord[]>('notificationState')) ?? [];
+  },
+  async saveStates(records) {
+    await writeValue('notificationState', [...records]);
+  },
+  async getPreferences() {
+    return readValue<NotificationPreferences>('notificationPreferences');
+  },
+  async savePreferences(preferences) {
+    await writeValue('notificationPreferences', preferences);
+  },
+};
+
 export const localRepositories: RepositoryBundle = {
   profile: localProfileRepository,
   attendance: localAttendanceRepository,
@@ -89,4 +106,5 @@ export const localRepositories: RepositoryBundle = {
   semesters: localSemesterRepository,
   semesterSubjects: localSemesterSubjectRepository,
   backlogs: localBacklogRepository,
+  notifications: localNotificationRepository,
 };

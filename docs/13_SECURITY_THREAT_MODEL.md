@@ -317,3 +317,33 @@ Both are the kind of gap that is found either before it matters or long after.
 
 **No new trust boundary was crossed.** M6 added no endpoint, no table, no
 authentication and no external call.
+
+## 13.15 Announcement content is untrusted input (M7)
+
+An announcement is text GradTools did not write, shown to a student inside
+GradTools, sometimes carrying a link. That is the whole threat.
+
+| ID | Threat | Control |
+|---|---|---|
+| T-30 | Script injected through announcement content | Content is reduced to **plain text** at ingestion (markup removed, not escaped) and rendered as text by the client. Two independent reasons it can never become markup, neither depending on the other being right |
+| T-31 | `javascript:` / `data:` / `vbscript:` link | Scheme **allowlist** — only `http:` and `https:`. A blocklist has to be right about every scheme that will ever exist; an allowlist has to be right about two. Enforced again by a CHECK constraint |
+| T-32 | Link to `localhost` or a private address, making a student's browser reach their own network | Private-host pattern refuses `localhost`, `127.*`, `10.*`, `192.168.*`, `172.16–31.*`, `169.254.*`, `::1` |
+| T-33 | Credential-shaped phishing link (`https://vtu.ac.in@evil.example`) | A URL carrying a username or password is refused |
+| T-34 | A student following an external link without realising they are leaving | The link shows **the host** it goes to, opens in a new tab, and carries `rel="noopener noreferrer nofollow"` |
+| T-35 | Unverified content reaching students | Publication requires verification, enforced by a database CHECK, not by the router |
+| T-36 | A source silently editing a notice a human already approved | A content change **withdraws verification** and unpublishes the row (§8.14) |
+| T-37 | Anyone posting an announcement | No public write. Entry is loopback-only and cannot publish (§10.14) |
+| T-38 | Synthetic content mistaken for an official notice | `origin = 'demo_fixture'` drives a visible DEMO label; publishers are fictional; the VTU disclaimer is on the page |
+
+**Not a sanitiser.** `toPlainText` keeps no HTML at all. A sanitiser decides
+which markup is safe to keep, a question with a long history of wrong answers.
+
+**Nothing in the normalisation path fetches anything.** It takes strings and
+returns strings; the network belongs to an adapter, behind the source gates
+(§14.15).
+
+### Refusals are results, not exceptions
+
+Bad input from a source is expected traffic, and an operator typing a bad link
+deserves a sentence rather than a stack trace. `normalizeAnnouncement` returns a
+verdict; the caller decides.

@@ -588,6 +588,142 @@ export const sourceChangeSchema = z.object({
 export type SourceChange = z.infer<typeof sourceChangeSchema>;
 
 /* -------------------------------------------------------------------------- */
+/* Announcements (M7)                                                         */
+/* -------------------------------------------------------------------------- */
+
+export const announcementCategorySchema = z.enum([
+  'results',
+  'exam_timetable',
+  'exam_registration',
+  'backlog',
+  'summer_semester',
+  'revaluation',
+  'fees',
+  'holiday',
+  'academic_calendar',
+  'college_notice',
+  'department_notice',
+  'general',
+]);
+export type AnnouncementCategory = z.infer<typeof announcementCategorySchema>;
+
+/**
+ * HOW the record got here -- not the same question as who published it.
+ *
+ * `demo_fixture` is its own value rather than a flag so a synthetic notice can
+ * never be mistaken for an official one by a screen that forgot to check
+ * (M7 §36).
+ */
+export const announcementOriginSchema = z.enum([
+  'external_source',
+  'operator_entry',
+  'demo_fixture',
+]);
+export type AnnouncementOrigin = z.infer<typeof announcementOriginSchema>;
+
+/**
+ * Who an announcement is for.
+ *
+ * NULL ON AN AXIS MEANS "NOT TARGETED ON THAT AXIS", never "unknown". Every
+ * non-null constraint must match for a student to see it, and a targeted notice
+ * is never silently broadened (M7 §14).
+ *
+ * Names accompany the identifiers because relevance is computed IN THE BROWSER
+ * from the student's local profile, which holds a branch name and a college
+ * name. The identifiers keep referential integrity; the names make matching
+ * possible without sending the profile anywhere (M7 §13, §40).
+ */
+export const announcementAudienceSchema = z.object({
+  schemeId: z.string().nullable(),
+  branchId: z.string().nullable(),
+  branchName: z.string().nullable(),
+  collegeId: z.string().nullable(),
+  collegeName: z.string().nullable(),
+  semester: z.number().int().min(1).max(8).nullable(),
+});
+export type AnnouncementAudience = z.infer<typeof announcementAudienceSchema>;
+
+/**
+ * One academic notice, as served to a student.
+ *
+ * Only `publication = published` and `verification = verified` rows are ever
+ * returned, so neither state appears here: everything a student receives has
+ * already passed the gate, and carrying the field would invite a client to
+ * decide for itself (M7 §11).
+ *
+ * FOUR DATES, KEPT APART. A publication date is not an exam date and neither is
+ * a deadline. All are optional, and an announcement with no deadline has none --
+ * nothing infers one from wording (M7 §18).
+ */
+export const announcementSchema = z.object({
+  id: z.string(),
+  /** The registry source, or null for an operator entry. */
+  sourceId: z.string().nullable(),
+  origin: announcementOriginSchema,
+  /** Who ISSUED the notice. Always present. */
+  publisher: z.string(),
+  title: z.string(),
+  /** PLAIN TEXT. Rendered as text, never as markup (docs/13 §T-21). */
+  body: z.string().nullable(),
+  category: announcementCategorySchema,
+  canonicalUrl: z.string().nullable(),
+
+  publishedAt: z.string().nullable(),
+  eventStartAt: z.string().nullable(),
+  deadlineAt: z.string().nullable(),
+
+  audience: announcementAudienceSchema,
+
+  /** When this notice was first and last seen at its source. */
+  firstSeenAt: z.string(),
+  lastSeenAt: z.string(),
+  updatedAt: z.string(),
+});
+export type Announcement = z.infer<typeof announcementSchema>;
+
+export const announcementPageSchema = z.object({
+  data: z.array(announcementSchema),
+  /** Total published announcements matching the filter, for paging. */
+  total: z.number().int().min(0),
+  limit: z.number().int().min(1),
+  offset: z.number().int().min(0),
+});
+export type AnnouncementPage = z.infer<typeof announcementPageSchema>;
+
+/**
+ * What an operator may type in.
+ *
+ * DELIBERATELY NARROW, and loopback-only: there is no authentication, so this
+ * must never become a public write surface (M7 §12). Verification and
+ * publication are NOT accepted from the caller -- an entry arrives unverified
+ * and unpublished like anything else, and passes the same gate.
+ */
+export const announcementEntrySchema = z.object({
+  publisher: z.string().min(1).max(200),
+  title: z.string().min(1).max(300),
+  body: z.string().max(20000).optional(),
+  category: announcementCategorySchema,
+  /** Validated as http(s) here AND by a database CHECK. */
+  canonicalUrl: z.string().url().nullish(),
+  publishedAt: z.string().nullish(),
+  eventStartAt: z.string().nullish(),
+  deadlineAt: z.string().nullish(),
+  audience: z
+    .object({
+      schemeId: z.string().nullish(),
+      branchId: z.string().nullish(),
+      branchName: z.string().nullish(),
+      collegeId: z.string().nullish(),
+      collegeName: z.string().nullish(),
+      semester: z.number().int().min(1).max(8).nullish(),
+    })
+    .optional(),
+  /** `demo_fixture` marks synthetic content that the UI labels as such. */
+  origin: z.enum(['operator_entry', 'demo_fixture']).default('operator_entry'),
+});
+export type AnnouncementEntry = z.infer<typeof announcementEntrySchema>;
+
+/* -------------------------------------------------------------------------- */
 /* Routes                                                                     */
 /* -------------------------------------------------------------------------- */
 
@@ -672,4 +808,15 @@ export const SOURCE_ROUTES = {
   review: (kind: string, id: string) => `/api/v1/extracted/${kind}/${id}/review`,
   /** Everything still waiting for a person, worst first. */
   reviewQueue: '/api/v1/review/queue',
+
+  /* -- Announcements (M7) -------------------------------------------------- */
+
+  /** Published, verified notices. The only announcement surface a student uses. */
+  announcements: '/api/v1/announcements',
+  announcement: (id: string) => `/api/v1/announcements/${id}`,
+  /**
+   * Operator entry. Loopback-only, like every other write in Stage 1, and it
+   * cannot publish: an entry passes the same verification gate as a fetched one.
+   */
+  announcementEntry: '/api/v1/announcements/entry',
 } as const;

@@ -432,10 +432,12 @@ describe('navigation', () => {
     const labels = links.map((link) => link.textContent ?? '');
     expect(labels.some((l) => /dashboard/i.test(l))).toBe(true);
     expect(labels.some((l) => /attendance/i.test(l))).toBe(true);
-    // Later milestones must not appear as dead links (docs/04 §4.3).
+    // Built in M7, so they are destinations now rather than dead links.
+    expect(labels.some((l) => /announcements/i.test(l))).toBe(true);
+    expect(labels.some((l) => /notifications/i.test(l))).toBe(true);
+    // Later milestones must still not appear as dead links (docs/04 §4.3).
     expect(labels.some((l) => /papers/i.test(l))).toBe(false);
     expect(labels.some((l) => /syllabus/i.test(l))).toBe(false);
-    expect(labels.some((l) => /notifications/i.test(l))).toBe(false);
   });
 
   it('provides a skip link as the first focusable element', () => {

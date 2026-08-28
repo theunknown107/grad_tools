@@ -415,3 +415,48 @@ no React, no I/O, no clock. It ORGANISES results across semesters and computes
 nothing — every SGPA, CGPA and percentage comes from
 `@gradtools/academic-rules`, because a second implementation living in the web
 app is precisely the drift the repository boundary exists to prevent.
+
+## 7.14 Announcements and notifications (M7)
+
+M7 adds an information layer with a deliberate split down the middle: **content
+is server-side, relevance is client-side.**
+
+```
+  a source adapter          an operator
+  (none enabled yet)        (loopback only)
+          \                      /
+           \                    /
+        normalize.ts  — plain text, URL allowlist, content hash
+                  |
+            announcements  (Postgres)
+              verification gate: unpublished until verified
+                  |
+        GET /api/v1/announcements   ← identical for every visitor
+                  |
+        ─────────── the device boundary ───────────
+                  |
+        domain/announcements.ts   relevance, deadline, priority
+        domain/notifications.ts   read / unread / dismissed
+                  |
+            IndexedDB (notificationState, notificationPreferences)
+```
+
+**The server never learns who is asking.** The feed endpoint takes no branch, no
+semester, no profile — not even an optional hint. Everything personal happens
+after the response arrives, from data that never leaves IndexedDB. This is not a
+privacy policy; it is a shape. A service that cannot receive student context
+cannot profile from it, whatever it later decides it wants (§12.12).
+
+**Notification state is not an entity on the server.** There is no student table
+in Stage 1 (§7.13), so there is nowhere for a per-student read flag to live. It
+lives on the device, which also means it does not synchronise across devices —
+stated plainly to the student rather than quietly assumed.
+
+### What was deliberately not built
+
+| Not built | Why |
+|---|---|
+| A VTU source adapter | The source gate is closed pending terms review (`OQ-026`, `OQ-006`). No adapter, no scraper, no env switch |
+| `GET /notifications`, `/unread-count` | Would require a server-side student identity that Stage 1 does not have |
+| Web Push (VAPID, service worker) | Needs a server, a subscription store and an identity. The opt-in Notification API works only while the app is open, and the UI says so |
+| A public write endpoint | Announcement creation is loopback-only and cannot publish (§10.14) |

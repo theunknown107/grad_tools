@@ -17,6 +17,7 @@ import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { LocalObjectStore, type ObjectStore } from '../documents/storage.js';
+import { createAnnouncementRouter } from '../routes/announcements.js';
 import { createDocumentRouter } from '../routes/documents.js';
 import { createReferenceRouter } from '../routes/reference.js';
 import { errorHandler, notFoundHandler } from './errors.js';
@@ -151,6 +152,7 @@ export function createApp(
     });
   });
 
+  app.use(createAnnouncementRouter(sql));
   app.use(createDocumentRouter(sql, store));
   app.use(createReferenceRouter(sql));
 

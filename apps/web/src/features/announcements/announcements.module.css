@@ -1,0 +1,219 @@
+/** Announcements and notifications. Authority: docs/05, M7 §25, §27, §29 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* A wide notice must scroll inside its own box, never widen the page. */
+.page > * {
+  min-width: 0;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.checkbox {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  /* 44px, so a thumb can hit it (docs/27 section 27.6). */
+  min-height: 44px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.checkbox input {
+  width: 20px;
+  height: 20px;
+}
+
+.list,
+.compactList,
+.muteList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.muteList {
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  margin-top: var(--space-2);
+}
+
+/* -- One announcement ------------------------------------------------------ */
+
+/* Priority is carried by a left edge AND by a pill in words. Never colour
+   alone (docs/27 section 27.5). */
+.row,
+.notification {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.row[data-priority='urgent'] {
+  border-left-color: var(--danger, var(--accent));
+}
+
+.row[data-priority='important'] {
+  border-left-color: var(--warning, var(--accent));
+}
+
+/* A notice that is not aimed at this student is quieter, never hidden. */
+.row[data-relevant='false'] {
+  background: var(--bg);
+}
+
+.notification[data-state='unread'] {
+  border-left-color: var(--accent);
+}
+
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* DEMO content is labelled unmistakably: a border, not a colour wash, so it
+   survives a high-contrast or forced-colours mode (M7 section 36). */
+.demo {
+  padding: 0 var(--space-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.category {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-subtle);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+  overflow-wrap: anywhere;
+}
+
+.publisher {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.notForYou {
+  font-style: italic;
+}
+
+.deadline {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.deadline[data-passed='true'] {
+  font-weight: 400;
+  color: var(--text-subtle);
+}
+
+.daysLeft {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* Collapsed by default so a long circular cannot bury the list. */
+.body {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.body[data-expanded='true'] {
+  display: block;
+  -webkit-line-clamp: none;
+  overflow: visible;
+}
+
+.external {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.notificationActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.linkButton,
+.viewAll {
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.linkButton:focus-visible,
+.viewAll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.loading,
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Safe inside a scrolling container: no absolute positioning, so it cannot
+   extend the page's scrollable area (docs/27 section 27.4). */
+.visuallyHidden {
+  display: inline-block;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

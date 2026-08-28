@@ -31,6 +31,7 @@
  * be a second implementation of the domain.
  */
 
+import type { NotificationPreferences, NotificationRecord } from '../domain/notifications.js';
 import type {
   AttendanceRecord,
   BacklogRecord,
@@ -86,6 +87,23 @@ export interface BacklogRepository {
 }
 
 /**
+ * Read state and notification preferences (M7).
+ *
+ * BOTH STAY ON THE DEVICE. There is no server notification table and no
+ * preferences endpoint: "have I read this" is the student's business, and a
+ * service that never learns it cannot leak it (M7 §40).
+ *
+ * Not a list repository — the whole set is read and written at once, because
+ * marking everything read is one operation rather than N.
+ */
+export interface NotificationRepository {
+  listStates(): Promise<NotificationRecord[]>;
+  saveStates(records: readonly NotificationRecord[]): Promise<void>;
+  getPreferences(): Promise<NotificationPreferences | null>;
+  savePreferences(preferences: NotificationPreferences): Promise<void>;
+}
+
+/**
  * The full set of repositories the app depends on.
  *
  * Supplied through React context so the entire storage layer is swapped in one
@@ -101,4 +119,5 @@ export interface RepositoryBundle {
   readonly semesters: SemesterRepository;
   readonly semesterSubjects: SemesterSubjectRepository;
   readonly backlogs: BacklogRepository;
+  readonly notifications: NotificationRepository;
 }

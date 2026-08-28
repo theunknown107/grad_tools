@@ -369,3 +369,55 @@ Both are worth recording as provenance, and neither is something to poll.
 `checkSourcePermission` refuses them with `access_method_not_fetchable` — a
 distinct code from `source_disabled`, because a manual source is not a source
 someone forgot to switch on. It is not the kind of thing a fetch applies to.
+
+## 14.15 Announcement ingestion (M7)
+
+### The VTU source remains disabled
+
+**No VTU announcement source was enabled, and none may be enabled by
+configuration.** The registry row stays:
+
+| Field | Value |
+|---|---|
+| `enabled` | `false` |
+| `terms_status` | `unknown` |
+| `access_method` | `none` |
+
+Blocked on `OQ-026` and `OQ-006` (terms review). This is enforced, not merely
+documented: the source gate refuses to enable a source whose terms are unknown,
+and a test asserts that attempting it throws. There is **no environment switch,
+no direct scraping path, and no frontend fetch of vtu.ac.in** anywhere in the
+codebase.
+
+M7 therefore built the ingestion *framework* and verified it against operator
+entries and demo fixtures. **No real VTU announcement has ever been ingested,
+and no claim to the contrary appears in this repository.**
+
+### What ingestion does when a source is one day enabled
+
+1. An adapter fetches (network lives here and nowhere else).
+2. `normalizeAnnouncement` reduces content to plain text, checks the link
+   against the allowlist, parses timestamps, computes a content hash (§13.15).
+3. `upsertAnnouncement` resolves identity — `(source_id, external_id)` first,
+   then `(source_id, content_hash)`.
+4. The row is written as `draft` / `unpublished`. **Fetching never publishes.**
+
+### Unchanged, changed, new
+
+| Case | Effect |
+|---|---|
+| Seen before, identical | Only `last_seen_at` moves. Verification stands — nothing was said differently |
+| Seen before, content changed | Updated in place **and verification withdrawn**: `verification = 'draft'`, `verified_at = NULL`, `publication = 'unpublished'` |
+| Not seen before | Inserted as `draft` / `unpublished` |
+
+### Dates are read, never inferred
+
+A deadline exists only when a real timestamp was parsed. **"Apply soon" is not a
+deadline.** An unparseable date is absent rather than guessed at, because an
+invented deadline is worse than no deadline — a student would plan around it.
+
+### Nothing here is AI
+
+No model, no embedding, no classification. Category comes from the source or the
+operator; priority is computed from timestamps (§20.12). Urgency is never
+derived from wording.

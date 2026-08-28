@@ -150,3 +150,57 @@ The copy-compliance test is unusual but justified: the wording rules in §20.5 a
 - Subscription endpoints are personal data (`12` §3) and are deleted with the account.
 - Delivery outcomes are logged as counts and failure classes; no message archive is retained.
 - Attendance notifications (N-02, N-03) say "a course needs attention" and require opening the app to see which — a lock-screen notification naming a subject and a percentage discloses academic information to anyone holding the phone.
+
+## 20.12 What M7 actually built
+
+The notification system as specified above assumes a server that knows who a
+student is. Stage 1 has no such server (§9.16), so M7 built the half that does
+not need one: **derivation on the device.**
+
+### Priority is deterministic and never from a model
+
+| Priority | Rule |
+|---|---|
+| `urgent` | A **real deadline** within `URGENT_WITHIN_DAYS = 2`, not yet passed |
+| `important` | Category is results, exam timetable, exam registration, backlog, revaluation or summer semester |
+| `informational` | Category is holiday, academic calendar, college notice, department notice or general |
+| `normal` | Everything else |
+
+Two rules follow, and neither is negotiable:
+
+- **Urgency comes only from a date the publisher gave.** An announcement with no
+  deadline is never urgent however alarming its wording. Inventing urgency is
+  the fastest way to make a student stop trusting the badge — and once the badge
+  is untrusted, the genuinely urgent notice is the one that gets ignored.
+- **A passed deadline drops back to its category's priority.** It is history;
+  shouting about it helps nobody.
+
+No AI, no model, no classifier, anywhere in this path.
+
+### The feed sorts, it does not hide
+
+Relevant first, then priority, then newest. Irrelevant notices are marked and
+pushed down, not removed — a student can still reach everything, and a feed that
+silently hides notices is one they cannot trust to be complete. The "only what
+applies to me" filter is opt-in and reversible.
+
+### Read state
+
+Derived from a small per-device record (§8.15):
+
+- Read, then the announcement changes → **unread again.**
+- Dismissed → **stays dismissed** across updates.
+- Mark all as read → one record per announcement, replaced not appended.
+
+### Delivery: what exists and what does not
+
+| Channel | Status |
+|---|---|
+| In-app notification centre | Built |
+| Unread count in the app | Built |
+| Browser notification while the app is open | Built, **opt-in**. Permission is never requested on page load |
+| Web Push (closed app) | **Not built.** Needs VAPID keys, a service worker, a subscription store and a server-side identity. The UI states this limitation rather than implying background delivery |
+| Email / SMS | Not built |
+
+The delivery abstraction exists so that adding Web Push later changes a
+transport, not the notification model.

@@ -531,3 +531,58 @@ the device, so there is nothing for an API to serve (M6 §17, §21).
 
 The reference endpoints are unchanged and remain the only server surface the
 student-facing app uses.
+
+## 10.14 Endpoints — Announcements (M7)
+
+Two public reads, two loopback writes.
+
+### `GET /api/v1/announcements`
+
+| Query | Type | Notes |
+|---|---|---|
+| `category` | announcement category | An unknown value is a `VALIDATION_FAILED`, not an empty feed — a typo must not look like "there is nothing in that category" |
+| `source` | source id | |
+| `limit` | int | Default 20, capped at 100 |
+| `offset` | int | |
+
+**There is no student-context parameter, and none may be added.** No branch, no
+semester, no profile, not even optional. The response is identical for every
+visitor, which is what makes `Cache-Control: public, max-age=60` correct and
+what makes profiling impossible rather than merely prohibited (§12.12).
+
+Only `published` + `verified` rows are returned. The gate is in the query *and*
+in a database CHECK, so an unverified notice would have to defeat both.
+
+### `GET /api/v1/announcements/filters`
+
+The categories and sources that would actually return something. Public,
+cacheable, contains no student data.
+
+### `GET /api/v1/announcements/:id`
+
+An unpublished announcement is **404, not 403**. "It exists but you may not see
+it" is itself information about unreleased content.
+
+### `POST /api/v1/announcements/entry` — loopback only
+
+Operator entry. Reachable only from the machine running the API, the same
+boundary the document routes use. **There is deliberately no public
+unauthenticated write.**
+
+The endpoint accepts no verification or publication state. An entry arrives
+`draft` / `unpublished` exactly as a fetched notice would, and is invisible to
+students until a separate act publishes it. Storing a notice and vouching for it
+are different decisions; collapsing them would mean anything typed in was
+published by the act of typing it.
+
+### `POST /api/v1/announcements/:id/publish` — loopback only
+
+Requires `verifiedBy`. An unattributed verification is not a verification.
+
+### Not built, and why
+
+| Endpoint | Why not |
+|---|---|
+| `GET /api/v1/notifications` | Needs a server-side student identity Stage 1 does not have (§9.16) |
+| `GET /api/v1/notifications/unread-count` | Same. Unread is computed on the device |
+| Any announcement write without loopback | Would be an unauthenticated public write to student-visible content |
