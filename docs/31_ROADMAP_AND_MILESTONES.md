@@ -16,15 +16,18 @@
 | M4 | Core academic utilities | 1–2 weeks | 🟡 **Substantially delivered inside M3.** Two exit criteria outstanding, both blocked on external input (see §31.3) |
 | M5a | Reference data foundation | 1–2 weeks | Express API + PostgreSQL serving verified reference data |
 | M5 | Shared source + academic content foundation | 2–4 weeks | Source/rights layer, both tracks |
-| M6 | Result/notice ingestion | 1–3 weeks | Safe monitoring, graceful failure |
-| M7 | Intelligence | 1–2 weeks | No prediction claims; evidence shown |
-| M8 | Admin and data quality | 1 week | Operator can diagnose any failure |
-| M9 | Hardening | 1–2 weeks | Alpha readiness review passes |
-| M10 | Experimental user test | 1–3 weeks | Evidence-based feature freeze |
-| M11 | Alpha release | 1 week | Shareable Alpha |
-| M12 | College demonstration prep | 1–2 weeks | Presentation-ready |
+| M6 | **Student academic core** | 1–2 weeks | ✅ **Complete** — the eight-semester degree |
+| M7 | Announcements and external-source ingestion | 1–3 weeks | Safe monitoring, graceful failure |
+| M8 | Question-paper library | 1–2 weeks | Extracted questions reach students |
+| M9 | Authentication and cloud | 2–3 weeks | Optional sign-in; local-first still works |
+| M10 | Academic intelligence | 1–2 weeks | No prediction claims; evidence shown |
+| M11 | Admin and data quality | 1 week | Operator can diagnose any failure |
+| M12 | Hardening | 1–2 weeks | Alpha readiness review passes |
+| M13 | Pilot — experimental user test | 1–3 weeks | Evidence-based feature freeze |
+| M14 | Alpha release | 1 week | Shareable Alpha |
+| M15 | College demonstration prep | 1–2 weeks | Presentation-ready |
 
-**Total: roughly 3–5 months part-time**, dominated by M5b and M6, whose durations depend on external factors outside the developer's control.
+**Total: roughly 3–5 months part-time**, dominated by M7, whose duration depends on external factors outside the developer's control.
 
 ### Milestone reconciliation (recorded at the start of M5a)
 
@@ -43,6 +46,28 @@ Two inconsistencies had accumulated between this roadmap, the backlog in `33`, a
 M4 stays open at 🟡 rather than being marked complete, because those last two are the criteria that actually validate our reading of the regulation against VTU's practice. Closing M4 on the strength of the ones we could self-assess would be exactly the "verification theatre" this project exists to avoid.
 
 **2. M5 bundled two unrelated bodies of work.** "Academic content" covered both the syllabus/reference-data model and the PDF/question pipeline. They share nothing but a chapter heading: the first needs a database and an API, the second needs document parsing and an unresolved licensing answer (`32/OQ-008`). They are now **M5a** (reference data foundation) and **M5b** (document pipeline), which also lets M5a proceed while M5b stays blocked.
+
+### Milestone reconciliation (recorded after M6)
+
+**3. M6 was assigned twice.** This roadmap listed *M6 — Result/notice ingestion*, and the milestone actually delivered as M6 was the **student academic core**. Both labels existed, which is one too many.
+
+**M6 is the student academic core.** That is what was built, tested, documented and pushed under the name, and its commit and completion report both cite it. Renumbering it now would rewrite history in exactly the way this project has refused to do everywhere else.
+
+Everything after it moves down, and two milestones that had no number are given one — the question-paper library (surfacing what M5A built to students) and authentication (which the local-first architecture has always anticipated but never scheduled).
+
+| Was | Is now | Milestone |
+|---|---|---|
+| M6 | **M7** | Announcements and external-source ingestion |
+| — | **M8** | Question-paper library |
+| — | **M9** | Authentication and cloud |
+| M7 | **M10** | Academic intelligence |
+| M8 | **M11** | Admin and data quality |
+| M9 | **M12** | Hardening |
+| M10 | **M13** | Pilot — experimental user test |
+| M11 | **M14** | Alpha release |
+| M12 | **M15** | College demonstration prep |
+
+**No commit message or completion report is edited.** A historical document citing "M7 intelligence" or "M9 hardening" meant what this table's left column says; the right column is where that work lives now. Cross-references in `29`, `30` and `33` have been updated to the new numbers.
 
 **Naming note:** the authorization for this work called it "M4". It is recorded here as **M5a** because roadmap M4 already has a distinct, partly-open meaning. The two labels refer to the same work; M5a is the authoritative one.
 
@@ -372,39 +397,63 @@ future differentiator (M6 §27).
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.
 
-### M6 — Result/notice ingestion
+### M7 — Announcements and external-source ingestion
+*Was M6 before the student academic core took that number; see the reconciliation note above.*
+
 Source registry, adapter framework, the VTU announcements adapter, change detection, provenance, health monitoring, notification fan-out.
 
 **Blocked on:** the terms-of-use review (`32/OQ-006`) — a **human task**, not a code task. The framework can be built and fixture-tested with the source disabled; enabling it requires that review.
 
 **Exit:** monitoring runs safely at 4 requests/day; failures are graceful; publishing is blocked while unhealthy; no notification is sent from unvalidated data.
 
-### M7 — Intelligence
+### M8 — Question-paper library
+*New number. The work M5A–M5A.7 built has never been surfaced to a student.*
+
+The extracted, reviewed question corpus reaches the student side: browse papers by subject and semester, read questions with their marks and modules, and see plainly which records a person has confirmed and which the parser produced alone.
+
+**Blocked on:** human ground truth (`32/OQ-031`). Showing unreviewed extraction to students as though it were reliable is exactly what the review workbench exists to prevent.
+
+**Exit:** no unreviewed record is presented without saying so; rights and presentation gates (`32/OQ-008`) still hold; nothing is redistributed.
+
+### M9 — Authentication and cloud
+*New number. Anticipated by the repository boundary since M3, never scheduled.*
+
+Optional sign-in, and a repository bundle backed by an API for students who choose it. `auth_user_id → student profile → academic records`, as `11` has always specified.
+
+**LOCAL-FIRST MUST KEEP WORKING.** Signing in is an option, not a requirement, and a student who never does must lose nothing (`12`).
+
+**Exit:** the local bundle and the API bundle are interchangeable at the boundary; no student record leaves the device without an explicit act.
+
+### M10 — Academic intelligence
 Local embeddings, similarity ladder, clustering, topic matching, frequency analysis, evidence-first presentation.
 
 **Exit:** the evaluation in `18` §8 is run and its results recorded; no output below 4 papers; no prediction language anywhere; every score carries its evidence.
 
-### M8 — Admin and data quality
+**Depends on M8**, not merely on M5A: intelligence over a corpus students cannot see would have nowhere to surface.
+
+### M11 — Admin and data quality
 Source health dashboard, job monitor, review queue, corrections with audit, data-quality checks, the one-click fixture capture.
 
 **Exit:** an operator can determine why any piece of data failed, from the admin UI alone.
 
-### M9 — Hardening
+### M12 — Hardening
 Security review, accessibility manual pass, performance tuning, E2E completion, dependency audit, upload security verification, rate limits, error handling, backup/restore rehearsal, observability and alerting.
 
 **Exit:** the Alpha readiness checklist (`30` §8) passes in full.
 
-### M10 — Experimental user test
+Together with M11 this is the "admin / hardening" pair: M11 makes failure diagnosable, M12 makes the product safe to hand to strangers.
+
+### M13 — Pilot — experimental user test
 10–30 students for 1–3 weeks. Observe, survey, fix critical problems, decide the feature freeze from evidence.
 
 **Exit:** feature freeze agreed, based on data rather than preference.
 
-### M11 — Alpha release
+### M14 — Alpha release
 Deploy, release notes, known limitations, supported scope, bug-report route, final validation.
 
 **Exit:** a shareable Alpha meeting `30` §11.
 
-### M12 — College demonstration prep
+### M15 — College demonstration prep
 Demo script, evidence pack, privacy explanation, data-source explanation, limitations, pilot proposal.
 
 **Exit:** presentation-ready per `29` §4.

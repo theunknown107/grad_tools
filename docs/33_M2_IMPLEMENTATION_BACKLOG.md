@@ -91,10 +91,10 @@ Profile  →  Dashboard  →  SGPA / CGPA
 | Server-side student profiles | Nothing in the slice needs a server (§33.3) |
 | Individual VTU result retrieval | Outside current scope (`DEC-004`, `DEC-011`) |
 | Public PYQ redistribution | Gated on `OQ-008` (`DEC-010`) |
-| Any production AI dependency | Embeddings are M7; nothing in the slice uses a model |
+| Any production AI dependency | Embeddings are M10; nothing in the slice uses a model |
 | Notifications | Alpha feature; needs accounts |
 | Ingestion | M6; needs `OQ-006` |
-| Admin UI | M8 |
+| Admin UI | M11 |
 
 **Success test for the slice:** a student opens the site, sets up a profile in under a minute, records attendance for six courses, asks whether they can miss Thursday's class, enters last semester's result, sees their CGPA — and every number can show its formula and its regulation clause. If that works end to end on a phone, M3+M4 succeeded.
 
@@ -218,7 +218,7 @@ deriveBacklogs(semesters, ruleSet)                                   → RuleRes
 > | M2.19 (security baseline), M2.20 (observability) | M3 client-side, **M5a** server-side | ✅ Server half delivered |
 > | M2.15 (papers/documents) | **M5 / M5A** | 🟡 Safe document lifecycle delivered. Public redistribution still blocked on `OQ-008`; real-paper validation still blocked on `OQ-019` |
 > | M2.16 (notifications) | **M5 / M5B** (detection) + M6 (delivery) | 🟡 Source registry, adapter contract and change **detection** delivered. Delivery not started, and deliberately has no schema hook |
-> | M2.21 (deployment) | M9 / M11 | ⏸ Not started |
+> | M2.21 (deployment) | M12 / M14 | ⏸ Not started |
 
 
 
@@ -405,7 +405,7 @@ deriveBacklogs(semesters, ruleSet)                                   → RuleRes
 **Tests:** contract tests against the shared Zod schema; caching headers; a test that no seeded subject lacks provenance.
 **Security:** public read-only; no personal data; no auth surface.
 **Performance:** cached, `max-age=300, stale-while-revalidate=3600`.
-**Blocking:** M2.15, and (later) M7 intelligence.
+**Blocking:** M2.15, and (later) M10 intelligence.
 
 ---
 
@@ -418,7 +418,7 @@ deriveBacklogs(semesters, ruleSet)                                   → RuleRes
 **Tests:** decompression bomb; wrong type with `.pdf` name; embedded JavaScript; oversized; malformed; the `CHECK` constraint violated deliberately.
 **Security:** the highest-risk item in the backlog. See `13` §T-03 and §33.7.
 **Performance:** processing is queued, never synchronous; concurrency 1–2.
-**Blocking:** M7.
+**Blocking:** M10.
 
 ---
 
@@ -582,7 +582,7 @@ The minimum before the first implementation milestone is complete. Not enterpris
 | 10 | **Secret management** | Required | Host secret store; boot-time env validation; `.env` gitignored; gitleaks pre-commit and CI; build-time check that no secret reaches the client bundle |
 | 11 | **Safe logging** | Required | pino redaction list; **negative test** asserting PII never appears in output |
 | 12 | **No sensitive data leakage** | Required | Error envelope with reference IDs; no stack traces to the client; Sentry `beforeSend` scrubber; 404 rather than 403 for non-owned resources |
-| 13 | **Admin/student separation** | Structure required | Environment allowlist, no role table, no runtime privilege mutation; **admins cannot read individual student records** (`11` §5). Built with the admin UI in M8 |
+| 13 | **Admin/student separation** | Structure required | Environment allowlist, no role table, no runtime privilege mutation; **admins cannot read individual student records** (`11` §5). Built with the admin UI in M11 |
 
 **Deliberately not built yet:** WAF (`OQ-015`), formal pen-test, SIEM, MFA, per-user feature flags. Each is either premature at zero users or blocked on an open question.
 
@@ -640,7 +640,7 @@ M2.1 Repository foundation
 | `22` Testing | Consistent — §33.6 is the concrete instance of the strategy; percentage regression tests included |
 | `25` Deployment | Consistent — M2.21 matches the environment table; `INGESTION_ENABLED=false` |
 | `30` Alpha scope | Consistent — every backlog item labelled EXP or ALPHA |
-| `31` Roadmap | Consistent — M2.x items map onto M3/M4 (slice) and M5–M8 (later) |
+| `31` Roadmap | Consistent — M2.x items map onto M3/M4 (slice) and M5–M12 (later). Milestone numbers after M6 were reassigned when the student academic core took M6; see `31` reconciliation |
 
 **Contradictions found and fixed during this cross-review** are recorded as C-13 … C-22 in `32` Part D.
 

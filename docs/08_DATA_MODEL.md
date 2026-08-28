@@ -607,10 +607,26 @@ keeping their own copy, so a subject is named once (M6 §14, §16).
 ### `SemesterResult.ruleSetId` — pinned at entry
 
 New in M6. A semester records the rule set it was graded under, so a later
-regulation cannot silently re-grade a semester already sat (M6 §6). Records
-saved before M6 have `null` and fall back to the scheme's active rule set — and
-the UI says so, because "graded under the rules of its own time" and "graded
-under whatever is current" are different claims.
+regulation cannot silently re-grade a semester already sat (M6 §6).
+
+Resolution has **three** outcomes, and they are three different claims:
+
+| `ruleSetId` | Resolves? | Outcome | What happens |
+|---|---|---|---|
+| set | yes | `pinned` | Graded under its own rules. Authoritative |
+| `null` | — | `fallback` | No pin exists, so the scheme's active rule set is used, **and the screen says so** |
+| set | **no** | `unavailable` | **Nothing is calculated.** No SGPA, no substitute rule set, and the screen names the missing identifier |
+
+**A PIN IS NOT A HINT.** If a record names a rule set this build does not have,
+the current one is *not* used — even though it is sitting right there and would
+produce a perfectly plausible SGPA. That number would be a semester re-graded
+under a regulation it was never sat under, with nothing on screen to say so, and
+it is the exact failure pinning exists to prevent.
+
+A semester in the `unavailable` state is excluded from CGPA, percentage, credits
+earned and the strong/weak baseline **in full**. Partial inclusion — counting its
+credits while refusing to grade it — would imply the record had been processed
+when it had not.
 
 ### The backlog model has NO exam date
 
