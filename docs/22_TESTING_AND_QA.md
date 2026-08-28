@@ -118,6 +118,40 @@ public documents in quarantine, which is the state the fix forbids.
 
 
 
+**Added in M5A.7:** a parser-v2 regression suite of 25 tests, **pinning every
+defect from both sides**. Each case asserts what v1 does — the bug, reproduced —
+and then what v2 does. Keeping v1 in the assertion is what stops the fix quietly
+regressing: change v2 back and the v2 half fails; edit the frozen baseline and
+the v1 half fails.
+
+The fixtures reproduce the geometry measured on real papers at real proportions
+— a 565pt page with its marks column at x≈484, which is exactly what makes v1's
+0.7 boundary land inside the question text. No PDF, no OCR engine, no corpus.
+
+| Fixture | Pins |
+|---|---|
+| A | Text reaching toward the marks column; column measured, not assumed |
+| B | A question number centred across its parts; marks on a different line from the label |
+| C | MCQ numbered instructions — including that **both** cues are required, and a Kannada block |
+| D | Two model papers in one document |
+| E | A cell whose marks were lost: kept, not dropped |
+| F | A page with no marks column: every word kept, nothing called clear |
+| G | Mathematics with damaged OCR: structure kept, notation unrepaired |
+
+**Browser QA (M5A.7), run against a real API holding v1 and v2 runs of nine
+papers:**
+
+| Check | Result |
+|---|---|
+| axe-core WCAG 2.1 A + AA at 320/390/768/1280 | 0 violations |
+| Horizontal overflow | 0 at every viewport |
+| "full-wave **bridge** rectifier" visible on screen | yes — the defect, fixed, in the browser |
+| Parser version and earlier-run notice | both shown |
+| Reviewer attribution | "by local-operator" rendered on an accepted record |
+| Review on a v2 record | works |
+| Keyboard opens the correction form | yes |
+| Console errors | 0 |
+
 **Added in M5A.6:** the review workbench — 21 API tests against real
 PostgreSQL and 12 web tests. Covered: accept, correct, reject; machine value
 preserved; reviewed value persisted; effective value resolution; a second

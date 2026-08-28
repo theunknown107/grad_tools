@@ -310,6 +310,35 @@ dependable warnings; **`high` was accepted only 50% of the time**.
 **The reviewer was an AI agent, not a human** — recorded as
 `agent-adjudication`. Human ground truth remains outstanding.
 
+### M5A.7 — Deterministic parser correction · ✅ **DELIVERED**
+The three defects M5A.6 measured, fixed geometrically. No AI of any kind.
+
+**A — text truncation.** v1's "right-hand 30%" boundary was measured 90–100pt
+too far left on every paper in the corpus. v2 finds the marks column by looking
+for what a column is: a narrow stack of short tokens repeated down the page. No
+column found means no truncation, a flagged page, and nothing marked clear.
+
+**B — centred question numbers.** The right-hand columns now anchor cells rather
+than the parser working row by row, so a `Q.1` sitting beside part (b) owns the
+whole run. `1BPHYS102` went from 15 numberless fragments to 5 correctly numbered
+questions; numbered questions across the paper went 1 → 10.
+
+**C — MCQ instructions.** Two structural cues must both agree — numbering
+restarts at 1, and nothing before the restart has options. Reads no English, so
+it works on a Kannada block. `BENGK106` 48 → 45 items, the three removed being
+exactly the instructions adjudication identified.
+
+**v1 is frozen, not replaced.** Re-extraction adds a version beside it and
+inherits no review — verified on a real document.
+
+**Higher is not better, and both directions are reported:** v2 gains 2 false
+positives on `BCHEM102` that are the two sub-parts v1 dropped entirely, and
+produces fewer records on `BENGK106` because it stopped inventing three.
+
+25 regression tests pinning each defect from both sides; 963 tests total;
+browser QA with 0 axe violations. **v2 output has not been adjudicated** — the
+M5A.6 metrics describe v1.
+
 ### M5b — Document pipeline · superseded
 Folded into **M5 / M5A** above. Retained as a heading so earlier references
 resolve.

@@ -78,6 +78,20 @@ qualification measured how far that assumption holds, and it holds unevenly.
 > 97%, MCQ item number 100%. Question number is layout-dependent: 9/9 where it
 > sits on the first row of its cell, 0/15 where it is vertically centred.
 
+> **M5A.7 UPDATE — the text defect is fixed, so the filter advice changes.**
+> Parser v2 no longer truncates question text at the marks column (docs/17
+> §17.19), which was the cause of most `high`-confidence corrections in M5A.6.
+>
+> **This does NOT retroactively validate `high`.** The 50%-accepted figure was
+> measured on v1 output; v2 has not been adjudicated at all. Until it is, the
+> honest filter for anything reading question TEXT is unchanged:
+> `review_state IN ('accepted','corrected')`.
+>
+> What v2 does change is which records are worth reviewing. Question numbers on
+> a centred-number layout went from 1 to 10 of 10, and `1BPHYS102` went from 15
+> numberless fragments to 5 correctly numbered questions — so the structural
+> spine that later analysis hangs on is materially better, on that sample.
+
 **Two consequences for anything built on top.**
 
 *Sub-question identity is the weak link.* Marks, module and CO attach reliably

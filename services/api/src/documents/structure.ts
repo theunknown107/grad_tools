@@ -72,7 +72,12 @@ export interface ExtractedSubQuestion {
 }
 
 export interface ExtractedQuestion {
-  readonly questionNumber: string;
+  /**
+   * Null when no number was recovered. v1 never produced null (it used `?`);
+   * v2 does, because "we could not read it" and "the paper says ?" are
+   * different facts and the column is nullable (M5A.7 §4).
+   */
+  readonly questionNumber: string | null;
   readonly module: string | null;
   readonly text: string;
   readonly marks: number | null;

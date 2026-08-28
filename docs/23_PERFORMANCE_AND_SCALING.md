@@ -274,6 +274,21 @@ request can ask for the whole table.
 
 Review mutations are single-row `UPDATE`s and do not appear in the numbers.
 
+### 23.3.9 Parser v2 (M5A.7)
+
+v2 adds two per-page passes over the token stream — one to find the marks
+column, one to find the label column — before parsing. Both are linear in tokens
+and neither reads the document twice.
+
+Measured on the nine-paper corpus, v2 made no perceptible difference to
+end-to-end time: the native path is still dominated by `pdftotext` (32 ms for a
+four-page paper) and the scanned path still entirely by OCR (~759 ms/page). The
+structural layer remains a few milliseconds.
+
+Running BOTH parsers, as the comparison did, costs one extra structural pass per
+document — not a second text extraction or a second OCR, because both parsers
+consume the same token stream.
+
 ## 23.5 Caching
 
 Full table in `07` §7.8. The performance-relevant points:

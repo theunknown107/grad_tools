@@ -359,3 +359,33 @@ The UI says "Checked", not "checked by a person": who did the checking is a fact
 in `reviewed_by`, not something a count can assert. The M5A.6 corpus was
 adjudicated by an AI agent and is stored under `agent-adjudication` precisely so
 it can be told apart from human review — or removed with one predicate.
+
+## 21.16 Parser versions in the workbench (M5A.7)
+
+A reviewer must be able to tell three things apart, and the workbench now shows
+all three:
+
+| Question | Where it is answered |
+|---|---|
+| Which parser produced this? | "Worked out automatically by **positional-v2** (version 2)" |
+| Is there an older run? | "**1 earlier run** kept for comparison: positional-v1." |
+| Who reached this conclusion? | "Checked **by agent**" / "Checked **by local-operator**" |
+
+**`by agent` is not human review.** The M5A.6 corpus was adjudicated by an AI
+agent and stored under `agent-adjudication`; those records are diagnostic
+evidence (OQ-031). Showing the reviewer is what stops a reader taking one for
+the other.
+
+### Reprocessing after a parser fix
+
+Bump the parser version and re-run. The new run becomes current; the old run,
+and every review recorded against it, stays exactly where it was. Verified on a
+real document during M5A.7: a v1 record reviewed as `accepted` remained
+`accepted`, while its v2 counterpart stayed `unreviewed`.
+
+### An operational note found this milestone
+
+`postgres.exe` and `pg_ctl.exe` drifted to different patch versions on the
+development machine (18.3 vs 18.6), and `pg_ctl` refuses to start a mismatched
+server. Starting `postgres.exe` directly is the workaround; a stale
+`postmaster.pid` from an unclean shutdown must be removed first.

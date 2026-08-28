@@ -659,6 +659,12 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5A | ED-37…ED-41 | Document lifecycle, validator corrections and the localhost boundary in Part B | Engineering (ED-38/39 evidence: real corpus) |
 | M5A.3 | DEC-022 | OCR implemented as specified by DEC-021: local Tesseract, asynchronous, no hosted service | Engineering |
 | M5A.1 | DEC-021 | OCR, when implemented, will be **local Tesseract** — privacy is decisive and structural fidelity beats raw accuracy | Engineering (evidence: 10-document benchmark) |
+| M5A.7 | ED-65 | The marks column is MEASURED, not assumed | v1's 0.7 fraction was 90–100pt too far left on every paper in the corpus. A column is a narrow stack of short tokens repeated down the page; that is findable, and a fraction is a guess |
+| M5A.7 | ED-66 | No marks column found means no truncation, and nothing on that page may be `high` | Preserving text and flagging it beats deleting it silently. Without a column there is no positional evidence, so confidence would be unearned |
+| M5A.7 | ED-67 | The right-hand columns anchor CELLS; a new question starts when the LABELLING restarts, not when a number appears | A `Q.1` centred across (a), (b), (c) physically sits beside (b). Row-at-a-time parsing cannot express that, which is why v1 recovered no number at all on such a paper |
+| M5A.7 | ED-68 | Sub-question labels are found at a detected label column | The English article "A" is a lone letter matching `[a-d]`, and real cells open with it. v1 was right only by luck of token ordering |
+| M5A.7 | ED-69 | MCQ instructions are dropped only when BOTH structural cues agree | Numbering restart alone would discard a paper that starts above 1; missing options alone would discard an item whose options OCR lost. Neither cue reads any language |
+| M5A.7 | ED-70 | v1 is frozen and still runnable, not deleted | It produced the M5A.6 corpus. A baseline you cannot re-run is not a baseline, and the v1-vs-v2 comparison depends on running both over the same tokens |
 | M5A.6 | ED-60 | The review queue is an ORDER, not a score | `review_required → low → medium → high`, defined once in a SQL function. A number would have to be invented and would blend how much the geometry agreed with how much work a record needs |
 | M5A.6 | ED-61 | A corrected TEXT shows the machine's original underneath rather than struck through | Strikethrough is unreadable on a paragraph. The original is never hidden: a corrected record must stay distinguishable from one the parser got right, or the corpus cannot evaluate the parser |
 | M5A.6 | ED-62 | The two defects the review found were NOT fixed in this milestone | The corpus exists to evaluate parser changes. Changing the parser in the same milestone that built the baseline would leave nothing to measure against |
@@ -763,5 +769,59 @@ was invisible before a reviewer compared records to pages.
 **Recommendation:** (3). The corpus now exists precisely so a change like this
 can be measured rather than argued.
 
-**Decision needed:** none from the human — this is an engineering fix awaiting
-its own milestone. Recorded so it is not lost.
+---
+
+**M5A.7 UPDATE — RESOLVED IN PARSER v2, NOT YET RE-ADJUDICATED.**
+
+Option (3) was implemented (docs/17 §17.19). `detectMarksColumn` finds the
+column from real token positions; option (2) is part of it, since only short
+column-shaped tokens are candidates. Regression fixture A pins the defect
+against v1 and the fix against v2, and the three real examples adjudication
+recorded now come out exactly right:
+
+| | v1 | v2 |
+|---|---|---|
+| `…full-wave ___ rectifier` | (blank) | **bridge** |
+| `…of an ___ amplifier` | (blank) | **ideal operational** |
+| `…phase shift ___ response` | (blank) | **and frequency** |
+
+**This does not close automatically.** The 0/12 figure was measured by
+adjudicating v1 output; **no v2 output has been adjudicated**. The defect is
+fixed and regression-tested, and the claim "v2's text is right" has not been
+measured. It closes when v2 records are reviewed — which is OQ-031's work.
+
+**Status:** defect fixed and pinned; verification pending re-adjudication.
+
+---
+
+### OQ-033 — OCR papers gain unlabelled question records under v2
+
+**Status:** OPEN · raised M5A.7 · **measured**
+
+**Why:** v2 preserves material v1 discarded, which is the intended direction —
+but where OCR destroyed a sub-question's label glyph, the recovered cell becomes
+an unlabelled `low`-confidence QUESTION instead of a part of its question.
+
+On `BCHEM102` page 1 the two sub-parts v1 dropped entirely (`Q3 b` and `Q3 c`)
+now appear, read as `db. What is Anodizing?` and `¢. | What is CPR?`. Both are
+present and flagged; neither is correctly slotted. Across the corpus this shows
+as `BCHEM102` 10→24 questions, `BCIVC103` 7→21, `BMATS101` 8→25, and `BCY358A`
+0→14.
+
+**The trade, stated:** v1 lost the records silently; v2 keeps them and says it
+is unsure. For building a reviewable corpus that is better. For counting
+questions it looks worse, which is why both directions are reported and neither
+is called accuracy.
+
+**Options:**
+1. Accept it — the records are `low` and a reviewer resolves them.
+2. Attach an unlabelled cell to the preceding question when it sits inside that
+   question's vertical span and before the next question number.
+3. Recover the label from the cell's leading token by edit distance to `a`–`d`
+   — deterministic, but a text heuristic rather than a geometric one.
+
+**Recommendation:** (2), measured against this corpus. (3) is the kind of
+guess this project has avoided so far.
+
+**Decision needed:** none yet. Recorded so the count change is not mistaken for
+a regression.

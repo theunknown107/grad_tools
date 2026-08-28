@@ -28,7 +28,7 @@ import { importDocument } from '../src/documents/ingest.js';
 import { groupIntoLines, parseTsv } from '../src/documents/geometry.js';
 import { extractStructure } from '../src/documents/structure.js';
 import { persistExtraction, recordReview } from '../src/documents/persist.js';
-import { PARSER_VERSION, type PositionalExtraction } from '../src/documents/positional.js';
+import { PARSER_VERSION_V1, type PositionalExtraction } from '../src/documents/positional.js';
 import * as queries from '../src/db/queries.js';
 import { validPdf } from './fixtures/pdfs.js';
 import { ocrTsv, row, PAGE_EDGE, type Word } from './fixtures/tsv.js';
@@ -44,7 +44,10 @@ function extractionFrom(
   words: readonly Word[],
   format: 'descriptive' | 'mcq' | 'unknown',
   source: 'native' | 'ocr' = 'ocr',
-  parserVersion = PARSER_VERSION,
+  // These fixtures exercise PERSISTENCE, not the parser, and they are built
+  // from v1's extractor -- so they are labelled v1. Labelling v1 output as v2
+  // would put a false parser version into the audit trail these tests check.
+  parserVersion = PARSER_VERSION_V1,
 ): PositionalExtraction {
   const lines = groupIntoLines(parseTsv(ocrTsv(words), 'ocr', 150));
   return { source, parserVersion, paper: extractStructure(lines, format), durationMs: 1 };
@@ -212,7 +215,7 @@ describeDb('extracted question persistence', () => {
     it('records the parser version that produced the rows', async () => {
       const id = await newDocument();
       await persistExtraction(sql, id, extractionFrom(descriptiveWords(), 'descriptive'));
-      expect((await queries.findCurrentPaper(sql, id))?.parserVersion).toBe(PARSER_VERSION);
+      expect((await queries.findCurrentPaper(sql, id))?.parserVersion).toBe(PARSER_VERSION_V1);
     });
   });
 
@@ -335,7 +338,10 @@ describeDb('extracted question persistence', () => {
       expect(v2.extractionVersion).toBe(2);
 
       const history = await queries.listPapersForDocument(sql, id);
-      expect(history.map((p) => p.parserVersion)).toEqual([PARSER_VERSION, 'positional-test-v0']);
+      expect(history.map((p) => p.parserVersion)).toEqual([
+        PARSER_VERSION_V1,
+        'positional-test-v0',
+      ]);
       expect(history.filter((p) => p.isCurrent).map((p) => p.id)).toEqual([v2.paperId]);
 
       // The superseded run's rows are still there.
@@ -1097,7 +1103,7 @@ describeDb('extracted question persistence', () => {
       expect(after?.reviewedAt).not.toBeNull(); // when
       expect(after?.reviewedBy).toBe('operator'); // who
       expect(after?.reviewNote).toBe('Marks column was misread.'); // why
-      expect(paper?.parserVersion).toBe(PARSER_VERSION); // which parser
+      expect(paper?.parserVersion).toBe(PARSER_VERSION_V1); // which parser
       expect(paper?.extractionVersion).toBe(1); // which extraction
     });
   });

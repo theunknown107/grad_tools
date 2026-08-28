@@ -596,3 +596,10 @@
   color: var(--text-subtle);
   overflow-wrap: anywhere;
 }
+
+/* Who reached the conclusion. Quiet, but never absent: agent adjudication and
+   human review are different kinds of evidence (M5A.7 section 13). */
+.reviewer {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+}

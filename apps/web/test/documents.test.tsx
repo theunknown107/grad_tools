@@ -60,6 +60,7 @@ function mockApi(
     questions: unknown[];
     mcqItems?: unknown[];
     queue?: unknown[];
+    history?: unknown[];
   },
 ) {
   vi.stubGlobal(
@@ -81,7 +82,14 @@ function mockApi(
             : url.includes('/questions')
               ? { data: extracted?.questions ?? [] }
               : url.includes('/paper')
-                ? { data: extracted?.paper ?? null, history: [] }
+                ? {
+                    data: extracted?.paper ?? null,
+                    history:
+                      extracted?.history ??
+                      (extracted?.paper === undefined || extracted.paper === null
+                        ? []
+                        : [extracted.paper]),
+                  }
                 : { data: documents };
       return Promise.resolve({ ok: true, json: () => Promise.resolve(body) } as Response);
     }),
@@ -801,6 +809,69 @@ describe('DocumentsPage', () => {
         { label: 'b', text: 'table' },
       ]);
       expect(corrections.itemNumber).toBe(1);
+    });
+
+    /* -- who reviewed it (M5A.7 §13) -------------------------------------- */
+
+    /*
+     * Agent adjudication is diagnostic evidence, not human ground truth. A
+     * reader who cannot tell them apart would take one for the other, so the
+     * reviewer is shown beside the state.
+     */
+    it('names the reviewer beside a reviewed record', async () => {
+      await openQuestions({
+        paper: paper(),
+        questions: [question({ reviewState: 'accepted', reviewedBy: 'agent-adjudication' })],
+      });
+
+      // The paper header also has a "Checked" count, so match the record's own.
+      expect(await screen.findByText('by agent')).toBeTruthy();
+      expect(screen.getAllByText('Checked').length).toBeGreaterThan(0);
+    });
+
+    it('names a human reviewer as themselves', async () => {
+      await openQuestions({
+        paper: paper(),
+        questions: [question({ reviewState: 'accepted', reviewedBy: 'local-operator' })],
+      });
+      expect(await screen.findByText('by local-operator')).toBeTruthy();
+    });
+
+    it('says nothing about a reviewer when nobody has looked', async () => {
+      await openQuestions({ paper: paper(), questions: [question()] });
+      await screen.findByText('Not checked');
+      expect(screen.queryByText(/^by /)).toBeNull();
+    });
+
+    /* The parser version is on screen, so v1 and v2 output are distinguishable. */
+    it('shows which parser produced the records', async () => {
+      await openQuestions({
+        paper: paper({ parserVersion: 'positional-v2', extractionVersion: 2 }),
+        questions: [question()],
+      });
+      expect(await screen.findByText(/positional-v2/)).toBeTruthy();
+      expect(screen.getByText(/version 2/)).toBeTruthy();
+    });
+
+    /* An earlier parser run must be visible, not silently superseded. */
+    it('says an earlier parser run is kept', async () => {
+      const current = paper({ parserVersion: 'positional-v2', extractionVersion: 2 });
+      await openQuestions({
+        paper: current,
+        questions: [question()],
+        history: [
+          current,
+          paper({
+            id: 'old',
+            parserVersion: 'positional-v1',
+            extractionVersion: 1,
+            isCurrent: false,
+          }),
+        ],
+      });
+
+      expect(await screen.findByText(/1 earlier run kept for comparison/)).toBeTruthy();
+      expect(screen.getByText(/positional-v1/)).toBeTruthy();
     });
 
     /* -- the queue -------------------------------------------------------- */

@@ -30,13 +30,30 @@ import type { ExtractionSource } from '@gradtools/shared-types';
 import { groupIntoLines, parseTsv, type PositionedToken } from './geometry.js';
 import { detectFormat, type PaperFormat } from './format.js';
 import { extractStructure, type ExtractedPaper } from './structure.js';
+import { extractStructureV2, PARSER_VERSION_V2 } from './structure-v2.js';
 
 /**
  * Geometry + grouping + structural rules, versioned as one thing.
  *
  * Bump this whenever any of the three changes in a way that alters output.
  */
-export const PARSER_VERSION = 'positional-v1';
+export const PARSER_VERSION = PARSER_VERSION_V2;
+
+/**
+ * v1, FROZEN. It produced the M5A.6 corpus, and a baseline you cannot re-run is
+ * not a baseline (M5A.7 §2). Re-extracting under v2 adds an extraction version
+ * beside the v1 rows and inherits none of their review state.
+ */
+export const PARSER_VERSION_V1 = 'positional-v1';
+
+/** Which structural parser to run. `v1` exists for baseline comparison only. */
+export type ParserChoice = 'v1' | 'v2';
+
+function parserFor(choice: ParserChoice) {
+  return choice === 'v1'
+    ? { extract: extractStructure, version: PARSER_VERSION_V1 }
+    : { extract: extractStructureV2, version: PARSER_VERSION_V2 };
+}
 
 /** docs/17 §17.16 — `pdftotext -tsv` on a 4-page native paper measured 32 ms. */
 export const TSV_TIMEOUT_MS = 60_000;
@@ -97,7 +114,10 @@ function runPdfToTsv(path: string): Promise<string> {
  * page for OCR (docs/23 §23.3.6). Never throws for a bad document — a failure
  * is a `null` result, because unreadable input is expected traffic.
  */
-export async function extractNativeStructure(bytes: Buffer): Promise<PositionalExtraction | null> {
+export async function extractNativeStructure(
+  bytes: Buffer,
+  choice: ParserChoice = 'v2',
+): Promise<PositionalExtraction | null> {
   const started = Date.now();
   const dir = await mkdtemp(join(tmpdir(), 'gradtools-positional-'));
   const path = join(dir, 'input.pdf');
@@ -111,10 +131,12 @@ export async function extractNativeStructure(bytes: Buffer): Promise<PositionalE
     const lines = groupIntoLines(tokens);
     const format = detectFormat(lines.map((line) => line.text).join('\n')).format;
 
+    const parser = parserFor(choice);
+
     return {
       source: 'native',
-      parserVersion: PARSER_VERSION,
-      paper: extractStructure(lines, format),
+      parserVersion: parser.version,
+      paper: parser.extract(lines, format),
       durationMs: Date.now() - started,
     };
   } catch {
@@ -155,6 +177,7 @@ export function structureFromOcrTsv(
   pages: readonly OcrPageTsv[],
   dpi: number,
   format: PaperFormat,
+  choice: ParserChoice = 'v2',
 ): PositionalExtraction {
   const started = Date.now();
 
@@ -166,10 +189,11 @@ export function structureFromOcrTsv(
   }
 
   const lines = groupIntoLines(tokens);
+  const parser = parserFor(choice);
   return {
     source: 'ocr',
-    parserVersion: PARSER_VERSION,
-    paper: extractStructure(lines, format),
+    parserVersion: parser.version,
+    paper: parser.extract(lines, format),
     durationMs: Date.now() - started,
   };
 }
