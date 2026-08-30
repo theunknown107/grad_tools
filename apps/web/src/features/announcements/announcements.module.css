@@ -24,7 +24,7 @@
   align-items: center;
   /* 44px, so a thumb can hit it (docs/27 section 27.6). */
   min-height: 44px;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   cursor: pointer;
 }
 
@@ -64,11 +64,11 @@
 }
 
 .row[data-priority='urgent'] {
-  border-left-color: var(--danger, var(--accent));
+  border-left-color: var(--danger);
 }
 
 .row[data-priority='important'] {
-  border-left-color: var(--warning, var(--accent));
+  border-left-color: var(--warning);
 }
 
 /* A notice that is not aimed at this student is quieter, never hidden. */
@@ -93,14 +93,14 @@
   padding: 0 var(--space-2);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
 }
 
 .category {
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-subtle);
@@ -108,14 +108,14 @@
 
 .title {
   margin: 0;
-  font-size: var(--text-base);
+  font-size: var(--text-body);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .meta {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   color: var(--text-subtle);
   overflow-wrap: anywhere;
 }
@@ -131,7 +131,7 @@
 
 .deadline {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   font-weight: 600;
 }
 
@@ -148,7 +148,7 @@
 /* Collapsed by default so a long circular cannot bury the list. */
 .body {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   line-height: 1.55;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -169,7 +169,7 @@
   gap: var(--space-1);
   align-items: center;
   min-height: 44px;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   overflow-wrap: anywhere;
 }
 
@@ -187,7 +187,7 @@
   background: none;
   color: var(--accent);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   cursor: pointer;
   text-decoration: underline;
 }
@@ -201,7 +201,7 @@
 .loading,
 .note {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   color: var(--text-muted);
 }
 

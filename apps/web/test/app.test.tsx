@@ -79,17 +79,19 @@ beforeEach(() => {
 describe('dashboard', () => {
   it('renders an honest empty state with one action per region', async () => {
     renderWith(<DashboardPage />);
-    expect(await screen.findByText(/no results saved yet/i)).toBeTruthy();
-    expect(screen.getByText(/nothing tracked yet/i)).toBeTruthy();
-    // "Add a result" appears in both the empty state and quick actions, which
-    // is intended: the same action reachable from where the student is looking.
+    /*
+     * A sentence and one link, not a bordered card with a paragraph and a
+     * large button (M9.3 §19).
+     */
+    expect(await screen.findByText(/no results yet/i)).toBeTruthy();
+    expect(screen.getByText(/nothing scheduled today/i)).toBeTruthy();
     expect(screen.getAllByRole('link', { name: /add a result/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: /add attendance/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /add your timetable/i })).toBeTruthy();
   });
 
   it('shows no fabricated metrics when there is no data', async () => {
     renderWith(<DashboardPage />);
-    await screen.findByText(/no results saved yet/i);
+    await screen.findByText(/no results yet/i);
     // Invented engagement metrics are prohibited by docs/05 §Anti-patterns.
     expect(screen.queryByText(/streak/i)).toBeNull();
     expect(screen.queryByText(/score/i)).toBeNull();
@@ -129,8 +131,14 @@ describe('dashboard', () => {
     });
     renderWith(<DashboardPage />, { repositories: bundle });
 
+    /*
+     * The attention section carries the short course and NOT the safe one — a
+     * section that lists everything is not an attention section (M9.3 §14).
+     * The subject name falls back to the code when no subject record exists.
+     */
     expect(await screen.findByText('LOW1')).toBeTruthy();
-    expect(screen.getByText(/below requirement/i)).toBeTruthy();
+    expect(screen.getByText(/40 of 50 classes|40\/50 classes/)).toBeTruthy();
+    expect(screen.getByText('80.0%')).toBeTruthy();
     expect(screen.queryByText('SAFE1')).toBeNull();
   });
 });
@@ -243,9 +251,13 @@ describe('attendance', () => {
     });
     renderWith(<AttendancePage />, { repositories: bundle });
 
-    // 45/50 at an 85% requirement allows exactly 2 more (docs/16 §16.9).
-    expect(await screen.findByText(/you can miss/i)).toBeTruthy();
-    expect(screen.getByText('2 classes')).toBeTruthy();
+    // 45/50 at an 85% requirement allows exactly 2 more (docs/16 §16.9). The
+    // answer is on the row itself now, not inside a sub-panel (M9.3 §13).
+    const meta = await screen.findByText(/can miss 2 classes/i);
+    // The row carries the ratio and the answer together, so both are read in
+    // one glance rather than found in two places.
+    expect(meta.textContent).toMatch(/45 of 50 classes/);
+    expect(screen.getByText('90.0%')).toBeTruthy();
   });
 
   it('shows the DX consequence and frames condonation as discretionary', async () => {
@@ -326,7 +338,13 @@ describe('results', () => {
 
     expect(await screen.findByText('8.50')).toBeTruthy();
     expect(screen.getByText('9.10')).toBeTruthy();
-    expect(screen.getByText(/these two figures disagree/i)).toBeTruthy();
+    /*
+     * BOTH figures are still shown and the disagreement is still flagged; the
+     * flag is now one line per semester with the reason stated once on the page
+     * (M9.3 §24).
+     */
+    expect(screen.getByText(/these disagree/i)).toBeTruthy();
+    expect(screen.getByText(/shows both rather than picking one/i)).toBeTruthy();
   });
 
   it('does not flag a disagreement when the figures match', async () => {
@@ -341,7 +359,7 @@ describe('results', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await screen.findAllByText('8.50');
-    expect(screen.queryByText(/these two figures disagree/i)).toBeNull();
+    expect(screen.queryByText(/these disagree/i)).toBeNull();
   });
 
   it('states plainly that results are not fetched from the university', async () => {

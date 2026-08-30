@@ -586,3 +586,48 @@ Consequences, all tested:
   sign-in, never silently moved (M9 §27).
 - An `expired` session reads the anonymous scope, because a session we can no
   longer verify is not proof of identity.
+
+## 7.18 The interface layer after M9.3
+
+No architectural boundary moved. The redesign is entirely above the repository
+layer, and the domain, the rules engine, the API and the cloud are untouched.
+
+```
+  features/*           screens, rebuilt around hierarchy
+      ↓
+  components/ui/
+      layout.tsx       Section · MetricStrip · Rows/Row · Bar · Empty ·
+                       LoadError · Skeleton         ← new in M9.3
+      index.tsx        Panel (now a section by default), Button, fields, …
+      ↓
+  styles/tokens.css    the only place a raw value may be written
+```
+
+### Navigation
+
+Three groups, not five. `Attendance` had been a group of one, which costs a
+heading and buys nothing; `Documents` — the operator's private import and review
+surface — has been removed from student navigation entirely.
+
+| Group | |
+|---|---|
+| Overview | Dashboard · Announcements · Notifications |
+| Academics | My degree · Results · SGPA & CGPA · Attendance · Timetable · Question papers |
+| Account | Account · Profile |
+
+**The mobile bar is chosen, not truncated.** It used to be the first five
+sidebar entries, which is how Alerts reached a phone's home bar while Papers and
+Attendance did not. It is now Home · GPA · Attendance · Papers · Account — the
+destinations a student opens between classes. Five is the ceiling; past that,
+labels stop being legible at 360px.
+
+### The dashboard answers five questions in order
+
+1. What semester am I in? — the header
+2. Where do I stand? — the snapshot strip
+3. What do I have today? — today's classes, by subject **name**
+4. What needs me? — and the section is **absent** when nothing does
+5. What has changed? — the latest announcements
+
+Resources come last, as links. Before M9.3 a question-paper list occupied the
+entire first screen on a phone.

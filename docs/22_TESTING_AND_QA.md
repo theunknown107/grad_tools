@@ -935,3 +935,50 @@ credential, a test email address, **any auth user id**, and any OAuth code.
 `service_role`, a JWT-shaped secret, a Postgres URL with a password, the
 server-only variable names, an OAuth client secret, an Apple private key, a
 refresh token, a test credential. Present, as intended: the publishable key.
+
+## 22.20 M9.3 — the frontend redesign
+
+**1,291 tests still pass, and none was weakened to accommodate the redesign.**
+Eight assertions changed because the copy or structure they targeted changed;
+each was rewritten to assert the same property in the new design rather than
+deleted:
+
+| Was asserting | Now asserts |
+|---|---|
+| `Semester 5 · In progress` as text | The page `h1` names the semester, with the status as a separate label |
+| `no results saved yet` | `no results yet` — a sentence, not a card |
+| The dashboard shows `Subjects` | Same, scoped to the metric strip rather than a panel |
+| `below requirement` in the attention list | The short course, its ratio and its percentage |
+| `You can miss` inside a sub-panel | `Can miss 2 classes` on the row itself |
+| `These two figures disagree` per semester | `these disagree` per semester **plus** the reason stated once on the page |
+| `View all` on the dashboard feed | `All announcements` |
+| A paper row's full fact string | The facts that vary, and **not** branch or scheme |
+
+### Browser QA (real Chromium, `@axe-core/playwright`)
+
+12 pages × 4 viewports (320/390/768/1280), against a realistic synthetic
+student — semester 5 CSE, four completed semesters, six subjects, varied
+attendance, a timetable, a backlog.
+
+| Checked | Result |
+|---|---|
+| axe violations | **0** across all 48 page/viewport combinations |
+| Horizontal overflow | **0** |
+| Console errors | **0** |
+| Focus ring on the first five tab stops | present on all |
+| Mobile bar | Home · GPA · Attendance · Papers · Account |
+| Touch target height | 59px (44 minimum) |
+| Elements animating under `prefers-reduced-motion` | **0** |
+
+### Visual QA
+
+Screenshots were rendered and inspected at 1280 and 390 for all twelve pages,
+before and after, and kept in `tests/screenshots/` (gitignored). An automated
+audit of the built CSS and every component then checked the prohibited-pattern
+list: AI-purple, neon, decorative gradients, glassmorphism, huge radii, large
+shadows, dot-grid, parallax, scroll-driven animation, emoji, sparkle icons,
+marketing language, pricing tiers, testimonials, hero sections and unsafe HTML.
+
+**All absent.** Two earlier matches were investigated and cleared: the only
+`linear-gradient` is the CSS-drawn `<select>` chevron, and every occurrence of
+`dangerouslySetInnerHTML` is a comment stating it is not used.

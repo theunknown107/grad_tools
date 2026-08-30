@@ -23,8 +23,8 @@
 
 .searchNote {
   margin: 0;
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
 }
 
 .filters {
@@ -36,14 +36,14 @@
 
 .suggestion {
   margin: var(--space-3) 0 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-size: var(--text-small);
+  color: var(--text-muted);
 }
 
 .count {
   margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-size: var(--text-small);
+  color: var(--text-muted);
 }
 
 .list,
@@ -57,28 +57,27 @@
 
 /* -- One paper ------------------------------------------------------------- */
 
+/*
+ * A ROW, NOT A CARD (M9.3 §16). Fifty bordered boxes made the library eight
+ * thousand pixels tall and impossible to scan; a hairline separates them for
+ * one pixel instead of a border, a background and a radius.
+ */
 .row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
-  align-items: start;
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
   justify-content: space-between;
   min-width: 0;
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
 }
 
-/* Availability is carried by a left edge AND by words in the row. Never by
-   colour alone (docs/27 §27.5). */
-.row[data-availability='link'] {
-  border-left: 3px solid var(--color-border-strong, var(--color-border));
-}
-
-.row[data-availability='host'] {
-  border-left: 3px solid var(--color-accent);
-}
+/*
+ * Availability is stated in WORDS on every row (docs/27 §27.5). The decorative
+ * left stripe is gone: a coloured edge on every card is exactly the ornament
+ * M9.3 §29 prohibits, and it was carrying no information the text did not.
+ */
 
 .rowMain {
   display: grid;
@@ -91,19 +90,25 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  align-items: center;
+  align-items: baseline;
+}
+
+/* The subject name sits beside its code, not on its own line. */
+.subject {
+  font-size: var(--text-small);
+  color: var(--text);
 }
 
 .code {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .code a {
-  color: var(--color-text);
+  color: var(--text);
   text-decoration: none;
 }
 
@@ -115,20 +120,20 @@
 /* Synthetic content is labelled wherever it appears (M8 §18). */
 .demo {
   padding: 1px var(--space-2);
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--color-warning-text, var(--color-text));
-  background: var(--color-warning-surface, var(--color-surface-sunken));
-  border: 1px solid var(--color-warning-border, var(--color-border));
+  color: var(--warning);
+  background: var(--warning-weak);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
 
 .subject {
   margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-text);
+  font-size: var(--text-small);
+  color: var(--text);
 }
 
 .paperTitle,
@@ -136,8 +141,8 @@
 .provenance,
 .extraction {
   margin: 0;
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -149,7 +154,7 @@
 
 .availability {
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--text);
 }
 
 .rowActions {
@@ -160,8 +165,8 @@
 }
 
 .unavailable {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
 }
 
 /* -- Actions --------------------------------------------------------------- */
@@ -174,22 +179,22 @@
   align-items: center;
   min-height: 44px;
   padding: 0 var(--space-3);
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   text-decoration: none;
   border-radius: var(--radius-sm);
 }
 
 .open {
   font-weight: 600;
-  color: var(--color-accent-contrast, var(--color-surface));
-  background: var(--color-accent);
-  border: 1px solid var(--color-accent);
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border: 1px solid var(--accent);
 }
 
 .external {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   background: transparent;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border);
 }
 
 .open:hover,
@@ -201,7 +206,7 @@
 .external:focus-visible,
 .linkButton:focus-visible,
 .viewAll:focus-visible {
-  outline: 2px solid var(--color-focus);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -209,8 +214,8 @@
 .viewAll {
   padding: 0;
   font: inherit;
-  font-size: var(--text-sm);
-  color: var(--color-accent);
+  font-size: var(--text-small);
+  color: var(--accent);
   text-decoration: underline;
   background: none;
   border: 0;
@@ -234,13 +239,13 @@
 }
 
 .fact dt {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
 }
 
 .fact dd {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   overflow-wrap: anywhere;
 }
 
@@ -255,8 +260,8 @@
 .viewer {
   width: 100%;
   height: min(80vh, 900px);
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
 
@@ -269,8 +274,8 @@
 .loading,
 .note {
   margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-size: var(--text-small);
+  color: var(--text-muted);
 }
 
 .visuallyHidden {

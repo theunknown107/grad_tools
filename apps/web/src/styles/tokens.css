@@ -61,8 +61,13 @@
 
   /* --- Layout ----------------------------------------------------------- */
   --gutter: var(--space-4);
-  --content-max: 1200px;
-  --reading-max: 720px;
+  /*
+   * 1200px beside a 244px sidebar produced ~120-character lines, roughly
+   * double the comfortable measure. 960px keeps a dense table usable while
+   * bringing prose back to a readable width (M9.3 §4, §8).
+   */
+  --content-max: 960px;
+  --reading-max: 680px;
   --sidebar-width: 244px;
   --header-height: 56px;
   --bottom-nav-height: 60px;

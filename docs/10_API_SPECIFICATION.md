@@ -734,3 +734,11 @@ per-record outcomes §10.16 promises.
 Each record now writes inside its own **savepoint**, so a failure rolls back
 exactly that record. Verified: a push of `[good, bad, good]` returns
 `[applied, rejected, applied]` and both good records commit.
+
+## 10.21 M9.3 — no API change
+
+The frontend redesign changed presentation only. **No endpoint, request shape,
+response shape, status code, header or error contract was added, removed or
+altered**, and no API test changed. The redesign consumes exactly the fields the
+API already returned; where a screen now shows a subject name beside its code,
+the name was already in the payload and was simply not being rendered.

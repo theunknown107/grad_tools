@@ -4,7 +4,32 @@
  */
 
 /* --- Panel: the neutral container. Not a "stat card". ---------------------- */
+/*
+ * Panel.
+ *
+ * ---------------------------------------------------------------------------
+ * NO LONGER A BOX BY DEFAULT (M9.3 §7, §31)
+ * ---------------------------------------------------------------------------
+ *
+ * `Panel` was used 46 times, and because it drew a background, a border and a
+ * radius, every region of every page carried identical visual weight. A screen
+ * made of equal boxes has no hierarchy — it just has boxes.
+ *
+ * So the default is now a SECTION: a heading, a rule beneath it, and the
+ * content. The grouping comes from the heading and the spacing, which is what
+ * was doing the work anyway. `boxed` restores a real container for the few
+ * places one is genuinely earned — a form, an embedded document, a distinct
+ * sub-surface — and those places now stand out because they are rare.
+ */
 .panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.panelBoxed {
+  padding: var(--space-4);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -12,28 +37,30 @@
 
 .panelHeader {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border);
+  min-height: 20px;
 }
 
+/* Matches the Section heading exactly, so the two primitives are visually the
+   same thing and a page mixing them does not look assembled from parts. */
 .panelTitle {
-  font-size: var(--text-small);
-  line-height: var(--text-small-lh);
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
   font-weight: var(--weight-semibold);
-  color: var(--text-muted);
-  letter-spacing: 0.02em;
+  color: var(--text-subtle);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .panelBody {
-  padding: var(--space-4);
+  min-width: 0;
 }
 
 .panelBodyFlush {
-  padding: 0;
+  min-width: 0;
 }
 
 /* --- Button ---------------------------------------------------------------- */

@@ -528,3 +528,28 @@ Per stage: the exit signal in `01` §1.6 observed in reality, not asserted.
 | VTU conversation | Stage 4 success and an introduction |
 
 **None of these is promised.** They are recorded so that the architecture's extension points are deliberate, and so that a request for one can be answered with "here is what it would depend on" rather than a guess.
+
+## 31.8 M9.3 — frontend redesign · ✅ **DELIVERED**
+
+The interface was functionally complete and read like an internal admin tool:
+46 uses of one container primitive, every region the same weight, subject codes
+without names, and a resource list occupying a phone's entire first screen.
+
+Rebuilt around information hierarchy rather than containers. See `05` §5.14–5.15
+for the design rules and the permanent anti-template constraints, `07` §7.18 for
+the navigation and dashboard model, `22` §22.20 for the QA, and `23` §23.17 for
+what it cost (nothing: no dependency added, CSS slightly smaller, page heights
+down by a third to a half).
+
+**Fixed a latent defect while there:** six stylesheets referenced CSS custom
+properties that were never declared. Custom properties fail silently, so those
+rules had been falling back since M8 with nothing to show for it.
+
+**Theme customisation remains DEFERRED.** No picker, no accent selector, no
+per-user colours. The token architecture is centralised and ready for a future
+milestone to override values rather than rewrite components.
+
+**Semester 5 pilot (7 September 2026):** the dashboard leads with the current
+semester and its status, which makes "Semester 5 · In progress" the natural
+reading of the screen. **The date is not in the code**, and no business logic
+derives a semester from the calendar (`ED-71`).

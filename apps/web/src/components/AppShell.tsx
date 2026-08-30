@@ -32,15 +32,20 @@ interface Destination {
   readonly group: string;
 }
 
-/** Stage 1 destinations only (docs/33 §33.2). */
+/**
+ * Where a student can go.
+ *
+ * THREE GROUPS, NOT FIVE (M9.3 §17). The old sidebar had Overview, Academics,
+ * Attendance and Planning — with Attendance a group of exactly one item, which
+ * costs a heading and buys nothing. Fewer, fuller groups are easier to scan
+ * than more, emptier ones.
+ *
+ * `Documents` is deliberately ABSENT. It is the operator's private import and
+ * review surface, not a student destination, and having it in the main nav
+ * invited students into a screen built for somebody else (M9.3 §17).
+ */
 const DESTINATIONS: readonly Destination[] = [
-  {
-    to: '/',
-    label: 'Dashboard',
-    shortLabel: 'Home',
-    icon: LayoutDashboard,
-    group: 'Overview',
-  },
+  { to: '/', label: 'Dashboard', shortLabel: 'Home', icon: LayoutDashboard, group: 'Overview' },
   {
     to: '/announcements',
     label: 'Announcements',
@@ -55,6 +60,7 @@ const DESTINATIONS: readonly Destination[] = [
     icon: BellIcon,
     group: 'Overview',
   },
+
   {
     to: '/semesters',
     label: 'My degree',
@@ -63,17 +69,25 @@ const DESTINATIONS: readonly Destination[] = [
     group: 'Academics',
   },
   {
-    to: '/academics',
-    label: 'SGPA & CGPA',
-    shortLabel: 'Academics',
-    icon: CalcIcon,
-    group: 'Academics',
-  },
-  {
     to: '/results',
     label: 'Results',
     shortLabel: 'Results',
-    icon: GraduationCap,
+    icon: FileTextIcon,
+    group: 'Academics',
+  },
+  { to: '/academics', label: 'SGPA & CGPA', shortLabel: 'GPA', icon: CalcIcon, group: 'Academics' },
+  {
+    to: '/attendance',
+    label: 'Attendance',
+    shortLabel: 'Attendance',
+    icon: ClipboardList,
+    group: 'Academics',
+  },
+  {
+    to: '/timetable',
+    label: 'Timetable',
+    shortLabel: 'Timetable',
+    icon: CalendarDays,
     group: 'Academics',
   },
   {
@@ -83,49 +97,25 @@ const DESTINATIONS: readonly Destination[] = [
     icon: LibraryIcon,
     group: 'Academics',
   },
-  {
-    to: '/documents',
-    label: 'Documents',
-    shortLabel: 'Docs',
-    icon: FileTextIcon,
-    group: 'Academics',
-  },
-  {
-    to: '/attendance',
-    label: 'Attendance',
-    shortLabel: 'Attendance',
-    icon: ClipboardList,
-    group: 'Attendance',
-  },
-  {
-    to: '/timetable',
-    label: 'Timetable',
-    shortLabel: 'Timetable',
-    icon: CalendarDays,
-    group: 'Planning',
-  },
-  {
-    to: '/account',
-    label: 'Account',
-    shortLabel: 'Account',
-    icon: UserRound,
-    group: 'Planning',
-  },
-  {
-    to: '/profile',
-    label: 'Profile',
-    shortLabel: 'Profile',
-    icon: UserRound,
-    group: 'Planning',
-  },
+
+  { to: '/account', label: 'Account', shortLabel: 'Account', icon: UserRound, group: 'Account' },
+  { to: '/profile', label: 'Profile', shortLabel: 'Profile', icon: UserRound, group: 'Account' },
 ];
 
-/** Bottom bar carries 5 items: past five, labels stop being legible at 360px. */
-const MOBILE_DESTINATIONS = DESTINATIONS.filter((d) => d.to !== '/profile');
-const MOBILE_TABS: readonly Destination[] = [
-  ...MOBILE_DESTINATIONS,
-  DESTINATIONS.find((d) => d.to === '/profile') as Destination,
-].slice(0, 5);
+/**
+ * The mobile bar, CHOSEN rather than truncated.
+ *
+ * Before M9.3 this was the first five sidebar entries, which is how Alerts
+ * ended up on a phone's home bar while Papers and Attendance did not. These
+ * five are the destinations a student opens on a phone between classes; every
+ * other area is one tap away inside them (M9.3 §18).
+ *
+ * Five is the ceiling: past that, labels stop being legible at 360px.
+ */
+const MOBILE_PATHS = ['/', '/academics', '/attendance', '/papers', '/account'] as const;
+const MOBILE_TABS: readonly Destination[] = MOBILE_PATHS.map(
+  (path) => DESTINATIONS.find((destination) => destination.to === path) as Destination,
+);
 
 function groupedDestinations(): [string, Destination[]][] {
   const groups = new Map<string, Destination[]>();

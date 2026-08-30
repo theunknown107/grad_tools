@@ -420,3 +420,37 @@ words, and a state that is not success never borrows success's (M9 §68).
 Account deletion needs a second press, and the confirmation puts Cancel first.
 The first-sync screen recommends the option that discards nothing, and always
 offers "keep this device only" (M9 §54).
+
+## 28.14 Copy in the redesigned interface (M9.3)
+
+The redesign changed how much room copy gets, which changed what it may say.
+
+| Say | Not |
+|---|---|
+| "No results yet, so there is no CGPA to show." | A bordered card with a paragraph and a large button |
+| "Nothing scheduled today." | "You have no classes! Enjoy your day 🎉" |
+| "Can miss 3 classes" on the row | A labelled block inside a sub-panel |
+| "Grade card 8.74 · computed 7.86 — these disagree." | The same four-sentence explanation on every semester |
+| "Below 75% a course is marked DX…" once, under the list | The same paragraph inside every at-risk course |
+| "Needs attention" — and nothing at all when nothing does | "Needs attention: all clear" |
+| "Your saved results could not be graded — a grade letter may not be one the 2022 scheme uses." | Four em dashes and no explanation |
+
+### Say it once
+
+The rule the redesign added. An explanation that is true of every row belongs
+beneath the list, not inside each row: the DX rule was printed in full inside
+every at-risk course, and the SGPA-disagreement paragraph inside every
+disagreeing semester. With three short courses and four disagreeing semesters, a
+student read the same paragraph seven times and the page became mostly warning.
+
+### A section that is always there stops being read
+
+"Needs attention" renders only when something needs attention. A heading that
+appears on a good week saying "all clear" teaches students to skip it, which
+costs exactly the week it mattered.
+
+### Names, not codes
+
+`BCS502` is what a student types into a search box. "Computer Networks" is what
+they recognise on a timetable at 9am. Screens show the name and keep the code
+beside it as the secondary line.

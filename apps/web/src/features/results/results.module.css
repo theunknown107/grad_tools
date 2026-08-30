@@ -80,3 +80,32 @@
   padding: var(--space-4);
   border-bottom: 1px solid var(--border);
 }
+
+/* -- Subject cell and mismatch (M9.3 §24) ---------------------------------- */
+
+.subjectName {
+  display: block;
+  font-size: var(--text-small);
+  color: var(--text);
+}
+
+.subjectCode {
+  display: block;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/* A line, not a panel. The reason it matters is explained once on the page. */
+.mismatch {
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--warning);
+}
+
+.mismatchHelp {
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+}

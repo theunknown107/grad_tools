@@ -41,7 +41,7 @@
 
 .noticeHeading {
   margin: 0 0 var(--space-2);
-  font-size: var(--text-base);
+  font-size: var(--text-body);
 }
 
 .notice p {
@@ -63,7 +63,7 @@
 
 .import h2 {
   margin: 0;
-  font-size: var(--text-lg);
+  font-size: var(--text-h3);
 }
 
 .fileLabel {
@@ -90,14 +90,14 @@
 .hint,
 .empty {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   color: var(--text-subtle);
 }
 
 .message {
   min-height: 1.5rem;
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   color: var(--text-muted);
 }
 
@@ -124,7 +124,7 @@
   gap: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--state-accent, var(--border-strong));
+  border-left: 3px solid var(--state-accent);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
 }
@@ -152,16 +152,16 @@
 
 .title {
   margin: 0;
-  font-size: var(--text-base);
+  font-size: var(--text-body);
   overflow-wrap: anywhere;
 }
 
 .state {
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--state-accent, var(--text-muted));
+  color: var(--state-accent);
 }
 
 .meta {
@@ -172,7 +172,7 @@
 }
 
 .meta dt {
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-subtle);
@@ -192,7 +192,7 @@
 .rejection {
   margin: 0;
   max-width: 60ch;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   line-height: 1.55;
   color: var(--text-muted);
 }
@@ -235,7 +235,7 @@
   border-left: 3px solid var(--info);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   line-height: 1.55;
   color: var(--text);
 }
@@ -281,7 +281,7 @@
 }
 
 .error {
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   color: var(--danger);
 }
 
@@ -294,7 +294,7 @@
 
 .sectionCount {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   color: var(--text-subtle);
 }
 
@@ -309,7 +309,7 @@
 .pageTag {
   display: inline-block;
   margin-bottom: var(--space-1);
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-subtle);
@@ -324,7 +324,7 @@
   border-radius: var(--radius-sm);
   background: var(--surface);
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -365,7 +365,7 @@
 
 .questionNumber {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-subtle);
@@ -383,7 +383,7 @@
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-3);
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   color: var(--text-subtle);
 }
 
@@ -394,7 +394,7 @@
   padding: 0 0 0 var(--space-3);
   list-style: none;
   border-left: 1px solid var(--border);
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
 }
 
 .subList li {
@@ -417,7 +417,7 @@
 }
 
 .state[data-tone='warn'] {
-  border-color: var(--warn-border, var(--border));
+  border-color: var(--warning);
   color: var(--text-muted);
 }
 
@@ -425,7 +425,7 @@
    rather than a fill, so a reviewed row reads as marked without the list
    turning into a block of colour. */
 .question[data-review='accepted'] {
-  border-left-color: var(--ok, var(--accent));
+  border-left-color: var(--success);
 }
 
 .question[data-review='corrected'] {
@@ -460,7 +460,7 @@
   border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--text);
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   cursor: pointer;
 }
 
@@ -508,7 +508,7 @@
 }
 
 .correctionField label {
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   color: var(--text-subtle);
 }
 
@@ -573,16 +573,16 @@
 
 .queueLabel {
   font-weight: 600;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
 }
 
 .queueText {
   overflow-wrap: anywhere;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
 }
 
 .queueMeta {
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   color: var(--text-subtle);
 }
 
@@ -592,7 +592,7 @@
 .machineText {
   display: block;
   margin: var(--space-1) 0 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-small);
   color: var(--text-subtle);
   overflow-wrap: anywhere;
 }
@@ -600,6 +600,6 @@
 /* Who reached the conclusion. Quiet, but never absent: agent adjudication and
    human review are different kinds of evidence (M5A.7 section 13). */
 .reviewer {
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   color: var(--text-subtle);
 }
