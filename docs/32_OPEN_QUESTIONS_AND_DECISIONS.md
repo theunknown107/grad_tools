@@ -1186,3 +1186,56 @@ actually set to. If it is overwhelmingly light, the light theme is the product
 and the design priority inverts.
 
 **Decision needed:** after the Semester 5 pilot.
+
+### DEC-026 — Navigation is horizontal, in two tiers · **M9.5**
+
+**Rejected: one horizontal row of all eleven destinations.** At a readable size
+with icons it is over 1100px before the brand and the actions, so it would wrap
+on most laptops — and a navigation bar whose height changes as you move through
+it is worse than a sidebar.
+
+**Rejected: a row of seven with the rest behind a menu.** It hides destinations
+behind a click, needs focus management and a dismiss behaviour, and puts
+Announcements somewhere a student has to learn.
+
+**Decided: two tiers.** Areas on top, the open area's destinations beneath.
+Nothing is hidden, the current page is always marked, both rows are a fixed
+height, and eleven destinations fit at 320px because both scroll sideways.
+
+**The cost, stated plainly:** reaching a destination in a closed area is two
+clicks rather than one. A sidebar's eleven permanent links were one click each
+and 232px of every screen; this is the trade that was chosen.
+
+### DEC-027 — `Module` returns, with a test for when to use it · **M9.5**
+
+M9.3 removed the app's only container because it was used 46 times and
+flattened every page. **That correction overshot.** With no container at all, a
+page became a single column of hairlines with nothing for the eye to rest
+against, which is most of why M9.4 still read as "the old app in violet".
+
+The reference application is neither: a main column of content beside a rail of
+bordered modules, where the border marks content that is **not part of the main
+reading order**.
+
+The rule, so this does not oscillate a third time:
+
+> Would this content still make sense lifted off the page entirely?
+> **Yes** → module. **No, it is the next paragraph of the page's argument** →
+> section.
+
+### OQ-043 — Whether two clicks to a closed area is acceptable · **opened by M9.5**
+
+**Why unresolved:** `DEC-026` trades one click for a smaller, honest navigation.
+Whether that trade is right depends on how often a student crosses areas — from
+Dashboard to Question papers, say — and nobody has measured it because nobody
+has used the product.
+
+**What M9.5 chose:** the two-tier bar, with the dashboard rail's "Go to" list
+and the mobile bottom bar both offering direct routes into Academics as a
+partial mitigation.
+
+**What would change the answer:** pilot evidence that cross-area movement is
+common. The fix would be a small "recent" or "pinned" row, not a return to the
+sidebar.
+
+**Decision needed:** after the Semester 5 pilot.

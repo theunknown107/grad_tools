@@ -201,6 +201,13 @@ export function AttendancePage() {
         ) : (
           <Section
             title="Your courses"
+            /*
+             * No description here: the page subtitle already states the
+             * requirement, and repeating it under the heading would be the same
+             * mistake at a smaller scale. The per-row "85% required" caption is
+             * gone for the same reason — the requirement belongs to the scheme,
+             * not to each of six courses (M9.3 §13, M9.5).
+             */
             action={
               /*
                * SAID ONCE, NOT PER COURSE (M9.3 §13). The DX rule used to be
@@ -288,7 +295,7 @@ function AttendanceRow({
     );
   }
 
-  const { percentage, status, requiredPct } = attendance.value;
+  const { percentage, status } = attendance.value;
   const tone = status === 'safe' ? 'default' : status === 'dx_risk' ? 'danger' : 'warning';
 
   /* One short sentence, not a labelled block. */
@@ -314,7 +321,6 @@ function AttendanceRow({
             {formatPercent(percentage)}
           </span>
           <Bar value={percentage} tone={tone} label={`${name ?? record.subjectCode} attendance`} />
-          <span className={styles.rowRequired}>{String(requiredPct)}% required</span>
         </span>
       }
     />

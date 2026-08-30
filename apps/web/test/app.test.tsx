@@ -511,22 +511,48 @@ describe('timetable', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('navigation', () => {
-  it('renders the Stage 1 destinations and omits unbuilt ones', () => {
+  /*
+   * M9.5 replaced the sidebar with a horizontal bar in two tiers, so this reads
+   * the whole shell rather than one <nav>. The property under test has not
+   * changed: every built destination is reachable from the shell, and nothing
+   * unbuilt appears as a dead link (docs/04 §4.3).
+   */
+  it('reaches every built destination and omits unbuilt ones', async () => {
+    const user = userEvent.setup();
     renderWith(<App />);
-    const navs = screen.getAllByRole('navigation', { name: 'Main' });
-    const sidebar = navs[0];
-    expect(sidebar).toBeTruthy();
-    const links = within(sidebar as HTMLElement).getAllByRole('link');
-    const labels = links.map((link) => link.textContent ?? '');
+
+    const shellLabels = () =>
+      screen
+        .getAllByRole('navigation')
+        .flatMap((nav) => within(nav).queryAllByRole('link'))
+        .map((link) => link.textContent ?? '');
+
+    // Overview is the open area on the dashboard, so its destinations are in
+    // the second tier straight away.
+    expect(shellLabels().some((l) => /dashboard/i.test(l))).toBe(true);
+    expect(shellLabels().some((l) => /announcements/i.test(l))).toBe(true);
+    expect(shellLabels().some((l) => /notifications/i.test(l))).toBe(true);
+
+    // Academics is one tap away, and opening it reveals the rest.
+    await user.click(screen.getByRole('link', { name: 'Academics' }));
+    expect(shellLabels().some((l) => /attendance/i.test(l))).toBe(true);
+    expect(shellLabels().some((l) => /question papers/i.test(l))).toBe(true);
+    expect(shellLabels().some((l) => /my degree/i.test(l))).toBe(true);
+
+    // Later milestones must still not appear as dead links anywhere.
+    expect(shellLabels().some((l) => /syllabus/i.test(l))).toBe(false);
+  });
+
+  it('marks the open area and the current destination', () => {
+    renderWith(<App />);
+    // Two tiers, two current markers: which area is open, and which page it is.
+    const current = screen
+      .getAllByRole('navigation')
+      .flatMap((nav) => within(nav).queryAllByRole('link'))
+      .filter((link) => link.getAttribute('aria-current') !== null);
+    const labels = current.map((link) => link.textContent ?? '');
+    expect(labels.some((l) => /overview/i.test(l))).toBe(true);
     expect(labels.some((l) => /dashboard/i.test(l))).toBe(true);
-    expect(labels.some((l) => /attendance/i.test(l))).toBe(true);
-    // Built in M7, so they are destinations now rather than dead links.
-    expect(labels.some((l) => /announcements/i.test(l))).toBe(true);
-    expect(labels.some((l) => /notifications/i.test(l))).toBe(true);
-    // Built in M8.
-    expect(labels.some((l) => /papers/i.test(l))).toBe(true);
-    // Later milestones must still not appear as dead links (docs/04 §4.3).
-    expect(labels.some((l) => /syllabus/i.test(l))).toBe(false);
   });
 
   it('provides a skip link as the first focusable element', () => {

@@ -583,3 +583,29 @@ rather than replaces.
 and its status, now marked with the product's one accent chip. **The date is
 still not in the code** and no business logic derives a semester from the
 calendar (`ED-71`).
+
+## 31.10 M9.5 — reference-driven layout redesign · ✅ **DELIVERED**
+
+M9.4 revalued the tokens and left the structure alone, which produced the old
+application in a new palette. M9.5 changes the structure.
+
+**The sidebar is gone.** Navigation is a two-tier horizontal bar: the three
+areas on top, the destinations inside the open area beneath. Both tiers scroll
+sideways on a phone; the bottom bar keeps its five chosen destinations and now
+also selects the area.
+
+**The dashboard is two columns** — the student's own semester in the main
+column, what-changed and where-else in a sticky rail. `Module` returns as a
+primitive for content that sits *beside* a page rather than in it, with a stated
+test for when to use one. Section headings are readable again at 16px solid
+rather than 13px uppercase muted.
+
+See `05` §5.18 for the design language, `07` §7.20 for the two component
+changes, `22` §22.22 for QA across nine widths in both themes, and `23` §23.19
+for the cost.
+
+**Three defects fixed**, one of them predating the milestone: an unnamed brand
+link below 480px, a clipped area tab at 390px, and subject codes breaking one
+character per line in the timetable week grid between 900 and 1080px.
+
+**Theme customisation remains DEFERRED.** **VTU polling remains DISABLED.**

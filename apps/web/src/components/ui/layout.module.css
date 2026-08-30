@@ -29,17 +29,21 @@
 }
 
 /*
- * Small, uppercase and quiet. A section label is a signpost, not a headline —
- * it should be findable when scanned and invisible when reading.
+ * READABLE, NOT A MICRO-LABEL (M9.5).
+ *
+ * M9.3 made section headings 13px uppercase in the muted colour, which made
+ * them recede so far that a page read as one undifferentiated column. Both
+ * references do the opposite: the section label is full-strength text at body
+ * size or above, and the link beside it is the quiet one. That contrast — solid
+ * label, muted action — is what gives a stack of sections a rhythm.
  */
 .sectionTitle {
   margin: 0;
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
+  font-size: var(--text-h3);
+  line-height: var(--text-h3-lh);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text-subtle);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text);
 }
 
 /* Tone tints the LABEL only, never a container (M9.3 §14). */
@@ -52,6 +56,56 @@
   font-size: var(--text-small);
   line-height: var(--text-small-lh);
   color: var(--text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Module                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A bordered surface for content that sits BESIDE the page rather than in it.
+ * Defined by its border and its radius, not by a fill: the references' panels
+ * are barely lighter than the ground and it is the hairline that draws them.
+ */
+.module {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 767px) {
+  .module {
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+  }
+}
+
+/* At most one per screen. The accent hairline is the application reference's
+   way of marking the module that matters most in its rail. */
+.module[data-tone='accent'] {
+  border-color: var(--accent-border);
+  background: var(--accent-weak);
+}
+
+.moduleHeader {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.moduleTitle {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -91,8 +145,13 @@
  */
 @media (min-width: 768px) {
   .metrics {
-    grid-template-columns: repeat(auto-fill, minmax(104px, 140px));
-    gap: var(--space-4) var(--space-7);
+    /*
+     * Capped at 120px, not 140px. Beside the dashboard rail the main column is
+     * ~780px at 1280, and a 140px cap wrapped the fifth figure onto its own
+     * line — five numbers read as one summary only while they are on one line.
+     */
+    grid-template-columns: repeat(auto-fill, minmax(96px, 120px));
+    gap: var(--space-4) var(--space-6);
     padding: var(--space-4) 0;
     background: none;
     border: 0;

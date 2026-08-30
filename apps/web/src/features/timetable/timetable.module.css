@@ -42,7 +42,17 @@
   display: none;
 }
 
-@media (min-width: 900px) {
+/*
+ * 1100px, not 900px.
+ *
+ * Six columns of a 900px page are 130px wide, and once the time column and the
+ * padding are taken out a subject code has about 45px left — so `BCS502` was
+ * being broken one character per line. `overflow-wrap: anywhere` is right for a
+ * long room name and catastrophic for a code in a box too small for it, and the
+ * honest fix is to not draw a six-column week until six columns fit. Below
+ * this the agenda is a better view anyway.
+ */
+@media (min-width: 1100px) {
   .weekGrid {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -82,7 +92,7 @@
   border-radius: var(--radius-md);
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1100px) {
   .agenda {
     display: none;
   }
@@ -160,4 +170,37 @@
   line-height: var(--text-caption-lh);
   color: var(--text-muted);
   overflow-wrap: anywhere;
+}
+
+/*
+ * Inside a week column the slot stacks: the two times side by side on one line,
+ * the subject and its room beneath, and the remove control held to the right of
+ * both. Beside each other they left the code 45px; stacked it gets the column.
+ */
+.weekGrid .slot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-1) var(--space-2);
+}
+
+.weekGrid .slotTime {
+  flex-direction: row;
+  gap: var(--space-2);
+  min-width: 0;
+  grid-column: 1;
+}
+
+.weekGrid .slotBody {
+  grid-column: 1;
+}
+
+.weekGrid .slot > button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+/* "9:00 am" must not become "9:00" over "am". */
+.weekGrid .slotTime span {
+  white-space: nowrap;
 }

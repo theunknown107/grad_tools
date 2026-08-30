@@ -20,7 +20,7 @@ import { Link } from 'react-router-dom';
 import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
 import { PageHeader } from '../../components/AppShell.js';
 import { EmptyState, Notice, Panel, SelectField, StatusPill } from '../../components/ui/index.js';
-import { Row, Rows, Section, Skeleton } from '../../components/ui/layout.js';
+import { Module, Row, Rows, Skeleton } from '../../components/ui/layout.js';
 import {
   useAnnouncements,
   useSortedAnnouncements,
@@ -140,8 +140,14 @@ export function LatestAnnouncements({ limit = 4 }: { readonly limit?: number }) 
    */
   if (error !== null || (!loading && sorted.length === 0)) return null;
 
+  /*
+   * A MODULE, not a section (M9.5). On the dashboard this sits in the rail
+   * beside the student's own semester, and it passes the module test: lift it
+   * off the page and it still makes sense, because it is not part of the
+   * argument the page is making.
+   */
   return (
-    <Section
+    <Module
       title="Latest"
       action={
         <Link to="/announcements" className={styles.viewAll}>
@@ -174,7 +180,7 @@ export function LatestAnnouncements({ limit = 4 }: { readonly limit?: number }) 
           ))}
         </Rows>
       )}
-    </Section>
+    </Module>
   );
 }
 

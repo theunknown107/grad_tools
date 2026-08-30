@@ -662,3 +662,30 @@ is marked, which is the honest answer at 9pm.
 
 The mark is `data-current` on the row plus the word **Next**, so it survives a
 monochrome display and reaches a screen reader (docs/27 §27.5).
+
+## 7.20 The interface layer after M9.5
+
+Still no routing, data, calculation or persistence change. M9.5 is a layout
+change: one component rewritten, one primitive added, one prop added.
+
+| | |
+|---|---|
+| `AppShell` | Rewritten. The sidebar is replaced by a two-tier horizontal bar. Exports `groupForPath` so the area a route belongs to is derived in one place |
+| `Module` | New primitive in `ui/layout.tsx`: a bordered surface for content that sits beside the page rather than in it |
+| `DashboardPage` | Wrapped in a two-column grid; `LatestAnnouncements` and `Resources` moved into the rail as modules |
+| Everything else | Styling, and it followed from the tokens and the primitives |
+
+### `groupForPath`
+
+Which area is open is derived from the URL, not stored. Routes with no
+destination of their own — `/papers/:id`, `/first-sync`, a mistyped path —
+resolve to the area of the path they are nested under, so opening a single paper
+keeps Academics open and its chip row visible rather than blanking the second
+tier. Unknown paths fall back to Overview.
+
+### A landmark bug the primitives were creating
+
+`Module` and `Section` both wrapped their heading in `<header>`. Inside a
+`<section>` with no accessible name a `<header>` still maps to the **banner**
+landmark, so a page of modules announced a page of banners. Both are plain
+`<div>`s now; the `<h2>` inside does the labelling that matters.
