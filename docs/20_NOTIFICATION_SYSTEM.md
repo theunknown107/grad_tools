@@ -220,3 +220,15 @@ One consequence of account-bound storage worth recording: notification state is
 stored under the account scope like everything else, so signing in as a second
 account on one browser starts with a clean unread state rather than inheriting
 the first account's.
+
+## 20.15 M9.3 — no notification change
+
+Notification behaviour, scheduling, permission handling and the VTU source gate
+are **unchanged**. The redesign touched only how the latest announcements read
+on the dashboard: `Section` + `Rows` instead of a bordered panel of cards, and
+the link now says "All announcements" rather than "View all". No notice text,
+severity mapping, source label or `Demo`/synthetic marking was altered — the
+labelling rules in §20.8 continue to apply and continue to be rendered.
+
+**VTU polling remains DISABLED** (`OQ-026`, `OQ-006`). The redesign did not add
+a fetch, a toggle or an environment switch.

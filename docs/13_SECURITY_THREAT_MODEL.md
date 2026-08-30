@@ -470,3 +470,24 @@ bcrypt-hashed passwords because the project's email rate limit blocked signup.
 That means **the signup and confirmation email path was not exercised**, and it
 is recorded as unverified rather than assumed to work. Both accounts were
 removed at the end of the milestone.
+
+## 13.24 M9.3 — the redesign's security surface
+
+**Nothing security-relevant changed.** Recorded because a large diff across
+every screen is exactly where an unsafe shortcut hides.
+
+| | |
+|---|---|
+| `dangerouslySetInnerHTML` | **Not introduced.** Still zero occurrences in the app. |
+| Rendering | All text through JSX children; React escapes it (§13.9 unchanged). |
+| Auth, JWT, RLS, sync | **Untouched.** No file under `features/auth`, `sync/` or the API changed behaviour. |
+| Account scoping | Unchanged. The redesign reads the same `RepositoryBundle`. |
+| New dependencies | **None.** No new supply-chain surface. |
+| `target="_blank"` | Still `rel="noopener noreferrer nofollow"` on every external link. |
+| PII | No screen displays a field it did not display before; nothing new is persisted or logged. |
+| Secrets | None added; the diff was scanned before commit. |
+
+**One thing the redesign improved:** the DX rule and the SGPA-disagreement
+explanation are now stated once per page rather than once per row. Repeating a
+warning until it is wallpaper is a real failure mode for a warning that matters
+(§13.19, on students dismissing what they have learned to skip).

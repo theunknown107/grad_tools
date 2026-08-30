@@ -1,27 +1,41 @@
 /**
  * Dashboard.
  *
- * Authority: docs/03 UF-03, docs/05 §Anti-patterns, M3 continuation §13.
+ * Authority: docs/05 §5.12 · docs/03 UF-03 · M9.3 §9, §10, §11, §12, §13
+ *
+ * ---------------------------------------------------------------------------
+ * FIVE QUESTIONS, IN THIS ORDER
+ * ---------------------------------------------------------------------------
+ *
+ *   1. What semester am I in?          the header
+ *   2. Where do I stand?               the snapshot strip
+ *   3. What do I have today?           today
+ *   4. What needs me?                  attention — and ONLY when it does
+ *   5. What has changed?               latest
+ *
+ * Resources come last, as links. A question-paper list is not the point of the
+ * dashboard, and before M9.3 it occupied the entire first screen on a phone.
  *
  * ---------------------------------------------------------------------------
  * WHAT THIS SCREEN IS NOT
  * ---------------------------------------------------------------------------
- * Not a wall of cards. Not one giant number per box. No invented metrics —
- * no "productivity score", no streaks, no gauges without meaning, no chart
- * drawn from three data points.
  *
- * Every region shows either the student's real data or an honest empty state
- * with exactly one action. The empty dashboard is the FIRST experience for
- * every new visitor and is designed as a real screen, not an afterthought.
+ * Not a wall of equal cards. Before M9.3 this page used seven bordered panels
+ * of identical weight, which meant nothing could be more important than
+ * anything else — a screen of equal boxes has no hierarchy, only boxes.
  *
- * Structure: header -> academic overview -> today/next -> quick actions.
+ * No invented metrics: no productivity score, no streak, no projected SGPA, no
+ * chart drawn from three points. Every figure is real or an em dash.
+ *
+ * THE ATTENTION SECTION IS ABSENT WHEN THERE IS NOTHING TO ATTEND TO. A student
+ * with full attendance and no backlogs should not see a section congratulating
+ * them on it (M9.3 §14).
  */
 
 import { Link } from 'react-router-dom';
 import {
   calculateAttendance,
   calculateCGPA,
-  calculateClass,
   calculatePercentage,
   calculateSGPA,
   vtu2022RuleSet,
@@ -29,19 +43,21 @@ import {
 import {
   WEEKDAYS,
   type AttendanceRecord,
+  type BacklogRecord,
   type SemesterResult,
+  type SemesterSubject,
   type TimetableSlot,
   type Weekday,
 } from '../../domain/types.js';
-import { ChevronRight } from '../../components/icons.js';
 import {
-  buttonClassName,
-  EmptyState,
-  Panel,
-  StatusPill,
-  statusIcons,
-  type PillTone,
-} from '../../components/ui/index.js';
+  Bar,
+  Empty,
+  MetricStrip,
+  Row,
+  Rows,
+  Section,
+  Skeleton,
+} from '../../components/ui/layout.js';
 import { formatGpa, formatPercent, formatTime } from '../../lib/format.js';
 import {
   useAttendance,
@@ -54,7 +70,6 @@ import {
 } from '../../hooks/useCollection.js';
 import { buildSemesterViews, currentSemester, summariseBacklogs } from '../../domain/academics.js';
 import { LatestAnnouncements } from '../announcements/AnnouncementsPage.js';
-import { RecentPapers } from '../papers/PapersPage.js';
 import styles from './dashboard.module.css';
 
 const ruleSet = vtu2022RuleSet;
@@ -62,6 +77,11 @@ const ruleSet = vtu2022RuleSet;
 function todayWeekday(): Weekday {
   const index = new Date().getDay();
   return WEEKDAYS[index === 0 ? 0 : index - 1] ?? 'Mon';
+}
+
+/** The subject's real name, or its code when nobody has entered one. */
+function nameFor(code: string, subjects: readonly SemesterSubject[]): string | null {
+  return subjects.find((subject) => subject.code === code)?.title ?? null;
 }
 
 export function DashboardPage() {
@@ -75,287 +95,164 @@ export function DashboardPage() {
 
   const loading = attendanceLoading || resultsLoading || timetableLoading;
   const current = currentSemester(buildSemesterViews(semesters, results));
-  const greeting = profile?.displayName?.trim();
+  const semesterNumber = current?.number ?? profile?.currentSemester ?? null;
+  const name = profile?.displayName?.trim();
+
+  const thisSemester = attendance.filter(
+    (record) => semesterNumber === null || record.semester === semesterNumber,
+  );
+  const subjectsNow = semesterSubjects.filter(
+    (subject) => semesterNumber === null || subject.semester === semesterNumber,
+  );
+  const outstanding = summariseBacklogs(backlogs).outstanding;
 
   return (
-    <>
+    <div className={styles.page}>
+      {/*
+        THE SEMESTER IS THE CONTEXT, not the student's name. A student knows who
+        they are; what they open the app to check is where they are (M9.3 §11).
+      */}
       <header className={styles.header}>
-        <h1 className={styles.title}>
-          {greeting !== undefined && greeting !== '' ? greeting : 'Your semester'}
-        </h1>
-        <p className={styles.subtitle}>
-          {typeof profile?.currentSemester === 'number'
-            ? `Semester ${String(profile.currentSemester)} · VTU 2022 scheme`
-            : 'VTU 2022 scheme'}
-          {typeof profile?.branch === 'string' && profile.branch !== ''
-            ? ` · ${profile.branch}`
-            : ''}
+        <p className={styles.eyebrow}>
+          {name !== undefined && name !== '' ? `${name} · ` : ''}
+          {profile?.branch ?? 'GradTools'}
+          {profile?.schemeId === 'vtu-2022' ? ' · 2022 scheme' : ''}
         </p>
+        <h1 className={styles.title}>
+          {semesterNumber === null ? 'Your degree' : `Semester ${String(semesterNumber)}`}
+          {current !== null && <span className={styles.status}>In progress</span>}
+        </h1>
       </header>
 
       {loading ? (
-        <p className={styles.loading}>Loading your data…</p>
+        <Skeleton rows={4} />
       ) : (
-        <div className={styles.stack}>
-          {/*
-            THE CURRENT SEMESTER IS THE PRIMARY CONTEXT (M6 §11). What a student
-            opens the app for is the semester they are in; the history is one
-            click away and does not need to lead.
-          */}
-          {current !== null && (
-            <CurrentSemesterPanel
-              semesterNumber={current.number}
-              subjectCount={
-                semesterSubjects.filter((subject) => subject.semester === current.number).length
-              }
-              attendance={attendance.filter((record) => record.semester === current.number)}
-              backlogsOutstanding={summariseBacklogs(backlogs).outstanding}
-            />
-          )}
-          {/* What is new, above the standing figures: a student opens the app
-              to find out what has happened (M7 §25). */}
+        <>
+          <Snapshot
+            results={results}
+            attendance={thisSemester}
+            subjectCount={subjectsNow.length}
+            outstanding={outstanding}
+          />
+          <Today timetable={timetable} subjects={semesterSubjects} />
+          <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
           <LatestAnnouncements />
-          {/* A resource on the dashboard, not the subject of it (M8 §24). */}
-          <RecentPapers />
-          <AcademicOverview results={results} />
-          <AttendanceConcerns attendance={attendance} />
-          <TodaySchedule timetable={timetable} />
-          <QuickActions />
-        </div>
+          <Resources />
+        </>
       )}
-    </>
+    </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/* The semester the student is in                                             */
+/* Where the student stands                                                   */
 /* -------------------------------------------------------------------------- */
 
 /**
- * The current semester, in four figures a student actually acts on.
+ * Four figures, in one strip.
  *
- * NOT FOUR GIANT CARDS (docs/05 anti-patterns). A dense row, and every figure
- * is either real or an em dash — an SGPA does not exist until the semester ends,
- * and showing a hopeful number there would be the worst kind of invention.
+ * CGPA and the last SGPA are the two numbers a student actually quotes; the
+ * attendance figure is the one that changes weekly. All four are computed by
+ * `@gradtools/academic-rules` — nothing here re-implements a formula (M9.3 §44).
  */
-function CurrentSemesterPanel({
-  semesterNumber,
-  subjectCount,
+function Snapshot({
+  results,
   attendance,
-  backlogsOutstanding,
+  subjectCount,
+  outstanding,
 }: {
-  readonly semesterNumber: number;
-  readonly subjectCount: number;
+  readonly results: readonly SemesterResult[];
   readonly attendance: readonly AttendanceRecord[];
-  readonly backlogsOutstanding: number;
+  readonly subjectCount: number;
+  readonly outstanding: number;
 }) {
-  const attended = attendance.reduce((total, record) => total + record.attended, 0);
-  const conducted = attendance.reduce((total, record) => total + record.conducted, 0);
-  const overall = conducted > 0 ? calculateAttendance(attended, conducted, ruleSet) : null;
+  const graded = results
+    .map((result) => {
+      const sgpa = calculateSGPA(
+        result.subjects.map((subject) => ({
+          credits: subject.credits,
+          gradeLetter: subject.gradeLetter,
+          subjectCode: subject.subjectCode,
+        })),
+        ruleSet,
+      );
+      return {
+        semester: result.semester,
+        credits: result.subjects.reduce((total, subject) => total + subject.credits, 0),
+        sgpa: sgpa.ok ? sgpa.value : null,
+      };
+    })
+    .filter((entry) => entry.sgpa !== null && entry.credits > 0);
 
-  return (
-    <Panel
-      title={`Semester ${String(semesterNumber)} · In progress`}
-      flush
-      action={
-        <Link to="/semesters" className={buttonClassName('secondary')}>
-          My degree
-        </Link>
-      }
-    >
-      <dl className={styles.statRow}>
-        <div className={styles.stat}>
-          <dt>Attendance</dt>
-          <dd className={styles.statValue}>
-            {overall !== null && overall.ok ? formatPercent(overall.value.percentage) : '—'}
-          </dd>
-        </div>
-        <div className={styles.stat}>
-          <dt>Subjects</dt>
-          <dd className={styles.statValue}>{subjectCount === 0 ? '—' : subjectCount}</dd>
-        </div>
-        <div className={styles.stat}>
-          <dt>SGPA</dt>
-          {/* Not known until the semester has a result. Never estimated. */}
-          <dd className={styles.statValue}>—</dd>
-        </div>
-        <div className={styles.stat}>
-          <dt>Backlogs</dt>
-          <dd className={styles.statValue}>{backlogsOutstanding}</dd>
-        </div>
-      </dl>
-    </Panel>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Academic overview — a dense row, not three giant cards                     */
-/* -------------------------------------------------------------------------- */
-
-function AcademicOverview({ results }: { results: readonly SemesterResult[] }) {
-  if (results.length === 0) {
-    return (
-      <Panel title="Academic overview" flush>
-        <EmptyState
-          action={
-            <Link to="/results" className={buttonClassName('primary')}>
-              Add a result
-            </Link>
-          }
-        >
-          No results saved yet. Add a semester result and your CGPA, percentage and class appear
-          here.
-        </EmptyState>
-      </Panel>
-    );
-  }
-
-  const semesters = results.map((result) => {
-    const computed = calculateSGPA(
-      result.subjects.map((subject) => ({
-        credits: subject.credits,
-        gradeLetter: subject.gradeLetter,
-        subjectCode: subject.subjectCode,
-      })),
-      ruleSet,
-    );
-    return {
-      credits: result.subjects.reduce((total, subject) => total + subject.credits, 0),
-      sgpa: computed.ok ? computed.value : 0,
-      semester: result.semester,
-      ok: computed.ok,
-    };
-  });
-
-  const usable = semesters.filter((entry) => entry.ok && entry.credits > 0);
   const cgpa = calculateCGPA(
-    usable.map((entry) => ({
+    graded.map((entry) => ({
       credits: entry.credits,
-      sgpa: entry.sgpa,
+      sgpa: entry.sgpa as number,
       semester: entry.semester,
     })),
     ruleSet,
   );
   const percentage = cgpa.ok ? calculatePercentage(cgpa.value, ruleSet) : null;
-  const classBand = percentage?.ok === true ? calculateClass(percentage.value, ruleSet) : null;
-  const totalCredits = usable.reduce((total, entry) => total + entry.credits, 0);
+  const latest = [...graded].sort((a, b) => b.semester - a.semester)[0];
+
+  const attended = attendance.reduce((total, record) => total + record.attended, 0);
+  const conducted = attendance.reduce((total, record) => total + record.conducted, 0);
+  const overall = conducted > 0 ? calculateAttendance(attended, conducted, ruleSet) : null;
 
   return (
-    <Panel title="Academic overview" flush>
-      <dl className={styles.statRow}>
-        <div className={styles.stat}>
-          <dt>CGPA</dt>
-          <dd className={styles.statValue}>{cgpa.ok ? formatGpa(cgpa.value) : '—'}</dd>
-        </div>
-        <div className={styles.stat}>
-          <dt>Percentage</dt>
-          <dd className={styles.statValue}>
-            {percentage?.ok === true ? formatPercent(percentage.value) : '—'}
-          </dd>
-        </div>
-        <div className={styles.stat}>
-          <dt>Credits</dt>
-          <dd className={styles.statValue}>{String(totalCredits)}</dd>
-        </div>
-        <div className={styles.stat}>
-          <dt>Semesters</dt>
-          <dd className={styles.statValue}>{String(usable.length)}</dd>
-        </div>
-      </dl>
-      {classBand?.ok === true && (
-        <div className={styles.statFooter}>
-          <StatusPill tone="accent">{classBand.value.label}</StatusPill>
-          <span className={styles.statFooterNote}>
-            Provisional. Class equivalence applies on completing the programme (22OB 6.8).
-          </span>
-        </div>
+    <>
+      <MetricStrip
+        metrics={[
+          {
+            label: 'CGPA',
+            value: cgpa.ok ? formatGpa(cgpa.value) : '—',
+            ...(percentage?.ok === true ? { note: formatPercent(percentage.value) } : {}),
+          },
+          {
+            label: 'Last SGPA',
+            value:
+              latest?.sgpa === undefined || latest.sgpa === null ? '—' : formatGpa(latest.sgpa),
+            ...(latest === undefined ? {} : { note: `sem ${String(latest.semester)}` }),
+          },
+          {
+            label: 'Attendance',
+            value: overall?.ok === true ? formatPercent(overall.value.percentage) : '—',
+            ...(overall?.ok === true && overall.value.status !== 'safe'
+              ? {
+                  tone:
+                    overall.value.status === 'dx_risk' ? ('danger' as const) : ('warning' as const),
+                }
+              : {}),
+          },
+          {
+            /* The semester's shape, per M9.3 §11. */
+            label: 'Subjects',
+            value: subjectCount === 0 ? '—' : String(subjectCount),
+          },
+          {
+            label: 'Backlogs',
+            value: String(outstanding),
+            ...(outstanding > 0 ? { tone: 'warning' as const } : {}),
+          },
+        ]}
+      />
+      {/*
+        Said only when it is true and useful. A student with results but no
+        usable ones needs to know WHY the figures are blank rather than being
+        left with four em dashes and no explanation.
+      */}
+      {results.length > 0 && graded.length === 0 && (
+        <Empty action={<Link to="/results">Check your results</Link>}>
+          Your saved results could not be graded — a grade letter may not be one the 2022 scheme
+          uses.
+        </Empty>
       )}
-    </Panel>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Attendance concerns — only what needs attention                            */
-/* -------------------------------------------------------------------------- */
-
-function AttendanceConcerns({ attendance }: { attendance: readonly AttendanceRecord[] }) {
-  if (attendance.length === 0) {
-    return (
-      <Panel title="Attendance" flush>
-        <EmptyState
-          action={
-            <Link to="/attendance" className={buttonClassName('primary')}>
-              Add attendance
-            </Link>
-          }
-        >
-          Nothing tracked yet. Add your courses and GradTools shows how many classes you can still
-          miss.
-        </EmptyState>
-      </Panel>
-    );
-  }
-
-  const evaluated = attendance
-    .map((record) => {
-      const result = calculateAttendance(record.attended, record.conducted, ruleSet);
-      return result.ok ? { record, outcome: result.value } : null;
-    })
-    .filter((entry) => entry !== null);
-
-  const needsAttention = evaluated.filter((entry) => entry.outcome.status !== 'safe');
-  const shown = needsAttention.length > 0 ? needsAttention : evaluated;
-
-  return (
-    <Panel
-      title="Attendance"
-      action={
-        <Link to="/attendance" className={styles.panelLink}>
-          All courses
-          <ChevronRight size={14} aria-hidden="true" />
-        </Link>
-      }
-      flush
-    >
-      {needsAttention.length === 0 && (
-        <p className={styles.allClear}>
-          All {String(evaluated.length)} courses are at or above{' '}
-          {String(ruleSet.attendanceRequiredPct)}%.
-        </p>
+      {results.length === 0 && (
+        <Empty action={<Link to="/results">Add a result</Link>}>
+          No results yet, so there is no CGPA to show. {subjectCount > 0 ? '' : ''}
+        </Empty>
       )}
-      <ul className={styles.list}>
-        {shown.slice(0, 4).map(({ record, outcome }) => {
-          const tone: PillTone =
-            outcome.status === 'safe'
-              ? 'success'
-              : outcome.status === 'below_requirement'
-                ? 'warning'
-                : 'danger';
-          const icon =
-            outcome.status === 'safe'
-              ? statusIcons.safe
-              : outcome.status === 'below_requirement'
-                ? statusIcons.below
-                : statusIcons.risk;
-          const label =
-            outcome.status === 'safe'
-              ? 'Safe'
-              : outcome.status === 'below_requirement'
-                ? 'Below requirement'
-                : 'DX risk';
-
-          return (
-            <li className={styles.listRow} key={record.id}>
-              <span className={styles.listCode}>{record.subjectCode}</span>
-              <span className={styles.listValue}>{formatPercent(outcome.percentage)}</span>
-              <StatusPill tone={tone} icon={icon}>
-                {label}
-              </StatusPill>
-            </li>
-          );
-        })}
-      </ul>
-    </Panel>
+    </>
   );
 }
 
@@ -363,75 +260,171 @@ function AttendanceConcerns({ attendance }: { attendance: readonly AttendanceRec
 /* Today                                                                      */
 /* -------------------------------------------------------------------------- */
 
-function TodaySchedule({ timetable }: { timetable: readonly TimetableSlot[] }) {
-  const today = todayWeekday();
-  const todaySlots = timetable
-    .filter((slot) => slot.day === today)
+/**
+ * The day's classes, as a timeline.
+ *
+ * The time leads because that is what a student scans for. The subject NAME is
+ * shown, not only its code — `BCS502` means nothing at a glance and
+ * "Computer Networks" means everything (M9.3 §12).
+ */
+function Today({
+  timetable,
+  subjects,
+}: {
+  readonly timetable: readonly TimetableSlot[];
+  readonly subjects: readonly SemesterSubject[];
+}) {
+  const day = todayWeekday();
+  const slots = timetable
+    .filter((slot) => slot.day === day)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
-    <Panel
-      title={`Today · ${today}`}
+    <Section
+      title={`Today · ${day}`}
       action={
-        <Link to="/timetable" className={styles.panelLink}>
+        <Link className={styles.quietLink} to="/timetable">
           Full week
-          <ChevronRight size={14} aria-hidden="true" />
         </Link>
       }
-      flush
     >
-      {timetable.length === 0 ? (
-        <EmptyState
-          action={
-            <Link to="/timetable" className={buttonClassName('primary')}>
-              Add your timetable
-            </Link>
-          }
-        >
-          No timetable yet. Add your weekly classes to see what is on today.
-        </EmptyState>
-      ) : todaySlots.length === 0 ? (
-        <p className={styles.allClear}>No classes scheduled for {today}.</p>
+      {slots.length === 0 ? (
+        <Empty action={<Link to="/timetable">Add your timetable</Link>}>
+          Nothing scheduled today.
+        </Empty>
       ) : (
-        <ul className={styles.list}>
-          {todaySlots.map((slot) => (
-            <li className={styles.listRow} key={slot.id}>
-              <span className={styles.listTime}>{formatTime(slot.startTime)}</span>
-              <span className={styles.listCode}>{slot.subjectCode}</span>
-              {slot.room !== null && <span className={styles.listMeta}>{slot.room}</span>}
-            </li>
-          ))}
-        </ul>
+        <Rows>
+          {slots.map((slot) => {
+            const title = nameFor(slot.subjectCode, subjects);
+            return (
+              <Row
+                key={slot.id}
+                lead={formatTime(slot.startTime)}
+                title={title ?? slot.subjectCode}
+                meta={title === null ? undefined : slot.subjectCode}
+                trailing={slot.room ?? undefined}
+              />
+            );
+          })}
+        </Rows>
       )}
-    </Panel>
+    </Section>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/* Quick actions                                                              */
+/* Attention                                                                  */
 /* -------------------------------------------------------------------------- */
 
-function QuickActions() {
-  const actions = [
-    { to: '/academics', label: 'Calculate SGPA', hint: 'One semester' },
-    { to: '/academics', label: 'Calculate CGPA', hint: 'Across semesters' },
-    { to: '/attendance', label: 'Plan a bunk', hint: 'What if I miss classes?' },
-    { to: '/results', label: 'Add a result', hint: 'Semester grade card' },
-  ];
+/**
+ * The things that need doing something about.
+ *
+ * RENDERS NOTHING WHEN THERE IS NOTHING. A section headed "Attention" that says
+ * "all clear" is a section that trains students to ignore the heading, so on a
+ * good week this simply is not on the page (M9.3 §14).
+ *
+ * Which subjects are short is decided by the rules engine, never by a threshold
+ * written in this file.
+ */
+function Attention({
+  attendance,
+  subjects,
+  backlogs,
+}: {
+  readonly attendance: readonly AttendanceRecord[];
+  readonly subjects: readonly SemesterSubject[];
+  readonly backlogs: readonly BacklogRecord[];
+}) {
+  /*
+   * Which subjects are short is the rules engine's verdict, never a threshold
+   * written here. `dx_risk` outranks `below_requirement`, and both sort worst
+   * first so the subject in most trouble leads (M9.3 §44).
+   */
+  const short = attendance
+    .flatMap((record) => {
+      const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
+      if (!verdict.ok || verdict.value.status === 'safe') return [];
+      return [{ record, verdict: verdict.value }];
+    })
+    .sort((a, b) => a.verdict.percentage - b.verdict.percentage);
+
+  const outstanding = backlogs.filter((backlog) => backlog.status !== 'cleared');
+
+  if (short.length === 0 && outstanding.length === 0) return null;
 
   return (
-    <Panel title="Quick actions" flush>
-      <ul className={styles.actionList}>
-        {actions.map((action) => (
-          <li key={action.label}>
-            <Link to={action.to} className={styles.actionLink}>
-              <span className={styles.actionLabel}>{action.label}</span>
-              <span className={styles.actionHint}>{action.hint}</span>
-              <ChevronRight size={16} aria-hidden="true" className={styles.actionChevron} />
-            </Link>
-          </li>
+    <Section
+      title="Needs attention"
+      tone="attention"
+      action={
+        short.length > 0 ? (
+          <Link className={styles.quietLink} to="/attendance">
+            All subjects
+          </Link>
+        ) : undefined
+      }
+    >
+      <Rows>
+        {short.map(({ record, verdict }) => {
+          const title = nameFor(record.subjectCode, subjects);
+          return (
+            <Row
+              key={record.id}
+              title={title ?? record.subjectCode}
+              meta={
+                <>
+                  {title === null ? '' : `${record.subjectCode} · `}
+                  {record.attended}/{record.conducted} classes
+                </>
+              }
+              trailing={
+                <span className={styles.attendanceCell}>
+                  <span data-tone={verdict.status === 'dx_risk' ? 'danger' : 'warning'}>
+                    {formatPercent(verdict.percentage)}
+                  </span>
+                  <Bar
+                    value={verdict.percentage}
+                    tone={verdict.status === 'dx_risk' ? 'danger' : 'warning'}
+                    label={title ?? record.subjectCode}
+                  />
+                </span>
+              }
+            />
+          );
+        })}
+        {outstanding.map((backlog) => (
+          <Row
+            key={backlog.id}
+            title={backlog.subjectTitle}
+            meta={`${backlog.subjectCode} · from semester ${String(backlog.originSemester)}`}
+            trailing="Backlog"
+          />
         ))}
-      </ul>
-    </Panel>
+      </Rows>
+    </Section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Resources                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Where to go next.
+ *
+ * Links, not a feature-card row (M9.3 §16). These are destinations a student
+ * already knows exist; they need a way in, not an advertisement.
+ */
+function Resources() {
+  return (
+    <Section title="Go to">
+      <nav className={styles.resources} aria-label="Other areas">
+        <Link to="/papers">Question papers</Link>
+        <Link to="/results">Results</Link>
+        <Link to="/academics">SGPA &amp; CGPA</Link>
+        <Link to="/attendance">Attendance</Link>
+        <Link to="/semesters">My degree</Link>
+      </nav>
+    </Section>
   );
 }

@@ -61,6 +61,20 @@ export function ResultsPage() {
   const { profile } = useProfile();
   const [isAdding, setIsAdding] = useState(false);
 
+  /* Whether any saved semester's grade card and computed SGPA disagree. */
+  const anyMismatch = items.some((result) => {
+    if (result.sgpaAsserted === null) return false;
+    const computed = calculateSGPA(
+      result.subjects.map((subject) => ({
+        credits: subject.credits,
+        gradeLetter: subject.gradeLetter,
+        subjectCode: subject.subjectCode,
+      })),
+      vtu2022RuleSet,
+    );
+    return computed.ok && Math.abs(computed.value - result.sgpaAsserted) >= 0.005;
+  });
+
   return (
     <>
       <PageHeader
@@ -85,6 +99,17 @@ export function ResultsPage() {
           tools not to access it, and we respect that. We never ask for your portal password either.
           Enter or paste a result once and everything else works from there.
         </Notice>
+
+        {/*
+          The reason a disagreement matters, said ONCE. Each semester that
+          disagrees then needs only one line (M9.3 §24).
+        */}
+        {anyMismatch && (
+          <p className={styles.mismatchHelp}>
+            Where a grade card and the computed figure disagree, GradTools shows both rather than
+            picking one. It usually means a subject entry has a typo, or a grade needs checking.
+          </p>
+        )}
 
         {isAdding && (
           <ResultEditor
@@ -344,14 +369,16 @@ function SavedResult({ result, onRemove }: { result: SemesterResult; onRemove: (
       </div>
 
       {discrepancy && (
-        <div className={styles.discrepancy}>
-          <Notice tone="warning">
-            <strong>These two figures disagree.</strong> Your grade card says{' '}
-            {formatGpa(discrepancy.asserted)}; computing from the subjects above gives{' '}
-            {formatGpa(discrepancy.computed)}. GradTools shows both rather than picking one. It
-            usually means either a subject entry has a typo, or a grade needs checking.
-          </Notice>
-        </div>
+        /*
+         * ONE LINE PER SEMESTER (M9.3 §24). The full paragraph used to repeat
+         * inside every disagreeing semester; with four of them a student read
+         * the same explanation four times and the page became mostly warning.
+         * The reason is stated once at the top of the page instead.
+         */
+        <p className={styles.mismatch}>
+          Grade card {formatGpa(discrepancy.asserted)} · computed {formatGpa(discrepancy.computed)}{' '}
+          — these disagree.
+        </p>
       )}
 
       {!computed.ok && (
@@ -377,7 +404,23 @@ function SavedResult({ result, onRemove }: { result: SemesterResult; onRemove: (
           <tbody>
             {result.subjects.map((subject) => (
               <tr key={subject.id}>
-                <td className={monoClass}>{subject.subjectCode}</td>
+                <td>
+                  {/*
+                    The NAME leads, with the code beneath it. `BCS403` is what a
+                    student types; "Database Management Systems" is what they
+                    recognise (M9.3 §24).
+                  */}
+                  {subject.subjectTitle !== subject.subjectCode && subject.subjectTitle !== '' ? (
+                    <>
+                      <span className={styles.subjectName}>{subject.subjectTitle}</span>
+                      <span className={`${styles.subjectCode ?? ''} ${monoClass}`}>
+                        {subject.subjectCode}
+                      </span>
+                    </>
+                  ) : (
+                    <span className={monoClass}>{subject.subjectCode}</span>
+                  )}
+                </td>
                 <td className={numericClass}>{subject.credits}</td>
                 <td className={numericClass}>
                   <StatusPill tone="neutral">{subject.gradeLetter}</StatusPill>

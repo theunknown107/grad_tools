@@ -19,19 +19,28 @@ import styles from './ui.module.css';
 /* Panel                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A titled region.
+ *
+ * SECTION BY DEFAULT, box only when asked (M9.3 §7). See the note in
+ * ui.module.css for why: 46 identical containers gave the app no hierarchy.
+ */
 export function Panel({
   title,
   action,
   children,
   flush = false,
+  boxed = false,
 }: {
   title?: string | undefined;
   action?: ReactNode;
   children: ReactNode;
   flush?: boolean | undefined;
+  /** A real container. For forms and embedded documents, not for grouping. */
+  boxed?: boolean | undefined;
 }) {
   return (
-    <section className={styles.panel}>
+    <section className={`${styles.panel ?? ''} ${boxed ? (styles.panelBoxed ?? '') : ''}`}>
       {title !== undefined && (
         <header className={styles.panelHeader}>
           <h2 className={styles.panelTitle}>{title}</h2>

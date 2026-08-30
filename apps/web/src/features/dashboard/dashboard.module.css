@@ -1,200 +1,133 @@
-/** Dashboard. Authority: docs/05 §Stat row, M3 continuation §13 */
+/** Dashboard. Authority: docs/05 §5.12 · M9.3 §9-§14 */
 
-.header {
-  margin-bottom: var(--space-5);
-}
-
-.title {
-  font-size: var(--text-h1);
-  line-height: var(--text-h1-lh);
-}
-
-.subtitle {
-  margin-top: var(--space-1);
-  font-size: var(--text-small);
-  line-height: var(--text-small-lh);
-  color: var(--text-muted);
-}
-
-.loading {
-  color: var(--text-muted);
-  font-size: var(--text-small);
-}
-
-.stack {
+.page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
-
-/* --- Stat row -------------------------------------------------------------- */
-/* Dense and comparable: four figures in one panel, NOT four giant cards
-   (docs/05 §Stat row). */
-.statRow {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-4);
-  padding: var(--space-4);
-  margin: 0;
-}
-
-@media (min-width: 640px) {
-  .statRow {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  /* Generous BETWEEN sections, tight within them. The space is what separates
+     regions now that borders no longer do (M9.3 §7). */
+  gap: var(--space-6);
   min-width: 0;
 }
 
-.stat dt {
+.page > * {
+  min-width: 0;
+}
+
+/* -- Header ---------------------------------------------------------------- */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Who and what course — context, above the thing it qualifies. */
+.eyebrow {
+  margin: 0;
   font-size: var(--text-caption);
   line-height: var(--text-caption-lh);
   color: var(--text-muted);
 }
 
-.statValue {
-  margin: 0;
-  font-size: var(--text-h2);
-  line-height: var(--text-h2-lh);
-  font-weight: var(--weight-semibold);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
-
-.statFooter {
+/*
+ * The semester is the page's subject, so it is the page's h1 — not the
+ * student's name, which they already know (M9.3 §11).
+ */
+.title {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
+  gap: var(--space-3);
+  align-items: baseline;
+  margin: 0;
+  font-size: var(--text-h1);
+  line-height: var(--text-h1-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
 }
 
-.statFooterNote {
+/* A quiet state label, not a coloured pill: "in progress" is the normal case. */
+.status {
   font-size: var(--text-caption);
   line-height: var(--text-caption-lh);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--text-subtle);
 }
 
-/* --- Lists ----------------------------------------------------------------- */
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
+/* -- Small links ----------------------------------------------------------- */
 
-.listRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border);
-}
-
-.listRow:last-child {
-  border-bottom: none;
-}
-
-.listTime {
-  font-size: var(--text-caption);
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
-  min-width: 68px;
-}
-
-.listCode {
-  font-family: var(--font-mono);
-  font-size: var(--text-small);
-  font-weight: var(--weight-medium);
-  margin-right: auto;
-  overflow-wrap: anywhere;
-}
-
-.listValue {
-  font-size: var(--text-small);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--weight-medium);
-}
-
-.listMeta {
-  font-size: var(--text-caption);
-  color: var(--text-muted);
-}
-
-.allClear {
-  padding: var(--space-4);
-  font-size: var(--text-small);
-  line-height: var(--text-small-lh);
-  color: var(--text-muted);
-}
-
-.panelLink {
+/*
+ * A section's own link, sized to match its heading. No chevron: an arrow on
+ * every link is decoration, and five of them make a page look busy (M9.3 §22).
+ */
+.quietLink {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-caption);
-  color: var(--accent);
-  text-decoration: none;
   min-height: var(--touch-target-min);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  text-decoration: none;
 }
 
-@media (min-width: 1024px) {
-  .panelLink {
-    min-height: 32px;
-  }
-}
-
-.panelLink:hover {
+.quietLink:hover {
+  color: var(--text);
   text-decoration: underline;
 }
 
-/* --- Quick actions --------------------------------------------------------- */
-.actionList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.quietLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
-.actionList li {
-  border-bottom: 1px solid var(--border);
-}
+/* -- Attendance cell ------------------------------------------------------- */
 
-.actionList li:last-child {
-  border-bottom: none;
-}
-
-.actionLink {
+/* The figure sits above its bar so a column of rows can be scanned by either. */
+.attendanceCell {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-end;
+  min-inline-size: 64px;
+  font-variant-numeric: tabular-nums;
+}
+
+.attendanceCell [data-tone='warning'] {
+  color: var(--warning);
+}
+
+.attendanceCell [data-tone='danger'] {
+  color: var(--danger);
+}
+
+/* -- Resources ------------------------------------------------------------- */
+
+/*
+ * A row of links that wraps. Not cards, and deliberately not three of them
+ * (M9.3 §16, §27).
+ */
+.resources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.resources a {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
   min-height: var(--touch-target-min);
-  padding: var(--space-3) var(--space-4);
-  text-decoration: none;
-  color: var(--text);
-  transition: background-color var(--motion-fast) var(--ease-enter);
-}
-
-.actionLink:hover {
-  background: var(--bg);
-}
-
-.actionLabel {
   font-size: var(--text-small);
-  font-weight: var(--weight-medium);
+  color: var(--accent);
+  text-decoration: none;
 }
 
-.actionHint {
-  font-size: var(--text-caption);
-  color: var(--text-muted);
-  margin-right: auto;
+.resources a:hover {
+  text-decoration: underline;
 }
 
-.actionChevron {
-  color: var(--text-subtle);
-  flex: 0 0 auto;
+.resources a:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }

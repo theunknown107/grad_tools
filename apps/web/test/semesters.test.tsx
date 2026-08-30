@@ -441,11 +441,14 @@ describe('current semester on the dashboard', () => {
     });
     renderWith(<DashboardPage />, { repositories: bundle });
 
-    const heading = await screen.findByText('Semester 5 · In progress');
-    // Scoped: the attendance panel below shows the same figure per subject.
-    const panel = heading.closest('section') as HTMLElement;
-    expect(within(panel).getByText('86.0%')).toBeTruthy();
-    expect(within(panel).getByText('Subjects')).toBeTruthy();
+    await screen.findByRole('heading', { name: /Semester 5/ });
+    /*
+     * Scoped to the snapshot strip: the attendance list further down shows the
+     * same figure per subject, so an unscoped match would prove nothing.
+     */
+    const strip = document.querySelector('dl') as HTMLElement;
+    expect(within(strip).getByText('86.0%')).toBeTruthy();
+    expect(within(strip).getByText('Subjects')).toBeTruthy();
   });
 
   /*
@@ -456,18 +459,24 @@ describe('current semester on the dashboard', () => {
     const { bundle } = createMemoryRepositories({ semesters: [semester(5, 'in_progress')] });
     renderWith(<DashboardPage />, { repositories: bundle });
 
-    const heading = await screen.findByText('Semester 5 · In progress');
-    const panel = heading.closest('section');
-    expect(panel).not.toBeNull();
-    expect(within(panel as HTMLElement).getByText('SGPA')).toBeTruthy();
-    // The value beside it is an em dash, not a guess.
-    expect(within(panel as HTMLElement).getAllByText('—').length).toBeGreaterThan(0);
+    await screen.findByRole('heading', { name: /Semester 5/ });
+    const strip = document.querySelector('dl') as HTMLElement;
+
+    /*
+     * The only SGPA on the snapshot is labelled as a PAST semester's. With no
+     * results saved there is none, so it reads as an em dash — never as a
+     * figure for the semester still running.
+     */
+    expect(within(strip).getByText('Last SGPA')).toBeTruthy();
+    expect(within(strip).queryByText('Current SGPA')).toBeNull();
+    expect(within(strip).getAllByText('—').length).toBeGreaterThan(0);
   });
 
   it('shows no semester panel until one is marked in progress', async () => {
     renderWith(<DashboardPage />);
     await waitFor(() => {
-      expect(screen.queryByText(/· In progress/)).toBeNull();
+      // No semester is in progress, so no status label appears beside the title.
+      expect(screen.queryByText('In progress')).toBeNull();
     });
   });
 });

@@ -1062,3 +1062,50 @@ accounts. It does not touch the original concern — the data is still in that
 browser's IndexedDB, and developer tools read it regardless of who is signed in.
 **Browser-profile isolation is not physical-device security**, and this question
 stays open until either a lock exists or a pilot decides it does not need one.
+
+### DEC-023 — `Panel` is a section, not a box · **M9.3**
+
+**Decided during the redesign.** The single container primitive was used 46
+times and drew a background, a border and a radius every time, which gave every
+region of every page identical visual weight.
+
+`Panel` now renders a heading and its content with no container. `boxed` opts
+into a real one, for a form, an embedded document or a distinct sub-surface.
+
+**The rule this encodes:** a border clarifies a grouping; it does not draw a
+box. Where a heading and some space already group things, a border adds weight
+and no information.
+
+**What it cost:** eight test assertions had to be rewritten — none weakened —
+and the results page grew 3% because subject names were added beside codes.
+
+### OQ-039 — Whether the paper library needs pagination · **opened by M9.3**
+
+**Why unresolved:** the library renders 50 rows per page and, against the
+2,008-row synthetic library, that is still 5,031 px of scrolling even after the
+rows were compacted from five lines to two.
+
+**What M9.3 chose:** density over paging. Fifty scannable rows are more useful
+than ten pages of five, and the search and filters are the intended way to
+narrow a large library.
+
+**What would change the answer:** a real library. Ten synthetic papers and 2,008
+synthetic papers are the only sizes ever observed, and neither is what a real
+collection looks like. `OQ-008` keeps the real one nearly empty.
+
+**Decision needed:** when a real library exists, not before.
+
+### OQ-040 — Whether an SGPA trend chart is worth drawing · **opened by M9.3**
+
+**Why unresolved:** the SGPA/CGPA page could show semester history as a small
+line. M9.3 §14 permits one where it is meaningful and forbids one drawn for the
+sake of having a chart.
+
+**What M9.3 chose:** not to build it. A student with two completed semesters has
+two points, and a line through two points is decoration pretending to be
+analysis. The history is already legible as a list.
+
+**What would change the answer:** evidence that students read a trend they
+cannot get from four numbers in a column. That needs the pilot.
+
+**Decision needed:** after the Semester 5 pilot, if at all.

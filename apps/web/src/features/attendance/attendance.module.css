@@ -214,3 +214,52 @@
   line-height: var(--text-small-lh);
   color: var(--text-muted);
 }
+
+/* -- Course rows (M9.3 §13, §26) ------------------------------------------- */
+
+/*
+ * The percentage, its bar and the requirement, stacked in a fixed-width
+ * trailing column so a list of courses can be read straight down.
+ */
+.rowFigures {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+  min-inline-size: 92px;
+}
+
+.rowPercent {
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.rowPercent[data-tone='warning'] {
+  color: var(--warning);
+}
+
+.rowPercent[data-tone='danger'] {
+  color: var(--danger);
+}
+
+.rowRequired {
+  font-size: var(--text-caption);
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+
+/* The DX rule, stated once beneath the list rather than inside every card. */
+.dxNote {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+}
+
+.dxHint {
+  font-size: var(--text-caption);
+  color: var(--warning);
+}

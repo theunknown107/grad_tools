@@ -261,7 +261,7 @@ describe('latest announcements on the dashboard', () => {
     renderWith(<LatestAnnouncements />);
 
     expect(await screen.findByText('Semester 4 results announced')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'View all' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'All announcements' })).toBeTruthy();
   });
 
   it('shows nothing at all rather than an empty box', async () => {

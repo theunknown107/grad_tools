@@ -151,19 +151,23 @@ describe('the library list', () => {
     const row = code.closest('article') as HTMLElement;
 
     expect(within(row).getByText('Database Management Systems')).toBeTruthy();
-    // The facts line, which is where the sitting and the semester live together.
-    expect(
-      within(row).getByText(
-        'June/July 2025 · Semester 4 · Computer Science and Engineering · 2022 scheme · Descriptive',
-      ),
-    ).toBeTruthy();
+    /*
+     * The facts line carries only what VARIES between rows (M9.3 §29). Branch
+     * and scheme are identical across a filtered library, so repeating them on
+     * every row cost a wrapped line and told a student nothing; they remain on
+     * the paper's own page and as filters.
+     */
+    const facts = within(row).getByText(/June\/July 2025/);
+    expect(facts.textContent).toContain('Sem 4');
+    expect(facts.textContent).toContain('Descriptive');
+    expect(facts.textContent).not.toContain('Computer Science and Engineering');
   });
 
   /* SYNTHETIC CONTENT SAYS SO, from the record's own source (M8 §18). */
   it('labels demo papers as demo data', async () => {
     mockLibrary([paper()]);
     renderWith(<PapersPage />);
-    expect(await screen.findByText('Demo data')).toBeTruthy();
+    expect(await screen.findByText('Demo')).toBeTruthy();
   });
 
   it('does not label a paper from a real source as demo data', async () => {
@@ -171,7 +175,7 @@ describe('the library list', () => {
     renderWith(<PapersPage />);
 
     await screen.findByRole('link', { name: 'BCS403' });
-    expect(screen.queryByText('Demo data')).toBeNull();
+    expect(screen.queryByText('Demo')).toBeNull();
   });
 
   /*
@@ -187,8 +191,13 @@ describe('the library list', () => {
       'article',
     ) as HTMLElement;
 
-    expect(within(row).getByText(/Source: Demo University \(synthetic\)/)).toBeTruthy();
-    expect(within(row).getByText('Available here')).toBeTruthy();
+    /*
+     * PROVENANCE AND PERMISSION ARE STILL TWO CLAIMS (M8 §6) — they simply share
+     * the facts line now instead of occupying two of their own.
+     */
+    const facts = within(row).getByText(/Demo University \(synthetic\)/);
+    expect(facts.textContent).toContain('Demo University (synthetic)');
+    expect(facts.textContent).toContain('Available here');
   });
 
   it('offers Open for a hosted paper', async () => {

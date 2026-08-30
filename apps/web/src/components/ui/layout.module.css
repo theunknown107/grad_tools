@@ -1,0 +1,325 @@
+/**
+ * Layout primitives.
+ *
+ * Authority: docs/05 §5.12 · M9.3 §7, §8
+ *
+ * Every value here is a token. The point of these primitives is that a section
+ * is not a box, so the rules are mostly about what is ABSENT: no background, no
+ * border, no shadow, no radius, unless the element is genuinely a container.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Section                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* No background, no border, no radius. The heading does the grouping. */
+  min-width: 0;
+}
+
+.sectionHeader {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  min-height: 20px;
+}
+
+/*
+ * Small, uppercase and quiet. A section label is a signpost, not a headline —
+ * it should be findable when scanned and invisible when reading.
+ */
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+/* Tone tints the LABEL only, never a container (M9.3 §14). */
+.sectionTitle[data-tone='attention'] {
+  color: var(--warning);
+}
+
+.sectionDescription {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  color: var(--text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Metrics                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A strip, not cards.
+ *
+ * `auto-FILL` with a max column width rather than `auto-fit` with `1fr`:
+ * stretching four figures across a full-width row spaces them so far apart
+ * that they stop reading as one summary and start reading as four unrelated
+ * statistics. They group at the start of the line instead (M9.3 §10).
+ */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 132px));
+  gap: var(--space-4) var(--space-6);
+  margin: 0;
+  padding: var(--space-3) 0;
+  border-block: 1px solid var(--border);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.metricLabel {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/*
+ * 22px, not 40px. Large enough to find instantly, small enough that four of
+ * them read as one summary rather than four announcements (M9.3 §10).
+ *
+ * Tabular figures so a column of numbers aligns on the decimal point.
+ */
+.metricValue {
+  margin: 0;
+  font-size: var(--text-h2);
+  line-height: var(--text-h2-lh);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.metricValue[data-tone='warning'] {
+  color: var(--warning);
+}
+
+.metricValue[data-tone='danger'] {
+  color: var(--danger);
+}
+
+.metricNote {
+  display: block;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  font-weight: var(--weight-regular);
+  color: var(--text-subtle);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Rows                                                                       */
+/* -------------------------------------------------------------------------- */
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/* A hairline between rows, and none after the last: a list, not a stack of
+   boxes. */
+.row {
+  border-bottom: 1px solid var(--border);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.rowInner,
+.rowLink {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  /* 44px of hit area without 44px of padding: the row is already tall. */
+  min-height: var(--touch-target-min);
+  padding: var(--space-2) 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowLink:hover .rowTitle {
+  text-decoration: underline;
+}
+
+.rowLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: calc(var(--focus-ring-offset) * -1);
+  border-radius: var(--radius-sm);
+}
+
+/*
+ * The anchor: a time, a code, an index. Fixed width and tabular so a column of
+ * them lines up and the eye can run down it.
+ */
+.rowLead {
+  flex: 0 0 auto;
+  min-width: 62px;
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.rowMeta {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.rowTrailing {
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-align: end;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Bar                                                                        */
+/* -------------------------------------------------------------------------- */
+
+.bar {
+  inline-size: 100%;
+  block-size: 4px;
+  overflow: hidden;
+  background: var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.barFill {
+  display: block;
+  block-size: 100%;
+  background: var(--text-muted);
+  border-radius: inherit;
+}
+
+/*
+ * Status is never colour alone: every bar sits beside its own percentage, and
+ * the warning rows also carry a word (docs/27 §27.5).
+ */
+.bar[data-tone='warning'] .barFill {
+  background: var(--warning);
+}
+
+.bar[data-tone='danger'] .barFill {
+  background: var(--danger);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Quiet states                                                               */
+/* -------------------------------------------------------------------------- */
+
+/* A sentence. Not a bordered card with a paragraph and a large button. */
+.empty,
+.loadError {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+  margin: 0;
+  padding: var(--space-2) 0;
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  color: var(--text-muted);
+}
+
+.emptyAction {
+  display: inline-flex;
+}
+
+.loadError {
+  color: var(--text);
+}
+
+.retry {
+  min-height: var(--touch-target-min);
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-small);
+  color: var(--accent);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.retry:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Skeleton                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.skeleton {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.skeletonRow {
+  block-size: 14px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.skeletonRow:nth-child(2) {
+  inline-size: 80%;
+}
+
+.skeletonRow:nth-child(3) {
+  inline-size: 60%;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* A loading placeholder must not pulse at somebody who asked for stillness. */
+@media (prefers-reduced-motion: reduce) {
+  .skeletonRow {
+    animation: none;
+  }
+}

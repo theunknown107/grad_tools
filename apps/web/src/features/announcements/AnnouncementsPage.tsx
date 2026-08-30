@@ -20,6 +20,7 @@ import { Link } from 'react-router-dom';
 import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
 import { PageHeader } from '../../components/AppShell.js';
 import { EmptyState, Notice, Panel, SelectField, StatusPill } from '../../components/ui/index.js';
+import { Row, Rows, Section, Skeleton } from '../../components/ui/layout.js';
 import {
   useAnnouncements,
   useSortedAnnouncements,
@@ -128,39 +129,52 @@ export function AnnouncementsPage() {
 }
 
 /** The compact "latest" list for the dashboard (M7 §25). */
-export function LatestAnnouncements({ limit = 3 }: { readonly limit?: number }) {
+export function LatestAnnouncements({ limit = 4 }: { readonly limit?: number }) {
   const { items, loading, error } = useAnnouncements();
   const sorted = useSortedAnnouncements(items);
-  const context = useStudentContext();
 
+  /*
+   * A dashboard is not the place to report that a secondary feed is
+   * unreachable. The announcements page says so properly when a student goes
+   * there, and a broken section here would just be noise beside their timetable.
+   */
   if (error !== null || (!loading && sorted.length === 0)) return null;
 
   return (
-    <Panel
+    <Section
       title="Latest"
       action={
         <Link to="/announcements" className={styles.viewAll}>
-          View all
+          All announcements
         </Link>
       }
     >
       {loading ? (
-        <p className={styles.loading}>Loading…</p>
+        <Skeleton rows={3} />
       ) : (
-        <ul className={styles.compactList}>
+        /*
+         * ROWS, NOT CARDS (M9.3 §15). Four notices in identical bordered boxes
+         * read as four separate things demanding equal attention; as a list
+         * they read as what is new, which is the question being answered.
+         *
+         * The category leads because it is how a student triages — "results"
+         * and "fees" are attended to differently.
+         */
+        <Rows>
           {sorted.slice(0, limit).map((announcement) => (
-            <li key={announcement.id}>
-              <AnnouncementRow
-                announcement={announcement}
-                relevant={isRelevant(announcement, context)}
-                targeted={isTargeted(announcement)}
-                compact
-              />
-            </li>
+            <Row
+              key={announcement.id}
+              title={announcement.title}
+              meta={
+                <>
+                  {CATEGORY_LABEL[announcement.category]} · {announcement.publisher}
+                </>
+              }
+            />
           ))}
-        </ul>
+        </Rows>
       )}
-    </Panel>
+    </Section>
   );
 }
 

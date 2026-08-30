@@ -585,3 +585,33 @@ PostgreSQL were on the same machine; a deployment talking to Supabase across the
 internet will add the sort of round trip the table above measures. Hosted
 end-to-end latency has **not** been measured, because the API has never been
 pointed at the hosted database (§25.16).
+
+## 23.17 Measured in M9.3 — the redesign's cost
+
+**No runtime dependency was added.** The redesign is CSS and component
+structure; nothing was installed to achieve it.
+
+| | Before | After |
+|---|---|---|
+| JS bundle | 693.3 kB (200.9 kB gzip) | **693.8 kB (201.1 kB gzip)** |
+| CSS bundle | 55.9 kB (9.9 kB gzip) | **55.5 kB (9.9 kB gzip)** |
+
+CSS got slightly smaller: the new primitives replaced more rules than they
+added, because a section that draws nothing needs fewer declarations than a
+card. The 0.5 kB of JS is the `layout.tsx` primitives.
+
+### The number that actually improved
+
+Page height, which is what a student pays for in scrolling:
+
+| Page | Before | After | |
+|---|---|---|---|
+| Dashboard (390) | 2,819 px | 1,399 px | **−50%** |
+| Dashboard (1280) | 2,053 px | 1,101 px | −46% |
+| Attendance (1280) | 2,049 px | 1,353 px | −34% |
+| Question papers (1280) | 7,436 px | 5,031 px | −32% |
+
+The paper library's remaining height is 50 result rows, not decoration; the
+figure is measured against the 2,008-row synthetic library from §23.14.
+
+**The bundle budget is unchanged and was not renegotiated.**

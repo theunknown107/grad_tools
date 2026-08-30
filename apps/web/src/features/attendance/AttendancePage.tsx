@@ -24,14 +24,13 @@ import {
   vtu2022RuleSet,
   type AttendanceStatus,
 } from '@gradtools/academic-rules';
-import type { AttendanceRecord } from '../../domain/types.js';
+import type { AttendanceRecord, SemesterSubject } from '../../domain/types.js';
 import { PageHeader } from '../../components/AppShell.js';
 import { Plus, Trash2 } from '../../components/icons.js';
 import {
   Button,
   EmptyState,
   ExplanationDisclosure,
-  Meter,
   Notice,
   Panel,
   StatusPill,
@@ -40,6 +39,7 @@ import {
   type PillTone,
 } from '../../components/ui/index.js';
 import { formatCount, formatPercent } from '../../lib/format.js';
+import { Bar, Row, Rows, Section } from '../../components/ui/layout.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useAttendance, useProfile, useSemesterSubjects } from '../../hooks/useCollection.js';
 import { asStudentProfileId } from '../../domain/identity.js';
@@ -60,11 +60,21 @@ const STATUS_PRESENTATION: Record<
   dx_risk: { tone: 'danger', label: 'DX risk', icon: statusIcons.risk },
 };
 
+/** A course's real name, or null when the student has not entered one. */
+function subjectName(code: string, subjects: readonly SemesterSubject[]): string | null {
+  return subjects.find((subject) => subject.code === code)?.title ?? null;
+}
+
 export function AttendancePage() {
   const { items, loading, save, remove } = useAttendance();
   const { profile } = useProfile();
 
   const { items: semesterSubjects } = useSemesterSubjects();
+  /* Whether the DX rule needs stating at all — said once, at the list. */
+  const anyAtRisk = items.some((record) => {
+    const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
+    return verdict.ok && verdict.value.status === 'dx_risk';
+  });
   const [subjectCode, setSubjectCode] = useState('');
   const [attended, setAttended] = useState('');
   const [conducted, setConducted] = useState('');
@@ -189,15 +199,38 @@ export function AttendancePage() {
             </EmptyState>
           </Panel>
         ) : (
-          <div className={styles.cards}>
-            {items.map((record) => (
-              <AttendanceCard
-                key={record.id}
-                record={record}
-                onRemove={() => void remove(record.id)}
-              />
-            ))}
-          </div>
+          <Section
+            title="Your courses"
+            action={
+              /*
+               * SAID ONCE, NOT PER COURSE (M9.3 §13). The DX rule used to be
+               * repeated in full inside every at-risk card; with three such
+               * courses a student read the same paragraph three times and the
+               * page became mostly warning.
+               */
+              anyAtRisk ? <span className={styles.dxHint}>DX rule below</span> : undefined
+            }
+          >
+            <Rows>
+              {items.map((record) => (
+                <AttendanceRow
+                  key={record.id}
+                  record={record}
+                  name={subjectName(record.subjectCode, semesterSubjects)}
+                  onRemove={() => void remove(record.id)}
+                />
+              ))}
+            </Rows>
+            {anyAtRisk && (
+              <p className={styles.dxNote}>
+                Below {String(ruleSet.attendanceDxFloorPct)}% a course is marked DX and you are not
+                permitted to sit its Semester End Examination (clause 22OB 3.7(5)). A shortage of up
+                to {String(ruleSet.attendanceCondonablePct)} points may be condoned by the Vice
+                Chancellor on the Principal&rsquo;s recommendation with supporting documents. This
+                is discretionary, not automatic.
+              </p>
+            )}
+          </Section>
         )}
 
         <BunkPlanner records={items} />
@@ -210,121 +243,81 @@ export function AttendancePage() {
 /* Per-course card                                                            */
 /* -------------------------------------------------------------------------- */
 
-function AttendanceCard({ record, onRemove }: { record: AttendanceRecord; onRemove: () => void }) {
+/**
+ * One course, as a row.
+ *
+ * WAS A CARD, AND SHOULD NOT HAVE BEEN (M9.3 §13, §26). Six courses meant six
+ * large boxes with 40px figures and ragged heights, which made a page a student
+ * scans into a page a student scrolls. As rows they can be compared down a
+ * column, which is the only comparison that matters here.
+ *
+ * The figure a student came for — how many classes they can miss — stays on the
+ * row rather than moving into a sub-panel. That is the answer; it does not need
+ * a box around it.
+ */
+function AttendanceRow({
+  record,
+  name,
+  onRemove,
+}: {
+  readonly record: AttendanceRecord;
+  readonly name: string | null;
+  readonly onRemove: () => void;
+}) {
   const attendance = calculateAttendance(record.attended, record.conducted, ruleSet);
   const canMiss = calculateClassesCanMiss(record.attended, record.conducted, ruleSet);
   const mustAttend = calculateClassesMustAttend(record.attended, record.conducted, ruleSet);
 
   if (!attendance.ok) {
     return (
-      <Panel title={record.subjectCode}>
-        <Notice tone="warning">{attendance.detail}</Notice>
-      </Panel>
+      <Row
+        title={name ?? record.subjectCode}
+        meta={attendance.detail}
+        trailing={
+          <Button
+            variant="danger"
+            iconOnly
+            small
+            aria-label={`Remove ${record.subjectCode}`}
+            onClick={onRemove}
+          >
+            <Trash2 size={15} aria-hidden="true" />
+          </Button>
+        }
+      />
     );
   }
 
-  const { percentage, status, requiredPct, dxFloorPct } = attendance.value;
-  const presentation = STATUS_PRESENTATION[status];
+  const { percentage, status, requiredPct } = attendance.value;
+  const tone = status === 'safe' ? 'default' : status === 'dx_risk' ? 'danger' : 'warning';
+
+  /* One short sentence, not a labelled block. */
+  const advice =
+    canMiss.ok && canMiss.value > 0
+      ? `Can miss ${formatCount(canMiss.value, 'class', 'classes')}`
+      : mustAttend.ok && mustAttend.value > 0
+        ? `Attend ${formatCount(mustAttend.value, 'class', 'classes')} in a row`
+        : `Cannot miss any`;
 
   return (
-    <section className={styles.card}>
-      <header className={styles.cardHeader}>
-        <h3 className={styles.cardTitle}>{record.subjectCode}</h3>
-        <StatusPill tone={presentation.tone} icon={presentation.icon}>
-          {presentation.label}
-        </StatusPill>
-        <Button
-          variant="danger"
-          iconOnly
-          small
-          aria-label={`Remove ${record.subjectCode}`}
-          onClick={onRemove}
-        >
-          <Trash2 size={15} aria-hidden="true" />
-        </Button>
-      </header>
-
-      <p className={styles.percentage}>{formatPercent(percentage)}</p>
-      <p className={styles.ratio}>
-        {String(record.attended)} of {String(record.conducted)} classes attended
-      </p>
-
-      <div className={styles.meterWrap}>
-        <Meter
-          value={percentage}
-          threshold={requiredPct}
-          tone={
-            status === 'safe' ? 'success' : status === 'below_requirement' ? 'warning' : 'danger'
-          }
-          label={`${record.subjectCode} attendance ${formatPercent(percentage)}`}
-        />
-        <div className={styles.meterLegend}>
-          <span>0%</span>
-          <span>{String(requiredPct)}% required</span>
-          <span>100%</span>
-        </div>
-      </div>
-
-      {/* The answer the student actually came for, stated as arithmetic. */}
-      <div className={styles.answerBlock}>
-        {canMiss.ok && canMiss.value > 0 ? (
-          <>
-            <span className={styles.answerLabel}>You can miss</span>
-            <span className={styles.answerFigure}>
-              {formatCount(canMiss.value, 'class', 'classes')}
-            </span>
-            <span className={styles.answerNote}>and stay at or above {String(requiredPct)}%.</span>
-          </>
-        ) : mustAttend.ok && mustAttend.value > 0 ? (
-          <>
-            <span className={styles.answerLabel}>To reach {String(requiredPct)}%</span>
-            <span className={styles.answerFigure}>
-              attend {formatCount(mustAttend.value, 'class', 'classes')}
-            </span>
-            <span className={styles.answerNote}>
-              in a row, with none missed.
-              {/*
-                docs/16 §16.9: a recovery figure larger than the classes held so
-                far is very likely more than the semester has left, and telling a
-                student to attend 84 consecutive classes is noise rather than
-                advice. The engine only knows it is unreachable when it is given
-                the remaining count, which this card does not have — so instead of
-                inventing one, say so and point at the planner, which does ask.
-              */}
-              {mustAttend.value > record.conducted && (
-                <>
-                  {' '}
-                  That is likely more classes than remain this semester. The planner below can check
-                  it against your actual remaining classes.
-                </>
-              )}
-            </span>
-          </>
-        ) : (
-          <>
-            <span className={styles.answerLabel}>You can miss</span>
-            <span className={styles.answerFigure}>0 classes</span>
-            <span className={styles.answerNote}>
-              without dropping below {String(requiredPct)}%.
-            </span>
-          </>
-        )}
-      </div>
-
-      {status === 'dx_risk' && (
-        <div className={styles.cardNotice}>
-          <Notice tone="danger">
-            Below {String(dxFloorPct)}% a course is marked DX and you are not permitted to sit its
-            Semester End Examination (clause 22OB 3.7(5)). Shortage of up to{' '}
-            {String(ruleSet.attendanceCondonablePct)} points may be condoned by the Vice Chancellor
-            on the Principal&rsquo;s recommendation with supporting documents. This is
-            discretionary, not automatic.
-          </Notice>
-        </div>
-      )}
-
-      <ExplanationDisclosure explanation={attendance.explanation} />
-    </section>
+    <Row
+      title={name ?? record.subjectCode}
+      meta={
+        <>
+          {name === null ? '' : `${record.subjectCode} · `}
+          {record.attended} of {record.conducted} classes · {advice}
+        </>
+      }
+      trailing={
+        <span className={styles.rowFigures}>
+          <span className={styles.rowPercent} data-tone={tone}>
+            {formatPercent(percentage)}
+          </span>
+          <Bar value={percentage} tone={tone} label={`${name ?? record.subjectCode} attendance`} />
+          <span className={styles.rowRequired}>{String(requiredPct)}% required</span>
+        </span>
+      }
+    />
   );
 }
 

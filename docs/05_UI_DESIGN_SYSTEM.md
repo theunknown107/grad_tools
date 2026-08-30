@@ -265,3 +265,108 @@ Fixed-width monospace badge showing the letter and, on hover/focus, the grade po
 - **Implemented with plain CSS Modules rather than Tailwind** (M3 decision, `32/ED-21`). This section already warned that Tailwind decays the token system unless arbitrary values are lint-blocked; CSS Modules reach the same result with no configuration to maintain and no escape hatch to police. Every declaration references a `var(--token)`.
 - Component library: build the ~15 components listed here rather than adopting a large kit. Use unstyled, accessible primitives (Radix) for dialog, popover, select and tabs — these are the ones that are genuinely hard to get right for keyboard and screen readers.
 - Every component ships with its states documented and an accessibility note.
+
+## 5.14 The M9.3 redesign — containers, hierarchy and density
+
+### What was wrong
+
+The interface was functionally complete and read like an internal admin tool.
+One measurement explains most of it: **`Panel` was used 46 times, 17 of them on
+the dashboard alone.** Every region of every page therefore carried the same
+background, the same border and the same radius, so nothing could be more
+important than anything else. A screen made entirely of equal boxes has no
+hierarchy — it just has boxes.
+
+The consequences were measurable rather than a matter of taste:
+
+| Page | Before | After |
+|---|---|---|
+| Dashboard (1280) | 2,053 px | **1,101 px** |
+| Dashboard (390) | 2,819 px | **1,399 px** |
+| Attendance (1280) | 2,049 px | **1,353 px** |
+| Question papers (1280) | 7,436 px | **5,031 px** |
+
+Results grew by 3% (2,312 → 2,392 px) because subject **names** were added
+beside their codes. That is the trade made deliberately: a line per subject buys
+"Database Management Systems" instead of `BCS403`.
+
+### The rule
+
+**A border clarifies a grouping; it does not draw a box.** Where a heading and
+some space already say "these things belong together", a border adds weight and
+no information.
+
+So `Panel` is now a section by default — heading, spacing, content — and takes
+`boxed` for the few places a real container is earned: a form, an embedded
+document, a distinct sub-surface. Those places now stand out because they are
+rare.
+
+### The primitives
+
+`components/ui/layout.tsx`:
+
+| Primitive | For |
+|---|---|
+| `Section` | A titled region. No border, no background |
+| `MetricStrip` | A dense row of figures, grouped rather than stretched |
+| `Rows` / `Row` | A list separated by hairlines, with an optional lead, meta and trailing column |
+| `Bar` | A percentage as a plain horizontal bar — never a gauge or a ring |
+| `Empty` | One sentence and at most one action |
+| `LoadError` | One sentence and a retry |
+| `Skeleton` | A placeholder shaped like its content, silent under `prefers-reduced-motion` |
+
+### Metrics are information, not statistics
+
+22px, not 40px, and grouped at the start of the line rather than stretched edge
+to edge. Four figures spread across a full-width row stop reading as one summary
+and start reading as four unrelated announcements. Tabular figures so a column
+aligns on the decimal point.
+
+A figure that does not exist is an em dash. **No SGPA is ever projected for a
+semester still running.**
+
+### Measure
+
+`--content-max` went from 1200px to **960px**. Beside a 244px sidebar the old
+value produced roughly 120-character lines — about double a comfortable measure.
+
+### A latent defect found and fixed
+
+Six stylesheets referenced tokens that do not exist — `--color-text-muted`,
+`--color-border`, `--text-sm`, `--text-xs`, `--text-lg`, `--ok`,
+`--warn-border`, `--text-base`, `--text-xl` — mostly introduced with the papers
+and auth screens. CSS custom properties fail silently, so those rules had been
+inheriting or falling back since M8 and nobody could see it.
+
+All 33 references now resolve, and a check for undefined tokens is part of the
+visual QA script. Genuinely component-scoped properties (`--accent-mode`,
+`--state-accent`) are declared where they are used and are not affected.
+
+## 5.15 Anti-template constraints (permanent)
+
+GradTools is an application, not a landing page. The following are prohibited
+unless a specific product requirement demands one and the owner approves it.
+
+**Aesthetic:** AI-purple or violet themes · black-and-neon palettes · neon
+accents without semantic purpose · glassmorphism or frosted containers ·
+glowing orbs · gradient blobs · dot-grid backgrounds · decorative terminal
+windows · animated gradients · parallax · decorative floating shapes.
+
+**Structure:** marketing hero sections · feature-card rows · exactly three cards
+because three looks good · bento grids as decoration · giant identical cards ·
+huge radii or shadows on everything · decorative left stripes on ordinary
+content · huge empty-state cards with a large call to action.
+
+**Content:** fake testimonials, reviews, statistics or social proof · pricing
+tiers · Free/Pro/Enterprise framing · "AI-powered", "next generation",
+"revolutionary" · "it's not X, it's Y" · checkmark marketing lists · emoji as
+navigation or section icons · sparkle icons.
+
+**Motion:** hover arrows on every link · shimmer · bouncing · scroll-triggered
+decoration · excessive micro-animation.
+
+The build carries **one** keyframe animation (a skeleton pulse), and it is
+suppressed under `prefers-reduced-motion`.
+
+**The objective is not minimalism. It is appropriateness.** Replacing a
+prohibited pattern with a visually equivalent generic one is not compliance.

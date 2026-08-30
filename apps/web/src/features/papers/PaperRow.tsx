@@ -17,11 +17,11 @@ import { StatusPill } from '../../components/ui/index.js';
 import { ExternalLinkIcon } from '../../components/icons.js';
 import {
   AVAILABILITY_LABEL,
+  FORMAT_LABEL,
   actionsFor,
   extractionSummary,
   isDemo,
   matchesSemester,
-  paperFacts,
   type PaperContext,
 } from '../../domain/papers.js';
 import styles from './papers.module.css';
@@ -43,43 +43,61 @@ export function PaperRow({
   readonly context: PaperContext;
 }) {
   const actions = actionsFor(paper);
-  const facts = paperFacts(paper);
   const extraction = extractionSummary(paper);
   const mine = matchesSemester(paper, context);
+
+  /*
+   * ONLY THE FACTS THAT VARY (M9.3 §18, §29).
+   *
+   * `paperFacts` returns everything known, which is right for the detail page.
+   * On a list it is wrong: branch and scheme are identical on every row of a
+   * filtered library, so repeating them fifty times adds a wrapped line per row
+   * and no information. They remain available as filters, and in full on the
+   * paper's own page.
+   */
+  const facts = [
+    paper.examSession ?? (paper.examYear === null ? null : String(paper.examYear)),
+    paper.semester === null ? null : `Sem ${String(paper.semester)}`,
+    paper.paperFormat === null ? null : FORMAT_LABEL[paper.paperFormat],
+  ].filter((fact): fact is string => fact !== null);
+
+  /*
+   * ONE METADATA LINE, NOT FOUR (M9.3 §16, §29).
+   *
+   * Every row used to carry its facts, its source and its availability on
+   * separate lines, so fifty papers ran to eight thousand pixels and the same
+   * two sentences repeated fifty times. Provenance and availability are still
+   * both stated — they are different claims and neither may be dropped
+   * (M8 §6) — but they join the same line as everything else.
+   */
+  /*
+   * Availability always; the source only when there is one to name. "Source not
+   * recorded" on every row is noise, and its absence says the same thing.
+   */
+  const provenance = [paper.sourceName, AVAILABILITY_LABEL[paper.availability]]
+    .filter((part): part is string => part !== null)
+    .join(' · ');
 
   return (
     <article className={styles.row} data-availability={paper.availability}>
       <div className={styles.rowMain}>
         <div className={styles.rowHead}>
-          {/*
-            The code is the heading because it is what a student searches for.
-            When no code was recorded the title takes its place rather than a
-            placeholder standing in for it.
-          */}
           <h3 className={styles.code}>
             <Link to={`/papers/${paper.id}`}>{paper.subjectCode ?? paper.title}</Link>
           </h3>
-          {isDemo(paper) && <span className={styles.demo}>Demo data</span>}
+          {paper.subjectTitle !== null && (
+            <span className={styles.subject}>{paper.subjectTitle}</span>
+          )}
+          {isDemo(paper) && <span className={styles.demo}>Demo</span>}
           {mine && <StatusPill tone="accent">Your semester</StatusPill>}
         </div>
 
-        {paper.subjectTitle !== null && <p className={styles.subject}>{paper.subjectTitle}</p>}
-        {paper.subjectCode !== null && <p className={styles.paperTitle}>{paper.title}</p>}
-
-        {facts.length > 0 && <p className={styles.facts}>{facts.join(' · ')}</p>}
-
-        <p className={styles.provenance}>
-          {/*
-            SOURCE IS ATTRIBUTION; AVAILABILITY IS PERMISSION (M8 §6, §13). They
-            are printed as two separate statements because they answer different
-            questions, and a badge showing only the first invites a reader to
-            assume the second.
-          */}
-          <span>Source: {paper.sourceName ?? 'Not recorded'}</span>
-          <span className={styles.availability}>{AVAILABILITY_LABEL[paper.availability]}</span>
+        <p className={styles.facts}>
+          {facts.join(' · ')}
+          {facts.length > 0 ? ' · ' : ''}
+          {provenance}
+          {extraction === null ? '' : ` · ${extraction}`}
         </p>
-
-        {extraction !== null && <p className={styles.extraction}>{extraction}</p>}
       </div>
 
       <div className={styles.rowActions}>
