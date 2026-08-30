@@ -20,9 +20,13 @@
  * WHAT IS VERIFIED, AND WHAT IS DELIBERATELY NOT TRUSTED
  * ---------------------------------------------------------------------------
  *
- * Supabase issues an RS256-signed JWT and publishes the public keys at the
- * project's JWKS endpoint. This module verifies the signature, the issuer, the
- * audience and the expiry, and reads exactly one claim from the result: `sub`.
+ * Supabase signs its JWTs with an asymmetric key — ES256 on the project this
+ * was verified against — and publishes the public half at the project's JWKS
+ * endpoint. The algorithm is deliberately NOT pinned here: `jose` takes it from
+ * the key the JWKS advertises, so a provider rotating from ES256 to RS256 does
+ * not silently start failing every request. What IS checked is the signature,
+ * the issuer, the audience and the expiry; the only claim read from the result
+ * is `sub`.
  *
  * Everything else in the token — email, provider, user metadata — is IGNORED
  * for authorization. Email in particular: a provider's email can change, can

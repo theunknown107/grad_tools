@@ -454,3 +454,56 @@ Not code, and not done:
 Until the first three are done, the Google and Apple buttons reach a provider
 that is not configured. That is a dashboard task, not a code one, and no claim
 that those methods work may be made before it is finished (docs/22 §22.17).
+
+## 25.16 What is configured, and what is not (M9.2)
+
+### Read from the live project
+
+| Setting | Value |
+|---|---|
+| Email provider | **enabled** |
+| Google provider | **not configured** |
+| Apple provider | **not configured** |
+| Signup | open |
+| Email confirmation | required (`mailer_autoconfirm: false`) |
+| Leaked-password protection | **DISABLED** — Supabase's own advisor flags it |
+
+**Leaked-password protection is off and matters now**, because email/password is
+a live sign-in method. It is a dashboard toggle, not code, and it is recorded as
+outstanding rather than quietly ignored (`32/OQ-036`).
+
+### Still outstanding, and all external
+
+| Item | Needs |
+|---|---|
+| Google | An OAuth client in Google Cloud Console, plus redirect URLs in Supabase |
+| Apple | A paid Apple Developer account, a Services ID and a signing key |
+| Redirect allowlist for a deployed origin | A deployed origin, which does not exist yet |
+| Leaked-password protection | One dashboard toggle |
+
+### `SUPABASE_ADMIN_DB_URL` now has a consumer
+
+It was defined in M9 and **read by nothing**, so account deletion reported itself
+unavailable on every possible deployment. It is now wired through
+`createAccountDeleter`, and deletion was exercised for real (docs/22 §22.19).
+
+Where it is absent the route still reports itself unavailable — that behaviour
+was correct and is unchanged; what was wrong is that no deployment could ever
+have configured it.
+
+### What has never been run against the hosted database
+
+The API has only ever talked to a **local** PostgreSQL carrying the same schema
+and the same policies. `SUPABASE_DB_URL` pointing at Supabase has not been
+exercised, so hosted end-to-end latency and connection behaviour are unmeasured
+(§23.16). The hosted database was verified separately, at the SQL level.
+
+### CI
+
+`.github/workflows/verify.yml` runs install, format, lint, typecheck, test and
+build against a real PostgreSQL service, plus a guard that fails if a credential
+pattern or an `.env` file is ever committed.
+
+**It contains no `secrets.` expression at all.** Real-provider tests need
+credentials, and putting them in CI would make every workflow run a path to
+production identity — so those stay a separate, controlled, human process.

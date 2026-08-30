@@ -974,6 +974,29 @@ connection without waiting for an email.
 **What did not change:** GradTools stores no password, hashes nothing and runs
 no reset flow. Supabase Auth owns the credential entirely (`11` §11.12).
 
+### OQ-036 — Provider configuration · **PARTIALLY RESOLVED in M9.2**
+
+**Email: CLOSED.** Configured on the live project and exercised end to end — a
+real sign-in in a real browser, a real token, a real session restored across a
+refresh and a second tab (`11` §11.14, `22` §22.19).
+
+**Google and Apple: STILL OPEN, and untouched.** The live project reports
+`google: false` and `apple: false`. Google needs an OAuth client in Google Cloud
+Console; Apple needs a paid Apple Developer account, a Services ID and a signing
+key. Both are external setup a person must perform, and Google's consent screen
+cannot be automated in any case. **Neither has ever been exercised.**
+
+**Leaked-password protection: STILL OPEN, and now more pressing.** It is
+disabled, Supabase's own advisor flags it, and email/password is now a live
+sign-in method. One dashboard toggle.
+
+**Decision needed:** none from engineering. Two dashboard tasks and, for Apple,
+a paid account.
+
+---
+
+*The original text of this question follows.*
+
 ### OQ-036 — Provider configuration is outstanding · **opened by M9**
 
 **Why unresolved:** the Google and Apple code paths exist and are one function
@@ -1007,6 +1030,14 @@ per collection; or leaving it as is until conflicts are observed to happen.
 **Recommendation:** wait for evidence. Conflicts need two devices and a real
 student, and neither exists yet.
 
+**Status after M9.2: STILL OPEN, and the mechanism is now proven.** A real
+conflict was exercised — one device wrote 30→31, a stale device wrote 30→32 with
+the same base revision, and the server answered `conflict` carrying its own
+value of 31 rather than picking a winner. Two different subjects of one result
+updated independently. So the detection works; what remains unknown is whether
+"edit it on the device you want and sync again" is good enough for a student,
+and that still needs a real student rather than a test.
+
 ### OQ-038 — Whether local data should be lockable on a shared device · **opened by M9**
 
 **Why unresolved:** signing out deliberately leaves an account's records on the
@@ -1022,3 +1053,12 @@ records to a routine action is the worse failure.
 the session; or state the limitation and leave it.
 
 **Decision needed:** before any shared-device pilot, such as a college lab.
+
+**Status after M9.2: STILL OPEN, with the app-level half now evidenced.** Two
+accounts on one browser were written and read back: each scope holds its own
+records and lacks the other's, and signing out left A's data in place for A's
+return. That closes the question of whether the *application* leaks between
+accounts. It does not touch the original concern — the data is still in that
+browser's IndexedDB, and developer tools read it regardless of who is signed in.
+**Browser-profile isolation is not physical-device security**, and this question
+stays open until either a lock exists or a pilot decides it does not need one.

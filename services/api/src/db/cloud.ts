@@ -122,25 +122,31 @@ export async function withUser<T>(
 }
 
 /**
- * Runs a unit of work as NOBODY, for the account-deletion path only.
+ * Deletes an account and everything in it.
  *
- * Deleting an account has to remove the `auth.users` row, which lives in a
- * schema the `authenticated` role cannot write. That is the one operation this
- * API performs with elevated rights, and it is deliberately:
+ * THE ONE OPERATION THIS API PERFORMS WITH ELEVATED RIGHTS, and it is
+ * deliberately narrow:
  *
- *   - a single named function rather than a general escape hatch,
- *   - reachable only from `DELETE /me`, which requires a verified session,
- *   - scoped to the id in that session and no other,
- *   - and documented as a trust boundary in docs/13 §13.17.
+ *   - it removes exactly one `auth.users` row, named by the id in a VERIFIED
+ *     session — never by anything a client sent;
+ *   - every student table cascades from that row by foreign key, so there is no
+ *     list of tables here to fall out of date (M9 §34);
+ *   - it is a single named function rather than a general escape hatch, so
+ *     there is no privileged query helper for anything else to reach for.
  *
- * If a lower-privilege path becomes available — Supabase's admin API behind a
- * per-user token, say — this should be replaced by it rather than kept for
- * convenience (M9 §44).
+ * `auth.users` lives in a schema the `authenticated` role cannot write, which
+ * is why this needs its own connection. If a lower-privilege route becomes
+ * available — Supabase's admin API behind a per-user token, say — it should
+ * REPLACE this rather than sit beside it (M9 §44).
+ *
+ * Returns false when no row matched, so a caller can tell "deleted" from
+ * "there was nothing to delete" without a second query.
  */
-export async function withAdminForDeletion<T>(
-  adminSql: Sql,
-  userId: string,
-  work: (tx: Sql, userId: string) => Promise<T>,
-): Promise<T> {
-  return adminSql.begin(async (tx) => work(tx as unknown as Sql, userId)) as Promise<T>;
+export function createAccountDeleter(adminSql: Sql): (userId: string) => Promise<boolean> {
+  return async function deleteAccount(userId: string): Promise<boolean> {
+    const rows = await adminSql`
+      DELETE FROM auth.users WHERE id = ${userId}::uuid RETURNING id
+    `;
+    return rows.length > 0;
+  };
 }

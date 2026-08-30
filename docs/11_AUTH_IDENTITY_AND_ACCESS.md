@@ -366,3 +366,72 @@ text is rendered as text (docs/13 §13.17).
 Supabase's own flow. No custom reset token exists. The response is **identical
 whether or not the address is registered** — only a transport failure is
 reported — so the form cannot be used to enumerate accounts (M9 §23, §48).
+
+## 11.14 What has actually been exercised (M9.2)
+
+M9 built the authentication architecture and verified none of it against a real
+provider. This section records what changed, and — more importantly — what did
+not.
+
+### Provider status, as read from the live project
+
+`GET /auth/v1/settings` on the real project reports:
+
+| Provider | Configured | Exercised |
+|---|---|---|
+| Email and password | **`email: true`** | **YES — real sign-in performed** |
+| Google | **`google: false`** | No |
+| Apple | **`apple: false`** | No |
+
+Signup is open (`disable_signup: false`) and email confirmation is required
+(`mailer_autoconfirm: false`).
+
+### Email — REAL PROVIDER TESTED
+
+A real browser signed in through the real form against real Supabase Auth and
+received a real **ES256** access token. Verified in Chromium:
+
+- sign-in, and the account screen showing the provider and address;
+- session persisted, and **restored across a page refresh and in a second tab**;
+- sign-out, then signing back in;
+- a tampered session handled as `expired`, with no stack trace, token or SQL on
+  screen.
+
+**One step was not exercised and is not claimed:** the confirmation email. The
+project's email rate limit blocked signup through the API, and no inbox is
+reachable from an automated session, so the two verification accounts were
+seeded directly into `auth.users` with bcrypt-hashed passwords and marked
+confirmed. **Everything after that point is genuinely real** — the password
+grant, the token, its signature, and every request made with it — but the
+signup email itself, and the link in it, were never sent or clicked.
+
+### Google and Apple — CODE IMPLEMENTED, NOT CONFIGURED, NOT VERIFIED
+
+Neither is enabled on the project. Google needs an OAuth client in Google Cloud
+Console and a redirect allowlist; Apple additionally needs a paid Apple
+Developer account, a Services ID and a signing key. Both are external setup
+steps that could not be performed from this session, and **Google's consent
+screen cannot be automated in any case**.
+
+The code path is one function — `signInWithOAuth({ provider })` — so the two
+differ by an argument. That is not evidence that either works, and no claim
+that they do appears anywhere in this repository (`32/OQ-036`).
+
+### The algorithm is not pinned
+
+Supabase signs with **ES256** on this project, not RS256 as M9's comment said.
+The verifier takes the algorithm from the key the JWKS advertises rather than
+pinning one, so a provider rotating to RS256 does not silently start failing
+every request. What is checked is the signature, the issuer, the audience and
+the expiry.
+
+### PKCE and redirects
+
+`flowType: 'pkce'` and `detectSessionInUrl: true` are set on the browser client;
+the SDK generates and stores the verifier, exchanges the code, and clears the
+fragment from the address bar. **No OAuth is implemented by hand.**
+
+`redirectTo` is a **constant derived from `window.location.origin`**, never a
+value taken from a query parameter or from user input — so there is no
+parameter through which the app could be turned into an open redirect. Supabase
+additionally rejects redirect targets outside the project's own allowlist.
