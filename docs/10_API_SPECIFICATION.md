@@ -694,3 +694,43 @@ response in this group, set once in middleware so no handler can forget.
 Reference data, announcements and the question-paper library remain public and
 unauthenticated. Nothing that used to be local became public by acquiring a
 cloud copy, and a test asserts both halves (M9 §43).
+
+## 10.17 Sync corrections (M9.1)
+
+### `resultSubjects` is a synced collection
+
+Added to `SYNC_COLLECTIONS` and to the server's table allowlist. Pull, push,
+tombstones, conflict detection and export all include it (§8.18).
+
+Client-writable columns: `result_id`, `subject_code`, `subject_title`,
+`credits`, `grade_letter`, `ordinal`. **`result_id` is the one parent a client
+supplies**, and a composite foreign key guarantees it belongs to the same
+student (docs/09 §9.19).
+
+### Delete before first sync
+
+A record created and deleted on one device **before it ever reached the cloud**
+arrives as `baseRevision: null, deleted: true`. Previously that fell through to
+the insert branch and **created the row** — resurrecting, as live data,
+something the student had deleted.
+
+**The end state is absence, not a tombstone.** A tombstone marks a row other
+devices have seen and must stop showing; no other device ever saw this one, so
+writing a row in order to say it does not exist would be a row that exists for
+no reader. Absence is also idempotent: a retried push finds nothing again and
+answers identically.
+
+The outcome is `applied`, because it is — the cloud now matches what the device
+asked for, and that is what makes the client stop tracking it.
+
+### One rejected record no longer takes the push with it
+
+A constraint violation **aborts a PostgreSQL transaction**: every subsequent
+statement fails and the commit fails, even when the application caught the
+error. A push is many records in one transaction, so a single bad record was
+silently discarding every other record beside it — the opposite of the
+per-record outcomes §10.16 promises.
+
+Each record now writes inside its own **savepoint**, so a failure rolls back
+exactly that record. Verified: a push of `[good, bad, good]` returns
+`[applied, rejected, applied]` and both good records commit.

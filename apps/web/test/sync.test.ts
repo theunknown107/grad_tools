@@ -345,3 +345,101 @@ describe('what the student is told', () => {
     expect(IDLE_SYNC.lastSyncedAt).toBeNull();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Result subjects (M9.1)                                                     */
+/* -------------------------------------------------------------------------- */
+
+describe('a result and the subjects it is made of', () => {
+  const resultSubject = (id: string, grade: string): LocalRecord => ({
+    id,
+    collection: 'resultSubjects',
+    data: {
+      resultId: 'result-1',
+      subjectCode: 'BCS501',
+      subjectTitle: 'Software Engineering',
+      credits: 3,
+      gradeLetter: grade,
+      ordinal: 0,
+    },
+  });
+
+  /*
+   * Each subject row carries its own revision, so two devices editing DIFFERENT
+   * subjects of one result are not in conflict. Nesting them inside the result
+   * would have made every such edit look like one (M9.1 §1).
+   */
+  it('tracks each subject row separately', () => {
+    const first = resultSubject('s1', 'A');
+    const second = resultSubject('s2', 'B');
+    const bookkeeping: SyncBookkeeping = {
+      cursor: null,
+      lastSyncedAt: null,
+      records: {
+        s1: { collection: 'resultSubjects', revision: 3, fingerprint: fingerprint(first.data) },
+        s2: { collection: 'resultSubjects', revision: 3, fingerprint: fingerprint(second.data) },
+      },
+    };
+
+    const push = recordsToPush([resultSubject('s1', 'S'), second], bookkeeping);
+    expect(push).toHaveLength(1);
+    expect(push[0]?.id).toBe('s1');
+  });
+
+  it('sends a tombstone when a subject is removed from a result', () => {
+    const subject = resultSubject('s1', 'A');
+    const bookkeeping: SyncBookkeeping = {
+      cursor: null,
+      lastSyncedAt: null,
+      records: {
+        s1: { collection: 'resultSubjects', revision: 2, fingerprint: fingerprint(subject.data) },
+      },
+    };
+
+    const push = recordsToPush([], bookkeeping);
+    expect(push).toHaveLength(1);
+    expect(push[0]?.deleted).toBe(true);
+    expect(push[0]?.collection).toBe('resultSubjects');
+  });
+
+  /* A changed grade must not be silently overwritten either (M9 §28). */
+  it('asks when the same subject changed in two places', () => {
+    const synced = resultSubject('s1', 'A');
+    const editedHere = resultSubject('s1', 'B');
+    const bookkeeping: SyncBookkeeping = {
+      cursor: null,
+      lastSyncedAt: null,
+      records: {
+        s1: { collection: 'resultSubjects', revision: 2, fingerprint: fingerprint(synced.data) },
+      },
+    };
+
+    const plan = planPull(
+      [
+        {
+          id: 's1',
+          collection: 'resultSubjects',
+          revision: 5,
+          deletedAt: null,
+          data: resultSubject('s1', 'S').data,
+        },
+      ],
+      [editedHere],
+      bookkeeping,
+    );
+
+    expect(plan.upserts).toHaveLength(0);
+    expect(plan.conflicts).toHaveLength(1);
+    expect(plan.conflicts[0]?.local?.gradeLetter).toBe('B');
+    expect(plan.conflicts[0]?.server?.gradeLetter).toBe('S');
+  });
+
+  /*
+   * DELETE BEFORE FIRST SYNC (M9.1 §2). A record created and deleted before it
+   * ever reached the cloud is not in bookkeeping, so nothing is pushed at all —
+   * the client half of the same guarantee the server now enforces.
+   */
+  it('pushes nothing for a subject created and deleted before its first sync', () => {
+    expect(recordsToPush([], EMPTY_BOOKKEEPING)).toHaveLength(0);
+  });
+});

@@ -848,3 +848,45 @@ count). So attendance conflicts are **detected and shown to the student**
 
 `DEC-008` holds. No feature requires a USN, so nothing makes it mandatory, and
 nothing joins on it (M9 §33).
+
+## 8.18 Result subjects sync as their own records (M9.1)
+
+M9 shipped a defect: `result_subjects` existed in the schema and was **not a
+synced collection**. A semester result could reach the cloud while the codes,
+credits and grades it is made of could not.
+
+That is worse than it sounds. A second device would have shown a result with no
+subjects in it — which does not read as missing data, it reads as a record of a
+semester in which nothing was taken, and the SGPA derived from it would have
+been derived from nothing.
+
+### Nested locally, separate in the cloud
+
+| | Shape |
+|---|---|
+| Local (`SemesterResult`) | One object with a `subjects` array inside it — how the results screen reads and edits them |
+| Cloud (`result_subjects`) | One row per subject, each with its own `revision` |
+
+**Neither side changed shape to suit the other.** The array is flattened on the
+way up and reassembled on the way down, in the sync layer alone.
+
+The reason for separate rows: two devices editing *different* subjects of the
+same result are not in conflict. Nesting them would give the whole result one
+revision and make every such edit look like a collision.
+
+### The ownership invariant
+
+A subject row belongs to the same student as its result, **by construction**:
+
+```
+result_subjects (result_id, auth_user_id)
+  → semester_results (id, auth_user_id)
+```
+
+A composite foreign key, so the database refuses a subject row attached to
+another student's result on every write (docs/09 §9.19). RLS would already have
+hidden the parent, but "you cannot see it" is a weaker statement than "it cannot
+exist".
+
+`result_id` is therefore the one parent a client supplies. Every other
+collection's parent is filled in by the server from the session's profile.

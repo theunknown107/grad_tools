@@ -24,6 +24,11 @@
  */
 
 import type { Sql } from '../db/client.js';
+
+/** The transaction handle `withUser` provides. Narrow, so nothing else leaks in. */
+interface SavepointCapable {
+  savepoint<T>(work: (tx: Sql) => Promise<T>): Promise<T>;
+}
 import type { CloudProfile, ProfileInput, SyncOutcome, SyncRecord } from '@gradtools/shared-types';
 
 /* -------------------------------------------------------------------------- */
@@ -35,36 +40,67 @@ import type { CloudProfile, ProfileInput, SyncOutcome, SyncRecord } from '@gradt
  *
  * AN ALLOWLIST, NOT A PASS-THROUGH. A record arrives as loose JSON, and only
  * the columns named here are ever written from it — so `auth_user_id`,
- * `revision`, `profile_id` and the timestamps cannot be set by a client
- * however the payload is shaped (M9 §41).
+ * `revision` and the timestamps cannot be set by a client however the payload
+ * is shaped (M9 §41).
+ *
+ * `parent` names the column the SERVER fills in from the session's profile.
+ * `resultSubjects` is the one collection whose parent is another record rather
+ * than the profile, so it is `null` there and `result_id` is client-supplied —
+ * guarded by a composite foreign key rather than by trust (M9.1 §3).
  */
 export const COLLECTION_TABLES = {
   semesters: {
     table: 'semester_records',
+    parent: 'profile_id',
     columns: ['number', 'status', 'started_on', 'completed_on'],
   },
   semesterSubjects: {
     table: 'semester_subjects',
+    parent: 'profile_id',
     columns: ['semester', 'code', 'title', 'credits', 'notes'],
   },
   results: {
     table: 'semester_results',
+    parent: 'profile_id',
     // `sgpa_asserted` only. The COMPUTED value is never accepted from a device
     // and never stored: it is derived on read by @gradtools/academic-rules, and
     // taking a client's arithmetic would create a second engine that disagrees
     // (M9 §29, §30).
     columns: ['semester', 'scheme_id', 'rule_set_id', 'sgpa_asserted'],
   },
+
+  /*
+   * THE SUBJECT ROWS A RESULT IS MADE OF (M9.1 §1).
+   *
+   * Its parent is the RESULT, not the profile — so `result_id` is a column the
+   * client supplies rather than one the server fills in. That is safe because
+   * of the composite foreign key added in Supabase 0002: a subject row may only
+   * point at a result owned by the same `auth_user_id`, and the database
+   * refuses anything else (docs/09 §9.19).
+   *
+   * Without this collection a semester result could reach the cloud while the
+   * codes, credits and grades it is made of could not — and an empty result
+   * reads as a semester in which nothing was taken, which is worse than a
+   * missing one.
+   */
+  resultSubjects: {
+    table: 'result_subjects',
+    parent: null,
+    columns: ['result_id', 'subject_code', 'subject_title', 'credits', 'grade_letter', 'ordinal'],
+  },
   attendance: {
     table: 'attendance_records',
+    parent: 'profile_id',
     columns: ['semester', 'subject_code', 'subject_title', 'attended', 'conducted'],
   },
   timetable: {
     table: 'timetable_slots',
+    parent: 'profile_id',
     columns: ['day', 'start_time', 'end_time', 'subject_code', 'room', 'faculty'],
   },
   backlogs: {
     table: 'backlog_records',
+    parent: 'profile_id',
     columns: [
       'subject_code',
       'subject_title',
@@ -278,31 +314,81 @@ export async function pushRecord(
     };
   }
 
+  /*
+   * DELETE BEFORE FIRST SYNC (M9.1 §2).
+   *
+   * A record created and deleted on one device before it ever reached the
+   * cloud: the device thinks it is new (`baseRevision === null`) and is asking
+   * for it to be gone. Falling through to the insert below would CREATE the row
+   * — resurrecting, as a live record, something the student deleted.
+   *
+   * THE END STATE IS ABSENCE, NOT A TOMBSTONE. A tombstone marks a row other
+   * devices have seen and must stop showing; no other device ever saw this one,
+   * so writing a row in order to say it does not exist would be a row that
+   * exists for no reader. Absence is also idempotent — a retried push finds
+   * nothing again and answers the same way.
+   *
+   * Reported as `applied` because it is: the cloud now matches what the device
+   * asked for. That is also what makes the client stop tracking it.
+   */
+  if (current === undefined && input.deleted) {
+    return {
+      id: input.id,
+      collection: input.collection as SyncOutcome['collection'],
+      status: 'applied',
+      server: null,
+      reason: null,
+    };
+  }
+
   // Only allowlisted columns, and only ones the payload actually carries.
   const entries = spec.columns
     .map((column) => [column, input.data[toField(column)]] as const)
     .filter(([, value]) => value !== undefined);
 
+  /*
+   * EACH RECORD GETS ITS OWN SAVEPOINT (M9.1 §1).
+   *
+   * A push is many records in one transaction, and a constraint violation
+   * ABORTS a PostgreSQL transaction — every statement after it fails too, and
+   * the commit fails even if the application caught the error. So one bad
+   * record would silently take the whole push with it, which is the opposite of
+   * the per-record outcomes this endpoint promises (docs/10 §10.16).
+   *
+   * A savepoint rolls back exactly the failed record and leaves the rest of the
+   * transaction usable.
+   */
   try {
-    if (current === undefined) {
-      /*
-       * The id comes from the DEVICE and is written directly, which is what
-       * lets a student create records offline and sync them later without a
-       * round trip (M9 §40). Safe because a device can choose an id and cannot
-       * choose an owner: `auth_user_id` defaults to `auth.uid()` and the INSERT
-       * policy refuses anything else.
-       */
-      const row: Record<string, unknown> = { id: input.id, profile_id: profileId };
-      for (const [column, value] of entries) row[column] = value;
-      await sql`INSERT INTO ${sql(spec.table)} ${sql(row as Record<string, never>)}`;
-    } else if (input.deleted) {
-      await sql`UPDATE ${sql(spec.table)} SET deleted_at = now() WHERE id = ${input.id}::uuid`;
-    } else {
-      for (const [column, value] of entries) {
-        await sql`UPDATE ${sql(spec.table)} SET ${sql(column)} = ${value as never} WHERE id = ${input.id}::uuid`;
+    // `savepoint` exists on a transaction handle, which is what `withUser`
+    // hands every caller here — the shared `Sql` alias just does not name it.
+    await (sql as unknown as SavepointCapable).savepoint(async (tx: Sql) => {
+      if (current === undefined) {
+        /*
+         * The id comes from the DEVICE and is written directly, which is what
+         * lets a student create records offline and sync them later without a
+         * round trip (M9 §40). Safe because a device can choose an id and cannot
+         * choose an owner: `auth_user_id` defaults to `auth.uid()` and the INSERT
+         * policy refuses anything else.
+         */
+        const row: Record<string, unknown> = { id: input.id };
+        /*
+         * The parent is the SERVER's to set for every collection whose parent is
+         * the profile. `resultSubjects` is the exception: its parent is another
+         * record, supplied in `data` and guaranteed by a composite foreign key to
+         * belong to the same student (docs/09 §9.19).
+         */
+        if (spec.parent !== null) row[spec.parent] = profileId;
+        for (const [column, value] of entries) row[column] = value;
+        await tx`INSERT INTO ${tx(spec.table)} ${tx(row as Record<string, never>)}`;
+      } else if (input.deleted) {
+        await tx`UPDATE ${tx(spec.table)} SET deleted_at = now() WHERE id = ${input.id}::uuid`;
+      } else {
+        for (const [column, value] of entries) {
+          await tx`UPDATE ${tx(spec.table)} SET ${tx(column)} = ${value as never} WHERE id = ${input.id}::uuid`;
+        }
+        await tx`UPDATE ${tx(spec.table)} SET deleted_at = NULL WHERE id = ${input.id}::uuid`;
       }
-      await sql`UPDATE ${sql(spec.table)} SET deleted_at = NULL WHERE id = ${input.id}::uuid`;
-    }
+    });
   } catch (error) {
     /*
      * A CHECK constraint refusing the row is a REJECTION with a reason, never a
@@ -373,6 +459,17 @@ function reasonFor(error: unknown): string {
   }
   if (message.includes('duplicate key')) {
     return 'A record like this already exists.';
+  }
+  /*
+   * The composite key that ties a subject row to its result. A student can only
+   * reach this by naming a result that is not theirs, so the message says what
+   * is true without confirming that somebody else's result exists (M9.1 §3).
+   */
+  if (message.includes('result_subjects_belong_to_their_result')) {
+    return 'That subject does not belong to one of your results.';
+  }
+  if (message.includes('foreign key')) {
+    return 'That record refers to something that does not exist.';
   }
   return 'That record was not valid and was not saved.';
 }

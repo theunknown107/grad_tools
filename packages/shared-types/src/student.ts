@@ -89,8 +89,8 @@ export type ProfileInput = z.infer<typeof profileInputSchema>;
 /**
  * WHAT SYNCS, AND WHAT DELIBERATELY DOES NOT (M9 §53).
  *
- * These seven are the student's academic facts — the things that would be lost
- * with a broken phone and are worth carrying between devices.
+ * These are the student's academic facts — the things that would be lost with a
+ * broken phone and are worth carrying between devices.
  *
  * Not synced, on purpose:
  *   - notification read state and preferences. Per-device by design (docs/08
@@ -104,6 +104,15 @@ export const SYNC_COLLECTIONS = [
   'semesters',
   'semesterSubjects',
   'results',
+  /*
+   * The subject rows a result is made of, synced as their OWN records rather
+   * than nested inside the result (M9.1 §1).
+   *
+   * Separate because they are separate rows in the database and each needs its
+   * own revision: two devices editing different subjects of the same result are
+   * not in conflict, and nesting them would make every such edit look like one.
+   */
+  'resultSubjects',
   'attendance',
   'timetable',
   'backlogs',
