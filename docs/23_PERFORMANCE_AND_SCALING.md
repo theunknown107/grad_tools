@@ -546,3 +546,42 @@ latency, which has not been measured.
 **Nothing blocks the UI on the cloud.** Local reads and writes never wait for a
 sync (M9 §40), so the numbers above set how quickly a sync finishes, not how
 quickly a screen appears.
+
+## 23.16 Measured in M9.2 — live provider latency
+
+**The two halves are kept apart** because mixing them would present loopback
+figures as cloud figures (M9.2 §28).
+
+### Live Supabase, over the real network
+
+The project is in `ap-northeast-1`; these were measured from a machine in India.
+
+| Operation | p50 | p95 |
+|---|---|---|
+| Password grant — a real sign-in | 258 ms | 437 ms |
+| JWKS fetch, uncached | 222 ms | 292 ms |
+| First JWT verification (includes the JWKS fetch) | 307 ms | — |
+| **JWT verification, key cached** | **0 ms** | **0 ms** |
+
+The last row is the one that matters for steady state: **verification costs
+nothing once the key is cached**, so the JWKS fetch is a one-off per process
+rather than a per-request tax. That is why `createRemoteJWKSet` is built once at
+startup and never per request.
+
+Sign-in costing a quarter of a second is a network round trip to Tokyo, not
+computation, and there is nothing in the application to optimise about it.
+
+### The API, on loopback
+
+| Operation | p50 | p95 |
+|---|---|---|
+| `GET /me` — auth bootstrap | 16 ms | 19 ms |
+| `GET /me/sync` — full pull | 17 ms | 36 ms |
+| `GET /me/sync?since=` — incremental | 17 ms | 31 ms |
+| `GET /me/export` | 16 ms | 23 ms |
+
+**These are loopback numbers and must not be read as hosted ones.** Express and
+PostgreSQL were on the same machine; a deployment talking to Supabase across the
+internet will add the sort of round trip the table above measures. Hosted
+end-to-end latency has **not** been measured, because the API has never been
+pointed at the hosted database (§25.16).

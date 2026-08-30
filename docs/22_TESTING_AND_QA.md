@@ -838,3 +838,100 @@ the same fix, as the reference database in §22.2.
 | Console errors | **0** |
 | Account page while signed out; the word "Synced" | correct; never shown |
 | Storage scopes | `anon` and `u:<id>` keys never overlap |
+
+## 22.19 M9.2 — real provider verification
+
+M9 and M9.1 tested the architecture. This records what was exercised **against
+live infrastructure**, and keeps the categories separate rather than collapsing
+them into "authentication tested".
+
+### The labels, kept apart
+
+| Label | What it covers |
+|---|---|
+| UNIT / MOCK TESTED | 1,291 tests, no provider |
+| REAL SUPABASE TESTED | The live project: auth settings, JWKS, RLS matrix, composite-key invariant |
+| REAL EMAIL TESTED | A real sign-in through the real form, real token, real session |
+| REAL BROWSER SESSION TESTED | Chromium: persistence, refresh, second tab, sign-out, sign back in |
+| REAL MULTI-DEVICE TESTED | Two independent pulls of one account; cross-account isolation |
+| REAL GOOGLE TESTED | **Nothing.** Provider not configured |
+| REAL APPLE TESTED | **Nothing.** Provider not configured |
+
+### The chain, exercised end to end
+
+```
+real form  →  live Supabase Auth  →  real ES256 token
+           →  Express, verifying against the live JWKS
+           →  RLS-scoped PostgreSQL  →  the right student's rows
+```
+
+| | Result |
+|---|---|
+| Real token verified against the live JWKS | accepted |
+| Tampered signature | `JWSSignatureVerificationFailed` |
+| Malformed token | `JWSInvalid` |
+| `GET /me` with a real token | identity, from `sub` |
+| `GET /me` with no token / a forged one | 401, identical message |
+
+### Real sync, one account
+
+29 records pushed — 5 semesters, 3 semester subjects, 4 results, **10 result
+subjects**, 3 attendance, 3 timetable, 1 backlog — all applied. A cold pull as a
+second device returned every collection with the right counts, and `BCS403` came
+back grade `S`, 3 credits. **No collection disappeared.**
+
+### Real cross-user denial, through the API
+
+| | Result |
+|---|---|
+| B reads `/me` | B's own profile |
+| B pulls | 0 records; none of A's ids |
+| B pushes to one of A's record ids | `conflict`; A's row unchanged at 30 |
+
+### Real conflict
+
+A's device wrote 30→31 (`applied`). A stale device wrote 30→32 with the same
+base revision: **`conflict`**, carrying the server's value of 31. Two different
+subjects of one result updated independently — both `applied`.
+
+### Real account deletion
+
+B's account deleted through `DELETE /api/v1/me`: `{"deleted":true,"existed":true}`,
+and afterwards **auth user 0, profile 0, semesters 0, attendance 0**. No orphans.
+
+This exposed a real gap first: `SUPABASE_ADMIN_DB_URL` was defined in config and
+**had no consumer**, so deletion could never have worked on any deployment. Now
+wired through `createAccountDeleter`.
+
+### Real export
+
+Contains all seven collections with the right counts. Does **not** contain B's
+name, a JWT, or the words password / secret / service_role.
+
+### Browser QA, with a real session
+
+| Checked | Result |
+|---|---|
+| axe violations — `/sign-in`, `/account`, `/first-sync`, `/results` at 320/390/768/1280 | **0** |
+| Horizontal overflow | **0** |
+| Console errors | **0** |
+| Session survives refresh; shared with a second tab | yes |
+| First-sync: counts shown, "nothing uploaded yet", keep-local offered | yes |
+| Suggested first-sync choice | "Keep this device only" — non-destructive |
+| Offline with a real session: screens render, still signed in | yes |
+| Offline: the word "Synced" | **never** |
+| Tampered session: stack trace / token / SQL on screen | **none** |
+| Two accounts: each scope holds its own and lacks the other's | yes, 2 distinct key spaces |
+
+### Log review, over real auth traffic
+
+Absent from the logs: any JWT, `Authorization`, bearer token, refresh token,
+access token, the word password, the publishable key, a service-role key, a test
+credential, a test email address, **any auth user id**, and any OAuth code.
+
+### Bundle scan, on the production build
+
+696,386 characters across the built assets. Absent: service-role key,
+`service_role`, a JWT-shaped secret, a Postgres URL with a password, the
+server-only variable names, an OAuth client secret, an Apple private key, a
+refresh token, a test credential. Present, as intended: the publishable key.

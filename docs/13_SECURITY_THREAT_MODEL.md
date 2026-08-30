@@ -428,3 +428,45 @@ test asserts no password appears in any sync payload or export.
 T-71 is a data-integrity failure rather than an attack, and it is recorded here
 because its effect is the same as one: a student's edits disappearing with no
 error anyone sees.
+
+## 13.19 Verified against live infrastructure (M9.2)
+
+M9 asserted these controls; M9.2 exercised them against the real project and a
+real session. Nothing below is a re-run of a mock.
+
+| Control | How it was verified |
+|---|---|
+| T-52 IDOR | B pushed to one of A's record ids through the API with a **real token**: `conflict`, A's row unchanged |
+| T-53 Broken RLS | Live project: A sees 1 profile, 1 result, 1 subject; B's rows return 0 by explicit id |
+| T-54 Privilege escalation | The startup assertion ran for real; the API refuses a `bypassrls` connection |
+| T-55 Row hijacking | A's updates and deletes against B's rows: 0 affected, on the live project |
+| T-56 Forged token | Tampered signature → `JWSSignatureVerificationFailed`; malformed → `JWSInvalid`; both surface as one 401 |
+| T-58 Token leakage into logs | Real auth traffic logged: no JWT, header, token, credential, email or user id |
+| T-59 Service-role exposure | Production bundle scanned: absent |
+| T-60 Email enumeration | Recovery answers identically for an unregistered address (real request to Supabase) |
+| T-61 Cross-account local storage | Two scopes written and read back: each holds its own, lacks the other's |
+| T-65 Deletion bypass | Real deletion cascaded auth user, profile, semesters and attendance to zero |
+| T-66 Export authorization | Real export contains no other student's records and no token |
+| T-69 Cross-student grafting | **On the live project**, A naming B's result id explicitly: foreign key `23503` |
+
+### New in M9.2
+
+| ID | Threat | Control |
+|---|---|---|
+| T-72 | **Open redirect through the OAuth callback** | `redirectTo` is derived from `window.location.origin` and is never taken from a query parameter or user input, so there is no parameter to tamper with. Supabase additionally rejects targets outside the project's allowlist |
+| T-73 | **OAuth code interception** | PKCE (`flowType: 'pkce'`), with the verifier generated and stored by the SDK. No OAuth is implemented by hand, and no state is kept in ad-hoc storage |
+| T-74 | **Credentials reaching CI** | The verification workflow contains no `secrets.` expression at all, so a fork's pull request has nothing to reach for. Real-provider testing stays a controlled manual process (docs/22 §22.19) |
+
+### Still accepted, still stated
+
+Tokens live in `localStorage`, so **XSS in this app could read the access
+token** (§11.13). Unchanged by M9.2, and unchanged in its mitigation: no
+`dangerouslySetInnerHTML` anywhere, and all external text rendered as text.
+
+### An honest note on the test accounts
+
+The two verification accounts were seeded directly into `auth.users` with
+bcrypt-hashed passwords because the project's email rate limit blocked signup.
+That means **the signup and confirmation email path was not exercised**, and it
+is recorded as unverified rather than assumed to work. Both accounts were
+removed at the end of the milestone.

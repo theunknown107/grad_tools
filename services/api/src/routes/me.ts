@@ -51,8 +51,12 @@ import {
 export interface StudentRouterDeps {
   readonly cloud: Sql;
   readonly verify: Verifier;
-  /** Present only where account deletion is possible. See `deleteAccount`. */
-  readonly deleteAccount?: (userId: string) => Promise<void>;
+  /**
+   * Present only where an admin connection is configured. Returns false when
+   * the account was already gone, so "deleted" and "there was nothing to
+   * delete" stay distinguishable (docs/25 §25.15).
+   */
+  readonly deleteAccount?: (userId: string) => Promise<boolean>;
 }
 
 export function createStudentRouter(deps: StudentRouterDeps): Router {
@@ -277,8 +281,13 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
       );
     }
 
-    await deleteAccount(session.userId);
-    res.status(200).json({ deleted: true });
+    const removed = await deleteAccount(session.userId);
+    /*
+     * `deleted: true` either way. An account that is already gone is the state
+     * the student asked for, and reporting "there was nothing to delete" would
+     * be a distinction that only matters to us.
+     */
+    res.status(200).json({ deleted: true, existed: removed });
   });
 
   return router;

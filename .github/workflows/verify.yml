@@ -1,0 +1,107 @@
+# Repository verification.
+#
+# Authority: docs/22 §22.19 · docs/25 §25.16 · M9.2 §32
+#
+# ---------------------------------------------------------------------------
+# WHAT THIS DELIBERATELY DOES NOT HAVE
+# ---------------------------------------------------------------------------
+#
+# NO CREDENTIALS OF ANY KIND. No Supabase key, no database password, no OAuth
+# client secret, no Apple signing key — and no `secrets.` reference at all, so
+# there is nothing for a pull request from a fork to try to reach.
+#
+# The consequence is deliberate and stated rather than worked around: **real
+# provider tests do not run here.** Signing in to Google or Supabase needs
+# credentials, and putting them in CI would turn every workflow run into a path
+# to production identity. Real-provider verification stays a separate,
+# controlled process performed by a person (docs/22 §22.19).
+#
+# What CI does prove is everything that needs no secret: the code compiles, the
+# contracts typecheck, the formatting is uniform, and the 1,200-odd tests that
+# do not need a live provider still pass.
+
+name: verify
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Read-only. A verification workflow has no reason to write to the repository,
+# and the narrowest token is the one that cannot be misused.
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # The database tests need a real PostgreSQL, not a mock: every rule worth
+    # testing in this project is a database guarantee (docs/22 §22.2).
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: gradtools
+          POSTGRES_PASSWORD: gradtools
+          POSTGRES_DB: gradtools_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gradtools"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Local to the runner, thrown away with it. Not a secret, and named here
+      # rather than in a secret store precisely so that is obvious.
+      TEST_DATABASE_URL: postgres://gradtools:gradtools@127.0.0.1:5432/gradtools_test
+      TEST_CLOUD_ADMIN_DATABASE_URL: postgres://gradtools:gradtools@127.0.0.1:5432/gradtools_cloud_test
+      TEST_CLOUD_DATABASE_URL: postgres://authenticator:authenticator@127.0.0.1:5432/gradtools_cloud_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The student cloud is a SEPARATE database from the reference one, as in
+      # production (docs/09 §9.18). `authenticator` needs a password here
+      # because the runner's PostgreSQL uses password authentication.
+      - name: Prepare the student cloud database
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c "CREATE DATABASE gradtools_cloud_test;"
+          psql "$TEST_CLOUD_ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticator') THEN CREATE ROLE authenticator LOGIN NOINHERIT NOBYPASSRLS PASSWORD 'authenticator'; END IF; END \$\$;"
+
+      # Format, lint, typecheck, test and build. The same command a person runs.
+      - run: pnpm verify
+
+      # A cheap standing guard: the things that must never be committed.
+      # Cheap enough to run every time, and it fails loudly rather than
+      # reporting into a dashboard nobody reads.
+      - name: Refuse committed secrets
+        run: |
+          if git grep -nIE 'sb_secret_[A-Za-z0-9_-]{12,}|BEGIN (EC )?PRIVATE KEY|GOCSPX-|SUPABASE_SERVICE_ROLE_KEY *=' -- . ':!*.yml'; then
+            echo "::error::A credential pattern is present in tracked files."
+            exit 1
+          fi
+          if git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example'; then
+            echo "::error::An environment file is tracked."
+            exit 1
+          fi
+          echo "no committed credentials found"

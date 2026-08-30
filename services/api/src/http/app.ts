@@ -19,7 +19,7 @@ import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { LocalObjectStore, type ObjectStore } from '../documents/storage.js';
 import { createQuestionPaperRouter } from '../routes/question-papers.js';
 import { createStudentRouter } from '../routes/me.js';
-import { createCloudClient } from '../db/cloud.js';
+import { createAccountDeleter, createCloudClient } from '../db/cloud.js';
 import { authConfigFor, createVerifier } from '../auth/session.js';
 import { createAnnouncementRouter } from '../routes/announcements.js';
 import { createDocumentRouter } from '../routes/documents.js';
@@ -60,7 +60,7 @@ export function createApp(
   cloud?: {
     readonly sql: Sql;
     readonly verify: ReturnType<typeof createVerifier>;
-    readonly deleteAccount?: (userId: string) => Promise<void>;
+    readonly deleteAccount?: (userId: string) => Promise<boolean>;
   },
 ): Express {
   const app = express();
@@ -196,6 +196,19 @@ export function createApp(
       ? {
           sql: createCloudClient({ url: config.SUPABASE_DB_URL }),
           verify: createVerifier(authConfigFor(config.SUPABASE_URL)),
+          /*
+           * Account deletion needs to reach `auth.users`, which the student
+           * connection cannot write. Where no admin connection is configured
+           * the route reports itself unavailable rather than half working
+           * (docs/25 §25.15).
+           */
+          ...(config.SUPABASE_ADMIN_DB_URL === undefined
+            ? {}
+            : {
+                deleteAccount: createAccountDeleter(
+                  createCloudClient({ url: config.SUPABASE_ADMIN_DB_URL, max: 2 }),
+                ),
+              }),
         }
       : undefined);
 

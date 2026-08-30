@@ -362,3 +362,26 @@ names the wrong role — which is the failure that would otherwise be invisible.
 `/health` and `/health/ready` are unchanged and report nothing about
 authentication. A readiness probe that failed when the identity provider blipped
 would restart a container that is serving the public surface perfectly well.
+
+## 24.17 The log review, performed (M9.2)
+
+§24.16 said what must never be logged. M9.2 generated real authentication
+traffic — sign-ins, authorized requests, a rejected forged token, an account
+deletion — and inspected the output.
+
+**Absent from every line:** any JWT, the `Authorization` header, a bearer token,
+a refresh token, an access token, the word password, the publishable key, a
+service-role key, a test credential, a test email address, **any auth user id**,
+and any OAuth code.
+
+What a request line does contain: a correlation id, the method, and a URL with
+the `search` parameter redacted.
+
+```
+"req":{"id":"13f42491-…","method":"POST","url":"/api/v1/me/sync"}
+```
+
+The consequence, accepted deliberately: **a support request cannot be traced to
+a person's records from logs alone.** There is no student identifier in them,
+because the `sub` claim is used to open a database transaction and is never
+written out.

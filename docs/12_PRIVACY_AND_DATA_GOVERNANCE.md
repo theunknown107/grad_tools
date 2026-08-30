@@ -451,3 +451,25 @@ No token, provider secret or other student's identifier appears in it.
 Unchanged from §12.11 plus an email address, which the identity provider holds.
 **Still no date of birth** (`DEC-008`), and USN remains optional because no
 feature requires it (M9 §33).
+
+## 12.15 The privacy claims, exercised (M9.2)
+
+Every claim in §12.14 was asserted when it was written. These were then tested
+against live infrastructure and a real session.
+
+| Claim | How it was checked |
+|---|---|
+| Signing in uploads nothing | The first-sync screen was reached with a real session: counts shown, "Nothing has been uploaded yet", and the **suggested** choice was "Keep this device only" |
+| Signing out deletes nothing | A's records were still under A's scope after signing out, and reappeared on signing back in |
+| Two accounts cannot see each other | Both scopes written and read back: each holds its own and lacks the other's |
+| The export is only the student's own | Real export contains no other student's name, id or records |
+| Deletion removes everything | Real deletion left auth user, profile, semesters and attendance all at zero |
+| Nothing about a student reaches the logs | Real auth traffic reviewed: no user id, no email, no token (docs/24 §24.17) |
+
+### One thing a student should know that testing cannot fix
+
+Local data survives sign-out by design, and storage is account-scoped so the
+next person cannot reach it **through the app**. It is still in that browser's
+IndexedDB, and somebody with developer tools can read it. Browser-profile
+isolation is not physical-device security, and this document does not claim it
+is (`32/OQ-038`).
