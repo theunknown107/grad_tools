@@ -59,7 +59,9 @@
    */
   --surface-translucent: rgb(30 27 48 / 62%);
 
-  --border: #262238;
+  /* Fainter than it was: the references define a panel with a hairline you
+     have to look for, not with an edge that competes with the content. */
+  --border: #221e33;
   --border-strong: #3a3457;
 
   /* --- Text -------------------------------------------------------------- */
@@ -152,9 +154,16 @@
    */
   --content-max: 1200px;
   --reading-max: 680px;
+  /*
+   * A page whose content is prose and controls rather than data. Neither
+   * reference ever runs a paragraph or a checkbox grid the full width of the
+   * window; without this, Notifications spread eleven checkboxes across 1770px
+   * and read as an empty room.
+   */
+  --settings-max: 860px;
   /* The rail beside the main column, from the application reference. */
   --rail-width: 320px;
-  --header-height: 56px;
+  --header-height: 64px;
   --bottom-nav-height: 64px;
 
   /* --- Typography -------------------------------------------------------- */
@@ -202,7 +211,9 @@
   /* --- Radii -------------------------------------------------------------- */
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 16px;
+  /* 18px, measured off the references' panels — 16 read as slightly mechanical
+     next to them and 20 starts to look inflated on a wide form. */
+  --radius-lg: 18px;
   /* Mobile modules only. The reference's phone cards are notably rounder than
      its desktop panels; that difference is real and intentional. */
   --radius-xl: 22px;
@@ -251,7 +262,7 @@
     --surface-raised: #ffffff;
     --surface-translucent: rgb(255 255 255 / 78%);
 
-    --border: #e4e1f1;
+    --border: #e7e4f3;
     --border-strong: #cbc5e0;
 
     --text: #16131f;
@@ -299,7 +310,7 @@
   --surface-raised: #ffffff;
   --surface-translucent: rgb(255 255 255 / 78%);
 
-  --border: #e4e1f1;
+  --border: #e7e4f3;
   --border-strong: #cbc5e0;
 
   --text: #16131f;

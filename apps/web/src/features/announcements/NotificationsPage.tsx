@@ -73,7 +73,7 @@ export function NotificationsPage() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page ?? ''} ${styles.settingsPage ?? ''}`}>
       <PageHeader
         title="Notifications"
         subtitle="What is new since you last looked. Read state stays on this device."

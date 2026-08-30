@@ -20,7 +20,7 @@ import { Link } from 'react-router-dom';
 import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
 import { PageHeader } from '../../components/AppShell.js';
 import { EmptyState, Notice, Panel, SelectField, StatusPill } from '../../components/ui/index.js';
-import { Module, Row, Rows, Skeleton } from '../../components/ui/layout.js';
+import { Row, Rows, Skeleton } from '../../components/ui/layout.js';
 import {
   useAnnouncements,
   useSortedAnnouncements,
@@ -147,8 +147,9 @@ export function LatestAnnouncements({ limit = 4 }: { readonly limit?: number }) 
    * argument the page is making.
    */
   return (
-    <Module
+    <Panel
       title="Latest"
+      flush
       action={
         <Link to="/announcements" className={styles.viewAll}>
           All announcements
@@ -180,7 +181,7 @@ export function LatestAnnouncements({ limit = 4 }: { readonly limit?: number }) 
           ))}
         </Rows>
       )}
-    </Module>
+    </Panel>
   );
 }
 

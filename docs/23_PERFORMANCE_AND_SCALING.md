@@ -670,3 +670,18 @@ IntersectionObserver and no JavaScript at all.
 
 The dashboard rail is `position: sticky` rather than `fixed`, so it participates
 in normal layout and needs no scroll handler either.
+
+## 23.20 Measured in M9.5.1
+
+| | M9.5 | M9.5.1 |
+|---|---|---|
+| JS | 695.33 kB (201.56 kB gzip) | **694.59 kB (201.43 kB gzip)** |
+| CSS | 63.00 kB (11.07 kB gzip) | **62.53 kB (11.07 kB gzip)** |
+
+**Both got smaller.** Deleting the `Section` primitive and merging `Module`
+into `Panel` removed more code than the surfaces added, and giving `Panel` a
+border is a handful of declarations against three primitives' worth of rules.
+
+No dependency added. The `mask-image` on the two scrolling navigation rows is
+composited and applies to at most two elements; it is dropped entirely above
+1024px where the rows fit.

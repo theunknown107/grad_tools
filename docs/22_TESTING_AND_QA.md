@@ -1090,3 +1090,41 @@ was built. It was never seen because no sweep had tested a width between 768 and
   Firefox.
 - **No keyboard-only pass by hand.** Focus order, `aria-current` and focus rings
   are asserted by axe and by unit test, not by a person tabbing through.
+
+## 22.23 M9.5.1 — comparative visual QA
+
+The automated sweep is unchanged and still passes; what M9.5.1 added is the
+question it cannot answer. For every route, at every pass: capture, **open the
+screenshot**, compare it against the reference images, name the largest
+mismatches, fix, capture again.
+
+### What that found, in order
+
+| Route | Mismatch | Fix |
+|---|---|---|
+| Every page | Content sat directly on the page ground; the references never do | `Panel` draws a surface again |
+| Navigation | Tabs 4px apart in a 56px bar — a converted sidebar, not product navigation | 64px bar, 8px gaps, 16px padding, 38px tall |
+| Dashboard | Metric strip dissolved into two hairlines on desktop, making the five figures the least substantial thing on screen | Module at every width |
+| Dashboard | Fifth metric wrapped to its own line beside the rail | Column cap 132 → 124px |
+| Attendance | The course list was bare while the form above it was a surface | List into a flush panel |
+| Question papers | 50 rows floating on the ground | One panel, 50 dense rows |
+| Notifications | Eleven checkboxes spread across 1770px | `--settings-max: 860px` |
+| Mobile, all routes | Area tabs cut mid-word at the scroll edge | Fade mask on both tiers |
+
+### A regression caught by inspection, not by tests
+
+Refactoring the mute-list grid replaced the first selector in a shared
+`.list, .compactList, .muteList` rule, which silently gave the announcements
+and paper lists a 190px column grid. Every test still passed, axe was clean and
+there was no overflow — **the automated suite could not see it**. Reading the
+resulting CSS did. Reverted before it shipped.
+
+That is the argument for this section: the engineering gates are necessary and
+they are not sufficient.
+
+### Results
+
+**39 files, 1295 tests, all passing** — none rewritten this pass; the changes
+were presentational and the suite asserts behaviour. Both themes, 12 routes,
+9 widths (320/360/390/430/768/1024/1280/1440/1920): **0 axe violations, 0
+horizontal overflow, 0 console errors** in each theme.

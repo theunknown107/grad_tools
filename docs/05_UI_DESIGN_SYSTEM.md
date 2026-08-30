@@ -556,3 +556,76 @@ a desktop, so it stays with the student as the attention list scrolls.
 Unchanged from §5.17, plus one addition: **the application reference's sidebar**.
 It is the one structural element of the four images that GradTools already had,
 and it is the one being removed.
+
+## 5.19 M9.5.1 — the surface comes back
+
+M9.5 got the architecture right and the surfaces wrong. With the sidebar gone
+and the composition in two columns, most pages were still a page title, a rule,
+a column of hairline rows and a footer — technically consistent, visually flat.
+
+A third reading of the references, this time for micro-detail rather than
+structure, found the reason.
+
+### Content sits ON something
+
+Every panel in the marketing reference is a faint hairline over a
+near-transparent fill. The application reference's task list, its whole
+right-hand rail, its empty state and its chart are all bordered cards. Neither
+reference ever puts content directly on the page ground.
+
+GradTools did, everywhere, because M9.3 stripped `Panel` of its surface. That
+was the right call at the time — one container used 46 times gave every region
+identical weight — but **the correction kept going**, and two visual milestones
+later a page was still a column of hairlines with nothing for the eye to rest
+against.
+
+`Panel` draws a surface again: `--surface`, a 1px `--border`, `--radius-lg`,
+`--space-5` of padding. `Section` — which had become a surface-less duplicate
+with no callers left — is **deleted**. One primitive, not two.
+
+> **The rule that replaces "a border is not a box":** hierarchy comes from
+> **size, position and type**, not from which regions are allowed a border.
+> Every panel may have one; not every panel may be the largest thing on screen.
+
+`flush` runs the body to the panel's edges with a negative margin, so a list's
+dividers reach the border — which is how the reference's list cards are built,
+rows separated edge to edge rather than floating inside a padded box.
+
+### The measurements that were wrong
+
+| | Was | Now | Measured off |
+|---|---|---|---|
+| Top bar height | 56px | **64px** | The marketing bar is ~76px at its scale |
+| Area tabs, gap | 4px | **8px**, 16px padding, 38px tall | Its four destinations sit ~50px apart |
+| Button side padding | 16px | **20px** (24px for primary) | Every control in both references is notably wider than its label needs |
+| Panel radius | 16px | **18px** | 16 read mechanical beside them; 20 looks inflated |
+| Border | `#262238` | **`#221e33`** | Their panels are drawn by a hairline you have to look for |
+| Metric column cap | 132px | **124px** | So five figures stay on one line beside the 320px rail |
+
+That generosity in the controls is most of why the references read as
+considered rather than as form furniture.
+
+### Density without fifty cards
+
+The library was the test case. Fifty bordered cards is the 8,000px page M9.3
+removed; fifty rows floating on the page ground is what M9.5 shipped. **The
+reference does neither** — its list is *one* bordered surface with dense rows
+and hairlines inside it. That costs one border for the whole library.
+
+Applied to Question papers (one panel, 50 rows), Results (one panel per
+semester, six subject rows inside each) and Attendance (one panel, six course
+rows).
+
+### A page of prose is not a page of data
+
+`--settings-max: 860px` caps Notifications, Account and Profile. Neither
+reference runs a paragraph or a grid of switches the full width of a window;
+without the cap, eleven category checkboxes spread across 1770px and read as
+eleven unrelated settings in an empty room.
+
+### Scrolling rows say so
+
+Both navigation tiers scroll sideways below 1024px, and a word cut flat at the
+edge reads as a bug rather than as an affordance. A `mask-image` fades the last
+20px — a mask rather than an overlay, so it cannot cover a focus ring and costs
+no element. It is removed once the row fits.

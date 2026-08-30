@@ -75,11 +75,17 @@
 .topbarInner {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   height: var(--header-height);
   max-width: var(--content-max);
   margin: 0 auto;
   padding: 0 var(--gutter);
+}
+
+@media (min-width: 1024px) {
+  .topbarInner {
+    gap: var(--space-6);
+  }
 }
 
 .brand {
@@ -151,10 +157,16 @@
  * the bar, and the difference showed up as "Accou" — a clipped word, which is
  * worse than a row that can be pushed.
  */
+/*
+ * SPACED, NOT PACKED. The marketing reference sets its four destinations about
+ * 50px apart in a 76px-tall bar; the first version of this had them 4px apart
+ * in a 56px one, which is why it read as a converted sidebar rather than as
+ * product navigation.
+ */
 .groupNav {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   margin-right: auto;
   min-width: 0;
   overflow-x: auto;
@@ -166,12 +178,32 @@
   display: none;
 }
 
+/*
+ * A word cut flat at the edge of a scrolling row reads as a bug. Fading the
+ * last few pixels says "there is more this way", which is what the mobile
+ * reference does with every row wider than the screen.
+ *
+ * A mask, not an overlay: it cannot cover a focus ring and it costs no element.
+ * Removed once the row fits, so a desktop never shows a fade over nothing.
+ */
+.groupNav,
+.subNavInner {
+  mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+}
+
+@media (min-width: 1024px) {
+  .groupNav {
+    gap: var(--space-2);
+    mask-image: none;
+  }
+}
+
 .groupLink {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  min-height: 34px;
-  padding: 0 var(--space-3);
+  min-height: 38px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
   color: var(--text-muted);
   text-decoration: none;
@@ -232,8 +264,8 @@
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-pill);
   color: var(--text-muted);
   background: var(--surface);
@@ -269,7 +301,7 @@
   gap: var(--space-1);
   max-width: var(--content-max);
   margin: 0 auto;
-  padding: var(--space-2) var(--gutter);
+  padding: var(--space-2) var(--gutter) var(--space-3);
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -284,8 +316,8 @@
   align-items: center;
   gap: var(--space-2);
   flex: 0 0 auto;
-  min-height: 36px;
-  padding: 0 var(--space-3);
+  min-height: 38px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
   color: var(--text-muted);
   text-decoration: none;

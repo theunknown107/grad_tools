@@ -39,7 +39,7 @@ import {
   type PillTone,
 } from '../../components/ui/index.js';
 import { formatCount, formatPercent } from '../../lib/format.js';
-import { Bar, Row, Rows, Section } from '../../components/ui/layout.js';
+import { Bar, Row, Rows } from '../../components/ui/layout.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useAttendance, useProfile, useSemesterSubjects } from '../../hooks/useCollection.js';
 import { asStudentProfileId } from '../../domain/identity.js';
@@ -199,8 +199,9 @@ export function AttendancePage() {
             </EmptyState>
           </Panel>
         ) : (
-          <Section
+          <Panel
             title="Your courses"
+            flush
             /*
              * No description here: the page subtitle already states the
              * requirement, and repeating it under the heading would be the same
@@ -237,7 +238,7 @@ export function AttendancePage() {
                 is discretionary, not automatic.
               </p>
             )}
-          </Section>
+          </Panel>
         )}
 
         <BunkPlanner records={items} />

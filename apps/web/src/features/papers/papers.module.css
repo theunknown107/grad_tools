@@ -49,10 +49,16 @@
 .list,
 .compactList {
   display: grid;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* Inside a flush panel the last row's hairline would sit on the panel's own
+   border and read as a double rule. */
+.list > li:last-child .row,
+.compactList > li:last-child .row {
+  border-bottom: 0;
 }
 
 /* -- One paper ------------------------------------------------------------- */

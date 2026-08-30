@@ -9,106 +9,6 @@
  */
 
 /* -------------------------------------------------------------------------- */
-/* Section                                                                    */
-/* -------------------------------------------------------------------------- */
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  /* No background, no border, no radius. The heading does the grouping. */
-  min-width: 0;
-}
-
-.sectionHeader {
-  display: flex;
-  gap: var(--space-3);
-  align-items: baseline;
-  justify-content: space-between;
-  min-height: 20px;
-}
-
-/*
- * READABLE, NOT A MICRO-LABEL (M9.5).
- *
- * M9.3 made section headings 13px uppercase in the muted colour, which made
- * them recede so far that a page read as one undifferentiated column. Both
- * references do the opposite: the section label is full-strength text at body
- * size or above, and the link beside it is the quiet one. That contrast — solid
- * label, muted action — is what gives a stack of sections a rhythm.
- */
-.sectionTitle {
-  margin: 0;
-  font-size: var(--text-h3);
-  line-height: var(--text-h3-lh);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-tight);
-  color: var(--text);
-}
-
-/* Tone tints the LABEL only, never a container (M9.3 §14). */
-.sectionTitle[data-tone='attention'] {
-  color: var(--warning);
-}
-
-.sectionDescription {
-  margin: 0;
-  font-size: var(--text-small);
-  line-height: var(--text-small-lh);
-  color: var(--text-muted);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Module                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/*
- * A bordered surface for content that sits BESIDE the page rather than in it.
- * Defined by its border and its radius, not by a fill: the references' panels
- * are barely lighter than the ground and it is the hairline that draws them.
- */
-.module {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: var(--space-4);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-}
-
-@media (max-width: 767px) {
-  .module {
-    border-radius: var(--radius-xl);
-    padding: var(--space-5);
-  }
-}
-
-/* At most one per screen. The accent hairline is the application reference's
-   way of marking the module that matters most in its rail. */
-.module[data-tone='accent'] {
-  border-color: var(--accent-border);
-  background: var(--accent-weak);
-}
-
-.moduleHeader {
-  display: flex;
-  gap: var(--space-3);
-  align-items: baseline;
-  justify-content: space-between;
-  min-width: 0;
-}
-
-.moduleTitle {
-  margin: 0;
-  font-size: var(--text-small);
-  line-height: var(--text-small-lh);
-  font-weight: var(--weight-semibold);
-  color: var(--text);
-}
-
-/* -------------------------------------------------------------------------- */
 /* Metrics                                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -143,20 +43,20 @@
  * removing; `auto-fill` with a capped column keeps the figures grouped at the
  * start of the line instead of spreading across the full width (M9.3 §10).
  */
+/*
+ * A SURFACE AT EVERY WIDTH (M9.5.1). The strip used to dissolve into a pair of
+ * hairlines on a desktop, which left the five figures a student opens the app
+ * for as the least substantial thing on the screen. They keep the module and
+ * simply spread inside it.
+ */
 @media (min-width: 768px) {
   .metrics {
-    /*
-     * Capped at 120px, not 140px. Beside the dashboard rail the main column is
-     * ~780px at 1280, and a 140px cap wrapped the fifth figure onto its own
-     * line — five numbers read as one summary only while they are on one line.
-     */
-    grid-template-columns: repeat(auto-fill, minmax(96px, 120px));
-    gap: var(--space-4) var(--space-6);
-    padding: var(--space-4) 0;
-    background: none;
-    border: 0;
-    border-block: 1px solid var(--border);
-    border-radius: 0;
+    /* 124px: five figures fit on one line inside the main column beside the
+       320px rail at 1280-1440, which is the whole point of a strip. */
+    grid-template-columns: repeat(auto-fill, minmax(92px, 124px));
+    gap: var(--space-5) var(--space-6);
+    padding: var(--space-5);
+    border-radius: var(--radius-lg);
   }
 }
 

@@ -6,6 +6,11 @@
   gap: var(--space-5);
 }
 
+/* Notifications is settings, not data: capped so the controls stay together. */
+.settingsPage {
+  max-width: var(--settings-max);
+}
+
 /* A wide notice must scroll inside its own box, never widen the page. */
 .page > * {
   min-width: 0;

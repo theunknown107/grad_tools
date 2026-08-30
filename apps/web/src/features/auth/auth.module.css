@@ -9,6 +9,11 @@
   max-width: 34rem;
 }
 
+/* The account page is settings: wider than a form, narrower than a table. */
+.settingsPage {
+  max-width: var(--settings-max);
+}
+
 .page > * {
   min-width: 0;
 }

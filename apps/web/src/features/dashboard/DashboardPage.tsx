@@ -49,16 +49,8 @@ import {
   type TimetableSlot,
   type Weekday,
 } from '../../domain/types.js';
-import {
-  Bar,
-  Empty,
-  MetricStrip,
-  Module,
-  Row,
-  Rows,
-  Section,
-  Skeleton,
-} from '../../components/ui/layout.js';
+import { Bar, Empty, MetricStrip, Row, Rows, Skeleton } from '../../components/ui/layout.js';
+import { Panel } from '../../components/ui/index.js';
 import { formatGpa, formatPercent, formatTime } from '../../lib/format.js';
 import {
   useAttendance,
@@ -307,8 +299,9 @@ function Today({
   const nextSlot = slots.find((slot) => slot.endTime > clock);
 
   return (
-    <Section
+    <Panel
       title={`Today · ${day}`}
+      flush
       action={
         <Link className={styles.quietLink} to="/timetable">
           Full week
@@ -336,7 +329,7 @@ function Today({
           })}
         </Rows>
       )}
-    </Section>
+    </Panel>
   );
 }
 
@@ -381,9 +374,10 @@ function Attention({
   if (short.length === 0 && outstanding.length === 0) return null;
 
   return (
-    <Section
+    <Panel
       title="Needs attention"
       tone="attention"
+      flush
       action={
         short.length > 0 ? (
           <Link className={styles.quietLink} to="/attendance">
@@ -429,7 +423,7 @@ function Attention({
           />
         ))}
       </Rows>
-    </Section>
+    </Panel>
   );
 }
 
@@ -445,7 +439,7 @@ function Attention({
  */
 function Resources() {
   return (
-    <Module title="Go to">
+    <Panel title="Go to" flush>
       <nav className={styles.resources} aria-label="Other areas">
         <Link to="/papers">Question papers</Link>
         <Link to="/results">Results</Link>
@@ -453,6 +447,6 @@ function Resources() {
         <Link to="/attendance">Attendance</Link>
         <Link to="/semesters">My degree</Link>
       </nav>
-    </Module>
+    </Panel>
   );
 }
