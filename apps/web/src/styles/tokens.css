@@ -146,9 +146,14 @@
 
   /* --- Layout ------------------------------------------------------------ */
   --gutter: var(--space-4);
-  --content-max: 1080px;
+  /*
+   * Wider since M9.5 removed the sidebar: the content now owns the full page
+   * and is laid out in two columns on a desktop rather than one narrow one.
+   */
+  --content-max: 1200px;
   --reading-max: 680px;
-  --sidebar-width: 232px;
+  /* The rail beside the main column, from the application reference. */
+  --rail-width: 320px;
   --header-height: 56px;
   --bottom-nav-height: 64px;
 

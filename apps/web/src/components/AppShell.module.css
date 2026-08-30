@@ -1,14 +1,14 @@
 /**
  * App shell layout.
- * Authority: docs/04 §4.3 (navigation), docs/27 §27.9, docs/05 §5.16 (M9.4)
+ * Authority: docs/04 §4.3, docs/27 §27.9, docs/05 §5.18 (M9.5)
  *
- * Mobile: bottom tab bar, 5 destinations, thumb-reachable.
- * Desktop (>=1024px): persistent left sidebar with grouped sections.
+ * HORIZONTAL, IN TWO TIERS. The top bar carries the brand, the three areas and
+ * the circular actions; the bar beneath it carries the destinations inside the
+ * open area. Below 1024px the second bar scrolls sideways and a bottom bar
+ * selects the area.
  *
- * M9.4: the shell carries the product's atmosphere, so it is the one place
- * translucency and glow are load-bearing rather than decorative. The bars float
- * over the ambient illumination; the active destination is the only glowing
- * thing on screen.
+ * The shell is the one place translucency and glow are load-bearing rather than
+ * decorative: the bars float over the ambient illumination.
  */
 
 .shell {
@@ -41,7 +41,7 @@
   top: var(--space-2);
 }
 
-/* --- Top bar (mobile) ------------------------------------------------------ */
+/* --- The bar -------------------------------------------------------------- */
 
 /*
  * Translucent, not opaque. Content scrolling beneath a sticky bar should be
@@ -52,14 +52,8 @@
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  height: var(--header-height);
-  padding: 0 var(--gutter);
   background: var(--surface-translucent);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
 }
 
@@ -78,11 +72,22 @@
   }
 }
 
+.topbarInner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--header-height);
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
 .brand {
   display: flex;
   align-items: center;
   /* Meets the 44px touch minimum without changing the visual mark size. */
   min-height: var(--touch-target-min);
+  flex: 0 0 auto;
   gap: var(--space-3);
   font-size: var(--text-small);
   font-weight: var(--weight-semibold);
@@ -111,15 +116,124 @@
 }
 
 /*
- * Circular icon button, from the mobile reference. Round because it holds a
- * glyph and no words — the shape is what says "this is a control, not a label".
+ * The wordmark is the first thing to go when the bar runs out of room. The mark
+ * alone still identifies the product; a truncated wordmark does not.
+ *
+ * HIDDEN VISUALLY, NOT REMOVED. `display: none` takes it out of the
+ * accessibility tree too, and since the mark itself is `aria-hidden` that left
+ * the brand link with no accessible name at all — an axe `link-name` failure on
+ * every route below 480px, found by the seeded sweep.
+ */
+.brandWord {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (min-width: 480px) {
+  .brandWord {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+  }
+}
+
+/* --- Tier 1: the three areas ---------------------------------------------- */
+
+/*
+ * Scrolls sideways on a narrow screen, like the row beneath it. At 390px the
+ * three areas plus the brand plus the actions come to a few pixels more than
+ * the bar, and the difference showed up as "Accou" — a clipped word, which is
+ * worse than a row that can be pushed.
+ */
+.groupNav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-right: auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.groupNav::-webkit-scrollbar {
+  display: none;
+}
+
+.groupLink {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: var(--text-small);
+  white-space: nowrap;
+  transition:
+    color var(--motion-fast) var(--ease-enter),
+    background-color var(--motion-fast) var(--ease-enter);
+}
+
+.groupLink:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+/*
+ * The open area. Filled rather than underlined, because the second bar
+ * underneath it is already a horizontal line and an underline would read as
+ * part of it.
+ */
+.groupLinkActive,
+.groupLinkActive:hover {
+  color: var(--text);
+  background: var(--surface-raised);
+  font-weight: var(--weight-medium);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/*
+ * ONE BUTTON ON A PHONE, TWO ON A DESKTOP.
+ *
+ * Account already has a tab in the bottom bar, so a second way to reach it in
+ * the top bar buys nothing and costs 46px of a 390px-wide row — which is what
+ * was clipping the area tabs beside it.
+ */
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.topActions > .topAction:last-child {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .topActions > .topAction:last-child {
+    display: grid;
+  }
+}
+
+/*
+ * Circular icon button, from both references. Round because it holds a glyph
+ * and no words — the shape is what says "this is a control, not a label".
  */
 .topAction {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: var(--touch-target-min);
-  height: var(--touch-target-min);
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-pill);
   color: var(--text-muted);
   background: var(--surface);
@@ -135,40 +249,107 @@
   border-color: var(--border-strong);
 }
 
-.semesterBadge {
-  font-size: var(--text-caption);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+/* --- Tier 2: destinations inside the open area ----------------------------- */
+
+.subNav {
+  border-top: 1px solid var(--border);
 }
 
-/* --- Body ------------------------------------------------------------------ */
-.body {
-  flex: 1;
+/*
+ * Scrolls sideways rather than wrapping. A navigation bar that grows to two
+ * rows on a narrow screen pushes the page down and changes height as you move
+ * between areas; one that scrolls stays exactly as tall as it was.
+ *
+ * `scrollbar-width: none` hides the bar, not the scrolling: the row is still
+ * reachable by keyboard, by wheel and by touch.
+ */
+.subNavInner {
   display: flex;
-  min-width: 0;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-2) var(--gutter);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-.sidebar {
+.subNavInner::-webkit-scrollbar {
   display: none;
 }
+
+.subLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: var(--text-small);
+  white-space: nowrap;
+  transition:
+    color var(--motion-fast) var(--ease-enter),
+    background-color var(--motion-fast) var(--ease-enter);
+}
+
+.subLink svg {
+  opacity: 0.75;
+}
+
+.subLink:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+/*
+ * The current destination. Tinted fill and an accent hairline — the selected
+ * row from the application reference. Not a glow: there is one of these on
+ * every screen, and something always lit is not emphasis.
+ */
+.subLinkActive,
+.subLinkActive:hover {
+  color: var(--accent);
+  background: var(--accent-weak);
+  font-weight: var(--weight-medium);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+.subLinkActive svg {
+  opacity: 1;
+}
+
+/* --- Content -------------------------------------------------------------- */
 
 .main {
   flex: 1;
   min-width: 0;
-  padding: var(--space-5) var(--gutter);
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-6) var(--gutter);
   /* Clears the fixed bottom nav so content is never hidden behind it. */
   padding-bottom: calc(var(--bottom-nav-height) + var(--space-8));
+}
+
+.footer {
   max-width: var(--content-max);
   width: 100%;
   margin: 0 auto;
+  padding: 0 var(--gutter) calc(var(--bottom-nav-height) + var(--space-6));
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-subtle);
 }
 
-/* --- Bottom nav (mobile) --------------------------------------------------- */
+/* --- Bottom bar (mobile) --------------------------------------------------- */
 
 /*
- * A real bottom bar, taken from the mobile reference: floating, translucent,
- * with the active destination marked by a tinted pill behind its icon rather
- * than by colour alone.
+ * Five destinations chosen for a phone. It also selects the AREA, so the chip
+ * row under the header follows whatever is tapped here.
  */
 .bottomNav {
   position: fixed;
@@ -220,8 +401,8 @@
  * The tinted pill is drawn with a box-shadow spread rather than padding, so
  * marking a tab active does not move the icon or resize the row.
  *
- * The state is never colour alone: the pill is a second, non-chromatic signal,
- * and `aria-current` carries it to assistive technology (docs/27 §27.5).
+ * Never colour alone: the pill is a second, non-chromatic signal and
+ * `aria-current` carries the state to assistive technology (docs/27 §27.5).
  */
 .bottomLinkActive {
   color: var(--accent);
@@ -234,108 +415,40 @@
   box-shadow: 0 0 0 7px var(--accent-weak);
 }
 
-/* --- Desktop --------------------------------------------------------------- */
 @media (min-width: 1024px) {
-  .topbar {
-    display: none;
-  }
-
-  .sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-6);
-    width: var(--sidebar-width);
-    flex: 0 0 var(--sidebar-width);
-    padding: var(--space-6) var(--space-4);
-    border-right: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    height: 100dvh;
-    overflow-y: auto;
-  }
-
-  .navGroup {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .navGroupLabel {
-    font-size: var(--text-micro);
-    line-height: var(--text-micro-lh);
-    font-weight: var(--weight-semibold);
-    letter-spacing: var(--tracking-label);
-    text-transform: uppercase;
-    color: var(--text-subtle);
-    padding: var(--space-2) var(--space-3) var(--space-1);
-  }
-
-  .navLink {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    min-height: 36px;
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: var(--text-small);
-    transition:
-      background-color var(--motion-fast) var(--ease-enter),
-      color var(--motion-fast) var(--ease-enter);
-  }
-
-  .navLink:hover {
-    background: var(--surface);
-    color: var(--text);
-  }
-
-  /*
-   * Selected state, from the application reference: a tinted fill with a
-   * hairline of accent around it. Not a glow — a sidebar has one selected item
-   * on every screen, and something that is always lit is not emphasis.
-   */
-  .navLinkActive,
-  .navLinkActive:hover {
-    background: var(--accent-weak);
-    color: var(--accent);
-    font-weight: var(--weight-medium);
-    box-shadow: inset 0 0 0 1px var(--accent-border);
-  }
-
-  .sidebarFooter {
-    margin-top: auto;
-    font-size: var(--text-caption);
-    line-height: var(--text-caption-lh);
-    color: var(--text-subtle);
-    border-top: 1px solid var(--border);
-    padding-top: var(--space-3);
-  }
-
   .bottomNav {
     display: none;
   }
 
   .main {
     padding: var(--space-8) var(--gutter);
-    padding-bottom: var(--space-9);
+    padding-bottom: var(--space-8);
+  }
+
+  .footer {
+    padding-bottom: var(--space-8);
   }
 }
 
 /* --- Page header ----------------------------------------------------------- */
+
 .pageHeader {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-4);
   margin-bottom: var(--space-6);
+}
+
+.pageHeading {
+  min-width: 0;
 }
 
 /*
  * Light weight and open tracking, per the references. A page title identifies
- * the screen; it does not need to shout, and at 25px it is already the largest
- * thing on the page.
+ * the screen; it does not need to shout, and at this size it is already the
+ * largest thing on the page.
  */
 .pageTitle {
   font-size: var(--text-h1);

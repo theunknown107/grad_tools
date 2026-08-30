@@ -31,11 +31,22 @@ const DIST = resolve('apps/web/dist');
 const OUT = resolve(process.env.OUT ?? '.qa-screenshots');
 const PORT = 4322;
 
+/*
+ * Every width the redesign is required to hold at (M9.5 §Responsive). 320 is
+ * the narrowest phone worth supporting, 1024 is the breakpoint where the
+ * dashboard becomes two columns, and 1920 is where a wide monitor stops the
+ * content growing.
+ */
 const VIEWPORTS = [
   { name: '320', width: 320, height: 800 },
+  { name: '360', width: 360, height: 800 },
   { name: '390', width: 390, height: 844 },
+  { name: '430', width: 430, height: 932 },
   { name: '768', width: 768, height: 1024 },
+  { name: '1024', width: 1024, height: 800 },
   { name: '1280', width: 1280, height: 900 },
+  { name: '1440', width: 1440, height: 900 },
+  { name: '1920', width: 1920, height: 1080 },
 ];
 
 const ROUTES = [

@@ -243,12 +243,6 @@
   color: var(--danger);
 }
 
-.rowRequired {
-  font-size: var(--text-caption);
-  color: var(--text-subtle);
-  white-space: nowrap;
-}
-
 /* The DX rule, stated once beneath the list rather than inside every card. */
 .dxNote {
   margin: var(--space-3) 0 0;

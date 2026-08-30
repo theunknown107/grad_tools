@@ -648,3 +648,25 @@ background blob.** The only keyframe animation in the product remains the
 skeleton pulse, and it is still suppressed under `prefers-reduced-motion`.
 
 **The bundle budget is unchanged and was not renegotiated.**
+
+## 23.19 Measured in M9.5
+
+**No dependency added.** Still no CSS framework, no icon pack, no animation
+library.
+
+| | M9.4 | M9.5 |
+|---|---|---|
+| JS | 694.22 kB (201.25 kB gzip) | **695.33 kB (201.56 kB gzip)** |
+| CSS | 60.40 kB (10.69 kB gzip) | **63.00 kB (11.07 kB gzip)** |
+
+1.1 kB of JS is the two-tier navigation and `groupForPath`; 2.6 kB of CSS
+(0.4 kB gzipped) is the new bar, the `Module` primitive and the dashboard's
+two-column grid.
+
+**Removing the sidebar did not cost a repaint anywhere.** The bars are
+`position: sticky` with one `backdrop-filter` each, as before; the horizontal
+scrolling in both tiers is native overflow with no scroll listener, no
+IntersectionObserver and no JavaScript at all.
+
+The dashboard rail is `position: sticky` rather than `fixed`, so it participates
+in normal layout and needs no scroll handler either.

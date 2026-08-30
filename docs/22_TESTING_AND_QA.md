@@ -1042,3 +1042,51 @@ pill, the next-class accent, and empty and loading states.
   `prefers-reduced-transparency` are unverified in Safari and Firefox. Both
   degrade to a solid bar by design, so the failure mode is known even though the
   behaviour is unobserved.
+
+## 22.22 M9.5 — the layout redesign
+
+### The suite
+
+**39 files, 1295 tests, all passing.** One test was rewritten because the thing
+it read no longer exists, and one was added.
+
+| Test | What happened |
+|---|---|
+| `renders the Stage 1 destinations and omits unbuilt ones` | **Rewritten, not weakened.** It read `navs[0]` — the sidebar. The property is unchanged (every built destination reachable from the shell, nothing unbuilt as a dead link); it now reads every `<nav>` in the shell and opens Academics to check the second tier |
+| `marks the open area and the current destination` | **New.** Two tiers means two `aria-current` markers, and a horizontal bar is only navigable if it says which of eleven chips is the current page |
+
+### Browser QA — TESTED
+
+Real Chromium, production build, a synthetic semester-5 student in IndexedDB,
+clock pinned to a Monday morning. **Both themes, twelve routes, nine widths** —
+320, 360, 390, 430, 768, 1024, 1280, 1440, 1920:
+
+| | Dark | Light |
+|---|---|---|
+| Page loads (12 routes x 9 widths) | 108 | 108 |
+| axe violations (WCAG 2.0/2.1 A + AA) | **0** | **0** |
+| Horizontal overflow | **0px** | **0px** |
+| Console errors | **0** | **0** |
+
+### Three defects the sweep caught
+
+Recorded because all three were invisible in the four-width sweep M9.4 used.
+
+| Defect | Where | Why it happened |
+|---|---|---|
+| `link-name` on every route below 480px | Brand link | The wordmark was hidden with `display: none`, which removes it from the accessibility tree; the mark beside it is `aria-hidden`, so the link had no accessible name at all. Now visually hidden with `clip-path` |
+| `Accou` — a clipped area tab | Top bar at 390px | Two circular actions plus three area tabs plus the brand exceeded the row. The account circle is hidden below 1024px, and both tiers now scroll |
+| **Subject codes broken one character per line** | Timetable week grid at 900–1080px | Six columns of a 900px page leave a code ~45px, and `overflow-wrap: anywhere` did exactly what it was asked to. The week grid now starts at 1100px and stacks the time above the subject inside a column |
+
+The timetable defect **predates M9.5** — the grid has started at 900px since it
+was built. It was never seen because no sweep had tested a width between 768 and
+1280.
+
+### NOT VERIFIED
+
+- **No real device.** All nine widths are emulated Chromium.
+- **No browser but Chromium.** `backdrop-filter`, `prefers-reduced-transparency`
+  and scroll-snap-free horizontal nav scrolling are unverified in Safari and
+  Firefox.
+- **No keyboard-only pass by hand.** Focus order, `aria-current` and focus rings
+  are asserted by axe and by unit test, not by a person tabbing through.

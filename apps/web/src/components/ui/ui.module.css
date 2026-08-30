@@ -58,12 +58,11 @@
    same thing and a page mixing them does not look assembled from parts. */
 .panelTitle {
   margin: 0;
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
+  font-size: var(--text-h3);
+  line-height: var(--text-h3-lh);
   font-weight: var(--weight-semibold);
-  color: var(--text-subtle);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text);
 }
 
 .panelBody {

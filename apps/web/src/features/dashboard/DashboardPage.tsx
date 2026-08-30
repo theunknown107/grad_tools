@@ -53,6 +53,7 @@ import {
   Bar,
   Empty,
   MetricStrip,
+  Module,
   Row,
   Rows,
   Section,
@@ -127,18 +128,32 @@ export function DashboardPage() {
       {loading ? (
         <Skeleton rows={4} />
       ) : (
-        <>
-          <Snapshot
-            results={results}
-            attendance={thisSemester}
-            subjectCount={subjectsNow.length}
-            outstanding={outstanding}
-          />
-          <Today timetable={timetable} subjects={semesterSubjects} />
-          <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
-          <LatestAnnouncements />
-          <Resources />
-        </>
+        /*
+          TWO COLUMNS ON A DESKTOP (M9.5 §Dashboard).
+          The main column is what the student came to read, in order: where they
+          stand, what is today, what needs attention. The rail beside it holds
+          the two things that are true whether or not they read them — what
+          changed, and where else they can go. Below 1024px it collapses to one
+          column and the rail follows, because on a phone "beside" does not
+          exist and the reading order is all there is.
+        */
+        <div className={styles.layout}>
+          <div className={styles.column}>
+            <Snapshot
+              results={results}
+              attendance={thisSemester}
+              subjectCount={subjectsNow.length}
+              outstanding={outstanding}
+            />
+            <Today timetable={timetable} subjects={semesterSubjects} />
+            <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
+          </div>
+
+          <aside className={styles.rail} aria-label="Elsewhere in GradTools">
+            <LatestAnnouncements />
+            <Resources />
+          </aside>
+        </div>
       )}
     </div>
   );
@@ -430,7 +445,7 @@ function Attention({
  */
 function Resources() {
   return (
-    <Section title="Go to">
+    <Module title="Go to">
       <nav className={styles.resources} aria-label="Other areas">
         <Link to="/papers">Question papers</Link>
         <Link to="/results">Results</Link>
@@ -438,6 +453,6 @@ function Resources() {
         <Link to="/attendance">Attendance</Link>
         <Link to="/semesters">My degree</Link>
       </nav>
-    </Section>
+    </Module>
   );
 }

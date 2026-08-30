@@ -475,3 +475,84 @@ Recorded so a later milestone does not "restore" them.
 | The photographic backdrop behind the app window | The application is not a poster of itself |
 | Avatar stacks and "+8 people" | GradTools is single-player |
 | The closing call to action | There is nothing to sign up for on a dashboard |
+
+## 5.18 M9.5 — the layout, not just the palette
+
+M9.4 revalued the tokens and left the layout alone, which produced a correct
+but shallow result: the old GradTools with a violet coat on. The references
+differ from GradTools structurally, and this section records what that
+difference actually was.
+
+### What a second reading of the references found
+
+| Reference | Structure |
+|---|---|
+| The marketing site (three images) | **Horizontal top bar.** Brand at one end, four destinations, a text link and a pill at the other. No sidebar anywhere |
+| The application (one image) | Sidebar, but also: breadcrumb + circular actions on a top row, a **two-column body** — wide main column plus a rail of small bordered modules — a chip row under the heading with the primary action pushed right, and list items as bordered cards |
+| The phone screens (one image) | Repeating **section-header pattern**: solid dark label left, quiet "View All" right; horizontally scrolling rows; white modules; black pill actions; bottom bar |
+
+GradTools had none of that shape. It had a 232px sidebar and a single narrow
+column of hairline rows on every screen.
+
+### Navigation: horizontal, in two tiers
+
+The sidebar listed eleven destinations permanently, ten of which were not the
+one being looked at, and it pinned the content to one column. It is gone.
+
+```
+TIER 1   [G] GradTools   Overview  Academics  Account            ( ) ( )
+TIER 2   ▸ Dashboard    Announcements    Notifications
+```
+
+Tier 1 is the three areas. Tier 2 is the destinations inside the open area —
+always visible, never a menu that opens, and it shows where you are rather than
+listing everywhere you could be. Eleven destinations fit comfortably in two
+short rows.
+
+**Responsive behaviour.** Both tiers scroll sideways rather than wrapping: a
+bar that grows to two rows on a narrow screen pushes the page down and changes
+height as you move between areas. The account circle is hidden below 1024px
+because Account already has a bottom tab, and those 46px were what clipped
+"Account" to "Accou" at 390px. The bottom bar keeps its five chosen
+destinations and now also selects the *area*, so the chip row follows it.
+
+### `Module` comes back, deliberately
+
+M9.3 removed containers because the app had one and used it 46 times, which
+flattened every page into equal boxes. **The correction overshot.** With no
+container at all, a page was one vertical column of hairlines and the eye had
+nothing to rest against.
+
+The application reference is neither: a main column of content with a rail of
+bordered modules beside it. The border is not decoration — it marks content
+that is *not part of the main reading order*.
+
+> **The test before reaching for a module:** would this content still make sense
+> lifted off the page entirely? If yes, it is a module. If it is the next
+> paragraph of the page's argument, it is a section.
+
+`Section` therefore remains the default and `Module` is for what sits beside it.
+
+### Section headings are readable again
+
+M9.3 set them at 13px uppercase in the muted colour, which made them recede so
+far that a page read as one undifferentiated column. Both references do the
+opposite: **a solid label at 16px, and a quiet link beside it.** That contrast
+is what gives a stack of sections a rhythm. `Panel` headings were changed to
+match, so a page mixing the two primitives does not look assembled from parts.
+
+### The dashboard is two columns
+
+| Main column | Rail |
+|---|---|
+| Where you stand, what is today, what needs attention | What changed, where else you can go |
+
+Below 1024px it collapses to one column and the rail follows in the markup
+order, which is also the right reading order on a phone. The rail is sticky on
+a desktop, so it stays with the student as the attention list scrolls.
+
+### What did NOT come from the references
+
+Unchanged from §5.17, plus one addition: **the application reference's sidebar**.
+It is the one structural element of the four images that GradTools already had,
+and it is the one being removed.

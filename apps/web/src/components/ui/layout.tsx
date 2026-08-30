@@ -58,14 +58,72 @@ export function Section({
   return (
     <section className={styles.section}>
       {title !== undefined && (
-        <header className={styles.sectionHeader}>
+        <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle} data-tone={tone}>
             {title}
           </h2>
           {action}
-        </header>
+        </div>
       )}
       {description !== undefined && <p className={styles.sectionDescription}>{description}</p>}
+      {children}
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Module                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A bordered surface holding one self-contained thing.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY THIS COMES BACK IN M9.5
+ * ---------------------------------------------------------------------------
+ *
+ * M9.3 removed containers because the app had one and used it for everything,
+ * which flattened every page into equal boxes. The correction overshot: with no
+ * container at all, a page became a single vertical column of hairlines and the
+ * eye had nothing to rest against.
+ *
+ * The application reference is neither. It is a wide main column of content
+ * with a rail of small bordered modules beside it — and the modules are
+ * bordered precisely because they are NOT part of the main reading order. A
+ * module says "this is a separate thing you may look at". A section says "this
+ * is the next part of what you were already reading".
+ *
+ * So: `Section` remains the default for the page's own content, and `Module` is
+ * for the things beside it. The test before reaching for one is whether the
+ * content would still make sense lifted off this page entirely. If yes, it is a
+ * module. If it is the next paragraph of the page's argument, it is a section.
+ */
+export function Module({
+  title,
+  action,
+  children,
+  tone = 'default',
+}: {
+  readonly title?: string | undefined;
+  readonly action?: ReactNode;
+  readonly children: ReactNode;
+  /** `accent` marks the single most important module on a screen. At most one. */
+  readonly tone?: 'default' | 'accent';
+}) {
+  return (
+    <section className={styles.module} data-tone={tone}>
+      {title !== undefined && (
+        /*
+          A div, not a <header>. Inside a <section> with no accessible name a
+          <header> still maps to the BANNER landmark, so a page of modules
+          announces a page of banners. The heading inside does the labelling
+          that matters.
+        */
+        <div className={styles.moduleHeader}>
+          <h2 className={styles.moduleTitle}>{title}</h2>
+          {action}
+        </div>
+      )}
       {children}
     </section>
   );

@@ -9,6 +9,48 @@
   min-width: 0;
 }
 
+/*
+ * ONE COLUMN, THEN TWO (M9.5).
+ *
+ * The order in the markup is the order on a phone, and it is the right one:
+ * where you stand, what is today, what needs attention, then what changed. On a
+ * desktop the last part moves sideways into a rail instead of pushing the
+ * attention list a screen further down.
+ */
+.layout {
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) var(--rail-width);
+    gap: var(--space-7);
+    align-items: start;
+  }
+}
+
+.column,
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.rail {
+  gap: var(--space-4);
+}
+
+@media (min-width: 1024px) {
+  /* The rail stays with the student as the main column scrolls past it. */
+  .rail {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-9));
+  }
+}
+
 .page > * {
   min-width: 0;
 }
@@ -115,22 +157,32 @@
 /* -- Resources ------------------------------------------------------------- */
 
 /*
- * A row of links that wraps. Not cards, and deliberately not three of them
+ * A list inside a rail module, so it reads as a short index rather than as a
+ * paragraph of links. Still not cards, and still deliberately not three of them
  * (M9.3 §16, §27).
  */
 .resources {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
+  flex-direction: column;
 }
 
 .resources a {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   min-height: var(--touch-target-min);
+  padding: 0 var(--space-1);
   font-size: var(--text-small);
-  color: var(--accent);
+  color: var(--text-muted);
   text-decoration: none;
+  border-top: 1px solid var(--border);
+}
+
+.resources a:first-child {
+  border-top: 0;
+}
+
+.resources a:hover {
+  color: var(--accent);
 }
 
 .resources a:hover {
