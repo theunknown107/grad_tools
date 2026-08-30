@@ -959,3 +959,66 @@ operator do most recently", which is what it literally says.
 
 **Decision needed:** when a bulk import first happens. Not before, and not by
 guessing at it now.
+
+### DEC-022 — Google, Apple and email/password, superseding the magic-link decision · **M9**
+
+**Decided by the human.** `11` §11.2 chose an emailed magic link and explicitly
+rejected Google OAuth because it "adds a third-party dependency that learns
+which students use GradTools". M9 reverses that.
+
+**The cost is recorded rather than argued away.** Google and Apple learn that a
+person authenticated to GradTools; that is a real disclosure and §11.2 was right
+that it was avoidable. What is gained is sign-in that works on a shared or slow
+connection without waiting for an email.
+
+**What did not change:** GradTools stores no password, hashes nothing and runs
+no reset flow. Supabase Auth owns the credential entirely (`11` §11.12).
+
+### OQ-036 — Provider configuration is outstanding · **opened by M9**
+
+**Why unresolved:** the Google and Apple code paths exist and are one function
+apart, but neither provider is configured. Google needs an OAuth client and a
+redirect allowlist in the Supabase dashboard; Apple additionally needs a paid
+Apple Developer account, a Services ID and a signing key.
+
+**Consequence today:** those two buttons reach a provider that is not set up.
+**No Google, Apple or email sign-in has ever been performed**, and no claim that
+they work appears in this repository (`22` §22.17).
+
+**Also outstanding:** leaked-password protection, which Supabase's own advisor
+flags and which matters now that email/password is a supported method.
+
+**Decision needed:** none from engineering. A dashboard task and, for Apple, a
+paid account.
+
+### OQ-037 — How a student resolves a conflict · **opened by M9**
+
+**Why unresolved:** conflicts are detected, both versions are shown, and the
+student is told to edit the record on the device they want to keep and sync
+again. That is honest and it is clumsy.
+
+**What M9 chose anyway:** clumsy over silent. For an attendance count or a
+grade there is no arithmetic that is right — 12 and 14 do not average to
+anything meaningful — so the alternatives were "ask" or "pick one and hope".
+
+**Options:** a keep-mine / take-theirs control on each conflict; a merge screen
+per collection; or leaving it as is until conflicts are observed to happen.
+
+**Recommendation:** wait for evidence. Conflicts need two devices and a real
+student, and neither exists yet.
+
+### OQ-038 — Whether local data should be lockable on a shared device · **opened by M9**
+
+**Why unresolved:** signing out deliberately leaves an account's records on the
+device (`12` §12.14), and storage is account-scoped so the next person cannot
+read them through the app. But they are still in that browser's IndexedDB, and
+somebody with developer tools can read them.
+
+**What M9 chose:** not deleting a student's work on sign-out, because losing
+records to a routine action is the worse failure.
+
+**Options:** offer "remove my data from this device" alongside sign-out
+(a `clearScope` call already exists); encrypt the scope with a key derived from
+the session; or state the limitation and leave it.
+
+**Decision needed:** before any shared-device pilot, such as a college lab.

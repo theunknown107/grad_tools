@@ -105,6 +105,13 @@ const DESTINATIONS: readonly Destination[] = [
     group: 'Planning',
   },
   {
+    to: '/account',
+    label: 'Account',
+    shortLabel: 'Account',
+    icon: UserRound,
+    group: 'Planning',
+  },
+  {
     to: '/profile',
     label: 'Profile',
     shortLabel: 'Profile',

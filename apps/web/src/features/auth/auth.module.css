@@ -1,0 +1,185 @@
+/** Auth and account screens. Authority: docs/05, M9 §10, §57, §64 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  /* A sign-in form is a narrow thing; a full-width one reads as a data entry
+     screen rather than a decision. */
+  max-width: 34rem;
+}
+
+.page > * {
+  min-width: 0;
+}
+
+.explainer {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* -- Providers ------------------------------------------------------------- */
+
+.providers {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.divider {
+  margin: var(--space-4) 0 var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* -- The form -------------------------------------------------------------- */
+
+.form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.linkButton {
+  padding: 0;
+  /* 44px, so a thumb can hit it (docs/27 §27.6). */
+  min-height: 44px;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.primaryLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-accent-contrast, var(--color-surface));
+  text-decoration: none;
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+
+.linkButton:focus-visible,
+.primaryLink:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* -- Account --------------------------------------------------------------- */
+
+.facts {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  margin: 0;
+}
+
+.facts dt {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* -- Sync status ----------------------------------------------------------- */
+
+/* Small and out of the way. Sync state is reassurance, not the subject of the
+   screen (M9 §55). */
+.syncBadge {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.syncBadge[data-status='failed'] {
+  color: var(--color-warning-text, var(--color-text));
+  font-weight: 600;
+}
+
+/* -- The first-sync choice ------------------------------------------------- */
+
+.choices {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.choice {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font: inherit;
+}
+
+/* The safe option is marked, and it is never the destructive one (M9 §54). */
+.choice[data-recommended='true'] {
+  border-color: var(--color-accent);
+}
+
+.choice:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.choiceTitle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.choiceDetail {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.count strong {
+  display: block;
+  font-size: var(--text-lg, 1.125rem);
+}

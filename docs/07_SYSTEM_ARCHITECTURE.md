@@ -513,3 +513,76 @@ this student is decided in the browser, from a profile that never leaves it.
 | A fetch or proxy for `link` papers | GradTools does not have those files, and pulling them through the server would make it a proxy for material whose rights nobody established (M8 §15) |
 | Any authentication | Stage 1 is local-first; `private` is enforced by excluding it from every public query, not by a login (M8 §16, §44) |
 | Semantic search, similarity, recommendations | M8 is a deterministic library. The intelligence milestone is separate and unstarted (M8 §3, §46) |
+
+## 7.16 Authentication and the student cloud (M9)
+
+M9 is the first milestone where student data intentionally leaves the device.
+
+```
+  browser
+    ├── @supabase/supabase-js ──► Supabase Auth        (identity ONLY)
+    │        one adapter file; the domain never sees the SDK
+    │
+    └── fetch  /api/v1/me/*  with Authorization: Bearer <access token>
+                 │
+              Express — verifies the JWT against the project's JWKS
+                 │  opens a transaction on Supabase Postgres as `authenticator`
+                 │  SET LOCAL ROLE authenticated
+                 │  SET LOCAL request.jwt.claims = {"sub": <verified uid>}
+                 ▼
+              RLS: auth_user_id = auth.uid()   ← the authorization model
+
+  reference data, announcements, question papers
+    └── the existing self-hosted PostgreSQL, unchanged and public
+```
+
+### Two databases, on purpose
+
+| | Holds | Authorization |
+|---|---|---|
+| Self-hosted PostgreSQL | Schemes, subjects, sources, documents, announcements, papers | None needed — none of it belongs to anybody |
+| Supabase PostgreSQL | Profiles, semesters, subjects, results, attendance, timetable, backlogs | RLS, per owner, on every table |
+
+Keeping them in one database would mean one connection credential guarding
+both, and the weaker rule would win.
+
+### The property the whole design is for
+
+**A bug in the API cannot expose one student's records to another.** Express
+connects as `authenticator` — a role with no `bypassrls` and no inherited
+privileges — and impersonates the caller for the life of one transaction. A
+query that forgets its owner predicate returns the caller's own rows; a query
+that asks for somebody else's id returns nothing (docs/13 §13.17).
+
+That was verified two ways: directly against the live Supabase project, and by
+22 authorization tests running against the same policies on a local PostgreSQL
+(docs/22 §22.17).
+
+### Local-first did not become cloud-first
+
+The `RepositoryBundle` abstraction from M3 is unchanged, and no feature
+component knows an account exists. What changed is that the bundle is now bound
+to an **account scope**: signing in swaps which IndexedDB key space the app
+reads (§7.17). Every calculator, the degree, attendance and the paper library
+work exactly as before with no account and no network.
+
+## 7.17 Account-bound local storage (M9)
+
+Before M9 there was one student per browser and one key per collection. With
+accounts that is a leak: two people sharing a laptop would find each other's
+records under the same key.
+
+```
+gradtools:v1:anon:<collection>              nobody signed in
+gradtools:v1:u:<auth_user_id>:<collection>  this account, on this device
+```
+
+Consequences, all tested:
+
+- **Signing out deletes nothing.** It changes which scope is read (M9 §36).
+- **A second account cannot see the first's records** — not because a filter
+  excludes them, but because it is not looking at them (M9 §37).
+- **Pre-account data stays under `anon`** and is offered for merge at first
+  sign-in, never silently moved (M9 §27).
+- An `expired` session reads the anonymous scope, because a session we can no
+  longer verify is not proof of identity.

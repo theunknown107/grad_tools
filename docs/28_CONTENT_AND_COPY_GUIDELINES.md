@@ -376,3 +376,47 @@ prediction, which is a different product and a later, separately approved one.
 A field nobody recorded is omitted from the row. It is not "—", not "N/A", not
 "Unknown year". A row of placeholders reads as broken data; a shorter row reads
 as a paper about which less was recorded, which is what it is.
+
+## 28.13 Words for accounts and syncing (M9)
+
+An account is optional, and the copy never pretends otherwise.
+
+| Say | Not |
+|---|---|
+| "An account syncs your records between devices. GradTools works without one." | "Sign up to get started" |
+| "Signing in does **not** upload anything on its own." | Silence, then an upload |
+| "Keep using GradTools without an account." | A greyed-out afterthought |
+| "That email and password do not match an account." | "No account with that email" |
+| "If that address has an account, a recovery link is on its way." | "We couldn't find that email" |
+| "Your session has expired. Sign in again." | "JWT verification failed at line 173" |
+| "Saved on this device" | "Not backed up" |
+| "Sync failed" | "Synced" after a failure |
+| "Offline — changes are saved here" | "Connection lost" |
+| "Needs your attention" | "Merge conflict" |
+| "The records saved on this device stay here." | Silence about what sign-out does |
+| "The copy on this device is not deleted by this." | Silence about what account deletion does |
+| "Keep both — records on this device are added to your account. Nothing is deleted." | "Merge" |
+
+### Never say an account exists or does not
+
+The single rule behind three of the rows above. Wrong password and no such
+account get the **same** message, because the difference is exactly what
+somebody enumerating addresses wants to learn (M9 §23).
+
+### Never claim more security than there is
+
+No "bank-level encryption", no trust badges, no "your data is 100% safe". What
+is true: the records are stored per-account and nobody else can read them. That
+is worth saying and is all that is said (M9 §57).
+
+### Never say "Synced" unless it synced
+
+The failure this rule exists to prevent: a student sees "Synced", trusts it,
+loses their phone, and finds a semester missing. Every sync state has its own
+words, and a state that is not success never borrows success's (M9 §68).
+
+### Destructive actions are never the default
+
+Account deletion needs a second press, and the confirmation puts Cancel first.
+The first-sync screen recommends the option that discards nothing, and always
+offers "keep this device only" (M9 §54).

@@ -9,8 +9,10 @@
  * fails to compile on both sides rather than failing silently at runtime, which
  * is the entire reason the package exists (docs/06 §6.5).
  *
- * This package contains NO student data types. Student records are local-only
- * in Stage 1 and never cross the network (docs/33 §33.3).
+ * Student record types arrived in M9, when cloud sync made them cross the
+ * network for the first time — and only for students who signed in and said
+ * yes. The local-first path is unchanged: without an account, nothing here is
+ * ever sent (docs/12 §12.14).
  */
 
 import { z } from 'zod';
@@ -189,7 +191,15 @@ export function listResponseSchema<T extends z.ZodTypeAny>(item: T) {
  */
 export const errorCodeSchema = z.enum([
   'VALIDATION_FAILED',
+  /**
+   * No valid session (M9). Deliberately ONE code for every authentication
+   * failure — absent, malformed, expired, wrong issuer, bad signature — so the
+   * endpoint cannot be used as an oracle for which guess was closer.
+   */
+  'UNAUTHENTICATED',
   'NOT_FOUND',
+  /** The record changed on another device. Carries both versions (M9 §28). */
+  'CONFLICT',
   'RATE_LIMITED',
   'INTERNAL_ERROR',
   'DEPENDENCY_UNAVAILABLE',
@@ -293,3 +303,9 @@ export const API_ROUTES = {
 /* -------------------------------------------------------------------------- */
 
 export * from './sources.js';
+
+/* -------------------------------------------------------------------------- */
+/* The student cloud (M9)                                                     */
+/* -------------------------------------------------------------------------- */
+
+export * from './student.js';

@@ -1036,3 +1036,79 @@ trigram index for search. Measured at 2,008 papers the planner uses
 (§23.14) — there is nothing for those indexes to improve, and an index no query
 reaches is write cost with no read benefit. They go in when a measurement asks
 for them.
+
+## 9.18 The student cloud schema (M9, Supabase 0001)
+
+A **separate migration lineage** from `services/api/src/db/migrations/`. Those
+run against the self-hosted database that holds reference data; these run
+against Supabase and hold student-owned data only (§7.16).
+
+Files: `services/api/src/db/supabase/0001_student_cloud.sql`, plus
+`0000_local_substrate.sql` which exists **only for tests** and never runs
+against Supabase (docs/22 §22.17).
+
+### Tables
+
+`student_profiles`, `semester_records`, `semester_subjects`,
+`semester_results`, `result_subjects`, `attendance_records`,
+`timetable_slots`, `backlog_records`.
+
+Every one carries:
+
+| Column | |
+|---|---|
+| `auth_user_id` | `NOT NULL DEFAULT auth.uid() REFERENCES auth.users ON DELETE CASCADE` |
+| `profile_id` | The structural parent |
+| `revision`, `updated_at`, `deleted_at` | Sync metadata (§8.17) |
+
+**Ownership is denormalised on purpose.** A policy that has to join to find the
+owner is a policy somebody can write subtly wrong, and it costs a lookup per
+row. `auth_user_id = auth.uid()` is a comparison nobody can misread.
+
+### Row-level security
+
+Every table: `ENABLE ROW LEVEL SECURITY` **and** `FORCE ROW LEVEL SECURITY`,
+with four explicit policies.
+
+```sql
+USING      (auth_user_id = (SELECT auth.uid()))   -- SELECT, UPDATE, DELETE
+WITH CHECK (auth_user_id = (SELECT auth.uid()))   -- INSERT, UPDATE
+```
+
+Three details that are load-bearing:
+
+- **`FORCE`** — without it, whichever role owns the table bypasses every policy.
+  It is the most commonly missed half of enabling RLS.
+- **`WITH CHECK` on UPDATE** — without it a student could update their own row
+  and hand it to somebody else by changing `auth_user_id`. Verified refused.
+- **`(SELECT auth.uid())`** rather than a bare call, so the planner evaluates it
+  once per statement instead of once per row.
+
+**There is no `USING (true)` anywhere in this file, and there may never be one
+for a student-owned table.** `anon` is granted nothing at all — the absence of a
+grant is a stronger statement than a policy that happens to match no rows.
+
+### The trigger
+
+`touch_row()` sets `updated_at` and increments `revision` on every update, with
+`SET search_path = ''`. Not the application's job: a client that forgot to bump
+`revision` would defeat conflict detection for every record it touched, and a
+client setting `updated_at` is asserting a clock nobody can verify.
+
+### Verified, not asserted
+
+Against the **live Supabase project**:
+
+| Attempt | Result |
+|---|---|
+| A reads all profiles | 1 row — their own |
+| A selects B's profile by owner id | 0 rows |
+| A updates B's row | 0 rows affected |
+| A deletes B's row | 0 rows affected |
+| A inserts a row owned by B | `42501` — policy violation |
+| A reassigns their own row to B | `42501` — `WITH CHECK` refused it |
+| `anon` selects from a student table | `42501` — permission denied |
+
+Supabase's security advisor reports no RLS findings. The one advisory it does
+report — leaked-password protection — is a dashboard setting, recorded in
+docs/25 §25.15 as outstanding.

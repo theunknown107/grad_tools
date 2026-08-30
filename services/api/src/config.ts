@@ -48,6 +48,36 @@ const configSchema = z.object({
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'silent']).default('info'),
 
+  /* -- The student cloud (M9) ---------------------------------------------- */
+
+  /**
+   * The Supabase project URL, e.g. https://<ref>.supabase.co.
+   *
+   * PUBLIC, not a secret: it is in every browser request already. Its presence
+   * is what turns authentication on — absent, the API serves the public
+   * surface only and every student route reports the feature as unavailable
+   * (docs/25 §25.15).
+   */
+  SUPABASE_URL: z.string().url().optional(),
+
+  /**
+   * The student-cloud connection string. **SECRET.**
+   *
+   * It must name the `authenticator` role. `postgres` and `service_role` both
+   * carry `bypassrls` and would turn every RLS policy in the schema into
+   * decoration — the API asserts this at startup and refuses to boot otherwise
+   * (docs/13 §13.17).
+   */
+  SUPABASE_DB_URL: z.string().min(1).optional(),
+
+  /**
+   * A privileged connection used for ONE operation: deleting an account, which
+   * has to remove a row from `auth.users`. **SECRET.** Optional, and where it
+   * is absent account deletion reports itself unavailable rather than half
+   * working (M9 §34, §44).
+   */
+  SUPABASE_ADMIN_DB_URL: z.string().min(1).optional(),
+
   /**
    * Master switch for all external source polling. Defaults off in every
    * environment (docs/25 §25.4). No ingestion exists in M5a; the variable is

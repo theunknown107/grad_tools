@@ -644,3 +644,53 @@ dated rights determination.
 
 The request logger redacts the `search` parameter's value from the logged URL
 (§12.13). The parameter's presence is kept; what a student typed is not.
+
+## 10.16 Endpoints — the student's own data (M9)
+
+### There is no identifier in any of these paths
+
+Every route is `me`. The owner comes from a signature this server verified, so
+there is nothing in a URL to substitute and no parameter that could name
+somebody else's records (M9 §42). **IDOR is not defended against here; it has
+no surface to attack.**
+
+| Route | |
+|---|---|
+| `GET /api/v1/me` | The signed-in identity and their profile, or `onboarded: false` |
+| `PUT /api/v1/me/profile` | Create or update. `baseRevision` mismatch → **409** with the server's version |
+| `GET /api/v1/me/sync?since=` | Everything changed since a cursor, **tombstones included** |
+| `POST /api/v1/me/sync` | Push local changes. One outcome per record |
+| `GET /api/v1/me/export` | Everything the cloud holds for this student (M9 §35) |
+| `DELETE /api/v1/me` | Delete the account and all of it (M9 §34) |
+
+### Authentication
+
+`Authorization: Bearer <access token>`. The server verifies the signature
+against the project's JWKS, plus issuer, audience and expiry with zero clock
+tolerance, and reads exactly one claim: `sub`. Email, provider and user
+metadata are **ignored for authorization** — an email can change, can be an
+Apple private relay, and can differ between providers for the same person.
+
+**Every authentication failure returns the same 401 and the same message.**
+Absent, malformed, expired, wrong issuer, bad signature — one answer, so the
+endpoint cannot be used as an oracle (M9 §23, §46).
+
+### A push is not all-or-nothing
+
+Each record comes back `applied`, `conflict` or `rejected` with a reason. One
+conflicting attendance row must not stop six other edits landing, and the
+student needs telling precisely which record needs them.
+
+A `rejected` record carries a sentence a person can act on — "Classes attended
+cannot be more than classes held" — never a constraint name.
+
+### Caching
+
+`Cache-Control: private, no-store` and `Vary: Authorization` on **every**
+response in this group, set once in middleware so no handler can forget.
+
+### The public/private line is unchanged
+
+Reference data, announcements and the question-paper library remain public and
+unauthenticated. Nothing that used to be local became public by acquiring a
+cloud copy, and a test asserts both halves (M9 §43).

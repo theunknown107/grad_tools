@@ -719,3 +719,84 @@ is committed; the corpus is gitignored.**
 | All five | `private` / `user_private` / `document_kind = 'unknown'`, **404 from the library by id and by file**, library total unchanged |
 
 The QA harness is scratch tooling and is not committed.
+
+## 22.17 M9 — authentication, authorization and sync
+
+**68 new tests.** 22 authorization (real PostgreSQL, real RLS), 29 sync rules,
+17 auth UI. Suite total 1,268, no skips.
+
+### The authorization matrix, against real row-level security
+
+Not a mock and not an application stub: a real PostgreSQL carrying the **same**
+`0001_student_cloud.sql` applied to Supabase, with `0000_local_substrate.sql`
+supplying the `auth` schema and roles the platform provides. The connection is
+`authenticator` — no `bypassrls` — exactly as in production.
+
+| | Result |
+|---|---|
+| A reads / updates their own profile | Allowed; revision bumped by the database |
+| A reads their own semesters | Sees exactly one — theirs |
+| A updates B's semester by naming its id | `conflict`; B's row untouched at revision 1 |
+| A deletes B's semester | B's row untouched, `deleted_at` still null |
+| A enumerates B's records | B's ids absent |
+| A exports | B's ids and name absent from the payload |
+| A reassigns their own row to B | Refused — `WITH CHECK` |
+| Directly at the database as A | B's row returns 0 rows |
+| Unauthenticated, all six routes | 401 |
+| Forged vs malformed vs absent token | Identical message |
+| `anon` at the database | `permission denied` |
+| The admin connection | `assertCloudRoleIsSafe` **rejects it** |
+| Reference data and papers | Still public |
+| `/me` responses | `private, no-store`, `Vary: Authorization` |
+
+### The same policies, against the live Supabase project
+
+Every row above was also exercised directly against the real project before any
+code was written on top of them (docs/09 §9.18). The local tests exist so a
+change that weakens them fails in CI.
+
+### The sync rules
+
+29 tests over pure functions, guarding the decisions that lose data:
+
+- A conflicted push updates **no** bookkeeping — otherwise the next push would
+  consider the local edit already sent and it would vanish silently.
+- A pull never overwrites a record edited in both places; it asks.
+- A cloud deletion of a locally-edited record asks rather than deleting.
+- Tombstones are pushed, so a deletion does not come back on the next pull.
+- Nothing destructive is ever the recommended first-sync choice.
+- `SYNC_LABEL` has a distinct, non-reassuring string per state, and starts at
+  `local_only` rather than `synced`.
+
+### Account isolation
+
+Tested against a **real IndexedDB** (`fake-indexeddb`), because the isolation
+*is* the key layout — a mocked repository would prove nothing. Two accounts,
+two key spaces, no overlap; signing out leaves the account's data in place.
+
+### Browser QA (real Chromium, `@axe-core/playwright`)
+
+Against a built bundle with the real Supabase project configured.
+
+| Checked | Result |
+|---|---|
+| axe violations — `/sign-in`, `/account`, `/` at 320/390/768/1280 | **0** |
+| Horizontal overflow | **0** |
+| Console errors | **0** |
+| Google, Apple and email options present | yes |
+| Password masked, `new-password` on create, `current-password` on sign-in | yes |
+| Recovery answer for an unregistered address | "If that address has an account…" — a **real round trip to Supabase Auth** |
+| Account page while signed out | says not signed in; no delete offered |
+| Local features with no account | calculators and degree reachable, no auth wall |
+| Offline: local page renders, client-side navigation works | yes |
+| Offline: the word "Synced" anywhere | **never** |
+| Keyboard: Tab reaches the password field | yes |
+| Bundle contains a service-role key, a real `sb_secret_`, or a database URL | **none** |
+| Bundle contains the publishable key | yes — browser-safe by design |
+
+### What browser QA did NOT cover
+
+**No sign-in was performed.** Google, Apple and email sign-in were not exercised
+end to end, no account was created, and no session was established in a browser.
+The screens render and the recovery endpoint answers; everything past that is
+`NOT VERIFIED` (M9 §63).
