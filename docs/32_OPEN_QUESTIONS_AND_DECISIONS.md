@@ -1239,3 +1239,35 @@ common. The fix would be a small "recent" or "pinned" row, not a return to the
 sidebar.
 
 **Decision needed:** after the Semester 5 pilot.
+
+### DEC-028 — One container primitive, and it draws a surface · **M9.5.1**
+
+**This is the third position the project has taken on containers, so the
+history matters.**
+
+| | Position | Why it moved |
+|---|---|---|
+| Pre-M9.3 | `Panel` draws a box, used 46 times | Every region carried identical weight; a screen of equal boxes has no hierarchy |
+| M9.3 | `Panel` draws nothing; `Section` is the default | Overshot: with nothing drawn anywhere a page is a column of hairlines on the page ground, and both references put content ON something |
+| **M9.5.1** | **`Panel` draws a surface; `Section` is deleted** | One primitive. Hierarchy comes from size, position and type — not from which regions are allowed a border |
+
+The M9.3 diagnosis was right and its remedy was the wrong lever. Equal weight
+was caused by every region being the same *size* in a single-column layout, not
+by the border. Two columns, a real type scale and a rail fixed the weight
+problem; the border was never the culprit.
+
+**What stops it oscillating again:** the rule is now about what hierarchy comes
+*from*, not about what a border is *for*. A future milestone that wants to
+remove borders must first say what will carry hierarchy instead.
+
+### DEC-029 — Dense collections get one surface, not fifty · **M9.5.1**
+
+The question `OQ-039` kept circling: the reference's list is made of cards, and
+2,008 papers as cards is an absurd page.
+
+**Both horns were false.** The reference's list is not fifty bordered cards — it
+is *one* bordered surface with dense rows and hairlines inside it. One border
+for the whole library, at the same row height GradTools already had.
+
+Applied to Question papers, Results (one panel per semester) and Attendance.
+`OQ-039` (pagination) is unaffected and stays open.

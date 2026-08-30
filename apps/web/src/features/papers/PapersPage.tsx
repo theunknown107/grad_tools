@@ -221,12 +221,25 @@ export function PapersPage() {
             : 'No paper matches those filters. Try a different subject, year or search term.'}
         </EmptyState>
       ) : (
-        <>
-          <p className={styles.count}>
-            {papers.length === total
-              ? `${String(total)} paper${total === 1 ? '' : 's'}`
-              : `Showing ${String(papers.length)} of ${String(total)} papers`}
-          </p>
+        /*
+          ONE MODULE, FIFTY ROWS (M9.5.1 §4).
+          Fifty bordered cards would be eight thousand pixels of decoration —
+          but the answer to that is not fifty rows floating on the page ground,
+          which is what it was. The reference's list is a single bordered
+          surface with dense rows and hairlines inside it, and that costs one
+          border for the whole library rather than fifty.
+        */
+        <Panel
+          title="Results"
+          flush
+          action={
+            <span className={styles.count}>
+              {papers.length === total
+                ? `${String(total)} paper${total === 1 ? '' : 's'}`
+                : `Showing ${String(papers.length)} of ${String(total)}`}
+            </span>
+          }
+        >
           <ul className={styles.list}>
             {papers.map((paper) => (
               <li key={paper.id}>
@@ -234,7 +247,7 @@ export function PapersPage() {
               </li>
             ))}
           </ul>
-        </>
+        </Panel>
       )}
     </div>
   );

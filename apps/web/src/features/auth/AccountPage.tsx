@@ -75,7 +75,7 @@ export function AccountPage() {
   const { identity } = state;
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page ?? ''} ${styles.settingsPage ?? ''}`}>
       <PageHeader title="Account" subtitle="Who you are signed in as, and what you can do." />
 
       <Panel title="Signed in">

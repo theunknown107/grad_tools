@@ -13,121 +13,19 @@
  * important than anything else. A screen made entirely of equal boxes has no
  * hierarchy at all; it just has boxes.
  *
- * These primitives exist so that a section can be a section and a row can be a
- * row. `Panel` is kept for the handful of places where a genuine container
- * earns itself — a form, an embedded document, a distinct sub-surface — and is
- * no longer the default answer to "how do I group these things".
+ * M9.5.1 revised that. The correction had kept going: with no container drawn
+ * anywhere, a page became one column of hairlines on the page ground, and both
+ * references put their content ON something. `Panel` (ui/index.tsx) is the
+ * surface again, and these primitives are what goes INSIDE one — a strip of
+ * figures, a list of rows, a bar, a quiet empty state.
  *
- * THE RULE THEY ENCODE: a border is for clarifying a grouping, not for drawing
- * a box. Where a heading and some space already say "these belong together",
- * the border adds nothing but weight.
+ * THE RULE THEY ENCODE: hierarchy comes from size, position and type, not from
+ * which regions are allowed a border. Every panel may have one; not every panel
+ * may be the largest thing on the screen.
  */
 
 import type { ReactNode } from 'react';
 import styles from './layout.module.css';
-
-/* -------------------------------------------------------------------------- */
-/* Section                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A titled region of a page. **No border and no background by default.**
- *
- * The heading, the spacing and the reading order do the grouping. This is the
- * default way to divide a screen; reach for `Panel` only when a container is
- * genuinely doing something a heading cannot.
- */
-export function Section({
-  title,
-  action,
-  description,
-  children,
-  tone = 'default',
-}: {
-  readonly title?: string | undefined;
-  /** A link or control belonging to the section, aligned with its heading. */
-  readonly action?: ReactNode;
-  readonly description?: string | undefined;
-  readonly children: ReactNode;
-  /**
-   * `attention` tints the heading only — never the whole region. A section that
-   * needs a student's eye does not need a coloured box around it (M9.3 §14).
-   */
-  readonly tone?: 'default' | 'attention';
-}) {
-  return (
-    <section className={styles.section}>
-      {title !== undefined && (
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle} data-tone={tone}>
-            {title}
-          </h2>
-          {action}
-        </div>
-      )}
-      {description !== undefined && <p className={styles.sectionDescription}>{description}</p>}
-      {children}
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Module                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A bordered surface holding one self-contained thing.
- *
- * ---------------------------------------------------------------------------
- * WHY THIS COMES BACK IN M9.5
- * ---------------------------------------------------------------------------
- *
- * M9.3 removed containers because the app had one and used it for everything,
- * which flattened every page into equal boxes. The correction overshot: with no
- * container at all, a page became a single vertical column of hairlines and the
- * eye had nothing to rest against.
- *
- * The application reference is neither. It is a wide main column of content
- * with a rail of small bordered modules beside it — and the modules are
- * bordered precisely because they are NOT part of the main reading order. A
- * module says "this is a separate thing you may look at". A section says "this
- * is the next part of what you were already reading".
- *
- * So: `Section` remains the default for the page's own content, and `Module` is
- * for the things beside it. The test before reaching for one is whether the
- * content would still make sense lifted off this page entirely. If yes, it is a
- * module. If it is the next paragraph of the page's argument, it is a section.
- */
-export function Module({
-  title,
-  action,
-  children,
-  tone = 'default',
-}: {
-  readonly title?: string | undefined;
-  readonly action?: ReactNode;
-  readonly children: ReactNode;
-  /** `accent` marks the single most important module on a screen. At most one. */
-  readonly tone?: 'default' | 'accent';
-}) {
-  return (
-    <section className={styles.module} data-tone={tone}>
-      {title !== undefined && (
-        /*
-          A div, not a <header>. Inside a <section> with no accessible name a
-          <header> still maps to the BANNER landmark, so a page of modules
-          announces a page of banners. The heading inside does the labelling
-          that matters.
-        */
-        <div className={styles.moduleHeader}>
-          <h2 className={styles.moduleTitle}>{title}</h2>
-          {action}
-        </div>
-      )}
-      {children}
-    </section>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* Metrics                                                                    */

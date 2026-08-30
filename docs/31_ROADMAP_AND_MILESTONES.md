@@ -609,3 +609,23 @@ link below 480px, a clipped area tab at 390px, and subject codes breaking one
 character per line in the timetable week grid between 900 and 1080px.
 
 **Theme customisation remains DEFERRED.** **VTU polling remains DISABLED.**
+
+## 31.11 M9.5.1 — visual fidelity pass · ✅ **DELIVERED**
+
+M9.5 fixed the architecture; the surfaces were still wrong. A third reading of
+the references — for micro-detail rather than structure — found that neither
+ever puts content directly on the page ground, and that their controls and
+navigation are markedly more generous than what had been shipped.
+
+`Panel` draws a surface again and the surface-less `Section` is deleted, so
+there is one container primitive rather than two. The bar is 64px with tabs
+8px apart; buttons gained side padding; the panel radius, the border value and
+the metric column cap were all measured off the references and corrected.
+Question papers, Results and Attendance moved to *one bordered surface with
+dense rows inside* — the reference's answer to density, and neither fifty cards
+nor fifty floating rows. `--settings-max` stops pages of prose and switches
+from spreading across a 1920px window.
+
+Both bundles got **smaller**. See `05` §5.19, `22` §22.23, `23` §23.20.
+
+**Theme customisation remains DEFERRED. VTU polling remains DISABLED.**

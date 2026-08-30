@@ -3,47 +3,52 @@
  * Authority: docs/05 §5.7. Every value is a token.
  */
 
-/* --- Panel: the neutral container. Not a "stat card". ---------------------- */
+/* --- Panel: the page's surface -------------------------------------------- */
 /*
- * Panel.
- *
  * ---------------------------------------------------------------------------
- * NO LONGER A BOX BY DEFAULT (M9.3 §7, §31)
+ * A SURFACE AGAIN (M9.5.1)
  * ---------------------------------------------------------------------------
  *
- * `Panel` was used 46 times, and because it drew a background, a border and a
- * radius, every region of every page carried identical visual weight. A screen
- * made of equal boxes has no hierarchy — it just has boxes.
+ * M9.3 stripped every container because the app had one and used it 46 times,
+ * so every region carried identical weight. The fix worked and then kept going:
+ * with nothing drawn at all, a page became a single column of hairlines on the
+ * page ground, and that is most of why the product still read as "the old app
+ * in violet" after two visual milestones.
  *
- * So the default is now a SECTION: a heading, a rule beneath it, and the
- * content. The grouping comes from the heading and the spacing, which is what
- * was doing the work anyway. `boxed` restores a real container for the few
- * places one is genuinely earned — a form, an embedded document, a distinct
- * sub-surface — and those places now stand out because they are rare.
+ * Both references put content ON something. The marketing site's panels are a
+ * faint hairline over a near-transparent fill; the application's task list and
+ * its whole right-hand rail are bordered cards. What neither does is give every
+ * region the same weight — hierarchy comes from SIZE, POSITION and TYPE, not
+ * from which regions are allowed a border.
+ *
+ * So `Panel` draws a surface again, and `Section` (ui/layout.tsx) stays
+ * surface-less for regions that are part of the page's own reading order. The
+ * distinction is no longer "container vs no container" but "a thing on the page
+ * vs the next part of the page".
  */
 .panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
   min-width: 0;
-}
-
-/*
- * The rare real container. On a phone it takes the mobile reference's larger
- * radius; on a desktop it stays tighter, because the reference's own desktop
- * panels are tighter and a 22px corner on a wide form looks inflated.
- */
-.panelBoxed {
   padding: var(--space-5);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
 }
 
-@media (min-width: 1024px) {
-  .panelBoxed {
-    border-radius: var(--radius-lg);
+/* Phones take the mobile reference's larger corner; a wide desktop form at the
+   same radius looks inflated. */
+@media (max-width: 767px) {
+  .panel {
+    border-radius: var(--radius-xl);
   }
+}
+
+/* Tints the HEADING, never the surface. A coloured box around a warning is the
+   thing M9.3 removed and it is not coming back (docs/05 §5.14). */
+.panel[data-tone='attention'] .panelTitle {
+  color: var(--warning);
 }
 
 .panelHeader {
@@ -69,8 +74,16 @@
   min-width: 0;
 }
 
+/*
+ * The body runs to the panel's edges, for a list whose rows draw their own
+ * dividers. The negative margin is what lets a divider reach the border, which
+ * is how the reference's list cards are built — rows separated edge to edge,
+ * not floating inside a padded box.
+ */
 .panelBodyFlush {
   min-width: 0;
+  margin: 0 calc(var(--space-5) * -1) calc(var(--space-5) * -1);
+  padding: 0 var(--space-5);
 }
 
 /* --- Button ---------------------------------------------------------------- */
@@ -80,7 +93,10 @@
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--touch-target-min);
-  padding: 0 var(--space-4);
+  /* 20px of side padding, not 16. Every button in both references is notably
+     wider than its label needs — that generosity is most of why the controls
+     read as considered rather than as form furniture. */
+  padding: 0 var(--space-5);
   border: 1px solid transparent;
   /* Pill, from both reference groups. It is the one shape they share. */
   border-radius: var(--radius-pill);
@@ -112,6 +128,7 @@
  * most confident fill this ground allows.
  */
 .primary {
+  padding: 0 var(--space-6);
   background: var(--action-bg);
   color: var(--action-fg);
   box-shadow: var(--glow-accent-soft);

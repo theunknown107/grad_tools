@@ -3,6 +3,7 @@
 .stack {
   display: flex;
   flex-direction: column;
+  max-width: var(--settings-max);
   gap: var(--space-4);
   max-width: var(--reading-max);
 }

@@ -30,22 +30,26 @@ export function Panel({
   action,
   children,
   flush = false,
-  boxed = false,
+  tone = 'default',
 }: {
   title?: string | undefined;
   action?: ReactNode;
   children: ReactNode;
+  /** Body runs to the panel's edges, for lists that draw their own rows. */
   flush?: boolean | undefined;
-  /** A real container. For forms and embedded documents, not for grouping. */
-  boxed?: boolean | undefined;
+  /** `attention` tints the heading. At most one per screen. */
+  tone?: 'default' | 'attention' | undefined;
 }) {
   return (
-    <section className={`${styles.panel ?? ''} ${boxed ? (styles.panelBoxed ?? '') : ''}`}>
+    <section className={styles.panel} data-tone={tone}>
       {title !== undefined && (
-        <header className={styles.panelHeader}>
+        /* A div, not a <header>: inside an unnamed <section> a <header> still
+           maps to the BANNER landmark, so a page of panels announces a page of
+           banners. The <h2> does the labelling that matters. */
+        <div className={styles.panelHeader}>
           <h2 className={styles.panelTitle}>{title}</h2>
           {action}
-        </header>
+        </div>
       )}
       <div className={flush ? styles.panelBodyFlush : styles.panelBody}>{children}</div>
     </section>
