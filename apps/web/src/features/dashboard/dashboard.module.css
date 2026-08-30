@@ -41,18 +41,29 @@
   margin: 0;
   font-size: var(--text-h1);
   line-height: var(--text-h1-lh);
-  font-weight: var(--weight-semibold);
-  letter-spacing: -0.02em;
+  /* Light and openly tracked, per the references. It is already the largest
+     thing on the page; it does not also need to be the heaviest. */
+  font-weight: var(--weight-light);
+  letter-spacing: var(--tracking-display);
 }
 
-/* A quiet state label, not a coloured pill: "in progress" is the normal case. */
+/*
+ * The one accent-tinted chip on the dashboard (M9.4 §15). It marks WHERE THE
+ * STUDENT IS, which is the single fact the whole screen is arranged around —
+ * and it earns the tint by being the only thing that has it.
+ *
+ * Still not colour alone: it reads "In progress" in words.
+ */
 .status {
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
-  font-weight: var(--weight-medium);
-  letter-spacing: 0.04em;
+  padding: 3px var(--space-3);
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-  color: var(--text-subtle);
+  color: var(--accent);
+  background: var(--accent-weak);
+  border-radius: var(--radius-pill);
 }
 
 /* -- Small links ----------------------------------------------------------- */

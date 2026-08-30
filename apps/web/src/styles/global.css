@@ -21,8 +21,16 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/*
+ * One ambient violet radial, fixed behind the whole product (M9.4 §9).
+ * `fixed` so it belongs to the window rather than to the scroll position — a
+ * glow that scrolls away is a decoration; one that stays is a room.
+ */
 body {
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: var(--ambient);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);
   font-size: var(--text-body);
@@ -37,18 +45,36 @@ body {
   overflow-x: hidden;
 }
 
+/*
+ * The references' headings are LIGHT and widely set, not bold and tight. The
+ * weight contrast that carries their hierarchy comes from size and colour, and
+ * from bolding one phrase inside an otherwise light line — never from making
+ * every heading heavy. So: page titles light, section headings medium, and
+ * `<strong>` inside a title is the emphasis device (M9.4 §11).
+ */
 h1,
 h2,
 h3,
 h4 {
   font-weight: var(--weight-semibold);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-tight);
   text-wrap: balance;
 }
 
 h1 {
   font-size: var(--text-h1);
   line-height: var(--text-h1-lh);
+  font-weight: var(--weight-light);
+  letter-spacing: var(--tracking-display);
+}
+
+h1 strong,
+h2 strong {
+  font-weight: var(--weight-semibold);
+}
+
+h2 {
+  font-weight: var(--weight-medium);
 }
 h2 {
   font-size: var(--text-h2);
@@ -75,6 +101,14 @@ select,
 textarea {
   font: inherit;
   color: inherit;
+}
+
+/* iOS zooms the viewport when a focused field is under 16px. Never let a
+   text field drop below it, whatever the surrounding type size. */
+input,
+select,
+textarea {
+  font-size: max(var(--text-body), 16px);
 }
 
 /* Digits must align vertically in every table and calculator (docs/05 §5.3). */

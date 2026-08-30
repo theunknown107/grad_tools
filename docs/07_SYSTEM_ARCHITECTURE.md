@@ -631,3 +631,34 @@ labels stop being legible at 360px.
 
 Resources come last, as links. Before M9.3 a question-paper list occupied the
 entire first screen on a phone.
+
+## 7.19 The interface layer after M9.4
+
+**No architecture changed.** No component was added to the tree, no route moved,
+no data flow altered, no dependency installed. M9.4 is a revaluation of
+`styles/tokens.css` plus targeted work in the stylesheets that consume it.
+
+That this was possible is the point of the token rule from §5.2: every colour,
+space, radius, shadow and duration is a custom property on `:root`, and
+components reference nothing else. Sixteen stylesheets changed appearance
+because one file changed values.
+
+### What did change in components
+
+| | |
+|---|---|
+| `AppShell` | One element added: a circular notifications link in the mobile top bar. Notifications is the destination a student needs from anywhere and the five-tab bottom bar cannot hold |
+| `Row` | One optional prop, `current`, marking at most one row in a list as the thing the student is looking for now. Used by the dashboard's Today list for the next class |
+| Everything else | Styling only |
+
+### The next class
+
+`Today` picks the first slot whose `endTime` is still ahead of the wall clock,
+comparing zero-padded 24-hour `"HH:MM"` strings — no date arithmetic and no
+timezone to get wrong. The class in progress is the one marked, not the one
+after it: a student glancing at their phone at 11:30 wants the room they should
+be walking into. After the last class the day's list is still shown and nothing
+is marked, which is the honest answer at 9pm.
+
+The mark is `data-current` on the row plus the word **Next**, so it survives a
+monochrome display and reaches a screen reader (docs/27 §27.5).

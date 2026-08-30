@@ -37,7 +37,7 @@
   font-size: var(--text-caption);
   line-height: var(--text-caption-lh);
   font-weight: var(--weight-semibold);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-subtle);
 }
@@ -66,13 +66,39 @@
  * that they stop reading as one summary and start reading as four unrelated
  * statistics. They group at the start of the line instead (M9.3 §10).
  */
+/*
+ * On a phone the strip becomes a MODULE, because a student's five headline
+ * figures are the one grouping on the dashboard that genuinely is a group —
+ * which is the test the mobile reference's rounded cards have to pass
+ * (M9.4 §24). Everything else on the screen stays a row.
+ */
 .metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 132px));
-  gap: var(--space-4) var(--space-6);
+  grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+  gap: var(--space-5) var(--space-4);
   margin: 0;
-  padding: var(--space-3) 0;
-  border-block: 1px solid var(--border);
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+
+/*
+ * On a desktop it goes back to being a strip. A wide bordered box around five
+ * numbers is the "giant stat card" the product has spent two milestones
+ * removing; `auto-fill` with a capped column keeps the figures grouped at the
+ * start of the line instead of spreading across the full width (M9.3 §10).
+ */
+@media (min-width: 768px) {
+  .metrics {
+    grid-template-columns: repeat(auto-fill, minmax(104px, 140px));
+    gap: var(--space-4) var(--space-7);
+    padding: var(--space-4) 0;
+    background: none;
+    border: 0;
+    border-block: 1px solid var(--border);
+    border-radius: 0;
+  }
 }
 
 .metric {
@@ -83,9 +109,12 @@
 }
 
 .metricLabel {
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
-  color: var(--text-muted);
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-subtle);
   white-space: nowrap;
 }
 
@@ -95,13 +124,18 @@
  *
  * Tabular figures so a column of numbers aligns on the decimal point.
  */
+/*
+ * The figure carries the emphasis and the label gets out of the way — the
+ * label/number relationship in both reference groups. Tabular so a column of
+ * them aligns, and tight tracking so 8.21 reads as one number.
+ */
 .metricValue {
   margin: 0;
-  font-size: var(--text-h2);
-  line-height: var(--text-h2-lh);
+  font-size: var(--text-h1);
+  line-height: var(--text-h1-lh);
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-display);
   color: var(--text);
 }
 
@@ -140,6 +174,35 @@
 
 .row:last-child {
   border-bottom: 0;
+}
+
+/*
+ * The next class. A hairline of accent down the left edge and an accent time —
+ * enough to find with a glance from across a corridor, and not so much that the
+ * row stops being part of its list.
+ */
+.row[data-current='true'] {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.row[data-current='true'] .rowLead {
+  color: var(--accent);
+  font-weight: var(--weight-medium);
+}
+
+.row[data-current='true'] .rowInner,
+.row[data-current='true'] .rowLink {
+  padding-left: var(--space-3);
+}
+
+.rowNext {
+  display: block;
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 .rowInner,
@@ -217,7 +280,7 @@
 
 .bar {
   inline-size: 100%;
-  block-size: 4px;
+  block-size: 6px;
   overflow: hidden;
   background: var(--border);
   border-radius: var(--radius-pill);
@@ -226,8 +289,9 @@
 .barFill {
   display: block;
   block-size: 100%;
-  background: var(--text-muted);
+  background: var(--accent);
   border-radius: inherit;
+  transition: inline-size var(--motion-base) var(--ease-enter);
 }
 
 /*
@@ -298,8 +362,8 @@
 
 .skeletonRow {
   block-size: 14px;
-  background: var(--surface);
-  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  border-radius: var(--radius-pill);
   animation: pulse 1.4s ease-in-out infinite;
 }
 

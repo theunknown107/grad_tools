@@ -491,3 +491,29 @@ every screen is exactly where an unsafe shortcut hides.
 explanation are now stated once per page rather than once per row. Repeating a
 warning until it is wallpaper is a real failure mode for a warning that matters
 (§13.19, on students dismissing what they have learned to skip).
+
+## 13.25 M9.4 — the visual redesign's security surface
+
+**Nothing security-relevant changed.** Recorded because a diff that touches
+every stylesheet is where an unsafe shortcut hides.
+
+| | |
+|---|---|
+| `dangerouslySetInnerHTML` | **Not introduced.** Still zero occurrences in the app |
+| Rendering | All text through JSX children; React escapes it (§13.9 unchanged) |
+| Auth, JWT, RLS, sync, cloud schema | **Untouched.** No file under `features/auth`, `sync/` or the API changed behaviour |
+| New dependencies | **None.** No icon pack, no CSS framework, no animation library |
+| `target="_blank"` | Still `rel="noopener noreferrer nofollow"` on every external link |
+| PII | No screen displays a field it did not display before |
+| Secrets | None added; the diff was scanned before commit |
+| Reference images | Third-party design work of unknown licence. **Gitignored, never committed** |
+
+### One real defect closed
+
+`.primaryLink` on the account screen rendered white text on `--accent` at
+**2.72:1** — a WCAG AA failure on the control that begins the sign-in flow.
+Introduced when the accent was revalued, and caught by the axe sweep before it
+shipped. The two-token split (`--accent` for text, `--action-bg` for fills)
+exists so the mistake cannot be made silently again; every remaining
+`background: var(--accent)` in the codebase is a progress-bar fill with no text
+on it.

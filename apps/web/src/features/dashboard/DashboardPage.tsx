@@ -279,6 +279,18 @@ function Today({
     .filter((slot) => slot.day === day)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
+  /*
+   * The next class that has not finished yet. Compared as "HH:MM" strings,
+   * which sort correctly because the format is zero-padded and 24-hour — no
+   * date arithmetic, and no timezone to get wrong.
+   *
+   * `undefined` once the day is over, and then nothing is highlighted, which is
+   * the honest answer at 9pm.
+   */
+  const now = new Date();
+  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const nextSlot = slots.find((slot) => slot.endTime > clock);
+
   return (
     <Section
       title={`Today · ${day}`}
@@ -303,6 +315,7 @@ function Today({
                 title={title ?? slot.subjectCode}
                 meta={title === null ? undefined : slot.subjectCode}
                 trailing={slot.room ?? undefined}
+                current={slot.id === nextSlot?.id}
               />
             );
           })}

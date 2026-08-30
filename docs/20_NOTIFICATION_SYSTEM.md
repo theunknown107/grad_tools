@@ -232,3 +232,17 @@ labelling rules in §20.8 continue to apply and continue to be rendered.
 
 **VTU polling remains DISABLED** (`OQ-026`, `OQ-006`). The redesign did not add
 a fetch, a toggle or an environment switch.
+
+## 20.16 M9.4 — presentation only
+
+Notification behaviour, scheduling, relevance, permission handling, source
+labelling and the VTU source gate are **unchanged**. No notice text, severity
+mapping or synthetic-content marking was altered.
+
+One navigation change touches notifications: the mobile top bar now carries a
+circular link to `/notifications`, because it is the one destination a student
+needs from anywhere and the five-tab bottom bar has no room for it. It is a
+link to the existing screen — no badge, no count, no polling.
+
+**VTU polling remains DISABLED** (`OQ-026`, `OQ-006`). M9.4 added no fetch, no
+toggle and no environment switch.

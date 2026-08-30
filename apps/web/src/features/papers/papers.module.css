@@ -181,14 +181,14 @@
   padding: 0 var(--space-3);
   font-size: var(--text-small);
   text-decoration: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
 }
 
 .open {
   font-weight: 600;
-  color: var(--accent-contrast);
-  background: var(--accent);
-  border: 1px solid var(--accent);
+  color: var(--action-fg);
+  background: var(--action-bg);
+  border: 1px solid transparent;
 }
 
 .external {

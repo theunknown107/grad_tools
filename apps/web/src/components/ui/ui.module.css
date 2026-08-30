@@ -28,11 +28,22 @@
   min-width: 0;
 }
 
+/*
+ * The rare real container. On a phone it takes the mobile reference's larger
+ * radius; on a desktop it stays tighter, because the reference's own desktop
+ * panels are tighter and a 22px corner on a wide form looks inflated.
+ */
 .panelBoxed {
-  padding: var(--space-4);
+  padding: var(--space-5);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xl);
+}
+
+@media (min-width: 1024px) {
+  .panelBoxed {
+    border-radius: var(--radius-lg);
+  }
 }
 
 .panelHeader {
@@ -51,7 +62,7 @@
   line-height: var(--text-caption-lh);
   font-weight: var(--weight-semibold);
   color: var(--text-subtle);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -72,7 +83,8 @@
   min-height: var(--touch-target-min);
   padding: 0 var(--space-4);
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  /* Pill, from both reference groups. It is the one shape they share. */
+  border-radius: var(--radius-pill);
   font-size: var(--text-small);
   font-weight: var(--weight-medium);
   cursor: pointer;
@@ -80,7 +92,14 @@
   transition:
     background-color var(--motion-fast) var(--ease-enter),
     border-color var(--motion-fast) var(--ease-enter),
+    box-shadow var(--motion-fast) var(--ease-enter),
+    transform var(--motion-fast) var(--ease-enter),
     color var(--motion-fast) var(--ease-enter);
+}
+
+/* A button that moves under the finger feels pressed. 1px is enough. */
+.button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .button:disabled {
@@ -88,17 +107,24 @@
   cursor: not-allowed;
 }
 
+/*
+ * The primary action, and the only button that glows (M9.4 §9). Violet on the
+ * dark theme, near-black ink on the light one — the same rule either way: the
+ * most confident fill this ground allows.
+ */
 .primary {
-  background: var(--accent);
-  color: var(--accent-contrast);
+  background: var(--action-bg);
+  color: var(--action-fg);
+  box-shadow: var(--glow-accent-soft);
 }
 .primary:hover:not(:disabled) {
-  filter: brightness(1.08);
+  background: var(--action-bg-hover);
+  box-shadow: var(--glow-accent);
 }
 
 .secondary {
   background: var(--surface-raised);
-  border-color: var(--border-strong);
+  border-color: var(--border);
   color: var(--text);
 }
 .secondary:hover:not(:disabled) {
@@ -118,6 +144,7 @@
 
 .danger {
   background: transparent;
+  border-color: var(--border);
   color: var(--danger);
   border-color: transparent;
 }
@@ -183,10 +210,10 @@
 .select {
   min-height: var(--touch-target-min);
   width: 100%;
-  padding: 0 var(--space-3);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   color: var(--text);
   font-size: var(--text-body);
   transition: border-color var(--motion-fast) var(--ease-enter);
@@ -194,7 +221,12 @@
 
 .input:hover:not(:disabled),
 .select:hover:not(:disabled) {
-  border-color: var(--text-subtle);
+  border-color: var(--border-strong);
+}
+
+.input:focus,
+.select:focus {
+  border-color: var(--accent);
 }
 
 .input[aria-invalid='true'] {
@@ -228,8 +260,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
+  padding: 3px var(--space-3);
+  border-radius: var(--radius-pill);
   font-size: var(--text-caption);
   line-height: var(--text-caption-lh);
   font-weight: var(--weight-medium);
@@ -332,6 +364,7 @@
   cursor: pointer;
   font-size: var(--text-small);
   color: var(--accent);
+  border-radius: var(--radius-sm);
   list-style: none;
   user-select: none;
 }
@@ -416,7 +449,7 @@
   display: flex;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: var(--text-small);
   line-height: var(--text-small-lh);
   border: 1px solid;

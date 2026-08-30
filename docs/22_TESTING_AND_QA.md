@@ -982,3 +982,63 @@ marketing language, pricing tiers, testimonials, hero sections and unsafe HTML.
 **All absent.** Two earlier matches were investigated and cleared: the only
 `linear-gradient` is the CSS-drawn `<select>` chevron, and every occurrence of
 `dangerouslySetInnerHTML` is a comment stating it is not used.
+
+## 22.21 M9.4 — the reference-driven redesign
+
+### What the suite says
+
+**39 files, 1294 tests, all passing.** Three are new; **none was changed,
+weakened, skipped or deleted.** That the other 1291 passed untouched is the
+useful result: the redesign is a token revaluation, so it could not have moved
+anything a behavioural test asserts, and the suite confirms it did not.
+
+The three new tests cover the one piece of new logic — which class the Today
+list marks as next:
+
+| Test | Why it exists |
+|---|---|
+| Marks exactly one class, the first not finished | An accent on three rows is a palette, not a pointer |
+| Marks the class in progress, not the one after it | At 11:30 a student wants the room they should be walking into |
+| Marks nothing once the day is over | A highlight that outlives the day lies about where the student should be |
+
+They needed `vi.useFakeTimers({ shouldAdvanceTime: true })`. A frozen clock
+makes every Testing Library `findBy*` hang until it times out, because those
+queries poll on real timers — the first attempt failed three times at 20s each
+for exactly that reason.
+
+### Browser QA — MANUALLY VERIFIED
+
+Real Chromium, production build, a synthetic semester-5 student seeded into
+IndexedDB, the clock pinned to a Monday morning so the Today list has classes in
+it. **Both themes**, twelve routes, four widths:
+
+| | Dark | Light |
+|---|---|---|
+| Routes x viewports | 12 x 4 | 12 x 4 |
+| axe violations (WCAG 2.0/2.1 A + AA) | **0** | **0** |
+| Horizontal overflow | **0px** | **0px** |
+| Console errors | **0** | **0** |
+
+Running the sweep in both colour schemes is new in M9.4 and is now the standard.
+A palette can pass contrast in one theme and fail in the other, and the only
+defect the redesign introduced — `.primaryLink` at 2.72:1 — was a
+dark-theme-only failure that a single-theme sweep would have shipped.
+
+### Visual QA — VISUALLY VERIFIED
+
+Screenshots were inspected against the reference images, not merely captured.
+Checked: type hierarchy and weight, the ambient radial, glow restraint (the
+primary action and the brand mark, nothing else), border and radius consistency,
+the metric strip in both its module and strip forms, the bottom bar's active
+pill, the next-class accent, and empty and loading states.
+
+### NOT VERIFIED
+
+- **No real device.** All viewport work is emulated Chromium. Nothing here is
+  real-device verified; `env(safe-area-inset-bottom)`, `backdrop-filter`
+  performance on a mid-range phone, and how the ambient radial reads on an OLED
+  panel are all untested on hardware.
+- **No browser but Chromium.** `backdrop-filter` and
+  `prefers-reduced-transparency` are unverified in Safari and Firefox. Both
+  degrade to a solid bar by design, so the failure mode is known even though the
+  behaviour is unobserved.
