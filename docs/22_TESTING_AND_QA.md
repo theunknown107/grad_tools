@@ -800,3 +800,41 @@ Against a built bundle with the real Supabase project configured.
 end to end, no account was created, and no session was established in a browser.
 The screens render and the recovery endpoint answers; everything past that is
 `NOT VERIFIED` (M9 §63).
+
+## 22.18 M9.1 — the sync correction pass
+
+**23 new tests.** 19 result-sync integration (real PostgreSQL, real RLS), 4 sync
+domain. Suite total **1,291, no skips**.
+
+### What the integration tests prove
+
+| | |
+|---|---|
+| Full round trip | A result plus three subject rows push, and every code, title, credit and grade comes back identical |
+| Per-subject revisions | An edit to one subject conflicts alone; its sibling still applies |
+| Tombstones | A deleted subject comes back from a pull as a tombstone, not as an absence |
+| Cascade | Deleting a result removes its subject rows |
+| **Delete before first sync** | A never-synced record pushed as deleted creates **nothing**, and is idempotent on retry |
+| **Ownership invariant** | A subject row attached to another student's result is `rejected` by the API and refused by the database when the API is bypassed |
+| Cross-user | A's pull contains none of B's subject rows |
+| Reassignment | A cannot move their own subject row to B |
+| Export | Contains A's result and its subjects, and none of B's |
+| **Partial push** | `[good, bad, good]` → `[applied, rejected, applied]`, both good records committed |
+
+### One owner for the test schema
+
+Both API cloud test files were dropping and recreating the schema in their own
+`beforeAll`, which interleaved: whichever ran second removed the other's
+fixtures mid-run. The reset moved to `global-setup.ts` — the same lesson, and
+the same fix, as the reference database in §22.2.
+
+### Browser QA (real Chromium)
+
+| Checked | Result |
+|---|---|
+| A result with three subjects renders: codes, grades, SGPA | all present |
+| axe violations — `/results`, `/account` at 320/390/768/1280 | **0** |
+| Horizontal overflow | **0** |
+| Console errors | **0** |
+| Account page while signed out; the word "Synced" | correct; never shown |
+| Storage scopes | `anon` and `u:<id>` keys never overlap |

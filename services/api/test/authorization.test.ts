@@ -28,7 +28,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import postgres from 'postgres';
-import { readFile } from 'node:fs/promises';
 import { loadConfig } from '../src/config.js';
 import type { Sql } from '../src/db/client.js';
 import { createApp } from '../src/http/app.js';
@@ -47,22 +46,11 @@ const describeDb =
     : describe;
 
 /*
- * THE CLOUD DATABASE IS A DIFFERENT DATABASE, not a different schema.
- *
- * The reference database's global setup drops and recreates `public` before
- * any test runs, which is right for reference data and would destroy the
- * student schema if the two shared a database. The separation is the same one
- * production has (docs/09 §9.18), so the tests exercise the real shape.
+ * THE CLOUD DATABASE IS A DIFFERENT DATABASE, not a different schema, and it is
+ * prepared ONCE in `global-setup.ts` rather than here. Two files each dropping
+ * the schema for themselves interleaved, and one removed the other's fixtures
+ * mid-run (M9.1).
  */
-async function applyCloudSchema(admin: Sql): Promise<void> {
-  const dir = new URL('../src/db/supabase/', import.meta.url);
-  await admin`DROP SCHEMA IF EXISTS public CASCADE`;
-  await admin`CREATE SCHEMA public`;
-  for (const file of ['0000_local_substrate.sql', '0001_student_cloud.sql']) {
-    const sqlText = await readFile(new URL(file, dir), 'utf8');
-    await admin.unsafe(sqlText);
-  }
-}
 
 /** Two synthetic students. Nothing here belongs to a person. */
 const A = 'aaaaaaaa-0000-4000-8000-00000000000a';
@@ -111,7 +99,6 @@ describeDb('the authorization matrix', () => {
     // A privileged connection on the CLOUD database, used ONLY to set up and
     // tear down fixtures — never by the application.
     admin = postgres(CLOUD_ADMIN_URL as string, { max: 2 }) as unknown as Sql;
-    await applyCloudSchema(admin);
 
     // The `authenticator` role: no bypassrls, exactly as in production.
     cloud = postgres(CLOUD_URL as string, { max: 5, prepare: false }) as unknown as Sql;

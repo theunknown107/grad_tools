@@ -430,6 +430,8 @@ Optional sign-in through Supabase Auth, `auth_user_id` as the only identity key,
 
 **What is NOT delivered, and is not a gap to quietly close:** a single real sign-in. Google and Apple provider configuration (dashboard, Apple Developer key, redirect allowlist) is outstanding, so **no Google, Apple or email sign-in has ever been performed** and no claim that they work appears anywhere in this repository. The screens render, and Supabase Auth's recovery endpoint answered a real request. Everything past that is NOT VERIFIED (`25` §25.15).
 
+**Corrected in M9.1.** Three defects found in review and fixed: `result_subjects` was in the schema but not in the sync, so a result could reach the cloud without the subjects it is made of; a record created and deleted before its first sync was being created by that sync; and one rejected record aborted the transaction, silently discarding every other record in the same push. See `08` §8.18, `09` §9.19, `10` §10.17, `13` §13.18, `22` §22.18.
+
 **Exit, as met:** authorization is enforced by the database, not the application — proven against the live Supabase project and by 22 tests against the same policies locally; there is no route that takes a student identifier; the API refuses to boot on a connection that can bypass RLS; a conflicted sync updates nothing; two accounts on one browser cannot see each other's records; signing out deletes nothing; account deletion cascades; export is RLS-scoped; 0 axe violations and 0 console errors across 320/390/768/1280; no secret in the browser bundle.
 
 ### M10 — Academic intelligence

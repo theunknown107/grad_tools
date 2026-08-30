@@ -51,16 +51,126 @@ const COLLECTIONS = [
   ['backlogs', 'backlogs'],
 ] as const;
 
+/**
+ * A result's subject rows, as they travel.
+ *
+ * ---------------------------------------------------------------------------
+ * THE SHAPE MISMATCH THIS BRIDGES (M9.1 §1)
+ * ---------------------------------------------------------------------------
+ *
+ * Locally a `SemesterResult` CONTAINS its subjects — one object with an array
+ * inside it, which is how the results screen reads and edits them. In the cloud
+ * they are their own rows, because each needs its own revision: two devices
+ * editing different subjects of the same result are not in conflict, and
+ * nesting them would make every such edit look like one.
+ *
+ * So the array is flattened on the way up and reassembled on the way down.
+ * Neither side changes shape to suit the other.
+ */
+interface LocalResultSubject {
+  readonly id: string;
+  readonly subjectCode: string;
+  readonly subjectTitle: string;
+  readonly credits: number;
+  readonly gradeLetter: string;
+}
+
+function subjectToRecord(
+  resultId: string,
+  subject: LocalResultSubject,
+  ordinal: number,
+): LocalRecord {
+  return {
+    id: subject.id,
+    collection: 'resultSubjects',
+    data: {
+      resultId,
+      subjectCode: subject.subjectCode,
+      subjectTitle: subject.subjectTitle,
+      credits: subject.credits,
+      gradeLetter: subject.gradeLetter,
+      ordinal,
+    },
+  };
+}
+
 async function collectLocal(repositories: RepositoryBundle): Promise<LocalRecord[]> {
   const records: LocalRecord[] = [];
+
   for (const [collection, key] of COLLECTIONS) {
     const items = await repositories[key].list();
     for (const item of items) {
       const { id, ...rest } = item as unknown as { id: string } & Record<string, unknown>;
+
+      if (collection === 'results') {
+        /*
+         * `subjects` is dropped from the result's own payload and sent as its
+         * own records. Leaving the array in would put it in the result's
+         * fingerprint, so editing one grade would mark the whole result changed
+         * — and the server would silently ignore the array anyway, since it is
+         * not an allowlisted column.
+         */
+        const { subjects, ...withoutSubjects } = rest as {
+          subjects?: readonly LocalResultSubject[];
+        } & Record<string, unknown>;
+
+        records.push({ id, collection, data: withoutSubjects });
+        (subjects ?? []).forEach((subject, ordinal) => {
+          records.push(subjectToRecord(id, subject, ordinal));
+        });
+        continue;
+      }
+
       records.push({ id, collection, data: rest });
     }
   }
+
   return records;
+}
+
+/**
+ * Writes a pulled subject row back into the result that owns it.
+ *
+ * A subject whose result this device has not pulled YET is skipped rather than
+ * dropped: the result arrives in the same pull, and the next sync carries the
+ * subject. Inventing a parent to hang it on would create a result the student
+ * never entered.
+ */
+async function applySubjectToResult(
+  repositories: RepositoryBundle,
+  subjectId: string,
+  data: Record<string, unknown>,
+  remove: boolean,
+): Promise<void> {
+  const resultId = data.resultId;
+  const results = await repositories.results.list();
+  const parent = results.find((candidate) =>
+    remove
+      ? (candidate as unknown as { subjects?: LocalResultSubject[] }).subjects?.some(
+          (subject) => subject.id === subjectId,
+        ) === true
+      : candidate.id === resultId,
+  );
+  if (parent === undefined) return;
+
+  const existing =
+    (parent as unknown as { subjects?: readonly LocalResultSubject[] }).subjects ?? [];
+  const without = existing.filter((subject) => subject.id !== subjectId);
+
+  const subjects = remove
+    ? without
+    : [
+        ...without,
+        {
+          id: subjectId,
+          subjectCode: String(data.subjectCode ?? ''),
+          subjectTitle: String(data.subjectTitle ?? ''),
+          credits: Number(data.credits ?? 0),
+          gradeLetter: String(data.gradeLetter ?? ''),
+        },
+      ];
+
+  await repositories.results.upsert({ ...parent, subjects } as never);
 }
 
 export interface SyncApi {
@@ -162,12 +272,30 @@ export function useSync(): SyncApi {
 
       const plan = planPull(body.records, local, bookkeeping);
 
-      for (const record of plan.upserts) {
+      /*
+       * Results are written BEFORE their subjects, so a subject arriving in the
+       * same pull as its parent finds one to attach to.
+       */
+      const parentsFirst = [...plan.upserts].sort(
+        (a, b) =>
+          Number(a.collection === 'resultSubjects') - Number(b.collection === 'resultSubjects'),
+      );
+
+      for (const record of parentsFirst) {
+        if (record.collection === 'resultSubjects') {
+          await applySubjectToResult(repositories, record.id, record.data, false);
+          continue;
+        }
         const entry = COLLECTIONS.find(([name]) => name === record.collection);
         if (entry === undefined) continue;
         await repositories[entry[1]].upsert({ id: record.id, ...record.data } as never);
       }
+
       for (const deletion of plan.deletions) {
+        if (deletion.collection === 'resultSubjects') {
+          await applySubjectToResult(repositories, deletion.id, {}, true);
+          continue;
+        }
         const entry = COLLECTIONS.find(([name]) => name === deletion.collection);
         if (entry === undefined) continue;
         await repositories[entry[1]].remove(deletion.id);

@@ -416,3 +416,15 @@ absent, deletion reports itself unavailable rather than half working.
 GradTools stores none, hashes none, and resets none (§11.12). There is no
 password column in any GradTools table, including the test substrate, and a
 test asserts no password appears in any sync payload or export.
+
+## 13.18 Corrections (M9.1)
+
+| ID | Threat | Control |
+|---|---|---|
+| T-69 | **Cross-student record grafting** — attaching a subject row to another student's result | A composite foreign key `(result_id, auth_user_id) → semester_results (id, auth_user_id)`. RLS would already have hidden the parent; the constraint makes the row impossible rather than merely invisible (docs/09 §9.19) |
+| T-70 | **Resurrection of a deleted record** — a record created and deleted before its first sync being created by that sync | A push of a never-synced record marked deleted writes nothing. The end state is absence, and it is idempotent (docs/10 §10.17) |
+| T-71 | **Collateral data loss from one bad record** — a constraint violation aborting a transaction and silently discarding every other record in the same push | Per-record savepoints. Verified with a `[good, bad, good]` push |
+
+T-71 is a data-integrity failure rather than an attack, and it is recorded here
+because its effect is the same as one: a student's edits disappearing with no
+error anyone sees.

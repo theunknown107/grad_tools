@@ -1112,3 +1112,52 @@ Against the **live Supabase project**:
 Supabase's security advisor reports no RLS findings. The one advisory it does
 report — leaked-password protection — is a dashboard setting, recorded in
 docs/25 §25.15 as outstanding.
+
+## 9.19 Result subjects, corrected (M9.1, Supabase 0002)
+
+Forward-only; `0001_student_cloud.sql` is released and was not edited.
+
+### What was missing
+
+`result_subjects` was created with ownership and a parent and **nothing else**:
+no `revision`, no `created_at`, no `updated_at`, no `deleted_at`, and no
+`touch_row` trigger. Every other student table has all five, because that is
+what sync needs to detect a change, order a pull and represent a deletion
+(§8.17). 0002 adds them.
+
+### The composite foreign key
+
+```sql
+ALTER TABLE semester_results
+  ADD CONSTRAINT semester_results_id_owner UNIQUE (id, auth_user_id);
+
+ALTER TABLE result_subjects
+  DROP CONSTRAINT result_subjects_result_id_fkey,
+  ADD CONSTRAINT result_subjects_belong_to_their_result
+    FOREIGN KEY (result_id, auth_user_id)
+    REFERENCES semester_results (id, auth_user_id) ON DELETE CASCADE;
+```
+
+Before this, `auth_user_id` and `result_id` were independent: RLS guaranteed a
+row's own owner matched the caller, and the old FK guaranteed the parent
+existed, but nothing tied the two together. A row owned by A could point at a
+result owned by B.
+
+The unique constraint on `(id, auth_user_id)` exists to be **referenced**, not
+to constrain anything new — `id` is already the primary key.
+
+`ON DELETE CASCADE` means deleting a result takes its subject rows with it,
+verified by test.
+
+### Verified
+
+| Attempt | Result |
+|---|---|
+| A adds a subject row to B's result, through the API | `rejected` — "That subject does not belong to one of your results." |
+| The same, directly at the database as A | Foreign key violation |
+| A reassigns their own subject row to B | Refused |
+| A pulls | B's subject rows absent entirely |
+| Deleting a result | Its subject rows cascade |
+
+Applied to the live Supabase project and to the local test database from the
+same file.
