@@ -1109,3 +1109,80 @@ analysis. The history is already legible as a list.
 cannot get from four numbers in a column. That needs the pilot.
 
 **Decision needed:** after the Semester 5 pilot, if at all.
+
+### DEC-024 — The viewport decides density; the system decides theme · **M9.4**
+
+**The question.** The M9.4 references are a dark violet desktop product and a
+light lavender phone app. The obvious implementation is a media query: dark
+above 768px, light below.
+
+**Rejected.** Keying theme to viewport means the product changes colour when a
+window is dragged across a breakpoint, a tablet is two different-looking
+applications depending on how it is held, and `prefers-color-scheme` — the one
+signal that actually states a preference — is overridden by a number that
+states nothing about the person.
+
+**Decided.** Dark is the default and the identity at every width. The light
+theme is the mobile reference's palette and arrives from the system preference.
+The mobile reference's real contribution is structural — large rounded modules,
+solid high-contrast pill actions, circular icon buttons, a bottom bar with an
+active indicator, tinted chips — and every one of those reads correctly in both
+themes.
+
+**Consequence.** Both themes must now pass QA. The full axe/overflow/console
+sweep runs twice, and the only defect M9.4 introduced was visible in one theme
+only.
+
+### DEC-025 — Two accent tokens, not one · **M9.4**
+
+**Decided** after `.primaryLink` shipped white text on `--accent` at 2.72:1.
+
+`--accent` is a text colour and must clear 4.5:1 on the ground. `--action-bg` is
+a fill and must clear 4.5:1 against the text on it. **No single mid-violet
+satisfies both**, and a system with one accent token guarantees that somebody
+eventually uses it for the wrong one.
+
+`--action-bg` is violet on dark and near-black ink on light. The rule beneath
+both is the same — the most confident fill this ground allows — so it stays one
+button rather than becoming two.
+
+**Enforcement is by convention, not by tooling.** Every remaining
+`background: var(--accent)` in the codebase is a progress-bar fill with no text
+on it, and the axe sweep in both themes is what catches a regression.
+
+### OQ-041 — Whether GradTools needs a real typeface · **opened by M9.4**
+
+**Why unresolved:** the references' display type is a light geometric grotesque,
+and the hierarchy depends on that lightness. The stack is
+`Inter, system-ui, …` with **no `@font-face`**, so on most machines it is not
+Inter at all — it is Segoe UI on Windows, San Francisco on macOS. `weight-light`
+and negative tracking approximate the reference well enough that the difference
+did not show up in visual QA, but the product does not currently control its own
+type.
+
+**What M9.4 chose:** not to load a webfont. A self-hosted variable face is
+40-120 kB against a 201 kB gzipped bundle, for a difference no student would
+name, and §20 forbids spending performance on visuals.
+
+**What would change the answer:** evidence that the system stack breaks the
+hierarchy somewhere real — a Linux machine with a poor `system-ui`, or a
+rendering that makes `weight-light` illegible at 25px.
+
+**Decision needed:** if a device is found where the hierarchy visibly fails.
+Not before.
+
+### OQ-042 — Whether the light theme is a real product or a fallback · **opened by M9.4**
+
+**Why unresolved:** the light theme was built because the mobile reference is
+light, and it is complete, tested and AA-clean. But nobody has used it. Every
+design judgement in M9.4 — how much ambience, how dark the ink on the pill, how
+tinted the chips — was made looking at the dark theme first.
+
+**What M9.4 chose:** ship both, treat dark as the identity, hold the light
+theme to the same QA bar rather than to a lower one.
+
+**What would change the answer:** pilot data on what students' phones are
+actually set to. If it is overwhelmingly light, the light theme is the product
+and the design priority inverts.
+
+**Decision needed:** after the Semester 5 pilot.

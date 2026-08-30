@@ -73,10 +73,11 @@
   padding: 0 var(--space-3);
   font-size: var(--text-small);
   font-weight: 600;
-  color: var(--accent-contrast);
+  color: var(--action-fg);
   text-decoration: none;
-  background: var(--accent);
-  border-radius: var(--radius-sm);
+  background: var(--action-bg);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--glow-accent-soft);
 }
 
 .linkButton:focus-visible,

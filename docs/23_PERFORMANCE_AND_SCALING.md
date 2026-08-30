@@ -615,3 +615,36 @@ The paper library's remaining height is 50 result rows, not decoration; the
 figure is measured against the 2,008-row synthetic library from §23.14.
 
 **The bundle budget is unchanged and was not renegotiated.**
+
+## 23.18 Measured in M9.4 — what the visual identity cost
+
+**No runtime dependency was added.** No CSS framework, no icon pack, no
+animation library. The whole visual language is custom properties and CSS.
+
+| | Before (M9.3) | After (M9.4) |
+|---|---|---|
+| JS | 693.76 kB (201.07 kB gzip) | **694.22 kB (201.25 kB gzip)** |
+| CSS | 55.49 kB (9.88 kB gzip) | **60.40 kB (10.69 kB gzip)** |
+
+CSS grew 4.9 kB (0.8 kB gzipped). Most of it is the second full theme block —
+the light palette is written out twice, once under `prefers-color-scheme` and
+once under `[data-theme]`, so a future toggle wins in both directions. That
+duplication is deliberate and cheap.
+
+The 0.46 kB of JS is the `current` prop on `Row`, the next-class lookup and the
+mobile top-bar link.
+
+### The effects, and why they are affordable
+
+| Effect | Cost |
+|---|---|
+| Ambient radial | One fixed background-image on `<body>`. Painted once, does not repaint on scroll |
+| `backdrop-filter` on two bars | Composited. Two elements, both small, both with a solid fallback under `@supports` and `prefers-reduced-transparency` |
+| Glow | `box-shadow`. Two elements per screen at most |
+| Bar fill transition | `inline-size` on a 6px bar — not a layout property on anything that matters |
+
+**No animated gradient, no parallax, no scroll-driven effect, no blurred
+background blob.** The only keyframe animation in the product remains the
+skeleton pulse, and it is still suppressed under `prefers-reduced-motion`.
+
+**The bundle budget is unchanged and was not renegotiated.**

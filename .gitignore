@@ -41,3 +41,10 @@ storage/
 # academic material. The pipeline reads them from disk; only derived metrics and
 # non-identifying fixtures reach the repository (M5A section 3).
 qpapers_and solutions_sample/
+
+# M9.4 design references — third-party work, licensing unknown. Local only.
+GradTools_M9.4_Reference_Images/
+
+# Seeded visual-QA output (docs/22 §22.21). Screenshots of synthetic data.
+.qa-screenshots/
+.qa-light/

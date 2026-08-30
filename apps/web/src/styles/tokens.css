@@ -1,53 +1,138 @@
 /**
  * GradTools design tokens.
  *
- * Authority: docs/05_UI_DESIGN_SYSTEM.md §5.2-§5.10
+ * Authority: docs/05_UI_DESIGN_SYSTEM.md §5.2-§5.10, §5.16 (M9.4)
  *
- * This file is the ONLY place a raw colour, spacing, radius, shadow, duration
- * or z-index value may be written. Components reference tokens exclusively, so
- * the visual system cannot decay component by component.
+ * This file is the ONLY place a raw colour, spacing, radius, shadow, glow,
+ * duration or z-index value may be written. Components reference tokens
+ * exclusively, so the visual system cannot decay component by component.
  *
- * Theme customisation is DEFERRED (M3 authorization §12). The architecture
- * below makes it cheap to add later: every themeable value is already a custom
- * property on :root, so a future theme system overrides properties rather than
- * rewriting components. No theme editor, picker or preset UI exists yet.
+ * ---------------------------------------------------------------------------
+ * M9.4: WHAT THE VIEWPORT DECIDES, AND WHAT IT DOES NOT
+ * ---------------------------------------------------------------------------
+ *
+ * The M9.4 references are two visual worlds: a deep violet-black product on
+ * desktop, and a light lavender application on phones. The obvious reading is
+ * "dark on wide screens, light on narrow ones". That is wrong, and it is worth
+ * writing down why, because it looks right until you build it.
+ *
+ * Keying theme to viewport means the whole product changes colour when someone
+ * drags a window across 768px. It means a tablet in landscape and the same
+ * tablet in portrait are different-looking applications. And it means the
+ * system preference — the one signal that actually tells us what a person
+ * wants — is ignored.
+ *
+ * So: THE VIEWPORT DECIDES DENSITY AND CHROME. THE SYSTEM DECIDES THEME.
+ *
+ * Dark is the default and the identity, at every width. The light theme is the
+ * mobile reference's palette, and it arrives when the operating system asks
+ * for it. What the mobile reference actually contributes is structural and
+ * survives in both themes: large rounded modules, a solid high-contrast pill
+ * for the primary action, circular icon buttons, a real bottom navigation bar
+ * with an active indicator, and soft tinted status chips.
+ *
+ * ---------------------------------------------------------------------------
+ * Theme customisation remains DEFERRED as a user feature (M9.4 §25). No
+ * picker, no accent selector, no per-user themes. The architecture below makes
+ * one cheap later: every themeable value is a custom property on :root, so a
+ * future milestone overrides properties instead of rewriting components.
  */
 
+/* ========================================================================== */
+/* DARK — the default, and the product's identity                             */
+/* ========================================================================== */
+
 :root {
-  /* --- Neutrals (light is the base) ------------------------------------- */
-  --bg: #ffffff;
-  --surface: #f7f8fa;
-  --surface-raised: #ffffff;
-  --border: #e3e6eb;
-  --border-strong: #c8cdd6;
-  --text: #12151a;
-  --text-muted: #5b6472;
-  /* Was #828C9B (3.40:1 on --bg) — an AA failure caught by the automated
-     contrast check in tests/visual-qa.mjs. Now 5.01:1 on --bg, 4.72:1 on
-     --surface, so it passes 4.5:1 on both. */
-  --text-subtle: #67707d;
+  /* --- Ground and surfaces ---------------------------------------------- */
+  /*
+   * Violet-black, not blue-black and not neutral. The references' foundation
+   * is barely a colour — it reads as black until a neutral grey is put beside
+   * it, and then it is clearly warm-violet. That trace of hue is what keeps
+   * the accent from looking bolted on.
+   */
+  --bg: #0b0a12;
+  --surface: #161423;
+  --surface-raised: #1e1b30;
+  /*
+   * Translucent, for surfaces that sit over the ambient glow and should let it
+   * through. Used sparingly: full-page glass is prohibited (M9.4 §10).
+   */
+  --surface-translucent: rgb(30 27 48 / 62%);
 
-  /* --- Accent and status ------------------------------------------------ */
-  --accent: #1f5fd6;
-  --accent-weak: #eaf1fd;
+  --border: #262238;
+  --border-strong: #3a3457;
+
+  /* --- Text -------------------------------------------------------------- */
+  --text: #f4f2fa;
+  --text-muted: #a49ec2;
+  --text-subtle: #8f88b0;
+
+  /* --- Accent ------------------------------------------------------------ */
+  /*
+   * Two violets, because one cannot do both jobs. `--accent` is a TEXT colour
+   * and must clear 4.5:1 on the ground; `--action-bg` is a FILL and must clear
+   * 4.5:1 against white sitting on it. A single mid-violet fails one or the
+   * other.
+   */
+  --accent: #a48bff;
+  --accent-weak: #1d1733;
+  --accent-border: #3d2f77;
   --accent-contrast: #ffffff;
-  /* #15803D scored exactly 4.50:1 on --success-weak, which axe rejected for
-     13px pill text. Darkened to 5.93:1. */
-  --success: #136b33;
-  --success-weak: #e8f6ed;
-  --warning: #b45309;
-  --warning-weak: #fdf2e3;
-  --danger: #b91c1c;
-  --danger-weak: #fdeaea;
-  --info: #0e7490;
-  --info-weak: #e5f6fa;
 
-  /* --- Focus ------------------------------------------------------------ */
+  /*
+   * The primary action. Dark: the violet fill. Light: near-black ink, as in
+   * the mobile reference. One rule underneath both — the most confident
+   * high-contrast fill this ground allows — so it is one button, not two.
+   */
+  --action-bg: #6d4de0;
+  --action-bg-hover: #7d5fe8;
+  --action-fg: #ffffff;
+
+  /* Secondary accent. Cyan appears in the references as a cool counterweight,
+     never as a second brand colour. Reserved for informational status. */
+  --info: #55d6e8;
+  --info-weak: #0d2a30;
+
+  /* --- Status ------------------------------------------------------------ */
+  --success: #4fd9a0;
+  --success-weak: #10281f;
+  --warning: #f0b445;
+  --warning-weak: #2b1f0b;
+  --danger: #ff8080;
+  --danger-weak: #2d1418;
+
+  /* --- Ambient illumination --------------------------------------------- */
+  /*
+   * The single environmental effect taken from the references: one soft violet
+   * radial, high on the page, behind everything. It is what makes the ground
+   * feel like a room rather than a swatch.
+   *
+   * ONE per page. Not per section, not per card. See --glow-* below for the
+   * focal effect, which is a different thing with different rules.
+   */
+  --ambient: radial-gradient(
+    120% 60% at 50% -10%,
+    rgb(109 77 224 / 22%) 0%,
+    rgb(109 77 224 / 7%) 38%,
+    transparent 72%
+  );
+
+  /* --- Glow -------------------------------------------------------------- */
+  /*
+   * Glow is FOCAL (M9.4 §9). It marks the one thing on a screen that carries
+   * the most emphasis — the primary action, a selected item — and it is
+   * meaningless the moment a second element has it. Two tokens exist so there
+   * is no reason to invent a third inline.
+   */
+  --glow-accent: 0 6px 24px -6px rgb(109 77 224 / 60%);
+  --glow-accent-soft: 0 4px 16px -8px rgb(109 77 224 / 45%);
+
+  /* --- Focus ------------------------------------------------------------- */
   --focus-ring: var(--accent);
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
 
-  /* --- Spacing (4px base scale) ----------------------------------------- */
+  /* --- Spacing (4px base scale) ------------------------------------------ */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -59,138 +144,208 @@
   --space-9: 48px;
   --space-10: 64px;
 
-  /* --- Layout ----------------------------------------------------------- */
+  /* --- Layout ------------------------------------------------------------ */
   --gutter: var(--space-4);
-  /*
-   * 1200px beside a 244px sidebar produced ~120-character lines, roughly
-   * double the comfortable measure. 960px keeps a dense table usable while
-   * bringing prose back to a readable width (M9.3 §4, §8).
-   */
-  --content-max: 960px;
+  --content-max: 1080px;
   --reading-max: 680px;
-  --sidebar-width: 244px;
+  --sidebar-width: 232px;
   --header-height: 56px;
-  --bottom-nav-height: 60px;
+  --bottom-nav-height: 64px;
 
-  /* --- Typography ------------------------------------------------------- */
+  /* --- Typography -------------------------------------------------------- */
   --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --text-display: 40px;
-  --text-display-lh: 44px;
-  --text-h1: 28px;
-  --text-h1-lh: 34px;
-  --text-h2: 22px;
-  --text-h2-lh: 28px;
-  --text-h3: 18px;
-  --text-h3-lh: 24px;
+  /*
+   * Tightened at the top of the scale (M9.4 §11). The references' page titles
+   * are large but LIGHT and widely set; the old 40/28 pairing was large and
+   * BOLD, which reads as loud rather than composed. Body and below are
+   * unchanged — an academic record is read, not admired.
+   */
+  --text-display: 32px;
+  --text-display-lh: 38px;
+  --text-h1: 25px;
+  --text-h1-lh: 32px;
+  --text-h2: 19px;
+  --text-h2-lh: 26px;
+  --text-h3: 16px;
+  --text-h3-lh: 22px;
   --text-body: 16px;
   --text-body-lh: 24px;
   --text-small: 14px;
   --text-small-lh: 20px;
   --text-caption: 13px;
   --text-caption-lh: 18px;
+  /* Navigation labels, section signposts, chip text. */
+  --text-micro: 11px;
+  --text-micro-lh: 15px;
 
+  --weight-light: 300;
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
 
-  /* --- Radii ------------------------------------------------------------ */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  /*
+   * Tracking. Large light type needs negative tracking to hold together; small
+   * uppercase labels need positive tracking to stay legible. Both are in the
+   * references and neither is a per-component decision.
+   */
+  --tracking-display: -0.022em;
+  --tracking-tight: -0.012em;
+  --tracking-label: 0.08em;
+
+  /* --- Radii -------------------------------------------------------------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  /* Mobile modules only. The reference's phone cards are notably rounder than
+     its desktop panels; that difference is real and intentional. */
+  --radius-xl: 22px;
   --radius-pill: 999px;
 
-  /* --- Shadows ---------------------------------------------------------- */
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 6%), 0 1px 3px rgb(0 0 0 / 8%);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 10%);
+  /* --- Shadows ------------------------------------------------------------ */
+  /* On a dark ground a shadow is nearly invisible; separation comes from
+     --border and from surface lightness instead (docs/05 §5.6). */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 8px 24px -12px rgb(0 0 0 / 70%);
 
-  /* --- Motion ----------------------------------------------------------- */
+  /* --- Motion ------------------------------------------------------------- */
   --motion-fast: 120ms;
   --motion-base: 200ms;
   --motion-slow: 280ms;
   --ease-enter: cubic-bezier(0.2, 0, 0, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 
-  /* --- Z-index scale ---------------------------------------------------- */
-  /* Applies UI/UX Pro Max's z-index-management rule: a defined scale rather
-     than ad-hoc values scattered through components. */
+  /* --- Z-index scale ------------------------------------------------------ */
   --z-base: 0;
+  --z-ambient: 1;
   --z-sticky: 10;
   --z-nav: 20;
   --z-overlay: 30;
   --z-toast: 50;
 
-  /* --- Touch ------------------------------------------------------------ */
+  /* --- Touch -------------------------------------------------------------- */
   --touch-target-min: 44px;
 }
 
+/* ========================================================================== */
+/* LIGHT — the mobile reference's palette, for systems that ask for it        */
+/* ========================================================================== */
+
 /*
- * Dark theme redefines ONLY values, never structure.
- *
- * Three states per docs/05 §5.10: an explicit choice stamps data-theme on the
- * root; the default "system" setting stamps nothing, so prefers-color-scheme
- * decides. Both blocks exist so a future toggle wins in either direction.
+ * Values only, never structure. Three states per docs/05 §5.10: an explicit
+ * choice stamps data-theme on the root; the default "system" setting stamps
+ * nothing, so prefers-color-scheme decides. Both blocks exist so a future
+ * toggle wins in either direction.
  */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #0f1115;
-    --surface: #161a21;
-    --surface-raised: #1d222b;
-    --border: #2a303b;
-    --border-strong: #3a4250;
-    --text: #eef1f5;
-    --text-muted: #9aa4b2;
-    /* Was #6F7987 (3.95:1 on dark --surface) — AA failure. Now 5.75:1. */
-    --text-subtle: #8b95a3;
 
-    --accent: #5b93f5;
-    --accent-weak: #16243d;
-    --accent-contrast: #0f1115;
-    --success: #4ade80;
-    --success-weak: #10241a;
-    --warning: #fbbf24;
-    --warning-weak: #2a1f0a;
-    --danger: #f87171;
-    --danger-weak: #2c1414;
-    --info: #22d3ee;
-    --info-weak: #0d2429;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg: #f2f1f9;
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --surface-translucent: rgb(255 255 255 / 78%);
 
-    /* Shadows are near-invisible on dark surfaces; separation comes from
-       --border instead (docs/05 §5.6). */
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
-    --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);
+    --border: #e4e1f1;
+    --border-strong: #cbc5e0;
+
+    --text: #16131f;
+    --text-muted: #57516e;
+    --text-subtle: #635c7d;
+
+    --accent: #5b34d4;
+    --accent-weak: #ede8fc;
+    --accent-border: #d3c7f7;
+    --accent-contrast: #ffffff;
+
+    /* Near-black ink, exactly as the mobile reference's primary buttons. */
+    --action-bg: #17141f;
+    --action-bg-hover: #2a2438;
+    --action-fg: #ffffff;
+
+    --info: #0b6f86;
+    --info-weak: #e3f5f9;
+
+    --success: #0f6b42;
+    --success-weak: #e4f5ec;
+    --warning: #9a5b06;
+    --warning-weak: #fbf0dd;
+    --danger: #b81c1c;
+    --danger-weak: #fdeaea;
+
+    --ambient: radial-gradient(
+      120% 60% at 50% -10%,
+      rgb(139 110 240 / 13%) 0%,
+      rgb(139 110 240 / 5%) 40%,
+      transparent 72%
+    );
+
+    --glow-accent: 0 8px 22px -10px rgb(23 20 31 / 45%);
+    --glow-accent-soft: 0 4px 14px -8px rgb(23 20 31 / 30%);
+
+    --shadow-sm: 0 1px 2px rgb(28 22 51 / 6%), 0 1px 3px rgb(28 22 51 / 8%);
+    --shadow-md: 0 10px 30px -12px rgb(28 22 51 / 18%);
   }
 }
 
-:root[data-theme='dark'] {
-  --bg: #0f1115;
-  --surface: #161a21;
-  --surface-raised: #1d222b;
-  --border: #2a303b;
-  --border-strong: #3a4250;
-  --text: #eef1f5;
-  --text-muted: #9aa4b2;
-  --text-subtle: #8b95a3;
+:root[data-theme='light'] {
+  --bg: #f2f1f9;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-translucent: rgb(255 255 255 / 78%);
 
-  --accent: #5b93f5;
-  --accent-weak: #16243d;
-  --accent-contrast: #0f1115;
-  --success: #4ade80;
-  --success-weak: #10241a;
-  --warning: #fbbf24;
-  --warning-weak: #2a1f0a;
-  --danger: #f87171;
-  --danger-weak: #2c1414;
-  --info: #22d3ee;
-  --info-weak: #0d2429;
+  --border: #e4e1f1;
+  --border-strong: #cbc5e0;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);
+  --text: #16131f;
+  --text-muted: #57516e;
+  --text-subtle: #635c7d;
+
+  --accent: #5b34d4;
+  --accent-weak: #ede8fc;
+  --accent-border: #d3c7f7;
+  --accent-contrast: #ffffff;
+
+  --action-bg: #17141f;
+  --action-bg-hover: #2a2438;
+  --action-fg: #ffffff;
+
+  --info: #0b6f86;
+  --info-weak: #e3f5f9;
+
+  --success: #0f6b42;
+  --success-weak: #e4f5ec;
+  --warning: #9a5b06;
+  --warning-weak: #fbf0dd;
+  --danger: #b81c1c;
+  --danger-weak: #fdeaea;
+
+  --ambient: radial-gradient(
+    120% 60% at 50% -10%,
+    rgb(139 110 240 / 13%) 0%,
+    rgb(139 110 240 / 5%) 40%,
+    transparent 72%
+  );
+
+  --glow-accent: 0 8px 22px -10px rgb(23 20 31 / 45%);
+  --glow-accent-soft: 0 4px 14px -8px rgb(23 20 31 / 30%);
+
+  --shadow-sm: 0 1px 2px rgb(28 22 51 / 6%), 0 1px 3px rgb(28 22 51 / 8%);
+  --shadow-md: 0 10px 30px -12px rgb(28 22 51 / 18%);
 }
+
+/* ========================================================================== */
+/* Density, by viewport                                                       */
+/* ========================================================================== */
 
 @media (min-width: 768px) {
   :root {
     --gutter: var(--space-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --gutter: var(--space-7);
   }
 }

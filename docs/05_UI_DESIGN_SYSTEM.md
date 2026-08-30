@@ -370,3 +370,108 @@ suppressed under `prefers-reduced-motion`.
 
 **The objective is not minimalism. It is appropriateness.** Replacing a
 prohibited pattern with a visually equivalent generic one is not compliance.
+
+## 5.16 The M9.4 visual language
+
+M9.3 fixed the structure. Every screen had the right information in the right
+order, and it still looked like an internal tool — correct, and anonymous.
+M9.4 gives the product a face.
+
+### The references, and what they actually were
+
+Five images were supplied. Grouped by content rather than by filename:
+
+| | What it is |
+|---|---|
+| Three images | One marketing site for a developer product: violet-black ground, one soft radial glow, light widely-tracked display type with a single bolded phrase, low-contrast panels defined by a hairline rather than a fill, pill buttons, one glowing primary action |
+| One image | A task-management **application**: deep ground, narrow sidebar, tinted selected row, small modules in a right rail, chips, compact task rows |
+| One image | Four **phone** screens of a travel app: lavender-white ground, white modules at a large radius, solid near-black pill buttons, circular icon buttons, tinted status chips, bottom navigation with an active indicator |
+
+**Three of the four "desktop" references are a landing page**, and GradTools is
+not one. What was taken from them is atmosphere, type and surface treatment.
+What was ignored is everything a marketing page does that an application must
+not: the hero, the centred manifesto, the decorative 3-D artwork, the
+feature-card grid, the closing call to action. The single reference that is a
+real application contributed the parts an application needs — sidebar, selected
+state, module scale, chips, dense rows.
+
+### The rule the mobile reference forced
+
+The obvious reading of "dark desktop, light mobile" is to key the theme to the
+viewport. It is wrong, and it looks right until it is built: the product then
+changes colour when a window is dragged across 768px, a tablet is two different
+applications depending on how it is held, and the one signal that actually says
+what a person wants — the system preference — is ignored.
+
+**The viewport decides density and chrome. The system decides theme.**
+
+Dark is the default and the identity, at every width. The light theme is the
+mobile reference's lavender palette and arrives when the OS asks for it. What
+the mobile reference really contributes is structural, and survives in both
+themes: large rounded modules, a solid high-contrast pill for the primary
+action, circular icon buttons, a bottom bar with an active indicator, and soft
+tinted chips.
+
+### Two violets, because one cannot do both jobs
+
+`--accent` is a **text** colour and must clear 4.5:1 on the ground.
+`--action-bg` is a **fill** and must clear 4.5:1 against the white sitting on
+it. A single mid-violet fails one or the other, and M9.4 began by finding
+exactly that failure: `.primaryLink` on the account screen was white text on
+`--accent` at **2.72:1**.
+
+`--action-bg` is violet in the dark theme and near-black ink in the light one —
+the mobile reference's black pill. One rule underneath both: *the most confident
+fill this ground allows*. It is one button, not two.
+
+### Glow and ambience are different things
+
+| | What it is | How many |
+|---|---|---|
+| **Ambience** (`--ambient`) | One soft violet radial, fixed behind the window | **One per page.** Fixed, not scrolling: a glow that scrolls away is decoration; one that stays is a room |
+| **Glow** (`--glow-accent`) | A focal cast under a single element | **One per screen.** The primary action, or the brand mark. A second one makes both meaningless |
+
+The sidebar's selected item deliberately does **not** glow. There is a selected
+item on every screen, and something that is always lit is not emphasis.
+
+### Typography
+
+The references' headings are **light and widely set**, not bold and tight. The
+hierarchy comes from size, colour, and from bolding one phrase inside an
+otherwise light line — never from making every heading heavy. Page titles and
+the dashboard's semester heading are `--weight-light` with `--tracking-display`.
+
+The top of the scale came down: display 40 to 32, h1 28 to 25, h2 22 to 19.
+Body and below are unchanged, because an academic record is read, not admired.
+Form fields are pinned to at least 16px so iOS does not zoom the page on focus.
+
+### Where the shapes come from
+
+| Token | Value | Why |
+|---|---|---|
+| `--radius-xl` | 22px | Mobile modules only. The reference's phone cards are markedly rounder than its desktop panels, and that difference is real |
+| `--radius-lg` | 16px | The same container on a desktop, where a 22px corner on a wide form looks inflated |
+| `--radius-pill` | 999px | Every button, every chip. It is the one shape both reference groups share |
+
+### The metric strip changes shape, not content
+
+On a phone it is a **module**: a student's five headline figures are the one
+grouping on the dashboard that genuinely is a group, which is the test the
+mobile reference's rounded cards have to pass. On a desktop it goes back to a
+bordered strip, because a wide box around five numbers is the giant stat card
+two milestones have been spent removing.
+
+## 5.17 What was NOT taken from the references
+
+Recorded so a later milestone does not "restore" them.
+
+| Not taken | Why |
+|---|---|
+| The hero section | GradTools opens on a student's own semester, not a headline |
+| Centred display type over a dark field | That is a landing page's opening move |
+| The 3-D chrome sphere and prism artwork | Decoration with no product meaning |
+| The feature-card grid | Marketing structure. The app has sections, not features |
+| A decorative code-editor panel | A screenshot of a different product |
+| The photographic backdrop behind the app window | The application is not a poster of itself |
+| Avatar stacks and "+8 people" | GradTools is single-player |
+| The closing call to action | There is nothing to sign up for on a dashboard |

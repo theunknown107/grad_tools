@@ -20,6 +20,7 @@
     "build": "pnpm -r build",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "qa:visual": "node tests/visual-qa.mjs",
+    "qa:visual:seeded": "node tests/visual-qa-seeded.mjs",
     "test:api": "vitest run --project api",
     "db:migrate": "pnpm --filter @gradtools/api migrate",
     "db:seed": "pnpm --filter @gradtools/api seed"

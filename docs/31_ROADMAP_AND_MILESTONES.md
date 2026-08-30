@@ -553,3 +553,33 @@ milestone to override values rather than rewrite components.
 semester and its status, which makes "Semester 5 · In progress" the natural
 reading of the screen. **The date is not in the code**, and no business logic
 derives a semester from the calendar (`ED-71`).
+
+## 31.9 M9.4 — reference-driven visual redesign · ✅ **DELIVERED**
+
+M9.3 made the product structurally right and left it looking anonymous. M9.4
+gives it a visual identity, derived from five supplied reference images rather
+than from a house style.
+
+Delivered: a revalued token system (violet-black dark default, lavender light
+theme, two-violet accent split, ambience and glow as separate tokens), a
+tightened type scale with light display weights, pill actions, mobile modules,
+a bottom bar with an active pill, a circular top-bar action, and a next-class
+accent on the dashboard's Today list.
+
+See `05` §5.16-5.17 for the visual language and the explicit list of what was
+*not* taken from the references, `07` §7.19 for the two component changes,
+`22` §22.21 for QA in both themes, and `23` §23.18 for the cost (no dependency;
++0.7 kB gzipped CSS).
+
+**Fixed while there:** `.primaryLink` on the account screen was white on
+`--accent` at 2.72:1 — a WCAG AA failure on the control that starts sign-in.
+
+**Theme customisation remains DEFERRED** (M9.4 §25). No picker, no accent
+selector, no per-user themes. The system now carries two complete themes driven
+by `prefers-color-scheme`, which is the architecture a future picker overrides
+rather than replaces.
+
+**Semester 5 pilot (7 September 2026):** the dashboard leads with the semester
+and its status, now marked with the product's one accent chip. **The date is
+still not in the code** and no business logic derives a semester from the
+calendar (`ED-71`).

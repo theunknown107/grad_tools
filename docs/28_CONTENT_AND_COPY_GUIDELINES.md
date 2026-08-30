@@ -454,3 +454,25 @@ costs exactly the week it mattered.
 `BCS502` is what a student types into a search box. "Computer Networks" is what
 they recognise on a timetable at 9am. Screens show the name and keep the code
 beside it as the secondary line.
+
+## 28.15 Copy in the M9.4 interface
+
+The redesign added exactly two pieces of user-visible text, which is the right
+number for a visual milestone.
+
+| New | What it does |
+|---|---|
+| **In progress** | The accent chip beside the semester. Already the word the app used; it is now the one tinted thing on the dashboard |
+| **Next** | Marks the next class in the Today list |
+
+Both follow the rule that has governed every status in this product: **the
+colour is never the message.** "Next" is a word. It reads on a monochrome
+display, it is announced by a screen reader, and it survives a student who
+cannot distinguish the violet from the grey beside it.
+
+### What was not added
+
+No headline was written for the dashboard. The reference sites open with a
+sentence about themselves; GradTools opens with "Semester 5 · In progress",
+which is a fact about the reader rather than a claim about the product. A
+redesign is the moment a marketing line gets smuggled in, and it did not.

@@ -742,3 +742,10 @@ response shape, status code, header or error contract was added, removed or
 altered**, and no API test changed. The redesign consumes exactly the fields the
 API already returned; where a screen now shows a subject name beside its code,
 the name was already in the payload and was simply not being rendered.
+
+## 10.22 M9.4 — no API change
+
+As with M9.3, the visual redesign is presentation only. **No endpoint, request
+shape, response shape, status code, header or error contract changed**, and no
+API test changed. Nothing new is requested from the server, and no field that
+was already being returned is now rendered from a different source.

@@ -131,6 +131,7 @@ export function Row({
   trailing,
   href,
   to,
+  current = false,
 }: {
   /** A time, a code, an index — the thing that anchors the row on the left. */
   readonly lead?: ReactNode;
@@ -140,10 +141,24 @@ export function Row({
   readonly trailing?: ReactNode;
   readonly href?: string | undefined;
   readonly to?: ReactNode;
+  /**
+   * The one row in this list the student is looking for right now — the next
+   * class, today. AT MOST ONE PER LIST: an accent on three rows is a palette,
+   * not a pointer (M9.4 §16).
+   *
+   * Marked in words as well as colour. `Next` is read aloud by a screen reader
+   * and survives a monochrome display, which a violet tick does not.
+   */
+  readonly current?: boolean;
 }) {
   const body = (
     <>
-      {lead !== undefined && <span className={styles.rowLead}>{lead}</span>}
+      {lead !== undefined && (
+        <span className={styles.rowLead}>
+          {lead}
+          {current && <span className={styles.rowNext}>Next</span>}
+        </span>
+      )}
       <span className={styles.rowBody}>
         <span className={styles.rowTitle}>{title}</span>
         {meta !== undefined && <span className={styles.rowMeta}>{meta}</span>}
@@ -153,7 +168,7 @@ export function Row({
   );
 
   return (
-    <li className={styles.row}>
+    <li className={styles.row} data-current={current ? 'true' : undefined}>
       {href !== undefined ? (
         <a className={styles.rowLink} href={href}>
           {body}

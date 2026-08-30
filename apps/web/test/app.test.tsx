@@ -9,7 +9,7 @@
  * data survives a round-trip through the repository boundary.
  */
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/dom';
 import { cleanup } from '@testing-library/react';
@@ -140,6 +140,76 @@ describe('dashboard', () => {
     expect(screen.getByText(/40 of 50 classes|40\/50 classes/)).toBeTruthy();
     expect(screen.getByText('80.0%')).toBeTruthy();
     expect(screen.queryByText('SAFE1')).toBeNull();
+  });
+
+  /*
+   * The next class is marked, and ONLY the next one (M9.4 §16). An accent on
+   * three rows is a palette, not a pointer, and a highlight that survives past
+   * the end of the day is a lie about where the student is supposed to be.
+   */
+  describe("today's next class", () => {
+    const monday = (id: string, startTime: string, endTime: string, subjectCode: string) => ({
+      id,
+      profileId,
+      day: 'Mon' as const,
+      startTime,
+      endTime,
+      subjectCode,
+      room: null,
+      faculty: null,
+    });
+
+    const schedule = [
+      monday('t1', '09:00', '10:00', 'EARLY'),
+      monday('t2', '11:00', '12:00', 'NEXTUP'),
+      monday('t3', '14:00', '16:00', 'LATER'),
+    ];
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /**
+     * A Monday, so the day has classes in it at all.
+     *
+     * `shouldAdvanceTime` matters: the clock has to be controllable AND still
+     * tick, because Testing Library's async queries wait on real timers. A
+     * frozen clock makes every `findBy*` in the test hang until it times out.
+     */
+    const atMondayTime = (time: string) => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(new Date(`2026-09-07T${time}:00`));
+    };
+
+    it('marks exactly one class, the first that has not finished', async () => {
+      atMondayTime('10:30');
+      const { bundle } = createMemoryRepositories({ timetable: schedule });
+      renderWith(<DashboardPage />, { repositories: bundle });
+
+      const marks = await screen.findAllByText('Next');
+      expect(marks).toHaveLength(1);
+      // The 11:00 class, not the 09:00 one that is already over.
+      expect(marks[0]?.closest('li')?.textContent).toContain('NEXTUP');
+    });
+
+    it('marks the class in progress rather than skipping to the one after it', async () => {
+      atMondayTime('11:30');
+      const { bundle } = createMemoryRepositories({ timetable: schedule });
+      renderWith(<DashboardPage />, { repositories: bundle });
+
+      const marks = await screen.findAllByText('Next');
+      expect(marks[0]?.closest('li')?.textContent).toContain('NEXTUP');
+    });
+
+    it('marks nothing once the day is over', async () => {
+      atMondayTime('21:00');
+      const { bundle } = createMemoryRepositories({ timetable: schedule });
+      renderWith(<DashboardPage />, { repositories: bundle });
+
+      // The classes are still listed; none of them is still ahead.
+      expect(await screen.findByText('LATER')).toBeTruthy();
+      expect(screen.queryByText('Next')).toBeNull();
+    });
   });
 });
 

@@ -259,8 +259,8 @@
 
 .primary {
   border: 1px solid var(--accent);
-  background: var(--accent);
-  color: var(--accent-contrast);
+  background: var(--action-bg);
+  color: var(--action-fg);
 }
 
 .primary:disabled {

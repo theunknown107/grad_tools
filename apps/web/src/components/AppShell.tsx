@@ -160,6 +160,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           GradTools
         </NavLink>
+
+        {/*
+          Notifications is the one destination a student needs from anywhere and
+          that the five-tab bottom bar cannot hold (M9.4 §22, §23). A circular
+          icon button in the top-right is where the mobile reference puts
+          exactly this, and it is where a thumb on a large phone can still
+          reach it while the other hand holds the page.
+        */}
+        <NavLink to="/notifications" className={styles.topAction ?? ''} aria-label="Notifications">
+          <BellIcon size={18} aria-hidden="true" />
+        </NavLink>
       </header>
 
       <div className={styles.body}>
