@@ -399,3 +399,58 @@ Unchanged. The document routes — import, process, extract, review — stay
 reachable only from the machine running the API, and any proxy in front of the
 API must not forward them. The three library reads and the file route are the
 public surface M8 adds.
+
+## 25.15 M9 deployment — the student cloud
+
+### New configuration
+
+| Variable | Secret? | Effect |
+|---|---|---|
+| `VITE_SUPABASE_URL` | Public | Browser: which project to authenticate against |
+| `VITE_SUPABASE_ANON_KEY` | Public | Browser: the publishable key. Reaches only RLS-protected tables, only as whoever is signed in |
+| `SUPABASE_URL` | Public | API: the issuer a token must carry, and where the JWKS lives |
+| `SUPABASE_DB_URL` | **SECRET** | API: the student cloud. **Must name `authenticator`** |
+| `SUPABASE_ADMIN_DB_URL` | **SECRET**, optional | Account deletion only |
+
+**Absent `SUPABASE_URL` or `SUPABASE_DB_URL`, the student routes are not
+mounted at all.** There is no half-configured state where `/api/v1/me` exists
+but cannot authorize anybody, and the web app reports that accounts are
+unavailable rather than showing a form that cannot work.
+
+### The connection string is the trust boundary
+
+`postgres` and `service_role` both carry `bypassrls`. Pointing `SUPABASE_DB_URL`
+at either would disable every RLS policy in the schema while leaving all the
+tests passing. **The API asserts the role at startup and refuses to serve
+student data otherwise.**
+
+### Never in a committed file, and never in a `VITE_` variable
+
+Everything prefixed `VITE_` is compiled into the browser bundle. The
+service-role key, the database password, OAuth client secrets, the Apple
+Sign-In private key and any JWT signing secret must reach the API through the
+platform's secret store and nothing else. Browser QA checks the built bundle for
+each of them (docs/22 §22.17).
+
+### Applying the schema
+
+`services/api/src/db/supabase/0001_student_cloud.sql`, a separate lineage from
+the reference migrations. `0000_local_substrate.sql` is **for tests only** and
+must never be applied to Supabase — it would attempt to redefine the platform's
+own auth schema.
+
+### Outstanding provider configuration
+
+Not code, and not done:
+
+| Item | Status |
+|---|---|
+| Google OAuth client + redirect URLs in the Supabase dashboard | **Outstanding** |
+| Apple Sign-In: Apple Developer account, Services ID, signing key | **Outstanding** |
+| Site URL and redirect allowlist for the deployed origin | **Outstanding** |
+| **Leaked-password protection** (HaveIBeenPwned check) | **Outstanding** — Supabase's advisor flags it, and email/password is now a supported method |
+| Email confirmation policy | Outstanding — the app handles both, and says "check your email" when confirmation is required |
+
+Until the first three are done, the Google and Apple buttons reach a provider
+that is not configured. That is a dashboard task, not a code one, and no claim
+that those methods work may be made before it is finished (docs/22 §22.17).

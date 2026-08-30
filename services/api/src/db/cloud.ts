@@ -1,0 +1,146 @@
+/**
+ * The student cloud connection.
+ *
+ * Authority: docs/09 §9.18 · docs/13 §13.17 · docs/25 §25.15 · M9 §15, §16, §44
+ *
+ * ---------------------------------------------------------------------------
+ * EVERY STUDENT QUERY RUNS AS THE STUDENT
+ * ---------------------------------------------------------------------------
+ *
+ * This module is the only way student data is reached, and it can only reach it
+ * on behalf of somebody. There is no "admin" path, no service-role client and
+ * no unscoped query helper — not because callers are trusted to avoid them,
+ * but because they do not exist to be called (M9 §44).
+ *
+ * Each request opens a transaction and, inside it:
+ *
+ *     SET LOCAL ROLE authenticated;
+ *     SET LOCAL request.jwt.claims = '<verified claims>';
+ *
+ * `auth.uid()` then resolves to the user the token was issued to, and every RLS
+ * policy on every student table compares against it. `SET LOCAL` is scoped to
+ * the transaction, so the role and the claims cannot leak into the next request
+ * that borrows the same pooled connection — which is the failure mode this
+ * whole shape has to get right.
+ *
+ * ---------------------------------------------------------------------------
+ * THE PROPERTY THIS BUYS
+ * ---------------------------------------------------------------------------
+ *
+ * **A bug in this API cannot expose one student's records to another.** A query
+ * that forgets its owner predicate returns the caller's rows; a query that asks
+ * for somebody else's id returns nothing. The application checks are still
+ * written and still tested, but they are the second lock on the door rather
+ * than the only one (M9 §15).
+ *
+ * The trust boundary is therefore the CONNECTION STRING, and it is documented
+ * as such: it must name `authenticator`, a role with no `bypassrls` and no
+ * inherited privileges. `postgres` and `service_role` both bypass RLS and would
+ * silently turn every policy in the schema into decoration.
+ */
+
+import postgres from 'postgres';
+import type { Sql } from './client.js';
+import type { Session } from '../auth/session.js';
+
+export interface CloudClientOptions {
+  /** An `authenticator`-role connection string. Never `postgres`, never `service_role`. */
+  readonly url: string;
+  readonly max?: number;
+}
+
+export function createCloudClient(options: CloudClientOptions): Sql {
+  return postgres(options.url, {
+    max: options.max ?? 10,
+    prepare: false,
+    // The API speaks ISO strings; the database keeps timestamps.
+    types: {},
+    onnotice: () => {
+      /* Notices are the schema's business, not an operational signal. */
+    },
+  }) as unknown as Sql;
+}
+
+/**
+ * Refuses to serve student data through a connection that can bypass RLS.
+ *
+ * A STARTUP ASSERTION, ON PURPOSE. Pointing this at a `postgres`-role URL is
+ * the single mistake that would quietly disable every authorization policy in
+ * the system while leaving all the tests passing — because the tests would
+ * still be running as `authenticated`. Failing to boot is the only response
+ * proportionate to that.
+ */
+export async function assertCloudRoleIsSafe(sql: Sql): Promise<void> {
+  const [row] = await sql<{ role: string; bypass: boolean; superuser: boolean }[]>`
+    SELECT current_user AS role,
+           rolbypassrls AS bypass,
+           rolsuper AS superuser
+    FROM pg_roles WHERE rolname = current_user
+  `;
+
+  if (row === undefined) {
+    throw new Error('Could not determine the role the student cloud connection uses.');
+  }
+  if (row.bypass || row.superuser) {
+    throw new Error(
+      `The student cloud connection uses "${row.role}", which bypasses row-level security. ` +
+        'Use an `authenticator` connection string; RLS is the authorization model (docs/13 §13.17).',
+    );
+  }
+}
+
+/**
+ * Runs a unit of work as one student.
+ *
+ * The claims are passed as a parameter rather than interpolated, so nothing in
+ * a token can reach the SQL text even in principle. They are the claims this
+ * server VERIFIED — not the ones the client sent — and the two are different
+ * objects for exactly that reason.
+ *
+ * `SET LOCAL ROLE authenticated` comes first and is never conditional. There is
+ * no branch in this function that runs a caller's work as anything else.
+ */
+export async function withUser<T>(
+  sql: Sql,
+  session: Session,
+  work: (tx: Sql) => Promise<T>,
+): Promise<T> {
+  return sql.begin(async (tx) => {
+    const claims = JSON.stringify({
+      sub: session.userId,
+      role: 'authenticated',
+      // Nothing else is forwarded. Email, provider and user metadata are not
+      // authorization inputs and have no business in a database session
+      // (M9 §7, §8).
+    });
+
+    await tx`SELECT set_config('role', 'authenticated', true)`;
+    await tx`SELECT set_config('request.jwt.claims', ${claims}, true)`;
+
+    return work(tx as unknown as Sql);
+  }) as Promise<T>;
+}
+
+/**
+ * Runs a unit of work as NOBODY, for the account-deletion path only.
+ *
+ * Deleting an account has to remove the `auth.users` row, which lives in a
+ * schema the `authenticated` role cannot write. That is the one operation this
+ * API performs with elevated rights, and it is deliberately:
+ *
+ *   - a single named function rather than a general escape hatch,
+ *   - reachable only from `DELETE /me`, which requires a verified session,
+ *   - scoped to the id in that session and no other,
+ *   - and documented as a trust boundary in docs/13 §13.17.
+ *
+ * If a lower-privilege path becomes available — Supabase's admin API behind a
+ * per-user token, say — this should be replaced by it rather than kept for
+ * convenience (M9 §44).
+ */
+export async function withAdminForDeletion<T>(
+  adminSql: Sql,
+  userId: string,
+  work: (tx: Sql, userId: string) => Promise<T>,
+): Promise<T> {
+  return adminSql.begin(async (tx) => work(tx as unknown as Sql, userId)) as Promise<T>;
+}

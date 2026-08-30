@@ -387,3 +387,67 @@ The synthetic papers seeded by `seed:demo-papers` are labelled **DEMO DATA** in
 the interface, carry a visibly fictional publisher, and are the only documents
 in the project that legitimately reach `host` — because GradTools wrote them and
 therefore holds the rights to them. `OQ-008` is untouched (M8 §42).
+
+## 12.14 The cloud is opt-in, and staying local is a real option (M9)
+
+### Before and after
+
+| | Where student data lives |
+|---|---|
+| Without an account | IndexedDB, on the device. Nothing is sent, ever |
+| With an account, before the first sync choice | Still only IndexedDB |
+| With an account, after the student chooses to sync | IndexedDB **and** Supabase, RLS-scoped to them |
+
+**Signing in uploads nothing.** The sign-in screen says so before the student
+acts, and the first-sync screen then asks explicitly what should happen to the
+records already on the device (M9 §51, §52). A student can sign in, read
+announcements, and never sync a thing.
+
+### The first-sync choice
+
+Both counts are shown — how many records are on this device, how many in the
+account — and four options are offered with their consequences stated:
+
+| Choice | What happens |
+|---|---|
+| Keep both | Device records are added to the account. Nothing is deleted |
+| Use this device's records | What is here becomes the account's records |
+| Use my account's records | The account's records are downloaded. The device copy is kept |
+| Keep this device only | Nothing is uploaded. Available from Account settings later |
+
+**Nothing destructive is ever the recommendation**, and "keep this device only"
+is always available and presented as an equal (M9 §54). The anonymous copy is
+never deleted by any of these choices.
+
+### Signing out
+
+Stops syncing. **Deletes nothing.** The records stay under the account's own
+storage scope and are there when the student signs back in (M9 §36). Clearing
+them is a separate, deliberate act.
+
+### Two people, one browser
+
+Local storage is bound to the account (§7.17). Two accounts read two key spaces
+and neither can reach the other's; an expired session reads the anonymous scope,
+because a session that can no longer be verified is not proof of identity
+(M9 §37).
+
+### Deletion
+
+`DELETE /api/v1/me` removes the `auth.users` row, and every student table
+cascades from it. **Complete deletion is the default and there is no retention
+exception** (M9 §34). The local copy is not touched, and the screen says so —
+deleting a cloud account is not consent to wipe someone's phone.
+
+### Export
+
+`GET /api/v1/me/export` returns everything the cloud holds for that student, as
+JSON, through the same RLS-scoped connection as every other read — so "only
+their own records" is a database guarantee, not a filter somebody remembered.
+No token, provider secret or other student's identifier appears in it.
+
+### What is still collected
+
+Unchanged from §12.11 plus an email address, which the identity provider holds.
+**Still no date of birth** (`DEC-008`), and USN remains optional because no
+feature requires it (M9 §33).

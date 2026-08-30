@@ -204,3 +204,19 @@ Derived from a small per-device record (§8.15):
 
 The delivery abstraction exists so that adding Web Push later changes a
 transport, not the notification model.
+
+## 20.13 M9 did not change notifications
+
+Notification read state and preferences remain **per-device and unsynced**
+(docs/08 §8.15, §8.17). "Read on my laptop" is not a fact about the student, and
+syncing it would make an account a requirement for a feature that does not need
+one.
+
+Web Push remains unbuilt. M9 introduced the identity it would need (`OQ-032`
+named this as the blocker), so it is now possible rather than impossible — but
+it was out of scope here and nothing about it was implemented (M9 §72).
+
+One consequence of account-bound storage worth recording: notification state is
+stored under the account scope like everything else, so signing in as a second
+account on one browser starts with a clean unread state rather than inheriting
+the first account's.

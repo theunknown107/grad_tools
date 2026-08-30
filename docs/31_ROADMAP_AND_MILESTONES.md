@@ -19,7 +19,7 @@
 | M6 | **Student academic core** | 1–2 weeks | ✅ **Complete** — the eight-semester degree |
 | M7 | **Announcements and notifications** | 1–3 weeks | ✅ **Complete** — framework delivered; VTU source still closed on `OQ-026` |
 | M8 | **Question-paper library** | 1–2 weeks | ✅ **Complete** — the library works; `OQ-008` keeps it nearly empty of real papers |
-| M9 | Authentication and cloud | 2–3 weeks | Optional sign-in; local-first still works |
+| M9 | **Authentication and cloud** | 2–3 weeks | Optional sign-in; local-first still works |
 | M10 | Academic intelligence | 1–2 weeks | No prediction claims; evidence shown |
 | M11 | Admin and data quality | 1 week | Operator can diagnose any failure |
 | M12 | Hardening | 1–2 weeks | Alpha readiness review passes |
@@ -419,14 +419,18 @@ Browse, search and filter past papers by subject, code, scheme, branch, semester
 
 **Exit, as met:** rights and presentation gates hold and are enforced by the database, not by the router; `private` and `blocked` are 404 rather than 403; the file route accepts an opaque id and nothing else; no URL is fetched or proxied; no structural count is presented without saying it was not checked by a person; 0 axe violations and 0 app console errors across 320/390/768/1280.
 
-### M9 — Authentication and cloud
-*New number. Anticipated by the repository boundary since M3, never scheduled.*
+### M9 — Authentication and cloud · ✅ **DELIVERED, providers not yet configured**
+*New number. Anticipated by the repository boundary since M3.*
 
-Optional sign-in, and a repository bundle backed by an API for students who choose it. `auth_user_id → student profile → academic records`, as `11` has always specified.
+Optional sign-in through Supabase Auth, `auth_user_id` as the only identity key, a student cloud in Supabase Postgres with row-level security on every table, an account-scoped local store, and a sync layer that detects conflicts instead of resolving them silently. See `07` §7.16–7.17, `08` §8.17, `09` §9.18, `10` §10.16, `11` §11.13, `12` §12.14, `13` §13.17, `22` §22.17.
 
-**LOCAL-FIRST MUST KEEP WORKING.** Signing in is an option, not a requirement, and a student who never does must lose nothing (`12`).
+**`DEC-022` reverses `11` §11.2.** Google and Apple were rejected there on privacy grounds; M9 adopts them anyway with the cost recorded rather than argued away (`11` §11.13).
 
-**Exit:** the local bundle and the API bundle are interchangeable at the boundary; no student record leaves the device without an explicit act.
+**LOCAL-FIRST STILL WORKS COMPLETELY.** No account, no network, no degradation — verified in a browser with the network cut.
+
+**What is NOT delivered, and is not a gap to quietly close:** a single real sign-in. Google and Apple provider configuration (dashboard, Apple Developer key, redirect allowlist) is outstanding, so **no Google, Apple or email sign-in has ever been performed** and no claim that they work appears anywhere in this repository. The screens render, and Supabase Auth's recovery endpoint answered a real request. Everything past that is NOT VERIFIED (`25` §25.15).
+
+**Exit, as met:** authorization is enforced by the database, not the application — proven against the live Supabase project and by 22 tests against the same policies locally; there is no route that takes a student identifier; the API refuses to boot on a connection that can bypass RLS; a conflicted sync updates nothing; two accounts on one browser cannot see each other's records; signing out deletes nothing; account deletion cascades; export is RLS-scoped; 0 axe violations and 0 console errors across 320/390/768/1280; no secret in the browser bundle.
 
 ### M10 — Academic intelligence
 Local embeddings, similarity ladder, clustering, topic matching, frequency analysis, evidence-first presentation.

@@ -486,3 +486,43 @@ implicitly.
 Seeding writes documents; it does not parse them. Structure appears in the
 library only after the existing pipeline has run over a paper, which is why a
 freshly seeded library shows no question counts.
+
+## 21.20 There is no admin plane over student data (M9)
+
+The existing decision holds and M9 strengthened it: **admins have no ordinary
+access to individual student academic records** (M9 §17).
+
+Not built, and not to be built without a separate approved decision:
+
+- Student search
+- "View this student's marks"
+- Profile lookup by email or USN
+- Account impersonation
+- A convenience SQL route
+
+There is no code path in the API that reads a student record without a verified
+session belonging to that student. `withUser` is the only way student tables are
+reached and it takes a session, not a user id.
+
+### The one privileged operation
+
+Account deletion has to remove a row from `auth.users`, a schema the
+`authenticated` role cannot write. That path is:
+
+- a single named function, not a general escape hatch;
+- reachable only from `DELETE /api/v1/me`, which requires a verified session;
+- scoped to the id in that session and no other;
+- documented as a trust boundary (docs/13 §13.17).
+
+If a lower-privilege route becomes available it should replace this rather than
+sit alongside it.
+
+### Operating the cloud
+
+Applying the schema: `services/api/src/db/supabase/0001_student_cloud.sql`, a
+separate lineage from the reference migrations (docs/09 §9.18).
+
+An operator checking the database directly is using a privileged connection and
+**is outside the authorization model** — that is what makes it an exceptional
+act rather than a routine one, and it is the reason no such connection is
+configured into the running API.

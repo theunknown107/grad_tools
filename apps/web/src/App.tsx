@@ -19,6 +19,9 @@ import { TimetablePage } from './features/timetable/TimetablePage.js';
 import { ProfilePage } from './features/profile/ProfilePage.js';
 import { PapersPage } from './features/papers/PapersPage.js';
 import { PaperDetailPage } from './features/papers/PaperDetailPage.js';
+import { SignInPage } from './features/auth/SignInPage.js';
+import { AccountPage } from './features/auth/AccountPage.js';
+import { FirstSyncPage } from './features/auth/FirstSyncPage.js';
 import { NotFoundPage } from './features/NotFoundPage.js';
 
 export function App() {
@@ -37,6 +40,9 @@ export function App() {
         <Route path="/papers/:id" element={<PaperDetailPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/sign-in" element={<SignInPage />} />
+        <Route path="/account" element={<AccountPage />} />
+        <Route path="/first-sync" element={<FirstSyncPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
 

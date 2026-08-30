@@ -327,3 +327,38 @@ API contract, visibly.
 The counts above are SQL an operator runs. There is no dashboard and no
 alerting for the library, and building one is deferred until there is enough
 volume to need it.
+
+## 24.16 Operating an authenticated service (M9)
+
+### What is worth watching
+
+| Signal | Why |
+|---|---|
+| 401 rate | A rise is either an expiry storm after a key rotation, or somebody probing |
+| 409 (conflict) rate on sync | Students genuinely using two devices. A spike suggests a sync bug, not user behaviour |
+| `rejected` outcomes per push | A client sending records the database refuses — a validation drift between app and schema |
+| Failed JWKS fetches | The verifier cannot reach the provider; every request will 401 until it can |
+| Cloud connection errors | Distinguish "Supabase unreachable" from "student's token bad": one is an outage, the other is not |
+
+### What is never logged
+
+**No token, no header, no request body.** The logger records method, request id
+and a URL with the `search` parameter redacted (§12.13). There is no
+student-identifying field in any log line: the `sub` claim is used to open a
+database transaction and is not written to a log.
+
+Consequences accepted deliberately: there are **no per-student engagement
+metrics**, and a support request cannot be traced to a person's records from
+logs alone. Adding either would require a change visible in this document.
+
+### The startup assertion
+
+The API refuses to boot if its student-cloud connection can bypass RLS
+(docs/13 §13.17). A crash loop with that message means the connection string
+names the wrong role — which is the failure that would otherwise be invisible.
+
+### Health
+
+`/health` and `/health/ready` are unchanged and report nothing about
+authentication. A readiness probe that failed when the identity provider blipped
+would restart a container that is serving the public surface perfectly well.

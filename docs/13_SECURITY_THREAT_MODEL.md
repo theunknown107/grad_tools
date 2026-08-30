@@ -374,3 +374,45 @@ opens are enumerated here rather than assumed closed.
 The only documents that legitimately reach that state are the ones GradTools
 itself authored, and the database's `document_host_requires_rights` gate is what
 makes that a rule rather than a habit (M8 §42).
+
+## 13.17 Student data leaves the device (M9)
+
+The first milestone where a breach could expose somebody's academic record.
+
+| ID | Threat | Control |
+|---|---|---|
+| T-52 | **IDOR** — reading another student's records | No route takes an identifier. Every student route is `me`, resolved from a verified signature. Ownership is then enforced again by RLS, so a bug in the API returns the caller's own rows rather than somebody else's |
+| T-53 | **Broken RLS** — policies present but not enforced | `FORCE ROW LEVEL SECURITY` on every table, and the API **refuses to boot** if its connection role carries `bypassrls`. Asserted at startup and by a test |
+| T-54 | **Privilege escalation via the app layer** | Express connects as `authenticator` — no `bypassrls`, no inherited privileges — and impersonates the caller per transaction. `postgres` and `service_role` are never used for student data |
+| T-55 | **Row hijacking** — reassigning a record to another owner | `WITH CHECK` on every UPDATE policy. Verified refused with `42501` |
+| T-56 | **Account takeover through a forged token** | RS256 verified against the project's JWKS; issuer, audience and expiry checked with zero clock tolerance |
+| T-57 | **Session theft via XSS** | Accepted and stated: tokens live in `localStorage` (docs/11 §11.13). Mitigated by there being no `dangerouslySetInnerHTML` anywhere and all external text rendered as text |
+| T-58 | **Token leakage into logs** | The request logger records method, id and a redacted URL. No header, no body, no token. A token never appears in a URL |
+| T-59 | **Service-role exposure** | No service-role key exists in any browser file, any committed file, or any `VITE_` variable. The one privileged path is account deletion, named and documented |
+| T-60 | **Email enumeration** | One 401 message for every authentication failure; recovery answers identically whether or not the address is registered |
+| T-61 | **Cross-account leakage in local storage** | Storage is account-scoped (§7.17). Two accounts read two key spaces |
+| T-62 | **Stale-session leakage on a shared device** | An `expired` session reads the anonymous scope, not the account's |
+| T-63 | **Malicious sync payload** | Only allowlisted columns are written from a payload. `auth_user_id`, `revision`, `profile_id` and the timestamps cannot be set by a client however the JSON is shaped |
+| T-64 | **Silent data loss through sync** | Conflicts are detected by revision and surfaced; nothing is overwritten without a person choosing. A conflicted push updates no bookkeeping, so the local edit cannot vanish |
+| T-65 | **Deletion bypass** | Deletion cascades from `auth.users`; there is no list of tables to fall out of date |
+| T-66 | **Export authorization** | The export runs through the same RLS-scoped connection as every read |
+| T-67 | **Cached student data** | `private, no-store` and `Vary: Authorization` on every `/me` response, set in middleware |
+| T-68 | **Compromised device** | Out of scope and stated as such: a person with the unlocked browser has the session. Sign-out and account deletion are the available responses |
+
+### The trust boundary, named
+
+**The `SUPABASE_DB_URL` connection string.** If it names `postgres` or
+`service_role`, every policy in the schema becomes decoration. The API asserts
+the role has no `bypassrls` at startup and refuses to serve student data
+otherwise — the only response proportionate to a mistake that leaves all the
+tests passing while protecting nothing.
+
+`SUPABASE_ADMIN_DB_URL` is the one privileged credential, used for one
+operation: removing an `auth.users` row during account deletion. Where it is
+absent, deletion reports itself unavailable rather than half working.
+
+### Passwords
+
+GradTools stores none, hashes none, and resets none (§11.12). There is no
+password column in any GradTools table, including the test substrate, and a
+test asserts no password appears in any sync payload or export.

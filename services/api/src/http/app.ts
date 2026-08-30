@@ -18,6 +18,9 @@ import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { LocalObjectStore, type ObjectStore } from '../documents/storage.js';
 import { createQuestionPaperRouter } from '../routes/question-papers.js';
+import { createStudentRouter } from '../routes/me.js';
+import { createCloudClient } from '../db/cloud.js';
+import { authConfigFor, createVerifier } from '../auth/session.js';
 import { createAnnouncementRouter } from '../routes/announcements.js';
 import { createDocumentRouter } from '../routes/documents.js';
 import { createReferenceRouter } from '../routes/reference.js';
@@ -46,6 +49,19 @@ export function createApp(
    * repository and outside any served directory (docs/25 §25.6.3).
    */
   store: ObjectStore = new LocalObjectStore(config.DOCUMENT_STORAGE_ROOT),
+  /*
+   * The student cloud, when this deployment has one (M9).
+   *
+   * Injected rather than constructed here so a test can supply an RLS-scoped
+   * connection to a local database and its own verifier, and so a deployment
+   * without Supabase configured simply has no student routes — rather than
+   * having them and failing at the first query.
+   */
+  cloud?: {
+    readonly sql: Sql;
+    readonly verify: ReturnType<typeof createVerifier>;
+    readonly deleteAccount?: (userId: string) => Promise<void>;
+  },
 ): Express {
   const app = express();
 
@@ -167,6 +183,32 @@ export function createApp(
   });
 
   app.use(createAnnouncementRouter(sql));
+  /*
+   * STUDENT ROUTES ARE MOUNTED ONLY WHERE A CLOUD EXISTS.
+   *
+   * A deployment with no Supabase configuration serves the public surface and
+   * nothing else — there is no half-configured state in which `/api/v1/me`
+   * exists but cannot authorize anybody (docs/25 §25.15).
+   */
+  const student =
+    cloud ??
+    (config.SUPABASE_URL !== undefined && config.SUPABASE_DB_URL !== undefined
+      ? {
+          sql: createCloudClient({ url: config.SUPABASE_DB_URL }),
+          verify: createVerifier(authConfigFor(config.SUPABASE_URL)),
+        }
+      : undefined);
+
+  if (student !== undefined) {
+    app.use(
+      createStudentRouter({
+        cloud: student.sql,
+        verify: student.verify,
+        ...(student.deleteAccount === undefined ? {} : { deleteAccount: student.deleteAccount }),
+      }),
+    );
+  }
+
   app.use(createQuestionPaperRouter(sql, store, config.allowedOrigins));
   app.use(createDocumentRouter(sql, store));
   app.use(createReferenceRouter(sql));

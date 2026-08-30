@@ -294,3 +294,75 @@ an improvisation.
 Unchanged and absolute: **GradTools never asks for, transmits or stores a
 student's VTU portal credentials.** Nothing in the announcement feature needs
 them, and no future feature may be designed to require them.
+
+## 11.13 Authentication as implemented (M9)
+
+### `DEC-022` — Google, Apple and email/password, superseding §11.2
+
+**Human decision, M9.** §11.2 chose an emailed magic link and explicitly
+rejected Google OAuth because it "adds a third-party dependency that learns
+which students use GradTools". That reasoning was sound and the decision has
+been reversed anyway, deliberately, with the cost recorded rather than argued
+away:
+
+- **What is given up.** Google and Apple learn that a person authenticated to
+  GradTools. That is a real disclosure to a third party and it was not
+  necessary under §11.2's design.
+- **What is gained.** Sign-in that works on a shared or slow connection without
+  waiting for an email, and a credential store GradTools still does not own.
+- **What did not change.** GradTools stores no password, hashes nothing, and
+  runs no reset flow. Supabase Auth owns all of it (§11.12).
+
+### The provider
+
+Supabase Auth, as `DEC-014` specified. Three methods:
+
+| Method | Status |
+|---|---|
+| Email and password | **Implemented.** Supabase Auth owns the credential entirely |
+| Google | **Implemented in code.** Provider configuration in the Supabase dashboard is outstanding |
+| Apple | **Implemented in code.** Needs an Apple Developer account and a Sign-In key; outstanding |
+
+The Google and Apple paths are one function — `signInWithOAuth({ provider })` —
+so they are the same code with a different argument. **Neither has been
+exercised against a real provider** (docs/22 §22.17), and no claim that they
+work may be made until one has been.
+
+### The boundary
+
+**One file imports the SDK**: `apps/web/src/repositories/cloud/supabase.ts`.
+The domain knows `Identity` and `AuthState` and does not know a provider exists
+(M9 §61). This is not portability for its own sake — a provider's concepts
+spread everywhere once allowed to, and then "can we change providers" has the
+answer "not without touching two hundred files".
+
+### Sessions
+
+The SDK's own browser mechanism, unchanged: tokens in `localStorage`, automatic
+refresh, cross-tab synchronisation. The reasoning is that the alternatives are
+worse, not that this is ideal:
+
+- An httpOnly cookie resists XSS reading the token but needs a same-site server
+  to set it; the API is a separate origin.
+- Memory-only storage loses the session on every refresh — several sign-ins a
+  day for a student utility.
+
+**So the accepted risk is stated rather than designed around: XSS in this app
+could read the access token.** Which is why there is no
+`dangerouslySetInnerHTML` anywhere in the codebase and every piece of external
+text is rendered as text (docs/13 §13.17).
+
+### What the app never trusts
+
+| Claim | Treated as |
+|---|---|
+| `sub` | The identity. The only thing anything joins on |
+| `email` | Display only. Can change, can be an Apple private relay, can differ per provider |
+| `app_metadata.provider` | Display only |
+| Any id in a request body or path | Nothing. There is no such parameter |
+
+### Account recovery
+
+Supabase's own flow. No custom reset token exists. The response is **identical
+whether or not the address is registered** — only a transport failure is
+reported — so the form cannot be used to enumerate accounts (M9 §23, §48).

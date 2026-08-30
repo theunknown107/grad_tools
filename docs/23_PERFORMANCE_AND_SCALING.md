@@ -513,3 +513,36 @@ is a problem at any size this product has.
 **Do not read scalability into this.** 2,008 synthetic rows on a local database
 says the design is not obviously wrong. It says nothing about a hosted database
 under concurrent load.
+
+## 23.15 Measured in M9 — the student cloud
+
+A synthetic four-year degree: **134 synced records** (8 semesters, 48 subjects,
+48 attendance rows, 30 timetable slots), through the RLS-scoped connection.
+
+| Operation | p50 | p95 |
+|---|---|---|
+| Read profile | 0.71 ms | 1.01 ms |
+| Full pull (a new device) | 2.73 ms | 4.31 ms |
+| Incremental pull (nothing new) | 1.84 ms | 3.14 ms |
+| Push one changed record | 1.63 ms | 2.67 ms |
+| Export everything | 2.62 ms | 3.93 ms |
+| Account deletion (cascade) | 0.91 ms | — |
+
+### What this says and does not say
+
+**RLS is not the cost.** A per-owner policy on an indexed column adds nothing
+measurable at this size, which is the number that matters — it removes the usual
+argument for enforcing authorization in the application instead.
+
+**A whole degree is small.** 134 records is what a student accumulates in four
+years, so a full pull is a single-digit-millisecond operation and there was no
+reason to build pagination into sync.
+
+**These are local-database figures.** They exclude the network, and the real
+deployment talks to Supabase across the internet — where round-trip time will
+dominate every row above. Nothing here should be read as a claim about hosted
+latency, which has not been measured.
+
+**Nothing blocks the UI on the cloud.** Local reads and writes never wait for a
+sync (M9 §40), so the numbers above set how quickly a sync finishes, not how
+quickly a screen appears.

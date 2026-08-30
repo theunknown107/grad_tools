@@ -16,7 +16,9 @@ import { ZodError } from 'zod';
 
 const STATUS_BY_CODE: Record<ErrorCode, number> = {
   VALIDATION_FAILED: 400,
+  UNAUTHENTICATED: 401,
   NOT_FOUND: 404,
+  CONFLICT: 409,
   PAYLOAD_TOO_LARGE: 413,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,

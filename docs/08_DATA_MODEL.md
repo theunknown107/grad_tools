@@ -791,3 +791,60 @@ Unchanged and load-bearing (M8 §6):
 A paper can have excellent provenance and unknown rights. `source_url IS NOT
 NULL` never implies `presentation = 'host'`, and no code path treats it as
 though it did.
+
+## 8.17 The student cloud (M9)
+
+The local domain types are unchanged. What M9 adds is a cloud representation of
+the same entities, plus the metadata that makes syncing them safe.
+
+### Identity is not the profile
+
+```
+Supabase Auth user ──► auth_user_id ──► student_profile ──► academic records
+```
+
+They are 1:1 and **separate entities** (docs/11 §11.10a), which is what lets an
+email change, a provider switch or a provider link happen without touching a
+single academic record. `auth_user_id` is the only identity key; never email,
+never USN, never name (M9 §7, §12).
+
+### What syncs, and what deliberately does not
+
+| Synced | Not synced |
+|---|---|
+| Profile, semesters, semester subjects, results, attendance, timetable, backlogs | Notification read state and preferences — per-device by design (§8.15) |
+| | Anything derived: SGPA, CGPA, attendance percentages |
+| | UI state, cached reference data |
+
+**No computed value is ever stored or accepted from a device** (M9 §29, §30).
+`sgpa_asserted` is what the grade card says — a fact the student read off a
+document. The computed figure is derived on read by `@gradtools/academic-rules`
+from the subjects and the pinned rule set. Storing a client's arithmetic would
+create a second engine that disagrees with the first.
+
+### Sync metadata
+
+Every synced row carries three extra columns:
+
+| Column | Why |
+|---|---|
+| `revision` | Bumped by a database trigger on every write. A client sends the revision it read; a mismatch is a **conflict**, not an overwrite |
+| `updated_at` | The pull cursor. Set by the database, never by a device |
+| `deleted_at` | A **tombstone**. A row that simply vanished is indistinguishable from one the other device has not seen yet, and would be resurrected on the next pull |
+
+**Timestamps alone cannot detect conflicts.** Two devices with skewed clocks
+produce a confident, wrong winner — and for an attendance counter that means a
+number silently going backwards.
+
+### Attendance is the hard case
+
+Counts, not events (§8.9). Two devices editing the same subject produce two
+absolute states, not two increments: they cannot be added (that double-counts)
+and cannot be reconciled by timestamp (a stale device would erase a newer
+count). So attendance conflicts are **detected and shown to the student**
+(M9 §28).
+
+### Still no date of birth, and USN is still optional
+
+`DEC-008` holds. No feature requires a USN, so nothing makes it mandatory, and
+nothing joins on it (M9 §33).
