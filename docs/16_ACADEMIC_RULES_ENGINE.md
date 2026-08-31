@@ -450,3 +450,74 @@ pinned rule set is unavailable, or when the rules refused to grade it. In every
 case the figure is `null` and the reason is named. **None of the three is
 treated as a zero**, none is re-graded under a substitute, and none is counted
 towards highest, lowest or any delta — the M6 correction, re-pinned by test.
+
+## 16.13 `evaluateCourseResult` — did this course pass?
+
+Added after inspecting five real academic artifacts (two college timetables,
+two VTU provisional results, one VTU draft examination timetable). **The images
+are not committed**: they carry a real seat number, name and staff contact
+numbers, and are gitignored.
+
+### The question a real result card actually poses
+
+A VTU provisional result prints **Subject Code · Subject Name · Internal ·
+External · Total · Result · Announced on**. It prints **no grade letter, no
+grade point, no credits, no SGPA and no CGPA.**
+
+`validateCourseMarks` checked a row was well formed and `calculateRequiredMarks`
+answered what was still needed, but nothing answered *what already happened*.
+That gap is where a hard-coded threshold ends up in a component.
+
+### The three heads (22OB 6.3)
+
+| Head | Rule | Under VTU 2022 |
+|---|---|---|
+| CIE eligibility | `internal >= cieMinPct% of CIE max` | 40% of 50 = **20** |
+| SEE | `external >= seeMinPct% of SEE scale` | 35% of 50 = **17.5** |
+| Overall | `total >= overallMinPct% of course max` | 40% of 100 = **40** |
+
+All three must hold; failing any one carries the course.
+
+### The product's "below 18" is this rule, not a new one
+
+The requirement was stated as *"a backlog if the external is below 18"*. That is
+**35% of the 50-mark printed SEE scale = 17.5**, so 18 is the smallest whole
+mark clearing it. The number is derived from `seeMinPct`, never written down,
+and two tests pin the boundary at 17 and 18 so the engine and the product
+statement cannot drift apart.
+
+Corroborated by the artifacts: a Semester 1 row with a row sitting exactly on the SEE boundary,
+is printed **P**; the mark itself is withheld.
+
+### The case that makes a bare threshold dangerous
+
+A real Semester 4 card shows a Physical Education row:
+
+```
+internal above the CIE maximum · external 0 · Result: P
+```
+
+Read as *"external below 18 means a backlog"*, that row is a failure. **It is
+not.** The course is assessed on CIE alone over the whole course maximum
+(22OB 6.1(3)): there is no SEE to fall short of, and the external column is
+structurally zero.
+
+So the SEE head returns **`not_applicable`**, a third outcome distinct from
+`passed` — collapsing the two would make "passed every head" true of a course
+never examined. `hasSee`, which `validateCourseMarks` already carried, is what
+separates them.
+
+**`hasSee` is reference data and is never inferred from the marks.** An external
+of 0 is equally consistent with "no SEE" and with "sat the SEE and scored
+nothing", and those have opposite outcomes. A test pins both readings of the
+same mark row.
+
+Getting this wrong would tell a student they have a backlog in a subject the
+university has passed them in.
+
+### Coverage
+
+100% statements, branches, functions and lines — the standard this package
+holds. One defensive branch for non-finite minima was **removed rather than
+tested**: it is unreachable, and unreachable code is what that standard exists
+to surface.

@@ -394,6 +394,37 @@ describe('bunk planner', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('results', () => {
+  /*
+   * SUBJECT COUNT IS DATA, NOT LAYOUT.
+   *
+   * Real VTU semesters do not carry a fixed load: a first semester runs to
+   * eight subjects and a fourth to nine, and a curriculum with a different
+   * elective pattern will differ again. Nothing in the app assumes a count —
+   * every result renders from `result.subjects` — and these two cases exist so
+   * that a future layout cannot quietly introduce one by padding to a grid.
+   */
+  it.each([
+    { count: 8, semester: 1 },
+    { count: 9, semester: 4 },
+  ])('renders all $count subjects of a $count-subject semester', async ({ count, semester }) => {
+    const subjects = Array.from({ length: count }, (_, index) => ({
+      code: `BXX${String(semester)}0${String(index)}`,
+      credits: 3,
+      grade: 'A',
+    }));
+    const { bundle } = createMemoryRepositories({
+      results: [result('r1', semester, null, subjects)],
+    });
+    renderWith(<ResultsPage />, { repositories: bundle });
+
+    await screen.findByText(subjects[0]?.code as string);
+    for (const subject of subjects) {
+      expect(screen.getByText(subject.code)).toBeTruthy();
+    }
+    // No padding rows invented to fill a layout.
+    expect(screen.queryByText(`BXX${String(semester)}0${String(count)}`)).toBeNull();
+  });
+
   it('shows BOTH figures when the grade card disagrees with the computation', async () => {
     // Computed: (4x8 + 4x9)/8 = 8.50. Grade card claims 9.10.
     const { bundle } = createMemoryRepositories({

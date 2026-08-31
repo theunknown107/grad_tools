@@ -52,6 +52,12 @@ export { calculateSGPA, calculateCGPA, highestGradePoint } from './gpa.js';
 export { validateCourseMarks, type CourseMarks, type ValidatedCourseMarks } from './marks.js';
 
 export {
+  evaluateCourseResult,
+  type CourseHeadOutcome,
+  type CourseResult,
+} from './course-result.js';
+
+export {
   calculateClass,
   calculatePercentage,
   listPercentageFormulaIds,
