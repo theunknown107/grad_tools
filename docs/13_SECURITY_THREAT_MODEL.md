@@ -517,3 +517,26 @@ shipped. The two-token split (`--accent` for text, `--action-bg` for fills)
 exists so the mistake cannot be made silently again; every remaining
 `background: var(--accent)` in the codebase is a progress-bar fill with no text
 on it.
+
+## 13.26 M10A — the intelligence layer's security surface
+
+**No new attack surface.** M10A adds two pure functions over data the page had
+already loaded. Recorded against the specific risks §41 names.
+
+| Risk | Status |
+|---|---|
+| Data leakage | No new persistence, no new network call, no logging. The functions take an array and return an object |
+| Cross-user access | Inputs are the account-scoped `RepositoryBundle` records already on screen. Nothing queries by another id, because nothing queries at all |
+| IDOR | No identifier is accepted as input. There is no endpoint to enumerate |
+| Excessive data exposure | The output is strictly narrower than the input — figures and reasons, no raw records |
+| Untrusted document text | None reaches this layer. M10A touches results, semesters and backlogs; question text is M10B |
+| Prompt injection | **No model is called.** There is no prompt to inject into (§30) |
+| Peer comparison | Structurally impossible: every function takes one student's records and has no parameter through which another's could arrive. A test asserts no output key names a percentile, rank, cohort or peer |
+
+### The AI boundary, stated
+
+M10A calls **no** LLM, no embedding API and no hosted model. No academic record
+leaves the device for analysis — the whole layer runs in the browser on records
+already in memory. When M10C is eventually considered, §41's requirement stands:
+extracted document text is untrusted input and must never reach system
+instructions, tool calls, database access or authorization.

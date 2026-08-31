@@ -532,3 +532,225 @@ export function graduationProgress(
         : null,
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/* Semester history                                                           */
+/* -------------------------------------------------------------------------- */
+
+/** Why a semester takes no part in the comparison. Null when it does. */
+export type SemesterExclusion =
+  /** The student has not entered a result for it. */
+  | 'no_result'
+  /** A result exists, pinned to a rule set this build does not have (M6). */
+  | 'ruleset_unavailable'
+  /** A result exists and the rules refused to grade it — an unusable letter. */
+  | 'not_gradeable';
+
+export interface SemesterComparison {
+  readonly number: number;
+  readonly status: SemesterStatus;
+  /** The COMPUTED figure. Never the asserted one — see the note below. */
+  readonly sgpa: number | null;
+  /**
+   * Change from the semester immediately before this one, when BOTH are
+   * comparable. Null across a gap: "change from the previous semester" has no
+   * value when the previous semester is missing, and quietly reaching back two
+   * semesters would invent a comparison the student never made.
+   */
+  readonly delta: number | null;
+  readonly isHighest: boolean;
+  readonly isLowest: boolean;
+  readonly excluded: SemesterExclusion | null;
+}
+
+export interface SemesterHistory {
+  /** All eight, in order, so the shape of the degree is always visible. */
+  readonly entries: readonly SemesterComparison[];
+  /** How many semesters carry a computed SGPA. */
+  readonly comparable: number;
+  /** True at two or more. Below that there is nothing to trend. */
+  readonly available: boolean;
+  /** Why not, when `available` is false. Shown to the student verbatim. */
+  readonly reason: string | null;
+  readonly highest: number | null;
+  readonly lowest: number | null;
+  /**
+   * Set when the comparable semesters were graded under DIFFERENT rule sets,
+   * which makes comparing their SGPAs a simplification worth admitting to.
+   */
+  readonly mixedRuleSets: boolean;
+}
+
+/** Two comparable semesters, below which there is no trend to show (M10A). */
+export const MIN_SEMESTERS_FOR_TREND = 2;
+
+/**
+ * How each semester compares with the one before it.
+ *
+ * ---------------------------------------------------------------------------
+ * WHAT THIS DELIBERATELY DOES NOT PRODUCE
+ * ---------------------------------------------------------------------------
+ *
+ * **A mean SGPA.** It would be easy, it would look useful, and it would be a
+ * second aggregate sitting next to CGPA that no regulation defines. CGPA is
+ * credit-weighted; an unweighted mean of SGPAs is a different number, and a
+ * student comparing the two would have no way to tell which one their college
+ * means. `cumulativeStanding` already produces the authoritative aggregate, so
+ * this reports what was actually observed — the highest and the lowest — and
+ * leaves the averaging to the rules engine.
+ *
+ * **A figure for a semester that could not be graded.** A missing semester is
+ * `no_result`, not a low semester. An unavailable rule set stays unavailable
+ * and is excluded from highest, lowest and every delta rather than being
+ * re-graded under a substitute (M6, M10A §20).
+ *
+ * **The asserted SGPA.** Where the grade card and the computation disagree,
+ * `SemesterView` already carries both and the disagreement is shown once. The
+ * comparison uses the computed figure throughout, because mixing an asserted
+ * number into one row and a computed number into the next would make the
+ * deltas meaningless (M10A §21).
+ */
+export function semesterHistory(views: readonly SemesterView[]): SemesterHistory {
+  const exclusionOf = (view: SemesterView): SemesterExclusion | null => {
+    if (view.result === null) return 'no_result';
+    if (view.ruleSetResolution === 'unavailable') return 'ruleset_unavailable';
+    if (view.sgpaComputed === null) return 'not_gradeable';
+    return null;
+  };
+
+  const comparable = views.filter((view) => exclusionOf(view) === null);
+  const sgpas = comparable.map((view) => view.sgpaComputed as number);
+  const highest = sgpas.length > 0 ? Math.max(...sgpas) : null;
+  const lowest = sgpas.length > 0 ? Math.min(...sgpas) : null;
+
+  const ruleSetIds = new Set(
+    comparable.map((view) => view.ruleSetId).filter((id): id is string => id !== null),
+  );
+
+  const entries = views.map((view) => {
+    const excluded = exclusionOf(view);
+    const sgpa = excluded === null ? view.sgpaComputed : null;
+
+    /*
+     * The semester immediately before, and only that one. `views` is always the
+     * full eight in order, so index arithmetic is safe here.
+     */
+    const previous = views[view.number - 2];
+    const previousSgpa =
+      previous !== undefined && exclusionOf(previous) === null ? previous.sgpaComputed : null;
+
+    return {
+      number: view.number,
+      status: view.status,
+      sgpa,
+      delta: sgpa !== null && previousSgpa !== null ? sgpa - previousSgpa : null,
+      /*
+       * Only marked when there is more than one semester to be highest OF. With
+       * a single result, calling it both the highest and the lowest is true and
+       * useless.
+       */
+      isHighest: sgpa !== null && highest !== null && sgpa === highest && sgpas.length > 1,
+      isLowest: sgpa !== null && lowest !== null && sgpa === lowest && sgpas.length > 1,
+      excluded,
+    };
+  });
+
+  const available = comparable.length >= MIN_SEMESTERS_FOR_TREND;
+
+  return {
+    entries,
+    comparable: comparable.length,
+    available,
+    reason: available
+      ? null
+      : comparable.length === 0
+        ? 'No trend yet. Add a semester result to start one.'
+        : 'No trend yet — one semester so far, and a trend needs two to compare.',
+    highest,
+    lowest,
+    mixedRuleSets: ruleSetIds.size > 1,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Data completeness                                                          */
+/* -------------------------------------------------------------------------- */
+
+export interface DataCompleteness {
+  /** Semesters carrying a computed SGPA — what every figure is derived from. */
+  readonly gradedSemesters: readonly number[];
+  readonly missingResults: readonly number[];
+  readonly unavailableRuleSets: readonly number[];
+  readonly notGradeable: readonly number[];
+  /** One sentence naming what the analysis rests on. Always present. */
+  readonly basis: string;
+  /** One sentence per gap. Empty when there is nothing missing. */
+  readonly gaps: readonly string[];
+  /** True when anything at all is missing or unusable. */
+  readonly hasGaps: boolean;
+}
+
+/**
+ * What the analysis is based on, and what it is missing.
+ *
+ * INTELLIGENCE THAT DOES NOT KNOW ITS INPUT IS INCOMPLETE IS NOT INTELLIGENCE
+ * (M10A §19). Every figure on the degree page is computed from some subset of
+ * eight semesters, and a student cannot judge "CGPA 7.85" without knowing
+ * whether it rests on four semesters or on one. This states the subset in
+ * words, and names each gap and its reason rather than letting an absent
+ * semester quietly read as a completed one.
+ *
+ * A semester in progress is not a gap. It has no result because it has not
+ * finished, which is the normal state of the semester a student is sitting in.
+ */
+export function dataCompleteness(views: readonly SemesterView[]): DataCompleteness {
+  const graded: number[] = [];
+  const missing: number[] = [];
+  const unavailable: number[] = [];
+  const notGradeable: number[] = [];
+
+  for (const view of views) {
+    if (view.result === null) {
+      /* Neither a planned semester nor the one being sat is missing data. */
+      if (view.status === 'completed') missing.push(view.number);
+      continue;
+    }
+    if (view.ruleSetResolution === 'unavailable') unavailable.push(view.number);
+    else if (view.sgpaComputed === null) notGradeable.push(view.number);
+    else graded.push(view.number);
+  }
+
+  const list = (numbers: readonly number[]) => numbers.map((n) => String(n)).join(', ');
+  const plural = (numbers: readonly number[], one: string, many: string) =>
+    numbers.length === 1 ? one : many;
+
+  const gaps: string[] = [];
+  if (missing.length > 0) {
+    gaps.push(
+      `${plural(missing, 'Semester', 'Semesters')} ${list(missing)} ${plural(missing, 'is', 'are')} marked completed but ${plural(missing, 'has', 'have')} no result entered.`,
+    );
+  }
+  if (unavailable.length > 0) {
+    gaps.push(
+      `${plural(unavailable, 'Semester', 'Semesters')} ${list(unavailable)} cannot be calculated because the rule set it was graded under is not available in this version.`,
+    );
+  }
+  if (notGradeable.length > 0) {
+    gaps.push(
+      `${plural(notGradeable, 'Semester', 'Semesters')} ${list(notGradeable)} could not be graded — a grade letter may not be one this scheme uses.`,
+    );
+  }
+
+  return {
+    gradedSemesters: graded,
+    missingResults: missing,
+    unavailableRuleSets: unavailable,
+    notGradeable,
+    basis:
+      graded.length === 0
+        ? 'Nothing is calculated yet — no semester has a result that could be graded.'
+        : `Based on ${String(graded.length)} graded semester${graded.length === 1 ? '' : 's'} of 8.`,
+    gaps,
+    hasGaps: gaps.length > 0,
+  };
+}

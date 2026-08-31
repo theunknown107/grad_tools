@@ -114,7 +114,7 @@ function seedData() {
       id: `sem-${n}`,
       profileId: PID,
       number: n,
-      status: n < 5 ? 'completed' : n === 5 ? 'in_progress' : 'not_started',
+      status: n < 5 ? 'completed' : n === 5 ? 'in_progress' : 'planned',
       startedOn: null,
       completedOn: null,
       updatedAt: '2026-08-01T00:00:00.000Z',

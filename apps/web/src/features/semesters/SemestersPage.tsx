@@ -26,11 +26,15 @@ import {
   subjectPerformance,
   summariseBacklogs,
   type SemesterView,
+  dataCompleteness,
+  semesterHistory,
 } from '../../domain/academics.js';
+import type { SemesterComparison } from '../../domain/academics.js';
 import type { SemesterRecord, SemesterStatus } from '../../domain/types.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
 import { EmptyState, Notice, Panel, SelectField, StatusPill } from '../../components/ui/index.js';
+import { Bar } from '../../components/ui/layout.js';
 import { formatGpa, formatPercent } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useBacklogs, useProfile, useResults, useSemesters } from '../../hooks/useCollection.js';
@@ -50,6 +54,33 @@ const STATUS_TONE: Record<SemesterStatus, 'neutral' | 'accent' | 'success'> = {
   in_progress: 'accent',
   completed: 'success',
 };
+
+/** Why a semester carries no comparable figure. Shown verbatim. */
+/**
+ * Why a semester carries no comparable figure.
+ *
+ * `no_result` depends on WHERE the student is. The semester being sat has no
+ * result because it has not finished, and telling someone mid-semester that
+ * their current semester has "no result entered" reads as a gap in their
+ * records rather than as the normal state of the present (M10A §19).
+ */
+function absenceLabel(entry: SemesterComparison): string {
+  if (entry.excluded === 'ruleset_unavailable') return 'Rule set unavailable';
+  if (entry.excluded === 'not_gradeable') return 'Could not be graded';
+  return entry.status === 'in_progress' ? 'In progress' : 'No result entered';
+}
+
+/** A signed change, so a student can read direction without the colour. */
+function formatDelta(delta: number): string {
+  if (Math.abs(delta) < 0.005) return 'no change';
+  return `${delta > 0 ? '+' : '\u2212'}${Math.abs(delta).toFixed(2)}`;
+}
+
+function directionOf(delta: number | null): 'up' | 'down' | 'flat' | 'none' {
+  if (delta === null) return 'none';
+  if (Math.abs(delta) < 0.005) return 'flat';
+  return delta > 0 ? 'up' : 'down';
+}
 
 export function SemestersPage() {
   const { profile } = useProfile();
@@ -72,6 +103,18 @@ export function SemestersPage() {
    * than putting a made-up denominator under a real numerator (M6 §13).
    */
   const progress = useMemo(() => graduationProgress(views, null), [views]);
+  const history = useMemo(() => semesterHistory(views), [views]);
+  const completeness = useMemo(() => dataCompleteness(views), [views]);
+
+  /*
+   * The last semester worth putting in a HISTORY: the furthest one that has a
+   * result or is being sat. Everything past it is the rest of the degree, and
+   * the Semesters panel below is where the future belongs.
+   */
+  const lastRelevantSemester = useMemo(() => {
+    const reached = views.filter((view) => view.result !== null || view.status !== 'planned');
+    return reached.length === 0 ? 0 : Math.max(...reached.map((view) => view.number));
+  }, [views]);
 
   async function setStatus(view: SemesterView, status: SemesterStatus) {
     const existing = semesters.find((candidate) => candidate.number === view.number);
@@ -136,6 +179,19 @@ export function SemestersPage() {
           </div>
         </dl>
 
+        {/*
+          WHAT THESE FIGURES REST ON (M10A §19). A CGPA of 7.85 means something
+          different across four semesters than across one, and a student cannot
+          tell which they are looking at unless the page says.
+        */}
+        <p className={styles.basis}>{completeness.basis}</p>
+
+        {completeness.gaps.map((gap) => (
+          <p className={styles.gap} key={gap}>
+            {gap}
+          </p>
+        ))}
+
         {standing.reason !== null && <p className={styles.note}>{standing.reason}</p>}
 
         {/*
@@ -155,6 +211,75 @@ export function SemestersPage() {
             ? progress.reason
             : `${String(progress.creditsRemaining)} credits remaining of ${String(progress.creditsRequired)}.`}
         </p>
+      </Panel>
+
+      {/* ---- Semester history ------------------------------------------ */}
+      {/*
+        A TREND ONLY WHERE THERE IS SOMETHING TO TREND (M10A §7). Below two
+        comparable semesters this is one sentence saying so, not a line drawn
+        through a single point.
+
+        The bars are proportional to the ten-point scale and carry no axis: they
+        are there so the shape of four numbers is visible at a glance, and the
+        numbers themselves are always beside them. No chart library (OQ-040).
+      */}
+      <Panel title="Semester history">
+        {!history.available ? (
+          <p className={styles.note}>{history.reason}</p>
+        ) : (
+          <>
+            {history.mixedRuleSets && (
+              <Notice tone="warning">
+                These semesters were graded under more than one set of rules, so comparing their
+                SGPAs is a simplification.
+              </Notice>
+            )}
+            <ol className={styles.historyList}>
+              {/*
+                HISTORY STOPS AT THE PRESENT. Semesters not yet reached are not
+                gaps in a history — they are the rest of the degree. Listing
+                them here would pad the panel with empty rows (M10A §34).
+              */}
+              {history.entries.slice(0, lastRelevantSemester).map((entry) => (
+                <li className={styles.historyRow} key={entry.number}>
+                  <span className={styles.historySemester}>S{entry.number}</span>
+
+                  {entry.sgpa === null ? (
+                    /*
+                      A semester with no comparable figure says WHY, in the muted
+                      colour, and gets no bar. A missing semester is not a low
+                      semester (M10A §6).
+                    */
+                    <span className={styles.historyAbsent}>{absenceLabel(entry)}</span>
+                  ) : (
+                    <>
+                      <span className={styles.historySgpa}>{formatGpa(entry.sgpa)}</span>
+                      <span className={styles.historyBar}>
+                        <Bar
+                          value={(entry.sgpa / 10) * 100}
+                          label={`Semester ${String(entry.number)} SGPA`}
+                        />
+                      </span>
+                      <span
+                        className={styles.historyDelta}
+                        data-direction={directionOf(entry.delta)}
+                      >
+                        {entry.delta === null ? '' : formatDelta(entry.delta)}
+                      </span>
+                      <span className={styles.historyMark}>
+                        {entry.isHighest ? 'Highest' : entry.isLowest ? 'Lowest' : ''}
+                      </span>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ol>
+            <p className={styles.note}>
+              Change is measured against the semester immediately before, and only when both were
+              graded. SGPA is the figure computed from your subjects.
+            </p>
+          </>
+        )}
       </Panel>
 
       {/* ---- The eight semesters --------------------------------------- */}

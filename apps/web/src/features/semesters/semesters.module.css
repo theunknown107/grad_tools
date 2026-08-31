@@ -223,3 +223,118 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* -- Data completeness ------------------------------------------------------ */
+
+/* What the figures above rest on. Quiet, but not hidden. */
+.basis {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  color: var(--text-muted);
+}
+
+/* A gap is not an error, so it is not red. It is a fact about the input. */
+.gap {
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-subtle);
+}
+
+/* -- Semester history ------------------------------------------------------- */
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * Fixed columns so the figures form a column the eye can run down, and the bars
+ * all start at the same x. `minmax(0, 1fr)` on the bar is what lets it shrink
+ * at 320px instead of pushing the delta off the row.
+ */
+.historyRow {
+  display: grid;
+  grid-template-columns: 2.2rem 3rem minmax(0, 12rem) 4.5rem;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: var(--touch-target-min);
+  border-bottom: 1px solid var(--border);
+}
+
+.historyRow:last-child {
+  border-bottom: 0;
+}
+
+.historySemester {
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.historySgpa {
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.historyBar {
+  min-width: 0;
+}
+
+/*
+ * Direction is carried by the SIGN, which is in the text, and only tinted after
+ * that. A student who cannot separate the two colours still reads +0.11 and
+ * \u22120.17 (docs/27 §27.5).
+ */
+.historyDelta {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.historyDelta[data-direction='up'] {
+  color: var(--success);
+}
+
+.historyDelta[data-direction='down'] {
+  color: var(--warning);
+}
+
+/* Highest and lowest are observed facts, not judgements, so they are quiet. */
+.historyMark {
+  grid-column: 1 / -1;
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.historyMark:empty {
+  display: none;
+}
+
+.historyAbsent {
+  grid-column: 2 / -1;
+  font-size: var(--text-caption);
+  color: var(--text-subtle);
+}
+
+@media (min-width: 640px) {
+  .historyRow {
+    grid-template-columns: 2.2rem 3rem minmax(0, 16rem) 4.5rem 5rem;
+  }
+
+  .historyMark {
+    grid-column: auto;
+    text-align: end;
+  }
+}

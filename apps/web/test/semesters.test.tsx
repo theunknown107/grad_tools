@@ -93,10 +93,22 @@ describe('the degree screen', () => {
     });
     renderWith(<SemestersPage />, { repositories: bundle });
 
-    // Each status appears once as a pill and once per select; count the pills.
+    /*
+     * Scoped to the Semesters panel. M10A added a Semester history panel above
+     * it that also names the semester in progress, and counting "In progress"
+     * across the whole page would now count that too — which would make the
+     * assertion about how many panels mention the present rather than about how
+     * many semesters ARE the present. The invariant under test is unchanged:
+     * exactly one semester carries each lifecycle state.
+     */
     await screen.findAllByRole('heading', { name: 'Semester 1' });
+    const panel = screen.getByRole('heading', { name: 'Semesters' }).closest('section');
+    expect(panel).not.toBeNull();
+
     const pills = (label: string) =>
-      screen.getAllByText(label).filter((node) => node.tagName === 'SPAN');
+      within(panel as HTMLElement)
+        .getAllByText(label)
+        .filter((node) => node.tagName === 'SPAN');
 
     expect(pills('In progress').length).toBe(1);
     expect(pills('Completed').length).toBe(4);
