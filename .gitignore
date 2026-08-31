@@ -46,7 +46,8 @@ qpapers_and solutions_sample/
 GradTools_M9.4_Reference_Images/
 
 # Seeded visual-QA output (docs/22 §22.21). Screenshots of synthetic data.
-.qa-screenshots/
-.qa-light/
-.qa-qmode/
-.qa-m10b1/
+# Local QA output: screenshots and reports from the browser harnesses. One
+# glob rather than a line per milestone -- M10B.2 added a directory, the line
+# that would have ignored it was skipped by a failed && chain, and two PNGs
+# reached a commit that forbids them.
+.qa-*/
