@@ -142,6 +142,15 @@ export default tseslint.config(
   },
 
   {
+    // Measurement scripts are run by hand against a local corpus and report to
+    // a terminal. Printing IS their output (M10B §27, §45).
+    files: ['services/*/scripts/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  {
     files: ['**/*.test.ts', '**/*.test.tsx', 'vitest.config.ts', 'eslint.config.mjs'],
     rules: {
       'no-restricted-imports': 'off',
