@@ -534,7 +534,6 @@ weight, not enough to identify its subject.
 ### What this does NOT do
 
 Removing the fixture in a new commit does not remove it from earlier commits.
-Git history retains what was committed, and on a public repository that history
-is fetchable. The current-tree cleanup and the reachability of the old fixture
-in history are tracked separately in `31`; do not read this section as a claim
-that the data is gone from GitHub.
+Git history was therefore rewritten as well, on 2026-08-31 — see `31` §31.19
+for the purge and, importantly, for what it did **not** achieve. Do not read
+this section as a claim that the data is gone from the internet.
