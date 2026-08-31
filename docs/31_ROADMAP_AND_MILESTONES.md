@@ -733,3 +733,29 @@ parent. Searchable records went **47 → 188**; native questions went **0 → 10
 
 See `17` §17.x for the investigation, `18` §18.aa for the fix and the
 reconciliation, `22` §22.28 for tests and browser verification.
+
+## 31.17 Academic reference integration · ✅ **DELIVERED (scoped)**
+
+Five real academic artifacts were inspected: two revisions of a college
+timetable, two VTU provisional results (Semesters 1 and 4) and a VTU draft
+examination timetable. **None is committed** — they carry a real seat number,
+name and staff contact numbers.
+
+**Delivered:** `evaluateCourseResult` in the academic rules engine, which
+answers "did this course pass, and is it a backlog?" from printed internal,
+external and total marks against the three heads of 22OB 6.3. The product's
+"backlog below 18" is that rule — 35% of the 50-mark printed SEE scale — and is
+derived, never written down. A parameterised test covers 8- and 9-subject
+semesters.
+
+**The finding that shaped it:** a real Physical Education row reads
+`internal above the CIE maximum · external 0 · P`. A bare "external below 18" would call
+that a backlog. It is a CIE-only course (22OB 6.1(3)), so the SEE head is
+`not_applicable`, not failed.
+
+**Deliberately not delivered:** the result model still cannot store internal,
+external, total, status or announcement date, and still requires a grade letter
+and credits that a provisional result does not print. Closing that needs a local
+type change, a cloud `result_subjects` migration, sync changes and a results-UI
+rebuild — a coherent milestone of its own rather than a tail added to this one
+(`OQ-049`).

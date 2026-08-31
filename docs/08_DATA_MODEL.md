@@ -890,3 +890,71 @@ exist".
 
 `result_id` is therefore the one parent a client supplies. Every other
 collection's parent is filled in by the server from the session's profile.
+
+## 8.x What five real academic artifacts showed the model
+
+Structures observed. **No values from the artifacts are reproduced here or in
+any fixture** — they carry a real seat number, student name and staff phone
+numbers (docs/12, docs/30).
+
+### Results
+
+| Printed | In `ResultSubject` today |
+|---|---|
+| Subject code | ✅ `subjectCode` |
+| Subject name | ✅ `subjectTitle` |
+| Internal marks | ❌ |
+| External marks | ❌ |
+| Total | ❌ |
+| Result status (P/F/A/W/X/NE) | ❌ |
+| Announced / updated on | ❌ |
+| — *not printed* — | ⚠️ `gradeLetter` (required) |
+| — *not printed* — | ⚠️ `credits` (required) |
+
+**The model stores two fields a provisional result does not print, and cannot
+store the six it does.** A student copying a real card must invent a grade
+letter. This is the largest gap the artifacts exposed and it is **not closed**
+in this milestone — see `OQ-049`.
+
+### Subject identity is the code, not the name
+
+The same subject appears in both a college timetable and a VTU result with the
+**same code and different names** — "Mathematics-I for CSE Stream" against
+"MATHEMATICS FOR CSE STREAM-I". Subject identity must key on the code
+(docs/16 §8), and a name must never be a join key.
+
+### Subject load varies
+
+Semester 1 carried **8** subjects; Semester 4 carried **9**, including a
+laboratory (`…L4…`), two letter-suffixed electives, a common course and a
+CIE-only Physical Education course. Nothing in the app assumes a count — every
+result renders from `result.subjects` — and a parameterised test now covers both
+8 and 9 so a future layout cannot introduce a fixed grid.
+
+### A timetable is a schedule, not academic identity
+
+Two revisions of the same college timetable, R1 and R2:
+
+| Unchanged | Changed |
+|---|---|
+| 8 subjects, their codes, their L+T+P | Revision marker R1 → R2 |
+| Grid content and batches | **`W.E.F` effective date added** |
+| Room | Time slots (a late contact hour dropped, lunch lengthened) |
+| | One subject's faculty and contact number |
+
+A revision changes the schedule and never the subject. Also observed: the
+timetable carries **two different L+T+P values per subject** — the college's
+hours/week and "as per VTU scheme" — and they disagree for several subjects.
+A single authoritative L+T+P would be wrong.
+
+### One exam timetable spans several schemes and semesters
+
+The VTU draft timetable covers **2022 Scheme III & IV** and **2021 Scheme V &
+VI** in one artifact, with **exam time a property of the (scheme, semester)
+column**, not of the date row — III/IV sit 2.00–5.00pm, V/VI sit 9.30–12.30pm.
+
+Two further properties any future model must respect:
+
+- Cells hold **patterns, not codes**: `B**301`, `21**51`, `B**456*`. `B**301`
+  is not a subject id and must never be stored as one.
+- The document is a **draft**. Its status is part of its provenance.

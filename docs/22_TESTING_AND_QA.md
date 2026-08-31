@@ -1383,3 +1383,34 @@ text`. Neither phrase claims accuracy; both say where the characters came from.
   `OQ-030` (Kannada) and `OQ-031` (human ground truth) remain open.
 - The verification database is a local copy of the corpus with library metadata
   applied; the production `documents` rows for these papers do not exist.
+
+## 22.29 Academic reference integration
+
+**43 files, 1378 tests, all passing.** 18 new; none weakened.
+
+`packages/academic-rules/test/course-result.test.ts` — 17 tests, and the ones
+that matter are about refusals:
+
+| Test | The mistake it prevents |
+|---|---|
+| Passes at 18, fails at 17 | The product's "below 18" drifting from `seeMinPct` |
+| CIE-only course passes with external 0 | **Telling a student they have a backlog in a course VTU passed** |
+| SEE head is `not_applicable`, never `passed` | "Passed every head" being true of a course never examined |
+| External 0 fails *when the course has a SEE* | `hasSee` being inferred from the marks |
+| Course carried despite a comfortable total | Reading the total instead of the SEE head |
+| CIE-only course still fails on a low CIE | "No SEE" being read as "cannot fail" |
+
+`apps/web/test/app.test.tsx` — a parameterised test renders an 8-subject and a
+9-subject semester and asserts no padding row is invented.
+
+**Coverage:** `course-result.ts` at 100% statements/branches/functions/lines.
+
+### NOT VERIFIED
+
+- **No UI change was made**, so there is nothing new to browser-QA. The existing
+  sweeps are unaffected.
+- **The rule is not yet reachable from the product**: `ResultSubject` cannot
+  store internal or external marks, so nothing can call `evaluateCourseResult`
+  with real data yet (`OQ-049`).
+- The mark shapes in the tests are **invented**, modelled on the artifacts'
+  structure. No real marks appear anywhere in the repository.

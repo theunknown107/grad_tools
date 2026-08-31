@@ -1482,3 +1482,57 @@ parts (correct) from an extraction that found nothing (broken). Question count
 alone cannot tell them apart.
 
 **Decision needed:** before automated re-extraction runs unattended.
+
+### OQ-049 — The result model cannot store what a result card prints · **opened by the academic reference pass**
+
+A VTU provisional result prints **internal, external, total, status and an
+announcement date**, and prints **no grade letter, no grade point, no credits,
+no SGPA**. `ResultSubject` is the inverse: it *requires* `gradeLetter` and
+`credits` and can store none of the six printed fields.
+
+A student copying a real card therefore has to invent a grade — exactly the
+manufacturing of missing values docs/37 forbids.
+
+**Why it was not closed here:** it needs a local type change, a cloud
+`result_subjects` migration (the table has `credits` and `grade_letter` and no
+marks), sync-shape changes, RLS review and a results-UI rebuild. That is a
+milestone, not a tail.
+
+**What it unblocks:** `evaluateCourseResult` exists and is tested but **cannot be
+called with real data** until the marks can be stored. The backlog state a
+student would actually see depends on this.
+
+**Decision needed:** whether marks become additional optional fields alongside
+the grade letter, or whether a result row becomes a discriminated union of
+"graded" and "provisional" shapes.
+
+### DEC-037 — `hasSee` is reference data, never inferred · **academic reference pass**
+
+An external mark of 0 is equally consistent with *"this course has no
+semester-end examination"* and *"this student sat the SEE and scored nothing"*.
+The two have **opposite** outcomes — pass and backlog — and no arithmetic on the
+marks can separate them.
+
+So `evaluateCourseResult` takes `hasSee` from the caller, defaulting to true,
+and a test pins both readings of the identical mark row. The `subjects`
+reference table already carries `has_see`, which is where the answer comes from.
+
+**Consequence:** where `has_see` is unknown for a subject, the honest output is
+that the backlog state is unknown — not a guess in either direction.
+
+### OQ-050 — Exam-timetable cells are patterns, not subject codes · **opened by the academic reference pass**
+
+The VTU draft timetable schedules `B**301`, `21**51` and `B**456*`, where `**`
+stands for a branch and a trailing `*` appears to mark an elective group. One
+cell reads `B**301 / BMAT301/BMATEC301/BMATELCE301` — a set of alternatives.
+
+**A pattern is not a subject identifier** and must never be stored as one. Any
+future exam-schedule model must either resolve a pattern to concrete codes using
+verified reference data, or keep it as an unresolved pattern and say so.
+
+**Also unresolved:** exam time belongs to the (scheme, semester) column rather
+than to the date row, and the document is a **draft** whose status is part of
+its provenance.
+
+**Decision needed:** before any exam-date feature. Until then GradTools shows no
+exam dates at all, which remains correct (`OQ-026`).

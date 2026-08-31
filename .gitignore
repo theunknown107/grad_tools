@@ -51,3 +51,7 @@ GradTools_M9.4_Reference_Images/
 # that would have ignored it was skipped by a failed && chain, and two PNGs
 # reached a commit that forbids them.
 .qa-*/
+
+# Supplied academic reference images. REAL student/institutional PII —
+# inspected locally, never committed (see docs/12, docs/30).
+GradTools_Academic_References_5_Images/
