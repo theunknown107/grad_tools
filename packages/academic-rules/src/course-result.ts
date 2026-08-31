@@ -32,10 +32,12 @@
  * ---------------------------------------------------------------------------
  *
  * This is the case that makes a naive threshold dangerous, and it is not
- * hypothetical — a real VTU card shows a Physical Education row with an
- * an internal above the ordinary CIE maximum of 50, an external of 0, and a printed PASS.
+ * hypothetical — a real VTU card carries a Physical Education row whose internal
+ * is above the ordinary CIE maximum of 50, whose external is 0, and which is
+ * printed PASS. The marks are not reproduced here or in the tests; the shape is
+ * what matters, and a student's own scores are not needed to describe it.
  *
- * Read with a bare "external below the minimum means a backlog", that row is a
+ * Read with a bare "external below the minimum means a backlog", such a row is a
  * failure. It is not: the course is assessed on CIE alone over the whole course
  * maximum (22OB 6.1(3)), so there is no SEE to fall short of and the external
  * column is structurally zero. The SEE head is therefore NOT APPLICABLE rather

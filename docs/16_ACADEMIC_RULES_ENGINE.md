@@ -486,18 +486,26 @@ mark clearing it. The number is derived from `seeMinPct`, never written down,
 and two tests pin the boundary at 17 and 18 so the engine and the product
 statement cannot drift apart.
 
-Corroborated by the artifacts: a Semester 1 row with a row sitting exactly on the SEE boundary,
-is printed **P**; the mark itself is withheld.
+**Corroborated by a real artifact**, whose row sitting exactly on this
+boundary is printed `P`. The marks themselves are not reproduced here: the
+threshold is derived from the rule, and a student's own score is not needed to
+state it.
 
 ### The case that makes a bare threshold dangerous
 
-A real Semester 4 card shows a Physical Education row:
+A real card carries a Physical Education row with **an internal above the
+ordinary CIE maximum of 50, an external of 0, and a printed `P`**. Both of those
+are impossible under the ordinary CIE + SEE structure, and together they are the
+signature of a CIE-only course.
+
+Illustrative — **these numbers are synthetic**, chosen to show the same shape
+without reproducing a real student's marks:
 
 ```
-internal above the CIE maximum · external 0 · Result: P
+internal 72 · external 0 · total 72 · Result: P
 ```
 
-Read as *"external below 18 means a backlog"*, that row is a failure. **It is
+Read as *"external below 18 means a backlog"*, such a row is a failure. **It is
 not.** The course is assessed on CIE alone over the whole course maximum
 (22OB 6.1(3)): there is no SEE to fall short of, and the external column is
 structurally zero.

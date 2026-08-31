@@ -69,10 +69,14 @@ describe('a course with no semester-end examination', () => {
   /*
    * THE CASE THAT MAKES A BARE THRESHOLD DANGEROUS.
    *
-   * A real card shows a Physical Education row with an an internal above the ordinary CIE maximum, an
-   * external of 0, and a printed PASS. Read as "external
-   * below 18 means a backlog", that row is a failure. It is not: the course is
-   * assessed on CIE alone over the whole course maximum (22OB 6.1(3)).
+   * A real card carries a Physical Education row whose internal is above the
+   * ordinary CIE maximum of 50, whose external is 0, and which is printed PASS.
+   * Read as "external below 18 means a backlog", such a row is a failure. It is
+   * not: the course is assessed on CIE alone over the whole course maximum
+   * (22OB 6.1(3)).
+   *
+   * The numbers below are SYNTHETIC and chosen only to reproduce that shape —
+   * an internal past 50 with a zero external. No real marks are stored here.
    */
   it('passes on CIE alone with an external of zero', () => {
     const result = evaluate(72, 0, { hasSee: false });

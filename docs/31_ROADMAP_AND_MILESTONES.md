@@ -748,10 +748,11 @@ external and total marks against the three heads of 22OB 6.3. The product's
 derived, never written down. A parameterised test covers 8- and 9-subject
 semesters.
 
-**The finding that shaped it:** a real Physical Education row reads
-`internal above the CIE maximum · external 0 · P`. A bare "external below 18" would call
-that a backlog. It is a CIE-only course (22OB 6.1(3)), so the SEE head is
-`not_applicable`, not failed.
+**The finding that shaped it:** a real Physical Education row carries an
+internal above the ordinary CIE maximum, an external of 0, and a printed `P`.
+A bare "external below 18" would call that a backlog. It is a CIE-only course
+(22OB 6.1(3)), so the SEE head is `not_applicable`, not failed. The marks are
+not reproduced; the shape is what matters.
 
 **Deliberately not delivered:** the result model still cannot store internal,
 external, total, status or announcement date, and still requires a grade letter

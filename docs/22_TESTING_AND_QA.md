@@ -1386,7 +1386,11 @@ text`. Neither phrase claims accuracy; both say where the characters came from.
 
 ## 22.29 Academic reference integration
 
-**43 files, 1378 tests, all passing.** 18 new; none weakened.
+**43 files, 1382 tests, all passing.** 19 new; none weakened.
+
+The figures above are the measured output of `pnpm verify`, not an estimate
+written ahead of the run — which is how the previous draft of this section came
+to say 1378.
 
 `packages/academic-rules/test/course-result.test.ts` — 17 tests, and the ones
 that matter are about refusals:
