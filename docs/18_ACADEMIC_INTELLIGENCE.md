@@ -573,3 +573,52 @@ Confidence is *worse* among usable records than overall, because an empty
 extraction often carries `high` confidence: the parser was confident about the
 box it found, and the box was empty. **A parser-created record is a
 parser-created record, not a question.**
+
+## 18.aa M10B.2 — search reads sub-questions
+
+### The fix
+
+`searchQuestions` now unions two record types into one result shape:
+
+| | Question number | Module | Marks | Text |
+|---|---|---|---|---|
+| Parent question | `q.question_number` | own | own | own |
+| Sub-question | `1(a)` — parent's number + label | **parent's** | own | own |
+
+A sub-question has no module of its own; module is a property of the question it
+belongs to. Marks and text are its own.
+
+**Concatenation was rejected.** Synthesising `Q1 = a + b + c` would produce text
+that exists in no record — the same invention the normaliser and the extractor
+both refuse to make. A part is its own result, named so a reader can see which
+question it belongs to.
+
+**MCQ items are still excluded.** A different record shape with different
+semantics; merging it here would collapse a distinction M10B §20 keeps.
+
+**Labels are never invented.** A part whose label the parser could not read is
+`1(?)`, never a fabricated `1(c)` (M10B §19).
+
+### What it changed, measured
+
+| | Before | After |
+|---|---|---|
+| Searchable records (verification DB) | **47** | **188** |
+| Native questions searchable | **0** | **107** |
+| Papers with any searchable question | 3 of 9 | 6 of 9 |
+
+### Post-fix reconciliation
+
+| | |
+|---|---|
+| Current questions | 126 = 42 native + 84 ocr |
+| native: non-empty / empty | 0 / 42 |
+| ocr: non-empty / empty | 61 / 23 |
+| Current sub-questions | 141 = 107 native + 34 ocr, **all non-empty** |
+| Visible non-empty questions | 47 |
+| Visible non-empty sub-questions | 141 |
+| **Total searchable** | **188** — matches the API exactly |
+
+Empty parent questions are still excluded, and that is correct: an empty
+container is not a question a student can search for. **A parser-created record
+is still only a parser-created record.**

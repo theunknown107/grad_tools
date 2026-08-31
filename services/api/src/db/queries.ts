@@ -1291,8 +1291,63 @@ export interface QuestionSearchFilter {
  * return the same question twice and let a v1 record masquerade as a result
  * about today's extraction (M10B §24). Versions are isolated, never merged.
  */
-const QUESTION_JOINS = (sql: Sql) => sql`
-    FROM extracted_questions q
+/*
+ * ---------------------------------------------------------------------------
+ * WHAT COUNTS AS A SEARCHABLE QUESTION (M10B.2)
+ * ---------------------------------------------------------------------------
+ *
+ * A parent question AND a sub-question, unioned into one shape.
+ *
+ * Searching only `extracted_questions` was a real defect, and it hid an entire
+ * class of paper. On a VTU descriptive paper "Q1" is a CONTAINER: the prose and
+ * the marks belong to (a), (b), (c) beneath it, and the parent legitimately has
+ * no text of its own. positional-v2 models that correctly, so every native
+ * paper in the corpus stores its words on sub-question rows — 107 of them, all
+ * with text, against 0 on their parent questions. Indexing parents alone made
+ * those papers invisible while OCR papers, whose flatter structure puts more
+ * prose on the parent, happened to work (OQ-047).
+ *
+ * The union is the fix, and NOT concatenating children into the parent. A
+ * synthesised "Q1 = a + b + c" string would be text that exists in no record,
+ * which is the invention the extraction layer refuses to make.
+ *
+ * MCQ items are deliberately absent: a different record shape with different
+ * semantics, and merging it here would collapse a distinction M10B §20 keeps.
+ */
+const SEARCHABLE_QUESTIONS = (sql: Sql) => sql`
+    FROM (
+      SELECT q.id,
+             q.paper_id,
+             COALESCE(q.reviewed_question_number, q.question_number)  AS question_number,
+             COALESCE(q.reviewed_module, q.module)                    AS module,
+             COALESCE(q.reviewed_marks, q.marks)                      AS marks,
+             COALESCE(q.reviewed_question_text, q.question_text)      AS text,
+             (q.reviewed_question_text IS NOT NULL)                   AS is_reviewed,
+             q.confidence,
+             q.needs_review,
+             q.ordinal                                                AS ordinal_a,
+             0                                                        AS ordinal_b
+        FROM extracted_questions q
+
+      UNION ALL
+
+      SELECT sq.id,
+             q.paper_id,
+             -- Composite, so a hit names the question it belongs to: "1(a)".
+             COALESCE(q.reviewed_question_number, q.question_number, '?')
+               || '(' || COALESCE(sq.reviewed_label, sq.label, '?') || ')',
+             -- Module is a property of the parent; a sub-question has none.
+             COALESCE(q.reviewed_module, q.module),
+             COALESCE(sq.reviewed_marks, sq.marks),
+             COALESCE(sq.reviewed_sub_text, sq.sub_text),
+             (sq.reviewed_sub_text IS NOT NULL),
+             sq.confidence,
+             sq.needs_review,
+             q.ordinal,
+             sq.ordinal + 1
+        FROM extracted_sub_questions sq
+        JOIN extracted_questions q ON q.id = sq.question_id
+    ) q
     JOIN extracted_papers p ON p.id = q.paper_id AND p.is_current = true
     JOIN documents d        ON d.id = p.document_id
     LEFT JOIN subjects s    ON s.id = d.subject_id
@@ -1337,23 +1392,20 @@ export async function searchQuestions(
        * render as a blank row. 65 of the 126 current questions in the local
        * corpus have empty text, so this is the common case, not the edge one.
        */
-      AND btrim(COALESCE(q.reviewed_question_text, q.question_text)) <> ''
+      AND btrim(q.text) <> ''
       AND (${search}::text IS NULL
-           OR COALESCE(q.reviewed_question_text, q.question_text) ILIKE ${search} ESCAPE '\\'
-           OR COALESCE(q.reviewed_question_number, q.question_number) ILIKE ${search} ESCAPE '\\')
+           OR q.text ILIKE ${search} ESCAPE '\\'
+           OR q.question_number ILIKE ${search} ESCAPE '\\')
       AND (${filter.subjectCode ?? null}::text IS NULL
            OR COALESCE(s.code, d.subject_code) = ${filter.subjectCode ?? null})
       AND (${filter.semester ?? null}::int IS NULL
            OR COALESCE(s.semester, d.semester) = ${filter.semester ?? null})
       AND (${filter.year ?? null}::int IS NULL OR d.exam_year = ${filter.year ?? null})
-      AND (${filter.module ?? null}::text IS NULL
-           OR COALESCE(q.reviewed_module, q.module) = ${filter.module ?? null})
-      AND (${filter.marks ?? null}::int IS NULL
-           OR COALESCE(q.reviewed_marks, q.marks) = ${filter.marks ?? null})
+      AND (${filter.module ?? null}::text IS NULL OR q.module = ${filter.module ?? null})
+      AND (${filter.marks ?? null}::int IS NULL OR q.marks = ${filter.marks ?? null})
       AND (${filter.format ?? null}::text IS NULL
            OR p.paper_format = ${filter.format ?? null}::paper_format)
-      AND (${filter.reviewed ?? null}::boolean IS NULL
-           OR (q.review_state <> 'unreviewed') = ${filter.reviewed ?? null})
+      AND (${filter.reviewed ?? null}::boolean IS NULL OR q.is_reviewed = ${filter.reviewed ?? null})
   `;
 
   /*
@@ -1373,24 +1425,24 @@ export async function searchQuestions(
            COALESCE(s.semester, d.semester)                    AS semester,
            d.exam_year                                         AS "examYear",
            d.exam_session                                      AS "examSession",
-           COALESCE(q.reviewed_question_number, q.question_number) AS "questionNumber",
-           COALESCE(q.reviewed_module, q.module)               AS module,
-           COALESCE(q.reviewed_marks, q.marks)                 AS marks,
-           COALESCE(q.reviewed_question_text, q.question_text) AS text,
-           (q.reviewed_question_text IS NOT NULL)              AS "isReviewed",
+           q.question_number                                   AS "questionNumber",
+           q.module                                            AS module,
+           q.marks                                             AS marks,
+           q.text                                              AS text,
+           q.is_reviewed                                       AS "isReviewed",
            q.confidence                                        AS confidence,
            q.needs_review                                      AS "needsReview",
            p.paper_format                                      AS "paperFormat",
            p.extraction_source                                 AS "extractionSource",
            p.parser_version                                    AS "parserVersion"
-    ${QUESTION_JOINS(sql)}
+    ${SEARCHABLE_QUESTIONS(sql)}
     ${where}
-    ORDER BY d.exam_year DESC NULLS LAST, d.id, q.ordinal, q.id
+    ORDER BY d.exam_year DESC NULLS LAST, d.id, q.ordinal_a, q.ordinal_b, q.id
     LIMIT ${filter.limit} OFFSET ${filter.offset}
   `;
 
   const [count] = await sql<{ total: string }[]>`
-    SELECT count(*)::text AS total ${QUESTION_JOINS(sql)} ${where}
+    SELECT count(*)::text AS total ${SEARCHABLE_QUESTIONS(sql)} ${where}
   `;
 
   return {

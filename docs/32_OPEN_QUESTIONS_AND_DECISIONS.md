@@ -1426,3 +1426,59 @@ mutually exclusive categories that sum to the total:
 "Usable" is not a category and is no longer used unqualified: it previously
 meant "tokenisable" while sitting beside a length-based "empty", and the two
 definitions left a record belonging to neither.
+
+### OQ-047 — CLOSED, with its premise corrected · **M10B.2**
+
+**Recorded as:** "positional-v2 extracts no text from native PDFs."
+
+**Actually true:** positional-v2 extracts native text correctly and stores it on
+sub-question records, because on a VTU descriptive paper the prose belongs to
+(a), (b), (c) and not to the container numbered 1. All 107 native sub-questions
+in the corpus carry text.
+
+**The real defect:** question search read `extracted_questions.question_text`
+only, so papers whose prose lives on sub-questions were invisible. OCR papers
+worked by accident — their flatter structure puts more prose on the parent.
+
+**Why the original reading was wrong:** M10B.1 compared parent-question text
+between v1 and v2 and inferred loss. It did not look at
+`extracted_sub_questions`, where v1 also had the same text — stored twice.
+
+**Fixed by:** unioning sub-questions into search. **No parser change**, which
+matters, because M10B.2 §3's instinct to preserve v2's structural wins was right
+for a reason nobody expected: v2 was not the regression.
+
+**Evidence:** searchable 47 → 188; native searchable 0 → 107; six regression
+tests; browser-verified native result with correct marks, module and provenance.
+
+**Still open and untouched:** `OQ-030` (Kannada), `OQ-031` (human ground truth),
+`OQ-045` (corpus size for similarity).
+
+### DEC-036 — A sub-question is its own search result · **M10B.2**
+
+**Rejected:** concatenating parts into their parent so `Q1` becomes searchable.
+That synthesises text existing in no record — the invention the extractor and
+the normaliser both refuse to make, and it would make one result whose marks and
+module are ambiguous.
+
+**Decided:** each part is a result, numbered `1(a)` so it names the question it
+belongs to. Marks from the part, module from the parent, text from the part.
+An unreadable label is `1(?)`, never invented.
+
+**Consequence:** an empty container question does not appear in search. It has
+no text, and a row with no text is not something a student can search for.
+
+### OQ-048 — Should an extraction that yields no parent text still become current? · **opened by M10B.2**
+
+The native extractions have 42 parent questions with empty text and 107 parts
+with text. That is correct for the paper's structure — but nothing checks it.
+
+An extraction that produced **nothing at all** would also satisfy
+`is_current = true`, and M10B.1 found exactly that shape for `BENGK106` and
+`BKSKK107`: current extractions with zero questions.
+
+**What a rule would need to distinguish:** an empty container with populated
+parts (correct) from an extraction that found nothing (broken). Question count
+alone cannot tell them apart.
+
+**Decision needed:** before automated re-extraction runs unattended.

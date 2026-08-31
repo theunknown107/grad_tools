@@ -715,3 +715,21 @@ here.
 
 **OQ-045 stays open.** The corpus is still nine subjects in one sitting; nothing
 about search working changes whether repetition can be evaluated.
+
+## 31.16 M10B.2 — native question text · ✅ **DELIVERED (root cause was not the parser)**
+
+M10B.2 was commissioned to fix a parser that loses native text. **The parser
+does not lose native text.**
+
+`positional-v2` treats "Q1" as a container and puts the prose on its parts,
+which is how a VTU descriptive paper is actually built. All 107 native
+sub-questions carry text. v1's apparently-healthy figures came from storing the
+same sentence twice — once as a pseudo-question numbered `"?"` and once as a
+sub-question.
+
+The real defect was in **question search**, which indexed parent questions only.
+It now unions sub-questions, naming each `1(a)` and taking module from the
+parent. Searchable records went **47 → 188**; native questions went **0 → 107**.
+
+See `17` §17.x for the investigation, `18` §18.aa for the fix and the
+reconciliation, `22` §22.28 for tests and browser verification.

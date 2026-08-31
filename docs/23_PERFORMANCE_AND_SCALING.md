@@ -774,3 +774,41 @@ figure to watch is the one that appears when the library grows, not this one.
 
 Bundle unchanged from M10B apart from the module label: JS 704.03 kB
 (203.59 kB gzip), CSS 66.88 kB (11.77 kB gzip).
+
+## 23.25 Measured in M10B.2
+
+The search query now scans a `UNION ALL` of two tables instead of one, and the
+searchable set grew from 47 rows to 188.
+
+### Inside PostgreSQL — where the answer is unambiguous
+
+`EXPLAIN (ANALYZE)` on the post-fix query, three runs:
+
+| | |
+|---|---|
+| Execution time | **0.68, 0.70, 1.20 ms** |
+| Planning time | 13.8, 15.2, 37.1 ms |
+
+**The database is not the cost.** Four times the rows and an extra join cost
+about a millisecond of execution; planning dominates, and planning is a fixed
+overhead of a query this shape rather than of its size.
+
+### Over HTTP — noisy, and honestly so
+
+| | |
+|---|---|
+| `search=explain&limit=30` | 252 ms |
+| `search=anodizing`, five runs | 243 ms … 824 ms |
+| `/api/v1/schemes` (control, no question search) | 218–243 ms, stable |
+
+~220 ms is the floor for any endpoint here — it is `curl` process start and the
+round trip, not the server. The spikes to 800 ms appeared on question search and
+not on the control, and **I did not isolate their cause.** Given the query
+itself executes in a millisecond, the cause is above the database: Node,
+serialisation, connection handling or machine noise. Naming one without evidence
+would be a guess.
+
+**No index added, and none is warranted:** an index cannot improve a 0.7 ms
+execution.
+
+Bundle: JS 704.05 kB (203.60 kB gzip), CSS unchanged at 66.88 kB.

@@ -41,7 +41,14 @@ describeDb('question search', () => {
     examYear?: number;
     parserVersion?: string;
     isCurrent?: boolean;
-    questions: { number: string; text: string; module?: string; marks?: number }[];
+    questions: {
+      number: string;
+      text: string;
+      module?: string;
+      marks?: number;
+      /** Parts beneath the question, as a real VTU descriptive paper has. */
+      subs?: { label: string | null; text: string; marks?: number }[];
+    }[];
   }): Promise<string> {
     const sha256 = createHash('sha256').update(options.title).digest('hex');
     const presentation = options.presentation ?? 'link';
@@ -84,7 +91,7 @@ describeDb('question search', () => {
 
     let ordinal = 0;
     for (const question of options.questions) {
-      await sql`
+      const [row] = await sql<{ id: string }[]>`
         INSERT INTO extracted_questions (
           paper_id, paper_format, ordinal, question_number, module, question_text,
           marks, page_number, bbox_x, bbox_y, bbox_width, bbox_height,
@@ -94,8 +101,22 @@ describeDb('question search', () => {
           ${question.module ?? 'Module-1'}, ${question.text},
           ${question.marks ?? 10}, 1, 0, 0, 100, 20,
           'high', false, 'unreviewed'
-        )
+        ) RETURNING id::text
       `;
+      let subOrdinal = 0;
+      for (const sub of question.subs ?? []) {
+        await sql`
+          INSERT INTO extracted_sub_questions (
+            question_id, ordinal, label, sub_text, marks, page_number,
+            bbox_x, bbox_y, bbox_width, bbox_height,
+            confidence, needs_review, review_state
+          ) VALUES (
+            ${row?.id as string}::uuid, ${subOrdinal}, ${sub.label}, ${sub.text},
+            ${sub.marks ?? 7}, 1, 0, 0, 100, 20, 'high', false, 'unreviewed'
+          )
+        `;
+        subOrdinal += 1;
+      }
       ordinal += 1;
     }
     return documentId;
@@ -154,6 +175,30 @@ describeDb('question search', () => {
       presentation: 'private',
       subjectCode: 'BCS504',
       questions: [{ number: '1a', text: 'Private question about certifying authority.' }],
+    });
+
+    /*
+     * A NATIVE-SHAPED PAPER (M10B.2). "Q1" is a container with no text of its
+     * own; every word and every mark belongs to (a), (b), (c) beneath it. This
+     * is what positional-v2 produces from a native VTU PDF, and searching only
+     * parent questions made every such paper invisible (OQ-047).
+     */
+    await paper({
+      title: 'QS native container',
+      subjectCode: 'BMATC101',
+      examYear: 2022,
+      questions: [
+        {
+          number: '1',
+          text: '',
+          module: '1',
+          subs: [
+            { label: 'a', text: 'Find the radius of curvature of the curve.', marks: 6 },
+            { label: 'b', text: 'Show that rho varies inversely as r.', marks: 7 },
+            { label: null, text: 'A part whose label the parser could not read.', marks: 7 },
+          ],
+        },
+      ],
     });
 
     await paper({
@@ -285,6 +330,66 @@ describeDb('question search', () => {
     for (const key of keys) {
       expect(key).not.toMatch(/profile|student|usn|account|attendance|sgpa|cgpa/i);
     }
+  });
+
+  /* --- OQ-047: a native paper's prose lives on its sub-questions ---------- */
+
+  describe('sub-question text (M10B.2)', () => {
+    it('finds a question whose text lives on a sub-question', async () => {
+      const response = await search('search=radius of curvature').expect(200);
+      expect(response.body.total).toBe(1);
+
+      const hit = response.body.data[0];
+      expect(hit.text).toContain('radius of curvature');
+      /* Named so the result says which question it is part of. */
+      expect(hit.questionNumber).toBe('1(a)');
+      /* Marks come from the part; the module from its parent. */
+      expect(hit.marks).toBe(6);
+      expect(hit.module).toBe('1');
+      expect(hit.subjectCode).toBe('BMATC101');
+    });
+
+    it('keeps a container question out of the results when it has no text', async () => {
+      const response = await search('subject=BMATC101').expect(200);
+      // Three parts, and not the empty parent that holds them.
+      expect(response.body.total).toBe(3);
+      const numbers = response.body.data.map((r: { questionNumber: string }) => r.questionNumber);
+      expect(numbers).not.toContain('1');
+      expect(numbers).toContain('1(a)');
+      expect(numbers).toContain('1(b)');
+    });
+
+    it('does not invent a label the parser could not read', async () => {
+      const response = await search('search=could not read').expect(200);
+      expect(response.body.total).toBe(1);
+      // "?" for the unknown part, never a fabricated "c".
+      expect(response.body.data[0].questionNumber).toBe('1(?)');
+    });
+
+    it('does not concatenate parts into a synthetic parent question', async () => {
+      const response = await search('subject=BMATC101').expect(200);
+      for (const row of response.body.data as { text: string }[]) {
+        /*
+         * Each result carries ONE part's own text. A row holding both (a) and
+         * (b) would mean the parent had been synthesised by joining its
+         * children — text that exists in no record (M10B.2).
+         */
+        const hasA = row.text.includes('radius of curvature');
+        const hasB = row.text.includes('rho varies inversely');
+        expect(hasA && hasB).toBe(false);
+      }
+    });
+
+    it('still returns parent questions that do have their own text', async () => {
+      const response = await search('search=certifying').expect(200);
+      expect(response.body.total).toBe(1);
+      expect(response.body.data[0].questionNumber).toBe('1a');
+    });
+
+    it('excludes a sub-question belonging to a superseded extraction', async () => {
+      const response = await search('search=Superseded').expect(200);
+      expect(response.body.total).toBe(0);
+    });
   });
 
   it('does not cache a response that reflects what someone searched for', async () => {
