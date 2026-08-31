@@ -32,11 +32,118 @@
  * with an active indicator, and soft tinted status chips.
  *
  * ---------------------------------------------------------------------------
- * Theme customisation remains DEFERRED as a user feature (M9.4 §25). No
- * picker, no accent selector, no per-user themes. The architecture below makes
- * one cheap later: every themeable value is a custom property on :root, so a
- * future milestone overrides properties instead of rewriting components.
+ * ---------------------------------------------------------------------------
+ * M9.6: THEME CUSTOMISATION IS NOW A PRODUCT FEATURE
+ * ---------------------------------------------------------------------------
+ *
+ * M9.4 deferred it and predicted the shape of the eventual fix: "every
+ * themeable value is a custom property on :root, so a future milestone
+ * overrides properties instead of rewriting components." That is exactly what
+ * happened — not one component changed to gain themes.
+ *
+ * TWO INDEPENDENT AXES, which is the whole trick:
+ *
+ *   APPEARANCE   light | dark | system      -> `data-theme` on <html>
+ *   ACCENT       one of five curated hues   -> `data-accent` on <html>
+ *
+ * They are orthogonal, so the palette is 2 appearances x 5 accents = 10 looks
+ * from ONE extra block per accent rather than ten hand-written themes. The
+ * accent blocks below define hue STOPS only (`--a-*`), and the appearance
+ * blocks decide which stop each semantic token uses. An accent never names a
+ * background; an appearance never names a hue.
+ *
+ * WHY THE PRIMARY BUTTON IS NOT THE ACCENT IN LIGHT MODE. The light theme's
+ * near-black action fill comes from the M9.4 mobile reference and is part of
+ * the product's identity, not a colour waiting to be themed. Accent drives
+ * text, selection, focus, chips, charts, glow and ambient in BOTH appearances;
+ * the primary fill is structural — violet-family in dark, ink in light. See
+ * docs/32 DEC-038; a later decision can make the fill follow the accent.
+ *
+ * EVERY ACCENT IS CONTRAST-CHECKED, not eyeballed. `theme.test.ts` parses this
+ * file and computes WCAG ratios for every accent against every ground it can
+ * land on; a hue that fails 4.5:1 anywhere cannot be committed.
  */
+
+/* ========================================================================== */
+/* ACCENTS — hue stops only. No accent block may name a background or a text  */
+/* colour; those belong to the appearance blocks below.                       */
+/* ========================================================================== */
+
+/*
+ * Each accent supplies six stops:
+ *
+ *   --a-on-dark      text/icon colour on the dark ground   (>= 4.5:1)
+ *   --a-on-light     text/icon colour on the light ground  (>= 4.5:1)
+ *   --a-fill         a fill that carries WHITE text        (>= 4.5:1)
+ *   --a-fill-hover   the same fill, one step brighter
+ *   --a-weak-*       the tinted chip/selected background, per appearance
+ *   --a-border-*     the tinted hairline, per appearance
+ *   --a-glow-rgb     space-separated channels, for glow and ambient alpha
+ *
+ * Violet is the default and is repeated on :root so a document with no
+ * data-accent renders identically to M9.5.
+ */
+
+:root,
+:root[data-accent='violet'] {
+  --a-on-dark: #a48bff;
+  --a-on-light: #5b34d4;
+  --a-fill: #6d4de0;
+  --a-fill-hover: #7d5fe8;
+  --a-weak-dark: #1d1733;
+  --a-weak-light: #ede8fc;
+  --a-border-dark: #3d2f77;
+  --a-border-light: #d3c7f7;
+  --a-glow-rgb: 109 77 224;
+}
+
+:root[data-accent='cyan'] {
+  --a-on-dark: #55d6e8;
+  --a-on-light: #0b6f86;
+  --a-fill: #0e7490;
+  --a-fill-hover: #1189a8;
+  --a-weak-dark: #0d2a30;
+  --a-weak-light: #e0f4f8;
+  --a-border-dark: #17505c;
+  --a-border-light: #b6dfe9;
+  --a-glow-rgb: 14 116 144;
+}
+
+:root[data-accent='amber'] {
+  --a-on-dark: #f0b445;
+  --a-on-light: #8a5206;
+  --a-fill: #a3620a;
+  --a-fill-hover: #bd730e;
+  --a-weak-dark: #2b1f0b;
+  --a-weak-light: #fbf0dd;
+  --a-border-dark: #6a4a12;
+  --a-border-light: #ecd5a8;
+  --a-glow-rgb: 163 98 10;
+}
+
+:root[data-accent='rose'] {
+  --a-on-dark: #ff8fa3;
+  --a-on-light: #b3164a;
+  --a-fill: #be123c;
+  --a-fill-hover: #d5214d;
+  --a-weak-dark: #2d1418;
+  --a-weak-light: #fdeaef;
+  --a-border-dark: #6d2338;
+  --a-border-light: #f4c2d1;
+  --a-glow-rgb: 190 18 60;
+}
+
+:root[data-accent='green'] {
+  --a-on-dark: #4fd9a0;
+  --a-on-light: #0f6b42;
+  --a-fill: #15803d;
+  --a-fill-hover: #1a9c4a;
+  --a-weak-dark: #10281f;
+  --a-weak-light: #e4f5ec;
+  --a-border-dark: #1e5c3e;
+  --a-border-light: #b7e0c8;
+  --a-glow-rgb: 21 128 61;
+}
 
 /* ========================================================================== */
 /* DARK — the default, and the product's identity                             */
@@ -76,9 +183,9 @@
    * 4.5:1 against white sitting on it. A single mid-violet fails one or the
    * other.
    */
-  --accent: #a48bff;
-  --accent-weak: #1d1733;
-  --accent-border: #3d2f77;
+  --accent: var(--a-on-dark);
+  --accent-weak: var(--a-weak-dark);
+  --accent-border: var(--a-border-dark);
   --accent-contrast: #ffffff;
 
   /*
@@ -86,8 +193,8 @@
    * the mobile reference. One rule underneath both — the most confident
    * high-contrast fill this ground allows — so it is one button, not two.
    */
-  --action-bg: #6d4de0;
-  --action-bg-hover: #7d5fe8;
+  --action-bg: var(--a-fill);
+  --action-bg-hover: var(--a-fill-hover);
   --action-fg: #ffffff;
 
   /* Secondary accent. Cyan appears in the references as a cool counterweight,
@@ -114,8 +221,8 @@
    */
   --ambient: radial-gradient(
     120% 60% at 50% -10%,
-    rgb(109 77 224 / 22%) 0%,
-    rgb(109 77 224 / 7%) 38%,
+    rgb(var(--a-glow-rgb) / 22%) 0%,
+    rgb(var(--a-glow-rgb) / 7%) 38%,
     transparent 72%
   );
 
@@ -126,8 +233,8 @@
    * meaningless the moment a second element has it. Two tokens exist so there
    * is no reason to invent a third inline.
    */
-  --glow-accent: 0 6px 24px -6px rgb(109 77 224 / 60%);
-  --glow-accent-soft: 0 4px 16px -8px rgb(109 77 224 / 45%);
+  --glow-accent: 0 6px 24px -6px rgb(var(--a-glow-rgb) / 60%);
+  --glow-accent-soft: 0 4px 16px -8px rgb(var(--a-glow-rgb) / 45%);
 
   /* --- Focus ------------------------------------------------------------- */
   --focus-ring: var(--accent);
@@ -282,9 +389,9 @@
     --text-muted: #57516e;
     --text-subtle: #635c7d;
 
-    --accent: #5b34d4;
-    --accent-weak: #ede8fc;
-    --accent-border: #d3c7f7;
+    --accent: var(--a-on-light);
+    --accent-weak: var(--a-weak-light);
+    --accent-border: var(--a-border-light);
     --accent-contrast: #ffffff;
 
     /* Near-black ink, exactly as the mobile reference's primary buttons. */
@@ -304,8 +411,8 @@
 
     --ambient: radial-gradient(
       120% 60% at 50% -10%,
-      rgb(139 110 240 / 13%) 0%,
-      rgb(139 110 240 / 5%) 40%,
+      rgb(var(--a-glow-rgb) / 15%) 0%,
+      rgb(var(--a-glow-rgb) / 6%) 40%,
       transparent 72%
     );
 
@@ -330,9 +437,9 @@
   --text-muted: #57516e;
   --text-subtle: #635c7d;
 
-  --accent: #5b34d4;
-  --accent-weak: #ede8fc;
-  --accent-border: #d3c7f7;
+  --accent: var(--a-on-light);
+  --accent-weak: var(--a-weak-light);
+  --accent-border: var(--a-border-light);
   --accent-contrast: #ffffff;
 
   --action-bg: #17141f;
@@ -351,8 +458,8 @@
 
   --ambient: radial-gradient(
     120% 60% at 50% -10%,
-    rgb(139 110 240 / 13%) 0%,
-    rgb(139 110 240 / 5%) 40%,
+    rgb(var(--a-glow-rgb) / 15%) 0%,
+    rgb(var(--a-glow-rgb) / 6%) 40%,
     transparent 72%
   );
 

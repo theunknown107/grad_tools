@@ -1,0 +1,199 @@
+/*
+ * Theme control.
+ *
+ * Every value is a token. This file is the proof that the accent layer works:
+ * it names `--accent`, `--surface`, `--border` and nothing else, so all ten
+ * appearance x accent combinations render from these same rules.
+ */
+
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Circular icon button, matching the header's other actions (M9.4 §5.16). */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 36px;
+  block-size: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-enter),
+    border-color var(--motion-fast) var(--ease-enter);
+}
+
+.trigger:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.trigger:focus-visible,
+.segmentItem:focus-visible,
+.swatch:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.panel {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-2));
+  inset-inline-end: 0;
+  z-index: var(--z-overlay);
+  inline-size: 244px;
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  animation: panel-in var(--motion-fast) var(--ease-enter);
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.legend {
+  padding: 0;
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+/* --- Appearance ---------------------------------------------------------- */
+
+.segment {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.segmentItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding-block: var(--space-2);
+  border: 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-enter),
+    color var(--motion-fast) var(--ease-enter);
+}
+
+.segmentItem:hover {
+  color: var(--text);
+}
+
+/*
+ * The selected segment. `aria-pressed` drives the style directly, so the
+ * accessible state and the visible state cannot drift apart — there is no
+ * separate `.isSelected` class that someone could forget to keep in sync.
+ */
+.segmentItem[aria-pressed='true'] {
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  color: var(--text-subtle);
+}
+
+/* --- Accent -------------------------------------------------------------- */
+
+.accents {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/*
+ * Each swatch sets `data-accent` on ITSELF, so the accent blocks in tokens.css
+ * resolve locally and the swatch paints its own hue without a single colour
+ * being written here. Adding a sixth accent needs no change to this file.
+ */
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 30px;
+  block-size: 30px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--a-fill);
+  color: #fff;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast) var(--ease-enter),
+    border-color var(--motion-fast) var(--ease-enter);
+}
+
+.swatch:hover {
+  transform: scale(1.08);
+}
+
+.swatch[aria-pressed='true'] {
+  border-color: var(--text);
+}
+
+/*
+ * Touch targets. The swatches are 30px because a row of five 44px circles does
+ * not fit a 244px panel, so the tappable area is extended past the painted
+ * circle instead of inflating it (docs/27 §27.6).
+ */
+@media (pointer: coarse) {
+  .swatch {
+    position: relative;
+  }
+
+  .swatch::after {
+    content: '';
+    position: absolute;
+    inset: calc((var(--touch-target-min) - 30px) / -2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+
+  .swatch:hover {
+    transform: none;
+  }
+}

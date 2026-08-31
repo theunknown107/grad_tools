@@ -714,3 +714,59 @@ beside each would be five marks competing with five numbers. The one-line `Empty
 none — a mark beside a single sentence is decoration. Only the block `EmptyState` has
 one, drawn in `--text-subtle` at 70% opacity, because an empty state should read as a
 quiet absence rather than as an error.
+
+## 5.21 Theme customisation (M9.6A)
+
+M9.4 deferred this and predicted its own fix: *"every themeable value is a
+custom property on `:root`, so a future milestone overrides properties instead
+of rewriting components."* That held. **No component changed to gain themes.**
+
+### Two orthogonal axes
+
+| Axis | Values | Carrier |
+|---|---|---|
+| Appearance | `light` · `dark` · `system` | `data-theme` on `<html>` |
+| Accent | `violet` · `cyan` · `amber` · `rose` · `green` | `data-accent` on `<html>` |
+
+Orthogonal on purpose: 2 × 5 = **ten palettes from one extra block per accent**,
+not ten hand-written themes. Accent blocks define hue stops (`--a-*`) and never
+name a background; appearance blocks decide which stop each semantic token
+takes and never name a hue. Adding a sixth accent is one CSS block plus one
+array entry.
+
+### Three states, not two
+
+`system` is the default, and it is the reason `data-theme` is **removed**
+rather than set to `"system"`. The absence of the attribute is what hands
+control to `prefers-color-scheme`; an attribute value of `"system"` would match
+no block and strand the page on the dark defaults. A test pins the removal.
+
+`color-scheme` is set alongside, so the browser's own scrollbars and form
+controls follow the choice instead of staying light on an explicitly dark page.
+
+### The primary fill is structural, not accent
+
+In dark the primary action is the accent fill. In light it stays **near-black
+ink**, from the M9.4 mobile reference — that button is part of the identity,
+not a colour waiting to be themed. Accent still drives text, selection, focus,
+chips, charts, glow and ambient in both appearances. Recorded as `32/DEC-038`;
+reversible if the product decides otherwise.
+
+### Contrast is computed, not eyeballed
+
+Ten palettes is more than anyone will check by hand, so `theme.test.ts` **parses
+`tokens.css` itself** and computes WCAG ratios for every accent against every
+ground it can land on — dark bg, dark surface, light bg, light surface, plus
+white-on-fill for the button. A hue below 4.5:1 anywhere cannot be committed.
+Measured range: **4.87:1 to 11.41:1**.
+
+This is also why the accents are a **fixed list rather than a colour picker**.
+An arbitrary hex cannot be checked, and would eventually produce an unreadable
+interface that reads as our bug rather than the person's choice.
+
+### No flash
+
+An inline blocking script in `index.html` applies the stored attributes before
+first paint. It duplicates a dozen lines of `lib/theme.ts` deliberately: the
+React bundle is a module and therefore deferred, so applying the theme there
+would paint the default palette first and repaint into the chosen one.

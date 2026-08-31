@@ -9,6 +9,38 @@
       content="GradTools brings routine academic workflows into one place. Independent student project, not affiliated with VTU."
     />
     <title>GradTools</title>
+    <!--
+      Applies the stored theme BEFORE first paint.
+
+      This has to be an inline, blocking script in <head>. The React bundle is a
+      module, so it is deferred; if the theme were applied there, the page would
+      paint once with the default dark palette and then repaint into light — the
+      flash every themed site gets wrong. Everything here is duplicated from
+      lib/theme.ts on purpose: importing it would make this deferred again.
+
+      Deliberately silent on failure. A theme that cannot be read is not worth a
+      blank page, so any error leaves the CSS defaults in charge, which are the
+      system-driven ones.
+    -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('gradtools:v1:theme');
+          if (!raw) return;
+          var saved = JSON.parse(raw);
+          var root = document.documentElement;
+          if (saved.appearance === 'light' || saved.appearance === 'dark') {
+            root.setAttribute('data-theme', saved.appearance);
+            root.style.colorScheme = saved.appearance;
+          }
+          if (['violet', 'cyan', 'amber', 'rose', 'green'].indexOf(saved.accent) !== -1) {
+            root.setAttribute('data-accent', saved.accent);
+          }
+        } catch (error) {
+          /* Storage blocked or corrupt: fall back to the system appearance. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

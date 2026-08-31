@@ -1538,3 +1538,33 @@ its provenance.
 
 **Decision needed:** before any exam-date feature. Until then GradTools shows no
 exam dates at all, which remains correct (`OQ-026`).
+
+### DEC-038 — The primary fill is structural, the accent is everything else · **M9.6A**
+
+In light mode the primary action stays near-black ink rather than following the
+chosen accent. The ink button comes from the M9.4 mobile reference and is part
+of the product's identity; making it track the accent would change the default
+light appearance and regress the fidelity M9.4/M9.5 were built for.
+
+Accent still drives text, selected states, focus, chips, charts, glow and
+ambient in **both** appearances, so the choice is visible everywhere — it simply
+does not repaint the one element that carries the brand.
+
+**Consequence:** a person choosing `rose` sees a rose-tinted light interface
+with a black primary button. **Open to reversal** if that reads as broken rather
+than deliberate; the change is one line per appearance block.
+
+### DEC-039 — Theme is device state, and is not synced · **M9.6A**
+
+The preference is written to `localStorage` under `gradtools:v1:theme`, which is
+deliberately **not** account-scoped like every repository key
+(`gradtools:v1:u:<id>:...`). It survives sign-out and never enters a sync
+payload.
+
+A theme answers "what does this screen, in this room, at this hour, do to my
+eyes" — a property of the device. A student reading on a phone at midnight and
+on a library desktop at noon wants different answers, and syncing would push
+each device's answer onto the other.
+
+**If reversed:** an account preference becomes a DEFAULT for a new device, which
+the local value still overrides. That ordering keeps the reversal cheap.
