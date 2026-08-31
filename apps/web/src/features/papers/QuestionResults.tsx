@@ -63,9 +63,14 @@ function QuestionRow({ result }: { readonly result: QuestionSearchResult }) {
      */
     result.module === null ? null : `Module ${result.module}`,
     result.marks === null ? null : `${String(result.marks)} marks`,
-    /* Named because OCR text and text lifted from a digital PDF are not
-       equally trustworthy, and the row should not pretend they are. */
-    result.extractionSource === 'ocr' ? 'from a scan' : null,
+    /*
+     * Named BOTH ways (M10B.2 §18). OCR text and text lifted from a digital
+     * PDF are not equally trustworthy, and until now only the scan was
+     * labelled — so a native result was identified by the absence of a mark,
+     * which is not something a reader can notice. Neither phrase claims
+     * accuracy; they say where the characters came from.
+     */
+    result.extractionSource === 'ocr' ? 'from a scan' : 'from the PDF text',
   ].filter((part): part is string => part !== null && part !== '');
 
   return (

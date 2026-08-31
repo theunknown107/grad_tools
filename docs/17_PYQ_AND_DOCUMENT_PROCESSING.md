@@ -1376,3 +1376,58 @@ persistence or the review workbench (M8 §47). It reads what those produced.
 `seed:demo-papers` writes documents; it does not parse them. Running the parser
 is the existing pipeline's job, through the existing routes, exactly as for any
 other document.
+
+## 17.x M10B.2 — OQ-047 investigated: positional-v2 was right
+
+OQ-047 recorded that `positional-v2` "captures no words" from native PDFs. **It
+was wrong, and the evidence is unambiguous: no text was ever lost.**
+
+### What the parser actually produces
+
+Running v1 and v2 over the real `1BMATC101.pdf`:
+
+| | v1 | v2 |
+|---|---|---|
+| Questions | 12, all with text | 10, **none with text** |
+| Question numbers | all `"?"` | `1`, `2`, `3` … |
+| Sub-questions | 33, all with text | 30, all with text |
+
+The v2 parent questions are **containers**. On a VTU descriptive paper "Q1" has
+no prose of its own: the wording and the marks belong to (a), (b) and (c)
+beneath it. v2 models that; the words are on the sub-question records.
+
+### v1 was not better — it duplicated
+
+Sampled from the corpus, v1's parent text against its own sub-question text:
+
+```
+Q#?  qtext = With usual notations, prove that tan(∅) = 𝑟 𝑑𝜃 .
+     sub[a] = With usual notations, prove that tan(∅) = 𝑟 𝑑𝜃 .
+```
+
+v1 stored the same sentence **twice** — once as a pseudo-question numbered `"?"`
+and once as a sub-question — which is why its "12 of 12 with text" looked
+healthy. It lost the question numbering and inflated every count.
+
+### Corpus-wide, on current extractions
+
+| Source | Questions | With text | Sub-questions | With text |
+|---|---|---|---|---|
+| native | 42 | **0** | 107 | **107** |
+| ocr | 84 | 61 | 34 | 34 |
+
+Every native word is present and persisted. **The defect was downstream:**
+question search read `extracted_questions.question_text` only, so a paper whose
+prose lives on sub-questions was invisible — while OCR papers, whose flatter
+structure puts more prose on the parent, happened to work.
+
+**No parser change was made.** M10B.2 §3 warned against restoring v1; the
+evidence says v1 is the version that was wrong.
+
+### A hazard confirmed while investigating
+
+`pdftotext` on this machine's PATH is **Xpdf 4.00**, which rejects `-tsv`
+outright. With Xpdf, `parseTsv` finds no level-5 rows, `extractNativeStructure`
+returns `null`, and a native document yields **no records at all** — not empty
+text. That is a different failure from OQ-047's and it is why `PDFTOTEXT_BIN`
+must point at poppler (§17.x, existing note in `positional.ts`).

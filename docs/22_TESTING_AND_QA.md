@@ -1340,3 +1340,46 @@ screenshot is what showed it.
   (M8 §10); all nine documents share semester 1 and year 2024, so neither
   control renders. API: `search=explain&semester=1` → 20, `&year=2024` → 20.
 - No human ground truth for any record.
+
+## 22.28 M10B.2 — sub-question search
+
+**42 files, 1360 tests, all passing.** Six are new; none was weakened.
+
+| Test | The defect it prevents |
+|---|---|
+| Finds a question whose text lives on a sub-question | OQ-047 itself — a native paper being invisible |
+| A container with no text stays out of results | An empty parent rendering as a blank row |
+| A missing label becomes `1(?)` | A fabricated `1(c)` (M10B §19) |
+| No row holds two parts' text | Synthesising a parent by concatenating its children |
+| Parent questions with their own text still return | The union regressing OCR papers |
+| A superseded extraction's sub-questions are excluded | Parser versions merging (M10B §24) |
+
+The fixture now builds real container-shaped papers: a parent with empty text and
+three parts, one of them deliberately unlabelled.
+
+### Browser — BROWSER VERIFIED
+
+Real Chromium at 390 and 1280, against the real corpus:
+
+| | |
+|---|---|
+| Native question found | `2(a)`, `2(b)` for "radius of curvature" |
+| Mathematical Unicode | Preserved exactly as extracted |
+| Provenance | `BMATC101 · June/July · Module 1 · 6 marks · from the PDF text` |
+| OCR unchanged | `db. What is Anodizing?…` still `from a scan`, still `Needs checking` |
+| Open the paper | → `h1 = BMATC101`, the right document |
+| axe / overflow / console | **0 / 0px / 0** at both widths |
+
+### One UI change
+
+Native provenance was previously identified by the **absence** of "from a scan",
+which is not something a reader can notice. Native rows now say `from the PDF
+text`. Neither phrase claims accuracy; both say where the characters came from.
+
+### NOT VERIFIED
+
+- **Mathematical fidelity is not verified.** Native maths survives as Unicode
+  and renders, but nobody has checked a rendered formula against the paper.
+  `OQ-030` (Kannada) and `OQ-031` (human ground truth) remain open.
+- The verification database is a local copy of the corpus with library metadata
+  applied; the production `documents` rows for these papers do not exist.
