@@ -18,5 +18,8 @@ export default defineConfig({
     // userEvent drives real DOM events one at a time; a form with several
     // selects legitimately exceeds the 5s default in jsdom.
     testTimeout: 20_000,
+    // Raises Testing Library's own findBy* wait, which is separate from
+    // testTimeout and defaults to 1s — too tight under full-suite load.
+    setupFiles: ['./test/setup.ts'],
   },
 });
