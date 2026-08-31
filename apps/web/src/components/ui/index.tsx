@@ -9,7 +9,7 @@
  * still need restyling to the tokens (docs/05 §5.13).
  */
 
-import { AlertOctagon, AlertTriangle, CheckCircle2, Info, type LucideIcon } from 'lucide-react';
+import { Icon, type IconName } from '../icons.js';
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
 import { useId } from 'react';
 import type { Explanation } from '@gradtools/academic-rules';
@@ -126,6 +126,7 @@ export function TextField({
   hint,
   error,
   mono = false,
+  icon,
   ...rest
 }: {
   label: string;
@@ -134,6 +135,12 @@ export function TextField({
   hint?: string | undefined;
   error?: string | undefined;
   mono?: boolean | undefined;
+  /**
+   * A mark inside the field, before the text. For a field whose PURPOSE is not
+   * obvious from its label alone — a search box is the case that earns it.
+   * Decorative: the `<label>` is what names the field.
+   */
+  icon?: IconName | undefined;
 } & InputHTMLAttributes<HTMLInputElement>) {
   const id = useId();
   const hintId = `${id}-hint`;
@@ -145,13 +152,18 @@ export function TextField({
       <label className={styles.label} htmlFor={id}>
         {label}
       </label>
-      <input
-        id={id}
-        className={`${styles.input ?? ''} ${mono ? (styles.mono ?? '') : ''}`}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy === '' ? undefined : describedBy}
-        {...rest}
-      />
+      <div className={styles.inputWrap}>
+        {icon !== undefined && <Icon name={icon} size="nav" className={styles.inputIcon} />}
+        <input
+          id={id}
+          className={`${styles.input ?? ''} ${mono ? (styles.mono ?? '') : ''} ${
+            icon === undefined ? '' : (styles.inputWithIcon ?? '')
+          }`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy === '' ? undefined : describedBy}
+          {...rest}
+        />
+      </div>
       {hint !== undefined && error === undefined && (
         <span className={styles.hint} id={hintId}>
           {hint}
@@ -229,27 +241,32 @@ const pillTones: Record<PillTone, string> = {
  */
 export function StatusPill({
   tone,
-  icon: Icon,
+  icon,
   children,
 }: {
   tone: PillTone;
-  icon?: LucideIcon;
+  icon?: IconName;
   children: ReactNode;
 }) {
   return (
     <span className={`${styles.pill ?? ''} ${pillTones[tone]}`}>
-      {Icon && <Icon size={13} aria-hidden="true" />}
+      {icon !== undefined && <Icon name={icon} size="micro" />}
       {children}
     </span>
   );
 }
 
-/** Shape-differentiated icons for the three attendance states. */
+/**
+ * Shape-differentiated icons for the three attendance states.
+ *
+ * A circle, a triangle and an octagon — the same three silhouettes road signs
+ * use, and readable with no colour at all (docs/27 §27.5).
+ */
 export const statusIcons = {
-  safe: CheckCircle2,
-  below: AlertTriangle,
-  risk: AlertOctagon,
-} as const;
+  safe: 'success',
+  below: 'warning',
+  risk: 'danger',
+} as const satisfies Record<string, IconName>;
 
 /* -------------------------------------------------------------------------- */
 /* Notice                                                                     */
@@ -268,11 +285,11 @@ export function Notice({
       : tone === 'danger'
         ? styles.noticeDanger
         : styles.noticeInfo;
-  const Icon = tone === 'warning' ? AlertTriangle : tone === 'danger' ? AlertOctagon : Info;
+  const name: IconName = tone === 'warning' ? 'warning' : tone === 'danger' ? 'danger' : 'info';
 
   return (
     <div className={`${styles.notice ?? ''} ${toneClass ?? ''}`}>
-      <Icon size={16} className={styles.noticeIcon} aria-hidden="true" />
+      <Icon name={name} size="nav" className={styles.noticeIcon} />
       <div>{children}</div>
     </div>
   );
@@ -286,9 +303,18 @@ export function Notice({
  * What is empty, why that is normal, and exactly one action (docs/04 §4.5).
  * Never a shrug, never fake sample data presented as the student's own.
  */
+/**
+ * A panel with nothing in it yet.
+ *
+ * The icon is the ONLY one on the screen at that moment and it is drawn in the
+ * subtle colour, which is the whole point: an empty state should read as a
+ * quiet absence, not as an error. The one-line `Empty` in ui/layout.tsx gets no
+ * icon at all — a mark beside a single sentence is decoration (M9.5.2 §9).
+ */
 export function EmptyState({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className={styles.empty}>
+      <Icon name="empty" size="large" className={styles.emptyIcon} />
       <p className={styles.emptyText}>{children}</p>
       {action}
     </div>

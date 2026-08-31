@@ -292,3 +292,10 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* An arrow says "back" faster than the word does, so it leads. */
+.backLink {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}

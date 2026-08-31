@@ -222,6 +222,27 @@
   color: var(--danger);
 }
 
+.inputWrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+/* Centred on the field, never on the text: the field is a fixed height and the
+   text is not. */
+.inputIcon {
+  position: absolute;
+  left: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-subtle);
+  pointer-events: none;
+}
+
+.inputWithIcon {
+  padding-left: calc(var(--space-4) * 2 + var(--icon-nav));
+}
+
 .input,
 .select {
   min-height: var(--touch-target-min);
@@ -314,6 +335,13 @@
   gap: var(--space-3);
   padding: var(--space-6) var(--space-4);
   color: var(--text-muted);
+}
+
+/* Quiet, and quieter than the sentence under it. An empty state is not a
+   failure and must not be lit like one. */
+.emptyIcon {
+  color: var(--text-subtle);
+  opacity: 0.7;
 }
 
 .emptyText {

@@ -685,3 +685,17 @@ border is a handful of declarations against three primitives' worth of rules.
 No dependency added. The `mask-image` on the two scrolling navigation rows is
 composited and applies to at most two elements; it is dropped entirely above
 1024px where the rows fit.
+
+## 23.21 Measured in M9.5.2
+
+| | M9.5.1 | M9.5.2 |
+|---|---|---|
+| JS | 695,190 B (201.14 kB gzip) | **695,098 B (201.13 kB gzip)** |
+| CSS | 63,496 B (11.07 kB gzip) | **63,496 B (11.30 kB gzip)** |
+
+Flat — and **one dependency lighter**. `lucide-react` is removed; 32 hand-drawn shapes
+cost about what 22 tree-shaken Lucide icons did.
+
+The 16 shapes that nothing rendered were pruned rather than kept for completeness:
+measured at **1.77 kB (0.53 kB gzipped)**. A name registry cannot tree-shake, so an
+unused shape is not free the way an unused library export is.

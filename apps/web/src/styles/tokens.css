@@ -208,6 +208,19 @@
   --tracking-tight: -0.012em;
   --tracking-label: 0.08em;
 
+  /* --- Icons -------------------------------------------------------------- */
+  /*
+   * Five sizes, so no call site writes a number (M9.5.2 §6). They step with the
+   * type scale rather than with the spacing scale: an icon's job is to sit
+   * beside a label, and 14px text wants a 16px glyph, not a 16px box.
+   */
+  --icon-micro: 12px;
+  --icon-small: 14px;
+  /* Navigation and inline-with-label, the size used most. */
+  --icon-nav: 16px;
+  --icon-medium: 18px;
+  --icon-large: 22px;
+
   /* --- Radii -------------------------------------------------------------- */
   --radius-sm: 8px;
   --radius-md: 12px;

@@ -629,3 +629,24 @@ from spreading across a 1920px window.
 Both bundles got **smaller**. See `05` §5.19, `22` §22.23, `23` §23.20.
 
 **Theme customisation remains DEFERRED. VTU polling remains DISABLED.**
+
+## 31.12 M9.5.2 — iconography · ✅ **DELIVERED**
+
+A purpose-built GradTools icon set: **32 shapes**, one `viewBox`, one stroke weight,
+five tokenised sizes, accessibility enforced in the component rather than at the call
+sites. `lucide-react` removed — its 2px stroke read heavier than the type beside it,
+and stroke weight is not something a library exposes per icon.
+
+Every destination has its own glyph; Account and Profile no longer share one. Contextual
+marks were added only where they earn their place — empty states, retry, sign out, back,
+the search field, external links, status pills — and deliberately not on metric labels.
+
+See `05` §5.20 for the set's rules and the two decisions inside it (the `gpa` optical-size
+fix; pruning what nothing renders), `22` §22.24 for QA and the environment it exposed,
+`23` §23.21 for the cost.
+
+**`tests/README.md` now documents the QA environment** — the harness's origin, the API,
+its CORS requirement, and the two silent failure modes that make a green sweep
+meaningless.
+
+**Theme customisation remains DEFERRED. VTU polling remains DISABLED.**

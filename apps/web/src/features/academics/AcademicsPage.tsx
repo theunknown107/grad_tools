@@ -23,7 +23,7 @@ import {
   type SemesterSummary,
 } from '@gradtools/academic-rules';
 import { PageHeader } from '../../components/AppShell.js';
-import { Plus, Trash2 } from '../../components/icons.js';
+import { Icon } from '../../components/icons.js';
 import {
   Button,
   ExplanationDisclosure,
@@ -107,7 +107,7 @@ function SgpaCalculator() {
       title="SGPA for one semester"
       action={
         <Button small onClick={() => setRows((current) => [...current, blankRow()])}>
-          <Plus size={14} aria-hidden="true" />
+          <Icon name="plus" size="nav" />
           Add course
         </Button>
       }
@@ -169,7 +169,7 @@ function SgpaCalculator() {
                 setRows((current) => current.filter((candidate) => candidate.id !== row.id));
               }}
             >
-              <Trash2 size={16} aria-hidden="true" />
+              <Icon name="trash" size="nav" />
             </Button>
           </li>
         ))}
@@ -253,7 +253,7 @@ function CgpaCalculator() {
             setRows((current) => [...current, blankSemester(current.length)]);
           }}
         >
-          <Plus size={14} aria-hidden="true" />
+          <Icon name="plus" size="nav" />
           Add semester
         </Button>
       }
@@ -350,7 +350,7 @@ function CgpaCalculator() {
                 setRows((current) => current.filter((candidate) => candidate.id !== row.id));
               }}
             >
-              <Trash2 size={16} aria-hidden="true" />
+              <Icon name="trash" size="nav" />
             </Button>
           </li>
         ))}

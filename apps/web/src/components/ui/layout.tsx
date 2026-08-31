@@ -25,6 +25,7 @@
  */
 
 import type { ReactNode } from 'react';
+import { Icon } from '../icons.js';
 import styles from './layout.module.css';
 
 /* -------------------------------------------------------------------------- */
@@ -221,6 +222,7 @@ export function LoadError({
       {children}
       {onRetry !== undefined && (
         <button type="button" className={styles.retry} onClick={onRetry}>
+          <Icon name="refresh" size="micro" />
           Retry
         </button>
       )}

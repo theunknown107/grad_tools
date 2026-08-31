@@ -14,7 +14,7 @@ import { useMemo, useState } from 'react';
 import { WEEKDAYS, type TimetableSlot, type Weekday } from '../../domain/types.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
-import { ChevronRight, Plus, Trash2 } from '../../components/icons.js';
+import { Icon } from '../../components/icons.js';
 import {
   Button,
   EmptyState,
@@ -166,7 +166,7 @@ export function TimetablePage() {
               </div>
             )}
             <Button variant="primary" onClick={addSlot}>
-              <Plus size={16} aria-hidden="true" />
+              <Icon name="plus" size="nav" />
               Add class
             </Button>
           </div>
@@ -210,7 +210,7 @@ export function TimetablePage() {
                     setActiveDay(WEEKDAYS[Math.max(0, activeIndex - 1)] ?? 'Mon');
                   }}
                 >
-                  <ChevronRight size={16} aria-hidden="true" className={styles.flip} />
+                  <Icon name="chevronRight" size="nav" className={styles.flip} />
                 </Button>
                 <h2 className={styles.agendaTitle}>{activeDay}</h2>
                 <Button
@@ -221,7 +221,7 @@ export function TimetablePage() {
                     setActiveDay(WEEKDAYS[Math.min(WEEKDAYS.length - 1, activeIndex + 1)] ?? 'Sat');
                   }}
                 >
-                  <ChevronRight size={16} aria-hidden="true" />
+                  <Icon name="chevronRight" size="nav" />
                 </Button>
               </div>
               {(byDay.get(activeDay) ?? []).length === 0 ? (
@@ -263,7 +263,7 @@ function SlotItem({ slot, onRemove }: { slot: TimetableSlot; onRemove: () => voi
         aria-label={`Remove ${slot.subjectCode} on ${slot.day} at ${formatTime(slot.startTime)}`}
         onClick={onRemove}
       >
-        <Trash2 size={15} aria-hidden="true" />
+        <Icon name="trash" size="nav" />
       </Button>
     </li>
   );

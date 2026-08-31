@@ -72,6 +72,7 @@ export function PapersPage() {
         <div className={styles.search}>
           <TextField
             label="Search"
+            icon="search"
             placeholder="Subject code, subject name, or year"
             value={search}
             onChange={(event) => {

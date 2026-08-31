@@ -16,7 +16,7 @@
  */
 
 import type { PresentationMode } from '@gradtools/shared-types';
-import { ExternalLinkIcon, LockIcon, ShieldCheckIcon, SlashIcon } from './icons.js';
+import { Icon } from './icons.js';
 import styles from './SourceBadge.module.css';
 
 export interface SourceBadgeProps {
@@ -57,13 +57,13 @@ const STATUS: Record<PresentationMode, { label: string; detail: string }> = {
 function StatusIcon({ mode }: { readonly mode: PresentationMode }) {
   switch (mode) {
     case 'host':
-      return <ShieldCheckIcon aria-hidden="true" />;
+      return <Icon name="shield" size="small" />;
     case 'link':
-      return <ExternalLinkIcon aria-hidden="true" />;
+      return <Icon name="external" size="small" />;
     case 'private':
-      return <LockIcon aria-hidden="true" />;
+      return <Icon name="lock" size="small" />;
     case 'blocked':
-      return <SlashIcon aria-hidden="true" />;
+      return <Icon name="ban" size="small" />;
   }
 }
 
@@ -97,7 +97,7 @@ export function SourceBadge({ publisher, presentation, sourceUrl, title }: Sourc
           rel="noopener noreferrer external"
         >
           View original
-          <ExternalLinkIcon aria-hidden="true" />
+          <Icon name="external" size="small" />
           {/* The destination is named for screen readers and for anyone who
               cannot see that the icon means "leaves this site". */}
           <span className={styles.srOnly}>

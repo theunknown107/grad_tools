@@ -21,7 +21,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { Notice, Panel, StatusPill } from '../../components/ui/index.js';
 import { PageHeader } from '../../components/AppShell.js';
-import { ExternalLinkIcon } from '../../components/icons.js';
+import { Icon } from '../../components/icons.js';
 import { apiBaseUrl } from '../../repositories/reference.js';
 import { SOURCE_ROUTES } from '@gradtools/shared-types';
 import { usePaper, usePaperContext } from '../../hooks/usePapers.js';
@@ -151,7 +151,7 @@ export function PaperDetailPage() {
                 target="_blank"
                 rel="noopener noreferrer nofollow"
               >
-                <ExternalLinkIcon size={14} aria-hidden="true" />
+                <Icon name="external" size="small" />
                 Original on {hostOf(paper.sourceUrl)}
                 <span className={styles.visuallyHidden}> (opens in a new tab)</span>
               </a>
@@ -175,7 +175,7 @@ export function PaperDetailPage() {
             target="_blank"
             rel="noopener noreferrer nofollow"
           >
-            <ExternalLinkIcon size={14} aria-hidden="true" />
+            <Icon name="external" size="small" />
             Open the original on {hostOf(paper.sourceUrl)}
             <span className={styles.visuallyHidden}> (opens in a new tab)</span>
           </a>
@@ -187,7 +187,10 @@ export function PaperDetailPage() {
       )}
 
       <p className={styles.note}>
-        <Link to="/papers">Back to question papers</Link>
+        <Link className={styles.backLink} to="/papers">
+          <Icon name="arrowLeft" size="small" />
+          Back to question papers
+        </Link>
       </p>
     </div>
   );

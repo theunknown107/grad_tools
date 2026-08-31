@@ -11,7 +11,7 @@
 
 import { useState } from 'react';
 import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
-import { ExternalLinkIcon } from '../../components/icons.js';
+import { Icon } from '../../components/icons.js';
 import { StatusPill } from '../../components/ui/index.js';
 import { deadlineInfo, priorityOf, type Priority } from '../../domain/announcements.js';
 import styles from './announcements.module.css';
@@ -155,7 +155,7 @@ export function AnnouncementRow({
           target="_blank"
           rel="noopener noreferrer nofollow"
         >
-          <ExternalLinkIcon size={14} aria-hidden="true" />
+          <Icon name="external" size="small" />
           Open the original on {hostOf(announcement.canonicalUrl)}
           <span className={styles.visuallyHidden}> (opens in a new tab)</span>
         </a>
