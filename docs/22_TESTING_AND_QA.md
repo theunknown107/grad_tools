@@ -1423,3 +1423,55 @@ that matter are about refusals:
   with real data yet (`OQ-049`).
 - The mark shapes in the tests are **invented**, modelled on the artifacts'
   structure. No real marks appear anywhere in the repository.
+
+## 22.30 Theme QA (M9.6A)
+
+Two layers, because neither alone is sufficient.
+
+### Contrast, computed from the stylesheet
+
+`apps/web/test/theme.test.ts` **parses `tokens.css`** and computes WCAG ratios
+for all five accents against four grounds — dark bg, dark surface, light bg,
+light surface — plus white-on-fill for the primary button. 25 ratios, measured
+range **4.87:1 to 11.41:1**, all clearing AA.
+
+Parsing the shipped stylesheet rather than a fixture is the point: a hue edited
+in CSS is re-checked without anyone remembering to update the test.
+
+### The palettes, in a real browser
+
+Computed contrast proves the TOKENS are sound. It cannot prove they reach the
+pixels — a component with a hard-coded colour, or a rule that only ever matched
+the default accent, passes the unit test and still ships a broken palette.
+
+`tests/theme-qa.mjs` drives the built application through all ten appearance ×
+accent combinations at 390 and 1280, on Dashboard, Results and Account:
+
+**60 page checks across 10 palettes — CLEAN.** No axe violations
+(wcag2a/2aa/21a/21aa), no horizontal overflow, no console errors, and every
+palette confirmed applied by reading `data-theme`, `data-accent` and the
+computed `--accent` back off the document.
+
+Each context sets Playwright's `colorScheme` to the **opposite** of the
+appearance under test, so a bug where `data-theme` is ignored cannot hide
+behind a matching system preference.
+
+Screenshots land in `.qa-theme/`, **gitignored** — regenerate them.
+
+### The port trap, again
+
+The first run reported CORS failures on every palette. Cause: the harness
+served on 4322 in `visual-qa-seeded.mjs` but this new script used 4323, which
+`WEB_ORIGIN` does not name — precisely the failure tests/README warns about.
+Fixed by serving on 4322. Worth repeating because the symptom (console errors
+on every page) looks nothing like the cause.
+
+### NOT VERIFIED
+
+- **The screenshots are of EMPTY states.** `theme-qa.mjs` does not seed
+  IndexedDB the way `visual-qa-seeded.mjs` does, so metrics, tables and charts
+  were not rendered in any palette. Token coverage on populated data is
+  therefore unproven; the seeded sweep still runs in two schemes only.
+- Only 390 and 1280 were swept for themes. 320/768/1440/1920 were not.
+- `system` appearance was not swept in the browser; it is covered by unit tests
+  only.
