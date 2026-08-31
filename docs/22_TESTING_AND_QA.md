@@ -390,10 +390,15 @@ Identical inputs run through the client and server paths must produce identical 
 Reported SGPA on real grade cards compared against ours. **The only test that validates our reading of the regulation against VTU's actual practice** — and therefore the most valuable one in the project. Required before Alpha.
 
 **Partially satisfied in M4** (`32/OQ-024`). One real artifact — a semester-4
-provisional result, [exam session withheld], 9 courses — is validated by
-`packages/academic-rules/test/real-grade-card.test.ts`. It confirms the mark
-structure, the passing thresholds, a no-SEE course, and the scale of the printed
-external column.
+provisional result carrying 9 courses — was validated **privately**. It
+confirmed the mark structure, the passing thresholds, a no-SEE course, and the
+scale of the printed external column.
+
+`packages/academic-rules/test/synthetic-grade-card.test.ts` now guards those
+conclusions against a **synthetic** fixture. The real record is not committed
+(docs/12), so these tests are regression guards rather than evidence — the
+distinction is stated in the test file itself so a future reader does not
+mistake invented rows for a document VTU issued.
 
 **It does not satisfy the sentence above.** A provisional result prints no SGPA,
 no CGPA, no credits and no letter grades, so the SGPA comparison this section

@@ -473,3 +473,68 @@ next person cannot reach it **through the app**. It is still in that browser's
 IndexedDB, and somebody with developer tools can read it. Browser-profile
 isolation is not physical-device security, and this document does not claim it
 is (`32/OQ-038`).
+
+## 12.16 The repository is public, and the owner's own record is not test data
+
+GradTools is developed in a **public** Git repository. That makes the project
+owner's academic record subject to the same rule as any student's, and it did
+not start out that way.
+
+### What went wrong
+
+M4 validated the rules engine against a real VTU provisional result — the
+owner's own, supplied deliberately. The finding was genuine and valuable: it
+corrected a wrong claim about the printed SEE scale (§16.5) and surfaced the
+CIE-only course that a naive backlog threshold misreads. But the artifact was
+turned into a **committed fixture**, transcribing nine subject rows — codes,
+internal, external, total, result — plus the exam session and announcement
+date, into a public repository, where it stayed across several milestones.
+
+The fixture's own header noted that the name, the USN and the raw image were
+excluded, and treated that as sufficient. It was not. A semester's marks,
+subject by subject, is the record itself; the identifiers are what makes it
+*attributable*, and a public repository with one owner supplies attribution on
+its own.
+
+### The boundary
+
+| | Real artifact | Committed fixture |
+|---|---|---|
+| Inspected to derive a finding | ✅ | — |
+| Stored in the repository | ❌ never | — |
+| Marks transcribed into code or docs | ❌ never | ❌ never |
+| Invented data shaped like the artifact | — | ✅ the only permitted form |
+
+**A real artifact may be used for private validation. Only synthetic data may
+be committed for public tests.** Stated as a rule that survives the specific
+case: *no real person's academic record enters this repository, including the
+owner's, and consent from the owner does not change it* — the repository is
+public, so committing it publishes it, and a later contributor cannot un-learn
+it.
+
+### What this costs, stated honestly
+
+A synthetic fixture cannot corroborate anything about what VTU prints. The
+tests in `synthetic-grade-card.test.ts` are therefore **regression guards**,
+not evidence: they pin conclusions already reached against the real document so
+a refactor cannot silently reverse them. The evidential step happened once,
+privately, and is recorded as a historical finding in §16.11 and `32/OQ-024`.
+
+Losing that is a real cost and it is the right trade. The alternative is
+publishing a student's marks to keep a test honest-looking.
+
+### Metadata counts too
+
+The exam session and announcement date were removed along with the marks. Each
+is innocuous alone; a session, a semester, a branch and a nine-subject list
+together narrow to one student. Provenance is recorded as "a real VTU
+provisional result, UG, semester 4, 9 courses" — enough to judge the finding's
+weight, not enough to identify its subject.
+
+### What this does NOT do
+
+Removing the fixture in a new commit does not remove it from earlier commits.
+Git history retains what was committed, and on a public repository that history
+is fetchable. The current-tree cleanup and the reachability of the old fixture
+in history are tracked separately in `31`; do not read this section as a claim
+that the data is gone from GitHub.

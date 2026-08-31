@@ -547,14 +547,16 @@ a product-scope question, not an engineering one.
 ### OQ-023 — Annexure-I grade/percentage table transcription
 **Why unresolved:** the M4 roadmap criterion "transcribe Annexure-I" was never completed. The 2022 regulation's grade table is implemented in `academic-rules` from the clauses, but the annexure itself has not been transcribed row-for-row as an independent cross-check.
 **Impact:** low today — the implemented bands are clause-verified and tested. It matters as corroboration, not as a source of new values.
-**Status after M4: still OPEN, and deliberately not treated as addressed.** The `OQ-024` artifact prints no letter grades, so it corroborates no band. Its totals do land on 59, 79 and 80 — exactly the B/A/A+ edges `16` §16.3 identifies as the ones third-party calculators get wrong — which makes a future card *with* letter grades unusually valuable. One grade card is not a substitute for the official Annexure-I transcription in any case.
+**Status after M4: still OPEN, and deliberately not treated as addressed.** The `OQ-024` artifact prints no letter grades, so it corroborates no band. Some of its totals did land on the B/A/A+ edges `16` §16.3 identifies as the ones third-party calculators get wrong, which makes a future card *with* letter grades unusually valuable; the synthetic fixture is built to land on 59, 79 and 80 for the same reason, those being edges of the rule set's own band table rather than anyone's marks. One grade card is not a substitute for the official Annexure-I transcription in any case.
 **Decision needed:** before Alpha.
 
 ### OQ-024 — Validation against real grade cards · **PARTIALLY VERIFIED (M4)**
-**Artifact received:** a real VTU provisional result — UG, semester 4, 9 courses. Supplied by the project owner for their own result. Fixture at `packages/academic-rules/test/fixtures/real-grade-card.ts`; the raw image is **not** stored in the repository, and name and USN are absent from the fixture.
+**Artifact received:** a real VTU provisional result — UG, semester 4, 9 courses. Supplied by the project owner for their own result, and inspected **privately**. Neither the raw image nor its marks are stored in this repository; the exam session and announcement date are also withheld, because together with a semester and a branch they narrow to one student.
+
+**The public fixture is synthetic.** `packages/academic-rules/test/fixtures/synthetic-grade-card.ts` is invented data shaped to reproduce the artifact's structure. It replaced a fixture that had transcribed the real result row by row into a public repository — see the privacy-cleanup entry in `31` and docs/12.
 
 **Verified by the artifact:**
-- Subject-code format including elective suffixes (`BCS405B`, `BCB456D`).
+- Subject-code format, including the trailing-letter suffix that marks an elective choice within a group.
 - `Total = Internal + External` on all 9 rows.
 - The three simultaneous passing thresholds (22OB 6.3) hold for all 8 SEE-assessed rows, matching the printed `P`.
 - 22OB 6.1(3), a course with no SEE, **corroborated by a real row**: a Physical Education course prints an internal above the ordinary CIE maximum of 50, an external of 0, and still passes. Both facts are impossible under the ordinary CIE + SEE structure. The marks themselves are deliberately not recorded here.

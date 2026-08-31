@@ -30,7 +30,7 @@ import type { RuleResult, RuleSet } from './types.js';
  * Subject-code shape observed on real VTU 2022-scheme documents.
  *
  * Three or four letters, three digits, and an optional trailing letter that
- * marks an elective choice within a group (`BCS405B`, `BCB456D`). Anchored, so
+ * marks an elective choice within a group (`BXX405B`, `BXXX456D`). Anchored, so
  * a code with trailing text is rejected rather than partially matched.
  */
 const SUBJECT_CODE = /^[A-Z]{3,4}\d{3}[A-Z]?$/;
@@ -58,9 +58,11 @@ export interface ValidatedCourseMarks extends CourseMarks {
  *
  * `hasSee` defaults to true. Pass `false` for a course with no semester-end
  * examination (22OB 6.1(3)): its CIE is then assessed over the whole
- * `courseMax`, and its external column is 0. A real card shows exactly this for
- * Physical Education — an internal above the ordinary CIE maximum, an external of 0 and a printed P — which the
- * ordinary CIE maximum of 50 would otherwise reject as impossible.
+ * `courseMax`, and its external column is 0. A real card showed exactly this
+ * for Physical Education — an internal ABOVE the ordinary CIE maximum of 50,
+ * an external of 0, and a printed P — a combination the ordinary maximum would
+ * otherwise reject as impossible. The marks themselves are not reproduced
+ * here; the shape is what the code needs (docs/12).
  *
  * This checks that a row is *internally consistent and in range*. It does not
  * decide pass or fail; that is three separate thresholds (22OB 6.3) applied to

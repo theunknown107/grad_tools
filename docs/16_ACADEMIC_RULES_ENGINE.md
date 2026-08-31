@@ -374,9 +374,16 @@ Client and server compute independently on identical inputs and must agree exact
 ### Real-grade-card tests
 Once real grade cards are available, their reported SGPA is compared against ours. Any disagreement is investigated before Alpha — this is the only test that validates our reading of the regulation against VTU's actual practice, and it is the most valuable one. Recorded as a Milestone 4 requirement.
 
-**Status after M4 (`32/OQ-024`, PARTIALLY VERIFIED).** One real artifact has been
-validated: a semester-4 provisional result carrying 9 courses.
-`packages/academic-rules/test/real-grade-card.test.ts` runs against it.
+**Status after M4 (`32/OQ-024`, PARTIALLY VERIFIED).** One real artifact was
+validated privately: a semester-4 provisional result carrying 9 courses.
+
+**The artifact is not in this repository, and neither are its marks.** The
+validation happened once, against the real document; what is committed is
+`packages/academic-rules/test/synthetic-grade-card.test.ts`, running against an
+invented fixture shaped to reproduce the same structure. Those tests PIN the
+findings below so a refactor cannot reverse them; they do not re-derive them,
+because invented data cannot be evidence about what VTU prints. See docs/12 §12.16
+for the boundary this enforces.
 
 | Validated by the artifact | Not validated — the artifact does not print it |
 |---|---|
