@@ -794,11 +794,73 @@ alone.
 | Rewritten or force-pushed? | **No** |
 
 **Deleting a file in a new commit does not remove it from earlier commits.**
-Anyone can still fetch `957a25b` and read the record. Removing it from GitHub
-entirely requires rewriting 45 commits, force-pushing `master`, and asking
-GitHub Support to expire the old objects from their cache — a destructive
-operation on a public repository that changes every downstream SHA. It is
-**not** done here and awaits an explicit decision.
+The history rewrite that followed is recorded in §31.19.
 
-Until then the honest statement is: *the current tree is clean; the history is
-not.*
+## 31.19 Public Git history purge · ✅ **MASTER HISTORY CLEAN** · ⚠️ **OLD OBJECTS STILL SERVED BY GITHUB**
+
+Performed 2026-08-31, with explicit approval. §31.18 cleaned the working tree;
+this rewrote the history behind it.
+
+### What was done
+
+`git filter-repo` over all 59 commits of `master`, in a temporary clone rather
+than the primary working copy:
+
+- **Paths removed from every commit** — `test/fixtures/real-grade-card.ts` and
+  `test/real-grade-card.test.ts`. Both existed only to hold or consume the real
+  record.
+- **Contents rewritten in place** — the real marks, the exam session and the
+  announcement date were replaced with structural descriptions or synthetic
+  equivalents inside `src/marks.ts`, `test/marks.test.ts`,
+  `test/course-result.test.ts` and docs `16`, `22`, `31`, `32`. Those files are
+  legitimate and were **not** deleted from history; only the real values in
+  them were replaced.
+
+| | Before | After |
+|---|---|---|
+| Commits on `master` | 59 | 59 |
+| Commits whose tree held the record | 47 | **0** |
+| First affected commit | `957a25b` | — |
+| `master` HEAD | `0dab336` | `2d3609b` |
+| Working-tree content at HEAD | — | **byte-identical** (same tree hash `2445e029`) |
+
+The tree hash being unchanged is the proof that this altered history and
+nothing else: not one byte of the delivered product differs. 1382 tests before
+and after, `pnpm verify` green.
+
+### Verified by content, not by filename
+
+Every one of the **838 blobs** reachable in the rewritten repository was
+decompressed and searched for the record's signatures — the nine row triples,
+the totals array, the fixture label, the session and the announcement date.
+**No category-A signature survives.** The single match is a deliberate guard
+comment in `synthetic-grade-card.test.ts` naming the old label so that a
+regression would be obvious.
+
+### What this did NOT achieve — read this before assuming the data is gone
+
+**GitHub still serves the pre-purge commits by direct SHA.** Verified from a
+clean clone after the force-push: fetching `957a25b…` by its full hash
+succeeds and returns the 137-line real fixture. The commits are unreachable
+from `master`, so they no longer appear in the branch, its history or a normal
+clone — but they are not deleted.
+
+This is ordinary Git hosting behaviour: a force-push moves a ref, it does not
+destroy objects. Removing them requires GitHub to garbage-collect the
+unreachable objects, which is a request to **GitHub Support** — the process
+GitHub documents for removing sensitive data. Until that is done and confirmed,
+the accurate statement is the narrow one:
+
+> The real academic record was removed from the reachable history of the
+> canonical public `master` branch. Existing clones, forks, mirrors and
+> unreachable cached objects may still contain it.
+
+### Also permanent
+
+Every SHA from `957a25b` onward changed. Old commit URLs in prior completion
+reports no longer resolve from `master`. Any clone or fork taken before
+2026-08-31 keeps the original history, and no rewrite can reach those.
+
+A pre-purge backup exists **locally only** — a Git bundle outside the
+repository. It contains the real record and must not be pushed, published or
+copied into the working tree. No backup branch or tag was created on GitHub.
