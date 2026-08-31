@@ -1276,3 +1276,67 @@ hidden radio) at 390 and 1280: **0 axe violations, 0 overflow** in each.
 - **No repetition or similarity behaviour is verified on real data** — the
   corpus cannot produce a repeat.
 - **No human ground truth** exists for any extraction (§44).
+
+## 22.27 M10B.1 — populated question search, verified in a browser
+
+M10B closed with "question search was never seen populated in a browser". That
+gap is now closed.
+
+### The environment
+
+`gradtools_m8` (the API's usual database) has 63 extracted questions, but 60
+belong to a **private** document and the 3 visible ones have empty text — zero
+searchable. `gradtools_corpus` holds the real extraction but predates the
+library schema.
+
+So a verification database was built: `gradtools_m10b_verify`, migrated to
+current schema, seeded, and populated by copying the **real corpus** rows
+(documents, extractions, questions) with library metadata applied. One document
+(`BCY358A`) was deliberately left `private` so isolation is testable on real
+data. **No PDF moved, nothing was committed, and no question text was altered.**
+
+The corpus's one `accepted` record predates the attribution constraint and was
+attributed on copy as `agent-adjudicated (M5A)` — which is what it is. It is
+**not** human ground truth (§19, `OQ-031`).
+
+### What the browser showed — BROWSER VERIFIED
+
+| Check | Result |
+|---|---|
+| Questions mode loads, populated | **20 rows** for `explain`, matching the API's `total=20` |
+| Narrowing | `anodizing` → **1 row**, matching the API |
+| Clearing | back to **30 rows** (the hook's page size, of 47 searchable) |
+| Question text visible | Yes, including its real OCR damage |
+| Subject / sitting / module / marks | `BCHEM102 · June/July · Module 2 · 6 marks` |
+| Provenance | `from a scan` on OCR rows |
+| Confidence | `Needs checking` on low-confidence rows; high is silent |
+| Open the paper | `/papers/a23afe64…` → detail page `h1 = BCHEM102`, the right document |
+| Keyboard | Search → subject select → each result link, in order |
+| axe / overflow / console | **0 / 0px / 0** at both 390 and 1280 |
+
+### Security, probed through the live UI — BROWSER VERIFIED
+
+| Probe | Rows | Reading |
+|---|---|---|
+| `%` | 1 | A wildcard would have returned 30. It is escaped to a literal |
+| `_` | 2 | Same |
+| `' OR 1=1 --` | 0 | No injection; parameterised |
+| `<script>alert(1)</script>` | 0 | And **0 script elements** injected into `main` |
+| 300-character query | 0 | Capped server-side at 100, no error |
+
+### A defect found by looking, not by testing
+
+Module rendered as a bare `4` between a sitting and a mark count, reading as a
+stray digit. Now `Module 4`. Tests passed, axe passed, nothing overflowed — the
+screenshot is what showed it.
+
+### NOT VERIFIED
+
+- **No native-text result exists to verify** (§5). Every native current
+  extraction has empty text (`OQ-047`), so all 47 searchable questions are
+  OCR-derived. The UI's `native` branch is therefore **code verified only**.
+- **Semester and Year filters were exercised through the API, not the UI.** The
+  library offers a filter only when more than one value would return something
+  (M8 §10); all nine documents share semester 1 and year 2024, so neither
+  control renders. API: `search=explain&semester=1` → 20, `&year=2024` → 20.
+- No human ground truth for any record.

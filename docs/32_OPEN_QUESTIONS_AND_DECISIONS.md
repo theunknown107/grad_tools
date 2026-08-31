@@ -1374,3 +1374,55 @@ returns nothing is worse than an absent one.
 
 **Decision needed:** once human review has produced a meaningful number of
 records.
+
+### OQ-047 — `positional-v2` extracts no text from native PDFs · **opened by M10B.1**
+
+**The evidence.** On every native paper, the current `positional-v2` extraction
+produces question records with correct structure and **empty text**, while the
+superseded `positional-v1` extraction of the same document produced full text:
+
+| Paper | v2 (current) | v1 (superseded) |
+|---|---|---|
+| BESC104C | 22 questions, 0 with text | 20 questions, 20 with text |
+| BMATC101 | 10 questions, 0 with text | 12 questions, 12 with text |
+| BPHYS102 | 10 questions, 0 with text | 21 questions, 21 with text |
+
+That is all 42 native questions, and it is why **every searchable question today
+is OCR-derived** despite native text being the more reliable source.
+
+**Why it was not fixed in M10B.1:** §1 forbids touching extraction in a
+verification pass. It is also not a search defect — search correctly returns
+what the extraction produced.
+
+**Note on confidence:** these empty records frequently carry `high` structural
+confidence, because the parser was confident about a box it found and the box
+was empty. Confidence describes geometry, not content.
+
+**Decision needed:** whether to re-run v2 on native documents after a fix, and
+whether an extraction that yields zero text should be allowed to become
+`is_current` at all.
+
+### OQ-045 — remains OPEN · **reaffirmed by M10B.1**
+
+Question search now works on real data. **This says nothing about similarity.**
+
+The corpus is still nine subjects from one sitting, so no question in it can
+repeat, and the usable set is smaller still: 60 tokenisable records, 47 of them
+visible to the library. Precision and recall for repetition remain undefined.
+
+The requirement is unchanged: **more relevant papers, especially two or more
+sittings of the same subject.**
+
+### DEC-035 — Metric definitions for corpus counts · **M10B.1**
+
+To stop the M10B arithmetic problem recurring, corpus figures are always
+reported over the **current** extractions and partitioned into exactly three
+mutually exclusive categories that sum to the total:
+
+- **empty** — `btrim(effective_text) = ''`
+- **tokenisable** — non-empty, and yields ≥ 1 token after normalisation
+- **non-empty but untokenisable** — non-empty, yields 0 tokens
+
+"Usable" is not a category and is no longer used unqualified: it previously
+meant "tokenisable" while sitting beside a length-based "empty", and the two
+definitions left a record belonging to neither.
