@@ -56,7 +56,12 @@ function QuestionRow({ result }: { readonly result: QuestionSearchResult }) {
   const provenance = [
     result.subjectCode,
     result.examSession ?? (result.examYear === null ? null : String(result.examYear)),
-    result.module,
+    /*
+     * LABELLED. The parser stores a module as a bare "4", and printed between
+     * a sitting and a mark count it reads as a stray digit — found by looking
+     * at the populated screen, not by a test (M10B.1 §13).
+     */
+    result.module === null ? null : `Module ${result.module}`,
     result.marks === null ? null : `${String(result.marks)} marks`,
     /* Named because OCR text and text lifted from a digital PDF are not
        equally trustworthy, and the row should not pretend they are. */

@@ -750,3 +750,27 @@ premature optimisation §44 and §50 both prohibit.
 
 **No Redis, no vector store, no search engine, no queue** (§27, §32). The
 existing PostgreSQL is the whole infrastructure.
+
+## 23.24 Measured in M10B.1 — the real populated search path
+
+Against the verification database (47 searchable questions), five requests each,
+via `curl` from the same machine:
+
+| Query | Mean |
+|---|---|
+| `search=explain&limit=30` | 252 ms |
+| `search=anodizing` | 220 ms |
+| no filter, `limit=30` | 226 ms |
+| `search=e&limit=100` | 225 ms |
+
+**The interesting result is that these are all the same.** A one-row match, a
+twenty-row match and an unfiltered hundred-row page cost the same, because the
+cost is process start, TCP connect and TLS-free HTTP round trip — not the query.
+At 126 rows the database work is not measurable through this path.
+
+**No index was added and none is proposed.** Adding one sized for a corpus that
+does not exist is the premature optimisation §44 and §50 both prohibit; the
+figure to watch is the one that appears when the library grows, not this one.
+
+Bundle unchanged from M10B apart from the module label: JS 704.03 kB
+(203.59 kB gzip), CSS 66.88 kB (11.77 kB gzip).

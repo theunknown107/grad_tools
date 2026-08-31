@@ -509,3 +509,67 @@ half the questions it processes.
 
 Until then, adding embeddings would mean building a semantic index over 60
 questions, of which none can repeat, to find similarities nobody can validate.
+
+## 18.z M10B.1 — corpus reconciliation, and a parser regression it exposed
+
+### The counts now partition exactly
+
+M10B reported "126 current questions, 60 usable, 65 empty", which sums to 125.
+The categories were incompatible, not the data: **"usable" was measured after
+tokenising and "empty" was measured on string length**, so a record with text
+that tokenises to nothing belonged to neither.
+
+Definitions, now mathematically unambiguous over the **current** extractions:
+
+| Category | Definition | Count |
+|---|---|---|
+| **A — empty** | `btrim(effective_text) = ''` | **65** |
+| **B — tokenisable** | non-empty and `tokenize(normalize(text))` yields ≥ 1 token | **60** |
+| **C — non-empty but untokenisable** | non-empty and yields 0 tokens | **1** |
+| | **A + B + C** | **126** |
+
+The single category-C record is:
+
+```
+"'* 7 / - ' / 7 7"
+```
+
+Quotes, digits and slashes. The tokeniser drops single characters as OCR debris,
+and nothing here is longer than one character, so it survives as text and
+vanishes as tokens. It is a real parser output, not a defect in the count.
+
+### Where the 65 empties actually are
+
+| Extraction source (current) | Questions | Empty |
+|---|---|---|
+| native | 42 | **42 (100%)** |
+| ocr | 84 | 23 |
+
+**Every question from every native paper's current extraction has empty text.**
+Their superseded `positional-v1` extractions do not:
+
+| Paper | v2 (current) | v1 (superseded) |
+|---|---|---|
+| BESC104C | 22 questions, **0 with text** | 20 questions, 20 with text |
+| BMATC101 | 10 questions, **0 with text** | 12 questions, 12 with text |
+| BPHYS102 | 10 questions, **0 with text** | 21 questions, 21 with text |
+
+`positional-v2` finds the structure on a native PDF — ordinals, modules, marks,
+bounding boxes — and captures **no text**. This is an extraction defect, not a
+search defect, and it is why question search returns OCR results only. Recorded
+as `OQ-047`. **Not fixed here**: M10B.1 §1 forbids touching the parser.
+
+### Consistency check
+
+| | |
+|---|---|
+| Current extractions | 9 papers (of 18; the other 9 are superseded v1) |
+| Questions on current extractions | 126 |
+| With reviewed text | **0** |
+| Low structural confidence | 59 of 126 — and **46 of the 60 tokenisable** |
+| Searchable in the verification database | **47** |
+
+Confidence is *worse* among usable records than overall, because an empty
+extraction often carries `high` confidence: the parser was confident about the
+box it found, and the box was empty. **A parser-created record is a
+parser-created record, not a question.**

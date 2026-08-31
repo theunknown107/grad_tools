@@ -693,3 +693,25 @@ about VTU that is a fact about our corpus.
 poor, but because the corpus cannot pose the question. See `18` §18.y.
 
 **M10C is NOT started.** No model, no embedding, no hosted inference.
+
+## 31.15 M10B.1 — question search verification · ✅ **DELIVERED**
+
+A verification pass, not a milestone. It closed M10B's stated gap — question
+search had never been seen populated in a browser — and reconciled the corpus
+counts that did not sum.
+
+**Closed:** populated search verified in real Chromium at 390 and 1280 against
+the real corpus, with filters, keyboard navigation, "Open the paper", security
+probes and 0 axe / 0 overflow / 0 console errors.
+
+**Reconciled:** 126 = 65 empty + 60 tokenisable + 1 non-empty-but-untokenisable.
+The old figures used incompatible definitions; the definitions are now stated.
+
+**Found:** `positional-v2` produces **no text at all** on native PDFs while its
+superseded v1 did — the whole of the 42-question native set. `OQ-047`, not fixed
+here.
+
+**Fixed:** module rendered as a bare digit.
+
+**OQ-045 stays open.** The corpus is still nine subjects in one sitting; nothing
+about search working changes whether repetition can be evaluated.
