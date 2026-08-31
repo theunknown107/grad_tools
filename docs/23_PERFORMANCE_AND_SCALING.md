@@ -725,3 +725,28 @@ bundle parse, and instrumenting it would produce a number that says more about
 the timer than the code. §44 says not to optimise prematurely; it also means not
 to *measure* theatrically. If a future milestone computes across many students
 or many terms, that is when a measurement becomes worth taking.
+
+## 23.23 Measured in M10B
+
+| | M10A | M10B |
+|---|---|---|
+| JS | 699,290 B (202.40 kB gzip) | **704,000 B (203.58 kB gzip)** |
+| CSS | 65,150 B (11.54 kB gzip) | **66,880 B (11.77 kB gzip)** |
+
++4.7 kB JS for the search hook and results component, +1.7 kB CSS. **No
+dependency added.**
+
+### Search cost
+
+The corpus measurement compared **1,770 pairs** — all 60 usable questions
+against each other — in well under a second on a laptop, inside a script that
+also normalised every record. At this size the interesting number is not latency
+but the fact that a full pairwise comparison is affordable at all.
+
+`searchQuestions` is one ILIKE query with a bounded limit and a count over the
+same predicate. **No index was added and none is proposed**: 126 rows do not
+need one, and adding an index sized for a corpus that does not exist is the
+premature optimisation §44 and §50 both prohibit.
+
+**No Redis, no vector store, no search engine, no queue** (§27, §32). The
+existing PostgreSQL is the whole infrastructure.

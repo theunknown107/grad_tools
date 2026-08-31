@@ -1232,3 +1232,47 @@ screenshot is what showed it.** Fixed in the fixture.
   8" is reassuring or alarming is unmeasured.
 - Real-device, non-Chromium and hand keyboard passes remain outstanding as in
   M9.5.2.
+
+## 22.26 M10B — question intelligence
+
+**42 files, 1354 tests, all passing.** 39 are new: 25 for normalisation and
+similarity, 14 for search against **real PostgreSQL** (§48).
+
+### Four real defects found by test, not by review
+
+| Defect | Consequence had it shipped |
+|---|---|
+| Run-collapse included `.`, so the `…` fold produced a single dot | Ellipses silently destroyed in the matching key |
+| Tokeniser split on `\p{L}\p{N}`, excluding combining marks | **Kannada shattered into fragments** and mostly discarded |
+| `<> ''` did not exclude whitespace-only text | Blank result rows — and 65 of 126 current corpus questions have empty text, so this was the common case |
+| Response selected a column `documents` does not have | 500 on every search request |
+
+### Two defects found by looking at the screenshot
+
+Sort and Format controls remained visible in Questions mode while doing nothing,
+and the search hint described paper matching. A control that does nothing is
+worse than a missing one: it teaches a student the filters are unreliable.
+
+### The flake, fixed
+
+`reference.test.tsx` failed three times in one session and passed alone every
+time. Two timeouts govern these tests and only one was configured: Vitest's
+`testTimeout` (20 s) is not Testing Library's `asyncUtilTimeout` (**1 s by
+default**). The query takes ~400 ms alone and over 3,800 ms under full-suite
+load. Now 5 s, in `apps/web/test/setup.ts`.
+
+### Browser QA
+
+Both themes, 12 routes, 9 widths: 0 axe violations, 0 overflow, 0 console
+errors. Questions mode was driven separately (click the label, not the visually
+hidden radio) at 390 and 1280: **0 axe violations, 0 overflow** in each.
+
+### NOT VERIFIED
+
+- **Question search was not exercised end-to-end in the browser.** The local API
+  process predates the route by 2.5 hours, so the screen rendered its error
+  state. The endpoint itself is proven by 14 tests against real PostgreSQL; what
+  is unverified is the populated list in a browser.
+- **No repetition or similarity behaviour is verified on real data** — the
+  corpus cannot produce a repeat.
+- **No human ground truth** exists for any extraction (§44).

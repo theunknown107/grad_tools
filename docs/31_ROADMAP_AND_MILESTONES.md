@@ -675,3 +675,21 @@ Delivered: `semesterHistory` (§6, §7) and `dataCompleteness` (§19), surfaced 
 inference, and no academic record leaving the device.
 
 **Theme customisation remains DEFERRED. VTU polling remains DISABLED.**
+
+## 31.14 M10B — question-paper intelligence · ✅ **DELIVERED (scoped by evidence)**
+
+M10B began by measuring the corpus, and the measurement changed the milestone.
+
+**Shipped:** versioned question normalisation (`question-normalization-v1`),
+tested lexical similarity, a measurement harness, cross-paper question search
+(API + UI), and confidence/provenance-aware presentation.
+
+**Deliberately not shipped as student features:** repetition and similarity.
+The nine current papers are nine different subjects from one sitting, so no
+question in the corpus can repeat. "Found in 0 papers" would state something
+about VTU that is a fact about our corpus.
+
+**AI decision gate (§62): D — AI not yet justified.** Not because models are
+poor, but because the corpus cannot pose the question. See `18` §18.y.
+
+**M10C is NOT started.** No model, no embedding, no hosted inference.
