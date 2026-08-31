@@ -760,3 +760,45 @@ and credits that a provisional result does not print. Closing that needs a local
 type change, a cloud `result_subjects` migration, sync changes and a results-UI
 rebuild — a coherent milestone of its own rather than a tail added to this one
 (`OQ-049`).
+
+## 31.18 Public repository privacy cleanup · ✅ **CURRENT TREE CLEAN** · ⚠️ **HISTORY NOT PURGED**
+
+The repository is public. M4 (`957a25b`) committed a fixture transcribing a real
+VTU provisional result — the project owner's own semester-4 record, nine subject
+rows plus the exam session and announcement date. It survived every milestone
+since. The rule that replaced it is in docs/12 §12.16.
+
+**Current tree.** The fixture and its test are replaced by synthetic
+equivalents, renamed `synthetic-grade-card.ts` / `synthetic-grade-card.test.ts`
+so the distinction cannot be missed. `marks.test.ts` carried real rows too and
+is sanitized identically. The findings the artifact produced are preserved as
+historical statements; the marks are not. 1382 tests before and after, 100%
+branch coverage retained, nothing deleted or weakened.
+
+Scanned the whole tree, not just the diff: no USN-shaped token outside the
+documented `1XX22CS001` placeholder, no phone numbers, no real email addresses
+(all `example.test`), no secrets or credentials beyond `.env.example` files.
+Subject codes such as `BCS403` in the paper library, seeds and UI tests are
+published curriculum identifiers carrying no marks, and were deliberately left
+alone.
+
+**History — audited, NOT rewritten.**
+
+| Question | Answer |
+|---|---|
+| Does public history still contain the real record? | **Yes** |
+| Which commit introduced it? | `957a25b` |
+| Reachable from `origin/master`? | **Yes** |
+| Commits on `master` whose tree contains it | **45 of 58** |
+| Tags or other branches carrying it | None — `master` only |
+| Rewritten or force-pushed? | **No** |
+
+**Deleting a file in a new commit does not remove it from earlier commits.**
+Anyone can still fetch `957a25b` and read the record. Removing it from GitHub
+entirely requires rewriting 45 commits, force-pushing `master`, and asking
+GitHub Support to expire the old objects from their cache — a destructive
+operation on a public repository that changes every downstream SHA. It is
+**not** done here and awaits an explicit decision.
+
+Until then the honest statement is: *the current tree is clean; the history is
+not.*
