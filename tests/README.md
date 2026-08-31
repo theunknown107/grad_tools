@@ -11,7 +11,7 @@ directory is part of `pnpm verify`.
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `visual-qa.mjs`        | Sweeps the production build with **no data**. The right test for empty states, and the wrong one for everything else |
 | `visual-qa-seeded.mjs` | Seeds a synthetic student, pins the clock, then sweeps 12 routes × 9 widths. See below                               |
-| `screenshots/`         | Output of `visual-qa.mjs`, committed as a visual record                                                              |
+| `screenshots/`         | Output of `visual-qa.mjs`. Local and **gitignored** — regenerate it, do not expect it in a clone                     |
 
 ---
 
