@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/AppShell.js';
+import { Icon } from '../../components/icons.js';
 import { Button, Notice, Panel, StatusPill } from '../../components/ui/index.js';
 import { useAuth } from './AuthContext.js';
 import { SYNC_LABEL } from '../../domain/auth.js';
@@ -194,6 +195,7 @@ export function AccountPage() {
           when you sign back in.
         </p>
         <Button variant="secondary" type="button" onClick={() => void signOut()}>
+          <Icon name="signOut" size="small" />
           Sign out
         </Button>
       </Panel>

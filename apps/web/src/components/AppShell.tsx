@@ -30,18 +30,7 @@
  * AREA, so the chip row beneath the header follows it.
  */
 
-import {
-  BellIcon,
-  CalendarDays,
-  CalcIcon,
-  ClipboardList,
-  FileTextIcon,
-  GraduationCap,
-  LayoutDashboard,
-  LibraryIcon,
-  Megaphone,
-  UserRound,
-} from './icons.js';
+import { Icon, type IconName } from './icons.js';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useEffect, useRef, type ReactNode } from 'react';
 import styles from './AppShell.module.css';
@@ -50,7 +39,7 @@ interface Destination {
   readonly to: string;
   readonly label: string;
   readonly shortLabel: string;
-  readonly icon: typeof LayoutDashboard;
+  readonly icon: IconName;
   readonly group: string;
 }
 
@@ -61,19 +50,19 @@ interface Destination {
  * the operator's private import and review surface, not a student destination.
  */
 const DESTINATIONS: readonly Destination[] = [
-  { to: '/', label: 'Dashboard', shortLabel: 'Home', icon: LayoutDashboard, group: 'Overview' },
+  { to: '/', label: 'Dashboard', shortLabel: 'Home', icon: 'dashboard', group: 'Overview' },
   {
     to: '/announcements',
     label: 'Announcements',
     shortLabel: 'News',
-    icon: Megaphone,
+    icon: 'announcements',
     group: 'Overview',
   },
   {
     to: '/notifications',
     label: 'Notifications',
     shortLabel: 'Alerts',
-    icon: BellIcon,
+    icon: 'notifications',
     group: 'Overview',
   },
 
@@ -81,41 +70,43 @@ const DESTINATIONS: readonly Destination[] = [
     to: '/semesters',
     label: 'My degree',
     shortLabel: 'Degree',
-    icon: GraduationCap,
+    icon: 'degree',
     group: 'Academics',
   },
   {
     to: '/results',
     label: 'Results',
     shortLabel: 'Results',
-    icon: FileTextIcon,
+    icon: 'results',
     group: 'Academics',
   },
-  { to: '/academics', label: 'SGPA & CGPA', shortLabel: 'GPA', icon: CalcIcon, group: 'Academics' },
+  { to: '/academics', label: 'SGPA & CGPA', shortLabel: 'GPA', icon: 'gpa', group: 'Academics' },
   {
     to: '/attendance',
     label: 'Attendance',
     shortLabel: 'Attendance',
-    icon: ClipboardList,
+    icon: 'attendance',
     group: 'Academics',
   },
   {
     to: '/timetable',
     label: 'Timetable',
     shortLabel: 'Timetable',
-    icon: CalendarDays,
+    icon: 'timetable',
     group: 'Academics',
   },
   {
     to: '/papers',
     label: 'Question papers',
     shortLabel: 'Papers',
-    icon: LibraryIcon,
+    icon: 'papers',
     group: 'Academics',
   },
 
-  { to: '/account', label: 'Account', shortLabel: 'Account', icon: UserRound, group: 'Account' },
-  { to: '/profile', label: 'Profile', shortLabel: 'Profile', icon: UserRound, group: 'Account' },
+  { to: '/account', label: 'Account', shortLabel: 'Account', icon: 'account', group: 'Account' },
+  /* An id card, not a second person: Account and Profile are adjacent chips and
+     two identical glyphs beside two different words is worse than none. */
+  { to: '/profile', label: 'Profile', shortLabel: 'Profile', icon: 'profile', group: 'Account' },
 ];
 
 const GROUPS = ['Overview', 'Academics', 'Account'] as const;
@@ -214,10 +205,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               className={styles.topAction ?? ''}
               aria-label="Notifications"
             >
-              <BellIcon size={18} aria-hidden="true" />
+              <Icon name="notifications" size="medium" />
             </NavLink>
             <NavLink to="/account" className={styles.topAction ?? ''} aria-label="Account">
-              <UserRound size={18} aria-hidden="true" />
+              <Icon name="account" size="medium" />
             </NavLink>
           </div>
         </div>
@@ -235,7 +226,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   `${styles.subLink ?? ''} ${isActive ? (styles.subLinkActive ?? '') : ''}`
                 }
               >
-                <item.icon size={15} aria-hidden="true" />
+                <Icon name={item.icon} size="nav" />
                 {item.label}
               </NavLink>
             ))}
@@ -257,7 +248,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               `${styles.bottomLink ?? ''} ${isActive ? (styles.bottomLinkActive ?? '') : ''}`
             }
           >
-            <item.icon size={20} aria-hidden="true" />
+            <Icon name={item.icon} size="medium" />
             {item.shortLabel}
           </NavLink>
         ))}

@@ -26,7 +26,7 @@ import {
 } from '@gradtools/academic-rules';
 import type { AttendanceRecord, SemesterSubject } from '../../domain/types.js';
 import { PageHeader } from '../../components/AppShell.js';
-import { Plus, Trash2 } from '../../components/icons.js';
+import { Icon } from '../../components/icons.js';
 import {
   Button,
   EmptyState,
@@ -180,7 +180,7 @@ export function AttendancePage() {
               }}
             />
             <Button variant="primary" onClick={addRecord}>
-              <Plus size={16} aria-hidden="true" />
+              <Icon name="plus" size="nav" />
               Add
             </Button>
           </div>
@@ -289,7 +289,7 @@ function AttendanceRow({
             aria-label={`Remove ${record.subjectCode}`}
             onClick={onRemove}
           >
-            <Trash2 size={15} aria-hidden="true" />
+            <Icon name="trash" size="nav" />
           </Button>
         }
       />

@@ -1128,3 +1128,49 @@ they are not sufficient.
 were presentational and the suite asserts behaviour. Both themes, 12 routes,
 9 widths (320/360/390/430/768/1024/1280/1440/1920): **0 axe violations, 0
 horizontal overflow, 0 console errors** in each theme.
+
+## 22.24 M9.5.2 — the icon pass, and the QA environment it exposed
+
+### Results
+
+`pnpm verify`: **39 files, 1295 tests, 0 failed.** No test changed — the pass was
+presentational and the suite asserts behaviour.
+
+Both themes × 12 routes × 9 widths (320/360/390/430/768/1024/1280/1440/1920) —
+**216 page loads per theme**: 0 axe violations, 0 horizontal overflow, 0 console errors
+in each.
+
+Instrumented icon audit across 12 routes: 165 SVG instances, **one** `stroke-width`
+(1.5), **one** `viewBox` (`0 0 24 24`), 0 missing `aria-hidden`/`focusable`, **31
+icon-only controls all with accessible names**, and every rendered size one of the five
+tokens.
+
+### The defect the gates could not see
+
+`gpa` drew a sigma inside a rounded box; at 16px the sigma was 3.6px wide and mushed into
+a blob. **Tests passed, axe passed, nothing overflowed.** It was found by opening the
+screenshot. Second time this milestone series that the engineering gates were necessary
+and not sufficient (cf. §22.23).
+
+### The QA environment is now written down
+
+Two routes — Question papers and Profile — fetch from the API during the sweep. This
+pass lost real time to two failure modes that do not announce themselves:
+
+1. **The API was down.** The sweep reported console errors, but as
+   `ERR_CONNECTION_REFUSED` on a URL that looks unrelated rather than as "this QA run is
+   meaningless".
+2. **The API was up on a port it did not trust.** `WEB_ORIGIN` defaults to the Vite dev
+   server's `:5173`, which does not cover the harness's `:4322`. Requests were refused by
+   CORS and the pages fell back to error states that look like ordinary empty states in a
+   screenshot. Every ad-hoc probe written on another port hit this — and two intermediate
+   findings in this pass ("micro and small icons never render", "0×0 icons") were
+   artefacts of exactly that, not product defects.
+
+`tests/README.md` now carries the full procedure: start the cluster, start the API
+against `gradtools_m8` with `WEB_ORIGIN` including `http://localhost:4322`, and **confirm
+three endpoints return 200 with the CORS header before sweeping**.
+
+**The check that matters is not the exit code.** A green sweep with a dead API is a sweep
+of two error states. Papers must read `Showing 50 of NNNN` and Profile's Scheme select
+must name a scheme.

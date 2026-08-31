@@ -14,7 +14,7 @@
 import { useState } from 'react';
 import type { SemesterSubject } from '../../domain/types.js';
 import type { StudentProfileId } from '../../domain/identity.js';
-import { Plus, Trash2 } from '../../components/icons.js';
+import { Icon } from '../../components/icons.js';
 import {
   Button,
   EmptyState,
@@ -97,7 +97,7 @@ export function SemesterSubjects({
           ))}
         </SelectField>
         <Button type="submit" variant="secondary">
-          <Plus size={16} aria-hidden="true" />
+          <Icon name="plus" size="nav" />
           Add subject
         </Button>
       </form>
@@ -138,7 +138,7 @@ export function SemesterSubjects({
                         void remove(subject.id);
                       }}
                     >
-                      <Trash2 size={15} aria-hidden="true" />
+                      <Icon name="trash" size="nav" />
                     </Button>
                   </td>
                 </tr>

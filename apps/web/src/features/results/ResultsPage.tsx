@@ -22,7 +22,7 @@ import { calculateSGPA, vtu2022RuleSet } from '@gradtools/academic-rules';
 import type { ResultSubject, SemesterResult } from '../../domain/types.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
-import { Plus, Trash2 } from '../../components/icons.js';
+import { Icon } from '../../components/icons.js';
 import {
   Button,
   EmptyState,
@@ -87,7 +87,7 @@ export function ResultsPage() {
               setIsAdding((current) => !current);
             }}
           >
-            <Plus size={16} aria-hidden="true" />
+            <Icon name="plus" size="nav" />
             {isAdding ? 'Cancel' : 'Add a semester'}
           </Button>
         }
@@ -286,7 +286,7 @@ function ResultEditor({
                 );
               }}
             >
-              <Trash2 size={16} aria-hidden="true" />
+              <Icon name="trash" size="nav" />
             </Button>
           </li>
         ))}
@@ -298,7 +298,7 @@ function ResultEditor({
             setSubjects((current) => [...current, blankSubject()]);
           }}
         >
-          <Plus size={16} aria-hidden="true" />
+          <Icon name="plus" size="nav" />
           Add subject
         </Button>
         <Button variant="primary" onClick={commit}>
@@ -344,7 +344,7 @@ function SavedResult({ result, onRemove }: { result: SemesterResult; onRemove: (
           aria-label={`Delete semester ${String(result.semester)} result`}
           onClick={onRemove}
         >
-          <Trash2 size={15} aria-hidden="true" />
+          <Icon name="trash" size="nav" />
         </Button>
       }
       flush

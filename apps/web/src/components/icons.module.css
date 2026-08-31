@@ -1,0 +1,39 @@
+/**
+ * Icon sizing.
+ * Authority: docs/05 §5.20 (M9.5.2)
+ *
+ * The five sizes read tokens rather than declaring pixels, so a stylesheet and
+ * the Icon component cannot drift apart.
+ */
+
+.icon {
+  display: block;
+  flex: 0 0 auto;
+  /*
+   * Optical alignment. A 24-grid glyph sits high next to lowercase text because
+   * its mass is centred on the box, not on the x-height; -0.075em drops it onto
+   * the line without needing `align-items: center` at every call site.
+   */
+  vertical-align: -0.075em;
+}
+
+.micro {
+  width: var(--icon-micro);
+  height: var(--icon-micro);
+}
+.small {
+  width: var(--icon-small);
+  height: var(--icon-small);
+}
+.nav {
+  width: var(--icon-nav);
+  height: var(--icon-nav);
+}
+.medium {
+  width: var(--icon-medium);
+  height: var(--icon-medium);
+}
+.large {
+  width: var(--icon-large);
+  height: var(--icon-large);
+}

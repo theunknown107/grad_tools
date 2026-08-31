@@ -629,3 +629,88 @@ Both navigation tiers scroll sideways below 1024px, and a word cut flat at the
 edge reads as a bug rather than as an affordance. A `mask-image` fades the last
 20px — a mask rather than an overlay, so it cannot cover a focus ring and costs
 no element. It is removed once the row fits.
+
+## 5.20 The icon set
+
+Referenced by `apps/web/src/components/icons.tsx` and `icons.module.css`.
+
+### Why it is drawn rather than installed
+
+The set was Lucide, re-exported from one module — coherent, and the right call while the
+product had no visual language of its own. It stopped being the right call in M9.4:
+Lucide draws at a **2px stroke on a 24px grid**, and at the 15–16px these icons actually
+render that reads *heavier* than the type beside it. The references do the opposite —
+their icons are thin and precise, and they sit under the typography rather than competing
+with it.
+
+Stroke weight is not something a library exposes per icon, so the choice was to fight the
+library or to draw the shapes this product actually uses. Drawing them also removed a
+dependency: **`lucide-react` is gone.**
+
+### The rules every icon follows
+
+| | |
+|---|---|
+| viewBox | `0 0 24 24`, always |
+| stroke | **1.5**, round caps, round joins, no fill |
+| colour | `currentColor` — an icon takes the colour of its text |
+| construction | geometric: circles, rounded rects, straight runs |
+
+The one exception is a dot — a `0.95r` circle filled with `currentColor`, because a
+stroked dot at 14px renders as a ring.
+
+Measured across 12 routes: **one** distinct `stroke-width` and **one** distinct
+`viewBox` in 165 rendered instances.
+
+### Sizes are tokens, not numbers
+
+`--icon-micro` 12 · `--icon-small` 14 · `--icon-nav` 16 · `--icon-medium` 18 ·
+`--icon-large` 22. They live in `tokens.css` and `icons.module.css` reads them, so a
+stylesheet and the component cannot drift. `<Icon>` takes a size *name*; there is no
+numeric `size`, no `stroke` and no `color` prop, because each is a way for one icon to
+stop matching the others.
+
+They step with the **type** scale rather than the spacing scale: an icon's job is to sit
+beside a label, and 14px text wants a 16px glyph.
+
+Measured across 12 routes: 12px ×1, 14px ×50, 16px ×91, 18px ×24, 22px ×3 — **all five
+tokens in use and no arbitrary value anywhere**.
+
+### Accessibility is in the component, not the call sites
+
+Every icon is `aria-hidden="true"` and `focusable="false"` **always, with no way to turn
+it off**. An icon is decoration; the meaning belongs to the text beside it or to the
+`aria-label` of the control containing it (docs/27 §27.5). Enforcing it in one place
+rather than trusting thirty call sites is the whole point.
+
+Measured: 0 icons missing either attribute, and **31 icon-only controls, every one with
+an accessible name**.
+
+### A glyph inside a container needs a container-sized icon
+
+`gpa` first drew a sigma inside a rounded rect, like the other destination glyphs. At
+16px the container left the sigma **3.6px wide** and it mushed into a blob in the second
+navigation tier — caught by screenshot inspection, not by any automated gate. Redrawn as
+a bare sigma filling the viewBox.
+
+**At navigation size the glyph has to BE the icon.**
+
+### Only what is rendered
+
+An earlier draft carried the full action vocabulary — edit, copy, download, sort, filter,
+close, more and a dozen others — on the theory that a design system should be complete.
+It cost **1.77 kB (0.53 kB gzipped)**, which is affordable, and it was still wrong: a
+name registry cannot tree-shake, so every unused shape shipped to every student to be
+rendered by nothing.
+
+**An icon nobody renders is not part of a system; it is a file of intentions.** The set
+is 32 shapes. Adding one back is five lines, and it arrives with the call site that
+justifies it.
+
+### Where icons are deliberately absent
+
+Metric labels (CGPA, Attendance, Backlogs) get none: they are already words, and a mark
+beside each would be five marks competing with five numbers. The one-line `Empty` gets
+none — a mark beside a single sentence is decoration. Only the block `EmptyState` has
+one, drawn in `--text-subtle` at 70% opacity, because an empty state should read as a
+quiet absence rather than as an error.
