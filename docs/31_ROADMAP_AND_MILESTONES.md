@@ -650,3 +650,28 @@ its CORS requirement, and the two silent failure modes that make a green sweep
 meaningless.
 
 **Theme customisation remains DEFERRED. VTU polling remains DISABLED.**
+
+## 31.13 M10A — deterministic academic intelligence · ✅ **DELIVERED**
+
+Most of M10A already existed. M6 built the eight-semester model, cumulative
+standing, subject performance, the own-mean strength classification, backlogs
+and graduation progress — and built them to the same rules M10 specifies
+(own baseline, ±1 grade point, minimum five graded subjects, no percentile, no
+fallback for an unavailable rule set). The honest finding at the start of this
+milestone was that **the domain layer was largely done and the gaps were
+narrow.**
+
+Delivered: `semesterHistory` (§6, §7) and `dataCompleteness` (§19), surfaced on
+"My degree" as a Semester history panel and a one-line basis statement.
+
+| Decision | Outcome |
+|---|---|
+| Where it lives | **Extended "My degree"**, no new route — a separate Insights page would have duplicated ~70% of it (`07` §7.21) |
+| Trend form | **Inline bars + signed deltas**, no chart library. `OQ-040` stays closed as deferred |
+| Mean SGPA | **Refused.** CGPA is the authoritative aggregate (`16` §16.12) |
+
+**M10B (question-paper intelligence) and M10C (AI) are NOT started**, per §55 and
+§65. M10C remains explicitly out of scope: no model, no embedding, no hosted
+inference, and no academic record leaving the device.
+
+**Theme customisation remains DEFERRED. VTU polling remains DISABLED.**

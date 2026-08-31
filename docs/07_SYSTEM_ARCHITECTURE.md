@@ -689,3 +689,35 @@ tier. Unknown paths fall back to Overview.
 `<section>` with no accessible name a `<header>` still maps to the **banner**
 landmark, so a page of modules announced a page of banners. Both are plain
 `<div>`s now; the `<h2>` inside does the labelling that matters.
+
+## 7.21 The intelligence layer (M10A)
+
+**No new service, no new table, no new endpoint, no new dependency.** M10A is
+two pure functions added to `apps/web/src/domain/academics.ts`, which already
+held the M6 analysis (`buildSemesterViews`, `cumulativeStanding`,
+`subjectPerformance`, `analyseStrengths`, `summariseBacklogs`,
+`graduationProgress`).
+
+| Added | Answers |
+|---|---|
+| `semesterHistory(views)` | How each semester compares with the one before it |
+| `dataCompleteness(views)` | What every figure on the page is derived from, and what is missing |
+
+Both take `SemesterView[]` — already the output of the rules engine — and return
+plain data. They touch no repository, no network and no clock, which is why
+their twenty tests need no fixtures beyond a list of results.
+
+### Why there is no Insights route
+
+§34 of the brief allows a dedicated area "if the information architecture
+supports it". It does not. **"My degree" already answers the same question**: it
+holds standing, the eight semesters, subject strengths, backlogs and graduation
+progress. A second page would have duplicated roughly 70% of it and added a
+seventh chip to the Academics tier, so the two new panels went where the student
+already looks.
+
+### Where the analysis runs
+
+In the browser, from records already in memory, inside `useMemo`. Nothing is
+stored: these are projections of the authoritative records, and a stored
+projection is a second copy that can disagree with them (M10A §43).

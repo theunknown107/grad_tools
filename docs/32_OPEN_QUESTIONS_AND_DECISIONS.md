@@ -1271,3 +1271,61 @@ for the whole library, at the same row height GradTools already had.
 
 Applied to Question papers, Results (one panel per semester) and Attendance.
 `OQ-039` (pagination) is unaffected and stays open.
+
+### DEC-030 — No mean SGPA · **M10A**
+
+§6 asks for "average where mathematically appropriate". **It is not
+appropriate here**, and the refusal is worth recording because the code to add
+it is one line.
+
+CGPA is credit-weighted. An unweighted mean of SGPAs is a different quantity,
+and the two diverge whenever semesters carry different credit loads. Shown side
+by side, a student has no way to tell which one their college means — and
+`cumulativeStanding` already produces the authoritative figure.
+
+`semesterHistory` therefore reports the **observed** extremes, the highest and
+lowest actual SGPA, and leaves averaging to the rules engine. A test asserts
+that no `mean`, `meanSgpa` or `average` property exists, so re-adding one means
+deleting the test that explains why it should not.
+
+**Overrulable.** If the owner wants it, the shape is decided: it belongs beside
+CGPA with an explicit label distinguishing it, not in the history panel.
+
+### DEC-031 — No Insights route; extend "My degree" · **M10A**
+
+§34 allows a dedicated intelligence area "if the information architecture
+supports it". It does not. "My degree" already holds standing, the eight
+semesters, subject strengths, backlogs and graduation progress — the same
+question, already answered in one place. A second page would have duplicated
+most of it and added a seventh chip to the Academics tier.
+
+**What would change the answer:** enough additional analysis that "My degree"
+stops being one page about one question. Attendance intelligence and
+question-paper intelligence both live elsewhere already, so that is not close.
+
+### DEC-032 — Change is measured against the immediately preceding semester · **M10A**
+
+A delta is reported only when **both** the semester and the one directly before
+it carry a computed SGPA. Across a gap it is `null`.
+
+The alternative — reaching back to the last comparable semester — would report
+semester 3 as "+1.0 on the previous semester" when semester 2 was never entered.
+That is a comparison the student never made, and §6 forbids comparing
+incomparable records. The cost is that a student with a gap sees fewer deltas,
+which is the honest outcome.
+
+### OQ-044 — Is "Based on N graded semesters of 8" reassuring or alarming? · **opened by M10A**
+
+**Why unresolved:** the sentence is factually necessary — a CGPA over four
+semesters means something different from one over one, and §19 requires saying
+so. But nobody has read it. It may land as useful context or as a nag about
+incomplete data-entry.
+
+**What M10A chose:** state it plainly, once, on the panel the figures live on,
+in the muted colour rather than as a warning.
+
+**What would change the answer:** pilot feedback. If students read it as
+pressure, the fix is placement (inside the figure's own explanation) rather than
+removal — the fact cannot be dropped.
+
+**Decision needed:** after the Semester 5 pilot.

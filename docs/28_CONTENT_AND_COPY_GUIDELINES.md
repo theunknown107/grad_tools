@@ -476,3 +476,38 @@ No headline was written for the dashboard. The reference sites open with a
 sentence about themselves; GradTools opens with "Semester 5 · In progress",
 which is a fact about the reader rather than a claim about the product. A
 redesign is the moment a marketing line gets smuggled in, and it did not.
+
+## 28.16 Copy in the intelligence layer (M10A)
+
+An analytics screen fails on language before it fails on arithmetic. The rule:
+**say what was measured, against what, and how much of the record it rests on.**
+
+| Say | Not |
+|---|---|
+| "Based on 4 graded semesters of 8." | Nothing, leaving 7.85 to look like a full record |
+| "No result entered" | "0.00", or an empty row that reads as a bad semester |
+| "In progress" | "No result entered" — for the semester being sat |
+| "Rule set unavailable" | Re-grading it, or quietly dropping it |
+| "Could not be graded" | "0.00" |
+| "−0.17" beside the semester | "Your performance declined" |
+| "Highest" / "Lowest" | "Best" / "Worst" |
+| "No trend yet — one semester so far, and a trend needs two to compare." | A line through one point |
+| "a subject a full grade point above it is strong" | "top percentile", "above average for your class" |
+
+### The sign carries the direction, colour only repeats it
+
+`+0.11` and `−0.17` are readable with no colour at all. The tint is added after
+the sign, never instead of it (docs/27 §27.5).
+
+### Highest and lowest are observations, not verdicts
+
+A semester is the highest because its SGPA is the largest number in a set the
+student produced. It is not their "best" semester — GradTools does not know what
+they were carrying that year. The words stay descriptive, and they only appear
+when there is more than one semester to be highest *of*.
+
+### Never about anyone else
+
+No percentile, no rank, no cohort, no "students like you". The student's
+baseline is their own history and the copy says so out loud: "measured against
+your own average", "Nothing is compared to other students."

@@ -412,3 +412,41 @@ letter grades and SGPA.
 - Changing a rule creates a **new version**; it never edits an existing one.
 - A `RuleSet` cannot be marked active without `verified_at` — enforced by a database constraint.
 - Adding a scheme (2021, 2025) means adding a rule set with its own verified provenance. **Two schemes never share calculation logic by default** — this is the master instruction's requirement, implemented as data separation rather than as branching code.
+
+## 16.12 M10A — the intelligence layer sits ON the rules, never beside them
+
+M10A adds analysis. It adds **no arithmetic**. Every figure it reports is
+either produced by `@gradtools/academic-rules` or is a comparison of two
+figures the rules produced.
+
+| Reported by M10A | Where the number comes from |
+|---|---|
+| SGPA per semester | `calculateSGPA` |
+| CGPA, percentage | `calculateCGPA` and the rule set's own percentage formula |
+| Grade points | `resolveGrade` |
+| Change between semesters | Subtraction of two `calculateSGPA` outputs |
+| Highest, lowest | `Math.max`/`min` over those same outputs |
+
+There is no second grading path, no cached SGPA, and no rule table in the
+analysis module.
+
+### What it deliberately does not compute
+
+**A mean SGPA.** It would be one line and it would look useful. It would also be
+a second aggregate sitting beside CGPA that no regulation defines: CGPA is
+credit-weighted, an unweighted mean of SGPAs is not, and the two differ whenever
+semesters carry different credit loads. A student seeing both would have no way
+to tell which one their college means.
+
+`cumulativeStanding` already produces the authoritative aggregate. `semesterHistory`
+therefore reports what was **observed** — the highest and the lowest actual
+SGPA — and leaves averaging to the rules engine. A test asserts the property is
+absent, so it cannot be added back without deleting the test that explains why.
+
+### Exclusion, not substitution
+
+A semester takes no part in the comparison when it has no result, when its
+pinned rule set is unavailable, or when the rules refused to grade it. In every
+case the figure is `null` and the reason is named. **None of the three is
+treated as a zero**, none is re-graded under a substitute, and none is counted
+towards highest, lowest or any delta — the M6 correction, re-pinned by test.

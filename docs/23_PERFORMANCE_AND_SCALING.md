@@ -699,3 +699,29 @@ cost about what 22 tree-shaken Lucide icons did.
 The 16 shapes that nothing rendered were pruned rather than kept for completeness:
 measured at **1.77 kB (0.53 kB gzipped)**. A name registry cannot tree-shake, so an
 unused shape is not free the way an unused library export is.
+
+## 23.22 Measured in M10A
+
+| | M9.5.2 | M10A |
+|---|---|---|
+| JS | 695,098 B (201.13 kB gzip) | **699,290 B (202.40 kB gzip)** |
+| CSS | 63,496 B (11.07 kB gzip) | **65,150 B (11.54 kB gzip)** |
+
++4.2 kB JS (1.3 kB gzipped) for two analysis functions and a panel; +1.7 kB CSS
+for the history rows. **No dependency added.**
+
+### Cost of the analysis itself
+
+Both functions are O(8) — they walk a fixed eight-element array of semesters
+that the page had already built for other panels. `semesterHistory` does one
+pass to find the comparable set and one to build the rows; `dataCompleteness`
+does one pass. Both run inside `useMemo`, keyed on the same `views` the rest of
+the page uses, so they recompute only when a result or a semester status
+changes.
+
+**Nothing was measured because nothing is measurable at this size.** Eight
+iterations over an array in a `useMemo` does not register against a 200 kB
+bundle parse, and instrumenting it would produce a number that says more about
+the timer than the code. §44 says not to optimise prematurely; it also means not
+to *measure* theatrically. If a future milestone computes across many students
+or many terms, that is when a measurement becomes worth taking.

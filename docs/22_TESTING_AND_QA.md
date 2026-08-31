@@ -1174,3 +1174,61 @@ three endpoints return 200 with the CORS header before sweeping**.
 **The check that matters is not the exit code.** A green sweep with a dead API is a sweep
 of two error states. Papers must read `Showing 50 of NNNN` and Profile's Scheme select
 must name a scheme.
+
+## 22.25 M10A — testing the refusals
+
+**40 files, 1315 tests, all passing.** 20 are new; one was rewritten.
+
+The new file, `apps/web/test/intelligence.test.ts`, is mostly about what the
+layer **declines** to do. Most of the ways an analytics layer goes wrong are not
+arithmetic errors — they are moments where it treats a missing semester as a bad
+one, re-grades a result under rules it was not graded under, or invents an
+aggregate nobody defined. Each of those would pass a review that only checked
+the maths, so each has a test.
+
+| Test | The defect it prevents |
+|---|---|
+| No trend on one semester | A line drawn through a single point |
+| Change across a gap is null | Reporting S3 as "+1.0 on the previous semester" when S2 was never entered |
+| A missing semester is not the lowest | An absent record read as a poor one |
+| Unavailable rule set excluded, not re-graded | The M6 defect returning through the analytics door |
+| Ungradeable result excluded | An unusable grade letter silently becoming 0.00 |
+| Deltas use computed, never asserted | Mixing a grade-card number into one row and a computed one into the next |
+| No `mean`/`meanSgpa`/`average` property | A second aggregate competing with CGPA |
+| Percentage is CGPA × 10, never 77.5 | The `(CGPA − 0.75) × 10` formula third-party calculators still publish |
+| No key matching `/percentile\|rank\|cohort\|peer/` | Peer comparison arriving by accident |
+| In-progress semester is not "missing data" | Telling every student mid-semester their records are incomplete |
+
+### The rewritten test
+
+`semesters.test.tsx > shows a third-year student their history…` counted spans
+reading "In progress" across the whole page and expected exactly one. The new
+history panel legitimately names the current semester too, so the count became
+two. **The assertion was scoped to the Semesters panel, not loosened to `toBe(2)`** —
+the invariant under test is "exactly one semester carries each lifecycle state",
+and counting page-wide would have turned it into "how many panels mention the
+present".
+
+### Browser QA
+
+Both themes, 12 routes, 9 widths (320–1920): **0 axe violations, 0 horizontal
+overflow, 0 console errors** in each. The API was up on `:3001` with the QA
+origin allowed, so Papers and Profile rendered live data (tests/README.md).
+
+### A fixture bug, not a product bug
+
+The seeded QA student used `status: 'not_started'` for semesters 6–8. The only
+valid statuses are `planned | in_progress | completed`, so those semesters were
+not recognised as unreached and rendered as empty history rows. Same class as
+the invented VTU grade `S` in M9.3: **the harness's data was wrong, and the
+screenshot is what showed it.** Fixed in the fixture.
+
+### NOT VERIFIED
+
+- **No real academic record has been through this.** Every test and every
+  screenshot uses synthetic data. Correct arithmetic on invented semesters is
+  not evidence that a real grade card produces sensible output.
+- **No student has read these screens.** Whether "Based on 4 graded semesters of
+  8" is reassuring or alarming is unmeasured.
+- Real-device, non-Chromium and hand keyboard passes remain outstanding as in
+  M9.5.2.
