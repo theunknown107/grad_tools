@@ -34,6 +34,7 @@ import type { Sql } from '../db/client.js';
 import * as queries from '../db/queries.js';
 import type { ObjectStore } from '../documents/storage.js';
 import { notFound } from '../http/errors.js';
+import { QUESTION_NORMALIZATION_VERSION } from '../intelligence/normalize.js';
 
 /** A page a phone can render without scrolling for a minute. */
 const DEFAULT_LIMIT = 20;
@@ -109,6 +110,54 @@ export function createQuestionPaperRouter(
       search === undefined ? 'public, max-age=60' : 'private, no-store',
     );
     res.json({ data: items, total, limit, offset });
+  });
+
+  /**
+   * Cross-paper question search (M10B §6, §7).
+   *
+   * The paper listing answers "which papers exist"; this answers "where has
+   * this been asked". Same visibility rule, same trust domain: reference data
+   * only, no student context, and a question from a document the library may
+   * not show is simply absent.
+   *
+   * Bounded by construction — a capped limit, a capped search length and a
+   * capped offset — so no query a client can phrase makes the database scan
+   * without end (M10B §41).
+   */
+  router.get(SOURCE_ROUTES.questionSearch, async (req: Request, res: Response) => {
+    const search = textParam(req.query.search)?.slice(0, MAX_SEARCH);
+    const format = textParam(req.query.format);
+    const reviewed = textParam(req.query.reviewed);
+    const limit = intParam(req.query.limit, 1, MAX_LIMIT) ?? DEFAULT_LIMIT;
+    const offset = intParam(req.query.offset, 0, 1_000_000) ?? 0;
+
+    const { items, total } = await queries.searchQuestions(sql, {
+      search,
+      subjectCode: textParam(req.query.subject),
+      semester: intParam(req.query.semester, 1, 8),
+      year: intParam(req.query.year, 2015, 2100),
+      module: textParam(req.query.module),
+      marks: intParam(req.query.marks, 0, 100),
+      format: paperFormatSchema.safeParse(format).success ? format : undefined,
+      reviewed: reviewed === 'true' ? true : reviewed === 'false' ? false : undefined,
+      limit,
+      offset,
+    });
+
+    /* A search term is what a particular person was looking for; it does not
+       belong in a shared cache (M8 §27). */
+    res.setHeader(
+      'Cache-Control',
+      search === undefined ? 'public, max-age=60' : 'private, no-store',
+    );
+    res.json({
+      data: items,
+      total,
+      limit,
+      offset,
+      /* So a caller can tell which rules reduced the text it is looking at. */
+      normalizationVersion: QUESTION_NORMALIZATION_VERSION,
+    });
   });
 
   /** The filter values that would actually return something (M8 §10). */
