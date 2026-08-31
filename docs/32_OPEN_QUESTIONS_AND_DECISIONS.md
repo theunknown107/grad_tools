@@ -1329,3 +1329,48 @@ pressure, the fix is placement (inside the figure's own explanation) rather than
 removal — the fact cannot be dropped.
 
 **Decision needed:** after the Semester 5 pilot.
+
+### DEC-033 — Repetition and similarity are built but not surfaced · **M10B**
+
+The method exists, is tested, and has documented semantics separating exact
+repeat from similar question from same topic. **It is not shown to students.**
+
+The corpus is nine current papers covering nine different subjects in one
+sitting. No question in it can repeat, so every repetition result would be zero
+— and a student reading "found in 0 indexed papers" on every question would
+reasonably conclude that VTU does not repeat questions. That is a claim about
+the world derived from a limitation of our library (§64).
+
+**What unblocks it:** two or more sittings of the same subject in the corpus.
+Nothing about the method needs to change.
+
+### DEC-034 — Search matches the effective text, and says which it is · **M10B**
+
+Reviewed text where a reviewer wrote one, machine text otherwise, with
+`isReviewed` on every row. Carrying both through search would be weight without
+a use; the flag is what changes how a row should be read.
+
+Zero records in the local corpus carry reviewed text, so in practice every
+result today is machine output — which is exactly why the UI says so once, above
+the list.
+
+### OQ-045 — When does a corpus become large enough to evaluate similarity? · **opened by M10B**
+
+**Why unresolved:** the honest minimum is not a row count. It is *two sittings of
+one subject*, without which precision and recall are both undefined. A second
+threshold matters too: 65 of 126 current questions have empty text, so the
+usable corpus is half its nominal size.
+
+**What M10B chose:** measure, publish the numbers, and gate the feature.
+
+**Decision needed:** when the library grows, and `OQ-008` (rights) is what
+governs whether it can.
+
+### OQ-046 — Should the search UI expose review state as a filter? · **opened by M10B**
+
+The API supports `reviewed=true|false`; the UI does not offer it. With zero
+reviewed records the filter would return nothing, and a control that always
+returns nothing is worse than an absent one.
+
+**Decision needed:** once human review has produced a meaningful number of
+records.

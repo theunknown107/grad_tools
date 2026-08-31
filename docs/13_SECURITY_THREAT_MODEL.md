@@ -540,3 +540,25 @@ leaves the device for analysis — the whole layer runs in the browser on record
 already in memory. When M10C is eventually considered, §41's requirement stands:
 extracted document text is untrusted input and must never reach system
 instructions, tool calls, database access or authorization.
+
+## 13.27 M10B — question search
+
+| Risk (§41) | Status |
+|---|---|
+| SQL injection | Parameterised throughout; `%`/`_` escaped so a wildcard in a query is a literal. Tested |
+| Unbounded query | Capped limit (100), capped search length (100), capped offset. Tested |
+| Unauthorised document access | `LIBRARY_VISIBLE` in the query, not in a filter someone can forget. A private paper's question is **absent**, tested |
+| IDOR | No identifier is accepted except opaque filter values; results are not addressable by another user's id |
+| Accidental student-context exposure | The request carries no profile, semester or account. A test asserts no result key names a profile, USN, account or academic figure |
+| XSS / malicious paper text | Returned verbatim as JSON and rendered as React text children. Nothing interprets markup, follows a URL out of question text, or lets it reach a template |
+| Bidi / control characters | Stripped by `normalizeQuestionText` before matching. **Note:** the stored text is still returned verbatim by design, so rendering safety rests on React escaping |
+| Prompt injection | **No model exists in this path** (§3, §30). There is no prompt to inject into |
+| Parser-version confusion | Only `is_current` extractions are searched, tested |
+
+### Extracted text remains untrusted
+
+The normaliser strips invisible and bidirectional characters from the **matching
+key** because a right-to-left override can reorder a rendered line. It does not
+strip them from the stored text, because rewriting extracted text is exactly the
+invention M10B §9 forbids — and escaping belongs at render time, where React
+does it.

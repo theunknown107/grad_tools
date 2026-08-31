@@ -19,6 +19,7 @@ import {
   SOURCE_ROUTES,
   type QuestionPaper,
   type QuestionPaperFilters,
+  type QuestionSearchResult,
 } from '@gradtools/shared-types';
 import { apiBaseUrl } from '../repositories/reference.js';
 import { useProfile, useSemesters } from './useCollection.js';
@@ -225,4 +226,104 @@ export function usePaperContext(): PaperContext {
 export function useSortedPapers(papers: readonly QuestionPaper[]): QuestionPaper[] {
   const context = usePaperContext();
   return useMemo(() => sortForStudent(papers, context), [papers, context]);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Question search (M10B)                                                     */
+/* -------------------------------------------------------------------------- */
+
+export interface QuestionQuery {
+  readonly search?: string;
+  readonly subject?: string;
+  readonly semester?: string;
+  readonly year?: string;
+  readonly module?: string;
+  readonly marks?: string;
+}
+
+export interface QuestionsState {
+  readonly items: readonly QuestionSearchResult[];
+  readonly total: number;
+  readonly loading: boolean;
+  readonly error: string | null;
+}
+
+/**
+ * Questions across every paper the library may show.
+ *
+ * SAME PRIVACY RULE AS `usePapers` (M8 §25, M10B §42). The request carries a
+ * search term and filters, and nothing else — no profile, no semester from the
+ * student's own record, no account. Which results matter to this student is
+ * decided on the device, from data that never leaves it.
+ *
+ * Debounced for the same reason: fewer requests, and fewer half-typed words
+ * reaching a server log that has no reason to see them.
+ */
+export function useQuestionSearch(query: QuestionQuery, limit = 30): QuestionsState {
+  const [items, setItems] = useState<readonly QuestionSearchResult[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [debouncedSearch, setDebouncedSearch] = useState(query.search ?? '');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(query.search ?? '');
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [query.search]);
+
+  const params = useMemo(() => {
+    const search = new URLSearchParams();
+    const put = (key: string, value: string | undefined) => {
+      if (value !== undefined && value !== '' && value !== 'all') search.set(key, value);
+    };
+    put('search', debouncedSearch);
+    put('subject', query.subject);
+    put('semester', query.semester);
+    put('year', query.year);
+    put('module', query.module);
+    put('marks', query.marks);
+    search.set('limit', String(limit));
+    return search.toString();
+  }, [
+    debouncedSearch,
+    query.subject,
+    query.semester,
+    query.year,
+    query.module,
+    query.marks,
+    limit,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    fetch(`${apiBaseUrl()}${SOURCE_ROUTES.questionSearch}?${params}`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return (await response.json()) as { data: QuestionSearchResult[]; total: number };
+      })
+      .then((body) => {
+        if (cancelled) return;
+        setItems(body.data);
+        setTotal(body.total);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError('Could not reach the GradTools server.');
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params]);
+
+  return { items, total, loading, error };
 }

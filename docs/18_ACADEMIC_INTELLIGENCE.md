@@ -390,3 +390,122 @@ to be visible on: a paper has a page, that page has a place for structure, and
 the distinction between "structural" and "semantically verified" is already
 written into the copy. Building on it still requires the corpus ground truth
 `OQ-031` describes.
+
+## 18.x M10B — what the corpus actually supports
+
+### The measurement came first
+
+`services/api/scripts/measure-question-similarity.ts` runs against the local
+corpus, which stays gitignored. Its output decided everything below.
+
+| | |
+|---|---|
+| Questions in the **current** extractions | 126 |
+| …with text that tokenises to anything usable | **60** |
+| …with empty extracted text | **65** |
+| Low structural confidence | 59 |
+| Carrying reviewed text | **0** |
+| Exact normalised duplicate groups | **0** |
+| Pairs at Jaccard ≥ 0.30, out of 1,770 | **0** |
+
+### Why zero is not a verdict on the method
+
+The nine current papers are **nine different subjects from one sitting**
+(June/July 2024): BESC104C, BMATC101, BPHYS102, BCHEM102, BCIVC103, BCY358A,
+BENGK106, BKSKK107, BMATS101. No subject appears twice, so **no question in this
+corpus can repeat**. Repetition is not rare here; it is structurally
+unobservable.
+
+Two of the nine (BENGK106, BKSKK107 — the language papers) produced **zero
+questions** at all.
+
+That has three consequences, and they are the substance of M10B:
+
+1. **Similarity and repetition cannot be evaluated on this corpus.** Reporting
+   an accuracy figure would be a fiction, and there is no labelled ground truth
+   either — the 71 historical adjudications were agent-made, not human (§44).
+2. **Neither may be shipped as a student feature.** "Found in 0 papers" on every
+   question would state something about VTU exams that is actually a fact about
+   a nine-paper corpus.
+3. **Embeddings cannot be justified.** Deterministic matching has not been shown
+   insufficient — it has not been *testable*.
+
+### Normalisation, versioned
+
+`question-normalization-v1` produces a **matching key, never a corrected
+question**. Machine text and reviewed text stay exactly as the parser and the
+reviewer left them.
+
+| Does | Does not |
+|---|---|
+| Collapses newlines, tabs, repeated spaces | Repair equations |
+| Folds typographic quotes, dashes, ellipsis, exotic spaces | Correct spelling |
+| Closes space before punctuation, after an opening bracket | Close space *after* a comma — that would join words OCR split |
+| Collapses runs of `- _ = * ~` | Collapse runs of `.` — that destroys an ellipsis |
+| Strips C0/C1 controls, zero-width joiners, bidi overrides | Strip markup — that is escaped at render, not removed here |
+| Lowercases, last | Touch operators, digits, units, question numbering |
+
+Two defects were caught by test rather than by review:
+
+- Including `.` in the run-collapse turned an ellipsis into a single dot,
+  because the `…` fold runs first.
+- Tokenising on `\p{L}\p{N}` **shatters Kannada**: its vowels are combining
+  marks, not letters, so a word became fragments and the single-character filter
+  discarded most of them. `\p{M}` is now in the class (§22).
+
+### Duplicate semantics are three things, kept apart (§12)
+
+`EXACT / NEAR-EXACT REPEAT`, `SIMILAR QUESTION` and `SAME TOPIC` are not
+collapsed. Jaccard is length-sensitive by design, so a short question contained
+in a long one scores **low** — containment is not equality. Tests pin a
+same-topic pair below 0.5 and a re-typeset repeat at 1.0.
+
+**No thresholds are shipped as product behaviour**, because the corpus cannot
+validate one. The method is a tested library capability awaiting a corpus with
+two sittings of one subject.
+
+### Search is what shipped
+
+`GET /api/v1/questions/search` — deterministic ILIKE over the **effective** text
+(reviewed where one exists, machine otherwise), with filters for subject,
+semester, year, module, marks, format and review state.
+
+- **Library visibility**, identical to the paper listing. A question from a
+  private, blocked or unvalidated document is absent, not forbidden (§42).
+- **Current extraction only.** Both parser versions coexist; searching across
+  them would return a question twice and let a superseded record answer for
+  today's (§24).
+- **Bounded**: capped limit, capped search length, capped offset, and an ordering
+  ending in the row id so paging cannot duplicate or drop.
+- **No student context.** No profile, semester or account is sent; relevance is
+  decided on the device (§42).
+
+### No prediction, anywhere (§14)
+
+Nothing counts occurrences, ranks importance or suggests what an exam will
+contain. Frequency is historical evidence and would not license a forecast even
+if the corpus could produce one.
+
+## 18.y The AI decision gate (M10B §62)
+
+| Question | Answer |
+|---|---|
+| 1. Is deterministic search sufficient? | **Yes.** 60 usable questions; ILIKE with structured filters answers "where has this been asked" |
+| 2. Is deterministic similarity sufficient? | **Unknown, and unknowable on this corpus.** Zero repeats are possible in it |
+| 3. Are embeddings justified? | **No.** Nothing has shown deterministic matching failing |
+| 4. Would local embeddings materially improve the product? | **No evidence either way.** They would find semantic neighbours among 60 questions across nine unrelated subjects — neighbours a student has no use for |
+| 5. Memory cost | A MiniLM-class model is ~90 MB of weights plus runtime. Not measured, because measuring the cost of something unjustified is theatre |
+| 6. Latency cost | Not measured, same reason |
+| 7. Quality evidence | **None exists.** No labelled ground truth; the 71 historical adjudications were agent-made (§44) |
+| 8. Privacy | A local model keeps data on device; a hosted API would send question text to a third party and is prohibited (§3, §28) |
+| 9. What stays deterministic | Normalisation, search, filtering, duplicate detection, and every academic calculation — permanently |
+
+**RECOMMENDATION: D — AI not yet justified.**
+
+The blocker is not model quality. It is that **the corpus cannot pose the
+question**. What would change this is not a better method but more papers: two
+or more sittings of the same subject, and OCR that produces text for more than
+half the questions it processes.
+
+Until then, adding embeddings would mean building a semantic index over 60
+questions, of which none can repeat, to find similarities nobody can validate.

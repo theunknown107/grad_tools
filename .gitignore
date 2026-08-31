@@ -48,3 +48,4 @@ GradTools_M9.4_Reference_Images/
 # Seeded visual-QA output (docs/22 §22.21). Screenshots of synthetic data.
 .qa-screenshots/
 .qa-light/
+.qa-qmode/

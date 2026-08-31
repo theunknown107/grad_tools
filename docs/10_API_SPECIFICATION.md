@@ -749,3 +749,32 @@ As with M9.3, the visual redesign is presentation only. **No endpoint, request
 shape, response shape, status code, header or error contract changed**, and no
 API test changed. Nothing new is requested from the server, and no field that
 was already being returned is now rendered from a different source.
+
+## 10.23 `GET /api/v1/questions/search` (M10B)
+
+Cross-paper question search over reference data. **Read-only. No student
+context.**
+
+| Parameter | Notes |
+|---|---|
+| `search` | Matches effective question text and question number, case-insensitive, capped at 100 chars. `%` and `_` are escaped to literals |
+| `subject`, `semester`, `year`, `module`, `marks`, `format` | Exact filters; `all` and empty are ignored |
+| `reviewed` | `true`/`false` — narrows to records a person has checked |
+| `limit`, `offset` | Default 20, **max 100**; offset capped at 1,000,000 |
+
+Response: `{ data, total, limit, offset, normalizationVersion }`.
+
+Each row carries the **effective** text plus `isReviewed`, `confidence`,
+`needsReview`, `extractionSource`, `parserVersion` and the paper's identity — a
+caller must be able to judge how much to trust the text it is showing (M10B §4).
+
+**Caching:** `public, max-age=60` without a search term; `private, no-store`
+with one — a search reflects what a particular person was looking for.
+
+**Visibility** is the paper listing's rule, applied in the query: a question
+belonging to a document that is private, blocked or unvalidated is absent. Only
+the **current** extraction is searched, so a superseded parser version can never
+answer (M10B §24).
+
+This is distinct from `/api/v1/papers/:id/questions`, which is the operator
+review surface and answers for any extraction of any document.

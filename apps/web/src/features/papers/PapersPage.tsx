@@ -16,11 +16,12 @@
  * (M8 §11, §46).
  */
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, Notice, Panel, SelectField, TextField } from '../../components/ui/index.js';
 import { PageHeader } from '../../components/AppShell.js';
 import {
+  useQuestionSearch,
   usePaperContext,
   usePaperFilters,
   usePapers,
@@ -28,6 +29,7 @@ import {
 } from '../../hooks/usePapers.js';
 import { FORMAT_LABEL, schemeLabel } from '../../domain/papers.js';
 import { PaperRow } from './PaperRow.js';
+import { QuestionResults } from './QuestionResults.js';
 import styles from './papers.module.css';
 
 export function PapersPage() {
@@ -38,6 +40,15 @@ export function PapersPage() {
   const [year, setYear] = useState('all');
   const [format, setFormat] = useState('all');
   const [sort, setSort] = useState('newest');
+
+  /*
+   * ONE SEARCH BOX, TWO THINGS TO FIND (M10B §35). "Which papers exist" and
+   * "where has this been asked" are the same act with different results, so
+   * they share the box and the filters rather than becoming two screens with
+   * two search fields a student has to choose between before typing.
+   */
+  const [mode, setMode] = useState<'papers' | 'questions'>('papers');
+  const modeName = useId();
 
   const filters = usePaperFilters();
   const context = usePaperContext();
@@ -51,6 +62,14 @@ export function PapersPage() {
     sort,
   });
   const papers = useSortedPapers(items);
+
+  /*
+   * Called on every render, not only in question mode: a hook cannot be
+   * conditional. The cost of the extra request is one small query against
+   * reference data, and switching modes is then instant rather than showing a
+   * spinner for something the page could already have had.
+   */
+  const questions = useQuestionSearch({ search, subject, semester, year });
 
   /*
    * The suggestion, not a filter (M8 §26). A student's semester decides what is
@@ -68,7 +87,29 @@ export function PapersPage() {
         subtitle="Past papers in one place. GradTools shows them; it does not issue them."
       />
 
-      <Panel title="Find a paper">
+      <Panel title={mode === 'papers' ? 'Find a paper' : 'Find a question'}>
+        {/*
+          A radiogroup, not a pair of buttons: two mutually exclusive views of
+          one search is exactly what radios mean, and it arrives with arrow-key
+          navigation and a spoken group name for free.
+        */}
+        <div className={styles.modes} role="radiogroup" aria-label="Search for">
+          {(['papers', 'questions'] as const).map((option) => (
+            <label className={styles.mode} key={option} data-active={mode === option}>
+              <input
+                type="radio"
+                name={modeName}
+                value={option}
+                checked={mode === option}
+                onChange={() => {
+                  setMode(option);
+                }}
+              />
+              {option === 'papers' ? 'Papers' : 'Questions'}
+            </label>
+          ))}
+        </div>
+
         <div className={styles.search}>
           <TextField
             label="Search"
@@ -80,8 +121,9 @@ export function PapersPage() {
             }}
           />
           <p className={styles.searchNote}>
-            Matches the subject code, the subject name, the paper title and the sitting. Plain text
-            matching — no interpretation.
+            {mode === 'papers'
+              ? 'Matches the subject code, the subject name, the paper title and the sitting. Plain text matching — no interpretation.'
+              : 'Matches the text GradTools read from the paper, and the question number. Plain text matching — no interpretation.'}
           </p>
         </div>
 
@@ -160,7 +202,13 @@ export function PapersPage() {
             </SelectField>
           )}
 
-          {filters !== null && filters.formats.length > 1 && (
+          {/*
+            PAPER-ONLY CONTROLS. Format and Sort shape the paper listing and do
+            nothing to a question search, and a control that does nothing is
+            worse than a missing one — it teaches a student that the filters are
+            unreliable.
+          */}
+          {mode === 'papers' && filters !== null && filters.formats.length > 1 && (
             <SelectField
               label="Format"
               value={format}
@@ -177,17 +225,19 @@ export function PapersPage() {
             </SelectField>
           )}
 
-          <SelectField
-            label="Sort"
-            value={sort}
-            onChange={(event) => {
-              setSort(event.target.value);
-            }}
-          >
-            <option value="newest">Newest sitting first</option>
-            <option value="oldest">Oldest sitting first</option>
-            <option value="recently_added">Recently added</option>
-          </SelectField>
+          {mode === 'papers' && (
+            <SelectField
+              label="Sort"
+              value={sort}
+              onChange={(event) => {
+                setSort(event.target.value);
+              }}
+            >
+              <option value="newest">Newest sitting first</option>
+              <option value="oldest">Oldest sitting first</option>
+              <option value="recently_added">Recently added</option>
+            </SelectField>
+          )}
         </div>
 
         {suggestion !== null && (
@@ -206,7 +256,17 @@ export function PapersPage() {
         )}
       </Panel>
 
-      {error !== null ? (
+      {mode === 'questions' ? (
+        <Panel title="Questions" flush>
+          <QuestionResults
+            results={questions.items}
+            total={questions.total}
+            loading={questions.loading}
+            error={questions.error}
+            searched={search !== '' || subject !== 'all' || semester !== 'all' || year !== 'all'}
+          />
+        </Panel>
+      ) : error !== null ? (
         <Notice tone="warning">
           {error}{' '}
           <button type="button" className={styles.linkButton} onClick={reload}>
