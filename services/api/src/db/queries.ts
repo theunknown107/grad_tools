@@ -36,6 +36,8 @@ import {
   announcementSchema,
   type Announcement,
   questionPaperSchema,
+  questionSearchResultSchema,
+  type QuestionSearchResult,
   type QuestionPaper,
   questionPaperFiltersSchema,
   type QuestionPaperFilters,
@@ -1261,4 +1263,138 @@ export async function listQuestionPaperFilters(sql: Sql): Promise<QuestionPaperF
     formats: formats.map((row) => row.paper_format),
     sources,
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Question search (M10B)                                                     */
+/* -------------------------------------------------------------------------- */
+
+export interface QuestionSearchFilter {
+  readonly search?: string | undefined;
+  readonly subjectCode?: string | undefined;
+  readonly semester?: number | undefined;
+  readonly year?: number | undefined;
+  readonly module?: string | undefined;
+  readonly marks?: number | undefined;
+  readonly format?: string | undefined;
+  /** `reviewed` narrows to records a person has actually checked. */
+  readonly reviewed?: boolean | undefined;
+  readonly limit: number;
+  readonly offset: number;
+}
+
+/*
+ * Only the extraction that is CURRENT for its document.
+ *
+ * Both parser versions live side by side — the corpus carries nine papers on
+ * positional-v1 and nine on positional-v2 — and searching across them would
+ * return the same question twice and let a v1 record masquerade as a result
+ * about today's extraction (M10B §24). Versions are isolated, never merged.
+ */
+const QUESTION_JOINS = (sql: Sql) => sql`
+    FROM extracted_questions q
+    JOIN extracted_papers p ON p.id = q.paper_id AND p.is_current = true
+    JOIN documents d        ON d.id = p.document_id
+    LEFT JOIN subjects s    ON s.id = d.subject_id
+`;
+
+/**
+ * Search questions across every paper the library is allowed to show.
+ *
+ * ---------------------------------------------------------------------------
+ * THIS IS A DIFFERENT TRUST DOMAIN FROM THE REVIEW ROUTES
+ * ---------------------------------------------------------------------------
+ *
+ * `/papers/:id/questions` is an operator surface: it answers for any extraction
+ * of any document, because a reviewer needs to see work in progress. This is
+ * student-facing, so it applies `LIBRARY_VISIBLE` exactly as the paper listing
+ * does — a question from a document that is private, blocked or not yet
+ * validated is NOT FOUND rather than forbidden, because "this exists but is not
+ * yours" is itself a disclosure (docs/13 §T-40, M10B §42).
+ *
+ * No student academic data is touched. This reads reference material only, and
+ * carries no profile, no account and no local record (M10B §6, §42).
+ *
+ * Matching is deterministic ILIKE over the EFFECTIVE text — reviewed where a
+ * reviewer wrote one, machine otherwise (M10B §7, §23). Deliberately not vector
+ * search: the corpus measurement found no repeats to justify it (M10B §27).
+ */
+export async function searchQuestions(
+  sql: Sql,
+  filter: QuestionSearchFilter,
+): Promise<{ items: QuestionSearchResult[]; total: number }> {
+  const search =
+    filter.search === undefined || filter.search.trim() === ''
+      ? null
+      : `%${filter.search.trim().replace(/[\\%_]/g, '\\$&')}%`;
+
+  const where = sql`
+    WHERE ${LIBRARY_VISIBLE(sql)}
+      /*
+       * A question with no text is not a search result. btrim matters: the
+       * column is NOT NULL, so "no text" arrives as '' or as whitespace, and
+       * comparing against '' alone lets a whitespace-only record through to
+       * render as a blank row. 65 of the 126 current questions in the local
+       * corpus have empty text, so this is the common case, not the edge one.
+       */
+      AND btrim(COALESCE(q.reviewed_question_text, q.question_text)) <> ''
+      AND (${search}::text IS NULL
+           OR COALESCE(q.reviewed_question_text, q.question_text) ILIKE ${search} ESCAPE '\\'
+           OR COALESCE(q.reviewed_question_number, q.question_number) ILIKE ${search} ESCAPE '\\')
+      AND (${filter.subjectCode ?? null}::text IS NULL
+           OR COALESCE(s.code, d.subject_code) = ${filter.subjectCode ?? null})
+      AND (${filter.semester ?? null}::int IS NULL
+           OR COALESCE(s.semester, d.semester) = ${filter.semester ?? null})
+      AND (${filter.year ?? null}::int IS NULL OR d.exam_year = ${filter.year ?? null})
+      AND (${filter.module ?? null}::text IS NULL
+           OR COALESCE(q.reviewed_module, q.module) = ${filter.module ?? null})
+      AND (${filter.marks ?? null}::int IS NULL
+           OR COALESCE(q.reviewed_marks, q.marks) = ${filter.marks ?? null})
+      AND (${filter.format ?? null}::text IS NULL
+           OR p.paper_format = ${filter.format ?? null}::paper_format)
+      AND (${filter.reviewed ?? null}::boolean IS NULL
+           OR (q.review_state <> 'unreviewed') = ${filter.reviewed ?? null})
+  `;
+
+  /*
+   * STABLE ORDERING (M10B §7, §48). Newest sitting first, then the paper, then
+   * the question's own position in it — and `q.id` last so that two questions
+   * identical on every other key still come back in the same order on every
+   * request. Without that tiebreak, pagination silently duplicates and drops
+   * rows.
+   */
+  const rows = await sql`
+    SELECT q.id,
+           q.paper_id                                          AS "paperId",
+           d.id                                                AS "documentId",
+           d.title                                             AS "paperTitle",
+           COALESCE(s.code, d.subject_code)                    AS "subjectCode",
+           s.title                                             AS "subjectTitle",
+           COALESCE(s.semester, d.semester)                    AS semester,
+           d.exam_year                                         AS "examYear",
+           d.exam_session                                      AS "examSession",
+           COALESCE(q.reviewed_question_number, q.question_number) AS "questionNumber",
+           COALESCE(q.reviewed_module, q.module)               AS module,
+           COALESCE(q.reviewed_marks, q.marks)                 AS marks,
+           COALESCE(q.reviewed_question_text, q.question_text) AS text,
+           (q.reviewed_question_text IS NOT NULL)              AS "isReviewed",
+           q.confidence                                        AS confidence,
+           q.needs_review                                      AS "needsReview",
+           p.paper_format                                      AS "paperFormat",
+           p.extraction_source                                 AS "extractionSource",
+           p.parser_version                                    AS "parserVersion"
+    ${QUESTION_JOINS(sql)}
+    ${where}
+    ORDER BY d.exam_year DESC NULLS LAST, d.id, q.ordinal, q.id
+    LIMIT ${filter.limit} OFFSET ${filter.offset}
+  `;
+
+  const [count] = await sql<{ total: string }[]>`
+    SELECT count(*)::text AS total ${QUESTION_JOINS(sql)} ${where}
+  `;
+
+  return {
+    items: parseRows(questionSearchResultSchema, rows),
+    total: Number(count?.total ?? 0),
+  };
 }

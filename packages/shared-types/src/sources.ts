@@ -508,6 +508,60 @@ export const extractedQuestionSchema = z.object({
 export type ExtractedQuestion = z.infer<typeof extractedQuestionSchema>;
 
 /**
+ * One hit from a cross-paper question search.
+ *
+ * Authority: M10B §6, §4, §23, §25
+ *
+ * A search result is a question PLUS the provenance needed to judge it. A
+ * student looking at extracted text has to be able to see which paper it came
+ * from, whether a person has checked it, and how much the parser trusted its
+ * own structure — otherwise machine output reads as fact (M10B §4).
+ *
+ * `text` is the EFFECTIVE value: the reviewed text where a reviewer has written
+ * one, the machine text otherwise. `isReviewed` says which, so the caller never
+ * has to guess. The full machine/reviewed pair stays on the question's own
+ * endpoint; carrying both through every search row would be weight without a
+ * use, and the flag is what actually changes how a row should be read.
+ */
+export const questionSearchResultSchema = z.object({
+  id: z.string(),
+  paperId: z.string(),
+  documentId: z.string(),
+
+  /* Where it came from, so a hit can be traced to a paper (M10B §47). */
+  paperTitle: z.string(),
+  subjectCode: z.string().nullable(),
+  subjectTitle: z.string().nullable(),
+  semester: z.number().int().nullable(),
+  examYear: z.number().int().nullable(),
+  examSession: z.string().nullable(),
+
+  questionNumber: z.string().nullable(),
+  module: z.string().nullable(),
+  marks: z.number().int().nullable(),
+  text: z.string(),
+
+  /** True when `text` came from a human/agent review rather than the parser. */
+  isReviewed: z.boolean(),
+  confidence: structuralConfidenceSchema,
+  needsReview: z.boolean(),
+
+  /* Extraction provenance. Versions are never merged (M10B §24). */
+  paperFormat: paperFormatSchema,
+  extractionSource: extractionSourceSchema,
+  parserVersion: z.string(),
+});
+export type QuestionSearchResult = z.infer<typeof questionSearchResultSchema>;
+
+export const questionSearchResponseSchema = z.object({
+  data: z.array(questionSearchResultSchema),
+  total: z.number().int().min(0),
+  /** How the text was reduced before matching, so a caller can tell. */
+  normalizationVersion: z.string(),
+});
+export type QuestionSearchResponse = z.infer<typeof questionSearchResponseSchema>;
+
+/**
  * An MCQ item.
  *
  * A separate shape from a descriptive question, with no module, Bloom's level,
@@ -936,6 +990,8 @@ export const SOURCE_ROUTES = {
   questionPaper: (id: string) => `/api/v1/question-papers/${id}`,
   /** The filter values that would actually return something. */
   questionPaperFilters: '/api/v1/question-papers/filters',
+  /** Cross-paper question search (M10B §6). Reference data only. */
+  questionSearch: '/api/v1/questions/search',
   /**
    * The file itself, for `host` papers only.
    *
