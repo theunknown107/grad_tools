@@ -557,7 +557,7 @@ a product-scope question, not an engineering one.
 - Subject-code format including elective suffixes (`BCS405B`, `BCB456D`).
 - `Total = Internal + External` on all 9 rows.
 - The three simultaneous passing thresholds (22OB 6.3) hold for all 8 SEE-assessed rows, matching the printed `P`.
-- 22OB 6.1(3), a course with no SEE, **corroborated by a real row**: a Physical Education course prints an internal above the CIE maximum of 50, an external of 0, and still passes. Both facts are impossible under the ordinary CIE + SEE structure.
+- 22OB 6.1(3), a course with no SEE, **corroborated by a real row**: a Physical Education course prints an internal above the ordinary CIE maximum of 50, an external of 0, and still passes. Both facts are impossible under the ordinary CIE + SEE structure. The marks themselves are deliberately not recorded here.
 - **A new finding (`16` A-16.7):** the printed `External` column is the SEE's contribution out of 50, not the raw script mark out of 100. `docs/16` §16.5 previously claimed the opposite; that claim has been corrected.
 
 **Still NOT verified, because this artifact does not print it:** credits, letter grades, grade points, **SGPA**, **CGPA**, percentage, class, and any `AB`/`IC`/`W` row.
