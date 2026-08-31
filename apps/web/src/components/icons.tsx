@@ -291,6 +291,39 @@ const SHAPES = {
       <path d="M5 5.7 3.6 13.4v3.6a2 2 0 0 0 2 2h12.8a2 2 0 0 0 2-2v-3.6L19 5.7a2 2 0 0 0-2-1.6H7a2 2 0 0 0-2 1.6Z" />
     </>
   ),
+
+  /*
+   * M9.6 — appearance and accent.
+   *
+   * The sun's rays are eight separate 2px runs rather than a dashed stroke:
+   * dasharray scales with the icon and goes ragged at 12px, which is exactly
+   * the size the theme control uses.
+   */
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.6v2.1M12 19.3v2.1M5.4 5.4l1.5 1.5M17.1 17.1l1.5 1.5M2.6 12h2.1M19.3 12h2.1M5.4 18.6l1.5-1.5M17.1 6.9l1.5-1.5" />
+    </>
+  ),
+  /* One path, not a circle minus a circle: a mask would need a fill rule the
+     rest of the set does not use, and a crescent is a legible shape on its own. */
+  moon: <path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5a8.5 8.5 0 1 0 10.8 10.8Z" />,
+  /* `system` is a display, because "follow the device" is what it means. */
+  system: (
+    <>
+      <rect x="3" y="4.5" width="18" height="12" rx="2" />
+      <path d="M9 19.5h6M12 16.5v3" />
+    </>
+  ),
+  palette: (
+    <>
+      <path d="M12 3.2a8.8 8.8 0 1 0 0 17.6c1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.1 0-1 .8-1.7 1.7-1.7h2a4.4 4.4 0 0 0 4.4-4.4c0-4.2-4-7.5-8.8-7.5Z" />
+      <circle cx="7.6" cy="11.4" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="10.4" cy="7.4" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="15.2" cy="8.2" r="0.9" fill="currentColor" stroke="none" />
+    </>
+  ),
+  check: <path d="m4.8 12.4 4.6 4.6 9.8-9.8" />,
 } as const;
 
 export type IconName = keyof typeof SHAPES;

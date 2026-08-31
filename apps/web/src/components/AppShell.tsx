@@ -33,6 +33,7 @@
 import { Icon, type IconName } from './icons.js';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useEffect, useRef, type ReactNode } from 'react';
+import { ThemeControl } from './ThemeControl.js';
 import styles from './AppShell.module.css';
 
 interface Destination {
@@ -200,6 +201,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className={styles.topActions}>
+            {/* Theme sits first: it is a device setting, not a destination, and
+                grouping it with the two NavLinks would imply it navigates. */}
+            <ThemeControl />
             <NavLink
               to="/notifications"
               className={styles.topAction ?? ''}

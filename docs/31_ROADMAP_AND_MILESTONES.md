@@ -864,3 +864,31 @@ reports no longer resolve from `master`. Any clone or fork taken before
 A pre-purge backup exists **locally only** — a Git bundle outside the
 repository. It contains the real record and must not be pushed, published or
 copied into the working tree. No backup branch or tag was created on GitHub.
+
+## 31.20 M9.6A — Theme system and design-token expansion · ✅ **DELIVERED**
+
+The foundation stage of M9.6. Built before any of the eighteen component
+references were touched, precisely so eighteen components could not develop
+eighteen incompatible palettes.
+
+**Delivered:** an accent layer in `tokens.css`, `lib/theme.ts` (device-scoped
+persistence, corruption-tolerant), `useTheme`, `ThemeControl` in the shell
+header, four new icons drawn into the internal set, and a pre-paint script that
+removes the theme flash.
+
+**Two axes, ten palettes, one extra block per accent.** Not one component
+changed to gain themes — M9.4's token architecture paid for itself here.
+
+**Contrast is computed from the shipped stylesheet**, not from a fixture:
+`theme.test.ts` parses `tokens.css` and checks all five accents against four
+grounds plus white-on-fill. Range 4.87:1 to 11.41:1, all clearing AA.
+
+**Tests:** 1382 → **1412** (30 new, 2 new files). Nothing weakened.
+
+**Reference 05 (theme-switch) is ADAPTED, not imported** — `next-themes` and
+`lucide-react` are both refused (M9.5.2 removed the icon dependency
+deliberately), and the reference's two-state model is replaced by three, because
+light/dark alone cannot say "follow my device".
+
+**Not yet done in this stage:** the remaining seventeen references, the public
+homepage, and browser QA of the ten palettes. M9.6B onwards.
