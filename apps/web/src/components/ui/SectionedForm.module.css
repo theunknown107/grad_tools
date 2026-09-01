@@ -1,0 +1,107 @@
+.wrap {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* The rail sits beside the content once there is room for both; below that it
+   becomes a horizontal scrolling row, like every other secondary nav here. */
+@media (min-width: 860px) {
+  .wrap {
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: var(--space-7);
+    align-items: start;
+  }
+}
+
+.rail ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rail ul::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 860px) {
+  .rail {
+    position: sticky;
+    inset-block-start: calc(var(--header-height) + var(--space-4));
+  }
+
+  .rail ul {
+    flex-direction: column;
+    overflow: visible;
+  }
+}
+
+.railItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: var(--control-height);
+  padding-inline: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--text-small);
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-enter),
+    color var(--motion-fast) var(--ease-enter);
+}
+
+.railItem:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.railItem[data-active='true'] {
+  background: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--text);
+  font-weight: var(--weight-medium);
+  box-shadow: var(--glow-accent-soft);
+}
+
+/* Destructive sections are marked in the rail, so the person knows what they
+   are about to open before they open it. */
+.railItem[data-tone='danger'] {
+  color: var(--danger);
+}
+
+.railItem[data-tone='danger'][data-active='true'] {
+  border-color: var(--danger);
+  box-shadow: none;
+}
+
+.railItem:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.body {
+  min-inline-size: 0;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-4);
+  animation: fadeIn var(--motion-base) var(--ease-enter);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-h2);
+  line-height: var(--text-h2-lh);
+  font-weight: var(--weight-semibold);
+}
