@@ -487,7 +487,12 @@
 
     --text: #131a2b;
     --text-muted: #4d5772;
-    --text-subtle: #6b7590;
+    /*
+     * Darkened from #6b7590 (M9.6F). At 12px on the light ground it measured
+     * 4.24:1 — under AA. Only visible once Announcements had real data at
+     * 320px, which is precisely the case an empty sweep cannot reach.
+     */
+    --text-subtle: #5f6880;
 
     --accent: var(--a-on-light);
     --accent-weak: rgb(var(--a-glow-rgb) / 10%);
@@ -554,7 +559,7 @@
 
   --text: #131a2b;
   --text-muted: #4d5772;
-  --text-subtle: #6b7590;
+  --text-subtle: #5f6880;
 
   --accent: var(--a-on-light);
   --accent-weak: rgb(var(--a-glow-rgb) / 10%);

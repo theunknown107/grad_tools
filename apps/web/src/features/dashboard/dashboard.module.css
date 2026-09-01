@@ -194,3 +194,36 @@
   outline-offset: var(--focus-ring-offset);
   border-radius: var(--radius-sm);
 }
+
+/* -------------------------------------------------------------------------- */
+/* M9.6F — one primary surface, then quiet rows                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The brief: the single elevated object on the page. Context and the figures
+ * it explains share one surface, so the eye has one entry point instead of
+ * five equal panels competing for it.
+ */
+.brief {
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  margin-block-end: var(--space-6);
+}
+
+.briefHead {
+  margin-block-end: var(--space-5);
+}
+
+/* The metric strip is INSIDE the brief now, so it drops its own surface —
+   a glass box inside a glass box reads as a mistake. */
+.brief [class*='metrics'] {
+  background: none;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.quietStack {
+  display: grid;
+}
