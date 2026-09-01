@@ -40,6 +40,7 @@ import {
 } from '../../components/ui/index.js';
 import { formatCount, formatPercent } from '../../lib/format.js';
 import { Bar, Row, Rows } from '../../components/ui/layout.js';
+import { Tooltip } from '../../components/ui/Tooltip.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useAttendance, useProfile, useSemesterSubjects } from '../../hooks/useCollection.js';
 import { asStudentProfileId } from '../../domain/identity.js';
@@ -318,9 +319,25 @@ function AttendanceRow({
       }
       trailing={
         <span className={styles.rowFigures}>
-          <span className={styles.rowPercent} data-tone={tone}>
-            {formatPercent(percentage)}
-          </span>
+          {/*
+            The tooltip EXPLAINS the figure; it never carries one. The
+            percentage, the counts and the advice are all already on the row,
+            so nothing is lost on a touchscreen or in a printout — what it adds
+            is which threshold this subject is measured against (M9.6D §16).
+          */}
+          <Tooltip
+            content={
+              status === 'safe'
+                ? 'At or above the 85% attendance requirement (22OB 4.3).'
+                : status === 'dx_risk'
+                  ? 'Below the 75% floor: the course carries a DX and must be repeated (22OB 6.2).'
+                  : 'Below the 85% requirement but above the 75% floor (22OB 4.3).'
+            }
+          >
+            <span className={styles.rowPercent} data-tone={tone} tabIndex={0}>
+              {formatPercent(percentage)}
+            </span>
+          </Tooltip>
           <Bar value={percentage} tone={tone} label={`${name ?? record.subjectCode} attendance`} />
         </span>
       }

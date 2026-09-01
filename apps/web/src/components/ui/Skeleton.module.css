@@ -1,0 +1,55 @@
+.stack {
+  display: grid;
+  gap: var(--space-2);
+  inline-size: 100%;
+}
+
+/*
+ * shadcn's `animate-pulse` is an opacity cycle. Kept, but expressed as a
+ * travelling sheen over the glass surface instead: on a translucent material a
+ * pure opacity pulse makes the whole panel breathe, which is far more
+ * distracting than a highlight moving across a placeholder.
+ */
+.bar {
+  position: relative;
+  display: block;
+  inline-size: 100%;
+  block-size: var(--text-body-lh);
+  overflow: hidden;
+  background: var(--surface-raised);
+  border-radius: var(--radius-sm);
+}
+
+.bar[data-radius='md'] {
+  border-radius: var(--radius-md);
+}
+
+.bar[data-radius='pill'] {
+  border-radius: var(--radius-pill);
+}
+
+.bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 7%), transparent);
+  animation: sheen 1.4s ease-in-out infinite;
+}
+
+@keyframes sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/*
+ * Reduced motion gets a STATIC placeholder, not a stopped one: the global
+ * reduce rule clamps duration to 0.01ms, which would leave the sheen frozen
+ * mid-bar as a visible stripe.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .bar::after {
+    display: none;
+  }
+}

@@ -74,16 +74,45 @@ function serve() {
   return new Promise((ok) => server.listen(PORT, () => ok(server)));
 }
 
-/** A synthetic semester-5 student. Invented codes, invented marks. */
+/**
+ * A synthetic student, populated to the shape M9.6D §39 requires.
+ *
+ * Four completed semesters, one in progress, an 8-subject semester AND a
+ * 9-subject one (the variable-count case the real artifacts exposed), a
+ * carried subject, attendance including a below-threshold subject, and a full
+ * week of timetable.
+ *
+ * Every value is invented. Subject codes use the synthetic BXXX form used
+ * throughout the suite, so nothing here can be mistaken for a record.
+ */
 function seedData() {
-  const subjects = [
+  /* Eight subjects for semesters 1-3, nine for semester 4 — a real VTU
+     semester count varies, and a fixed grid would hide that. */
+  const eight = [
+    ['BXXX301', 'Core course one', 4],
+    ['BXXX302', 'Core course two', 4],
+    ['BXXX303', 'Core course three', 3],
+    ['BXXL304', 'Laboratory course', 1],
+    ['BXXX305', 'Integrated course', 3],
+    ['BXXX306', 'Humanities course', 2],
+    ['BXXX307', 'Ability enhancement', 1],
+    ['BXXX308', 'Mandatory course', 1],
+  ];
+  const nine = [...eight, ['BXXX309', 'Professional elective', 3]];
+  const current = [
     ['BXXX501', 'Core course one', 4],
     ['BXXX502', 'Core course two', 4],
     ['BXXX503', 'Core course three', 3],
     ['BXXL504', 'Laboratory course', 1],
-    ['BXXX505', 'Elective course', 3],
+    ['BXXX505', 'Professional elective', 3],
+    ['BXXX506', 'Open elective', 3],
+    ['BXXX507', 'Ability enhancement', 1],
+    ['BXXX508', 'Mandatory course', 1],
   ];
-  const grades = ['A+', 'A', 'B+', 'O', 'A'];
+  const grades = ['O', 'A+', 'A', 'B+', 'A', 'A+', 'B', 'A', 'B+'];
+
+  const subjectsFor = (n) => (n === 4 ? nine : n === 5 ? current : eight);
+
   return {
     profile: {
       id: 'p1',
@@ -99,7 +128,7 @@ function seedData() {
       id: `s${n}`,
       number: n,
       status: n < 5 ? 'completed' : 'in_progress',
-      subjects: subjects.map(([code, title, credits], i) => ({
+      subjects: subjectsFor(n).map(([code, title, credits], i) => ({
         id: `${String(n)}-${code}`,
         semester: n,
         subjectCode: code,
@@ -112,32 +141,37 @@ function seedData() {
     results: [1, 2, 3, 4].map((n) => ({
       id: `r${n}`,
       semester: n,
-      subjects: subjects.map(([code, title, credits], i) => ({
+      subjects: subjectsFor(n).map(([code, title, credits], i) => ({
         subjectCode: code,
         subjectTitle: title,
         credits,
-        gradeLetter: grades[(i + n) % grades.length],
+        /* Semester 2 carries one F, so the backlog surfaces render. */
+        gradeLetter: n === 2 && i === 6 ? 'F' : grades[(i + n) % grades.length],
       })),
       sgpaAsserted: null,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })),
-    attendance: subjects.map(([code], i) => ({
+    attendance: current.map(([code], i) => ({
       id: `a${code}`,
       semester: 5,
       subjectCode: code,
-      attended: 40 - i * 3,
-      conducted: 46,
+      /* One subject deliberately under the 85% requirement and one under the
+         75% DX floor, so the warning and danger states both render. */
+      attended: [44, 41, 38, 46, 33, 40, 43, 29][i],
+      conducted: 48,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })),
-    timetable: subjects.slice(0, 4).map(([code], i) => ({
-      id: `t${code}`,
-      semester: 5,
-      day: 'Mon',
-      startTime: `0${String(9 + i)}:00`,
-      endTime: `0${String(10 + i)}:00`,
-      subjectCode: code,
-      room: `R${String(101 + i)}`,
-    })),
+    timetable: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].flatMap((day, d) =>
+      current.slice(0, 4).map(([code], i) => ({
+        id: `t${day}${code}`,
+        semester: 5,
+        day,
+        startTime: `${String(9 + i).padStart(2, '0')}:00`,
+        endTime: `${String(10 + i).padStart(2, '0')}:00`,
+        subjectCode: current[(i + d) % current.length][0],
+        room: `R${String(101 + i)}`,
+      })),
+    ),
   };
 }
 
