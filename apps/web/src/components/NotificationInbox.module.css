@@ -1,0 +1,235 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 36px;
+  block-size: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-enter),
+    border-color var(--motion-fast) var(--ease-enter);
+}
+
+.trigger:hover,
+.trigger[aria-expanded='true'] {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.trigger:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/*
+ * The badge uses --danger rather than the accent: an unread count is a status,
+ * and tying it to the accent would make it change meaning when someone picks a
+ * different colour.
+ */
+.badge {
+  position: absolute;
+  inset-block-start: -3px;
+  inset-inline-end: -3px;
+  min-inline-size: 17px;
+  block-size: 17px;
+  padding-inline: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--danger);
+  color: var(--bg);
+  font-size: 10px;
+  line-height: 17px;
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-2));
+  inset-inline-end: 0;
+  z-index: var(--z-overlay);
+  inline-size: 360px;
+  max-inline-size: calc(100vw - var(--space-6));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: riseIn var(--motion-fast) var(--ease-spring);
+  transform-origin: top right;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-block-end: 1px solid var(--border);
+}
+
+.tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+}
+
+.tab {
+  padding: 5px var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  cursor: pointer;
+}
+
+.tab[aria-selected='true'] {
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab:focus-visible,
+.markAll:focus-visible,
+.item:focus-visible,
+.foot:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.markAll {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.markAll:disabled {
+  color: var(--text-subtle);
+  cursor: default;
+}
+
+.list {
+  max-block-size: 380px;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  inline-size: 100%;
+  padding: var(--space-3);
+  border: 0;
+  border-block-end: 1px solid var(--border);
+  background: transparent;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-enter);
+}
+
+.item:hover {
+  background: var(--surface-raised);
+}
+
+/* The priority rail replaces the reference's avatar: GradTools notices have no
+   sender, and a generic face would invent one. */
+.priority {
+  inline-size: 3px;
+  align-self: stretch;
+  min-block-size: 34px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+  flex: none;
+}
+
+.priority[data-priority='urgent'] {
+  background: var(--danger);
+}
+
+.priority[data-priority='important'] {
+  background: var(--warning);
+}
+
+.itemText {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.itemTitle {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.item[data-unread='true'] .itemTitle {
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+.itemMeta {
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+}
+
+.dot {
+  inline-size: 7px;
+  block-size: 7px;
+  margin-block-start: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  flex: none;
+}
+
+.empty {
+  padding: var(--space-7) var(--space-4);
+  text-align: center;
+  color: var(--text-subtle);
+  font-size: var(--text-small);
+}
+
+.foot {
+  padding: var(--space-3);
+  border: 0;
+  border-block-start: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.foot:hover {
+  background: var(--accent-weak);
+}
+
+@media (max-width: 480px) {
+  .panel {
+    position: fixed;
+    inset-inline: var(--space-3);
+    inset-block-start: 64px;
+    inline-size: auto;
+  }
+}

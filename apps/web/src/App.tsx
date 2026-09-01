@@ -23,8 +23,29 @@ import { SignInPage } from './features/auth/SignInPage.js';
 import { AccountPage } from './features/auth/AccountPage.js';
 import { FirstSyncPage } from './features/auth/FirstSyncPage.js';
 import { NotFoundPage } from './features/NotFoundPage.js';
+import { LandingPage } from './features/landing/LandingPage.js';
 
 export function App() {
+  return (
+    /*
+     * The landing page sits OUTSIDE the shell. It carries its own compact
+     * navbar and its own footer (M9.6B References 15 and 16), and wrapping it
+     * in the application chrome would put two navigations and two footers on
+     * one page.
+     *
+     * `/` stays the dashboard: GradTools is local-first, so a returning student
+     * lands on their own data rather than on marketing. `/welcome` is the
+     * public front door. Which of the two a fresh visitor should get is a
+     * product decision, recorded as OQ-051 rather than guessed at here.
+     */
+    <Routes>
+      <Route path="/welcome" element={<LandingPage />} />
+      <Route path="*" element={<ShellRoutes />} />
+    </Routes>
+  );
+}
+
+function ShellRoutes() {
   return (
     <AppShell>
       <Routes>

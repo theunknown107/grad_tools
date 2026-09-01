@@ -1,0 +1,105 @@
+/*
+ * The island: a self-contained rounded object with a lit top edge, sitting
+ * clearly above the page. Inline-flex so it is only as wide as its tabs —
+ * a full-width segmented bar reads as a toolbar, not an island.
+ */
+.island {
+  position: relative;
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  max-inline-size: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.island::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * The moving pill. `translateX` + `width` rather than `left`: transform is
+ * composited, so the slide stays smooth while the panel beneath re-renders.
+ */
+.pill {
+  position: absolute;
+  inset-block: 4px;
+  inset-inline-start: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent-weak);
+  border: 1px solid var(--accent-border);
+  box-shadow: var(--glow-accent-soft);
+  transition:
+    transform var(--motion-base) var(--ease-glide),
+    width var(--motion-base) var(--ease-glide);
+  pointer-events: none;
+}
+
+.tab {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: 34px;
+  padding-inline: var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-enter);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab[aria-selected='true'] {
+  color: var(--accent);
+}
+
+.tab:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.count {
+  padding-inline: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tab[aria-selected='true'] .count {
+  background: var(--accent-border);
+  color: var(--text);
+}
+
+.panel {
+  margin-block-start: var(--space-5);
+  animation: fadeIn var(--motion-base) var(--ease-enter);
+}
+
+/* The panel is focusable so keyboard users land on the content after the tab;
+   it must not draw a ring when reached by pointer. */
+.panel:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 4px;
+  border-radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill {
+    transition: none;
+  }
+}

@@ -95,7 +95,9 @@ const run = async () => {
         await context.clock.setFixedTime(new Date('2026-09-07T10:15:00'));
         await context.addInitScript(
           ([a, c]) => {
-            localStorage.setItem(
+            // Runs inside the page, so `window` is the right root here; the
+            // bare global reads as undefined to the Node-targeted linter.
+            window.localStorage.setItem(
               'gradtools:v1:theme',
               JSON.stringify({ appearance: a, accent: c }),
             );

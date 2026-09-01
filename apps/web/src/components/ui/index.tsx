@@ -311,10 +311,41 @@ export function Notice({
  * quiet absence, not as an error. The one-line `Empty` in ui/layout.tsx gets no
  * icon at all — a mark beside a single sentence is decoration (M9.5.2 §9).
  */
-export function EmptyState({ children, action }: { children: ReactNode; action?: ReactNode }) {
+export function EmptyState({
+  children,
+  action,
+  title,
+  icons,
+}: {
+  children: ReactNode;
+  action?: ReactNode;
+  /** A short headline above the sentence. Omit for a one-line absence. */
+  title?: string;
+  /**
+   * Up to three icons, shown as a fanned cluster (M9.6B Reference 01). The
+   * middle one is upright and forward; the outer two tilt away behind it.
+   */
+  icons?: readonly IconName[];
+}) {
+  const cluster = icons ?? [];
   return (
     <div className={styles.empty}>
-      <Icon name="empty" size="large" className={styles.emptyIcon} />
+      {cluster.length > 0 ? (
+        <div className={styles.emptyCluster} aria-hidden="true">
+          {cluster.slice(0, 3).map((name, index) => (
+            <span
+              key={name}
+              className={styles.emptyChip}
+              data-position={index - (cluster.length > 1 ? 1 : 0)}
+            >
+              <Icon name={name} size="medium" />
+            </span>
+          ))}
+        </div>
+      ) : (
+        <Icon name="empty" size="large" className={styles.emptyIcon} />
+      )}
+      {title !== undefined ? <p className={styles.emptyTitle}>{title}</p> : null}
       <p className={styles.emptyText}>{children}</p>
       {action}
     </div>

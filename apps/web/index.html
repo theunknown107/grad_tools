@@ -25,7 +25,7 @@
     <script>
       (function () {
         try {
-          var raw = localStorage.getItem('gradtools:v1:theme');
+          var raw = window.localStorage.getItem('gradtools:v1:theme');
           if (!raw) return;
           var saved = JSON.parse(raw);
           var root = document.documentElement;
