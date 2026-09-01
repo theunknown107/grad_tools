@@ -338,3 +338,105 @@
     text-align: end;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* M9.6E — the degree spine                                                    */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Eight nodes, one per semester. The primary control on the page: picking one
+ * selects the semester whose detail appears below.
+ */
+.spine {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+}
+
+.spineNode {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+  inline-size: 100%;
+  padding: var(--space-2) 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-enter),
+    border-color var(--motion-fast) var(--ease-enter);
+}
+
+.spineNode:hover {
+  background: var(--surface);
+}
+
+.spineNode:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The selected node is lit, not filled — the material catching light. */
+.spineNode[data-selected='true'] {
+  background: var(--surface-active);
+  border-color: var(--accent-border);
+  box-shadow: var(--glow-accent-soft);
+}
+
+/* The track a node's fill rises inside. Vertical, so the row reads as a
+   skyline and a weak semester is visible as a short column. */
+.spineTrack {
+  display: flex;
+  align-items: flex-end;
+  inline-size: 100%;
+  max-inline-size: 26px;
+  block-size: 44px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  box-shadow: var(--glass-highlight);
+}
+
+.spineFill {
+  inline-size: 100%;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: var(--border-strong);
+  transition: block-size var(--motion-slow) var(--ease-glide);
+}
+
+/* Status carries the colour; the fill height carries the figure. */
+.spineNode[data-status='completed'] .spineFill {
+  background: var(--accent);
+}
+
+.spineNode[data-status='in_progress'] .spineTrack {
+  border: 1px solid var(--accent-border);
+}
+
+.spineNode[data-status='in_progress'] .spineFill {
+  background: var(--warning);
+}
+
+.spineLabel {
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  font-variant-numeric: tabular-nums;
+}
+
+.spineNode[data-selected='true'] .spineLabel,
+.spineNode[data-status='in_progress'] .spineLabel {
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spineFill {
+    transition: none;
+  }
+}

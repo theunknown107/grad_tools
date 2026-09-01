@@ -287,6 +287,60 @@ export function SemestersPage() {
         <p className={styles.note}>
           Set where you are. A semester with a saved result counts as completed.
         </p>
+
+        {/*
+          -------------------------------------------------------------------
+          M9.6E: THE DEGREE IS A JOURNEY, SO SHOW IT AS ONE
+          -------------------------------------------------------------------
+
+          This page listed eight equally-weighted blocks stacked vertically,
+          which answers "what is semester 6" but never "where am I". The spine
+          answers the second question in one glance and is the primary control:
+          picking a node selects the semester whose detail is shown below.
+
+          Each node carries its own state and its SGPA. Height encodes the
+          SGPA across the PASSING range 4-10 rather than 0-10 — below 4 a
+          course is failed, so the bottom 40% of a 0-10 scale is a region no
+          real reading can occupy.
+
+          No gamification (§9): no levels, no badges, no streaks. A node is a
+          semester, its fill is a grade point, and the current one is lit.
+        */}
+        <ol className={styles.spine} aria-label="Semester progression">
+          {views.map((view) => {
+            const sgpa = view.sgpaComputed;
+            const selected = openSemester === view.number;
+            return (
+              <li key={`node-${String(view.number)}`}>
+                <button
+                  type="button"
+                  className={styles.spineNode}
+                  data-status={view.status}
+                  data-selected={selected}
+                  aria-pressed={selected}
+                  aria-label={`Semester ${String(view.number)}, ${STATUS_LABEL[view.status]}${
+                    sgpa === null ? '' : `, SGPA ${formatGpa(sgpa)}`
+                  }`}
+                  onClick={() => setOpenSemester(selected ? null : view.number)}
+                >
+                  <span className={styles.spineTrack} aria-hidden="true">
+                    <span
+                      className={styles.spineFill}
+                      style={{
+                        blockSize:
+                          sgpa === null
+                            ? '0%'
+                            : `${String(Math.max(6, Math.min(100, ((sgpa - 4) / 6) * 100)))}%`,
+                      }}
+                    />
+                  </span>
+                  <span className={styles.spineLabel}>S{view.number}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+
         <ul className={styles.semesterList}>
           {views.map((view) => {
             const sgpa = view.sgpaComputed;
