@@ -296,7 +296,14 @@ describe('attendance', () => {
     await user.type(screen.getByLabelText(/^conducted$/i), '50');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
 
-    expect(await screen.findByText('90.0%')).toBeTruthy();
+    /*
+     * M9.6F added an OVERALL standing figure above the subject rows, so a
+     * single-subject fixture now shows the same percentage twice — once
+     * pooled, once per subject. `findAllByText` keeps the assertion (the
+     * figure is rendered) without asserting it appears exactly once, which
+     * was never the point.
+     */
+    expect((await screen.findAllByText('90.0%')).length).toBeGreaterThan(0);
     expect(peek.attendance()).toHaveLength(1);
     expect(peek.attendance()[0]?.subjectCode).toBe('BCS304');
   });
@@ -327,7 +334,7 @@ describe('attendance', () => {
     // The row carries the ratio and the answer together, so both are read in
     // one glance rather than found in two places.
     expect(meta.textContent).toMatch(/45 of 50 classes/);
-    expect(screen.getByText('90.0%')).toBeTruthy();
+    expect(screen.getAllByText('90.0%').length).toBeGreaterThan(0);
   });
 
   it('shows the DX consequence and frames condonation as discretionary', async () => {
@@ -345,7 +352,7 @@ describe('attendance', () => {
       attendance: [attendance('a1', 'BCS301', 48, 50)],
     });
     const { container } = renderWith(<AttendancePage />, { repositories: bundle });
-    await screen.findByText('96.0%');
+    await screen.findAllByText('96.0%');
     const text = container.textContent ?? '';
     expect(text).not.toMatch(/you should (skip|bunk)/i);
     expect(text).not.toMatch(/safe to skip/i);
@@ -548,6 +555,12 @@ describe('timetable', () => {
       ],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    /*
+     * M9.6F made Today the primary view and moved the week — including the
+     * mobile day agenda — behind a tab. The assertion is unchanged: the
+     * agenda must offer BUTTON navigation, not swipe only.
+     */
+    await userEvent.click(await screen.findByRole('tab', { name: /week/i }));
     expect(await screen.findByRole('button', { name: /next day/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /previous day/i })).toBeTruthy();
   });
@@ -644,12 +657,12 @@ describe('local persistence', () => {
     await user.type(screen.getByLabelText(/^attended$/i), '20');
     await user.type(screen.getByLabelText(/^conducted$/i), '20');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
-    await screen.findByText('100.0%');
+    await screen.findAllByText('100.0%');
     first.unmount();
 
     // A fresh mount reads from the same repository, exactly as a page reload would.
     renderWith(<AttendancePage />, { repositories: bundle });
     expect(await screen.findByText('BCS404')).toBeTruthy();
-    expect(screen.getByText('100.0%')).toBeTruthy();
+    expect(screen.getAllByText('100.0%').length).toBeGreaterThan(0);
   });
 });

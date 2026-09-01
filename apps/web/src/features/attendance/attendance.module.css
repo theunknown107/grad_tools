@@ -257,3 +257,76 @@
   font-size: var(--text-caption);
   color: var(--warning);
 }
+
+/* -------------------------------------------------------------------------- */
+/* M9.6F — standing leads, entry follows                                       */
+/* -------------------------------------------------------------------------- */
+
+.standing {
+  padding: var(--space-5);
+  margin-block-end: var(--space-5);
+}
+
+.standing [class*='metrics'] {
+  background: none;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.standingNote {
+  margin: var(--space-4) 0 0;
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: 1.55;
+}
+
+/*
+ * Entry is a disclosure now. `<details>` rather than a state toggle: it is
+ * open/closed content with no other behaviour, the browser already handles the
+ * keyboard and the ARIA, and it works before hydration.
+ */
+.addCourse {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  margin-block-start: var(--space-5);
+}
+
+.addSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  list-style: none;
+}
+
+.addSummary::-webkit-details-marker {
+  display: none;
+}
+
+.addSummary:hover {
+  color: var(--text);
+}
+
+.addCourse[open] .addSummary {
+  border-block-end: 1px solid var(--border);
+}
+
+.addCourse[open] .addSummary svg {
+  rotate: 45deg;
+}
+
+.addCourse .addRow,
+.addCourse .formError {
+  padding: var(--space-4);
+}

@@ -14,6 +14,7 @@ import { useMemo, useState } from 'react';
 import { WEEKDAYS, type TimetableSlot, type Weekday } from '../../domain/types.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
+import { IslandTabs, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { Icon } from '../../components/icons.js';
 import {
   Button,
@@ -37,6 +38,14 @@ export function TimetablePage() {
   const { profile } = useProfile();
 
   const [day, setDay] = useState<Weekday>('Mon');
+  const [view, setView] = useState('today');
+
+  /*
+   * Today's weekday name, in the same three-letter form the records use.
+   * `toLocaleDateString` with an explicit locale rather than the device's, so
+   * a phone set to another language still matches the stored 'Mon'..'Sat'.
+   */
+  const todayName = new Date().toLocaleDateString('en-GB', { weekday: 'short' }) as Weekday;
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const { items: semesterSubjects } = useSemesterSubjects();
@@ -91,7 +100,45 @@ export function TimetablePage() {
       <PageHeader title="Timetable" subtitle="Your weekly schedule, stored on this device." />
 
       <div className={styles.stack}>
-        <Panel title="Add a class" flush>
+        {/*
+          -------------------------------------------------------------------
+          M9.6F: TODAY IS THE PAGE; THE WEEK IS THE SECOND TAB
+          -------------------------------------------------------------------
+
+          The page opened on "Add a class" and then showed all five days at
+          once. But a timetable is consulted far more often than it is edited,
+          and the question is almost always "what do I have now" — not "what
+          does Thursday look like".
+
+          So Today leads, the week is a tab away, and adding a class moves to a
+          disclosure at the end. Entry happens once a semester; consultation
+          happens every morning.
+        */}
+        {items.length > 0 ? (
+          <>
+            <IslandTabs
+              label="Timetable view"
+              value={view}
+              onChange={setView}
+              tabs={[
+                { id: 'today', label: 'Today', count: (byDay.get(todayName) ?? []).length },
+                { id: 'week', label: 'Week', count: items.length },
+              ]}
+            />
+
+            {view === 'today' ? (
+              <IslandTabPanel id="today">
+                <TodayAgenda slots={byDay.get(todayName) ?? []} onRemove={remove} />
+              </IslandTabPanel>
+            ) : null}
+          </>
+        ) : null}
+
+        <details className={styles.addClass} data-hidden={view === 'today' && items.length > 0}>
+          <summary className={styles.addSummary}>
+            <Icon name="plus" size="nav" />
+            Add a class
+          </summary>
           <div className={styles.addGrid}>
             <SelectField
               label="Day"
@@ -170,7 +217,7 @@ export function TimetablePage() {
               Add class
             </Button>
           </div>
-        </Panel>
+        </details>
 
         {loading ? null : items.length === 0 ? (
           <Panel title="Your week" flush>
@@ -180,7 +227,7 @@ export function TimetablePage() {
             </EmptyState>
           </Panel>
         ) : (
-          <>
+          <div hidden={view !== 'week'}>
             {/* Desktop: week grid */}
             <div className={styles.weekGrid}>
               {WEEKDAYS.map((weekday) => (
@@ -234,16 +281,68 @@ export function TimetablePage() {
                 </ul>
               )}
             </section>
-          </>
+          </div>
         )}
       </div>
     </>
   );
 }
 
-function SlotItem({ slot, onRemove }: { slot: TimetableSlot; onRemove: () => void }) {
+/**
+ * Today, as an agenda.
+ *
+ * The primary view (M9.6F §10). Marks the class that has not finished yet as
+ * NEXT, which is the single most useful thing this page can say and was
+ * previously only on the dashboard.
+ *
+ * Times are compared as "HH:MM" strings, which sort correctly because the
+ * format is zero-padded and 24-hour — no date arithmetic and no timezone to
+ * get wrong.
+ */
+function TodayAgenda({
+  slots,
+  onRemove,
+}: {
+  readonly slots: readonly TimetableSlot[];
+  readonly onRemove: (id: string) => Promise<void> | void;
+}) {
+  const now = new Date();
+  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const next = slots.find((slot) => slot.endTime > clock);
+
+  if (slots.length === 0) {
+    return (
+      <EmptyState title="Nothing scheduled today" icons={['timetable']}>
+        Classes you add for today appear here.
+      </EmptyState>
+    );
+  }
+
   return (
-    <li className={styles.slot}>
+    <ul className={styles.slotList}>
+      {slots.map((slot) => (
+        <SlotItem
+          key={slot.id}
+          slot={slot}
+          isNext={slot.id === next?.id}
+          onRemove={() => void onRemove(slot.id)}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function SlotItem({
+  slot,
+  onRemove,
+  isNext = false,
+}: {
+  slot: TimetableSlot;
+  onRemove: () => void;
+  isNext?: boolean;
+}) {
+  return (
+    <li className={styles.slot} data-next={isNext}>
       <div className={styles.slotTime}>
         <span>{formatTime(slot.startTime)}</span>
         <span className={styles.slotTimeEnd}>{formatTime(slot.endTime)}</span>
