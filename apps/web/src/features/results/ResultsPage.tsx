@@ -18,7 +18,7 @@
  */
 
 import { useState } from 'react';
-import { calculateSGPA, vtu2022RuleSet } from '@gradtools/academic-rules';
+import { calculateCGPA, calculateSGPA, vtu2022RuleSet } from '@gradtools/academic-rules';
 import type { ResultSubject, SemesterResult } from '../../domain/types.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
@@ -38,6 +38,10 @@ import {
   tableClass,
 } from '../../components/ui/index.js';
 import { formatGpa } from '../../lib/format.js';
+import { IslandTabs, IslandTabPanel } from '../../components/ui/IslandTabs.js';
+import { MetricStrip } from '../../components/ui/layout.js';
+import { DropdownMenu } from '../../components/ui/DropdownMenu.js';
+import { Sheet } from '../../components/ui/Sheet.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useProfile, useResults } from '../../hooks/useCollection.js';
 import styles from './results.module.css';
@@ -60,6 +64,7 @@ export function ResultsPage() {
   const { items, loading, save, remove } = useResults();
   const { profile } = useProfile();
   const [isAdding, setIsAdding] = useState(false);
+  const [view, setView] = useState('overview');
 
   /* Whether any saved semester's grade card and computed SGPA disagree. */
   const anyMismatch = items.some((result) => {
@@ -122,32 +127,61 @@ export function ResultsPage() {
         )}
 
         {loading ? null : items.length === 0 ? (
-          <Panel title="Saved semesters" flush>
-            <EmptyState
-              action={
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    setIsAdding(true);
-                  }}
-                >
-                  Add a semester
-                </Button>
-              }
-            >
-              No results saved. Enter a semester result to see SGPA, CGPA and backlogs.
-            </EmptyState>
-          </Panel>
+          <EmptyState
+            title="No results yet"
+            icons={['results', 'gpa', 'degree']}
+            action={
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setIsAdding(true);
+                }}
+              >
+                Add a semester
+              </Button>
+            }
+          >
+            Enter a semester result to see SGPA, CGPA and backlogs.
+          </EmptyState>
         ) : (
-          [...items]
-            .sort((a, b) => a.semester - b.semester)
-            .map((result) => (
-              <SavedResult
-                key={result.id}
-                result={result}
-                onRemove={() => void remove(result.id)}
-              />
-            ))
+          <>
+            {/*
+              M9.6E: OVERVIEW AND DETAIL ARE DIFFERENT QUESTIONS.
+              The page was one flat list of every semester's full table, so
+              "how am I doing overall" could only be answered by scrolling four
+              tables and adding up. The two views are genuinely distinct
+              content, which is the only justification for tabs (§28).
+            */}
+            <IslandTabs
+              label="Results view"
+              value={view}
+              onChange={setView}
+              tabs={[
+                { id: 'overview', label: 'Overview' },
+                { id: 'semesters', label: 'Semesters', count: items.length },
+              ]}
+            />
+
+            {view === 'overview' ? (
+              <IslandTabPanel id="overview">
+                <ResultsOverview items={items} />
+              </IslandTabPanel>
+            ) : (
+              <IslandTabPanel id="semesters">
+                <div className={styles.stack}>
+                  {[...items]
+                    .sort((a, b) => a.semester - b.semester)
+                    .map((result) => (
+                      <SavedResult
+                        key={result.id}
+                        result={result}
+                        onRemove={() => void remove(result.id)}
+                      />
+                    ))}
+                </div>
+              </IslandTabPanel>
+            )}
+          </>
         )}
       </div>
     </>
@@ -313,7 +347,98 @@ function ResultEditor({
 /* Saved result                                                               */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Cumulative standing, and one quiet row per semester.
+ *
+ * M9.6E §11: "make the result readable in seconds". The figures a student
+ * actually asks for — where do I stand, and which semester dragged — were
+ * previously reachable only by reading four separate tables.
+ *
+ * Every figure here comes from the rules engine. Nothing is derived in this
+ * component beyond summing credits, which the engine does not own.
+ */
+function ResultsOverview({ items }: { readonly items: readonly SemesterResult[] }) {
+  const perSemester = [...items]
+    .sort((a, b) => a.semester - b.semester)
+    .map((result) => {
+      const sgpa = calculateSGPA(
+        result.subjects.map((subject) => ({
+          credits: subject.credits,
+          gradeLetter: subject.gradeLetter,
+          subjectCode: subject.subjectCode,
+        })),
+        ruleSet,
+      );
+      return {
+        result,
+        sgpa: sgpa.ok ? sgpa.value : null,
+        credits: result.subjects.reduce((total, subject) => total + subject.credits, 0),
+      };
+    });
+
+  const gradable = perSemester.filter((entry) => entry.sgpa !== null && entry.credits > 0);
+  const cgpa = calculateCGPA(
+    gradable.map((entry) => ({
+      credits: entry.credits,
+      sgpa: entry.sgpa as number,
+      semester: entry.result.semester,
+    })),
+    ruleSet,
+  );
+  const totalCredits = gradable.reduce((total, entry) => total + entry.credits, 0);
+  const subjects = perSemester.reduce((total, entry) => total + entry.result.subjects.length, 0);
+
+  return (
+    <div className={styles.overview}>
+      <MetricStrip
+        metrics={[
+          { label: 'CGPA', value: cgpa.ok ? formatGpa(cgpa.value) : '—' },
+          { label: 'Semesters', value: String(perSemester.length) },
+          { label: 'Subjects', value: String(subjects) },
+          { label: 'Credits', value: String(totalCredits) },
+        ]}
+      />
+
+      {/*
+        Quiet rows, not cards (§28). A per-semester list is repeated data and
+        takes a hairline; the elevated surfaces on this page are the strip
+        above and the tables behind the other tab.
+      */}
+      <ol className={styles.ledger}>
+        {perSemester.map((entry) => (
+          <li key={entry.result.id} className={styles.ledgerRow}>
+            <span className={styles.ledgerSemester}>S{entry.result.semester}</span>
+            <span className={styles.ledgerMeta}>
+              {entry.result.subjects.length} subjects · {entry.credits} credits
+            </span>
+            {/*
+              The bar is scaled across the PASSING range (4-10), not 0-10:
+              below 4 a course is failed, so the lower 40% of a 0-10 bar is a
+              region no SGPA can occupy and every real reading would sit in the
+              top half looking identical.
+            */}
+            <span className={styles.ledgerBar} aria-hidden="true">
+              <span
+                style={{
+                  inlineSize:
+                    entry.sgpa === null
+                      ? '0%'
+                      : `${String(Math.max(0, Math.min(100, ((entry.sgpa - 4) / 6) * 100)))}%`,
+                }}
+              />
+            </span>
+            <span className={styles.ledgerSgpa}>
+              {entry.sgpa === null ? '—' : formatGpa(entry.sgpa)}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function SavedResult({ result, onRemove }: { result: SemesterResult; onRemove: () => void }) {
+  const [detail, setDetail] = useState<ResultSubject | null>(null);
   const computed = calculateSGPA(
     result.subjects.map((subject) => ({
       credits: subject.credits,
@@ -325,16 +450,12 @@ function SavedResult({ result, onRemove }: { result: SemesterResult; onRemove: (
 
   const totalCredits = result.subjects.reduce((total, subject) => total + subject.credits, 0);
 
-  /* Compared at the engine's own precision (2 dp) so a display-rounding
-     artefact is never reported as a discrepancy. */
   /*
-   * Normalised with `?? null`, exactly as `domain/academics.ts` already does.
-   *
-   * The type says `number | null`, but this record came out of IndexedDB and
-   * nothing type-checks it at runtime: a row written before the field existed,
-   * or by a partial write, carries `undefined`. `asserted !== null` is then
-   * TRUE and `formatGpa(undefined)` throws, taking the whole Results page down
-   * with it. Found by the M9.6B browser sweep.
+   * Normalised with `?? null`, exactly as `domain/academics.ts` does. The type
+   * says `number | null`, but this record came out of IndexedDB and nothing
+   * type-checks it at runtime: a row written before the field existed carries
+   * `undefined`, `asserted !== null` is then TRUE, and `formatGpa(undefined)`
+   * throws and takes the page down. Found by the M9.6B browser sweep.
    */
   const asserted = result.sgpaAsserted ?? null;
   const discrepancy =
@@ -343,104 +464,168 @@ function SavedResult({ result, onRemove }: { result: SemesterResult; onRemove: (
       : null;
 
   return (
-    <Panel
-      title={`Semester ${String(result.semester)}`}
-      action={
-        <Button
-          variant="danger"
-          iconOnly
-          small
-          aria-label={`Delete semester ${String(result.semester)} result`}
-          onClick={onRemove}
-        >
-          <Icon name="trash" size="nav" />
-        </Button>
-      }
-      flush
-    >
-      <div className={styles.summary}>
-        <div>
-          <span className={styles.summaryLabel}>SGPA (computed)</span>
-          <span className={styles.summaryValue}>
-            {computed.ok ? formatGpa(computed.value) : '—'}
+    <section className={styles.semester} aria-labelledby={`sem-${String(result.semester)}`}>
+      {/*
+        M9.6E: THE SEMESTER HEADER IS A LEDGER LINE, NOT A PANEL HEADER.
+        Each semester used to be its own bordered card with a title bar; four
+        of them made the page a stack of identical boxes. The figures now sit
+        inline with the heading, which is how a grade card actually reads.
+      */}
+      <div className={styles.semesterHead}>
+        <div className={styles.semesterIdentity}>
+          <h3 className={styles.semesterTitle} id={`sem-${String(result.semester)}`}>
+            Semester {result.semester}
+          </h3>
+          <span className={styles.semesterMeta}>
+            {result.subjects.length} subjects · {totalCredits} credits
           </span>
         </div>
-        {asserted !== null && (
+
+        <dl className={styles.semesterFigures}>
           <div>
-            <span className={styles.summaryLabel}>SGPA (your grade card)</span>
-            <span className={styles.summaryValue}>{formatGpa(asserted)}</span>
+            <dt>SGPA</dt>
+            <dd>{computed.ok ? formatGpa(computed.value) : '—'}</dd>
           </div>
-        )}
-        <div>
-          <span className={styles.summaryLabel}>Credits</span>
-          <span className={styles.summaryValue}>{String(totalCredits)}</span>
-        </div>
+          {asserted !== null ? (
+            <div>
+              <dt>Grade card</dt>
+              <dd data-muted="true">{formatGpa(asserted)}</dd>
+            </div>
+          ) : null}
+        </dl>
+
+        {/*
+          Row actions behind a menu (M9.6E §4). Delete was a permanently
+          visible red button on every semester — a destructive action given
+          the same prominence as the data, four times over.
+        */}
+        <DropdownMenu
+          label={`Actions for semester ${String(result.semester)}`}
+          items={[
+            { label: 'Delete this semester', icon: 'trash', onSelect: onRemove, tone: 'danger' },
+          ]}
+        />
       </div>
 
-      {discrepancy && (
-        /*
-         * ONE LINE PER SEMESTER (M9.3 §24). The full paragraph used to repeat
-         * inside every disagreeing semester; with four of them a student read
-         * the same explanation four times and the page became mostly warning.
-         * The reason is stated once at the top of the page instead.
-         */
+      {discrepancy ? (
         <p className={styles.mismatch}>
           Grade card {formatGpa(discrepancy.asserted)} · computed {formatGpa(discrepancy.computed)}{' '}
           — these disagree.
         </p>
-      )}
+      ) : null}
 
-      {!computed.ok && (
+      {!computed.ok ? (
         <div className={styles.discrepancy}>
           <Notice tone="warning">{computed.detail}</Notice>
         </div>
-      )}
+      ) : null}
 
-      <TableScroll>
-        <table className={tableClass}>
-          <caption className="visually-hidden">Subjects in semester {result.semester}</caption>
-          <thead>
-            <tr>
-              <th scope="col">Subject</th>
-              <th scope="col" className={numericClass}>
-                Credits
-              </th>
-              <th scope="col" className={numericClass}>
-                Grade
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.subjects.map((subject) => (
-              <tr key={subject.id}>
-                <td>
-                  {/*
-                    The NAME leads, with the code beneath it. `BCS403` is what a
-                    student types; "Database Management Systems" is what they
-                    recognise (M9.3 §24).
-                  */}
-                  {subject.subjectTitle !== subject.subjectCode && subject.subjectTitle !== '' ? (
-                    <>
-                      <span className={styles.subjectName}>{subject.subjectTitle}</span>
-                      <span className={`${styles.subjectCode ?? ''} ${monoClass}`}>
-                        {subject.subjectCode}
-                      </span>
-                    </>
-                  ) : (
-                    <span className={monoClass}>{subject.subjectCode}</span>
-                  )}
-                </td>
-                <td className={numericClass}>{subject.credits}</td>
-                <td className={numericClass}>
-                  <StatusPill tone="neutral">{subject.gradeLetter}</StatusPill>
-                </td>
+      {/*
+        DESKTOP: a dense table. MOBILE: the same rows as buttons that open a
+        sheet (M9.6E §10) — nine columns cannot be shown at 390px and must not
+        scroll sideways.
+      */}
+      <div className={styles.tableWide}>
+        <TableScroll>
+          <table className={tableClass}>
+            <caption className="visually-hidden">Subjects in semester {result.semester}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Subject</th>
+                <th scope="col" className={numericClass}>
+                  Credits
+                </th>
+                <th scope="col" className={numericClass}>
+                  Grade
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableScroll>
+            </thead>
+            <tbody>
+              {result.subjects.map((subject) => (
+                <tr key={subject.id}>
+                  <td>
+                    {subject.subjectTitle !== subject.subjectCode && subject.subjectTitle !== '' ? (
+                      <>
+                        <span className={styles.subjectName}>{subject.subjectTitle}</span>
+                        <span className={`${styles.subjectCode ?? ''} ${monoClass}`}>
+                          {subject.subjectCode}
+                        </span>
+                      </>
+                    ) : (
+                      <span className={monoClass}>{subject.subjectCode}</span>
+                    )}
+                  </td>
+                  <td className={numericClass}>{subject.credits}</td>
+                  <td className={numericClass}>
+                    <StatusPill tone="neutral">{subject.gradeLetter}</StatusPill>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
+      </div>
+
+      <ul className={styles.tableNarrow}>
+        {result.subjects.map((subject) => (
+          <li key={subject.id}>
+            <button
+              type="button"
+              className={styles.subjectRow}
+              onClick={() => setDetail(subject)}
+              aria-haspopup="dialog"
+            >
+              <span className={styles.subjectRowText}>
+                <span className={styles.subjectName}>
+                  {subject.subjectTitle === '' ? subject.subjectCode : subject.subjectTitle}
+                </span>
+                <span className={`${styles.subjectCode ?? ''} ${monoClass}`}>
+                  {subject.subjectCode} · {subject.credits} credits
+                </span>
+              </span>
+              <StatusPill tone="neutral">{subject.gradeLetter}</StatusPill>
+              <Icon name="chevronRight" size="small" />
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <Sheet
+        open={detail !== null}
+        onClose={() => setDetail(null)}
+        side="bottom"
+        title={
+          detail?.subjectTitle === '' ? (detail.subjectCode ?? '') : (detail?.subjectTitle ?? '')
+        }
+        description={`Semester ${String(result.semester)}`}
+      >
+        {detail !== null ? (
+          <dl className={styles.detailList}>
+            <div>
+              <dt>Subject code</dt>
+              <dd className={monoClass}>{detail.subjectCode}</dd>
+            </div>
+            <div>
+              <dt>Credits</dt>
+              <dd>{detail.credits}</dd>
+            </div>
+            <div>
+              <dt>Grade</dt>
+              <dd>
+                <StatusPill tone="neutral">{detail.gradeLetter}</StatusPill>
+              </dd>
+            </div>
+            {/*
+              Only what the record actually holds. `ResultSubject` cannot store
+              internal, external or total marks (OQ-049), and inventing rows
+              here to fill the sheet would be exactly the manufactured value
+              docs/37 forbids.
+            */}
+          </dl>
+        ) : null}
+      </Sheet>
 
       <ExplanationDisclosure explanation={computed.explanation} />
-    </Panel>
+    </section>
   );
 }

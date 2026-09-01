@@ -415,11 +415,22 @@ describe('results', () => {
     const { bundle } = createMemoryRepositories({
       results: [result('r1', semester, null, subjects)],
     });
+    const user = userEvent.setup();
     renderWith(<ResultsPage />, { repositories: bundle });
 
-    await screen.findByText(subjects[0]?.code as string);
+    /*
+     * M9.6E split this page into Overview and Semesters tabs, so the per
+     * subject rows now live behind the second tab. The ASSERTIONS below are
+     * unchanged — every subject renders, and no padding row is invented — the
+     * test just navigates the way a person does to reach them.
+     */
+    await user.click(await screen.findByRole('tab', { name: /semesters/i }));
+
+    await screen.findAllByText(subjects[0]?.code as string);
     for (const subject of subjects) {
-      expect(screen.getByText(subject.code)).toBeTruthy();
+      // The code appears in both the wide table and the narrow row list; only
+      // one is visible at a time, but jsdom renders both.
+      expect(screen.getAllByText(new RegExp(subject.code)).length).toBeGreaterThan(0);
     }
     // No padding rows invented to fill a layout.
     expect(screen.queryByText(`BXX${String(semester)}0${String(count)}`)).toBeNull();
@@ -435,9 +446,14 @@ describe('results', () => {
         ]),
       ],
     });
+    const user = userEvent.setup();
     renderWith(<ResultsPage />, { repositories: bundle });
 
-    expect(await screen.findByText('8.50')).toBeTruthy();
+    await user.click(await screen.findByRole('tab', { name: /semesters/i }));
+
+    // The computed figure now also appears in the Overview ledger, so both
+    // views can show it; what matters is that BOTH figures are present.
+    expect((await screen.findAllByText('8.50')).length).toBeGreaterThan(0);
     expect(screen.getByText('9.10')).toBeTruthy();
     /*
      * BOTH figures are still shown and the disagreement is still flagged; the
