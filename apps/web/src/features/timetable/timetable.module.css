@@ -204,3 +204,70 @@
 .weekGrid .slotTime span {
   white-space: nowrap;
 }
+
+/* -------------------------------------------------------------------------- */
+/* M9.6F — Today leads, the week is a tab                                      */
+/* -------------------------------------------------------------------------- */
+
+.addClass {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  margin-block-start: var(--space-5);
+}
+
+.addSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  list-style: none;
+}
+
+.addSummary::-webkit-details-marker {
+  display: none;
+}
+
+.addSummary:hover {
+  color: var(--text);
+}
+
+.addClass[open] .addSummary {
+  border-block-end: 1px solid var(--border);
+}
+
+.addClass[open] .addSummary svg {
+  rotate: 45deg;
+}
+
+.addClass .addGrid,
+.addClass .addActions {
+  padding-inline: var(--space-4);
+}
+
+.addClass .addGrid {
+  padding-block-start: var(--space-4);
+}
+
+.addClass .addActions {
+  padding-block-end: var(--space-4);
+}
+
+/*
+ * The next class. A left rail plus the accent, so the marker survives a
+ * greyscale printout and does not rely on colour alone (docs/27 §27.2).
+ */
+.slot[data-next='true'] {
+  border-inline-start: 2px solid var(--accent);
+  background: var(--accent-weak);
+}
+
+.slot[data-next='true'] .slotTime span:first-child {
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
+}

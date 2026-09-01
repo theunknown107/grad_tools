@@ -277,7 +277,7 @@ describe('student data stays local', () => {
     await user.type(screen.getByLabelText(/^conducted$/i), '50');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
 
-    await screen.findByText('90.0%');
+    await screen.findAllByText('90.0%');
 
     // It was stored locally...
     expect(peek.attendance()).toHaveLength(1);

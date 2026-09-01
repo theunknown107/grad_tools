@@ -39,7 +39,7 @@ import {
   type PillTone,
 } from '../../components/ui/index.js';
 import { formatCount, formatPercent } from '../../lib/format.js';
-import { Bar, Row, Rows } from '../../components/ui/layout.js';
+import { Bar, MetricStrip, Row, Rows } from '../../components/ui/layout.js';
 import { Tooltip } from '../../components/ui/Tooltip.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useAttendance, useProfile, useSemesterSubjects } from '../../hooks/useCollection.js';
@@ -64,6 +64,65 @@ const STATUS_PRESENTATION: Record<
 /** A course's real name, or null when the student has not entered one. */
 function subjectName(code: string, subjects: readonly SemesterSubject[]): string | null {
   return subjects.find((subject) => subject.code === code)?.title ?? null;
+}
+
+/**
+ * The overall figure, and the one sentence that follows from it.
+ *
+ * M9.6F §9: the page answers "can I miss this class". A per-subject list
+ * answers it subject by subject and never answers it for the semester, which
+ * is the question a student asks first.
+ *
+ * Computed by the rules engine over the pooled totals — NOT an average of the
+ * per-subject percentages. Averaging percentages weights a 12-class lab the
+ * same as a 60-class lecture and produces a number that is nobody's attendance.
+ */
+function OverallStanding({ items }: { readonly items: readonly AttendanceRecord[] }) {
+  const attended = items.reduce((total, record) => total + record.attended, 0);
+  const conducted = items.reduce((total, record) => total + record.conducted, 0);
+  if (conducted === 0) return null;
+
+  const overall = calculateAttendance(attended, conducted, ruleSet);
+  if (!overall.ok) return null;
+
+  const { percentage, status } = overall.value;
+  const atRisk = items.filter((record) => {
+    const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
+    return verdict.ok && verdict.value.status !== 'safe';
+  }).length;
+
+  return (
+    <section className={`${styles.standing ?? ''} glassSurface`} aria-label="Overall attendance">
+      <MetricStrip
+        metrics={[
+          {
+            label: 'Overall',
+            value: formatPercent(percentage),
+            ...(status === 'safe'
+              ? {}
+              : { tone: status === 'dx_risk' ? ('danger' as const) : ('warning' as const) }),
+          },
+          { label: 'Attended', value: String(attended) },
+          { label: 'Held', value: String(conducted) },
+          {
+            label: 'Below 85%',
+            value: String(atRisk),
+            ...(atRisk > 0 ? { tone: 'warning' as const } : {}),
+          },
+        ]}
+      />
+      <p className={styles.standingNote}>
+        {/*
+          The pooled figure is NOT what the regulation checks — 22OB 3.7 is per
+          course — so saying only "you are at 82%" would be reassuring and
+          wrong. The sentence names which figure this is and points at the one
+          that actually decides.
+        */}
+        Pooled across every course you track. The requirement is applied <strong>per course</strong>{' '}
+        (22OB 3.7), so the rows below are what decide whether you can sit each exam.
+      </p>
+    </section>
+  );
 }
 
 export function AttendancePage() {
@@ -134,7 +193,27 @@ export function AttendancePage() {
       />
 
       <div className={styles.stack}>
-        <Panel title="Add a course" flush>
+        {/*
+          -------------------------------------------------------------------
+          M9.6F: LEAD WITH THE ANSWER, NOT WITH A FORM
+          -------------------------------------------------------------------
+
+          The first thing on this page was "Add a course" — a data-entry form —
+          and the figures a student actually opened the page for were below it.
+          The question this page exists to answer is "can I miss this class",
+          and the overall standing is the first half of that answer.
+
+          So: the standing leads, the courses follow, and adding a course moves
+          into a disclosure at the end. Entry is something you do once per
+          semester; reading is something you do weekly.
+        */}
+        {items.length > 0 ? <OverallStanding items={items} /> : null}
+
+        <details className={styles.addCourse}>
+          <summary className={styles.addSummary}>
+            <Icon name="plus" size="nav" />
+            Add a course
+          </summary>
           <div className={styles.addRow}>
             {/*
               THE SUBJECT IS DEFINED ONCE (M6 §16). The semester's subject list
@@ -190,7 +269,7 @@ export function AttendancePage() {
               <Notice tone="danger">{formError}</Notice>
             </div>
           )}
-        </Panel>
+        </details>
 
         {loading ? null : items.length === 0 ? (
           <Panel title="Your courses" flush>
