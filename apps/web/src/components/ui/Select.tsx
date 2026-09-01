@@ -94,9 +94,11 @@ export function Select({
 
   useEffect(() => {
     if (!open) return;
-    listRef.current
-      ?.querySelector<HTMLElement>('[data-active="true"]')
-      ?.scrollIntoView({ block: 'nearest' });
+    const row = listRef.current?.querySelector<HTMLElement>('[data-active="true"]');
+    // Guarded: `scrollIntoView` is absent in jsdom and in some embedded
+    // webviews, and keeping the highlighted row visible is a nicety that must
+    // never be able to throw inside a render effect.
+    if (typeof row?.scrollIntoView === 'function') row.scrollIntoView({ block: 'nearest' });
   }, [open, active]);
 
   const commit = useCallback(

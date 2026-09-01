@@ -327,7 +327,16 @@ function SavedResult({ result, onRemove }: { result: SemesterResult; onRemove: (
 
   /* Compared at the engine's own precision (2 dp) so a display-rounding
      artefact is never reported as a discrepancy. */
-  const asserted = result.sgpaAsserted;
+  /*
+   * Normalised with `?? null`, exactly as `domain/academics.ts` already does.
+   *
+   * The type says `number | null`, but this record came out of IndexedDB and
+   * nothing type-checks it at runtime: a row written before the field existed,
+   * or by a partial write, carries `undefined`. `asserted !== null` is then
+   * TRUE and `formatGpa(undefined)` throws, taking the whole Results page down
+   * with it. Found by the M9.6B browser sweep.
+   */
+  const asserted = result.sgpaAsserted ?? null;
   const discrepancy =
     computed.ok && asserted !== null && Math.abs(computed.value - asserted) >= 0.005
       ? { computed: computed.value, asserted }

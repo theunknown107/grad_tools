@@ -1475,3 +1475,69 @@ on every page) looks nothing like the cause.
 - Only 390 and 1280 were swept for themes. 320/768/1440/1920 were not.
 - `system` appearance was not swept in the browser; it is covered by unit tests
   only.
+
+## 22.31 M9.6B component tests
+
+`apps/web/test/interaction-components.test.tsx` — 17 tests over Select,
+DropdownMenu, IslandTabs, UploadModal and EmptyState. Every assertion is about
+BEHAVIOUR or ACCESSIBLE STATE: what the keyboard does, what a screen reader
+would be told, what survives Escape. None asserts a class name, because a
+component can carry every class and still be unusable without a mouse.
+
+The ones that matter:
+
+| Test | The mistake it prevents |
+|---|---|
+| Select opens on the current value | A semester picker that re-orients the person every time |
+| Arrow keys skip a disabled option | Parking the highlight on something unusable |
+| Escape closes without committing | A value changing because someone looked at it |
+| Menu never activates a disabled item | An action firing from a row that looked dead |
+| Tabs: only the selected tab is tabbable | Tab-trapping a keyboard user in a tab strip |
+| Upload rejects an oversized file **out loud** (`role="alert"`) | A rejection that only turns a border red |
+| Upload re-checks the type on the File | Trusting `accept`, which drag-and-drop bypasses |
+
+The type-rejection test uses `fireEvent`, not `userEvent.upload`, and says why:
+**userEvent honours `accept` and silently drops a non-matching file**, which is
+precisely the filter the test needs to bypass. Real drag-and-drop bypasses it
+too, which is why the component re-checks.
+
+### Papers filter tests were UPDATED, not deleted
+
+M9.6B replaced the native `<select>` filters with a listbox combobox, breaking
+three tests in `papers-ui.test.tsx`. They were rewritten to drive the new
+control the way a person does — open it, then read or choose a row. **The
+assertions are unchanged**: same values offered, same query parameter sent,
+same prohibition on a sort that claims importance.
+
+## 22.32 M9.6B browser QA
+
+`tests/m96b-qa.mjs` — 14 routes × 6 widths (320/390/768/1280/1440/1920) × 2
+themes = **168 page checks**. Seeds a synthetic semester-5 student first,
+because an empty dashboard exercises none of the metric, table or chart styling
+— which is exactly where a theme regression hides.
+
+**Result: CLEAN.** 0 axe violations (wcag2a/2aa/21a/21aa), 0 horizontal
+overflow, 0 frontend console errors.
+
+### Two real defects it caught
+
+1. **A crash on `/results`.** `result.sgpaAsserted` came out of IndexedDB as
+   `undefined`; the guard was `!== null`, so `formatGpa(undefined)` threw and
+   took the whole page down. The type says `number | null`, but nothing
+   type-checks a stored record at runtime, and a row written before the field
+   existed carries `undefined`. Fixed with `?? null`, matching what
+   `domain/academics.ts` already did.
+2. **A contrast failure** on the bottom nav at 390/light — see docs/05 §5.22.
+
+Neither was reachable from unit tests: the first needs real stored data, the
+second needs real compositing of a translucent bar over scrolled content.
+
+### NOT VERIFIED
+
+- Only the **violet** accent was swept here. The other four are covered by
+  `theme-qa.mjs` at two widths on three routes, not across all 14 routes.
+- `system` appearance is unit-tested only; the sweep pins explicit light/dark.
+- The API was **down** during the sweep, so Papers and Profile rendered their
+  error states. Their populated layouts are not covered by this run.
+- No screen-reader was driven. ARIA roles and names are asserted; the actual
+  announcement text was not heard.

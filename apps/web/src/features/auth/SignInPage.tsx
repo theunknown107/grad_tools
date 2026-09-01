@@ -111,124 +111,147 @@ export function SignInPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <PageHeader
-        title={HEADING[mode]}
-        subtitle="An account syncs your records between devices. GradTools works without one."
-      />
+    /*
+     * M9.6B References 11 + 12, as ONE design (M9.6 §21).
+     *
+     * Reference 12 brings the atmosphere: a lit stage behind a floating panel.
+     * Reference 11 brings the restraint: a single centred column, dark, with
+     * the form as the only object on screen. Taken together — Ref 12's light,
+     * Ref 11's discipline.
+     *
+     * Explicitly NOT taken from Reference 12: the neural-network pattern, the
+     * floating particles and the animated gradient orbs. Three simultaneous
+     * background animations behind a password field is decoration competing
+     * with the one thing the person came to do.
+     *
+     * Nothing about the authentication flow changed here. Supabase Auth, PKCE,
+     * the provider chain and the session logic are exactly as they were; this
+     * is a container and a stylesheet.
+     */
+    <div className={styles.stage}>
+      <div className={styles.stageSky} aria-hidden="true">
+        <span className={styles.stageGlow} />
+      </div>
 
-      <Panel>
-        {/*
+      <div className={styles.page}>
+        <PageHeader
+          title={HEADING[mode]}
+          subtitle="An account syncs your records between devices. GradTools works without one."
+        />
+
+        <Panel>
+          {/*
           WHAT AN ACCOUNT DOES, BEFORE THEY MAKE ONE (M9 §52). Stated as fact,
           including the part about local data staying put.
         */}
-        <p className={styles.explainer}>
-          Signing in does <strong>not</strong> upload anything on its own. Afterwards you choose
-          what happens to the records already on this device, and you can keep them here.
-        </p>
+          <p className={styles.explainer}>
+            Signing in does <strong>not</strong> upload anything on its own. Afterwards you choose
+            what happens to the records already on this device, and you can keep them here.
+          </p>
 
-        <div className={styles.providers}>
-          <Button
-            variant="secondary"
-            type="button"
-            disabled={busy}
-            onClick={() => void withProvider('google')}
-          >
-            Continue with Google
-          </Button>
-          <Button
-            variant="secondary"
-            type="button"
-            disabled={busy}
-            onClick={() => void withProvider('apple')}
-          >
-            Continue with Apple
-          </Button>
-        </div>
+          <div className={styles.providers}>
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={busy}
+              onClick={() => void withProvider('google')}
+            >
+              Continue with Google
+            </Button>
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={busy}
+              onClick={() => void withProvider('apple')}
+            >
+              Continue with Apple
+            </Button>
+          </div>
 
-        <p className={styles.divider}>or use an email address</p>
+          <p className={styles.divider}>or use an email address</p>
 
-        <form className={styles.form} onSubmit={(event) => void submit(event)}>
-          <TextField
-            label="Email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(event) => {
-              setEmail(event.target.value);
-            }}
-          />
-
-          {mode !== 'recover' && (
+          <form className={styles.form} onSubmit={(event) => void submit(event)}>
             <TextField
-              label="Password"
-              type="password"
-              /*
-               * The browser's own password manager is the right place for this.
-               * GradTools never sees, stores or transmits a password itself —
-               * the identity provider owns that entirely (M9 §6, §66).
-               */
-              autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
+              label="Email"
+              type="email"
+              autoComplete="email"
               required
-              minLength={8}
-              value={password}
+              value={email}
               onChange={(event) => {
-                setPassword(event.target.value);
+                setEmail(event.target.value);
               }}
-              {...(mode === 'create' ? { hint: 'At least eight characters.' } : {})}
             />
-          )}
 
-          {error !== null && <Notice tone="warning">{error}</Notice>}
-          {notice !== null && <Notice tone="info">{notice}</Notice>}
+            {mode !== 'recover' && (
+              <TextField
+                label="Password"
+                type="password"
+                /*
+                 * The browser's own password manager is the right place for this.
+                 * GradTools never sees, stores or transmits a password itself —
+                 * the identity provider owns that entirely (M9 §6, §66).
+                 */
+                autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
+                required
+                minLength={8}
+                value={password}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                }}
+                {...(mode === 'create' ? { hint: 'At least eight characters.' } : {})}
+              />
+            )}
 
-          <Button variant="primary" type="submit" disabled={busy}>
-            {busy ? 'Working…' : HEADING[mode]}
-          </Button>
-        </form>
+            {error !== null && <Notice tone="warning">{error}</Notice>}
+            {notice !== null && <Notice tone="info">{notice}</Notice>}
 
-        <div className={styles.switches}>
-          {mode !== 'sign_in' && (
-            <button
-              type="button"
-              className={styles.linkButton}
-              onClick={() => {
-                setMode('sign_in');
-              }}
-            >
-              Already have an account? Sign in
-            </button>
-          )}
-          {mode !== 'create' && (
-            <button
-              type="button"
-              className={styles.linkButton}
-              onClick={() => {
-                setMode('create');
-              }}
-            >
-              Create an account
-            </button>
-          )}
-          {mode !== 'recover' && (
-            <button
-              type="button"
-              className={styles.linkButton}
-              onClick={() => {
-                setMode('recover');
-              }}
-            >
-              Forgotten your password?
-            </button>
-          )}
-        </div>
-      </Panel>
+            <Button variant="primary" type="submit" disabled={busy}>
+              {busy ? 'Working…' : HEADING[mode]}
+            </Button>
+          </form>
 
-      <p className={styles.note}>
-        Prefer to stay local? <Link to="/">Keep using GradTools without an account.</Link> Nothing
-        you have entered will be sent anywhere.
-      </p>
+          <div className={styles.switches}>
+            {mode !== 'sign_in' && (
+              <button
+                type="button"
+                className={styles.linkButton}
+                onClick={() => {
+                  setMode('sign_in');
+                }}
+              >
+                Already have an account? Sign in
+              </button>
+            )}
+            {mode !== 'create' && (
+              <button
+                type="button"
+                className={styles.linkButton}
+                onClick={() => {
+                  setMode('create');
+                }}
+              >
+                Create an account
+              </button>
+            )}
+            {mode !== 'recover' && (
+              <button
+                type="button"
+                className={styles.linkButton}
+                onClick={() => {
+                  setMode('recover');
+                }}
+              >
+                Forgotten your password?
+              </button>
+            )}
+          </div>
+        </Panel>
+
+        <p className={styles.note}>
+          Prefer to stay local? <Link to="/">Keep using GradTools without an account.</Link> Nothing
+          you have entered will be sent anywhere.
+        </p>
+      </div>
     </div>
   );
 }

@@ -892,3 +892,45 @@ light/dark alone cannot say "follow my device".
 
 **Not yet done in this stage:** the remaining seventeen references, the public
 homepage, and browser QA of the ten palettes. M9.6B onwards.
+
+## 31.21 M9.6B — Frontend component implementation · ✅ **DELIVERED (with gaps stated)**
+
+All 18 supplied 21st.dev references were opened and inspected. **None could be
+directly imported**: 21st.dev renders component source behind client-side UI,
+the `/code` route returns a shell, and `/api/prompts/...` 404s. What was
+retrievable was the preview, the prop shape, the dependency list and — for most
+— the licence. Every implementation is therefore **RECREATED**, and the source
+files say so individually rather than claiming a provenance they do not have.
+
+**Zero new runtime dependencies.** The references collectively wanted
+`lucide-react`, `framer-motion`, `next-themes`, `@radix-ui/react-select`,
+`class-variance-authority` and `dicons`. Each was assessed and refused: the
+icon set is drawn in-house (M9.5.2), the springs are one bezier, the theme
+store is 30 lines, and the listbox keyboard contract is short enough to read in
+one sitting. Bundle after: **208.9 KB JS gzip, 17.2 KB CSS gzip.**
+
+**Two corrections recorded rather than papered over.** Reference 18 was supplied
+as the island-tabs reference and contains no tabs — it is a financial yield
+card; what was taken is the *island material* it genuinely has, applied to the
+segmented control the product needed. Reference 10 is a *marketing* dashboard
+(team activity, avatars, a CTA banner), not an analytics one, so it informed
+card composition and supplied nothing for the SGPA chart.
+
+**The chart has no library.** Not primarily for bundle size: every general
+chart library treats a gap as something to smooth over, and this chart's most
+important property is that a semester with no result must BREAK the line.
+Joining semester 3 to semester 6 would draw two SGPAs the student never earned.
+
+**QA: 168 page checks, clean** — 14 routes × 6 widths × 2 themes, 0 axe
+violations, 0 overflow, 0 frontend console errors. It caught a real crash on
+`/results` and a real contrast failure on the mobile nav; both are fixed and
+documented (docs/22 §22.32).
+
+**Tests: 1412 → 1429.** Three Papers tests were rewritten to drive the new
+combobox rather than a native select; their assertions are unchanged.
+
+**Not done in this stage:** DropdownMenu, IslandTabs and UploadModal are built,
+tested and documented but are **not yet placed in a page** — only Select is
+wired (the five Papers filters). The Results/Papers island tabs, row-action
+menus and the document upload flow are the next stage. Reference 06 (dropdown
+navigation) and Reference 13 (multi-step form) are not implemented at all.

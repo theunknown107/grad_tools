@@ -1,0 +1,79 @@
+.figure {
+  margin: 0;
+}
+
+.svg {
+  inline-size: 100%;
+  block-size: 132px;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* The viewBox is stretched by preserveAspectRatio="none", so without this the
+     stroke would thicken horizontally on a wide card. */
+  vector-effect: non-scaling-stroke;
+}
+
+.area {
+  stroke: none;
+}
+
+.dot {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* An in-progress semester's point is hollow-to-filled inverted, so a provisional
+   figure never looks as settled as a final one. */
+.dot[data-state='in_progress'] {
+  fill: var(--warning);
+  stroke: var(--warning);
+}
+
+.axis {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  list-style: none;
+  padding: 0;
+  margin: var(--space-2) 0 0;
+}
+
+.axisItem {
+  text-align: center;
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  font-variant-numeric: tabular-nums;
+}
+
+.axisItem[data-has-value='true'] {
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.caption {
+  margin-block-start: var(--space-3);
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+}
+
+.none {
+  margin: 0;
+  padding-block: var(--space-6);
+  color: var(--text-subtle);
+  font-size: var(--text-small);
+}
