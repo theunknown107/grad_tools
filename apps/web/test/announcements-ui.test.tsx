@@ -227,7 +227,12 @@ describe('relevance on screen', () => {
     renderWith(<AnnouncementsPage />, { repositories: bundle });
 
     await screen.findByText('For everyone');
-    await userEvent.click(screen.getByLabelText('Only what applies to me'));
+    /*
+     * M9.6F turned the relevance filter from a checkbox into island tabs — it
+     * is a VIEW of the feed rather than a setting. The assertion is unchanged:
+     * asking for "what applies to me" must filter the feed.
+     */
+    await userEvent.click(screen.getByRole('tab', { name: /applies to me/i }));
 
     await waitFor(() => {
       expect(screen.queryByText('Civil Engineering department meeting')).toBeNull();
@@ -282,7 +287,12 @@ describe('the notification centre', () => {
     mockFeed([announcement(), announcement({ id: 'a2', title: 'Second notice' })]);
     renderWith(<NotificationsPage />);
 
-    expect(await screen.findByRole('heading', { name: '2 unread' })).toBeTruthy();
+    /*
+     * The count moved off a panel heading and onto the Unread tab, where it
+     * says what that view holds. Still counted, still shown in words nearby.
+     */
+    const unreadTab = await screen.findByRole('tab', { name: /unread/i });
+    expect(unreadTab.textContent).toContain('2');
   });
 
   /* UNREAD IS A WORD, NOT ONLY A COLOUR (M7 §27). */
@@ -316,7 +326,13 @@ describe('the notification centre', () => {
     await waitFor(() => {
       expect(peek.notificationState().filter((r) => r.state === 'read').length).toBe(2);
     });
-    expect(await screen.findByRole('heading', { name: 'Nothing unread' })).toBeTruthy();
+    // Nothing unread: the tab count drops to zero and the action disables.
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /unread/i }).textContent).toContain('0');
+    });
+    expect(screen.getByRole('button', { name: 'Mark all as read' }).hasAttribute('disabled')).toBe(
+      true,
+    );
   });
 
   it('filters to unread only', async () => {
@@ -337,7 +353,7 @@ describe('the notification centre', () => {
     renderWith(<NotificationsPage />, { repositories: bundle });
 
     await screen.findByText('Already read');
-    await userEvent.click(screen.getByLabelText('Unread only'));
+    await userEvent.click(screen.getByRole('tab', { name: /unread/i }));
 
     await waitFor(() => {
       expect(screen.queryByText('Already read')).toBeNull();

@@ -222,3 +222,40 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* -------------------------------------------------------------------------- */
+/* M9.6F — the filter is a toolbar                                             */
+/* -------------------------------------------------------------------------- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-end: var(--space-5);
+}
+
+.toolbarEnd {
+  margin-inline-start: auto;
+  min-inline-size: 190px;
+}
+
+@media (max-width: 560px) {
+  .toolbarEnd {
+    margin-inline-start: 0;
+    inline-size: 100%;
+  }
+}
+
+/* The notifications inbox toolbar, matching the header popover's language. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-end: var(--space-5);
+}
+
+.toolbar > button:last-child {
+  margin-inline-start: auto;
+}
