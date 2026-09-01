@@ -485,3 +485,100 @@
     --gutter: var(--space-7);
   }
 }
+
+/* ========================================================================== */
+/* GLASS MATERIALS — M9.6B §8, §27                                            */
+/* ========================================================================== */
+
+/*
+ * A material is FOUR values that have to move together: a translucent tint, a
+ * blur, a hairline, and a top-edge highlight. Split them across components and
+ * they drift; a nav at 62% over 14px blur beside a popover at 70% over 8px
+ * reads as two products. So they are declared once, per appearance, and
+ * consumed as a set by the `.glass*` classes in global.css.
+ *
+ * WHY THE HIGHLIGHT MATTERS. Blur and alpha alone give a frosted panel that
+ * still looks flat. What makes a surface read as GLASS is a single bright
+ * hairline along its top edge — light catching a physical bevel. It is one
+ * inset box-shadow, and it is the difference between "transparent div" and
+ * "material".
+ *
+ * Restraint is enforced by scarcity, not by willpower: there are five material
+ * tokens and each names the ONE surface class it belongs to. Anything that is
+ * not navigation, a popover, an overlay, a raised panel or an input is not
+ * glass (M9.6B §8).
+ */
+
+:root {
+  /* Navigation — the most translucent, because it sits over moving content. */
+  --glass-nav-bg: rgb(22 20 35 / 62%);
+  --glass-nav-blur: 18px;
+  --glass-nav-border: rgb(255 255 255 / 8%);
+  /* The bevel. Bright, 1px, top edge only. */
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 8%);
+
+  /* Popovers and menus — denser, because text sits directly on them. */
+  --glass-panel-bg: rgb(26 23 41 / 88%);
+  --glass-panel-blur: 24px;
+  --glass-panel-border: rgb(255 255 255 / 10%);
+
+  /* Raised content surfaces — barely translucent; readability wins. */
+  --glass-surface-bg: rgb(26 23 41 / 72%);
+  --glass-surface-blur: 14px;
+
+  /* The scrim behind a modal. */
+  --glass-overlay-bg: rgb(6 5 12 / 62%);
+  --glass-overlay-blur: 6px;
+
+  /* Inputs read as recessed rather than raised: darker than their container. */
+  --glass-input-bg: rgb(10 9 18 / 55%);
+
+  /* Depth for glass surfaces — larger and softer than the flat --shadow-md. */
+  --shadow-glass: 0 16px 48px -20px rgb(0 0 0 / 72%);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --glass-nav-bg: rgb(255 255 255 / 72%);
+    --glass-nav-border: rgb(20 16 40 / 8%);
+    /* On a light ground the bevel is white against near-white, so it has to be
+       nearly opaque to register at all. */
+    --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 90%);
+    --glass-panel-bg: rgb(255 255 255 / 92%);
+    --glass-panel-border: rgb(20 16 40 / 10%);
+    --glass-surface-bg: rgb(255 255 255 / 82%);
+    --glass-overlay-bg: rgb(28 24 48 / 32%);
+    --glass-input-bg: rgb(255 255 255 / 70%);
+    --shadow-glass: 0 16px 44px -20px rgb(28 22 51 / 26%);
+  }
+}
+
+:root[data-theme='light'] {
+  --glass-nav-bg: rgb(255 255 255 / 72%);
+  --glass-nav-border: rgb(20 16 40 / 8%);
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 90%);
+  --glass-panel-bg: rgb(255 255 255 / 92%);
+  --glass-panel-border: rgb(20 16 40 / 10%);
+  --glass-surface-bg: rgb(255 255 255 / 82%);
+  --glass-overlay-bg: rgb(28 24 48 / 32%);
+  --glass-input-bg: rgb(255 255 255 / 70%);
+  --shadow-glass: 0 16px 44px -20px rgb(28 22 51 / 26%);
+}
+
+/* ========================================================================== */
+/* MOTION — M9.6B §9, §32                                                     */
+/* ========================================================================== */
+
+:root {
+  /*
+   * A spring expressed as a bezier. Real spring physics needs a runtime; this
+   * is the overshoot that matters (about 3%) without one, and it is what makes
+   * a popover feel sprung rather than merely fast. Used for things that ENTER.
+   */
+  --ease-spring: cubic-bezier(0.34, 1.28, 0.64, 1);
+  /* For things that MOVE between two known positions — the nav indicator. */
+  --ease-glide: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --motion-micro: 90ms;
+  --duration-nav: 380ms;
+}

@@ -172,3 +172,127 @@ input[type='number'] {
     scroll-behavior: auto !important;
   }
 }
+
+/* ========================================================================== */
+/* GLASS SURFACE CLASSES — M9.6B §27                                          */
+/* ========================================================================== */
+
+/*
+ * Five classes, one per material. A component asks for a material by name and
+ * never assembles one from tint + blur + border itself; that is what keeps the
+ * product looking like one material system instead of fifteen approximations.
+ *
+ * `backdrop-filter` is the expensive property here. It is applied only to
+ * these five classes, all of which are small or transient — a nav bar, a
+ * popover, a modal scrim. It is never applied to a scrolling list or to a
+ * surface that repeats down a page, because a blurred surface that repeats is
+ * both slow and illegible.
+ */
+
+.glassNav,
+.glassPanel,
+.glassSurface,
+.glassOverlay,
+.glassInput {
+  /* Safari still needs the prefix; without it these render fully transparent. */
+  -webkit-backdrop-filter: var(--glass-blur, blur(16px));
+  backdrop-filter: var(--glass-blur, blur(16px));
+}
+
+.glassNav {
+  background: var(--glass-nav-bg);
+  border-bottom: 1px solid var(--glass-nav-border);
+  --glass-blur: blur(var(--glass-nav-blur)) saturate(180%);
+  box-shadow: var(--glass-highlight);
+}
+
+.glassPanel {
+  background: var(--glass-panel-bg);
+  border: 1px solid var(--glass-panel-border);
+  border-radius: var(--radius-lg);
+  --glass-blur: blur(var(--glass-panel-blur)) saturate(180%);
+  box-shadow: var(--glass-highlight), var(--shadow-glass);
+}
+
+.glassSurface {
+  background: var(--glass-surface-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  --glass-blur: blur(var(--glass-surface-blur));
+  box-shadow: var(--glass-highlight);
+}
+
+.glassOverlay {
+  background: var(--glass-overlay-bg);
+  --glass-blur: blur(var(--glass-overlay-blur));
+}
+
+.glassInput {
+  background: var(--glass-input-bg);
+  border: 1px solid var(--border);
+  --glass-blur: blur(8px);
+}
+
+/*
+ * Where backdrop-filter is unsupported the tints above are translucent enough
+ * that text over busy content would be unreadable, so the fallback is opacity
+ * rather than a different design.
+ */
+@supports not (backdrop-filter: blur(1px)) {
+  .glassNav {
+    background: var(--surface);
+  }
+
+  .glassPanel,
+  .glassSurface {
+    background: var(--surface-raised);
+  }
+
+  .glassOverlay {
+    background: rgb(6 5 12 / 88%);
+  }
+}
+
+/* ========================================================================== */
+/* MOTION UTILITIES                                                           */
+/* ========================================================================== */
+
+/*
+ * Entrances. Each is opacity plus ONE transform — never opacity plus scale plus
+ * blur plus rotation, which is how a menu ends up feeling like a slot machine.
+ */
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * The one global motion rule that matters: honour the system preference. Set
+ * to 0.01ms rather than 0 so animation and transition END EVENTS still fire —
+ * a component that waits for one before unmounting would otherwise hang.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

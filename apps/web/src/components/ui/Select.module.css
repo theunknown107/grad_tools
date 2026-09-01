@@ -1,0 +1,154 @@
+.wrap {
+  position: relative;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+/* Present to assistive technology, absent to the eye. */
+.labelHidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: var(--touch-target-min);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-enter),
+    box-shadow var(--motion-fast) var(--ease-enter);
+}
+
+.trigger:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.trigger:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.trigger[aria-expanded='true'] {
+  border-color: var(--accent-border);
+  box-shadow: var(--glow-accent-soft);
+}
+
+.trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.leading {
+  color: var(--text-subtle);
+  flex: none;
+}
+
+.value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.placeholder {
+  flex: 1;
+  color: var(--text-subtle);
+}
+
+/* Points down when closed, and rotates rather than swapping to a second icon. */
+.chevron {
+  flex: none;
+  color: var(--text-subtle);
+  transform: rotate(90deg);
+  transition: transform var(--motion-base) var(--ease-glide);
+}
+
+.trigger[aria-expanded='true'] .chevron {
+  transform: rotate(-90deg);
+}
+
+.list {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline: 0;
+  z-index: var(--z-overlay);
+  max-block-size: 280px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  animation: riseIn var(--motion-fast) var(--ease-spring);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: 38px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  cursor: pointer;
+}
+
+/*
+ * ONE highlight, driven by keyboard and pointer alike. A separate :hover style
+ * would let two rows look active at once when the mouse rests on one row while
+ * the arrow keys are on another.
+ */
+.option[data-active='true'] {
+  background: var(--accent-weak);
+  color: var(--text);
+}
+
+.option[aria-selected='true'] {
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+.option[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.optionText {
+  display: grid;
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.optionLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionHint {
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  color: var(--text-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,190 @@
+/*
+ * The scrim. Aligned to the top third rather than centred: a modal that grows
+ * downward as results arrive stays anchored, where a vertically-centred one
+ * shifts under the reader's eye on every keystroke.
+ */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-toast);
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4);
+  padding-block-start: 12vh;
+  animation: fadeIn var(--motion-fast) var(--ease-enter);
+}
+
+.panel {
+  inline-size: 100%;
+  max-inline-size: 620px;
+  max-block-size: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: riseIn var(--motion-base) var(--ease-spring);
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-block-end: 1px solid var(--border);
+}
+
+.inputIcon {
+  color: var(--text-subtle);
+  flex: none;
+}
+
+.input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-h3);
+  line-height: var(--text-h3-lh);
+}
+
+.input::placeholder {
+  color: var(--text-subtle);
+}
+
+.input:focus {
+  outline: none;
+}
+
+/* The search input owns the modal; a ring around it would be noise. The dialog
+   itself is the focus context, and Escape is always available. */
+.input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.results {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.group {
+  padding: var(--space-3) var(--space-3) var(--space-1);
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: 48px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.row[data-active='true'] {
+  background: var(--accent-weak);
+}
+
+.rowIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.row[data-active='true'] .rowIcon {
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.rowText {
+  display: grid;
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.rowTitle {
+  color: var(--text);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowHint {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowGroup {
+  flex: none;
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.none {
+  padding: var(--space-6) var(--space-3);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+.foot {
+  display: flex;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border-block-start: 1px solid var(--border);
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+}
+
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 20px;
+  block-size: 20px;
+  padding-inline: 5px;
+  margin-inline-end: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+/* The hint row is desktop affordance; a phone has no Escape key to press. */
+@media (max-width: 767px) {
+  .foot {
+    display: none;
+  }
+
+  .scrim {
+    padding-block-start: var(--space-4);
+  }
+
+  .panel {
+    max-block-size: 80vh;
+  }
+}

@@ -48,21 +48,16 @@
  * visible as movement behind it — that is what tells you the page is long. The
  * blur is what keeps the text on top of it readable while it does.
  */
+/*
+ * The material comes from `.glassNav` (global.css). What is left here is
+ * position and layout — M9.6B §27: a component asks for a material by name and
+ * never assembles one, so the nav, the popovers and the modals cannot drift
+ * apart.
+ */
 .topbar {
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  background: var(--surface-translucent);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border);
-}
-
-/* Where blur is unsupported or the viewer has asked for less transparency, the
-   bar becomes solid rather than becoming unreadable. */
-@supports not (backdrop-filter: blur(1px)) {
-  .topbar {
-    background: var(--bg);
-  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -163,7 +158,35 @@
  * in a 56px one, which is why it read as a converted sidebar rather than as
  * product navigation.
  */
+/*
+ * The travelling glow behind the open area (Reference 02).
+ *
+ * The reference gives every item its own coloured halo — blue, orange, green,
+ * red. Five hues would be five brand colours, so this is ONE light in the
+ * current accent that MOVES, which keeps the reference's sense of illuminated
+ * navigation without turning the header into a paint chart.
+ *
+ * Sits behind the links (z-index 0 against their 1) and is pointer-transparent,
+ * so it can never intercept a click.
+ */
+.glow {
+  position: absolute;
+  inset-block: 4px;
+  inset-inline-start: 0;
+  z-index: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent-weak);
+  box-shadow:
+    var(--glow-accent-soft),
+    inset 0 0 0 1px var(--accent-border);
+  transition:
+    transform var(--motion-base) var(--ease-glide),
+    width var(--motion-base) var(--ease-glide);
+  pointer-events: none;
+}
+
 .groupNav {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -199,6 +222,8 @@
 }
 
 .groupLink {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
@@ -227,9 +252,11 @@
 .groupLinkActive,
 .groupLinkActive:hover {
   color: var(--text);
-  background: var(--surface-raised);
   font-weight: var(--weight-medium);
-  box-shadow: inset 0 0 0 1px var(--border);
+  /* No background here: `.glow` is the active surface now, and painting a
+     second one behind the label would double the edge. */
+  background: transparent;
+  box-shadow: none;
 }
 
 /*
@@ -393,15 +420,9 @@
   grid-template-columns: repeat(5, 1fr);
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--surface-translucent);
-  backdrop-filter: blur(18px);
-  border-top: 1px solid var(--border);
-}
-
-@supports not (backdrop-filter: blur(1px)) {
-  .bottomNav {
-    background: var(--bg);
-  }
+  /* Material from `.glassNav`; the border flips to the top edge here. */
+  border-block-start: 1px solid var(--glass-nav-border);
+  border-block-end: 0;
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -411,7 +432,46 @@
   }
 }
 
+/*
+ * The limelight (Reference 03): a beam that travels to the active tab.
+ *
+ * Two parts of one object — a bright 2px bar sitting ON the top edge of the bar,
+ * and a soft cone of accent light spilling down from it. Built with a gradient
+ * rather than a blurred box so it costs one element and no filter.
+ */
+.limelight {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  block-size: 100%;
+  pointer-events: none;
+  transition:
+    transform var(--duration-nav) var(--ease-glide),
+    width var(--duration-nav) var(--ease-glide);
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--a-glow-rgb) / 26%) 0%,
+    rgb(var(--a-glow-rgb) / 6%) 42%,
+    transparent 78%
+  );
+}
+
+/* The filament. Narrower than the tab, so the light reads as a source rather
+   than as a full-width underline. */
+.limelight::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 22%;
+  block-size: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  box-shadow: 0 0 12px 1px var(--accent);
+}
+
 .bottomLink {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -441,10 +501,19 @@
   font-weight: var(--weight-medium);
 }
 
+/*
+ * The icon lifts toward the light instead of gaining its own pill — the pill
+ * was a per-item marker, and the limelight is a single travelling one.
+ */
 .bottomLinkActive svg {
-  border-radius: var(--radius-pill);
-  background: var(--accent-weak);
-  box-shadow: 0 0 0 7px var(--accent-weak);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .limelight,
+  .glow {
+    transition: none;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -506,4 +575,78 @@
   line-height: var(--text-caption-lh);
   color: var(--text-subtle);
   max-width: 68ch;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Search trigger — M9.6B §22                                                  */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Shaped like an input rather than an icon button on desktop, because that is
+ * what tells someone it accepts typing. It collapses to a circle on a phone,
+ * where a 200px affordance would crowd out the destinations.
+ */
+.searchTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  block-size: 36px;
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--text-subtle);
+  font-family: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-enter),
+    border-color var(--motion-fast) var(--ease-enter);
+}
+
+.searchTrigger:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.searchTrigger:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.searchLabel,
+.searchKbd {
+  display: none;
+}
+
+.searchKbd {
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+@media (min-width: 768px) {
+  .searchTrigger {
+    inline-size: 208px;
+    justify-content: flex-start;
+  }
+
+  .searchLabel {
+    display: block;
+    flex: 1;
+    text-align: start;
+  }
+
+  .searchKbd {
+    display: block;
+  }
+}
+
+@media (max-width: 767px) {
+  .searchTrigger {
+    inline-size: 36px;
+    justify-content: center;
+    padding-inline: 0;
+  }
 }

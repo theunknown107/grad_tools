@@ -32,8 +32,11 @@
 
 import { Icon, type IconName } from './icons.js';
 import { NavLink, useLocation } from 'react-router-dom';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ThemeControl } from './ThemeControl.js';
+import { GlobalSearch, useSearchHotkey } from './GlobalSearch.js';
+import { NotificationInbox } from './NotificationInbox.js';
+import { useAnnouncements, useNotifications } from '../hooks/useAnnouncements.js';
 import styles from './AppShell.module.css';
 
 interface Destination {
@@ -141,6 +144,54 @@ export function groupForPath(pathname: string): string {
   return 'Overview';
 }
 
+/**
+ * The limelight: one indicator that TRAVELS between navigation items.
+ *
+ * Authority: M9.6B Reference 03 (@easemize/limelight-nav) — RECREATED.
+ *
+ * The reference's whole idea is that the active marker is a single object that
+ * moves, not one of N markers that switch on. That difference is the entire
+ * effect: a spotlight sliding to the tab you picked reads as one continuous
+ * surface, where per-item underlines read as separate buttons.
+ *
+ * Position is MEASURED from the DOM rather than computed as `index / count`,
+ * because the bar is a flex row whose items are sized by their labels. It is
+ * re-measured on resize, so a rotation does not strand the light.
+ *
+ * Returns null until the first measurement, so the indicator never animates in
+ * from x=0 on the first paint.
+ */
+function useLimelight(
+  containerRef: React.RefObject<HTMLElement | null>,
+  activeKey: string,
+): { left: number; width: number } | null {
+  const [box, setBox] = useState<{ left: number; width: number } | null>(null);
+
+  const measure = useCallback(() => {
+    const container = containerRef.current;
+    if (container === null) return;
+    const active = container.querySelector<HTMLElement>('[data-active="true"]');
+    if (active === null) {
+      setBox(null);
+      return;
+    }
+    setBox({ left: active.offsetLeft, width: active.offsetWidth });
+  }, [containerRef]);
+
+  useLayoutEffect(measure, [measure, activeKey]);
+
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return;
+    const container = containerRef.current;
+    if (container === null) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [containerRef, measure]);
+
+  return box;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
@@ -164,13 +215,31 @@ export function AppShell({ children }: { children: ReactNode }) {
     mainRef.current?.focus();
   }, [location.pathname]);
 
+  const [searchOpen, setSearchOpen] = useState(false);
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  useSearchHotkey(openSearch);
+
+  /*
+   * The shell reads announcements so the bell can carry a real unread count.
+   * The same hooks the Notifications page uses, so the number in the header and
+   * the list behind it can never disagree.
+   */
+  const { items: announcements } = useAnnouncements();
+  const { notifications, unread, setState, readAll } = useNotifications(announcements);
+
+  const groupNavRef = useRef<HTMLElement>(null);
+  const bottomNavRef = useRef<HTMLElement>(null);
+  const groupLight = useLimelight(groupNavRef, activeGroup);
+  const bottomLight = useLimelight(bottomNavRef, location.pathname);
+
   return (
     <div className={styles.shell}>
       <a className={styles.skipLink} href="#main">
         Skip to content
       </a>
 
-      <header className={styles.topbar}>
+      <header className={`${styles.topbar ?? ''} glassNav`}>
         <div className={styles.topbarInner}>
           <NavLink to="/" className={styles.brand ?? ''}>
             <span className={styles.brandMark} aria-hidden="true">
@@ -181,7 +250,23 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* TIER 1. Three words, so it fits on a top bar at any width worth
               putting one on. */}
-          <nav className={styles.groupNav} aria-label="Areas">
+          {/*
+            TIER 1 carries the glow (Reference 02). One travelling capsule with
+            an accent-tinted halo behind the open area — the reference's
+            per-item coloured glow, reduced to a single light, because five
+            differently-coloured glows would be five brand colours.
+          */}
+          <nav className={styles.groupNav} aria-label="Areas" ref={groupNavRef}>
+            {groupLight !== null ? (
+              <span
+                className={styles.glow}
+                aria-hidden="true"
+                style={{
+                  transform: `translateX(${String(groupLight.left)}px)`,
+                  width: `${String(groupLight.width)}px`,
+                }}
+              />
+            ) : null}
             {GROUPS.map((group) => {
               const first = DESTINATIONS.find((destination) => destination.group === group);
               if (first === undefined) return null;
@@ -192,6 +277,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   to={first.to}
                   end={first.to === '/'}
                   aria-current={isActive ? 'true' : undefined}
+                  data-active={isActive}
                   className={`${styles.groupLink ?? ''} ${isActive ? (styles.groupLinkActive ?? '') : ''}`}
                 >
                   {group}
@@ -201,16 +287,33 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className={styles.topActions}>
-            {/* Theme sits first: it is a device setting, not a destination, and
-                grouping it with the two NavLinks would imply it navigates. */}
-            <ThemeControl />
-            <NavLink
-              to="/notifications"
-              className={styles.topAction ?? ''}
-              aria-label="Notifications"
+            {/*
+              Search is a button, not a link: it opens a surface over the page
+              rather than going anywhere. On a wide screen it shows its shortcut,
+              on a phone it collapses to the glyph.
+            */}
+            <button
+              type="button"
+              className={`${styles.searchTrigger ?? ''} glassInput`}
+              onClick={openSearch}
+              aria-label="Search GradTools"
+              aria-keyshortcuts="Control+K"
             >
-              <Icon name="notifications" size="medium" />
-            </NavLink>
+              <Icon name="search" size="nav" />
+              <span className={styles.searchLabel}>Search</span>
+              <kbd className={styles.searchKbd}>Ctrl K</kbd>
+            </button>
+
+            <NotificationInbox
+              notifications={notifications}
+              unread={unread}
+              onRead={(item) => void setState(item.announcement, 'read')}
+              onReadAll={() => void readAll()}
+            />
+
+            {/* Theme is a device setting, not a destination. */}
+            <ThemeControl />
+
             <NavLink to="/account" className={styles.topAction ?? ''} aria-label="Account">
               <Icon name="account" size="medium" />
             </NavLink>
@@ -242,12 +345,27 @@ export function AppShell({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <nav className={styles.bottomNav} aria-label="Main">
+      <nav className={`${styles.bottomNav ?? ''} glassNav`} aria-label="Main" ref={bottomNavRef}>
+        {/* The limelight itself: a beam above the active tab plus the lit pill
+            behind it, travelling as one object (Reference 03). */}
+        {bottomLight !== null ? (
+          <span
+            className={styles.limelight}
+            aria-hidden="true"
+            style={{
+              transform: `translateX(${String(bottomLight.left)}px)`,
+              width: `${String(bottomLight.width)}px`,
+            }}
+          />
+        ) : null}
         {MOBILE_TABS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
+            data-active={
+              item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
+            }
             className={({ isActive }) =>
               `${styles.bottomLink ?? ''} ${isActive ? (styles.bottomLinkActive ?? '') : ''}`
             }
@@ -257,6 +375,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </NavLink>
         ))}
       </nav>
+
+      <GlobalSearch open={searchOpen} onClose={closeSearch} />
 
       <p className={styles.footer}>
         Independent student project. Not affiliated with or endorsed by VTU.

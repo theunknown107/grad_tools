@@ -537,3 +537,72 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Empty state cluster — M9.6B Reference 01                                    */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The reference's signature: several icons fanned into a shallow arc, the
+ * middle one forward. It says "this is where a COLLECTION would be" in a way a
+ * single glyph does not.
+ *
+ * The fan is built from `data-position` (-1, 0, 1) rather than :nth-child, so a
+ * one-icon and a three-icon cluster use the same rules and a lone icon sits
+ * upright instead of tilted.
+ */
+.emptyCluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-block-end: var(--space-4);
+}
+
+.emptyChip {
+  display: grid;
+  place-items: center;
+  inline-size: 46px;
+  block-size: 46px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--text-subtle);
+  box-shadow: var(--glass-highlight);
+  transition:
+    transform var(--motion-slow) var(--ease-spring),
+    background var(--motion-base) var(--ease-enter);
+}
+
+.emptyChip[data-position='-1'] {
+  transform: translateX(14px) rotate(-9deg) scale(0.9);
+  opacity: 0.75;
+}
+
+.emptyChip[data-position='0'] {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+
+.emptyChip[data-position='1'] {
+  transform: translateX(-14px) rotate(9deg) scale(0.9);
+  opacity: 0.75;
+}
+
+/* The fan opens slightly on hover — the one motion an empty state gets. */
+.empty:hover .emptyChip[data-position='-1'] {
+  transform: translateX(10px) rotate(-13deg) scale(0.92);
+}
+
+.empty:hover .emptyChip[data-position='1'] {
+  transform: translateX(-10px) rotate(13deg) scale(0.92);
+}
+
+.emptyTitle {
+  font-size: var(--text-h3);
+  line-height: var(--text-h3-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  margin-block-end: var(--space-1);
+}
