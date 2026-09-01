@@ -1575,3 +1575,43 @@ both render.
 - Only the **violet** accent was swept.
 - `system` appearance is unit-tested only.
 - No screen reader was driven; ARIA is asserted, not heard.
+
+## 22.34 M9.6E QA — populated and empty
+
+Two sweeps, because they catch opposite failures.
+
+| | `m96b-qa.mjs` | `empty-qa.mjs` |
+|---|---|---|
+| Data | Seeded synthetic student | **None** |
+| Matrix | 14 routes × 6 widths × 2 themes = **168** | 14 routes × 2 widths × 2 themes = **56** |
+| Catches | Metric, table and chart regressions | Empty states that look broken rather than deliberate |
+| Result | **CLEAN** | **CLEAN** |
+
+Both: 0 axe violations, 0 horizontal overflow, 0 console errors. The API was
+**up** for the populated sweep (2008 papers, live question search), confirmed
+before sweeping.
+
+### A fixture gap the sweep exposed
+
+My Degree rendered every figure blank. The cause was **the fixture, not the
+product**: the seeded results carried no `ruleSetId`, and the engine correctly
+refuses to grade a result whose rule set it cannot resolve — a regulation
+change must never silently re-grade the past (M6 §6). The product behaviour was
+right and the seed was wrong. Fixed, and the page now shows CGPA 7.73, 77.3%,
+79 credits and 4 of 8 semesters.
+
+This is worth recording because the failure mode is inverted from the usual
+one: a green sweep of a page that is silently refusing to compute looks exactly
+like a green sweep of a page with nothing to compute.
+
+### NOT VERIFIED
+
+- **Announcements and Notifications are still swept EMPTY** in both sweeps. The
+  seeded database holds no announcements, and none were invented for QA —
+  fabricating official notices is prohibited (docs/19).
+- Only the **violet** accent was swept.
+- `system` appearance is unit-tested only.
+- No screen reader was driven.
+- Interaction QA (§40) was exercised through unit tests — Select, DropdownMenu,
+  IslandTabs, UploadModal, Tooltip, Sheet, theme and search all have keyboard
+  tests — **but not driven by hand in the browser**.
