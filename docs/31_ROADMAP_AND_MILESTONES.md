@@ -934,3 +934,36 @@ tested and documented but are **not yet placed in a page** — only Select is
 wired (the five Papers filters). The Results/Papers island tabs, row-action
 menus and the document upload flow are the next stage. Reference 06 (dropdown
 navigation) and Reference 13 (multi-step form) are not implemented at all.
+
+## 31.22 M9.6D — Typography reset and shadcn integration · ✅ **DELIVERED (scoped)**
+
+**The typography reset was the milestone's stated priority and is done.** The
+scale came from M9.4's *marketing* reference images; GradTools is an academic
+record. Body 16→14, page title 25→21, section 19→17, metadata 13→12, and the
+metric figure given its own token at 26 so it grows while everything else
+shrinks — hierarchy from contrast rather than from everything being large.
+
+Controls were the other half: 44px is a **touch** requirement and it was being
+applied to a mouse. `--control-height` is 34px on a fine pointer, 44px on a
+coarse one, keyed on the pointer rather than the viewport. The mobile bottom
+bar keeps 44px unconditionally.
+
+**shadcn was inspected properly and integrated selectively** (docs/05 §5.25).
+The decisive finding: GradTools has no Tailwind, so adopting shadcn verbatim
+means five dependencies and a second styling system — then restyling to
+GradTools tokens anyway. `Skeleton` is a genuine source port; `Tooltip`
+reproduces the API without the Base UI primitive and says so. Chart, Select,
+Tabs, Dropdown, Command and Dialog were assessed and declined, each with a
+reason.
+
+**QA was run with the API up** — the previous milestone's mistake. 2008 papers
+and live question search confirmed serving before sweeping; 168 checks clean
+with **zero** API-unavailable messages.
+
+**Not delivered, and named rather than implied:** the per-page structural
+redesigns of Results, My Degree, Timetable, Announcements, Documents, Account
+and Profile (M9.6D §11–§22). Those pages inherit the new type scale, controls,
+materials and environment — every one is visibly more compact — but their
+compositions were not rebuilt. `DropdownMenu`, `IslandTabs` and `UploadModal`
+remain built and tested but unplaced. References 06 and 13 remain
+unimplemented.
