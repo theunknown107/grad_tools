@@ -161,19 +161,47 @@ function tokenIn(selector: string, name: string): string {
   return found[1] as string;
 }
 
+/**
+ * The alpha of a `--surface` token, e.g. `rgb(255 255 255 / 4.5%)` -> 0.045.
+ *
+ * M9.6C made every surface a TRANSLUCENT WHITE laid over the ground, so there
+ * is no longer a surface hex to test against. Reading the alpha and
+ * compositing is not a workaround — it is what a browser actually paints, and
+ * testing the old flat hex would now be testing a colour the product never
+ * shows.
+ */
+function surfaceAlphaIn(selector: string): number {
+  const literal = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const block = new RegExp(`${literal}\\s*\\{([^}]*)\\}`).exec(CSS);
+  if (block === null) throw new Error(`no block for ${selector}`);
+  const found = /--surface:\s*rgb\(255 255 255 \/ ([\d.]+)%\)/.exec(block[1] ?? '');
+  if (found === null) throw new Error(`no translucent --surface in ${selector}`);
+  return Number(found[1]) / 100;
+}
+
 function channel(component: number): number {
   const c = component / 255;
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 
-function luminance(hex: string): number {
+function rgbOf(hex: string): readonly [number, number, number] {
   const value = hex.replace('#', '');
-  const rgb = [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16));
-  return (
-    0.2126 * channel(rgb[0] as number) +
-    0.7152 * channel(rgb[1] as number) +
-    0.0722 * channel(rgb[2] as number)
-  );
+  return [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16)) as unknown as readonly [
+    number,
+    number,
+    number,
+  ];
+}
+
+/** White at `alpha` composited over `hex` — what the eye actually receives. */
+function overlayWhite(hex: string, alpha: number): string {
+  const blended = rgbOf(hex).map((c) => Math.round(c * (1 - alpha) + 255 * alpha));
+  return `#${blended.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function luminance(hex: string): number {
+  const [r, g, b] = rgbOf(hex);
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 }
 
 function contrast(a: string, b: string): number {
@@ -182,15 +210,30 @@ function contrast(a: string, b: string): number {
 }
 
 describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
-  // Grounds an accent can land on, read from the appearance blocks themselves.
   const darkBg = tokenIn(':root', 'bg');
-  const darkSurface = tokenIn(':root', 'surface');
   const lightBg = tokenIn(":root[data-theme='light']", 'bg');
-  const lightSurface = tokenIn(":root[data-theme='light']", 'surface');
+
+  /*
+   * The effective surface: the translucent white composited over its ground.
+   * A surface is the lightest thing an accent lands on in dark mode and the
+   * darkest in light mode, so testing the composite covers the worst case in
+   * both appearances.
+   */
+  const darkSurface = overlayWhite(darkBg, surfaceAlphaIn(':root'));
+  const lightSurface = overlayWhite(lightBg, surfaceAlphaIn(":root[data-theme='light']"));
 
   it('reads the grounds it is about to test against', () => {
-    expect(darkBg).toBe('#0b0a12');
-    expect(lightBg).toBe('#f2f1f9');
+    // M9.6C: a blue-black environment, not the M9.4 violet-black.
+    expect(darkBg).toBe('#05070d');
+    expect(lightBg).toBe('#f4f6fb');
+  });
+
+  it('composites surfaces rather than assuming a flat fill', () => {
+    // Surfaces are translucent now; if one ever goes back to being an opaque
+    // hex, `surfaceAlphaIn` throws and this whole block fails loudly rather
+    // than silently checking the wrong colour.
+    expect(darkSurface).not.toBe(darkBg);
+    expect(lightSurface).not.toBe(lightBg);
   });
 
   it.each([...ACCENTS])('%s clears 4.5:1 everywhere it is used', (accent) => {

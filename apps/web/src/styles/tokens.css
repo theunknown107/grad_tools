@@ -152,89 +152,119 @@
 :root {
   /* --- Ground and surfaces ---------------------------------------------- */
   /*
-   * Violet-black, not blue-black and not neutral. The references' foundation
-   * is barely a colour — it reads as black until a neutral grey is put beside
-   * it, and then it is clearly warm-violet. That trace of hue is what keeps
-   * the accent from looking bolted on.
+   * M9.6C: THE ENVIRONMENT IS BLUE-BLACK, AND SURFACES ARE LIGHT ON IT.
+   *
+   * The M9.4 ground was violet-black (#0b0a12) with SOLID violet-tinted
+   * surfaces stacked on it (#161423, #1e1b30). That is why the product read as
+   * purple however carefully the accent was rationed: the two largest areas on
+   * every screen — the page and the panels — were both violet, and glass
+   * cannot exist over an opaque violet rectangle.
+   *
+   * The fix is structural, not a hue tweak:
+   *
+   *   THE GROUND is near-black with a blue cast. It is the only opaque colour.
+   *   SURFACES are TRANSLUCENT WHITE laid over it, so the environment and its
+   *   lighting show through everything. Elevation is more light, not a
+   *   different paint.
+   *
+   * Because surfaces are white-alpha rather than fills, a surface inside a
+   * surface naturally reads brighter, and one over the ambient light picks the
+   * light up. That is what makes the material behave like glass instead of
+   * looking like a photograph of glass.
    */
-  --bg: #0b0a12;
-  --surface: #161423;
-  --surface-raised: #1e1b30;
-  /*
-   * Translucent, for surfaces that sit over the ambient glow and should let it
-   * through. Used sparingly: full-page glass is prohibited (M9.4 §10).
-   */
-  --surface-translucent: rgb(30 27 48 / 62%);
+  --bg: #05070d;
+  /* A second ground for insets — recessed wells, input tracks, the strip
+     behind a segmented control. Darker than the page, never lighter. */
+  --bg-sunken: #03050a;
 
-  /* Fainter than it was: the references define a panel with a hairline you
-     have to look for, not with an edge that competes with the content. */
-  --border: #221e33;
-  --border-strong: #3a3457;
+  /* Level 1: an ordinary content surface. Barely there on purpose. */
+  --surface: rgb(255 255 255 / 4.5%);
+  /* Level 2: an elevated group — a panel that owns its content. */
+  --surface-raised: rgb(255 255 255 / 7%);
+  /* Level 3: a control or row that is being pointed at or is selected. */
+  --surface-active: rgb(255 255 255 / 11%);
+  --surface-translucent: rgb(255 255 255 / 5.5%);
+
+  /*
+   * Borders are light, not paint. A hairline on glass is the edge catching
+   * illumination, so it is white at low alpha — a coloured border would tint
+   * the whole outline of every object on the screen.
+   */
+  --border: rgb(255 255 255 / 9%);
+  --border-strong: rgb(255 255 255 / 16%);
 
   /* --- Text -------------------------------------------------------------- */
-  --text: #f4f2fa;
-  --text-muted: #a49ec2;
-  --text-subtle: #8f88b0;
+  /* Cool near-white, never pure #fff: pure white on a near-black ground
+     vibrates, and a trace of blue keeps it in the same air as the ground. */
+  --text: #e9edf6;
+  --text-muted: #a2adc2;
+  --text-subtle: #7b8599;
 
   /* --- Accent ------------------------------------------------------------ */
   /*
-   * Two violets, because one cannot do both jobs. `--accent` is a TEXT colour
-   * and must clear 4.5:1 on the ground; `--action-bg` is a FILL and must clear
-   * 4.5:1 against white sitting on it. A single mid-violet fails one or the
-   * other.
+   * ACCENT IS A LIGHT SOURCE, NOT A PAINT (M9.6C §4).
+   *
+   * `--accent` still colours text and icons. What changed is `--accent-weak`:
+   * it used to be a solid violet block (#1d1733) and it was doing most of the
+   * damage, because it painted every active nav item, every selected row and
+   * every chip. It is now a WHITE glass tint with a whisper of accent in it,
+   * so a selected row reads as lit rather than as coloured in.
    */
   --accent: var(--a-on-dark);
-  --accent-weak: var(--a-weak-dark);
-  --accent-border: var(--a-border-dark);
+  --accent-weak: rgb(var(--a-glow-rgb) / 14%);
+  --accent-border: rgb(var(--a-glow-rgb) / 42%);
   --accent-contrast: #ffffff;
 
   /*
-   * The primary action. Dark: the violet fill. Light: near-black ink, as in
-   * the mobile reference. One rule underneath both — the most confident
-   * high-contrast fill this ground allows — so it is one button, not two.
+   * The primary action is a GLASS CONTROL with a luminous edge, not a solid
+   * violet slab (M9.6C §12). The fill stays neutral-bright; the accent arrives
+   * as the border light and the glow beneath it.
    */
-  --action-bg: var(--a-fill);
-  --action-bg-hover: var(--a-fill-hover);
+  --action-bg: rgb(255 255 255 / 10%);
+  --action-bg-hover: rgb(255 255 255 / 15%);
   --action-fg: #ffffff;
+  --action-border: rgb(var(--a-glow-rgb) / 55%);
 
-  /* Secondary accent. Cyan appears in the references as a cool counterweight,
-     never as a second brand colour. Reserved for informational status. */
-  --info: #55d6e8;
-  --info-weak: #0d2a30;
+  --info: #6fd3e6;
+  --info-weak: rgb(111 211 230 / 12%);
 
   /* --- Status ------------------------------------------------------------ */
-  --success: #4fd9a0;
-  --success-weak: #10281f;
-  --warning: #f0b445;
-  --warning-weak: #2b1f0b;
-  --danger: #ff8080;
-  --danger-weak: #2d1418;
+  /* Status stays chromatic — it is the one place colour carries meaning — but
+     its backgrounds are tints at low alpha, not blocks. */
+  --success: #5fd9a4;
+  --success-weak: rgb(95 217 164 / 12%);
+  --warning: #f0bb5e;
+  --warning-weak: rgb(240 187 94 / 12%);
+  --danger: #ff8b8b;
+  --danger-weak: rgb(255 139 139 / 12%);
 
   /* --- Ambient illumination --------------------------------------------- */
   /*
-   * The single environmental effect taken from the references: one soft violet
-   * radial, high on the page, behind everything. It is what makes the ground
-   * feel like a room rather than a swatch.
+   * Barely noticeable until you look for it (M9.6C §8).
    *
-   * ONE per page. Not per section, not per card. See --glow-* below for the
-   * focal effect, which is a different thing with different rules.
+   * Two lights, both very low alpha: a cool blue wash across the top of the
+   * environment, and a much smaller accent-coloured source offset to one side.
+   * The blue does the work of making the ground feel like depth rather than
+   * paint; the accent is a hint of colour in the room, at 10% rather than the
+   * 22% violet flood this replaces.
    */
-  --ambient: radial-gradient(
-    120% 60% at 50% -10%,
-    rgb(var(--a-glow-rgb) / 22%) 0%,
-    rgb(var(--a-glow-rgb) / 7%) 38%,
-    transparent 72%
-  );
+  --ambient:
+    radial-gradient(70% 45% at 78% 8%, rgb(var(--a-glow-rgb) / 13%) 0%, transparent 66%),
+    radial-gradient(90% 60% at 12% 0%, rgb(56 110 200 / 15%) 0%, transparent 68%),
+    radial-gradient(100% 55% at 50% 105%, rgb(56 110 200 / 8%) 0%, transparent 70%);
+
+  /* A faint vignette, so the corners fall away and the centre reads forward. */
+  --vignette: radial-gradient(120% 100% at 50% 40%, transparent 55%, rgb(0 0 0 / 42%) 100%);
 
   /* --- Glow -------------------------------------------------------------- */
   /*
-   * Glow is FOCAL (M9.4 §9). It marks the one thing on a screen that carries
-   * the most emphasis — the primary action, a selected item — and it is
-   * meaningless the moment a second element has it. Two tokens exist so there
-   * is no reason to invent a third inline.
+   * Restrained hard. The old glow was a 24px violet halo under the primary
+   * button, which at 60% alpha read as a lamp. A premium control has a lit
+   * EDGE and a shadow, not a corona.
    */
-  --glow-accent: 0 6px 24px -6px rgb(var(--a-glow-rgb) / 60%);
-  --glow-accent-soft: 0 4px 16px -8px rgb(var(--a-glow-rgb) / 45%);
+  --glow-accent:
+    0 1px 0 rgb(255 255 255 / 14%) inset, 0 8px 28px -14px rgb(var(--a-glow-rgb) / 55%);
+  --glow-accent-soft: 0 4px 18px -12px rgb(var(--a-glow-rgb) / 38%);
 
   /* --- Focus ------------------------------------------------------------- */
   --focus-ring: var(--accent);
@@ -342,8 +372,8 @@
   /* --- Shadows ------------------------------------------------------------ */
   /* On a dark ground a shadow is nearly invisible; separation comes from
      --border and from surface lightness instead (docs/05 §5.6). */
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
-  --shadow-md: 0 8px 24px -12px rgb(0 0 0 / 70%);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 50%);
+  --shadow-md: 0 14px 40px -20px rgb(0 0 0 / 78%);
 
   /* --- Motion ------------------------------------------------------------- */
   --motion-fast: 120ms;
@@ -377,97 +407,136 @@
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
-    --bg: #f2f1f9;
-    --surface: #ffffff;
-    --surface-raised: #ffffff;
-    --surface-translucent: rgb(255 255 255 / 78%);
+    /*
+     * M9.6C: a premium macOS-style light interface, not an inverted dark one
+     * and not a white SaaS dashboard (§17).
+     *
+     * The ground is a cool near-white with a trace of blue so it sits in the
+     * same family as the dark environment. Surfaces are translucent WHITE over
+     * it — lighter than the ground rather than darker — which is what keeps the
+     * material reading as glass in both appearances.
+     */
+    --bg: #f4f6fb;
+    --bg-sunken: #e9edf5;
 
-    --border: #e7e4f3;
-    --border-strong: #cbc5e0;
+    --surface: rgb(255 255 255 / 62%);
+    --surface-raised: rgb(255 255 255 / 82%);
+    --surface-active: rgb(255 255 255 / 96%);
+    --surface-translucent: rgb(255 255 255 / 70%);
 
-    --text: #16131f;
-    --text-muted: #57516e;
-    --text-subtle: #635c7d;
+    /* On a light ground the edge is a shadow, not a highlight, so borders are
+       INK at low alpha rather than white. */
+    --border: rgb(16 24 44 / 10%);
+    --border-strong: rgb(16 24 44 / 20%);
+
+    --text: #131a2b;
+    --text-muted: #4d5772;
+    --text-subtle: #6b7590;
 
     --accent: var(--a-on-light);
-    --accent-weak: var(--a-weak-light);
-    --accent-border: var(--a-border-light);
+    --accent-weak: rgb(var(--a-glow-rgb) / 10%);
+    --accent-border: rgb(var(--a-glow-rgb) / 32%);
     --accent-contrast: #ffffff;
 
-    /* Near-black ink, exactly as the mobile reference's primary buttons. */
-    --action-bg: #17141f;
-    --action-bg-hover: #2a2438;
+    /*
+     * The light primary action stays INK — the M9.4 mobile reference's
+     * near-black pill, and still the strongest control this ground allows
+     * (DEC-038). It is a solid here rather than glass because a translucent
+     * button on a near-white page has nothing to be translucent against.
+     */
+    --action-bg: #14192b;
+    --action-bg-hover: #232a42;
     --action-fg: #ffffff;
+    --action-border: rgb(16 24 44 / 24%);
 
-    --info: #0b6f86;
-    --info-weak: #e3f5f9;
+    --info: #0c6a80;
+    --info-weak: rgb(12 106 128 / 10%);
 
-    --success: #0f6b42;
-    --success-weak: #e4f5ec;
-    --warning: #9a5b06;
-    --warning-weak: #fbf0dd;
-    --danger: #b81c1c;
-    --danger-weak: #fdeaea;
+    --success: #0e6b45;
+    --success-weak: rgb(14 107 69 / 10%);
+    --warning: #8a5a08;
+    --warning-weak: rgb(138 90 8 / 12%);
+    --danger: #b2202c;
+    --danger-weak: rgb(178 32 44 / 10%);
 
-    --ambient: radial-gradient(
-      120% 60% at 50% -10%,
-      rgb(var(--a-glow-rgb) / 15%) 0%,
-      rgb(var(--a-glow-rgb) / 6%) 40%,
-      transparent 72%
-    );
+    --ambient:
+      radial-gradient(90% 50% at 72% -8%, rgb(var(--a-glow-rgb) / 9%) 0%, transparent 62%),
+      radial-gradient(120% 70% at 20% -20%, rgb(56 94 168 / 10%) 0%, transparent 70%);
 
-    --glow-accent: 0 8px 22px -10px rgb(23 20 31 / 45%);
-    --glow-accent-soft: 0 4px 14px -8px rgb(23 20 31 / 30%);
+    --vignette: radial-gradient(120% 100% at 50% 40%, transparent 62%, rgb(19 26 43 / 7%) 100%);
 
-    --shadow-sm: 0 1px 2px rgb(28 22 51 / 6%), 0 1px 3px rgb(28 22 51 / 8%);
-    --shadow-md: 0 10px 30px -12px rgb(28 22 51 / 18%);
+    --glow-accent: 0 1px 0 rgb(255 255 255 / 70%) inset, 0 10px 26px -16px rgb(19 26 43 / 40%);
+    --glow-accent-soft: 0 4px 16px -12px rgb(19 26 43 / 26%);
+
+    --shadow-sm: 0 1px 2px rgb(16 24 44 / 6%), 0 1px 3px rgb(16 24 44 / 7%);
+    --shadow-md: 0 10px 30px -14px rgb(16 24 44 / 18%);
   }
 }
 
 :root[data-theme='light'] {
-  --bg: #f2f1f9;
-  --surface: #ffffff;
-  --surface-raised: #ffffff;
-  --surface-translucent: rgb(255 255 255 / 78%);
+  /*
+   * M9.6C: a premium macOS-style light interface, not an inverted dark one
+   * and not a white SaaS dashboard (§17).
+   *
+   * The ground is a cool near-white with a trace of blue so it sits in the
+   * same family as the dark environment. Surfaces are translucent WHITE over
+   * it — lighter than the ground rather than darker — which is what keeps the
+   * material reading as glass in both appearances.
+   */
+  --bg: #f4f6fb;
+  --bg-sunken: #e9edf5;
 
-  --border: #e7e4f3;
-  --border-strong: #cbc5e0;
+  --surface: rgb(255 255 255 / 62%);
+  --surface-raised: rgb(255 255 255 / 82%);
+  --surface-active: rgb(255 255 255 / 96%);
+  --surface-translucent: rgb(255 255 255 / 70%);
 
-  --text: #16131f;
-  --text-muted: #57516e;
-  --text-subtle: #635c7d;
+  /* On a light ground the edge is a shadow, not a highlight, so borders are
+     INK at low alpha rather than white. */
+  --border: rgb(16 24 44 / 10%);
+  --border-strong: rgb(16 24 44 / 20%);
+
+  --text: #131a2b;
+  --text-muted: #4d5772;
+  --text-subtle: #6b7590;
 
   --accent: var(--a-on-light);
-  --accent-weak: var(--a-weak-light);
-  --accent-border: var(--a-border-light);
+  --accent-weak: rgb(var(--a-glow-rgb) / 10%);
+  --accent-border: rgb(var(--a-glow-rgb) / 32%);
   --accent-contrast: #ffffff;
 
-  --action-bg: #17141f;
-  --action-bg-hover: #2a2438;
+  /*
+   * The light primary action stays INK — the M9.4 mobile reference's
+   * near-black pill, and still the strongest control this ground allows
+   * (DEC-038). It is a solid here rather than glass because a translucent
+   * button on a near-white page has nothing to be translucent against.
+   */
+  --action-bg: #14192b;
+  --action-bg-hover: #232a42;
   --action-fg: #ffffff;
+  --action-border: rgb(16 24 44 / 24%);
 
-  --info: #0b6f86;
-  --info-weak: #e3f5f9;
+  --info: #0c6a80;
+  --info-weak: rgb(12 106 128 / 10%);
 
-  --success: #0f6b42;
-  --success-weak: #e4f5ec;
-  --warning: #9a5b06;
-  --warning-weak: #fbf0dd;
-  --danger: #b81c1c;
-  --danger-weak: #fdeaea;
+  --success: #0e6b45;
+  --success-weak: rgb(14 107 69 / 10%);
+  --warning: #8a5a08;
+  --warning-weak: rgb(138 90 8 / 12%);
+  --danger: #b2202c;
+  --danger-weak: rgb(178 32 44 / 10%);
 
-  --ambient: radial-gradient(
-    120% 60% at 50% -10%,
-    rgb(var(--a-glow-rgb) / 15%) 0%,
-    rgb(var(--a-glow-rgb) / 6%) 40%,
-    transparent 72%
-  );
+  --ambient:
+    radial-gradient(90% 50% at 72% -8%, rgb(var(--a-glow-rgb) / 9%) 0%, transparent 62%),
+    radial-gradient(120% 70% at 20% -20%, rgb(56 94 168 / 10%) 0%, transparent 70%);
 
-  --glow-accent: 0 8px 22px -10px rgb(23 20 31 / 45%);
-  --glow-accent-soft: 0 4px 14px -8px rgb(23 20 31 / 30%);
+  --vignette: radial-gradient(120% 100% at 50% 40%, transparent 62%, rgb(19 26 43 / 7%) 100%);
 
-  --shadow-sm: 0 1px 2px rgb(28 22 51 / 6%), 0 1px 3px rgb(28 22 51 / 8%);
-  --shadow-md: 0 10px 30px -12px rgb(28 22 51 / 18%);
+  --glow-accent: 0 1px 0 rgb(255 255 255 / 70%) inset, 0 10px 26px -16px rgb(19 26 43 / 40%);
+  --glow-accent-soft: 0 4px 16px -12px rgb(19 26 43 / 26%);
+
+  --shadow-sm: 0 1px 2px rgb(16 24 44 / 6%), 0 1px 3px rgb(16 24 44 / 7%);
+  --shadow-md: 0 10px 30px -14px rgb(16 24 44 / 18%);
 }
 
 /* ========================================================================== */
@@ -487,94 +556,114 @@
 }
 
 /* ========================================================================== */
-/* GLASS MATERIALS — M9.6B §8, §27                                            */
+/* GLASS MATERIALS — M9.6C §5, §6                                             */
 /* ========================================================================== */
 
 /*
- * A material is FOUR values that have to move together: a translucent tint, a
- * blur, a hairline, and a top-edge highlight. Split them across components and
- * they drift; a nav at 62% over 14px blur beside a popover at 70% over 8px
- * reads as two products. So they are declared once, per appearance, and
- * consumed as a set by the `.glass*` classes in global.css.
+ * A material is FOUR values that move together: a translucent tint, a blur, a
+ * hairline, and a top-edge highlight.
  *
- * WHY THE HIGHLIGHT MATTERS. Blur and alpha alone give a frosted panel that
- * still looks flat. What makes a surface read as GLASS is a single bright
- * hairline along its top edge — light catching a physical bevel. It is one
- * inset box-shadow, and it is the difference between "transparent div" and
- * "material".
+ * M9.6C RETUNED ALL OF THEM. The M9.6B materials were tinted with the SURFACE
+ * COLOUR (rgb(22 20 35 / 62%)) — a violet paint at 62% opacity, which is a
+ * coloured panel wearing a blur, not glass. They are now WHITE at low alpha,
+ * so what you see through them is the environment and its lighting, and the
+ * only thing the material contributes is light.
  *
- * Restraint is enforced by scarcity, not by willpower: there are five material
- * tokens and each names the ONE surface class it belongs to. Anything that is
- * not navigation, a popover, an overlay, a raised panel or an input is not
- * glass (M9.6B §8).
+ * The alpha is the honest part: at 4–10% white, the background genuinely shows
+ * through. Anything above about 20% stops being transparent and starts being a
+ * fill with a blur behind it, which is the failure §6 names.
+ *
+ * THE HIGHLIGHT is what turns transparency into material — one bright hairline
+ * along the top edge, light catching a bevel. Without it a translucent panel
+ * reads as a hole in the page.
  */
 
 :root {
+  /* Navigation — floats over content, so it needs the most blur and the least
+     tint. Kept dense enough for 11px labels (docs/05 §5.22). */
+  --glass-nav-bg: linear-gradient(to bottom, rgb(255 255 255 / 8%) 0%, rgb(255 255 255 / 5%) 100%);
+  --glass-nav-blur: 22px;
+  --glass-nav-border: rgb(255 255 255 / 10%);
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 10%);
+
+  /* Popovers and menus. Text sits directly on these, so they carry a dark
+     backing UNDER the white tint rather than more white — a menu has to be
+     readable over whatever it covers. */
+  --glass-panel-bg: rgb(13 17 28 / 72%);
+  --glass-panel-blur: 28px;
+  --glass-panel-border: rgb(255 255 255 / 12%);
+
   /*
-   * Navigation.
+   * Content surfaces. The lightest material in the system.
    *
-   * Denser than it first was. The bottom bar carries 11px labels over WHATEVER
-   * the page happens to have scrolled under it, and at 62% a dark row behind
-   * the bar dragged the effective background to #bebdc0 — `--text-muted` on
-   * that is 4.0:1, under AA. Caught by the M9.6B sweep at 390/light.
-   *
-   * Raising the tint rather than darkening the label, because the label is
-   * already the darkest muted token and the next step down is body text: the
-   * material has to be trustworthy for anything placed on it, not just for
-   * this one label.
+   * A GRADIENT rather than a flat alpha, and this is the change that stops a
+   * panel reading as a grey rectangle: real glass is brighter where light
+   * strikes it and falls off away from the source. 8% at the top edge down to
+   * 3.5% at the bottom is a small difference in absolute terms and a large one
+   * in whether the surface looks like a material.
    */
-  --glass-nav-bg: rgb(22 20 35 / 80%);
-  --glass-nav-blur: 18px;
-  --glass-nav-border: rgb(255 255 255 / 8%);
-  /* The bevel. Bright, 1px, top edge only. */
-  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 8%);
+  --glass-surface-bg: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 8%) 0%,
+    rgb(255 255 255 / 4.5%) 38%,
+    rgb(255 255 255 / 3.5%) 100%
+  );
+  --glass-surface-blur: 18px;
 
-  /* Popovers and menus — denser, because text sits directly on them. */
-  --glass-panel-bg: rgb(26 23 41 / 88%);
-  --glass-panel-blur: 24px;
-  --glass-panel-border: rgb(255 255 255 / 10%);
+  /* The scrim behind a modal — darkens rather than tints. */
+  --glass-overlay-bg: rgb(3 5 10 / 64%);
+  --glass-overlay-blur: 8px;
 
-  /* Raised content surfaces — barely translucent; readability wins. */
-  --glass-surface-bg: rgb(26 23 41 / 72%);
-  --glass-surface-blur: 14px;
+  /* Inputs read RECESSED: darker than their container, not lighter. */
+  --glass-input-bg: rgb(0 0 0 / 22%);
 
-  /* The scrim behind a modal. */
-  --glass-overlay-bg: rgb(6 5 12 / 62%);
-  --glass-overlay-blur: 6px;
-
-  /* Inputs read as recessed rather than raised: darker than their container. */
-  --glass-input-bg: rgb(10 9 18 / 55%);
-
-  /* Depth for glass surfaces — larger and softer than the flat --shadow-md. */
-  --shadow-glass: 0 16px 48px -20px rgb(0 0 0 / 72%);
+  /* Depth. Long, soft and nearly black — a glass object casts a diffuse
+     shadow, not a hard one. */
+  --shadow-glass: 0 24px 60px -28px rgb(0 0 0 / 80%);
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
-    --glass-nav-bg: rgb(255 255 255 / 90%);
-    --glass-nav-border: rgb(20 16 40 / 8%);
-    /* On a light ground the bevel is white against near-white, so it has to be
+    --glass-nav-bg: linear-gradient(
+      to bottom,
+      rgb(255 255 255 / 82%) 0%,
+      rgb(255 255 255 / 70%) 100%
+    );
+    --glass-nav-border: rgb(16 24 44 / 9%);
+    /* On a light ground the bevel is white on near-white, so it has to be
        nearly opaque to register at all. */
-    --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 90%);
-    --glass-panel-bg: rgb(255 255 255 / 92%);
-    --glass-panel-border: rgb(20 16 40 / 10%);
-    --glass-surface-bg: rgb(255 255 255 / 82%);
-    --glass-overlay-bg: rgb(28 24 48 / 32%);
-    --glass-input-bg: rgb(255 255 255 / 70%);
-    --shadow-glass: 0 16px 44px -20px rgb(28 22 51 / 26%);
+    --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 88%);
+    --glass-panel-bg: rgb(255 255 255 / 86%);
+    --glass-panel-border: rgb(16 24 44 / 11%);
+    --glass-surface-bg: linear-gradient(
+      to bottom,
+      rgb(255 255 255 / 78%) 0%,
+      rgb(255 255 255 / 62%) 100%
+    );
+    --glass-overlay-bg: rgb(19 26 43 / 30%);
+    --glass-input-bg: rgb(255 255 255 / 76%);
+    --shadow-glass: 0 22px 50px -26px rgb(16 24 44 / 26%);
   }
 }
 
 :root[data-theme='light'] {
-  --glass-nav-bg: rgb(255 255 255 / 90%);
-  --glass-nav-border: rgb(20 16 40 / 8%);
-  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 90%);
-  --glass-panel-bg: rgb(255 255 255 / 92%);
-  --glass-panel-border: rgb(20 16 40 / 10%);
-  --glass-surface-bg: rgb(255 255 255 / 82%);
-  --glass-overlay-bg: rgb(28 24 48 / 32%);
-  --glass-input-bg: rgb(255 255 255 / 70%);
-  --shadow-glass: 0 16px 44px -20px rgb(28 22 51 / 26%);
+  --glass-nav-bg: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 82%) 0%,
+    rgb(255 255 255 / 70%) 100%
+  );
+  --glass-nav-border: rgb(16 24 44 / 9%);
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 88%);
+  --glass-panel-bg: rgb(255 255 255 / 86%);
+  --glass-panel-border: rgb(16 24 44 / 11%);
+  --glass-surface-bg: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 78%) 0%,
+    rgb(255 255 255 / 62%) 100%
+  );
+  --glass-overlay-bg: rgb(19 26 43 / 30%);
+  --glass-input-bg: rgb(255 255 255 / 76%);
+  --shadow-glass: 0 22px 50px -26px rgb(16 24 44 / 26%);
 }
 
 /* ========================================================================== */

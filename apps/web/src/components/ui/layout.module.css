@@ -32,9 +32,14 @@
   gap: var(--space-5) var(--space-4);
   margin: 0;
   padding: var(--space-5);
-  background: var(--surface);
+  /* M9.6C: the metric strip is the most elevated surface on a dashboard, so it
+     takes the glass material rather than a flat fill. */
+  background: var(--glass-surface-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
+  -webkit-backdrop-filter: blur(var(--glass-surface-blur)) saturate(150%);
+  backdrop-filter: blur(var(--glass-surface-blur)) saturate(150%);
+  box-shadow: var(--glass-highlight);
 }
 
 /*
