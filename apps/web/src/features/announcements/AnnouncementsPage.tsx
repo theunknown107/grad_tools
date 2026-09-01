@@ -19,7 +19,11 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
 import { PageHeader } from '../../components/AppShell.js';
-import { EmptyState, Notice, Panel, SelectField, StatusPill } from '../../components/ui/index.js';
+import { IslandTabs } from '../../components/ui/IslandTabs.js';
+import { Select } from '../../components/ui/Select.js';
+/* Aliased: layout.js already exports a row-count Skeleton used further down. */
+import { Skeleton as ShapedSkeleton } from '../../components/ui/Skeleton.js';
+import { EmptyState, Notice, Panel, StatusPill } from '../../components/ui/index.js';
 import { Row, Rows, Skeleton } from '../../components/ui/layout.js';
 import {
   useAnnouncements,
@@ -62,39 +66,57 @@ export function AnnouncementsPage() {
         subtitle="Academic notices. GradTools shows them; it does not issue them."
       />
 
-      <Panel title="Filter">
-        <div className={styles.filters}>
-          <SelectField
-            label="Category"
-            value={category}
-            onChange={(event) => {
-              setCategory(event.target.value);
-            }}
-          >
-            {CATEGORY_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option === 'all' ? 'All categories' : CATEGORY_LABEL[option]}
-              </option>
-            ))}
-          </SelectField>
+      {/*
+        -------------------------------------------------------------------
+        M9.6F: THE FILTER IS A TOOLBAR, NOT A PANEL
+        -------------------------------------------------------------------
 
-          {/*
-            A filter, never a default. Hiding notices the student has not been
-            targeted by would make the feed silently incomplete, and they have
-            no way to know what they are not seeing (M7 §14).
-          */}
-          <label className={styles.checkbox}>
-            <input
-              type="checkbox"
-              checked={onlyRelevant}
-              onChange={(event) => {
-                setOnlyRelevant(event.target.checked);
-              }}
-            />
-            Only what applies to me
-          </label>
+        A bordered "Filter" card sat above the feed taking the same visual
+        weight as the notices themselves — a control given the prominence of
+        content. It is now a single quiet toolbar row: the relevance choice as
+        island tabs (it is a view of the feed, not a setting), the category as
+        the glass Select, and the count on the right so the feed says how much
+        of itself is showing.
+      */}
+      <div className={styles.toolbar}>
+        <IslandTabs
+          label="Which announcements"
+          controlsPanel={false}
+          value={onlyRelevant ? 'mine' : 'all'}
+          onChange={(id) => {
+            setOnlyRelevant(id === 'mine');
+          }}
+          tabs={[
+            { id: 'all', label: 'All', count: sorted.length },
+            {
+              id: 'mine',
+              label: 'Applies to me',
+              count: sorted.filter((item) => isRelevant(item, context)).length,
+            },
+          ]}
+        />
+
+        <div className={styles.toolbarEnd}>
+          <Select
+            label="Category"
+            hideLabel
+            icon="announcements"
+            value={category}
+            onChange={setCategory}
+            options={CATEGORY_OPTIONS.map((option) => ({
+              value: option,
+              label: option === 'all' ? 'All categories' : CATEGORY_LABEL[option],
+            }))}
+          />
         </div>
-      </Panel>
+      </div>
+
+      {/*
+        Relevance is a VIEW, never a default (M7 §14). Hiding notices a student
+        has not been targeted by would make the feed silently incomplete, and
+        they would have no way to know what they were not seeing — so the "All"
+        tab is first and the counts on both tabs say what each one holds.
+      */}
 
       {error !== null ? (
         <Notice tone="warning">
@@ -104,12 +126,15 @@ export function AnnouncementsPage() {
           </button>
         </Notice>
       ) : loading ? (
-        <p className={styles.loading}>Loading announcements…</p>
+        <ShapedSkeleton lines={5} height="56px" radius="md" label="Loading announcements" />
       ) : shown.length === 0 ? (
-        <EmptyState>
+        <EmptyState
+          title={onlyRelevant ? 'Nothing applies to you right now' : 'No announcements yet'}
+          icons={['announcements', 'notifications', 'empty']}
+        >
           {onlyRelevant
-            ? 'Nothing here applies to you right now. Turn off the filter to see everything.'
-            : 'No announcements yet. Notices appear here once a source is connected or an operator adds one.'}
+            ? 'Switch to All to see every notice GradTools holds.'
+            : 'Notices appear here once a source is connected or an operator adds one.'}
         </EmptyState>
       ) : (
         <ul className={styles.list}>

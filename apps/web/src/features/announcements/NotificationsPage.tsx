@@ -15,6 +15,8 @@
 import { useState } from 'react';
 import type { AnnouncementCategory } from '@gradtools/shared-types';
 import { PageHeader } from '../../components/AppShell.js';
+import { IslandTabs } from '../../components/ui/IslandTabs.js';
+import { Skeleton as ShapedSkeleton } from '../../components/ui/Skeleton.js';
 import { Button, EmptyState, Notice, Panel, StatusPill } from '../../components/ui/index.js';
 import { useAnnouncements, useNotifications } from '../../hooks/useAnnouncements.js';
 import { CATEGORY_LABEL } from './AnnouncementRow.js';
@@ -79,39 +81,58 @@ export function NotificationsPage() {
         subtitle="What is new since you last looked. Read state stays on this device."
       />
 
-      <Panel title={unread === 0 ? 'Nothing unread' : `${String(unread)} unread`}>
-        <div className={styles.filters}>
-          <label className={styles.checkbox}>
-            <input
-              type="checkbox"
-              checked={unreadOnly}
-              onChange={(event) => {
-                setUnreadOnly(event.target.checked);
-              }}
-            />
-            Unread only
-          </label>
-          <Button
-            variant="secondary"
-            disabled={unread === 0}
-            onClick={() => {
-              void readAll();
-            }}
-          >
-            Mark all as read
-          </Button>
-        </div>
-      </Panel>
+      {/*
+        -------------------------------------------------------------------
+        M9.6F: AN INBOX TOOLBAR, NOT A PANEL OF CONTROLS
+        -------------------------------------------------------------------
+
+        A bordered panel titled "3 unread" held a checkbox and a button, and
+        the notifications themselves began below it — so a third of the screen
+        above the inbox was chrome. It is now one toolbar row, matching the
+        header's notification popover so the page and the popover read as the
+        same inbox rather than two different ones.
+
+        All/Unread as tabs rather than a checkbox: it is a VIEW of the list,
+        and the counts belong on the tabs where they say what each view holds.
+      */}
+      <div className={styles.toolbar}>
+        <IslandTabs
+          label="Which notifications"
+          controlsPanel={false}
+          value={unreadOnly ? 'unread' : 'all'}
+          onChange={(id) => {
+            setUnreadOnly(id === 'unread');
+          }}
+          tabs={[
+            { id: 'all', label: 'All', count: notifications.length },
+            { id: 'unread', label: 'Unread', count: unread },
+          ]}
+        />
+
+        <Button
+          variant="secondary"
+          small
+          disabled={unread === 0}
+          onClick={() => {
+            void readAll();
+          }}
+        >
+          Mark all as read
+        </Button>
+      </div>
 
       {error !== null ? (
         <Notice tone="warning">{error}</Notice>
       ) : feedLoading ? (
-        <p className={styles.loading}>Loading…</p>
+        <ShapedSkeleton lines={4} height="60px" radius="md" label="Loading notifications" />
       ) : visible.length === 0 ? (
-        <EmptyState>
+        <EmptyState
+          title={unreadOnly ? 'You are up to date' : 'No notifications yet'}
+          icons={['notifications', 'announcements', 'empty']}
+        >
           {unreadOnly
-            ? 'Nothing unread. You are up to date.'
-            : 'No notifications yet. Announcements that apply to you appear here.'}
+            ? 'Switch to All to see everything you have already read.'
+            : 'Announcements that apply to you appear here.'}
         </EmptyState>
       ) : (
         <ul className={styles.list}>

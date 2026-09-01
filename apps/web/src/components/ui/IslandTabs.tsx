@@ -53,9 +53,24 @@ export interface IslandTabsProps {
   readonly tabs: readonly IslandTab[];
   readonly value: string;
   readonly onChange: (id: string) => void;
+  /**
+   * False when the tabs FILTER content in place rather than switching between
+   * separate panels — Announcements and Notifications both re-filter one list.
+   *
+   * This is not cosmetic. `aria-controls` must reference an element that
+   * exists; pointing it at a panel that was never rendered is an invalid ARIA
+   * reference, and axe reports it as one. Caught by the M9.6F sweep.
+   */
+  readonly controlsPanel?: boolean;
 }
 
-export function IslandTabs({ label, tabs, value, onChange }: IslandTabsProps): ReactNode {
+export function IslandTabs({
+  label,
+  tabs,
+  value,
+  onChange,
+  controlsPanel = true,
+}: IslandTabsProps): ReactNode {
   const listRef = useRef<HTMLDivElement>(null);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
 
@@ -127,7 +142,7 @@ export function IslandTabs({ label, tabs, value, onChange }: IslandTabsProps): R
             role="tab"
             id={`tab-${tab.id}`}
             aria-selected={selected}
-            aria-controls={`panel-${tab.id}`}
+            {...(controlsPanel ? { 'aria-controls': `panel-${tab.id}` } : {})}
             // Only the selected tab is tabbable; arrows move within the set.
             tabIndex={selected ? 0 : -1}
             className={styles.tab}
