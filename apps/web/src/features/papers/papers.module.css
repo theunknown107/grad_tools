@@ -412,3 +412,8 @@
   flex: 0 0 auto;
   margin-top: 2px;
 }
+
+/* M9.6F — the mode switch leads the page. */
+.modeBar {
+  margin-block-end: var(--space-4);
+}

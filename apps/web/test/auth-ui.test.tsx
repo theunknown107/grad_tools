@@ -95,6 +95,15 @@ afterEach(() => {
 /* Signing in                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * M9.6F split the account page into sections with a navigation rail, so only
+ * one concern is on screen at a time. These tests open the section they are
+ * about first; every assertion below is otherwise unchanged.
+ */
+async function openSection(name: RegExp): Promise<void> {
+  await userEvent.click(await screen.findByRole('button', { name }));
+}
+
 describe('the sign-in screen', () => {
   it('offers Google, Apple and email', async () => {
     renderAuth(<SignInPage />, fakeAdapter());
@@ -174,6 +183,7 @@ describe('the account screen', () => {
    */
   it('says signing out keeps local records', async () => {
     renderAuth(<AccountPage />, fakeAdapter(identity));
+    await openSection(/^Session$/);
     const text = await screen.findByText(/records saved on this device stay here/i);
     expect(text).toBeTruthy();
   });
@@ -182,6 +192,7 @@ describe('the account screen', () => {
   it('requires a confirmation before deleting an account', async () => {
     renderAuth(<AccountPage />, fakeAdapter(identity));
 
+    await openSection(/^Delete account$/);
     await userEvent.click(await screen.findByRole('button', { name: 'Delete my account' }));
 
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
@@ -190,11 +201,13 @@ describe('the account screen', () => {
 
   it('says deletion leaves the device copy alone', async () => {
     renderAuth(<AccountPage />, fakeAdapter(identity));
+    await openSection(/^Delete account$/);
     expect(await screen.findByText(/copy on this device is not deleted/i)).toBeTruthy();
   });
 
   it('offers an export of the student’s own data', async () => {
     renderAuth(<AccountPage />, fakeAdapter(identity));
+    await openSection(/^Your data$/);
     expect(await screen.findByRole('button', { name: 'Download my data' })).toBeTruthy();
     expect(screen.getByText(/nobody else/i)).toBeTruthy();
   });
@@ -281,6 +294,7 @@ describe('two accounts on one browser', () => {
 
     const adapter = fakeAdapter({ userId: 'user-a', email: null, provider: 'email' });
     renderAuth(<AccountPage />, adapter);
+    await userEvent.click(await screen.findByRole('button', { name: /^Session$/ }));
     await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
 
     await waitFor(() => {

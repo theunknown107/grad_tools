@@ -16,10 +16,11 @@
  * (M8 §11, §46).
  */
 
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, Notice, Panel, TextField } from '../../components/ui/index.js';
 import { Select } from '../../components/ui/Select.js';
+import { IslandTabs } from '../../components/ui/IslandTabs.js';
 import { Skeleton } from '../../components/ui/Skeleton.js';
 import { PageHeader } from '../../components/AppShell.js';
 import {
@@ -50,7 +51,6 @@ export function PapersPage() {
    * two search fields a student has to choose between before typing.
    */
   const [mode, setMode] = useState<'papers' | 'questions'>('papers');
-  const modeName = useId();
 
   const filters = usePaperFilters();
   const context = usePaperContext();
@@ -89,29 +89,43 @@ export function PapersPage() {
         subtitle="Past papers in one place. GradTools shows them; it does not issue them."
       />
 
-      <Panel title={mode === 'papers' ? 'Find a paper' : 'Find a question'}>
-        {/*
-          A radiogroup, not a pair of buttons: two mutually exclusive views of
-          one search is exactly what radios mean, and it arrives with arrow-key
-          navigation and a spoken group name for free.
-        */}
-        <div className={styles.modes} role="radiogroup" aria-label="Search for">
-          {(['papers', 'questions'] as const).map((option) => (
-            <label className={styles.mode} key={option} data-active={mode === option}>
-              <input
-                type="radio"
-                name={modeName}
-                value={option}
-                checked={mode === option}
-                onChange={() => {
-                  setMode(option);
-                }}
-              />
-              {option === 'papers' ? 'Papers' : 'Questions'}
-            </label>
-          ))}
-        </div>
+      {/*
+        -------------------------------------------------------------------
+        M9.6F: THE LIBRARY IS TWO VIEWS, NOT A PANEL WITH A RADIOGROUP
+        -------------------------------------------------------------------
 
+        Papers and Questions are genuinely different content — one lists
+        documents, the other lists sentences pulled out of them — which is what
+        justifies tabs rather than a filter. The mode switch is now the first
+        thing on the page and carries live counts, so the library says how much
+        it holds before you type anything.
+
+        Replacing the radiogroup was a real trade and worth naming: radios gave
+        arrow-key navigation and a spoken group name for free. IslandTabs
+        provides both (WAI-ARIA tabs: arrows move, only the selected tab is
+        tabbable, the tablist is named), so nothing was lost — and the tabs
+        carry counts, which the radios could not.
+      */}
+      <div className={styles.modeBar}>
+        <IslandTabs
+          label="Search for"
+          value={mode}
+          controlsPanel={false}
+          onChange={(id) => {
+            setMode(id as 'papers' | 'questions');
+          }}
+          tabs={[
+            { id: 'papers', label: 'Papers', ...(total > 0 ? { count: total } : {}) },
+            {
+              id: 'questions',
+              label: 'Questions',
+              ...(questions.total > 0 ? { count: questions.total } : {}),
+            },
+          ]}
+        />
+      </div>
+
+      <Panel title={mode === 'papers' ? 'Find a paper' : 'Find a question'}>
         <div className={styles.search}>
           <TextField
             label="Search"
