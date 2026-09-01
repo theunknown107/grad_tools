@@ -313,23 +313,68 @@
    * BOLD, which reads as loud rather than composed. Body and below are
    * unchanged — an academic record is read, not admired.
    */
-  --text-display: 32px;
-  --text-display-lh: 38px;
-  --text-h1: 25px;
-  --text-h1-lh: 32px;
-  --text-h2: 19px;
-  --text-h2-lh: 26px;
-  --text-h3: 16px;
-  --text-h3-lh: 22px;
-  --text-body: 16px;
-  --text-body-lh: 24px;
-  --text-small: 14px;
-  --text-small-lh: 20px;
-  --text-caption: 13px;
-  --text-caption-lh: 18px;
+  /*
+   * -------------------------------------------------------------------------
+   * M9.6D: THE TYPOGRAPHY RESET
+   * -------------------------------------------------------------------------
+   *
+   * The scale was built in M9.4 against reference images that were MARKETING
+   * compositions — a hero, a phone mockup, a few large figures. GradTools is an
+   * academic record: a student reads a nine-row mark table, a week of classes
+   * and five metrics at once. At 16px body with 24px leading, a semester's
+   * results did not fit on a laptop screen, and the product read as a landing
+   * page that happened to contain data.
+   *
+   * Every step is smaller, and the STEPS ARE FURTHER APART. That second part
+   * is the point: shrinking everything uniformly makes a dense screen, not a
+   * hierarchical one. Body drops 16 -> 14 while the metric figure stays large,
+   * so the ratio between a figure and its label widens from 1.6x to 1.9x and
+   * hierarchy comes from CONTRAST rather than from everything being big.
+   *
+   *   role                 was        now
+   *   display              32/38      27/32
+   *   page title           25/32      21/27
+   *   section heading      19/26      17/23
+   *   sub-heading          16/22      14/19
+   *   body                 16/24      14/20
+   *   dense body, tables   14/20      13/18
+   *   metadata, captions   13/18      12/16
+   *   labels, nav, chips   11/15      11/14
+   *   metric figure        (= 25)     26/29   <- the one thing that grew
+   *
+   * Leading tightens with size, because a 14px line at 24px leading is a
+   * paragraph setting applied to a table row.
+   *
+   * The PUBLIC HOMEPAGE is exempt and sets its own clamp() scale locally
+   * (features/landing). A front door is read from across a room.
+   */
+  --text-display: 27px;
+  --text-display-lh: 32px;
+  --text-h1: 21px;
+  --text-h1-lh: 27px;
+  --text-h2: 17px;
+  --text-h2-lh: 23px;
+  --text-h3: 14px;
+  --text-h3-lh: 19px;
+  --text-body: 14px;
+  --text-body-lh: 20px;
+  --text-small: 13px;
+  --text-small-lh: 18px;
+  --text-caption: 12px;
+  --text-caption-lh: 16px;
   /* Navigation labels, section signposts, chip text. */
   --text-micro: 11px;
-  --text-micro-lh: 15px;
+  --text-micro-lh: 14px;
+
+  /*
+   * The metric figure gets its OWN token rather than borrowing the page
+   * title's. They were the same size, which meant a dashboard's five figures
+   * competed with its heading; now the figure is the largest thing on an
+   * academic page and the heading sits clearly below it, which is the correct
+   * order for a screen whose subject is numbers.
+   */
+  --text-metric: 26px;
+  --text-metric-lh: 29px;
 
   --weight-light: 300;
   --weight-regular: 400;
@@ -391,7 +436,18 @@
   --z-toast: 50;
 
   /* --- Touch -------------------------------------------------------------- */
+  /*
+   * 44px is a TOUCH requirement, not a visual one, and applying it to a mouse
+   * pointer is a large part of why the desktop app felt oversized: every
+   * button, select and menu row was sized for a fingertip.
+   *
+   * `--control-height` is what components size themselves by. It is 34px for a
+   * fine pointer and rises to the full 44px on a coarse one, so the touch
+   * guarantee is kept exactly where it applies (docs/27 §27.6).
+   */
   --touch-target-min: 44px;
+  --control-height: 34px;
+  --control-height-sm: 28px;
 }
 
 /* ========================================================================== */
@@ -682,4 +738,20 @@
 
   --motion-micro: 90ms;
   --duration-nav: 380ms;
+}
+
+/* ========================================================================== */
+/* Pointer — M9.6D                                                            */
+/* ========================================================================== */
+
+/*
+ * A finger needs 44px; a mouse does not. Keyed on the POINTER rather than the
+ * viewport, because a 1280px touchscreen laptop is still touched and a 700px
+ * desktop window is still moused.
+ */
+@media (pointer: coarse) {
+  :root {
+    --control-height: var(--touch-target-min);
+    --control-height-sm: 38px;
+  }
 }

@@ -117,7 +117,7 @@
 .quietLink {
   display: inline-flex;
   align-items: center;
-  min-height: var(--touch-target-min);
+  min-height: var(--control-height);
   font-size: var(--text-caption);
   color: var(--text-muted);
   text-decoration: none;
@@ -169,7 +169,7 @@
 .resources a {
   display: flex;
   align-items: center;
-  min-height: var(--touch-target-min);
+  min-height: var(--control-height);
   padding: 0 var(--space-1);
   font-size: var(--text-small);
   color: var(--text-muted);
