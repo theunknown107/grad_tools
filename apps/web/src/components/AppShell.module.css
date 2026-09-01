@@ -169,16 +169,28 @@
  * Sits behind the links (z-index 0 against their 1) and is pointer-transparent,
  * so it can never intercept a click.
  */
+/*
+ * M9.6C: ONE SMALL LIGHT SOURCE, not a violet capsule (§11).
+ *
+ * It was a filled `--accent-weak` pill with an accent ring — a coloured block
+ * behind the open area, which is exactly the "purple capsule around every
+ * selected item" the reset is against.
+ *
+ * Now: a neutral glass lozenge that reads as the surface being LIT, with the
+ * accent present only as a thin lower edge — a light catching the bottom of
+ * the object. The colour is a hint at the boundary rather than a fill.
+ */
 .glow {
   position: absolute;
   inset-block: 4px;
   inset-inline-start: 0;
   z-index: 0;
   border-radius: var(--radius-pill);
-  background: var(--accent-weak);
+  background: var(--surface-active);
   box-shadow:
-    var(--glow-accent-soft),
-    inset 0 0 0 1px var(--accent-border);
+    inset 0 1px 0 rgb(255 255 255 / 12%),
+    inset 0 -1px 0 var(--accent-border),
+    var(--glow-accent-soft);
   transition:
     transform var(--motion-base) var(--ease-glide),
     width var(--motion-base) var(--ease-glide);

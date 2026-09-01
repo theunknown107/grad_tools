@@ -26,9 +26,22 @@ html {
  * `fixed` so it belongs to the window rather than to the scroll position — a
  * glow that scrolls away is a decoration; one that stays is a room.
  */
+/*
+ * M9.6C: ONE ENVIRONMENT, NOT A COLOURED PAGE (§9, §16).
+ *
+ * Three layers, all fixed to the window rather than the scroll, so the product
+ * feels like a room the content moves inside:
+ *
+ *   1. the vignette      corners fall away, the centre reads forward
+ *   2. the ambient light two very low-alpha sources, blue and accent
+ *   3. the ground        near-black blue, the only opaque colour in the system
+ *
+ * Every page shares this. No page paints its own background — the differences
+ * between screens come from content and surface elevation, never from hue.
+ */
 body {
   background-color: var(--bg);
-  background-image: var(--ambient);
+  background-image: var(--vignette), var(--ambient);
   background-repeat: no-repeat;
   background-attachment: fixed;
   color: var(--text);
@@ -238,18 +251,28 @@ input[type='number'] {
  * that text over busy content would be unreadable, so the fallback is opacity
  * rather than a different design.
  */
+/*
+ * Without backdrop-filter these tints are far too transparent to read against
+ * scrolling content, so the fallback supplies an OPAQUE ground of its own.
+ * `color-mix` keeps one source of truth for the hue: it is the environment
+ * lightened, not a second palette.
+ */
 @supports not (backdrop-filter: blur(1px)) {
-  .glassNav {
-    background: var(--surface);
+  .glassNav,
+  .glassSurface {
+    background: color-mix(in srgb, var(--bg) 86%, white);
   }
 
-  .glassPanel,
-  .glassSurface {
-    background: var(--surface-raised);
+  .glassPanel {
+    background: color-mix(in srgb, var(--bg) 80%, white);
   }
 
   .glassOverlay {
-    background: rgb(6 5 12 / 88%);
+    background: color-mix(in srgb, var(--bg) 88%, black);
+  }
+
+  .glassInput {
+    background: color-mix(in srgb, var(--bg) 94%, black);
   }
 }
 

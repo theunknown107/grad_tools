@@ -122,6 +122,7 @@
   align-items: center;
   block-size: 36px;
   padding-inline: var(--space-4);
+  border: 1px solid var(--action-border);
   border-radius: var(--radius-pill);
   background: var(--action-bg);
   color: var(--action-fg);
@@ -129,7 +130,9 @@
   font-size: var(--text-small);
   font-weight: var(--weight-medium);
   box-shadow: var(--glow-accent-soft);
-  transition: background var(--motion-fast) var(--ease-enter);
+  transition:
+    background var(--motion-fast) var(--ease-enter),
+    border-color var(--motion-fast) var(--ease-enter);
 }
 
 .navCta:hover {
@@ -220,28 +223,41 @@
   pointer-events: none;
 }
 
+/*
+ * M9.6C: THE LIGHT IS BLUE, WITH A LITTLE ACCENT IN IT.
+ *
+ * These were two accent-coloured lights at 62% and 40% alpha — the "obvious
+ * giant purple blobs" §8 rules out, and the reason the hero read as a purple
+ * page rather than a dark environment with light in it.
+ *
+ * Now the LARGE light is deep blue and does the atmospheric work; the accent
+ * light is smaller, weaker and offset, so violet appears as a tint in the room
+ * rather than as the room.
+ */
 .aurora {
   position: absolute;
   border-radius: 50%;
-  filter: blur(72px);
-  opacity: 0.55;
+  filter: blur(84px);
+  opacity: 0.6;
 }
 
+/* The main light: blue, large, low. */
 .aurora[data-layer='1'] {
-  inset-block-start: -10%;
-  inset-inline-start: 12%;
-  inline-size: 46%;
-  block-size: 58%;
-  background: radial-gradient(circle, rgb(var(--a-glow-rgb) / 62%), transparent 68%);
+  inset-block-start: -14%;
+  inset-inline-start: 6%;
+  inline-size: 58%;
+  block-size: 62%;
+  background: radial-gradient(circle, rgb(48 96 190 / 40%), transparent 68%);
   animation: drift 22s ease-in-out infinite alternate;
 }
 
+/* The accent: small, weak, off to one side. */
 .aurora[data-layer='2'] {
-  inset-block-start: 6%;
-  inset-inline-end: 8%;
-  inline-size: 40%;
-  block-size: 50%;
-  background: radial-gradient(circle, rgb(var(--a-glow-rgb) / 40%), transparent 70%);
+  inset-block-start: 2%;
+  inset-inline-end: 10%;
+  inline-size: 32%;
+  block-size: 40%;
+  background: radial-gradient(circle, rgb(var(--a-glow-rgb) / 26%), transparent 70%);
   animation: drift 28s ease-in-out infinite alternate-reverse;
 }
 
@@ -263,9 +279,11 @@
 .grid {
   position: absolute;
   inset: 0;
+  /* Neutral white at 4%, not the accent: a violet grid tints the whole
+     environment, which is what the reset is against. */
   background-image:
-    linear-gradient(to right, rgb(var(--a-glow-rgb) / 8%) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(var(--a-glow-rgb) / 8%) 1px, transparent 1px);
+    linear-gradient(to right, rgb(255 255 255 / 4%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 4%) 1px, transparent 1px);
   background-size: 64px 64px;
   mask-image: radial-gradient(120% 70% at 50% 12%, #000 10%, transparent 68%);
 }
@@ -322,7 +340,9 @@
 .heroTitle em {
   font-style: italic;
   font-weight: var(--weight-regular);
-  color: var(--accent);
+  /* Accent, but mixed toward the text colour: at full strength one word in a
+     white headline reads as a link rather than as emphasis. */
+  color: color-mix(in srgb, var(--accent) 72%, var(--text));
   padding-block-end: 0.08em;
   display: inline-block;
 }
@@ -350,19 +370,24 @@
   min-block-size: var(--touch-target-min);
   padding-inline: var(--space-6);
   border-radius: var(--radius-pill);
+  border: 1px solid var(--action-border);
   background: var(--action-bg);
   color: var(--action-fg);
   text-decoration: none;
   font-size: var(--text-small);
   font-weight: var(--weight-medium);
   box-shadow: var(--glow-accent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   transition:
     transform var(--motion-fast) var(--ease-enter),
-    background var(--motion-fast) var(--ease-enter);
+    background var(--motion-fast) var(--ease-enter),
+    border-color var(--motion-fast) var(--ease-enter);
 }
 
 .primaryCta:hover {
   background: var(--action-bg-hover);
+  border-color: var(--accent);
 }
 
 /* A 1px press, not a bounce: it should feel like a key, not a trampoline. */
