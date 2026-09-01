@@ -1,0 +1,31 @@
+.wrap {
+  display: inline-flex;
+}
+
+/*
+ * Fixed, not absolute: the bubble is portalled to <body> and positioned from
+ * viewport coordinates, so it must not be affected by page scroll offset.
+ *
+ * `translate` centres it on the trigger and lifts it clear on the top side.
+ */
+.bubble {
+  position: fixed;
+  z-index: var(--z-toast);
+  max-inline-size: 240px;
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  text-align: center;
+  pointer-events: none;
+  animation: popIn var(--motion-fast) var(--ease-spring);
+}
+
+.bubble[data-side='top'] {
+  translate: -50% -100%;
+}
+
+.bubble[data-side='bottom'] {
+  translate: -50% 0;
+}

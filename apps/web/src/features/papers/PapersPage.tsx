@@ -20,6 +20,7 @@ import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, Notice, Panel, TextField } from '../../components/ui/index.js';
 import { Select } from '../../components/ui/Select.js';
+import { Skeleton } from '../../components/ui/Skeleton.js';
 import { PageHeader } from '../../components/AppShell.js';
 import {
   useQuestionSearch,
@@ -268,7 +269,12 @@ export function PapersPage() {
           </button>
         </Notice>
       ) : loading ? (
-        <p className={styles.loading}>Loading papers…</p>
+        /*
+         * A skeleton SHAPED LIKE THE ROWS it replaces (M9.6D §31). The bare
+         * "Loading papers…" line was one line tall, so the list snapped down
+         * the page when 50 rows arrived. Six placeholder rows hold the space.
+         */
+        <Skeleton lines={6} height="42px" radius="md" label="Loading papers" />
       ) : papers.length === 0 ? (
         <EmptyState>
           {search === '' && subject === 'all' && semester === 'all' && year === 'all'

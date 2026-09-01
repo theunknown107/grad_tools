@@ -875,3 +875,54 @@ their content stay glass.
 Violet appears in: accent text, the focus ring, the lower edge of the active
 nav marker, the primary button's border and glow, the chart line, status-free
 chips, and one small atmospheric light. It appears as a **fill** nowhere.
+
+## 5.25 shadcn/ui as a source (M9.6D)
+
+### What was inspected
+
+Project context via `npx shadcn@latest info -c apps/web --json`, then real
+source from the registry for **tabs, dialog, skeleton, tooltip**.
+
+### The finding that shaped everything else
+
+GradTools has **no Tailwind** — `tailwindVersion`, `tailwindConfig` and
+`tailwindCss` are all null. shadcn components are Tailwind-classed throughout
+and sit on `@base-ui/react` primitives plus `cn()` (clsx + tailwind-merge) and
+`class-variance-authority`.
+
+Adopting them verbatim means adding Tailwind, tailwind-merge, clsx, CVA and
+Base UI, and running a second styling system beside CSS Modules — **and then
+restyling every component back to GradTools tokens anyway**, because §9 of the
+milestone requires exactly that. The Tailwind layer is the half with no value
+here; the structure and behaviour are the half worth having.
+
+So the model used is the one shadcn itself describes — *source in your project,
+customised* — with the styling layer replaced rather than kept.
+
+### Provenance, stated precisely
+
+| Component | Provenance | What was taken | What was replaced |
+|---|---|---|---|
+| `Skeleton` | **SHADCN SOURCE** | The whole component: one element, `data-slot`, prop pass-through, the pulse | `cn()` + `animate-pulse` → a token-based sheen |
+| `Tooltip` | **SHADCN STRUCTURE, CUSTOM BEHAVIOUR** | The API — `side`, `sideOffset`, portal, provider delay | `@base-ui/react/tooltip` → measured flip positioning |
+
+`Skeleton` is a genuine port — the original has **no dependencies at all**.
+`Tooltip` is not, and the file says so: what Base UI would really have bought
+is collision-aware positioning, and this does the cheap version. If tooltips
+ever carry rich content or must survive nested scroll containers, adopting Base
+UI is correct and `Tooltip.tsx` is the seam.
+
+### Not adopted, with reasons
+
+- **Chart** — shadcn's is Recharts. The existing SVG chart exists precisely
+  because general chart libraries smooth over gaps, and a missing semester must
+  break the line (§13 preserves that rule). Keeping ours is the stronger call.
+- **Select, Tabs, Dropdown, Command, Dialog** — GradTools already has these,
+  built to the WAI-ARIA contracts and tested. Replacing working, tested
+  components to gain a Tailwind class list is churn.
+
+### A tooltip may never carry information
+
+It is unreachable on a touchscreen, vanishes on scroll and is absent from a
+printout. Attendance's tooltip names the *threshold* a figure is measured
+against; the percentage, the counts and the advice are all already on the row.
