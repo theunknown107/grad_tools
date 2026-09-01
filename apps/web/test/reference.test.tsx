@@ -305,7 +305,9 @@ describe('student data stays local', () => {
 
     await screen.findByText('BMATS101');
     await user.type(screen.getByLabelText(/^name$/i), 'Ravi');
-    await user.type(screen.getByLabelText(/^usn$/i), '1XX22CS001');
+    // M9.6F relabelled the field "USN (optional)"; the assertion that follows
+    // — that it is never sent to the server — is unchanged.
+    await user.type(screen.getByLabelText(/^usn/i), '1XX22CS001');
     await user.click(screen.getByRole('button', { name: /save profile/i }));
 
     await waitFor(() => {
