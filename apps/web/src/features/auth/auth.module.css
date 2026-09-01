@@ -189,3 +189,55 @@
   display: block;
   font-size: var(--text-h3);
 }
+
+/* -------------------------------------------------------------------------- */
+/* The auth stage — M9.6B References 11 + 12                                   */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Reference 12's lit stage, with Reference 11's restraint. One glow, placed
+ * behind the panel, so the form reads as an object standing in light rather
+ * than a card on a page.
+ *
+ * What was deliberately left out of Reference 12: the neural-network pattern,
+ * the floating particles and the animated orbs. Three moving backgrounds behind
+ * a password field compete with the only task on the screen.
+ */
+.stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding-block: var(--space-7) var(--space-9);
+  isolation: isolate;
+}
+
+.stageSky {
+  position: absolute;
+  inset: -10% -20% 40%;
+  z-index: -1;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.stageGlow {
+  position: absolute;
+  inset-block-start: -30%;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  inline-size: min(680px, 90%);
+  block-size: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(var(--a-glow-rgb) / 34%), transparent 68%);
+  filter: blur(64px);
+}
+
+/* The panel lifts off the stage. A shadow this size would be wrong on a page
+   full of panels; here it is the only object, so it can carry the depth. */
+.stage .page > section {
+  box-shadow: var(--glass-highlight), var(--shadow-glass);
+}
+
+.stage .page {
+  inline-size: 100%;
+  animation: riseIn var(--motion-slow) var(--ease-enter) both;
+}

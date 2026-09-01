@@ -770,3 +770,59 @@ An inline blocking script in `index.html` applies the stored attributes before
 first paint. It duplicates a dozen lines of `lib/theme.ts` deliberately: the
 React bundle is a module and therefore deferred, so applying the theme there
 would paint the default palette first and repaint into the chosen one.
+
+## 5.22 The glass material system (M9.6B)
+
+Five materials, declared once in `tokens.css` and consumed by five classes in
+`global.css`. A component asks for a material **by name** and never assembles
+one from tint + blur + border itself.
+
+| Class | Where | Why it differs |
+|---|---|---|
+| `.glassNav` | top bar, bottom bar, landing navbar | Sits over moving content |
+| `.glassPanel` | popovers, menus, modals | Denser — text sits directly on it |
+| `.glassSurface` | raised content panels, island tabs | Barely translucent; readability wins |
+| `.glassOverlay` | modal scrims | Darkens rather than tints |
+| `.glassInput` | search trigger, select trigger, drop zones | Recessed, not raised |
+
+### The highlight is the part that matters
+
+Blur and alpha alone give a frosted `div`. What makes a surface read as *glass*
+is a single bright 1px line along its top edge — light catching a physical
+bevel. That is `--glass-highlight`, one inset box-shadow, and it is the
+difference between "transparent" and "material".
+
+### Restraint by scarcity
+
+There are five materials and each names the one surface class it belongs to.
+Anything that is not navigation, a popover, an overlay, a raised panel or an
+input **is not glass**. `backdrop-filter` is never applied to a scrolling list
+or to a surface that repeats down a page: repeated blur is both slow and
+illegible.
+
+### A material has to be trustworthy for anything placed on it
+
+The nav tint started at 62% (dark) / 72% (light). The M9.6B sweep found the
+bottom bar's 11px labels failing AA at 390/light — a dark row scrolling under
+the bar dragged the effective background to `#bebdc0`, giving 4.0:1. Fixed by
+**densifying the material to 80% / 90%** rather than darkening the label: the
+label was already the darkest muted token, and the material must be safe for
+whatever is placed on it, not just for the one case that failed.
+
+## 5.23 Motion (M9.6B)
+
+Two easings and four durations, all in tokens. `--ease-spring` is a bezier with
+~3% overshoot for things that ENTER; `--ease-glide` is for things that MOVE
+between two known positions — the nav indicators.
+
+Every entrance is opacity plus **one** transform. Opacity + scale + blur +
+rotation is how a menu ends up feeling like a slot machine.
+
+**One continuous animation exists in the product**, and it is argued rather
+than assumed: a 22-second positional drift on the landing hero's blurred
+aurora. It carries no information, has no edges, and is far too slow to pull
+the eye — it reads as light in a room. Everything else animates only in
+response to an action.
+
+`prefers-reduced-motion` is honoured globally, set to `0.01ms` rather than `0`
+so animation end-events still fire and nothing waiting on one can hang.

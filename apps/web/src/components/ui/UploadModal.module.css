@@ -1,0 +1,238 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  animation: fadeIn var(--motion-fast) var(--ease-enter);
+}
+
+.panel {
+  inline-size: 100%;
+  max-inline-size: 520px;
+  max-block-size: 90vh;
+  overflow-y: auto;
+  padding: var(--space-5);
+  animation: popIn var(--motion-base) var(--ease-spring);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-block-end: var(--space-5);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-h2);
+  line-height: var(--text-h2-lh);
+  font-weight: var(--weight-semibold);
+}
+
+.description {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  line-height: 1.55;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.zone {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  padding: var(--space-8) var(--space-5);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-enter),
+    background var(--motion-fast) var(--ease-enter);
+}
+
+.zone:hover,
+.zone[data-dragging='true'] {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+
+.zone[data-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.zone:focus-visible,
+.close:focus-visible,
+.cancel:focus-visible,
+.confirm:focus-visible,
+.remove:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.zoneIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 48px;
+  block-size: 48px;
+  margin-block-end: var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  box-shadow: var(--glass-highlight);
+}
+
+.zone[data-dragging='true'] .zoneIcon {
+  color: var(--accent);
+}
+
+.zoneTitle {
+  color: var(--text);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+}
+
+.zoneHint {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+}
+
+/* Hidden from sight but still operable — `display: none` would make it
+   unclickable from the zone handler in some browsers. */
+.hiddenInput {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.error {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  background: var(--danger-weak);
+  color: var(--danger);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+}
+
+.chosen {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-start: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-md);
+  background: var(--success-weak);
+}
+
+.chosenIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 26px;
+  block-size: 26px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--success);
+  color: var(--bg);
+}
+
+.chosenText {
+  display: grid;
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.chosenName {
+  color: var(--text);
+  font-size: var(--text-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chosenSize {
+  color: var(--text-muted);
+  font-size: var(--text-micro);
+}
+
+.remove {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--text-caption);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-block-start: var(--space-5);
+}
+
+.cancel,
+.confirm {
+  min-block-size: var(--touch-target-min);
+  padding-inline: var(--space-5);
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.cancel {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+}
+
+.cancel:hover {
+  background: var(--surface-raised);
+}
+
+.confirm {
+  border: 0;
+  background: var(--action-bg);
+  color: var(--action-fg);
+  box-shadow: var(--glow-accent-soft);
+}
+
+.confirm:hover:not(:disabled) {
+  background: var(--action-bg-hover);
+}
+
+.confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}

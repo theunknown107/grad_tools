@@ -18,7 +18,8 @@
 
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EmptyState, Notice, Panel, SelectField, TextField } from '../../components/ui/index.js';
+import { EmptyState, Notice, Panel, TextField } from '../../components/ui/index.js';
+import { Select } from '../../components/ui/Select.js';
 import { PageHeader } from '../../components/AppShell.js';
 import {
   useQuestionSearch,
@@ -135,71 +136,67 @@ export function PapersPage() {
             filters do nothing.
           */}
           {filters !== null && filters.subjects.length > 1 && (
-            <SelectField
+            <Select
               label="Subject"
+              icon="papers"
               value={subject}
-              onChange={(event) => {
-                setSubject(event.target.value);
-              }}
-            >
-              <option value="all">All subjects</option>
-              {filters.subjects.map((option) => (
-                <option key={option.code} value={option.code}>
-                  {option.title === null ? option.code : `${option.code} — ${option.title}`}
-                </option>
-              ))}
-            </SelectField>
+              onChange={setSubject}
+              options={[
+                { value: 'all', label: 'All subjects' },
+                ...filters.subjects.map((option) => ({
+                  value: option.code,
+                  label: option.code,
+                  // The title goes in the hint line rather than the label, so
+                  // the codes stay in a scannable column instead of every row
+                  // starting at a different width.
+                  ...(option.title === null ? {} : { hint: option.title }),
+                })),
+              ]}
+            />
           )}
 
           {filters !== null && filters.semesters.length > 1 && (
-            <SelectField
+            <Select
               label="Semester"
+              icon="degree"
               value={semester}
-              onChange={(event) => {
-                setSemester(event.target.value);
-              }}
-            >
-              <option value="all">All semesters</option>
-              {filters.semesters.map((option) => (
-                <option key={option} value={String(option)}>
-                  Semester {option}
-                </option>
-              ))}
-            </SelectField>
+              onChange={setSemester}
+              options={[
+                { value: 'all', label: 'All semesters' },
+                ...filters.semesters.map((option) => ({
+                  value: String(option),
+                  label: `Semester ${String(option)}`,
+                })),
+              ]}
+            />
           )}
 
           {filters !== null && filters.schemes.length > 1 && (
-            <SelectField
+            <Select
               label="Scheme"
+              icon="results"
               value={scheme}
-              onChange={(event) => {
-                setScheme(event.target.value);
-              }}
-            >
-              <option value="all">All schemes</option>
-              {filters.schemes.map((option) => (
-                <option key={option} value={option}>
-                  {schemeLabel(option)}
-                </option>
-              ))}
-            </SelectField>
+              onChange={setScheme}
+              options={[
+                { value: 'all', label: 'All schemes' },
+                ...filters.schemes.map((option) => ({ value: option, label: schemeLabel(option) })),
+              ]}
+            />
           )}
 
           {filters !== null && filters.years.length > 1 && (
-            <SelectField
+            <Select
               label="Year"
               value={year}
-              onChange={(event) => {
-                setYear(event.target.value);
-              }}
-            >
-              <option value="all">All years</option>
-              {filters.years.map((option) => (
-                <option key={option} value={String(option)}>
-                  {option}
-                </option>
-              ))}
-            </SelectField>
+              onChange={setYear}
+              options={[
+                { value: 'all', label: 'All years' },
+                ...filters.years.map((option) => ({
+                  value: String(option),
+                  label: String(option),
+                })),
+              ]}
+            />
           )}
 
           {/*
@@ -209,34 +206,31 @@ export function PapersPage() {
             unreliable.
           */}
           {mode === 'papers' && filters !== null && filters.formats.length > 1 && (
-            <SelectField
+            <Select
               label="Format"
               value={format}
-              onChange={(event) => {
-                setFormat(event.target.value);
-              }}
-            >
-              <option value="all">All formats</option>
-              {filters.formats.map((option) => (
-                <option key={option} value={option}>
-                  {FORMAT_LABEL[option]}
-                </option>
-              ))}
-            </SelectField>
+              onChange={setFormat}
+              options={[
+                { value: 'all', label: 'All formats' },
+                ...filters.formats.map((option) => ({
+                  value: option,
+                  label: FORMAT_LABEL[option],
+                })),
+              ]}
+            />
           )}
 
           {mode === 'papers' && (
-            <SelectField
+            <Select
               label="Sort"
               value={sort}
-              onChange={(event) => {
-                setSort(event.target.value);
-              }}
-            >
-              <option value="newest">Newest sitting first</option>
-              <option value="oldest">Oldest sitting first</option>
-              <option value="recently_added">Recently added</option>
-            </SelectField>
+              onChange={setSort}
+              options={[
+                { value: 'newest', label: 'Newest sitting first' },
+                { value: 'oldest', label: 'Oldest sitting first' },
+                { value: 'recently_added', label: 'Recently added' },
+              ]}
+            />
           )}
         </div>
 

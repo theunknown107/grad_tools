@@ -510,8 +510,20 @@
  */
 
 :root {
-  /* Navigation — the most translucent, because it sits over moving content. */
-  --glass-nav-bg: rgb(22 20 35 / 62%);
+  /*
+   * Navigation.
+   *
+   * Denser than it first was. The bottom bar carries 11px labels over WHATEVER
+   * the page happens to have scrolled under it, and at 62% a dark row behind
+   * the bar dragged the effective background to #bebdc0 — `--text-muted` on
+   * that is 4.0:1, under AA. Caught by the M9.6B sweep at 390/light.
+   *
+   * Raising the tint rather than darkening the label, because the label is
+   * already the darkest muted token and the next step down is body text: the
+   * material has to be trustworthy for anything placed on it, not just for
+   * this one label.
+   */
+  --glass-nav-bg: rgb(22 20 35 / 80%);
   --glass-nav-blur: 18px;
   --glass-nav-border: rgb(255 255 255 / 8%);
   /* The bevel. Bright, 1px, top edge only. */
@@ -539,7 +551,7 @@
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
-    --glass-nav-bg: rgb(255 255 255 / 72%);
+    --glass-nav-bg: rgb(255 255 255 / 90%);
     --glass-nav-border: rgb(20 16 40 / 8%);
     /* On a light ground the bevel is white against near-white, so it has to be
        nearly opaque to register at all. */
@@ -554,7 +566,7 @@
 }
 
 :root[data-theme='light'] {
-  --glass-nav-bg: rgb(255 255 255 / 72%);
+  --glass-nav-bg: rgb(255 255 255 / 90%);
   --glass-nav-border: rgb(20 16 40 / 8%);
   --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 90%);
   --glass-panel-bg: rgb(255 255 255 / 92%);

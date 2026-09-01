@@ -309,13 +309,24 @@ describe('finding a paper', () => {
     expect(requests.filter((url) => url.includes('search=')).length).toBeLessThan(6);
   });
 
+  /*
+   * M9.6B replaced the native <select> with a listbox combobox, so these three
+   * now drive the control the way a person does — open it, then read or choose
+   * a row. The ASSERTIONS are unchanged: same values offered, same query
+   * parameter sent, same prohibition on a sort that claims importance.
+   */
   it('offers only the filter values the library actually holds', async () => {
     mockLibrary([paper()]);
     renderWith(<PapersPage />);
 
-    const subject = (await screen.findByLabelText('Subject')) as HTMLSelectElement;
-    const options = Array.from(subject.options).map((option) => option.value);
-    expect(options).toEqual(['all', 'BCS403', 'BCS401']);
+    const subject = await screen.findByRole('combobox', { name: /subject/i });
+    await userEvent.click(subject);
+
+    const options = screen.getAllByRole('option').map((option) => option.textContent ?? '');
+    expect(options[0]).toContain('All subjects');
+    expect(options.join(' ')).toContain('BCS403');
+    expect(options.join(' ')).toContain('BCS401');
+    expect(options).toHaveLength(3);
   });
 
   it('sends a chosen filter as a query parameter', async () => {
@@ -323,7 +334,8 @@ describe('finding a paper', () => {
     renderWith(<PapersPage />);
 
     await screen.findByRole('link', { name: 'BCS403' });
-    await userEvent.selectOptions(await screen.findByLabelText('Semester'), '4');
+    await userEvent.click(await screen.findByRole('combobox', { name: /semester/i }));
+    await userEvent.click(screen.getByRole('option', { name: 'Semester 4' }));
 
     await waitFor(() => {
       expect(requests.some((url) => url.includes('semester=4'))).toBe(true);
@@ -335,8 +347,9 @@ describe('finding a paper', () => {
     mockLibrary([paper()]);
     renderWith(<PapersPage />);
 
-    const sort = (await screen.findByLabelText('Sort')) as HTMLSelectElement;
-    const labels = Array.from(sort.options).map((option) => option.textContent ?? '');
+    await userEvent.click(await screen.findByRole('combobox', { name: /sort/i }));
+    const labels = screen.getAllByRole('option').map((option) => option.textContent ?? '');
+    expect(labels.length).toBeGreaterThan(0);
     expect(labels.join(' ')).not.toMatch(/important|useful|likely|recommended|popular/i);
   });
 });

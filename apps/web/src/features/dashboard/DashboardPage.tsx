@@ -51,6 +51,7 @@ import {
 } from '../../domain/types.js';
 import { Bar, Empty, MetricStrip, Row, Rows, Skeleton } from '../../components/ui/layout.js';
 import { Panel } from '../../components/ui/index.js';
+import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
 import { formatGpa, formatPercent, formatTime } from '../../lib/format.js';
 import {
   useAttendance,
@@ -202,6 +203,21 @@ function Snapshot({
   const percentage = cgpa.ok ? calculatePercentage(cgpa.value, ruleSet) : null;
   const latest = [...graded].sort((a, b) => b.semester - a.semester)[0];
 
+  /*
+   * All eight semesters, always — a semester with no computable SGPA carries a
+   * null rather than being dropped, so the chart can show it as a GAP. Dropping
+   * it would let the line join across a semester the student has no result for.
+   */
+  const trendPoints: readonly SemesterPoint[] = Array.from({ length: 8 }, (_, index) => {
+    const semester = index + 1;
+    const entry = graded.find((candidate) => candidate.semester === semester);
+    return {
+      semester,
+      sgpa: entry?.sgpa ?? null,
+      state: entry === undefined ? 'planned' : 'graded',
+    };
+  });
+
   const attended = attendance.reduce((total, record) => total + record.attended, 0);
   const conducted = attendance.reduce((total, record) => total + record.conducted, 0);
   const overall = conducted > 0 ? calculateAttendance(attended, conducted, ruleSet) : null;
@@ -258,6 +274,17 @@ function Snapshot({
         <Empty action={<Link to="/results">Add a result</Link>}>
           No results yet, so there is no CGPA to show. {subjectCount > 0 ? '' : ''}
         </Empty>
+      )}
+
+      {/*
+        The trend is shown only once there are at least two graded semesters.
+        A "trend" through a single point is a dot, and dressing one reading up
+        as a direction is exactly the invented insight docs/37 forbids.
+      */}
+      {graded.length >= 2 && (
+        <Panel title="SGPA by semester">
+          <SgpaTrend points={trendPoints} />
+        </Panel>
       )}
     </>
   );
