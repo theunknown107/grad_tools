@@ -106,47 +106,64 @@ export function DashboardPage() {
         THE SEMESTER IS THE CONTEXT, not the student's name. A student knows who
         they are; what they open the app to check is where they are (M9.3 §11).
       */}
-      <header className={styles.header}>
-        <p className={styles.eyebrow}>
-          {name !== undefined && name !== '' ? `${name} · ` : ''}
-          {profile?.branch ?? 'GradTools'}
-          {profile?.schemeId === 'vtu-2022' ? ' · 2022 scheme' : ''}
-        </p>
-        <h1 className={styles.title}>
-          {semesterNumber === null ? 'Your degree' : `Semester ${String(semesterNumber)}`}
-          {current !== null && <span className={styles.status}>In progress</span>}
-        </h1>
-      </header>
-
       {loading ? (
         <Skeleton rows={4} />
       ) : (
         /*
-          TWO COLUMNS ON A DESKTOP (M9.5 §Dashboard).
-          The main column is what the student came to read, in order: where they
-          stand, what is today, what needs attention. The rail beside it holds
-          the two things that are true whether or not they read them — what
-          changed, and where else they can go. Below 1024px it collapses to one
-          column and the rail follows, because on a phone "beside" does not
-          exist and the reading order is all there is.
+          -------------------------------------------------------------------
+          M9.6F: ONE PRIMARY SURFACE, THEN QUIET ROWS
+          -------------------------------------------------------------------
+
+          The page was five glass panels of equal weight — snapshot, chart,
+          today, attention, latest — so nothing led and the eye had no entry
+          point. M9.6F §6 asks for "one strong glass composition + quiet rows +
+          one major visualization", and that is the change:
+
+            THE BRIEF   a single glass surface carrying the three things that
+                        answer "how am I doing" — which semester this is, the
+                        five figures, and the trend behind them. Context and
+                        the numbers it explains now share one object instead of
+                        being a header floating above two separate boxes.
+
+            EVERYTHING  quiet. Today, Attention, Latest and Quick access are
+            ELSE        hairline-separated regions over the environment. They
+                        are things you scan, not things you study.
+
+          The rail is gone. Two columns split the reading order in half and put
+          "what changed" beside "where you stand" as though they were peers;
+          they are not, and on a phone the split did not exist anyway.
         */
-        <div className={styles.layout}>
-          <div className={styles.column}>
+        <>
+          <section className={`${styles.brief ?? ''} glassSurface`} aria-labelledby="brief-title">
+            <header className={styles.briefHead}>
+              <div>
+                <p className={styles.eyebrow}>
+                  {name !== undefined && name !== '' ? `${name} · ` : ''}
+                  {profile?.branch ?? 'GradTools'}
+                  {profile?.schemeId === 'vtu-2022' ? ' · 2022 scheme' : ''}
+                </p>
+                <h1 className={styles.title} id="brief-title">
+                  {semesterNumber === null ? 'Your degree' : `Semester ${String(semesterNumber)}`}
+                  {current !== null && <span className={styles.status}>In progress</span>}
+                </h1>
+              </div>
+            </header>
+
             <Snapshot
               results={results}
               attendance={thisSemester}
               subjectCount={subjectsNow.length}
               outstanding={outstanding}
             />
+          </section>
+
+          <div className={styles.quietStack}>
             <Today timetable={timetable} subjects={semesterSubjects} />
             <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
-          </div>
-
-          <aside className={styles.rail} aria-label="Elsewhere in GradTools">
             <LatestAnnouncements />
             <Resources />
-          </aside>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -282,7 +299,7 @@ function Snapshot({
         as a direction is exactly the invented insight docs/37 forbids.
       */}
       {graded.length >= 2 && (
-        <Panel title="SGPA by semester">
+        <Panel title="SGPA by semester" material="quiet">
           <SgpaTrend points={trendPoints} />
         </Panel>
       )}
@@ -327,6 +344,7 @@ function Today({
 
   return (
     <Panel
+      material="quiet"
       title={`Today · ${day}`}
       flush
       action={
@@ -402,6 +420,7 @@ function Attention({
 
   return (
     <Panel
+      material="quiet"
       title="Needs attention"
       tone="attention"
       flush

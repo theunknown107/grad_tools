@@ -148,6 +148,7 @@ export function LatestAnnouncements({ limit = 4 }: { readonly limit?: number }) 
    */
   return (
     <Panel
+      material="quiet"
       title="Latest"
       flush
       action={

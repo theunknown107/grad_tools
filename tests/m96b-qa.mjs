@@ -259,6 +259,10 @@ const run = async () => {
           .analyze();
         for (const v of axe.violations) {
           problems.push(`AXE ${label}: ${v.id} (${v.nodes.length}) ${v.help}`);
+          for (const n of v.nodes.slice(0, 2)) {
+            const why = (n.failureSummary ?? '').split('\n').join(' ').slice(0, 170);
+            problems.push(`     ${n.target.join(' ')} :: ${why}`);
+          }
         }
 
         checks += 1;
