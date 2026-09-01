@@ -31,6 +31,7 @@ export function Panel({
   children,
   flush = false,
   tone = 'default',
+  material = 'glass',
 }: {
   title?: string | undefined;
   action?: ReactNode;
@@ -39,9 +40,17 @@ export function Panel({
   flush?: boolean | undefined;
   /** `attention` tints the heading. At most one per screen. */
   tone?: 'default' | 'attention' | undefined;
+  /**
+   * `quiet` drops the surface entirely and keeps only a hairline (M9.6C §7).
+   *
+   * Glass has to MARK hierarchy, which it cannot do if everything is glass. An
+   * ordinary list — a set of links, a schedule — is quiet; a group that owns
+   * its content and should read as elevated stays glass.
+   */
+  material?: 'glass' | 'quiet' | undefined;
 }) {
   return (
-    <section className={styles.panel} data-tone={tone}>
+    <section className={styles.panel} data-tone={tone} data-material={material}>
       {title !== undefined && (
         /* A div, not a <header>: inside an unnamed <section> a <header> still
            maps to the BANNER landmark, so a page of panels announces a page of

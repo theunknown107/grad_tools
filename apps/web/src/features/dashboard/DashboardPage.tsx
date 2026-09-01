@@ -466,7 +466,9 @@ function Attention({
  */
 function Resources() {
   return (
-    <Panel title="Go to" flush>
+    /* Navigation, not an owned group — quiet, so the elevated surfaces on
+       this page stay meaningful (M9.6C §7). */
+    <Panel title="Go to" flush material="quiet">
       <nav className={styles.resources} aria-label="Other areas">
         <Link to="/papers">Question papers</Link>
         <Link to="/results">Results</Link>

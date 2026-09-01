@@ -826,3 +826,52 @@ response to an action.
 
 `prefers-reduced-motion` is honoured globally, set to `0.01ms` rather than `0`
 so animation end-events still fire and nothing waiting on one can hang.
+
+## 5.24 The M9.6C visual reset
+
+M9.4's identity was violet-black. By M9.6B the product read as "purple cards on
+a purple background", and the cause was not careless accent use — the accent
+was already rationed. It was structural.
+
+### What was actually wrong
+
+| | M9.4–M9.6B | M9.6C |
+|---|---|---|
+| Ground | `#0b0a12` violet-black | `#05070d` near-black **blue** |
+| Surface | `#161423` **solid** violet | `rgb(255 255 255 / 4.5%)` translucent |
+| Raised | `#1e1b30` **solid** violet | `rgb(255 255 255 / 7%)` |
+| Border | `#221e33` violet | `rgb(255 255 255 / 9%)` light |
+| `--accent-weak` | `#1d1733` **solid block** | 14% accent tint |
+| Primary button | `#6d4de0` solid violet | neutral glass + luminous accent edge |
+| Nav active | filled violet capsule | lit lozenge, accent on the lower edge only |
+
+**The two largest areas on every screen were both violet** — the page and the
+panels. Glass cannot exist over an opaque violet rectangle, so no amount of
+blur was going to help.
+
+### The rule that replaced it
+
+> The ground is the only opaque colour. Surfaces are translucent **white** laid
+> over it. Elevation is more light, not different paint.
+
+That is what makes the material honest: a surface inside a surface reads
+brighter on its own, and a surface over the ambient light picks the light up.
+
+### Glass is a gradient, not a flat alpha
+
+A single change did most of the visual work: the material runs 8% white at its
+top edge down to 3.5% at its bottom. Real glass is brighter where light strikes
+it. Flat alpha reads as a grey rectangle no matter how much blur is behind it.
+
+### Glass must mark hierarchy, so it cannot be the default
+
+`Panel` gained `material="quiet"` — no surface, no blur, one hairline. A page
+of five glass panels is the same failure as the 46 identical boxes M9.3
+removed, wearing a better material. Ordinary lists are quiet; groups that own
+their content stay glass.
+
+### Accent is a light source
+
+Violet appears in: accent text, the focus ring, the lower edge of the active
+nav marker, the primary button's border and glow, the chart line, status-free
+chips, and one small atmospheric light. It appears as a **fill** nowhere.
