@@ -1541,3 +1541,37 @@ second needs real compositing of a translucent bar over scrolled content.
   error states. Their populated layouts are not covered by this run.
 - No screen-reader was driven. ARIA roles and names are asserted; the actual
   announcement text was not heard.
+
+## 22.33 M9.6D populated QA — with the API actually running
+
+The M9.6B/C sweeps ran with the API down, so Papers and Profile were swept in
+their error states. That was recorded as NOT VERIFIED and is now fixed.
+
+**Procedure (tests/README.md):** Postgres on 55432; API started against
+`gradtools_m8` with `WEB_ORIGIN="http://localhost:5173,http://localhost:4322"`;
+CORS header confirmed to name the QA origin before sweeping.
+
+**Confirmed live, not assumed:** `/question-papers` returns **2008** papers,
+`/questions/search` returns hits, `/schemes` and `/filters` both 200.
+Announcements returns **0** — that is the seeded database's real state, not a
+failure, and the announcements pages correctly render their empty state.
+
+**Result: 168 page checks, CLEAN** — 14 routes × 6 widths × 2 themes, 0 axe
+violations, 0 horizontal overflow, 0 console errors, and **zero
+API-unavailable messages**, which is the number that says the sweep was real.
+
+### The seed now meets the milestone's shape requirement
+
+Four completed semesters, one in progress, an **8-subject** semester and a
+**9-subject** one (the variable-count case the real artifacts exposed), one
+carried subject, a full week of timetable, and attendance deliberately crossing
+both the 85% requirement and the 75% DX floor so the warning and danger states
+both render.
+
+### NOT VERIFIED
+
+- **Announcements and Notifications were swept EMPTY.** The database holds no
+  announcements, so their populated layouts remain unverified.
+- Only the **violet** accent was swept.
+- `system` appearance is unit-tested only.
+- No screen reader was driven; ARIA is asserted, not heard.
