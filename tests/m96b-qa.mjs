@@ -140,7 +140,18 @@ function seedData() {
     })),
     results: [1, 2, 3, 4].map((n) => ({
       id: `r${n}`,
+      profileId: 'p1',
       semester: n,
+      /*
+       * The rule set a semester was graded under is PINNED on the record, and
+       * the engine refuses to grade a result whose rule set it cannot resolve
+       * (M6 §6 — a regulation change must never silently re-grade the past).
+       * Omitting these left every semester ungraded and the whole page blank,
+       * which was a fixture gap, not a product defect.
+       */
+      schemeId: 'vtu-2022',
+      ruleSetId: 'vtu-2022-v1',
+      createdAt: '2026-09-01T00:00:00.000Z',
       subjects: subjectsFor(n).map(([code, title, credits], i) => ({
         subjectCode: code,
         subjectTitle: title,
