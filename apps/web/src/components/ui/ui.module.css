@@ -54,6 +54,37 @@
   box-shadow: var(--glass-highlight);
 }
 
+/*
+ * The quiet material: no surface, no blur, one hairline (M9.6C §7).
+ *
+ * Glass marks hierarchy, and it cannot mark anything if every region has it.
+ * A page of five glass panels is the same failure as the 46 identical boxes
+ * M9.3 removed, wearing a better material. Secondary regions — a list of
+ * links, a schedule — take this and let the environment show through
+ * completely.
+ */
+.panel[data-material='quiet'] {
+  /*
+   * Padding stays: `.panelBodyFlush` pulls its rows out by exactly this much
+   * to make dividers reach the edge, so removing it here made a flush list
+   * overhang its container by 2 * space-5 and overflow the page at 390.
+   * Caught by the sweep.
+   */
+  padding-block: var(--space-5) 0;
+  background: none;
+  border: 0;
+  border-block-start: 1px solid var(--border);
+  border-radius: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* Quiet panels have no bottom padding for a flush body to pull against. */
+.panel[data-material='quiet'] .panelBodyFlush {
+  margin-block-end: 0;
+}
+
 /* Phones take the mobile reference's larger corner; a wide desktop form at the
    same radius looks inflated. */
 @media (max-width: 767px) {
