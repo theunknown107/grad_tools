@@ -967,3 +967,37 @@ materials and environment — every one is visibly more compact — but their
 compositions were not rebuilt. `DropdownMenu`, `IslandTabs` and `UploadModal`
 remain built and tested but unplaced. References 06 and 13 remain
 unimplemented.
+
+## 31.23 M9.6E — Page-level redesign · ⚠️ **PARTIALLY DELIVERED**
+
+Three pages were genuinely rebuilt — composition, hierarchy and interaction
+model, not styling — and the three unplaced components were placed.
+
+**Results.** Was four identical bordered panels each with its own table and no
+cumulative view, so "how am I doing overall" required scrolling four tables and
+adding up. Now Overview (cumulative standing + a quiet per-semester ledger with
+SGPA bars) and Semesters (the detail), split with IslandTabs. Delete moved into
+a DropdownMenu. Below 640px each subject is a row that opens a bottom Sheet
+rather than a sideways-scrolling table.
+
+**My Degree.** Was eight equally-weighted stacked blocks. Now an interactive
+spine: eight nodes carrying status and SGPA as a vertical fill, and picking one
+selects the semester shown below. Choose-then-read rather than scroll-past-
+seven.
+
+**Documents.** The bare `<input type="file">` became UploadModal, which
+validates the real File before anything is sent.
+
+Both SGPA bars and the spine scale across the **passing range 4–10**, not 0–10:
+below 4 a course is failed, so the bottom 40% of a 0–10 scale is a region no
+real reading can occupy and every semester would look identically tall.
+
+**NOT rebuilt, and named rather than implied.** Dashboard, SGPA/CGPA,
+Attendance, Timetable, Announcements, Notifications, Papers, Questions,
+Account, Profile, Sign-in, Public homepage and Footer keep their M9.6D
+compositions. They inherit the type scale, controls, materials and environment
+and are all browser-verified, but their compositions were not rebuilt, and by
+this milestone's own definition (§1) that is not a redesign.
+
+**Also not done:** Dropdown Navigation (Reference 06) and V-Form (Reference 13)
+remain unimplemented.
