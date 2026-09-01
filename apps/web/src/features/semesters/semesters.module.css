@@ -262,7 +262,7 @@
   grid-template-columns: 2.2rem 3rem minmax(0, 12rem) 4.5rem;
   gap: var(--space-3);
   align-items: center;
-  min-height: var(--touch-target-min);
+  min-height: var(--control-height);
   border-bottom: 1px solid var(--border);
 }
 

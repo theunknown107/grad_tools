@@ -367,7 +367,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-block-size: var(--touch-target-min);
+  min-block-size: var(--control-height);
   padding-inline: var(--space-6);
   border-radius: var(--radius-pill);
   border: 1px solid var(--action-border);
@@ -398,7 +398,7 @@
 .secondaryCta {
   display: inline-flex;
   align-items: center;
-  min-block-size: var(--touch-target-min);
+  min-block-size: var(--control-height);
   padding-inline: var(--space-5);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill);

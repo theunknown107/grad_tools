@@ -140,7 +140,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: var(--touch-target-min);
+  min-height: var(--control-height);
   /* 20px of side padding, not 16. Every button in both references is notably
      wider than its label needs — that generosity is most of why the controls
      read as considered rather than as form furniture. */
@@ -252,7 +252,7 @@
  * (docs/27 §27.8). Caught by the touch-target sweep in tests/visual-qa.mjs.
  */
 .small {
-  min-height: var(--touch-target-min);
+  min-height: var(--control-height);
   font-size: var(--text-caption);
 }
 
@@ -312,7 +312,7 @@
 
 .input,
 .select {
-  min-height: var(--touch-target-min);
+  min-height: var(--control-height);
   width: 100%;
   padding: 0 var(--space-4);
   background: var(--surface);
@@ -470,7 +470,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--touch-target-min);
+  min-height: var(--control-height);
   padding: 0 var(--space-4);
   cursor: pointer;
   font-size: var(--text-small);

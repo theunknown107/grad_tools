@@ -201,7 +201,7 @@
 
 .cancel,
 .confirm {
-  min-block-size: var(--touch-target-min);
+  min-block-size: var(--control-height);
   padding-inline: var(--space-5);
   border-radius: var(--radius-pill);
   font-family: inherit;

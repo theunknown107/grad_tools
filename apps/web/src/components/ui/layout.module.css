@@ -175,7 +175,7 @@
   gap: var(--space-3);
   align-items: baseline;
   /* 44px of hit area without 44px of padding: the row is already tall. */
-  min-height: var(--touch-target-min);
+  min-height: var(--control-height);
   padding: var(--space-2) 0;
   color: inherit;
   text-decoration: none;
@@ -300,7 +300,7 @@
   display: inline-flex;
   gap: var(--space-1);
   align-items: center;
-  min-height: var(--touch-target-min);
+  min-height: var(--control-height);
   padding: 0;
   font: inherit;
   font-size: var(--text-small);
