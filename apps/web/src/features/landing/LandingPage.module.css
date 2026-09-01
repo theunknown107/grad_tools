@@ -912,3 +912,8 @@
     transform: none;
   }
 }
+
+/* M9.6F — the grouped site navigation sits between brand and actions. */
+.navNav {
+  margin-inline: auto;
+}

@@ -1,0 +1,165 @@
+.wrap {
+  position: relative;
+  display: none;
+}
+
+/* Desktop only. On a phone the mini navbar's own menu is the right pattern and
+   a resizing mega-panel is not. */
+@media (min-width: 900px) {
+  .wrap {
+    display: block;
+  }
+}
+
+.bar {
+  display: flex;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: var(--control-height);
+  padding-inline: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--text-small);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-enter),
+    background var(--motion-fast) var(--ease-enter);
+}
+
+.item:hover,
+.item[data-open='true'] {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.chevron {
+  rotate: 90deg;
+  transition: rotate var(--motion-fast) var(--ease-glide);
+}
+
+.item[data-open='true'] .chevron {
+  rotate: -90deg;
+}
+
+/*
+ * The panel. `width`/`height` are set from the measured content and animated,
+ * which is the reference's signature: the surface GROWS between menus rather
+ * than snapping, so it reads as one object showing different things.
+ *
+ * `overflow: hidden` is what makes the size animation legible — without it the
+ * next menu's content is visible at full size before the box has grown to it.
+ */
+.panel {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-2));
+  inset-inline-start: 0;
+  z-index: var(--z-overlay);
+  overflow: hidden;
+  animation: riseIn var(--motion-fast) var(--ease-spring);
+  transition:
+    width var(--motion-base) var(--ease-glide),
+    height var(--motion-base) var(--ease-glide);
+}
+
+.panelInner {
+  display: flex;
+  gap: var(--space-7);
+  padding: var(--space-5);
+  inline-size: max-content;
+}
+
+.group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.groupTitle {
+  margin: 0 0 var(--space-3);
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.link {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  max-inline-size: 260px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: background var(--motion-fast) var(--ease-enter);
+}
+
+.link:hover {
+  background: var(--surface-active);
+}
+
+.link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.linkIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 30px;
+  block-size: 30px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.link:hover .linkIcon {
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.linkText {
+  display: grid;
+  gap: 1px;
+}
+
+.linkLabel {
+  color: var(--text);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+}
+
+.linkDescription {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    transition: none;
+  }
+}

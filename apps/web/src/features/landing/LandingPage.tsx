@@ -28,6 +28,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon, type IconName } from '../../components/icons.js';
 import { ThemeControl } from '../../components/ThemeControl.js';
+import { DropdownNavigation } from '../../components/ui/DropdownNavigation.js';
 import styles from './LandingPage.module.css';
 
 /* -------------------------------------------------------------------------- */
@@ -72,15 +73,77 @@ function MiniNavbar(): ReactNode {
           <span>GradTools</span>
         </Link>
 
-        <ul className={styles.navLinks}>
-          {links.map((link) => (
-            <li key={link.href}>
-              <a href={link.href} className={styles.navLink}>
-                {link.label}
-              </a>
-            </li>
-          ))}
-        </ul>
+        {/*
+          M9.6F: Reference 06, and the only place it belongs.
+
+          The public header had three flat anchors. A visitor scanning them
+          learns where a link goes and nothing about what is there, which is
+          exactly the gap the reference's descriptions fill. The application's
+          own navigation stays the two-tier bar and the limelight — adding a
+          third system inside the app would be the competing-navigation problem
+          the milestone warns about.
+        */}
+        <div className={styles.navNav}>
+          <DropdownNavigation
+            label="Site"
+            entries={[
+              {
+                id: 'product',
+                label: 'What it does',
+                groups: [
+                  {
+                    title: 'Your record',
+                    items: [
+                      {
+                        label: 'Results',
+                        description: 'Marks read against the three passing heads',
+                        to: '#what',
+                        icon: 'results',
+                      },
+                      {
+                        label: 'SGPA & CGPA',
+                        description: 'Every figure shows its clause',
+                        to: '#what',
+                        icon: 'gpa',
+                      },
+                      {
+                        label: 'My degree',
+                        description: 'Eight semesters, end to end',
+                        to: '#degree',
+                        icon: 'degree',
+                      },
+                    ],
+                  },
+                  {
+                    title: 'Day to day',
+                    items: [
+                      {
+                        label: 'Attendance',
+                        description: 'How many classes you can still miss',
+                        to: '#what',
+                        icon: 'attendance',
+                      },
+                      {
+                        label: 'Question papers',
+                        description: 'Searchable down to a single question',
+                        to: '#papers',
+                        icon: 'papers',
+                      },
+                      {
+                        label: 'Announcements',
+                        description: 'Notices that carry their provenance',
+                        to: '#what',
+                        icon: 'announcements',
+                      },
+                    ],
+                  },
+                ],
+              },
+              { id: 'degree', label: 'Your degree', to: '#degree' },
+              { id: 'papers', label: 'Papers', to: '#papers' },
+            ]}
+          />
+        </div>
 
         <div className={styles.navActions}>
           <ThemeControl />

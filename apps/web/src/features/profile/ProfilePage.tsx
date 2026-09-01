@@ -128,9 +128,24 @@ export function ProfilePage() {
                 setSaved(false);
               }}
             />
+            {/*
+              -----------------------------------------------------------------
+              M9.6F: THE USN IS OPTIONAL AND SAYS SO ON ITS FACE
+              -----------------------------------------------------------------
+
+              It sat second in the form, styled identically to Name and College,
+              with a hint explaining what it is NOT. Presented that way it reads
+              as required — and a seat number is the single most identifying
+              thing a student could type into this app (docs/12 §12.16). §16 of
+              this milestone rules out requiring one.
+
+              So it moves below the fields that are actually used, is labelled
+              optional in its own label rather than in a hint, and the hint now
+              leads with the fact that leaving it blank costs nothing.
+            */}
             <TextField
-              label="USN"
-              hint="Used to label your saved results. An academic identifier, not a login."
+              label="USN (optional)"
+              hint="GradTools never needs it. Leave it blank and everything works the same; it is only used to label a result you export."
               mono
               placeholder="1XX22CS001"
               value={usn}
