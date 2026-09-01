@@ -27,6 +27,10 @@ import { useAsync } from '../../hooks/useReference.js';
 import { apiBaseUrl } from '../../repositories/reference.js';
 import { PaperPanel } from './PaperReview.js';
 import { ReviewQueue } from './ReviewQueue.js';
+import { Button } from '../../components/ui/index.js';
+import { Icon } from '../../components/icons.js';
+import { UploadModal } from '../../components/ui/UploadModal.js';
+import { Skeleton } from '../../components/ui/Skeleton.js';
 import styles from './documents.module.css';
 
 /**
@@ -193,15 +197,17 @@ export function DocumentsPage() {
 /** Adds a document by reading the file locally and sending its bytes. */
 function ImportPanel({ onImported }: { readonly onImported: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [message, setMessage] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(
     null,
   );
 
-  async function handleFiles(files: FileList | null) {
-    if (files === null || files.length === 0) return;
-    const file = files[0];
-    if (file === undefined) return;
-
+  /*
+   * Takes a File, not a FileList: UploadModal has already checked the type and
+   * the size against the real File object. The server checks again — a client
+   * side check is a courtesy to the person, never a defence (docs/13).
+   */
+  async function handleFile(file: File) {
     setBusy(true);
     setMessage(null);
     try {
@@ -235,26 +241,48 @@ function ImportPanel({ onImported }: { readonly onImported: () => void }) {
   return (
     <section className={styles.import} aria-labelledby="import-heading">
       <h2 id="import-heading">Add a document</h2>
-      <label className={styles.fileLabel} htmlFor="document-file">
-        Choose a PDF
-      </label>
-      <input
-        id="document-file"
-        className={styles.file}
-        type="file"
-        accept="application/pdf,.pdf"
-        disabled={busy}
-        onChange={(event) => {
-          void handleFiles(event.target.files);
-          event.target.value = '';
-        }}
-      />
       <p className={styles.hint}>PDF only, up to 20 MB.</p>
+
+      {/*
+        M9.6E: the bare <input type="file"> is replaced by UploadModal.
+        A native file input gives no drop target, no size or type feedback
+        before the upload starts, and no chance to change your mind — the file
+        is committed the instant the picker closes. The modal validates the
+        real File first and only then hands it over.
+      */}
+      <Button
+        variant="secondary"
+        disabled={busy}
+        onClick={() => {
+          setPicking(true);
+        }}
+      >
+        <Icon name="plus" size="nav" />
+        Choose a PDF
+      </Button>
+
+      <UploadModal
+        open={picking}
+        onClose={() => {
+          setPicking(false);
+        }}
+        onSelect={(file) => {
+          void handleFile(file);
+        }}
+        title="Add a document"
+        description="The file is checked before anything is stored. Nothing is shared with other students."
+        accept={['application/pdf']}
+        maxBytes={20 * 1024 * 1024}
+        actionLabel="Add document"
+      />
 
       {/* Announced to assistive technology: the outcome is the whole point. */}
       <p className={styles.message} data-tone={message?.tone} role="status" aria-live="polite">
         {busy ? 'Checking the document…' : (message?.text ?? '')}
       </p>
+
+      {/* A skeleton while the server decides, so the region does not sit blank. */}
+      {busy ? <Skeleton lines={2} height="30px" label="Checking the document" /> : null}
     </section>
   );
 }
