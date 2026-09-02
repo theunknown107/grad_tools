@@ -1306,3 +1306,53 @@ Against real PostgreSQL (`services/api/test/reference-knowledge.test.ts`):
 | Read seeded semester 1 through the API contract | Parses; `hasSee` null, `credits` present |
 | Publish an unverified row | Still refused |
 | List published subjects | The subject with the unknown field is still there |
+
+## 9.22 A reference fact carries the page it came from (M10A.4, migration 0012)
+
+Forward-only. 0001 and 0011 are released and were not edited.
+
+### Why a URL was not enough
+
+`subjects` already carried `source_url`, `source_clause`, `verification` and
+`verified_by` — enough to say who published a fact, not enough to **check** one.
+
+A scheme document is revised. The same URL served a different table last year
+and will serve another next year, so *"vtu.ac.in/pdf/2022syll/csesch.pdf says 4
+credits"* is a claim that cannot be falsified without knowing **which**
+csesch.pdf was read.
+
+```sql
+ALTER TABLE subjects
+  ADD COLUMN source_document_sha256 char(64) CHECK (… ~ '^[0-9a-f]{64}$'),
+  ADD COLUMN source_page smallint CHECK (… > 0),
+  ADD COLUMN scheme_lecture_hours   smallint,
+  ADD COLUMN scheme_tutorial_hours  smallint,
+  ADD COLUMN scheme_practical_hours smallint;
+```
+
+The hash identifies the **bytes**; the page says where in twelve of them to
+look. A twelve-page scheme holds four semester tables and two elective
+expansions, and "it is in the scheme" sends the next reader through all of them.
+
+### Why the workload columns say `scheme_`
+
+A real college timetable prints hours **twice** — as taught, and as per the VTU
+scheme — and they differ: one course is delivered `3+0+2` against a scheme of
+`2+0+2`. They are two facts about two different things, and a column called
+`lecture_hours` would invite whichever arrived second to overwrite the first.
+
+These hold the **scheme's** hours, because that is what the document states. A
+college's delivered hours need their own columns and their own source; they are
+not a better version of these.
+
+### Verified
+
+`services/api/test/scheme-ingestion.test.ts`, against real PostgreSQL:
+
+| Check | Result |
+|---|---|
+| Every seeded row carries the document hash and a page | 57 of 57 |
+| Only `scheme_`-prefixed hour columns exist | No column can be mistaken for delivered hours |
+| Re-running the seed | No duplicates; one row per (scheme, branch, code) |
+| Any `1B…` code in the 2022 catalogue | None |
+| Any `…x` group placeholder seeded as a course | None |

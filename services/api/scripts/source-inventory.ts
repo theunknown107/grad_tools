@@ -218,6 +218,47 @@ const main = async (): Promise<void> => {
   console.log('    So the credit and L/T/P gaps cannot be closed from this material at all,');
   console.log('    whatever its quality — they need the scheme of teaching document.');
 
+  /* ---- The corpus against the verified catalogue (M10A.4 §22) ------------ */
+  const referenceUrl = process.env.DATABASE_URL;
+  const corpusUrl = process.env.CORPUS_DATABASE_URL;
+  if (referenceUrl !== undefined && corpusUrl !== undefined) {
+    /*
+     * Imported lazily so the directory report — the part that needs no database
+     * at all — keeps working on a machine with neither.
+     */
+    const { default: postgres } = await import('postgres');
+    const reference = postgres(referenceUrl, { onnotice: () => undefined });
+    const corpus = postgres(corpusUrl, { onnotice: () => undefined });
+    try {
+      const known = new Set(
+        (
+          await reference<{ code: string }[]>`
+            select code from subjects where publication = 'published'`
+        ).map((row) => row.code),
+      );
+      const stored = await corpus<{ subject_code: string | null; title: string }[]>`
+        select subject_code, title from documents
+         where document_kind = 'question_paper' order by subject_code`;
+
+      console.log('\nCorpus documents against the verified catalogue:');
+      for (const row of stored) {
+        const code = row.subject_code ?? '(none)';
+        const verdict =
+          row.subject_code === null
+            ? 'no code recorded'
+            : known.has(row.subject_code)
+              ? 'in the catalogue'
+              : 'NOT in the verified catalogue';
+        console.log(`  ${code.padEnd(12)}  ${verdict.padEnd(30)}  ${row.title}`);
+      }
+      console.log('\n  "NOT in the catalogue" is not proof of an error: this catalogue covers CSE');
+      console.log('  semesters I-II only, so a real code from another stream or a later semester');
+      console.log('  lands here too. It is a list to CHECK, not a list of defects (M10A.4 §22).');
+    } finally {
+      await Promise.all([reference.end(), corpus.end()]);
+    }
+  }
+
   const modelOnly = withText.filter((entry) => entry.isModelPaper).length;
   if (modelOnly > 0) {
     console.log(

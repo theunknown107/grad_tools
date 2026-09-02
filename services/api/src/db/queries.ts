@@ -265,6 +265,10 @@ const SUBJECT_COLUMNS = (sql: Sql) => sql`
   see_max::float8      AS "seeMax",
   has_see              AS "hasSee",
   module_count         AS "moduleCount",
+  scheme_lecture_hours   AS "schemeLectureHours",
+  scheme_tutorial_hours  AS "schemeTutorialHours",
+  scheme_practical_hours AS "schemePracticalHours",
+  source_page            AS "sourcePage",
   json_build_object(
     'sourceUrl',    source_url,
     'sourceClause', source_clause,

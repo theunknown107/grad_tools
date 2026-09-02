@@ -62,47 +62,25 @@
 
 import { pathToFileURL } from 'node:url';
 import type { Sql } from './client.js';
+import {
+  SCHEME_DOCUMENT_SHA256,
+  SCHEME_DOCUMENT_URL,
+  SCHEME_DOCUMENT_VERSION,
+  SCHEME_RETRIEVED_AT,
+  SCHEME_ROWS,
+} from './scheme-2022-cse.js';
 
 const REGULATION_URL =
   'https://vtu.ac.in/wp-content/uploads/2023/05/Regulations-Clr-BE-BTECH-2022-611-02052023.pdf';
-const CSE_SCHEME_URL = 'https://vtu.ac.in/pdf/2022syll/csesch.pdf';
 const VERIFIED_BY = 'project-lead (primary source, pdftotext extraction)';
 const REGULATION_VERIFIED_AT = '2026-08-23';
-const SCHEME_VERIFIED_AT = '2026-08-24';
-
-/**
- * Semester 1 CSE (Physics Group), from csesch.pdf.
- *
- * Credits sum to 20, matching the document's own printed total, which is the
- * cheapest available check that the extraction was read correctly.
- *
- * `category` is a NORMALISATION, not a quotation: the source labels courses
- * ASC / ESC / AEC / HSMC / SDC, which are mapped to this schema's enum as
- * ASC and ESC -> core, AEC / HSMC / SDC -> mandatory. The mapping is recorded
- * here so a reviewer can see it is ours rather than VTU's wording.
+/*
+ * Re-verified on this date against the document itself, not carried forward.
+ * M10A.4 downloaded csesch.pdf, hashed it, and read every subject row off a
+ * numbered page — so the date on these rows is when a human-checkable reading
+ * happened, not when the URL was first written down.
  */
-const SEMESTER_ONE_CSE = [
-  { code: 'BMATS101', title: 'Mathematics-I for CSE Stream', credits: 4, category: 'core' },
-  { code: 'BPHYS102', title: 'Applied Physics for CSE Stream', credits: 4, category: 'core' },
-  { code: 'BPOPS103', title: 'Principles of Programming Using C', credits: 3, category: 'core' },
-  { code: 'BENGK106', title: 'Communicative English', credits: 1, category: 'mandatory' },
-  {
-    code: 'BPWSK106',
-    title: 'Professional Writing Skills in English',
-    credits: 1,
-    category: 'mandatory',
-  },
-  { code: 'BKSKK107', title: 'Samskrutika Kannada', credits: 1, category: 'mandatory' },
-  { code: 'BKBKK107', title: 'Balake Kannada', credits: 1, category: 'mandatory' },
-  { code: 'BICOK107', title: 'Indian Constitution', credits: 1, category: 'mandatory' },
-  { code: 'BIDTK158', title: 'Innovation and Design Thinking', credits: 1, category: 'mandatory' },
-  {
-    code: 'BSFHK158',
-    title: 'Scientific Foundations of Health',
-    credits: 1,
-    category: 'mandatory',
-  },
-] as const;
+const SCHEME_VERIFIED_AT = SCHEME_RETRIEVED_AT;
 
 export interface SeedSummary {
   readonly universities: number;
@@ -184,46 +162,52 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
       active = EXCLUDED.active
   `;
 
-  for (const subject of SEMESTER_ONE_CSE) {
+  /*
+   * SEMESTERS I AND II, READ OFF THE OFFICIAL SCHEME (M10A.4).
+   *
+   * `has_see` is TRUE here, and unlike the assertion M10A.2 retracted it is now
+   * a reading: both semester tables carry a SEE Marks column and every row in
+   * them prints 50. The rows, their hours, their credits and the page each came
+   * from are in `scheme-2022-cse.ts`, together with the document's hash.
+   */
+  for (const subject of SCHEME_ROWS) {
     await sql`
       INSERT INTO subjects (
         scheme_id, branch_id, semester, code, title, credits, category,
         cie_max, see_max, has_see, module_count,
-        source_url, source_clause, verification, verified_at, verified_by, publication
+        scheme_lecture_hours, scheme_tutorial_hours, scheme_practical_hours,
+        source_url, source_document_sha256, source_page, source_clause,
+        verification, verified_at, verified_by, publication
       ) VALUES (
-        'vtu-2022', 'cse', 1, ${subject.code}, ${subject.title},
+        'vtu-2022', 'cse', ${subject.semester}, ${subject.code}, ${subject.title},
         ${subject.credits}, ${subject.category},
         -- module_count is NULL: the scheme document gives credits and marks but
         -- no module breakdown, so the structure is unverified (OQ-025). Five is
         -- the scheme norm, not a verified fact about these subjects.
-        -- has_see is NULL, and that is a correction rather than a gap being
-        -- left open (M10A.2 §4).
-        --
-        -- Every one of these ten rows previously asserted TRUE, written as a
-        -- literal for the whole list rather than read per course. csesch.pdf is
-        -- a scheme of TEACHING and does carry exam weightage columns, so the
-        -- fact is very likely IN the source — but it was never extracted per
-        -- subject, and nothing in this repository records it. An assertion
-        -- nobody checked is not a verified fact.
-        --
-        -- It matters more here than anywhere else in this file: a wrongly
-        -- asserted TRUE on a course that is really CIE-only tells a student
-        -- they have a backlog in a subject the university passed them in
-        -- (DEC-037). Unknown is the safe direction AND the true one.
-        --
-        -- Closing this needs the document re-read per course, not recall.
-        50, 100, NULL, NULL,
-        ${CSE_SCHEME_URL}, 'Scheme of Teaching and Examinations 2022, I Semester (CSE Stream, Physics Group)',
+        50, 100, true, NULL,
+        ${subject.l}, ${subject.t}, ${subject.p},
+        ${SCHEME_DOCUMENT_URL}, ${SCHEME_DOCUMENT_SHA256}, ${subject.page},
+        ${`Scheme of Teaching and Examinations 2022 (${SCHEME_DOCUMENT_VERSION}), page ${String(subject.page)}`},
         'verified', ${SCHEME_VERIFIED_AT}, ${VERIFIED_BY}, 'published'
       )
       ON CONFLICT (scheme_id, branch_id, code) DO UPDATE SET
+        semester = EXCLUDED.semester,
         title = EXCLUDED.title,
         credits = EXCLUDED.credits,
         category = EXCLUDED.category,
-        -- Carried through the upsert deliberately: a database seeded before
-        -- M10A.2 holds the asserted TRUE, and a seed that only ever added
-        -- facts could not retract one.
+        /*
+         * Carried through the upsert deliberately. A database seeded before
+         * M10A.2 holds an asserted TRUE; one seeded after it holds NULL. A seed
+         * that only ever ADDED facts could neither retract the first nor supply
+         * the second, and re-running it is how a machine catches up.
+         */
         has_see = EXCLUDED.has_see,
+        scheme_lecture_hours = EXCLUDED.scheme_lecture_hours,
+        scheme_tutorial_hours = EXCLUDED.scheme_tutorial_hours,
+        scheme_practical_hours = EXCLUDED.scheme_practical_hours,
+        source_document_sha256 = EXCLUDED.source_document_sha256,
+        source_page = EXCLUDED.source_page,
+        source_clause = EXCLUDED.source_clause,
         verification = EXCLUDED.verification,
         verified_at = EXCLUDED.verified_at,
         publication = EXCLUDED.publication
