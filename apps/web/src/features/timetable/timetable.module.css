@@ -271,3 +271,16 @@
   color: var(--accent);
   font-weight: var(--weight-semibold);
 }
+
+/*
+ * Marking a class from today's agenda.
+ *
+ * Wraps rather than shrinking: at 320px the two actions drop below the class
+ * instead of squeezing the time and the subject, which are what the row is for.
+ */
+.slotActions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}

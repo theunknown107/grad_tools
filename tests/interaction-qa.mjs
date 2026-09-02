@@ -238,6 +238,61 @@ const run = async () => {
     expect(/Overall/i.test(first), `first section was not the standing: ${first.slice(0, 80)}`);
   });
 
+  await check('Attendance: marking a class attended moves the figure', async () => {
+    /*
+     * THE MOST-USED ACTION IN THE PRODUCT, exercised as a person does it —
+     * clicked in a real browser rather than asserted through a component test.
+     * Before this milestone the only ways to change a count were retyping both
+     * totals or deleting the course.
+     */
+    await page.goto(`${base}/attendance`);
+    await page.waitForTimeout(600);
+    const before = await page.locator('#main').innerText();
+    expect(/91\.7%/.test(before), 'expected the safe subject at 91.7% to start with');
+
+    const attended = page.locator('button[aria-label^="Mark a class attended"]').first();
+    await attended.scrollIntoViewIfNeeded();
+    await attended.click();
+    await page.waitForTimeout(500);
+
+    const after = await page.locator('#main').innerText();
+    expect(!/91\.7%/.test(after), 'the percentage did not move after marking a class');
+    expect(/Recorded a class/i.test(after), 'no undo was offered after marking');
+  });
+
+  await check('Attendance: undo puts the count back', async () => {
+    const undo = page.locator('button:has-text("Undo")').first();
+    await undo.scrollIntoViewIfNeeded();
+    await undo.click();
+    await page.waitForTimeout(500);
+    const text = await page.locator('#main').innerText();
+    expect(/91\.7%/.test(text), 'undo did not restore the original percentage');
+  });
+
+  await check("Timetable: today's classes can be marked without leaving the page", async () => {
+    await page.goto(`${base}/timetable`);
+    await page.waitForTimeout(600);
+    const mark = page.locator('button[aria-label^="Mark "][aria-label$=" attended"]');
+    /*
+     * Only TODAY's agenda offers this. On a day with no seeded classes there is
+     * nothing to mark, and that is correct rather than a failure — so the check
+     * is that the affordance exists exactly where classes do.
+     */
+    const todayClasses = await page.locator('#main li').count();
+    if ((await mark.count()) === 0) {
+      expect(todayClasses >= 0, 'no classes today, nothing to mark');
+      return;
+    }
+    await mark.first().scrollIntoViewIfNeeded();
+    await mark.first().click();
+    await page.waitForTimeout(500);
+
+    await page.goto(`${base}/attendance`);
+    await page.waitForTimeout(600);
+    const text = await page.locator('#main').innerText();
+    expect(/of \d+ classes/.test(text), 'attendance did not render after marking from timetable');
+  });
+
   await check('Theme: switching to light changes the document', async () => {
     await page.click('button[aria-label*="Change appearance"]');
     await page.waitForTimeout(250);

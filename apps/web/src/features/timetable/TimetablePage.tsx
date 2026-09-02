@@ -26,7 +26,13 @@ import {
 } from '../../components/ui/index.js';
 import { formatTime } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
-import { useProfile, useSemesterSubjects, useTimetable } from '../../hooks/useCollection.js';
+import {
+  useAttendance,
+  useProfile,
+  useSemesterSubjects,
+  useTimetable,
+} from '../../hooks/useCollection.js';
+import { markClass, startRecord, type ClassOutcome } from '../../domain/attendance.js';
 import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
 import { displayTitle, resolveSubject } from '../../domain/subjects.js';
 import styles from './timetable.module.css';
@@ -45,6 +51,42 @@ export function TimetablePage() {
    * and no schema changed.
    */
   const { index } = useSubjectIndex();
+  /*
+   * TODAY'S CLASSES ARE WHERE ATTENDANCE ACTUALLY GETS RECORDED (§12, §32).
+   * The student is already looking at the class that just happened; sending
+   * them to another screen to find the same subject and press the same button
+   * is the errand this removes.
+   */
+  const { items: attendance, save: saveAttendance } = useAttendance();
+
+  const markToday = (subjectCode: string, outcome: ClassOutcome) => {
+    const code = subjectCode.replace(/\s+/g, '').toUpperCase();
+    const existing = attendance.find(
+      (record) => record.subjectCode.replace(/\s+/g, '').toUpperCase() === code,
+    );
+    if (existing !== undefined) {
+      void saveAttendance(markClass(existing, outcome));
+      return;
+    }
+    /*
+     * No record yet: the first class of a subject the student has never opened
+     * the attendance screen for. The title is resolved through the subject
+     * index rather than typed again (M10A.1) — and falls back to the code,
+     * which is honest rather than blank.
+     */
+    void saveAttendance(
+      startRecord(
+        {
+          id: newId(),
+          profileId: profile?.id ?? asStudentProfileId('local'),
+          semester: profile?.currentSemester ?? 1,
+          subjectCode: code,
+          subjectTitle: displayTitle(resolveSubject(index, code), 'timetable') || code,
+        },
+        outcome,
+      ),
+    );
+  };
 
   const [day, setDay] = useState<Weekday>('Mon');
   const [view, setView] = useState('today');
@@ -140,6 +182,7 @@ export function TimetablePage() {
                 <TodayAgenda
                   slots={byDay.get(todayName) ?? []}
                   titleFor={(code) => displayTitle(resolveSubject(index, code), 'timetable')}
+                  onMark={markToday}
                   onRemove={remove}
                 />
               </IslandTabPanel>
@@ -325,10 +368,12 @@ export function TimetablePage() {
 function TodayAgenda({
   slots,
   titleFor,
+  onMark,
   onRemove,
 }: {
   readonly slots: readonly TimetableSlot[];
   readonly titleFor: (code: string) => string;
+  readonly onMark: (subjectCode: string, outcome: ClassOutcome) => void;
   readonly onRemove: (id: string) => Promise<void> | void;
 }) {
   const now = new Date();
@@ -351,6 +396,9 @@ function TodayAgenda({
           slot={slot}
           title={titleFor(slot.subjectCode)}
           isNext={slot.id === next?.id}
+          onMark={(outcome) => {
+            onMark(slot.subjectCode, outcome);
+          }}
           onRemove={() => void onRemove(slot.id)}
         />
       ))}
@@ -361,12 +409,15 @@ function TodayAgenda({
 function SlotItem({
   slot,
   title,
+  onMark,
   onRemove,
   isNext = false,
 }: {
   slot: TimetableSlot;
   /** Resolved by code from the student's own records. '' when nothing names it. */
   title: string;
+  /** Only today's agenda offers this: marking a class in next week's grid is a guess. */
+  onMark?: ((outcome: ClassOutcome) => void) | undefined;
   onRemove: () => void;
   isNext?: boolean;
 }) {
@@ -388,6 +439,33 @@ function SlotItem({
           {[named ? slot.subjectCode : null, slot.room, slot.faculty].filter(Boolean).join(' · ')}
         </span>
       </div>
+      {/*
+        ONLY ON TODAY'S AGENDA. The week grid shows classes that have not
+        happened yet, and a button there would invite recording attendance for
+        a Thursday on a Monday.
+      */}
+      {onMark !== undefined && (
+        <span className={styles.slotActions}>
+          <Button
+            small
+            aria-label={`Mark ${slot.subjectCode} attended`}
+            onClick={() => {
+              onMark('attended');
+            }}
+          >
+            Attended
+          </Button>
+          <Button
+            small
+            aria-label={`Mark ${slot.subjectCode} missed`}
+            onClick={() => {
+              onMark('missed');
+            }}
+          >
+            Missed
+          </Button>
+        </span>
+      )}
       <Button
         variant="danger"
         iconOnly

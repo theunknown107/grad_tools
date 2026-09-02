@@ -25,6 +25,7 @@ import {
   type AttendanceStatus,
 } from '@gradtools/academic-rules';
 import type { AttendanceRecord, SemesterSubject } from '../../domain/types.js';
+import { markClass, type ClassOutcome } from '../../domain/attendance.js';
 import { PageHeader } from '../../components/AppShell.js';
 import { Icon } from '../../components/icons.js';
 import {
@@ -128,6 +129,8 @@ function OverallStanding({ items }: { readonly items: readonly AttendanceRecord[
 export function AttendancePage() {
   const { items, loading, save, remove } = useAttendance();
   const { profile } = useProfile();
+  /** The record as it was before the last mark, so one tap can be taken back. */
+  const [undo, setUndo] = useState<{ record: AttendanceRecord; label: string } | null>(null);
 
   const { items: semesterSubjects } = useSemesterSubjects();
   /* Whether the DX rule needs stating at all — said once, at the list. */
@@ -271,6 +274,27 @@ export function AttendancePage() {
           )}
         </details>
 
+        {/*
+          ONE STEP OF UNDO, WHICH IS THE STEP THAT GETS USED. A mis-tap on a
+          counter is the ordinary mistake here — the buttons sit next to each
+          other and get pressed while walking out of a lecture — and the fix has
+          to be as cheap as the error.
+        */}
+        {undo !== null && (
+          <div className={styles.undoBar}>
+            <span>Recorded a class for {undo.label}.</span>
+            <Button
+              small
+              onClick={() => {
+                void save(undo.record);
+                setUndo(null);
+              }}
+            >
+              Undo
+            </Button>
+          </div>
+        )}
+
         {loading ? null : items.length === 0 ? (
           <Panel title="Your courses" flush>
             <EmptyState>
@@ -305,6 +329,16 @@ export function AttendancePage() {
                   key={record.id}
                   record={record}
                   name={subjectName(record.subjectCode, semesterSubjects)}
+                  onMark={(outcome) => {
+                    /*
+                     * The previous record is kept, not recomputed. Undo by
+                     * subtracting would happily take a count below zero if it
+                     * were ever reached twice, and an irreversible counter with
+                     * a mis-tappable button is worse than no button at all.
+                     */
+                    setUndo({ record, label: record.subjectCode });
+                    void save(markClass(record, outcome));
+                  }}
                   onRemove={() => void remove(record.id)}
                 />
               ))}
@@ -346,10 +380,12 @@ export function AttendancePage() {
 function AttendanceRow({
   record,
   name,
+  onMark,
   onRemove,
 }: {
   readonly record: AttendanceRecord;
   readonly name: string | null;
+  readonly onMark: (outcome: ClassOutcome) => void;
   readonly onRemove: () => void;
 }) {
   const attendance = calculateAttendance(record.attended, record.conducted, ruleSet);
@@ -418,6 +454,35 @@ function AttendanceRow({
             </span>
           </Tooltip>
           <Bar value={percentage} tone={tone} label={`${name ?? record.subjectCode} attendance`} />
+          {/*
+            THE ACTION THIS PAGE IS OPENED FOR. Before this the only ways to
+            change a count were retyping both totals in the form above or
+            deleting the course, so recording five classes after a day of
+            lectures meant retyping five codes and ten numbers.
+
+            Two buttons, because a class was attended or it was not, and both
+            raise the classes-held count — attendance is a ratio, not a score.
+          */}
+          <span className={styles.rowActions}>
+            <Button
+              small
+              aria-label={`Mark a class attended for ${record.subjectCode}`}
+              onClick={() => {
+                onMark('attended');
+              }}
+            >
+              Attended
+            </Button>
+            <Button
+              small
+              aria-label={`Mark a class missed for ${record.subjectCode}`}
+              onClick={() => {
+                onMark('missed');
+              }}
+            >
+              Missed
+            </Button>
+          </span>
         </span>
       }
     />
