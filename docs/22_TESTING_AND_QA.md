@@ -1894,3 +1894,55 @@ Provenance is one source for every row: `https://vtu.ac.in/pdf/2022syll/csesch.p
 verified by the project lead via `pdftotext` extraction. Credits were checked
 against the document's own printed total of 20; SEE applicability never was.
 That difference is exactly why one field stayed and the other became null.
+
+## 22.45 Reading a source without letting it lie (M10A.3)
+
+`services/api/src/reference/source-scan.ts`, tested by
+`services/api/test/source-scan.test.ts` — 16 tests. Pure functions over text:
+nothing opens a file, touches a database, or decides that anything is true.
+
+### The one-character trap
+
+VTU has two code families in circulation, and they are different schemes:
+
+```
+BMATS101     the 2022 scheme, which GradTools models
+1BMATC101    a later scheme, effective 2025-26
+```
+
+**`1BMATC101` contains `BMATC101`.** A 2022 pattern run over a later-scheme
+document matches the tail and reattributes the course — and the result looks
+entirely plausible, because both are real VTU codes.
+
+| Pinned | Why |
+|---|---|
+| `1BMATC101` reads whole, never as `BMATC101` | The trap itself |
+| Every code a paper serves is kept | `1BECHE105/205` is one exam in two semesters |
+| `BESCK104B` ≠ `BESCK104C` | Real sibling electives |
+| A document with **any** `1B` code cannot speak for 2022 | Being generous is the mistake |
+| A document declaring no code speaks for nothing | An empty match is not licence to guess from the filename |
+| Filename vs page disagreement is **reported, not resolved** | Neither side outranks the other without a human (§14) |
+
+### The inventory
+
+`pnpm --filter @gradtools/api source:inventory [dir]` reads the first page of
+every candidate PDF and reports what it declares. It writes nothing and reaches
+no network. Measured against the local, gitignored sample directory:
+
+| | |
+|---|---|
+| PDF files | 65 |
+| With a text layer | **9** |
+| Image-only scans | 56 — readable only through OCR, which is unreviewed (M10B.3) |
+| Declaring a later (`1B…`) code | **6** |
+| Every declared code 2022-family | **1** |
+| Filenames claiming a code not on the page | **2** |
+| Model papers rather than records of a sitting | 8 of 9 |
+
+`1BBEE105.pdf` prints `(BEE105)` on the page; `1BPLC205E.pdf` prints
+`(1BPLC105E/205E)`. Both disagreements are printed, and neither is resolved.
+
+**What a question paper can evidence:** subject code, course title, semester,
+and that a semester-end examination exists. **What it never carries:** credits,
+L/T/P, or scheme membership — so the credit and L/T/P gaps cannot be closed from
+this material at all, whatever its quality.
