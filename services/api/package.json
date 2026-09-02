@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "GradTools reference-data API. Read-only public academic reference data. No student data (docs/33 §33.3).",
+  "description": "GradTools reference-data API. Read-only public academic reference data. No student data (docs/33 \u00a733.3).",
   "main": "./src/main.ts",
   "scripts": {
     "dev": "tsx watch src/main.ts",
@@ -14,7 +14,8 @@
     "seed:demo": "tsx src/db/seed-demo.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc --noEmit -p tsconfig.build.json",
-    "seed:demo-papers": "tsx src/db/seed-demo-papers.ts"
+    "seed:demo-papers": "tsx src/db/seed-demo-papers.ts",
+    "corpus:profile": "tsx scripts/corpus-profile.ts"
   },
   "dependencies": {
     "@gradtools/academic-rules": "workspace:*",

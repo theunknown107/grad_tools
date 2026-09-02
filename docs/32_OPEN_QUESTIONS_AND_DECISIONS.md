@@ -1568,3 +1568,59 @@ each device's answer onto the other.
 
 **If reversed:** an account preference becomes a DEFAULT for a new device, which
 the local value still overrides. That ordering keeps the reversal cheap.
+
+### OQ-045 — remains OPEN, and the reason is now measured · **M10B.3**
+
+M10B.3 built a corpus profiler (`services/api/src/intelligence/corpus-profile.ts`,
+runnable as `pnpm --filter @gradtools/api corpus:profile`) and ran it against
+the real local corpus. The answer is not a row count and never was.
+
+| | |
+|---|---|
+| Papers | **9** |
+| Subjects | **9** |
+| Sittings | **1** — June/July 2024 |
+| **Subjects with more than one sitting** | **0** |
+| Usable texts (questions + sub-questions) | 202 |
+
+**Every paper is a different subject from the same sitting.** A repeat is a
+thing that happens across sittings *of one subject*, so in this corpus it is
+not rare — it is **structurally unobservable**. No threshold, metric or model
+can be evaluated against data in which the phenomenon cannot occur.
+
+This is why the question was never "how many rows". A corpus of ten thousand
+questions, one sitting per subject, would still answer nothing; two papers of
+one subject across two sittings would answer a great deal.
+
+**What would close it:** at least one subject with **two sittings** carrying
+usable text. Three sittings of one subject would allow a repeat to be
+distinguished from a coincidence. The gate is implemented and tested, so
+re-running the profiler after the corpus grows re-answers this automatically
+rather than requiring judgement.
+
+**Not eligible today, per subject:** BCHEM102, BCIVC103, BCY358A, BENGK106,
+BESC104C, BKSKK107, BMATC101, BMATS101, BPHYS102 — all at 1 sitting.
+
+### OQ-048 — new evidence, and a second discrepancy found · **M10B.3**
+
+The profiler separates three states that were previously easy to conflate:
+
+- **65 empty parent questions** out of 126. These are native papers' container
+  questions, and OQ-047 already explained them: a native parent holds no prose,
+  its sub-questions do. Not a failure.
+- **0 empty sub-questions**, and **0 non-empty-but-non-tokenisable** texts in
+  the current extraction set.
+- **A new one.** `extracted_papers.mcq_item_count` declares **45** MCQ items for
+  BENGK106, and `extracted_mcq_items` holds **0 rows**. The extraction counted
+  items it then did not persist.
+
+That third case is exactly the distinction OQ-048 is about: "this paper has no
+MCQs" and "this paper's MCQs were counted and lost" are different facts, and
+the schema currently lets the second impersonate the first. The profiler now
+reports both numbers and flags the mismatch.
+
+**Deliberately not fixed here.** M10B.3 §38 permits only a small directly
+supported fix and forbids rewriting the parser. Finding out whether the items
+were never written, written and deleted, or rolled back needs the extraction
+path examined, which is its own milestone. **OQ-048 stays open**, with this
+recorded as the concrete case to investigate first.

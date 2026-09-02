@@ -16,6 +16,25 @@
  * single accuracy number. There is no labelled ground truth for this corpus
  * (the 71 historical adjudications were agent-made, not human), so an accuracy
  * figure would be a fiction (M10B §44, §46).
+ *
+ * ---------------------------------------------------------------------------
+ * M10B.3: THREE CORRECTIONS
+ * ---------------------------------------------------------------------------
+ *
+ * 1. SUB-QUESTIONS ARE INCLUDED. The original read `extracted_questions` only,
+ *    and so compared 60 of this corpus's 202 usable texts. Native papers keep
+ *    their prose on SUB-questions and leave the parent empty as a container
+ *    (OQ-047) — the identical blind spot that made question search miss native
+ *    papers entirely in M10B.2.
+ *
+ * 2. PAIRS ARE GROUPED BY SUBJECT. Comparing BCS403 against BMATS101 and
+ *    calling a lexical overlap "similar" measures shared English, not a repeat
+ *    (M10B.3 §10). Cross-subject pairs are still counted, but separately and
+ *    only as a control.
+ *
+ * 3. CROSS-SITTING PAIRS ARE REPORTED SEPARATELY, and they are the only ones
+ *    that can show a repeat. A pair from the same sitting is two different
+ *    questions in one exam season; that is not the phenomenon.
  */
 
 import postgres from 'postgres';
@@ -37,6 +56,10 @@ interface Row {
   readonly confidence: string;
   readonly review_state: string;
   readonly text: string;
+  /** Subject and sitting decide which comparisons are meaningful at all. */
+  readonly subject_code: string | null;
+  readonly sitting: string;
+  readonly kind: 'question' | 'sub_question';
 }
 
 const url = process.env.DATABASE_URL;
@@ -63,12 +86,40 @@ const run = async (): Promise<void> => {
            COALESCE(q.reviewed_marks, q.marks)                AS marks,
            q.confidence::text                                 AS confidence,
            q.review_state::text                               AS review_state,
-           COALESCE(q.reviewed_question_text, q.question_text) AS text
+           COALESCE(q.reviewed_question_text, q.question_text) AS text,
+           d.subject_code,
+           COALESCE(d.exam_session, '?') || ' ' || COALESCE(d.exam_year::text, '?') AS sitting,
+           'question' AS kind
       FROM extracted_questions q
       JOIN extracted_papers p ON p.id = q.paper_id
       JOIN documents d        ON d.id = p.document_id
      WHERE p.is_current = true
        AND COALESCE(q.reviewed_question_text, q.question_text) IS NOT NULL
+
+    UNION ALL
+
+    -- Sub-questions carry the text on native papers (OQ-047). Numbered
+    -- "3(a)" so a printed pair still identifies itself on the page.
+    SELECT s.id,
+           q.paper_id,
+           p.document_id,
+           d.title AS paper_title,
+           COALESCE(q.question_number, '?') || '(' || COALESCE(s.label, '?') || ')'
+             AS question_number,
+           COALESCE(q.reviewed_module, q.module) AS module,
+           s.marks,
+           q.confidence::text                    AS confidence,
+           q.review_state::text                  AS review_state,
+           s.sub_text                            AS text,
+           d.subject_code,
+           COALESCE(d.exam_session, '?') || ' ' || COALESCE(d.exam_year::text, '?') AS sitting,
+           'sub_question' AS kind
+      FROM extracted_sub_questions s
+      JOIN extracted_questions q ON q.id = s.question_id
+      JOIN extracted_papers p    ON p.id = q.paper_id
+      JOIN documents d           ON d.id = p.document_id
+     WHERE p.is_current = true
+       AND s.sub_text IS NOT NULL
   `) as unknown as Row[];
 
   const prepared = rows.map((row) => {
@@ -79,7 +130,13 @@ const run = async (): Promise<void> => {
   const usable = prepared.filter((entry) => entry.tokens.length > 0);
 
   console.log(`normalization      : ${QUESTION_NORMALIZATION_VERSION}`);
-  console.log(`questions (current): ${String(prepared.length)}`);
+  console.log(`texts (current)    : ${String(prepared.length)}`);
+  console.log(
+    `  questions         : ${String(prepared.filter((e) => e.row.kind === 'question').length)}`,
+  );
+  console.log(
+    `  sub-questions     : ${String(prepared.filter((e) => e.row.kind === 'sub_question').length)}`,
+  );
   console.log(`  with usable tokens: ${String(usable.length)}`);
   console.log(
     `  low confidence    : ${String(prepared.filter((e) => e.row.confidence === 'low').length)}`,
@@ -117,6 +174,17 @@ const run = async (): Promise<void> => {
   const buckets = new Map<string, number>();
   const samples = new Map<string, { a: string; b: string; score: number; same: boolean }[]>();
 
+  /*
+   * Pair classification (M10B.3 §10). A repeat can take exactly one shape:
+   *
+   *   SAME SUBJECT + DIFFERENT SITTING   the only eligible comparison
+   *   SAME SUBJECT + SAME SITTING        two questions in one exam season
+   *   DIFFERENT SUBJECT                  a control; shared English, not a repeat
+   */
+  let eligiblePairs = 0;
+  let sameSubjectSameSitting = 0;
+  let crossSubjectPairs = 0;
+
   for (let i = 0; i < usable.length; i += 1) {
     for (let j = i + 1; j < usable.length; j += 1) {
       const left = usable[i];
@@ -124,6 +192,12 @@ const run = async (): Promise<void> => {
       if (left === undefined || right === undefined) continue;
       /* A question cannot repeat within the paper it is already in. */
       if (left.row.paper_id === right.row.paper_id) continue;
+
+      const sameSubject =
+        left.row.subject_code !== null && left.row.subject_code === right.row.subject_code;
+      if (!sameSubject) crossSubjectPairs += 1;
+      else if (left.row.sitting === right.row.sitting) sameSubjectSameSitting += 1;
+      else eligiblePairs += 1;
 
       const score = jaccard(left.tokens, right.tokens);
       if (score < 0.3) continue;
@@ -150,6 +224,21 @@ const run = async (): Promise<void> => {
       }
     }
   }
+
+  /*
+   * THE NUMBER THIS MILESTONE TURNS ON.
+   *
+   * With zero eligible pairs, no threshold measured on this corpus means
+   * anything: a repeat is unobservable here, not absent. Every scoring pair
+   * printed below is therefore same-sitting or cross-subject, and reading them
+   * as "similar questions" would be reading shared English as evidence.
+   */
+  console.log(`\nELIGIBLE PAIRS (same subject, different sitting): ${String(eligiblePairs)}`);
+  if (eligiblePairs === 0) {
+    console.log('  A repeat cannot occur in this corpus. Any threshold below is unmeasured.');
+  }
+  console.log(`  same subject, same sitting : ${String(sameSubjectSameSitting)}`);
+  console.log(`  different subject (control): ${String(crossSubjectPairs)}`);
 
   const pairs = (usable.length * (usable.length - 1)) / 2;
   console.log(`\npairs compared: ${String(pairs)}`);
