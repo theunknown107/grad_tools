@@ -1615,3 +1615,27 @@ like a green sweep of a page with nothing to compute.
 - Interaction QA (§40) was exercised through unit tests — Select, DropdownMenu,
   IslandTabs, UploadModal, Tooltip, Sheet, theme and search all have keyboard
   tests — **but not driven by hand in the browser**.
+
+## 22.35 Route integrity (M9.6F)
+
+`apps/web/test/routes.test.ts` parses the route table in `App.tsx` and checks
+every hard-coded `to:` destination in the global search and the public footer
+against it.
+
+**It exists because two links were shipped broken.** M9.6B wrote both
+destination lists from memory rather than from the route table, and `/degree`
+and `/gpa` do not exist — the real routes are `/semesters` and `/academics`.
+"My degree" and "SGPA & CGPA" therefore landed a student on the not-found page
+from both the search modal and the footer.
+
+Nothing caught it, and it is worth being precise about why:
+
+- **Type checking cannot.** A route is a string.
+- **The browser sweep cannot.** It visits routes directly rather than following
+  links, so a dead link is never exercised.
+- **Unit tests did not.** Each component was tested against its own list, so
+  the list and the assertion were wrong together.
+
+The test was verified to fail before the fix — it reports
+`expected [ '/degree' ] to deeply equal []`, naming the broken link rather than
+just counting.

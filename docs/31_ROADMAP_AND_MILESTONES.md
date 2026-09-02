@@ -1001,3 +1001,47 @@ this milestone's own definition (§1) that is not a redesign.
 
 **Also not done:** Dropdown Navigation (Reference 06) and V-Form (Reference 13)
 remain unimplemented.
+
+## 31.24 M9.6F — Remaining page redesigns · ⚠️ **MOSTLY DELIVERED**
+
+Continues M9.6E. Nine more pages rebuilt, both outstanding components built,
+and populated QA finally covering announcements and notifications.
+
+| Page | What changed |
+|---|---|
+| **Dashboard** | Five equal glass panels + a rail → **one brief** (context + metrics + trend) over quiet rows |
+| **SGPA & CGPA** | Two blank calculators → **your figures first**, calculators one tab away |
+| **Attendance** | Led with a form → leads with **overall standing**; entry is a disclosure |
+| **Timetable** | Showed all five days → **Today first** with the next class marked; week is a tab |
+| **Announcements** | "Filter" panel → **toolbar**; relevance as tabs with counts |
+| **Notifications** | Control panel → **inbox toolbar** matching the header popover |
+| **Papers** | Radiogroup in a panel → **IslandTabs leading the page** with live counts |
+| **Account** | Five stacked panels → **SectionedForm**, Delete marked destructive in the rail |
+| **Public homepage** | Six identical cards → a **product story** in three distinct compositions |
+
+**Components completed:** Dropdown Navigation (Reference 06) on the public
+header, and V-Form (Reference 13) as `SectionedForm`. Every one of the
+eighteen references is now either implemented or explicitly accounted for.
+
+**Two real defects found and fixed**, both invisible before this milestone:
+
+1. `--text-subtle` measured **4.24:1** on the light ground at 12px — under AA.
+   Only reachable once Announcements had real data at 320px.
+2. **`/degree` and `/gpa` were dead links** in both the global search and the
+   footer. Fixed, and pinned by `routes.test.ts` (docs/22 §22.35).
+
+**Tests 1437 → 1441.** Around twenty were **updated, never deleted**, to drive
+the new compositions; every assertion is unchanged.
+
+### NOT rebuilt, and named rather than implied
+
+- **Sign-in** — and it **cannot be browser-verified here**: no auth provider is
+  configured for the QA build, so the page correctly renders "Accounts are not
+  available in this build" and the auth stage never mounts.
+- **Profile** — the USN was de-emphasised and relabelled optional, which is a
+  field-level change, not a composition rebuild.
+- **Footer** — links corrected, but its composition is unchanged from M9.6B.
+  Privacy/Terms/Contact were **not added**, because those routes do not exist
+  and linking to them would produce the exact dead-link defect just fixed.
+- **Questions** — shares the Papers page and inherited its rebuild; it was not
+  separately composed.
