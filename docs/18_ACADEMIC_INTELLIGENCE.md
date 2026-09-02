@@ -622,3 +622,62 @@ semantics; merging it here would collapse a distinction M10B §20 keeps.
 Empty parent questions are still excluded, and that is correct: an empty
 container is not a question a student can search for. **A parser-created record
 is still only a parser-created record.**
+
+## 18.x Question similarity — the corpus gate (M10B.3)
+
+M10B.3 asked whether GradTools can identify repeated or near-repeated questions
+across real papers. **No similarity engine was written**, because the corpus
+cannot yet test one.
+
+### The gate is cross-sitting diversity, not corpus size
+
+A repeat happens across **sittings of the same subject**. If a corpus holds one
+sitting per subject, the phenomenon is not rare in the data — it cannot occur
+in it. Any metric measured against such a corpus would be measuring nothing,
+and any threshold chosen from it would be arbitrary.
+
+So the milestone's first artefact is a profiler, not an algorithm:
+
+```
+DATABASE_URL=... pnpm --filter @gradtools/api corpus:profile
+```
+
+It counts current extractions only (`is_current`), because positional-v1 and
+positional-v2 disagree about what a question *is* — v1 stored a sub-question's
+sentence twice, once as a pseudo-question — so pooling them would manufacture
+repeats that are an artefact of our own parser history.
+
+### What the real corpus holds
+
+9 papers · 9 subjects · **1 sitting** (June/July 2024) · **0 multi-sitting
+subjects** · 126 questions · 141 sub-questions · 202 usable texts · 6 OCR and 3
+native papers · 1 private · 7 of 9 needing review.
+
+**Verdict: NOT ELIGIBLE.** Recorded in `32/OQ-045`.
+
+### One metric that was wrong, and the fix
+
+The profiler first counted "usable questions" from parent questions only, and
+reported the three **native** papers as having zero usable text. They hold 107
+sub-question texts between them. Where the text lives depends on the parser
+(OQ-047), so the metric counts questions **and** sub-questions. Counting
+parents alone understated this corpus by roughly half — the same mistake that
+made question search miss native papers entirely in M10B.2.
+
+### The AI decision
+
+**D — the corpus is too small to decide.** Not "deterministic is enough" and
+not "embeddings are justified": with zero cross-sitting pairs there is no
+evidence for either claim, and asserting one would be a preference dressed as a
+finding. Embeddings were not evaluated, because evaluating them against a
+corpus that cannot show a repeat would produce a number with no meaning.
+
+### Standing caveats, unchanged and unverified
+
+- **Kannada:** BKSKK107 extracted **0 questions and 0 sub-questions** and its
+  format is `unknown`. There is no Kannada text in the corpus, so no
+  multilingual similarity claim can be made in either direction.
+- **MCQ:** the one MCQ paper declares 45 items and stores 0 (`32/OQ-048`).
+  There is no MCQ text to compare.
+- **Mathematics:** OCR maths remains unreliable and no human has compared any
+  extracted mathematical text against its source.
