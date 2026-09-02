@@ -372,6 +372,136 @@ function Capabilities(): ReactNode {
 }
 
 /** The eight-semester spine, as the product actually models it. */
+/**
+ * Results, shown rather than described.
+ *
+ * M9.6F §19 asks for a product STORY with varied compositions, and rules out
+ * the hero-plus-three-cards shape. So each of the next sections shows the
+ * thing it is about instead of describing it in another identical card: this
+ * one is a mark row and the reading of it, side by side.
+ *
+ * Every figure below is invented and the codes are the synthetic BXXX form
+ * used across the test suite.
+ */
+function ResultsStory(): ReactNode {
+  return (
+    <section className={styles.section}>
+      <div className={styles.storySplit}>
+        <div className={styles.storyText}>
+          <p className={styles.eyebrow}>Results</p>
+          <h2 className={styles.splitTitle}>A mark row, read the way VTU reads it</h2>
+          <p className={styles.splitLead}>
+            Internal, external and total against the three passing heads of 22OB 6.3 — not one
+            threshold applied to everything. A course assessed on internals alone has no SEE to fall
+            short of, and GradTools says so instead of calling it a backlog.
+          </p>
+        </div>
+
+        <div className={`${styles.storyDemo ?? ''} glassSurface`} aria-hidden="true">
+          <div className={styles.markRow}>
+            <span className={styles.markCode}>BXXX401</span>
+            <span className={styles.markCell}>
+              <em>Internal</em>40
+            </span>
+            <span className={styles.markCell}>
+              <em>External</em>21
+            </span>
+            <span className={styles.markCell}>
+              <em>Total</em>61
+            </span>
+            <span className={styles.markVerdict} data-tone="ok">
+              Pass
+            </span>
+          </div>
+          <ul className={styles.markHeads}>
+            <li>
+              <span>CIE</span> 40 of 50 &middot; needs 20
+            </li>
+            <li>
+              <span>SEE</span> 21 of 50 &middot; needs 17.5
+            </li>
+            <li>
+              <span>Total</span> 61 of 100 &middot; needs 40
+            </li>
+          </ul>
+          <p className={styles.storyCaption}>Illustration — figures are synthetic.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Attendance, as the question a student actually asks. */
+function AttendanceStory(): ReactNode {
+  const rows = [
+    { code: 'BXXX501', pct: 91, tone: 'ok', note: 'Can miss 3' },
+    { code: 'BXXX503', pct: 79, tone: 'warn', note: 'Attend 4 in a row' },
+    { code: 'BXXX505', pct: 69, tone: 'bad', note: 'Below the 75% floor' },
+  ] as const;
+
+  return (
+    <section className={styles.section}>
+      <div className={`${styles.storyWide ?? ''} glassSurface`}>
+        <div className={styles.storyWideHead}>
+          <p className={styles.eyebrow}>Attendance</p>
+          <h2 className={styles.splitTitle}>&ldquo;Can I miss this one?&rdquo;</h2>
+          <p className={styles.splitLead}>
+            The requirement is 85% per course and below 75% the course is marked DX. GradTools turns
+            that into the only number that helps: how many classes you have left.
+          </p>
+        </div>
+
+        <ul className={styles.attnRows} aria-hidden="true">
+          {rows.map((row) => (
+            <li key={row.code}>
+              <span className={styles.attnCode}>{row.code}</span>
+              <span className={styles.attnTrack}>
+                <span data-tone={row.tone} style={{ inlineSize: `${String(row.pct)}%` }} />
+              </span>
+              <span className={styles.attnPct} data-tone={row.tone}>
+                {row.pct}%
+              </span>
+              <span className={styles.attnNote}>{row.note}</span>
+            </li>
+          ))}
+        </ul>
+        <p className={styles.storyCaption}>Illustration — figures are synthetic.</p>
+      </div>
+    </section>
+  );
+}
+
+/** Announcements, and the provenance that travels with them. */
+function AnnouncementsStory(): ReactNode {
+  return (
+    <section className={styles.section}>
+      <div className={styles.storySplit} data-reverse="true">
+        <div className={styles.storyText}>
+          <p className={styles.eyebrow}>Announcements</p>
+          <h2 className={styles.splitTitle}>Every notice says where it came from</h2>
+          <p className={styles.splitLead}>
+            A notice carries its publisher and the moment it was checked. GradTools shows notices;
+            it does not issue them, and it never invents one to fill a quiet week.
+          </p>
+        </div>
+
+        <div className={styles.noticeStack} aria-hidden="true">
+          {[
+            { title: 'Semester 4 results announced', meta: 'Results · checked 2h ago' },
+            { title: 'Revised examination timetable', meta: 'Exams · checked today' },
+          ].map((notice) => (
+            <div key={notice.title} className={`${styles.notice ?? ''} glassSurface`}>
+              <span className={styles.noticeTitle}>{notice.title}</span>
+              <span className={styles.noticeMeta}>{notice.meta}</span>
+            </div>
+          ))}
+          <p className={styles.storyCaption}>Illustration — notices are synthetic.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function DegreeStory(): ReactNode {
   const semesters = [
     { n: 1, state: 'done' },
@@ -593,8 +723,11 @@ export function LandingPage(): ReactNode {
       <main id="main" ref={mainRef}>
         <Hero />
         <Capabilities />
+        <ResultsStory />
+        <AttendanceStory />
         <DegreeStory />
         <PapersStory />
+        <AnnouncementsStory />
         <ClosingCta />
       </main>
       <Footer />
