@@ -138,6 +138,16 @@ export function ResultsPage() {
           <ResultEditor
             key={editing === 'new' ? 'new' : editing.id}
             existing={editing === 'new' ? null : editing}
+            /*
+             * The semesters that already have a result, so a second record for
+             * one cannot be created (§23). Found by the OQ-049 browser sweep:
+             * two "Semester 3" sections rendered happily, and
+             * `buildSemesterViews` reads the FIRST match — so everything
+             * downstream of the second one silently did nothing.
+             */
+            taken={items
+              .filter((item) => editing === 'new' || item.id !== editing.id)
+              .map((item) => item.semester)}
             profileId={profile?.id ?? asStudentProfileId('local')}
             schemeId={profile?.schemeId ?? ruleSet.schemeId}
             branch={profile?.branch ?? null}
@@ -301,6 +311,7 @@ function toSubject(draft: DraftSubject, announcedOn: string): ResultSubject {
 
 function ResultEditor({
   existing,
+  taken,
   profileId,
   schemeId,
   branch,
@@ -308,6 +319,8 @@ function ResultEditor({
   onCancel,
 }: {
   readonly existing: SemesterResult | null;
+  /** Semesters that already carry a result, other than the one being edited. */
+  readonly taken: readonly number[];
   readonly profileId: ReturnType<typeof asStudentProfileId>;
   readonly schemeId: string;
   readonly branch: string | null;
@@ -371,6 +384,15 @@ function ResultEditor({
     );
   };
 
+  /*
+   * ONE RESULT PER SEMESTER. A second record for a semester that already has
+   * one is not a richer history — `buildSemesterViews` matches by number and
+   * uses the first, so the duplicate contributes nothing to the SGPA, the CGPA
+   * or the degree timeline while looking on this page like a saved semester.
+   * The row menu's Edit is the way to change one (§23).
+   */
+  const duplicate = taken.includes(Number(semester));
+
   const rows = subjects.map((draft) => ({
     draft,
     subject: toSubject(draft, announcedOn),
@@ -386,7 +408,7 @@ function ResultEditor({
   };
 
   const commit = () => {
-    if (invalid) {
+    if (invalid || duplicate) {
       setShowErrors(true);
       return;
     }
@@ -599,6 +621,16 @@ function ResultEditor({
           );
         })}
       </ul>
+
+      {duplicate && (
+        <div className={styles.editorNotice}>
+          <Notice tone="warning">
+            Semester {semester} already has a result saved. Choose another semester, or close this
+            and use <strong>Edit this semester</strong> on the one you already have — a second
+            record for the same semester would not be counted.
+          </Notice>
+        </div>
+      )}
 
       {showErrors && invalid && (
         <div className={styles.editorNotice}>

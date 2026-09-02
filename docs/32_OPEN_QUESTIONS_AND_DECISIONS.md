@@ -1624,3 +1624,79 @@ supported fix and forbids rewriting the parser. Finding out whether the items
 were never written, written and deleted, or rolled back needs the extraction
 path examined, which is its own milestone. **OQ-048 stays open**, with this
 recorded as the concrete case to investigate first.
+
+---
+
+## Part F — OQ-049: the result model
+
+### OQ-049 — CLOSED · **the result model now holds what a card prints**
+
+The model required `credits` and `gradeLetter` and could store none of internal,
+external, total, status or the announcement date. A student copying a real
+provisional card therefore had to invent a grade before anything would save.
+
+**What closed it.** Every printed field is now a stored source value; every one
+of them, plus `credits`, `gradeLetter`, `gradePoint` and `hasSee`, is nullable
+or three-valued. Nothing derived is ever persisted: the calculated total, the
+grade from the rule set, the grade point, the three passing heads and the
+backlog state come back separately from `domain/results.ts` and are shown
+beside the printed values, labelled. Storage, cloud schema, sync, the entry
+workflow and the detail view all moved together, verified against real
+PostgreSQL with RLS and in real Chromium in both themes (docs/22 §22.38–§22.40).
+
+**The refusals are the substance, and they are all tested:**
+
+| Refusal | Why |
+|---|---|
+| No backlog state without `hasSee` | An external of 0 reads identically as "no SEE" and "sat it and scored nothing" (`DEC-037`) |
+| No SGPA from a partly graded semester | A credit-weighted average of part of a semester, presented as the whole |
+| No repaired total | A row whose columns disagree has been mistyped; every derived figure would be wrong |
+| No calculated grade for a carried course | This codebase holds no verified rule for what letter one earns |
+| No substitute rule set | A pinned regulation this build lacks stays unavailable (M6 §6) |
+| No second result for one semester | `buildSemesterViews` takes the first match, so a duplicate silently counts for nothing |
+
+That last one was found by the browser sweep, not by reasoning — two "Semester
+3" sections rendered side by side and both saved.
+
+### DEC-040 — A result status is stored, and given no meaning · **OQ-049**
+
+A VTU card legends **P, F, A, W, X, NE** at the foot of the page. GradTools
+stores whichever status is printed, verbatim, in a bounded `text` column — not
+an enum, because those six are *observed* values rather than a closed universe,
+and an enum would reject a real card carrying a seventh.
+
+**No academic semantics are attached to any of them.** Pass and backlog are
+decided by the marks through `evaluateCourseResult`; the status is displayed as
+printed and leads where present, because it is what the university decided. The
+calculated state appears only where no status was printed — never over it.
+
+**Consequence:** an unfamiliar status is storable and displayable and produces
+no claim. That is the correct outcome, not a gap.
+
+### OQ-051 — One subject definition, or one per feature? · **opened by OQ-049**
+
+Results, attendance, timetable slots and backlogs all key subject identity on
+the **code**, and a name is never a join key (`docs/16` §8) — so nothing
+duplicates identity today. But each still stores its own `subjectCode` and
+`subjectTitle`, so the same subject's *title* can differ between two screens,
+and the catalogue's credits and `has_see` reach only a result subject.
+
+OQ-049 did not unify them, and deliberately: a shared local `Subject` entity
+changes four collections, their sync shapes and their migration paths, and
+nothing in the result workflow needed it.
+
+**What it costs today:** a subject entered manually in Attendance and picked
+from the catalogue in Results shows two titles. **What it would unlock:** a
+credit and SEE flag known once and read everywhere, and a single place to
+correct a title.
+
+**Decision needed:** whether a local `Subject` record becomes its own synced
+collection, or whether the catalogue stays the only shared definition and each
+feature goes on keeping its own display copy.
+
+### OQ-034 — remains OPEN · **unchanged by OQ-049**
+
+Total credits required for graduation are still not established by verified
+reference data, so `graduationProgress` still reports credits remaining as
+unknown. Richer result data does not help: it makes the numerator more
+accurate and says nothing about the denominator. Nothing here invents one.

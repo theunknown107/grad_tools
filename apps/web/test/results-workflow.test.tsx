@@ -132,6 +132,35 @@ describe('entering a result card', () => {
     await user.click(screen.getByRole('button', { name: /remove subject 9/i }));
     expect(screen.queryByLabelText(/subject code 9/i)).toBeNull();
   });
+
+  it('refuses a second result for a semester that already has one', async () => {
+    /*
+     * FOUND BY THE OQ-049 BROWSER SWEEP, not by reasoning about it: two
+     * "Semester 3" sections rendered side by side, both saved. It matters
+     * because `buildSemesterViews` matches a semester by NUMBER and takes the
+     * first — so the duplicate contributes nothing to the SGPA, the CGPA or the
+     * degree timeline while looking on this page exactly like a saved semester.
+     */
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories({
+      results: [saved(3, [{ subjectCode: 'BCS301', credits: 4, gradeLetter: 'A' }])],
+    });
+    renderWith(<ResultsPage />, { repositories: bundle });
+
+    await user.click(await screen.findByRole('button', { name: /add a semester/i }));
+    await user.selectOptions(screen.getByLabelText(/^semester$/i), '3');
+    await user.type(screen.getByLabelText(/subject code 1/i), 'BCS302');
+    await user.click(screen.getByRole('button', { name: /save semester/i }));
+
+    expect(screen.getByText(/already has a result saved/i)).toBeTruthy();
+    expect(peek.results()).toHaveLength(1);
+
+    // Another semester saves normally — the guard is about the collision, not
+    // about the form.
+    await user.selectOptions(screen.getByLabelText(/^semester$/i), '5');
+    await user.click(screen.getByRole('button', { name: /save semester/i }));
+    expect(peek.results()).toHaveLength(2);
+  });
 });
 
 describe('a saved result', () => {

@@ -1702,3 +1702,85 @@ reads the painted background back:
 
 Two genuinely different grounds, with the attribute absent in both. That is the
 three-state contract behaving, not merely a unit test asserting it.
+
+## 22.38 The result model (OQ-049)
+
+`apps/web/test/results.test.ts` — 31 tests over `domain/results.ts`.
+
+Two mark rows in that file are **identical** — internal high, external zero —
+and have opposite correct answers depending on whether the course has a
+semester-end examination. No arithmetic separates them. A model that fills
+`hasSee` in from the marks passes every plausible-looking test and tells a real
+student they have a backlog in a course the university passed them in, so both
+readings are pinned side by side.
+
+| Pinned | Why it is the case that matters |
+|---|---|
+| A legacy row keeps its grade and credits, and gains marks fields that are **null, not 0** | A zero would say the student scored nothing |
+| A `numeric` column arriving as `"4.0"`, and a `date` as a `Date` | Both are how the cloud actually delivers them; rejecting either empties the record on the second device |
+| A row with marks, a status and no grade or credits | The ordinary provisional card — and the row the old model could not hold |
+| `total ≠ internal + external` is refused | Refused, never repaired: every derived figure would be wrong |
+| One side present, the other missing → **no** issue | Demanding the absent number is how a model teaches people to type a zero |
+| External 17 → backlog · external 18 → not | 35% of the 50-mark contribution is 17.5; the boundary is pinned in both directions |
+| CIE-only, external 0 → **not** a backlog | The SEE head is `not_applicable`, not `failed` |
+| The identical row with `hasSee: true` → backlog | Same three numbers, opposite answer |
+| `hasSee: null` → backlog `null` | "Not known" is an answer; a guess is not |
+| An internal of 96 accepted when `hasSee` is false, refused when true | A CIE-only course is assessed over the whole 100 (22OB 6.1(3)) |
+| A pinned rule set this build lacks → nothing computed, and the **source grade still shown** | No substitution (M6 §6); a fact the card stated is not discarded to protect a calculation |
+| A source grade and a calculated one both reported, flagged when they differ | Neither overwrites the other |
+| **No** calculated grade for a carried course | `gradeFromMarks` bands a percentage; a failed head is not graded on its percentage, and no verified rule for that letter exists here |
+| 8 subjects and 9 subjects both graded | Real semesters; nothing assumes either |
+| One subject without a grade → **no** SGPA, and the row named | A partial SGPA is a wrong SGPA |
+
+## 22.39 The result workflow (OQ-049)
+
+`apps/web/test/results-workflow.test.tsx` — 12 tests driving the page.
+
+Entry of a provisional row storing nulls where the card is silent; a
+contradictory total blocking the save with the typed value left alone; SEE
+applicability recorded from the control rather than inferred; rows added and
+removed with no fixed count; a saved semester edited **in place** rather than
+duplicated; and a pre-OQ-049 record still rendering, with its marks columns
+honestly empty.
+
+Two of these came from the browser sweep rather than from reasoning:
+
+- **A second result for a semester that already had one saved silently.**
+  `buildSemesterViews` matches a semester by number and takes the first, so the
+  duplicate contributed nothing to the SGPA, the CGPA or the degree timeline
+  while looking on the results page exactly like a saved semester. Now refused,
+  with the row menu's Edit named as the way to change one.
+- **The row-action menu gained Edit**, so `tests/interaction-qa.mjs` was
+  corrected to assert both items rather than that Delete is first.
+
+## 22.40 OQ-049 browser QA
+
+`tests/results-qa.mjs`. Real Chromium, the built app, the API running, and a
+synthetic student — invented codes and marks; **no real academic record is used
+for QA**.
+
+The seed is the point. `visual-qa-seeded.mjs` seeds results carrying credits and
+grades and no marks, which since OQ-049 is a **legacy** record — it is left
+exactly as it was, so that sweep goes on proving those still render. This one
+seeds what copying a real card produces:
+
+| | |
+|---|---|
+| S1, S2 | 8 subjects, fully graded — an SGPA and a CGPA exist |
+| S3 | 8 subjects, one carried (SEE contribution 17) |
+| S4 | **9 subjects, provisional** — marks and statuses, no grades, a CIE-only course, a missing credit, and a row whose SEE applicability is unknown |
+
+4 widths (320, 390, 768, 1280) × 4 routes, plus the editor open at each width,
+in **both themes**, then 16 scripted interaction checks: the duplicate-semester
+refusal, a contradictory total refused and left uncorrected, a corrected row
+saved, a semester edited in place, nine rows in S4 and eight in S1 with no
+padding, and the mobile sheet at 390px read for the SEE row.
+
+**Result: CLEAN in both themes** — 0 axe violations, 0 horizontal overflow, 0
+console errors, 16/16 interaction checks.
+
+The sweep's own finding worth recording: the row-action menu closes on scroll,
+and Chromium delivers that scroll event on the frame *after* the click that
+opened it — so letting the click do the scrolling opens the menu and closes it
+in one gesture. The harness scrolls first, as a person does. This is existing
+M9.6 behaviour, not a regression, and M9.6 stays frozen.

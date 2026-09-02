@@ -1159,5 +1159,85 @@ verified by test.
 | A pulls | B's subject rows absent entirely |
 | Deleting a result | Its subject rows cascade |
 
+## 9.20 What a result card prints (OQ-049, Supabase 0003)
+
+Forward-only. 0001 and 0002 are released and were not edited.
+
+### What was wrong
+
+`result_subjects` **required** `credits` and `grade_letter` and could store none
+of internal, external, total, status or the announcement date — the exact
+inverse of what a VTU provisional result prints. The schema forced the student
+to invent the two values the card does not carry before it would accept the
+five it does.
+
+### The columns
+
+```sql
+ALTER TABLE result_subjects
+  ADD COLUMN internal      numeric(5, 1) CHECK (…),
+  ADD COLUMN external      numeric(5, 1) CHECK (…),
+  ADD COLUMN total         numeric(5, 1) CHECK (…),
+  ADD COLUMN result_status text          CHECK (length BETWEEN 1 AND 8),
+  ADD COLUMN announced_on  date,
+  ADD COLUMN grade_point   numeric(4, 2) CHECK (…),
+  ADD COLUMN has_see       boolean,
+  ADD COLUMN provenance    text NOT NULL DEFAULT 'manual'
+                             CHECK (provenance IN ('catalogue', 'manual'));
+
+ALTER TABLE result_subjects
+  ALTER COLUMN credits      DROP NOT NULL,
+  ALTER COLUMN grade_letter DROP NOT NULL;
+```
+
+Three decisions in that block are load-bearing:
+
+- **`result_status` is bounded text, not an enum.** The card legends P, F, A, W,
+  X and NE at the foot of the page. Those are *observed* values, not a closed
+  universe, and an enum would reject a real result carrying a status GradTools
+  has not seen. A status is stored verbatim and given no academic meaning here;
+  pass and backlog come from the marks, through the rules engine.
+- **`has_see` has no default.** Defaulting it to `true` would silently decide,
+  for every row ever written, a question no arithmetic on the marks can answer
+  (`DEC-037`). Unknown must be storable.
+- **`credits` and `grade_letter` become nullable.** NULL means "the source did
+  not say", which has to be distinguishable from `0` and from `F`.
+
+### The cross-column invariant
+
+```sql
+ALTER TABLE result_subjects
+  ADD CONSTRAINT result_subjects_total_adds_up
+    CHECK (
+      internal IS NULL OR external IS NULL OR total IS NULL
+      OR total = internal + external
+    );
+```
+
+Only when all three are present. With one side missing there is nothing to
+disagree with, and requiring the other side would require a number the card may
+not have printed.
+
+The database does **not** enforce the regulation's maxima. Which maximum applies
+depends on whether the course has a semester-end examination — a CIE-only course
+is assessed on CIE over the whole 100 (22OB 6.1(3)), which is why a real
+Physical Education row prints an internal far above the ordinary CIE maximum of
+50 — and the ruling numbers live in `@gradtools/academic-rules`, where a scheme
+change can move them. The `CHECK` bounds here are sanity limits against a
+mistyped or hostile payload, not a statement of the 2022 regulation.
+
+### Verified
+
+Against real PostgreSQL with RLS, as user A (`services/api/test/result-sync.test.ts`):
+
+| Attempt | Result |
+|---|---|
+| Push a row with every printed column, then pull it | Every column round-trips |
+| Push a provisional row with `grade_letter` and `credits` null | `applied` |
+| Push a row that never states SEE applicability | Stored as `has_see IS NULL` |
+| Insert `internal 39, external 28, total 99` | `result_subjects_total_adds_up` violation |
+| Push a row carrying only a total | `applied` — one side alone contradicts nothing |
+| Insert a marked row owned by B against A's result | Foreign key violation (§9.19 holds) |
+
 Applied to the live Supabase project and to the local test database from the
 same file.
