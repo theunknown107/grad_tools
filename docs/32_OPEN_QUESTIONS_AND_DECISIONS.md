@@ -1880,3 +1880,83 @@ the legend beneath. Determination: **presentation-only, and specific to one
 college's sheet.** They are not university data, they are not stable across
 colleges, and nothing resolves identity by them. They stay out of subject
 identity.
+
+---
+
+## Part I — M10A.3: verified academic reference ingestion
+
+### The question, and the answer
+
+*"Do we have a trustworthy, repeatable way to bring verified academic reference
+material into GradTools?"*
+
+**Not from the material currently on this machine.** M10A.3 therefore closed as
+**outcome B** (§33): the source inventory was built and run, the missing sources
+are named, and **no academic data was fabricated or ingested.**
+
+### The source inventory — measured, not assumed
+
+| Source | Type | Present locally? | Class | What it could establish |
+|---|---|---|---|---|
+| VTU 2022 regulation (22OB) | PDF, URL cited | **No** | VERIFIED (already ingested) | Rule-set thresholds — done |
+| VTU 2022 CSE scheme (`csesch.pdf`) | PDF, URL cited | **No** | VERIFIED (partly ingested) | Semesters 1–2 subjects, credits |
+| 65 question papers | PDF, gitignored | Yes | mixed — see below | Code, title, semester, that a SEE exists |
+| Corpus databases | Postgres, local | Yes | PROJECT-MAINTAINED, unreviewed | Nothing safely — see OQ-053 |
+
+Of the 65 papers, **9 have a text layer**; 56 are image-only scans readable only
+through OCR, which M10B.3 established is unreviewed with no human ground truth.
+Of the 9, **6 declare `1B…` codes — a later scheme GradTools does not model** —
+and 8 are model papers rather than records of a sitting.
+
+**So the readable material is almost entirely the wrong scheme, and the
+right-scheme material is unreadable without unreviewed OCR.**
+
+### Why this closes nothing that M10A.2 left open
+
+The gaps are semesters 2–8, credits, SEE applicability and L/T/P. **A question
+paper never carries credits, L/T/P or scheme membership** — so two of those four
+gaps cannot be closed from this material at all, whatever its quality. The other
+two would require trusting either unreviewed OCR or a different scheme's
+documents.
+
+The one gap that needs no new source remains what M10A.2 recorded: `csesch.pdf`
+covers semesters I **and** II, and semester 2 was never extracted. It needs the
+document, not recall.
+
+### OQ-053 — The corpus records model papers as sittings · **opened by M10A.3**
+
+Three of the nine documents in the local question-paper corpus are recorded
+under 2022-family subject codes at a `June/July 2024` sitting, while the files
+their stored titles name — `cmp-1BMATC101.pdf`, `cmp-1BPHYS102.pdf`,
+`cmp-1BESC104C.pdf` — carry pages declaring `1B…` codes. Two of those pages
+carry 2025 dates: *"with effect from 2025"* and *"January 2025"*.
+
+**How it happened is visible in the data:** `documents.subject_id` is null for
+all nine and `original_filename` is empty, so the code came from the file's
+name, with the leading `1` stripped and a sitting supplied. The name was
+trusted; the page was not.
+
+**Deliberately not fixed here.** M10B is frozen (§20), the corpus is a local
+gitignored development database, and correcting it means re-deriving nine
+attributions from pages that mostly need OCR — its own piece of work.
+
+**What it demonstrates**, and why it is recorded rather than quietly repaired:
+the misattribution is exactly what an ingestion built on filenames produces, and
+it is invisible downstream because both codes are real. `source-scan.ts` and its
+tests now pin the rule that would have prevented it.
+
+**Decision needed:** whether the corpus is re-derived from the documents, or
+discarded and rebuilt when a reviewed extraction exists.
+
+### OQ-034 — remains OPEN · **unchanged by M10A.3**
+
+No source examined carries a total-credit requirement for a scheme. Question
+papers do not print credits at all. `graduationProgress` still reports credits
+remaining as unknown, and no denominator was inferred from partial subject rows.
+
+### The three-state model was not changed
+
+§36 asked that it be left alone unless evidence showed it insufficient. Nothing
+found here showed that. `hasSee`, `credits` and titles behaved correctly against
+every source examined: the honest answer for all of them, from this material,
+is unknown — which the model already expresses.

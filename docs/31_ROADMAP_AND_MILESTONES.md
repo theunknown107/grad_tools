@@ -1163,3 +1163,47 @@ themes. Coverage measured by a committed script, not estimated.
 
 **OQ-034 stays open**, and the audit makes the reason sharper: no denominator
 can be verified from 10 subjects in one semester of one branch.
+
+## 31.28 M10A.3 — Verified academic reference ingestion · ✅ **DELIVERED as outcome B**
+
+**The question.** Can verified academic reference material be brought into
+GradTools in a trustworthy, repeatable way?
+
+**The answer, from the material on this machine: no** — and the milestone spent
+its effort establishing that rather than building a pipeline over data that
+cannot support the facts it would write down.
+
+**What the inventory found.** 65 local question papers: 9 have a text layer, 56
+are image-only scans readable only through unreviewed OCR. Of the 9 readable,
+**6 declare `1B…` codes — a later VTU scheme GradTools does not model** — and 8
+are model papers rather than records of a sitting. Two filenames claim a code
+their own page does not carry.
+
+**The trap this makes explicit.** `1BMATC101` *contains* `BMATC101`. Both are
+real VTU codes from different schemes, so a 2022 pattern run over a 2025
+document matches the tail and produces a completely plausible misattribution.
+
+**And it has already happened.** Three of nine documents in the local corpus are
+recorded under 2022 codes at a June/July 2024 sitting, while the files their
+titles name are `1B…` model papers, two of them dated 2025. `subject_id` is null
+throughout and `original_filename` is empty: the code came from the filename,
+with the leading digit stripped. Recorded as **OQ-053**; not fixed, because
+M10B is frozen and the corpus is a local development database.
+
+**What shipped.** `source-scan.ts` — pure, tested functions that read what a
+page declares and refuse to resolve a filename-versus-page disagreement — and
+`source:inventory`, which runs them over a directory and reports what each
+document could and could not establish. It writes nothing and reaches no
+network.
+
+**What did NOT ship, deliberately:** no ingestion pipeline, no seeded semester,
+no scheme invented for the `1B…` family, no fix to the corpus, and no change to
+the three-state knowledge model — nothing found showed it insufficient.
+
+**The structural limit worth remembering:** a question paper never carries
+credits, L/T/P or scheme membership. Two of the four gaps M10A.2 left open
+cannot be closed from question papers at all, whatever their quality. They need
+the scheme of teaching document.
+
+**Verification.** 1527 → 1543 tests. No UI changed, so no browser QA was due.
+**OQ-034 stays open.**
