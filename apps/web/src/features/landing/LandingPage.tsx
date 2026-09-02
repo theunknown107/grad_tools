@@ -645,8 +645,8 @@ function Footer(): ReactNode {
     {
       title: 'Academics',
       links: [
-        { to: '/degree', label: 'My degree' },
-        { to: '/gpa', label: 'SGPA & CGPA' },
+        { to: '/semesters', label: 'My degree' },
+        { to: '/academics', label: 'SGPA & CGPA' },
         { to: '/timetable', label: 'Timetable' },
         { to: '/announcements', label: 'Announcements' },
       ],

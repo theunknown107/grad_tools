@@ -74,7 +74,7 @@ const DESTINATIONS: readonly Destination[] = [
     keywords: 'alerts inbox',
   },
   {
-    to: '/degree',
+    to: '/semesters',
     title: 'My degree',
     description: 'Eight semesters, end to end',
     icon: 'degree',
@@ -90,7 +90,7 @@ const DESTINATIONS: readonly Destination[] = [
     keywords: 'marks grades score',
   },
   {
-    to: '/gpa',
+    to: '/academics',
     title: 'SGPA & CGPA',
     description: 'Grade point calculations',
     icon: 'gpa',
