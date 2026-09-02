@@ -1241,3 +1241,68 @@ Against real PostgreSQL with RLS, as user A (`services/api/test/result-sync.test
 
 Applied to the live Supabase project and to the local test database from the
 same file.
+
+## 9.21 The catalogue can say "we have not checked" (M10A.2, migration 0011)
+
+Forward-only. `0001_reference_data.sql` is released and was not edited.
+
+### What was wrong
+
+`subjects.has_see` was `NOT NULL DEFAULT true` and `subjects.credits` was
+`NOT NULL`. A reference row therefore **always** asserted both, whether or not
+anybody had established them — two states where the world has three:
+
+```
+row exists  ->  an answer, verified or not
+row absent  ->  no subject at all
+```
+
+There was no way to say *"this subject exists, and this property of it has not
+been checked"*.
+
+For `has_see` that is not a tidiness problem. An external mark of 0 is equally
+consistent with "this course has no semester-end examination" and "sat the SEE
+and scored nothing"; the two have **opposite** outcomes and no arithmetic
+separates them (`DEC-037`). A defaulted `true` on a course that is really
+CIE-only reports a backlog against a student the university passed. **A default
+is not a fact, and this one defaulted toward the dangerous answer.**
+
+### Why the verification gate was not enough on its own
+
+Only published rows reach a client, and publication already requires
+verification, so no defaulted value was ever *visible* — the hazard was latent.
+But that safety depended on a reviewer noticing a field the schema had already
+filled in. Verifying a subject's code, title and credits is a different act from
+verifying whether it has a semester-end examination, and a row-level flag cannot
+record that only the first was done. NULL can.
+
+```sql
+ALTER TABLE subjects
+  ALTER COLUMN credits DROP NOT NULL,
+  ALTER COLUMN has_see DROP NOT NULL,
+  ALTER COLUMN has_see DROP DEFAULT;
+```
+
+The `DROP DEFAULT` is half the fix. Left in place, an INSERT that simply omitted
+the column would go on asserting `true` — the defect unchanged.
+
+### Publication is deliberately not made conditional
+
+A published row may carry an unknown field. *"This subject exists, its code and
+title and credits are verified, and its SEE applicability is not established"*
+is a legitimate state, and hiding such a subject entirely would be worse for a
+student than showing it with one honest gap. The existing gate — a published row
+must be verified — is untouched and still tested.
+
+### Verified
+
+Against real PostgreSQL (`services/api/test/reference-knowledge.test.ts`):
+
+| Attempt | Result |
+|---|---|
+| Insert a subject omitting `has_see` | Stored as NULL, not `true` |
+| Inspect `information_schema` | `column_default` null, `is_nullable` YES |
+| Insert a subject omitting `credits` | Stored as NULL, not `0.0` |
+| Read seeded semester 1 through the API contract | Parses; `hasSee` null, `credits` present |
+| Publish an unverified row | Still refused |
+| List published subjects | The subject with the unknown field is still there |

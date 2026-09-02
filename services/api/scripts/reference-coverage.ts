@@ -22,15 +22,17 @@
  * WHAT "KNOWN" MEANS HERE
  * ---------------------------------------------------------------------------
  *
- * `credits` and `has_see` are NOT NULL in the reference schema, so every row
- * carries a value and a naive count would report 100% coverage of everything.
- * That would be a lie about an unverified row: `has_see` defaults to `true`,
- * and a default is not a fact.
+ * `credits` and `has_see` were NOT NULL when this report was first written, so
+ * every row carried a value and a naive count reported total coverage of
+ * everything. That was a lie about an unverified row: `has_see` defaulted to
+ * `true`, and a default is not a fact.
  *
- * A value is therefore counted as VERIFIED only when its row is
- * `verification = 'verified'`, which is also what `publication = 'published'`
- * requires — so only verified values ever reach a student. Anything else is
- * reported separately.
+ * Migration 0011 made both nullable and dropped that default, so the columns
+ * can now answer honestly and this report counts what is actually there. A
+ * value is KNOWN when it is non-null; a row is verified when its
+ * `verification` says so, which is also what publication requires — so only
+ * verified rows reach a student, though a verified row may still carry an
+ * unknown field (OQ-052).
  */
 
 import postgres from 'postgres';
@@ -50,8 +52,10 @@ interface Row {
   readonly subjects: number;
   readonly verified: number;
   readonly published: number;
+  readonly credits_known: number;
   readonly see_true: number;
   readonly see_false: number;
+  readonly see_unknown: number;
 }
 
 const run = async (): Promise<void> => {
@@ -65,8 +69,10 @@ const run = async (): Promise<void> => {
            count(*)::int                                              as subjects,
            count(*) filter (where verification = 'verified')::int     as verified,
            count(*) filter (where publication  = 'published')::int    as published,
+           count(*) filter (where credits is not null)::int           as credits_known,
            count(*) filter (where has_see)::int                       as see_true,
-           count(*) filter (where not has_see)::int                   as see_false
+           count(*) filter (where has_see = false)::int               as see_false,
+           count(*) filter (where has_see is null)::int               as see_unknown
       from subjects
      group by scheme_id, branch_id, semester
      order by scheme_id, branch_id, semester
@@ -88,25 +94,44 @@ const run = async (): Promise<void> => {
 
   for (const pair of pairs) {
     console.log(`${pair}`);
-    console.log('  sem  subjects  verified  published  SEE=true  SEE=false  credits');
+    console.log(
+      '  sem  subjects  credits+  credits?  SEE=true  SEE=false     SEE=?  LTP+  LTP?  published',
+    );
+    const cell = (value: number, width: number) => String(value).padStart(width);
     for (let semester = 1; semester <= 8; semester += 1) {
       const row = rows.find(
         (candidate) =>
           `${candidate.scheme_id}/${candidate.branch_id}` === pair &&
           candidate.semester === semester,
       );
-      if (row === undefined) {
-        console.log(
-          `  ${String(semester).padStart(3)}         0         0          0         0          0  UNKNOWN`,
-        );
-        continue;
-      }
       /*
-       * Credits are counted as verified when the ROW is: the column is NOT
-       * NULL, so its presence proves nothing on its own.
+       * EVERY SEMESTER IS PRINTED, including the ones with no subjects at all.
+       * A table of what exists reads as complete; a table with seven zero rows
+       * in it does not, and the zero rows are the finding.
+       */
+      const counts =
+        row === undefined
+          ? { subjects: 0, creditsKnown: 0, seeTrue: 0, seeFalse: 0, seeUnknown: 0, published: 0 }
+          : {
+              subjects: row.subjects,
+              creditsKnown: row.credits_known,
+              seeTrue: row.see_true,
+              seeFalse: row.see_false,
+              seeUnknown: row.see_unknown,
+              published: row.published,
+            };
+
+      /*
+       * L/T/P HAS NO COLUMN, so every subject is unknown and LTP+ is
+       * structurally zero. Printed rather than omitted: to a student a missing
+       * column and a column of nulls are the same fact, and leaving it out of
+       * the report is how the gap stops being noticed.
        */
       console.log(
-        `  ${String(semester).padStart(3)}  ${String(row.subjects).padStart(8)}  ${String(row.verified).padStart(8)}  ${String(row.published).padStart(9)}  ${String(row.see_true).padStart(8)}  ${String(row.see_false).padStart(9)}  ${String(row.verified)} verified`,
+        `  ${String(semester).padStart(3)}  ${cell(counts.subjects, 8)}  ${cell(counts.creditsKnown, 8)}  ` +
+          `${cell(counts.subjects - counts.creditsKnown, 8)}  ${cell(counts.seeTrue, 8)}  ` +
+          `${cell(counts.seeFalse, 9)}  ${cell(counts.seeUnknown, 8)}  ${cell(0, 4)}  ` +
+          `${cell(counts.subjects, 4)}  ${cell(counts.published, 9)}`,
       );
     }
     console.log('');
@@ -122,17 +147,35 @@ const run = async (): Promise<void> => {
   console.log('    stored. Adding a single L/T/P column would silently pick one of them.');
 
   /* ---- The gap that matters most to the marks engine --------------------- */
-  const [cieOnly] = await sql<{ n: number }[]>`
-    select count(*)::int as n from subjects where publication = 'published' and not has_see`;
+  const [see] = await sql<{ known: number; unknown: number }[]>`
+    select count(*) filter (where has_see is not null)::int as known,
+           count(*) filter (where has_see is null)::int     as unknown
+      from subjects where publication = 'published'`;
   console.log('\nSEE applicability, as a student experiences it:');
-  console.log(`  published subjects with has_see = false : ${String(cieOnly?.n ?? 0)}`);
-  if ((cieOnly?.n ?? 0) === 0) {
-    console.log('    NONE. The catalogue can currently only ever answer "this course has a SEE".');
-    console.log('    A real card carries a CIE-only Physical Education row, so the one value that');
-    console.log(
-      '    most needs reference backing (DEC-037) has to be answered by the student today.',
-    );
+  console.log(`  published subjects with has_see established : ${String(see?.known ?? 0)}`);
+  console.log(`  published subjects with has_see UNKNOWN     : ${String(see?.unknown ?? 0)}`);
+  if ((see?.known ?? 0) === 0) {
+    console.log('    The catalogue answers this for NO subject, so a student supplies it per row.');
+    console.log('    That is a smaller product than an asserted default, and a truthful one: a');
+    console.log('    wrongly asserted "has a SEE" reports a backlog in a course that was passed.');
   }
+
+  /* ---- Where the facts came from (M10A.2 section 9) ---------------------- */
+  const sources = await sql<
+    { source_url: string; verified_by: string | null; verification: string; n: number }[]
+  >`
+    select source_url, verified_by, verification::text as verification, count(*)::int as n
+      from subjects group by 1, 2, 3 order by 4 desc`;
+  console.log('\nProvenance of every subject row:');
+  for (const row of sources) {
+    console.log(
+      `  ${String(row.n).padStart(3)}  ${row.verification.padEnd(10)}  ${row.source_url}`,
+    );
+    console.log(`       verified by: ${row.verified_by ?? '(nobody)'}`);
+  }
+  console.log('\n  Verified-per-fact is claimed ONLY where a clause was read for that field.');
+  console.log("  Credits were checked against the document's own printed total; SEE");
+  console.log('  applicability never was, which is why it is now NULL rather than true.');
 
   await sql.end();
 };

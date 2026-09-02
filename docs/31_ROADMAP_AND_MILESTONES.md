@@ -1128,3 +1128,38 @@ name, seed the missing seven semesters of reference data, or close OQ-034.
 **Opened:** OQ-052 — the reference schema cannot express "we have not checked"
 for `has_see` or `credits`. Latent rather than live, because only verified rows
 are published.
+
+## 31.27 M10A.2 — Academic reference-data foundation · ✅ **DELIVERED**
+
+**The problem.** The catalogue had two states where the world has three. A
+reference row always asserted credits and SEE applicability whether or not
+anyone had established them, so "we have not checked" was unsayable (OQ-052).
+
+**What shipped.** Migration 0011 makes `credits` and `has_see` nullable and
+drops the `has_see` default — the second half being the real fix, since an
+omitted column would otherwise go on asserting `true`. The contract carries both
+as nullable; the client was already three-valued from OQ-049.
+
+**The headline number goes down, and that is the milestone working.** SEE
+coverage moved from an apparent 10/10 to a measured **0/10**. Those rows
+asserted `true` as a literal written once for the whole list rather than read
+per course; the fact is probably in the source document, but it was never
+extracted and nothing here records it. A wrongly asserted "has a SEE" reports a
+backlog against a student who passed, so unknown is both the safe direction and
+the true one.
+
+**One dangerous line fixed that no compiler would have caught:** the catalogue
+pick in result entry read `hasSee ? 'yes' : 'no'`, which answers "no" for null.
+It is the shorter expression, it type-checks, and it is the exact collapse
+`DEC-037` forbids.
+
+**Deliberately not done:** L/T/P is not modelled — a real timetable prints hours
+as taught *and* as per the scheme, and they differ, so it is two facts serving
+zero features. Subject initials are not modelled — presentation-only, and
+specific to one college's sheet. No semester was seeded from recall.
+
+**Verification.** 1520 → 1527 tests. Five browser harnesses clean in both
+themes. Coverage measured by a committed script, not estimated.
+
+**OQ-034 stays open**, and the audit makes the reason sharper: no denominator
+can be verified from 10 subjects in one semester of one branch.

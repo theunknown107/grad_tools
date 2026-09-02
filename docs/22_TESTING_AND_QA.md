@@ -1856,3 +1856,41 @@ every source agrees on gets **no** variants line at all.
 
 **Result: CLEAN in both themes** — 0 axe violations, 0 horizontal overflow, 0
 console errors, 6/6 identity checks. The other four harnesses still pass.
+
+## 22.44 Reference knowledge states (M10A.2)
+
+`services/api/test/reference-knowledge.test.ts` — 6 tests, real PostgreSQL, real
+migrations, real seed. They pin that a subject can exist with its SEE
+applicability unknown, that an omitted `has_see` is **NULL rather than `true`**,
+that omitted credits are NULL rather than `0.0`, that the API contract carries
+the unknown out to a client, that publishing an unverified row is still refused,
+and that a subject with one unknown property stays visible.
+
+Client-side, `apps/web/test/subjects.test.ts` gained the matching case: a
+catalogue row with `hasSee: null` and `credits: null` must survive the identity
+index as null. The danger there is not a type error — `hasSee ? a : b` compiles
+perfectly and answers "no" for null. It is the shorter expression, and it is
+wrong.
+
+### The measured coverage, after M10A.2
+
+`pnpm --filter @gradtools/api reference:coverage`:
+
+| scheme/branch | sem | subjects | credits known | SEE true | SEE false | SEE unknown | L/T/P known | L/T/P unknown |
+|---|---|---|---|---|---|---|---|---|
+| vtu-2022/cse | 1 | 10 | 10 | 0 | 0 | **10** | 0 | 10 |
+| vtu-2022/cse | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| vtu-2022/cse | 3–8 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+**SEE coverage went from an apparent 10/10 to a measured 0/10, and that is the
+milestone working.** Those ten rows asserted `true` as a literal written once
+for the whole list rather than read per course. The source very likely contains
+the fact — csesch.pdf carries exam weightage columns — but it was never
+extracted per subject and nothing in the repository records it. An assertion
+nobody checked is not a verified fact, and here the unchecked assertion pointed
+at the answer that produces false backlog claims.
+
+Provenance is one source for every row: `https://vtu.ac.in/pdf/2022syll/csesch.pdf`,
+verified by the project lead via `pdftotext` extraction. Credits were checked
+against the document's own printed total of 20; SEE applicability never was.
+That difference is exactly why one field stayed and the other became null.

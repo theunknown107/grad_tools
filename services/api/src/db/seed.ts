@@ -40,6 +40,12 @@
  *   make the data correct. Inventing one would put an unverified institution
  *   name into a reference table.
  *
+ * - **Semester 2.** csesch.pdf covers semesters I AND II, so this one is the
+ *   odd entry in this list: the source is already cited and already verified,
+ *   and the subjects were simply never extracted. It is the only coverage gap
+ *   here that needs no new source — and it still needs the DOCUMENT, not
+ *   recall, so it stays empty until someone re-reads it (M10A.2 §1).
+ *
  * - **Semesters 3 to 8.** csesch.pdf covers ONLY semesters I and II. Nothing
  *   in it supports a semester-3 subject list, so there is none here.
  *
@@ -190,7 +196,23 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
         -- module_count is NULL: the scheme document gives credits and marks but
         -- no module breakdown, so the structure is unverified (OQ-025). Five is
         -- the scheme norm, not a verified fact about these subjects.
-        50, 100, true, NULL,
+        -- has_see is NULL, and that is a correction rather than a gap being
+        -- left open (M10A.2 §4).
+        --
+        -- Every one of these ten rows previously asserted TRUE, written as a
+        -- literal for the whole list rather than read per course. csesch.pdf is
+        -- a scheme of TEACHING and does carry exam weightage columns, so the
+        -- fact is very likely IN the source — but it was never extracted per
+        -- subject, and nothing in this repository records it. An assertion
+        -- nobody checked is not a verified fact.
+        --
+        -- It matters more here than anywhere else in this file: a wrongly
+        -- asserted TRUE on a course that is really CIE-only tells a student
+        -- they have a backlog in a subject the university passed them in
+        -- (DEC-037). Unknown is the safe direction AND the true one.
+        --
+        -- Closing this needs the document re-read per course, not recall.
+        50, 100, NULL, NULL,
         ${CSE_SCHEME_URL}, 'Scheme of Teaching and Examinations 2022, I Semester (CSE Stream, Physics Group)',
         'verified', ${SCHEME_VERIFIED_AT}, ${VERIFIED_BY}, 'published'
       )
@@ -198,6 +220,10 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
         title = EXCLUDED.title,
         credits = EXCLUDED.credits,
         category = EXCLUDED.category,
+        -- Carried through the upsert deliberately: a database seeded before
+        -- M10A.2 holds the asserted TRUE, and a seed that only ever added
+        -- facts could not retract one.
+        has_see = EXCLUDED.has_see,
         verification = EXCLUDED.verification,
         verified_at = EXCLUDED.verified_at,
         publication = EXCLUDED.publication

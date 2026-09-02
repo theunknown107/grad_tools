@@ -1798,3 +1798,85 @@ The coverage audit found **more** missing per-subject credits, not fewer, and a
 total-credit denominator for a scheme is not derivable from a catalogue that
 covers one semester of one branch. `graduationProgress` still reports credits
 remaining as unknown. Nothing here invents one.
+
+---
+
+## Part H — M10A.2: the reference-data foundation
+
+### OQ-052 — CLOSED · **the catalogue can say "we have not checked"**
+
+Migration 0011 made `subjects.credits` and `subjects.has_see` nullable and
+dropped the `has_see` default. The API contract carries both as nullable, and
+the client was already three-valued from OQ-049, so the change is contained to
+the reference layer.
+
+| Acceptance condition | Evidence |
+|---|---|
+| true / false / unknown representable | Migration + 6 DB tests (§22.44) |
+| unknown never read as false | Contract nullable; the catalogue-pick path fixed and pinned |
+| credits and SEE behaviour respect the state | `evaluateResultSubject` already refuses without `hasSee` |
+| existing features compatible | 1527 tests; five browser harnesses clean, both themes |
+
+**The `DROP DEFAULT` is half the fix.** Left in place, an INSERT that omitted
+the column would go on asserting `true`.
+
+**Publication is deliberately not conditional on a field being known.** A
+published row may carry an unknown property; hiding the subject entirely would
+be worse for a student than showing it with one honest gap.
+
+### DEC-042 — An unchecked assertion is retracted, not kept
+
+The ten seeded semester-1 subjects asserted `has_see = true`, written as a
+literal for the whole list rather than read per course. M10A.2 set all ten to
+NULL.
+
+**This reduced apparent coverage from 10/10 to 0/10, and that is correct.**
+csesch.pdf carries exam weightage columns, so the fact is very likely in the
+source — but it was never extracted per subject and nothing in this repository
+records it. An assertion nobody checked is not a verified fact.
+
+It matters more for this field than any other: a wrongly asserted `true` on a
+CIE-only course reports a backlog against a student the university passed
+(`DEC-037`). **Unknown is both the safe direction and the true one.**
+
+**Cost, stated plainly:** a student picking a catalogued subject now gets "Not
+sure" for SEE applicability and answers it themselves, and their backlog state
+for those subjects reads "not known" until they do. That is a smaller product
+than one that guesses, and an honest one.
+
+**How to close it:** re-read csesch.pdf per course. It needs the document, not
+recall.
+
+### The semester-2 gap is the one that needs no new source
+
+csesch.pdf covers semesters **I and II**. Semester 2's subjects are inside an
+already-cited, already-verified document and were simply never extracted — the
+only coverage gap in this project that requires no new source, only the work.
+It stays empty until someone re-reads the document; typing it from memory is
+exactly the fabrication M10A.2 §1 forbids.
+
+### OQ-034 — remains OPEN · **and the audit makes it clearer why**
+
+A complete verified total-credit requirement for a scheme cannot exist while the
+catalogue holds 10 subjects in one semester of one branch. Inferring a
+denominator from partial subject rows is explicitly ruled out.
+`graduationProgress` still reports credits remaining as unknown.
+
+### L/T/P — NOT modelled, deliberately · **M10A.2 §14**
+
+The real college timetable prints hours **twice**: as taught, and as per the VTU
+scheme — and they differ (one course: 3+0+2 taught against 2+0+2 scheme). So
+L/T/P is two facts, not one, and a single column would silently pick one of
+them.
+
+Against that, GradTools uses L/T/P for nothing: attendance is counts, not hours.
+Modelling two fields with zero verified values for either, to serve no feature,
+is a schema change that buys nothing. **Recorded as a gap; not implemented.**
+
+### Subject initials — NOT modelled · **M10A.2 §15**
+
+The college timetable's grid cells carry `MAT`, `PHY`, `POP`, with the codes in
+the legend beneath. Determination: **presentation-only, and specific to one
+college's sheet.** They are not university data, they are not stable across
+colleges, and nothing resolves identity by them. They stay out of subject
+identity.

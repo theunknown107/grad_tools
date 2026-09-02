@@ -305,6 +305,26 @@ describe('reference credits and SEE applicability', () => {
     expect(resolveSubject(backed, 'BCS301')?.hasSee).toBe(true);
   });
 
+  it('keeps a catalogue that does not know from answering', () => {
+    /*
+     * SINCE M10A.2 THE CATALOGUE ITSELF IS THREE-VALUED (OQ-052). A reference
+     * row may now say "this subject exists and nobody established whether it
+     * has a semester-end examination", and that must survive the index rather
+     * than being read as a no.
+     *
+     * The danger is not a type error — `hasSee ? a : b` compiles perfectly and
+     * answers "no" for null. It is the shorter expression, and it is wrong.
+     */
+    const built = buildSubjectIndex({
+      catalogue: [catalogueSubject({ code: 'BMATS101', credits: null, hasSee: null })],
+    });
+    const identity = resolveSubject(built, 'BMATS101');
+    expect(identity?.hasSee).toBeNull();
+    expect(identity?.hasSee).not.toBe(false);
+    expect(identity?.credits).toBeNull();
+    expect(identity?.credits).not.toBe(0);
+  });
+
   it('carries a CIE-only course as false, which is not the same as unknown', () => {
     const built = buildSubjectIndex({
       catalogue: [
