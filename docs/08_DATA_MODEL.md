@@ -969,6 +969,10 @@ whose `provenance` is `catalogue`. A **hand-typed** credit stays a fact about
 the row it was typed into: promoting it would spread one student's guess across
 four other screens.
 
+Both are nullable at every layer since M10A.2 — the catalogue itself can now say
+"not established" (§9.21, OQ-052), and null must survive the index rather than
+being read as `false` or `0`.
+
 ## 8.x What five real academic artifacts showed the model
 
 Structures observed. **No values from the artifacts are reproduced here or in

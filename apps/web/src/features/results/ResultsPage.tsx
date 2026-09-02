@@ -381,8 +381,19 @@ function ResultEditor({
         : {
             subjectCode: subject.code,
             subjectTitle: subject.title,
-            credits: String(subject.credits),
-            hasSee: subject.hasSee ? 'yes' : 'no',
+            /*
+             * THREE-VALUED IN, THREE-VALUED OUT (OQ-052). Both of these are
+             * nullable in the catalogue since M10A.2, and both are the kind of
+             * null TypeScript will not complain about collapsing: `String(null)`
+             * is `"null"`, and `hasSee ? 'yes' : 'no'` quietly answers "no" for
+             * a subject nobody has checked — which is the exact reading DEC-037
+             * forbids, arrived at by writing the shorter expression.
+             *
+             * A catalogue that does not know leaves the student's own answer
+             * where it was rather than filling it in wrongly.
+             */
+            credits: subject.credits === null ? '' : String(subject.credits),
+            hasSee: subject.hasSee === null ? 'unknown' : subject.hasSee ? 'yes' : 'no',
             fromCatalogue: true,
           },
     );

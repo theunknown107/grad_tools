@@ -107,11 +107,26 @@ export const subjectSchema = z.object({
   semester: z.number().int().min(1).max(8),
   code: z.string(),
   title: z.string(),
-  credits: z.number(),
+  /**
+   * NULL where no authoritative source has established the credits.
+   *
+   * Not 0. A course carrying no weight and a course whose weight is unrecorded
+   * are different facts, and a zero would enter a credit-weighted SGPA as a
+   * real value (OQ-052).
+   */
+  credits: z.number().nullable(),
   category: subjectCategorySchema,
   cieMax: z.number(),
   seeMax: z.number(),
-  hasSee: z.boolean(),
+  /**
+   * Whether this course has a semester-end examination. THREE-VALUED.
+   *
+   * NULL means nobody has established it. It must never be read as false, and
+   * an external mark of 0 does not establish it either: that reading is equally
+   * consistent with "no SEE" and "sat the SEE and scored nothing", and the two
+   * have opposite outcomes (DEC-037, OQ-052).
+   */
+  hasSee: z.boolean().nullable(),
   /**
    * NULL when the syllabus structure has not been verified.
    *
