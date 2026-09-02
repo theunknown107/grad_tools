@@ -27,6 +27,8 @@ import {
 import { formatTime } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
 import { useProfile, useSemesterSubjects, useTimetable } from '../../hooks/useCollection.js';
+import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
+import { displayTitle, resolveSubject } from '../../domain/subjects.js';
 import styles from './timetable.module.css';
 
 function sortSlots(slots: readonly TimetableSlot[]): TimetableSlot[] {
@@ -36,6 +38,13 @@ function sortSlots(slots: readonly TimetableSlot[]): TimetableSlot[] {
 export function TimetablePage() {
   const { items, loading, save, remove } = useTimetable();
   const { profile } = useProfile();
+  /*
+   * A TIMETABLE SLOT STORES A CODE AND NO TITLE, so this screen showed a bare
+   * `BMATS101` where every other screen showed a name (OQ-051). The name is
+   * resolved from the student's own records by code — nothing is stored here,
+   * and no schema changed.
+   */
+  const { index } = useSubjectIndex();
 
   const [day, setDay] = useState<Weekday>('Mon');
   const [view, setView] = useState('today');
@@ -128,7 +137,11 @@ export function TimetablePage() {
 
             {view === 'today' ? (
               <IslandTabPanel id="today">
-                <TodayAgenda slots={byDay.get(todayName) ?? []} onRemove={remove} />
+                <TodayAgenda
+                  slots={byDay.get(todayName) ?? []}
+                  titleFor={(code) => displayTitle(resolveSubject(index, code), 'timetable')}
+                  onRemove={remove}
+                />
               </IslandTabPanel>
             ) : null}
           </>
@@ -238,7 +251,12 @@ export function TimetablePage() {
                   ) : (
                     <ul className={styles.slotList}>
                       {(byDay.get(weekday) ?? []).map((slot) => (
-                        <SlotItem key={slot.id} slot={slot} onRemove={() => void remove(slot.id)} />
+                        <SlotItem
+                          key={slot.id}
+                          slot={slot}
+                          title={displayTitle(resolveSubject(index, slot.subjectCode), 'timetable')}
+                          onRemove={() => void remove(slot.id)}
+                        />
                       ))}
                     </ul>
                   )}
@@ -276,7 +294,12 @@ export function TimetablePage() {
               ) : (
                 <ul className={styles.slotList}>
                   {(byDay.get(activeDay) ?? []).map((slot) => (
-                    <SlotItem key={slot.id} slot={slot} onRemove={() => void remove(slot.id)} />
+                    <SlotItem
+                      key={slot.id}
+                      slot={slot}
+                      title={displayTitle(resolveSubject(index, slot.subjectCode), 'timetable')}
+                      onRemove={() => void remove(slot.id)}
+                    />
                   ))}
                 </ul>
               )}
@@ -301,9 +324,11 @@ export function TimetablePage() {
  */
 function TodayAgenda({
   slots,
+  titleFor,
   onRemove,
 }: {
   readonly slots: readonly TimetableSlot[];
+  readonly titleFor: (code: string) => string;
   readonly onRemove: (id: string) => Promise<void> | void;
 }) {
   const now = new Date();
@@ -324,6 +349,7 @@ function TodayAgenda({
         <SlotItem
           key={slot.id}
           slot={slot}
+          title={titleFor(slot.subjectCode)}
           isNext={slot.id === next?.id}
           onRemove={() => void onRemove(slot.id)}
         />
@@ -334,13 +360,22 @@ function TodayAgenda({
 
 function SlotItem({
   slot,
+  title,
   onRemove,
   isNext = false,
 }: {
   slot: TimetableSlot;
+  /** Resolved by code from the student's own records. '' when nothing names it. */
+  title: string;
   onRemove: () => void;
   isNext?: boolean;
 }) {
+  /*
+   * The code leads when it is all there is, and the name leads when one is
+   * known — with the code kept underneath, because the code is the identity and
+   * the thing a student matches against a printed timetable.
+   */
+  const named = title !== '' && title !== slot.subjectCode;
   return (
     <li className={styles.slot} data-next={isNext}>
       <div className={styles.slotTime}>
@@ -348,12 +383,10 @@ function SlotItem({
         <span className={styles.slotTimeEnd}>{formatTime(slot.endTime)}</span>
       </div>
       <div className={styles.slotBody}>
-        <span className={styles.slotSubject}>{slot.subjectCode}</span>
-        {(slot.room !== null || slot.faculty !== null) && (
-          <span className={styles.slotMeta}>
-            {[slot.room, slot.faculty].filter(Boolean).join(' · ')}
-          </span>
-        )}
+        <span className={styles.slotSubject}>{named ? title : slot.subjectCode}</span>
+        <span className={styles.slotMeta}>
+          {[named ? slot.subjectCode : null, slot.room, slot.faculty].filter(Boolean).join(' · ')}
+        </span>
       </div>
       <Button
         variant="danger"

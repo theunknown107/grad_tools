@@ -1095,3 +1095,36 @@ Both were mine, introduced in this milestone and caught by the sweep.
   scripted browser interaction, not a manual pass.
 - The full 6-width × 2-theme matrix was swept for **violet**; the other four
   accents were swept at 1280 on five pages.
+
+## 31.26 M10A.1 — Subject identity and academic reference integrity · ✅ **DELIVERED**
+
+**The problem.** The same subject code was named differently depending on which
+screen you were on, and the timetable named it not at all — it stored a code and
+rendered a bare `BMATS101` where every other screen showed words. Nothing was
+duplicated in storage; the product simply had no way to say "these are the same
+subject" (OQ-051).
+
+**What shipped.** A read-time identity index, `domain/subjects.ts`, read through
+one hook. Identity is the code — trimmed, inner whitespace removed, upper-cased,
+and nothing else. Every wording ever seen is kept and attributed to its source;
+none is corrected, and a canonical title is claimed only where a verified
+catalogue row supplies one.
+
+**No schema change, no migration, no new sync collection.** Every collection
+already keyed on the code, so the question was a read-time one and is answered
+at read time.
+
+**Two UI changes, both earned:** the timetable now shows a name resolved from
+the student's own records, keeping the code beneath it; and the result detail
+sheet carries an "Also recorded as" line — only where wordings genuinely differ.
+
+**Verification.** 1498 → 1520 tests. Five browser harnesses clean in both
+themes, including a new sweep whose seeded student has one subject recorded four
+times under four wordings and three spellings of the code.
+
+**What it deliberately did not do:** compare titles anywhere, invent a canonical
+name, seed the missing seven semesters of reference data, or close OQ-034.
+
+**Opened:** OQ-052 — the reference schema cannot express "we have not checked"
+for `has_see` or `credits`. Latent rather than live, because only verified rows
+are published.
