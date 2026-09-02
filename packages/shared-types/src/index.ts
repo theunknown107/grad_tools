@@ -136,6 +136,18 @@ export const subjectSchema = z.object({
    * source does not support (docs/08 §8.3, docs/14 §14.10).
    */
   moduleCount: z.number().int().min(1).max(10).nullable(),
+  /**
+   * The SCHEME's teaching hours per week, or null where none is established.
+   *
+   * The scheme's, not a college's. A real timetable prints hours as taught AND
+   * as per the scheme and they differ, so these are one of two facts rather
+   * than the authoritative version of one (M10A.4 §15).
+   */
+  schemeLectureHours: z.number().int().min(0).max(40).nullable(),
+  schemeTutorialHours: z.number().int().min(0).max(40).nullable(),
+  schemePracticalHours: z.number().int().min(0).max(40).nullable(),
+  /** The page of the source document this row was read from, where known. */
+  sourcePage: z.number().int().min(1).nullable(),
   provenance: provenanceSchema,
 });
 export type Subject = z.infer<typeof subjectSchema>;

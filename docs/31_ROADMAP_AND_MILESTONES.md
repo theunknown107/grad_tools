@@ -1207,3 +1207,49 @@ the scheme of teaching document.
 
 **Verification.** 1527 → 1543 tests. No UI changed, so no browser QA was due.
 **OQ-034 stays open.**
+
+## 31.29 M10A.4 — Official academic source acquisition · ✅ **DELIVERED as outcome A**
+
+**The source was found, downloaded, hashed and read.** VTU's own
+`csesch.pdf` — "Scheme of Teaching and Examinations – 2022", version line
+`29052023/V10`, effective 2022-23, 12 pages, sha256 `0082c228…`. It is the
+document the seed had cited by URL since M4 without anyone having read it.
+
+**What it settled.** The table carries the columns the catalogue had been
+missing all along: **L T P S | Duration | CIE Marks | SEE Marks | Total |
+Credits**.
+
+- **SEE applicability, for all 57 courses.** Every row of both semester tables
+  prints SEE Marks 50, so `has_see` is now a reading rather than the assumption
+  M10A.2 had to retract. The three-state model did not change — only the
+  evidence did, which is what it was built to allow.
+- **Semester II**, the gap M10A.3 identified as needing no new source.
+- **The elective expansions on pages 3 and 6**, which turned out to matter
+  most: they name the concrete courses behind the `BESCK104x` placeholders,
+  including **BESCK104B** and **BETCK105I** — the two subjects on the supplied
+  real result card that the catalogue had never held.
+- **Scheme L/T/P**, stored under `scheme_*` names so a college's delivered
+  hours — which a real timetable prints differently — cannot overwrite them.
+
+**Catalogue: 10 subjects → 57.** Semesters I and II complete; III–VIII still
+empty, because this document covers I and II and nothing else was invented.
+
+**Provenance is now checkable, not merely cited.** Every row carries the
+document's hash and the page it was read from. A URL names a location and
+locations are re-used across revisions; the hash names the bytes.
+
+**The extraction check that matters:** a student's path through each semester —
+core plus one course from each OR-group — sums to 20, the total the document
+itself prints. A misread credit anywhere breaks it.
+
+**OQ-053 narrowed to a conclusion for readable documents:** `BESC104C` is
+neither the later-scheme code its file declares nor the verified 2022 code
+`BESCK104C`; it is the later code with its leading digit stripped. Still open,
+because 56 of 65 papers are unreadable scans and the corpus is uncorrected.
+
+**OQ-034 stays open**, now for a stated reason: the document prints per-semester
+totals of 20 and no total for the degree.
+
+**Verification.** 1543 → 1552 tests. Five browser harnesses clean in both themes
+— run because the catalogue reaching the UI grew from 10 subjects to 29, even
+though no UI code changed. No scraper, poller or scheduled fetch was built.

@@ -90,21 +90,22 @@ describeDb('reference knowledge states', () => {
     await sql`DELETE FROM subjects WHERE code = 'BTEST702'`;
   });
 
-  it('carries an unknown SEE flag all the way out through the API contract', async () => {
+  it('carries a nullable SEE flag out through the API contract', async () => {
     /*
-     * The seeded semester-1 rows. Their `has_see` was asserted `true` as a
-     * literal for the whole list rather than read per course, and M10A.2
-     * retracted that — so every one of them is now honestly unknown, and the
-     * contract has to be able to say so rather than failing to parse.
+     * THIS ASSERTION WAS `toBeNull()` UNTIL M10A.4, and the change is the point
+     * rather than a weakening. M10A.2 retracted an asserted `true` that nobody
+     * had checked; M10A.4 read the scheme document, found a SEE Marks column
+     * printing 50 on every semester-1 and semester-2 row, and supplied the
+     * fact. The MODEL is unchanged — the column is still nullable and unknown
+     * is still representable, as the inserts above prove. Only the evidence
+     * moved.
      */
     const subjects = await listSubjects(sql, { scheme: 'vtu-2022', branch: 'cse', semester: 1 });
     expect(subjects.length).toBeGreaterThan(0);
 
     for (const subject of subjects) {
       expect(subjectSchema.safeParse(subject).success).toBe(true);
-      expect(subject.hasSee).toBeNull();
-      // Credits ARE verified: the seed checked them against the document's own
-      // printed total, which is the difference between the two fields.
+      expect(subject.hasSee).toBe(true);
       expect(subject.credits).not.toBeNull();
     }
   });

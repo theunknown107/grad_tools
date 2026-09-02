@@ -1960,3 +1960,102 @@ remaining as unknown, and no denominator was inferred from partial subject rows.
 found here showed that. `hasSee`, `credits` and titles behaved correctly against
 every source examined: the honest answer for all of them, from this material,
 is unknown — which the model already expresses.
+
+---
+
+## Part J — M10A.4: the official source, acquired and read
+
+### The document
+
+| | |
+|---|---|
+| Publisher | Visvesvaraya Technological University, Belagavi |
+| Title | Scheme of Teaching and Examinations – 2022 (OBE / CBCS) |
+| Version line | `29052023/V10 scheme for Computer Science and Engineering and allied branches (CSE/ISE and BT all allied branches of CSE)` |
+| Effective | from the academic year 2022-23 |
+| URL | `https://vtu.ac.in/pdf/2022syll/csesch.pdf` |
+| sha256 | `0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e` |
+| Pages | 12 · retrieved 2026-09-02 · read with `pdftotext -layout` |
+| Class | **OFFICIAL / PRIMARY** — VTU's own domain, and the document's own header identifies it |
+
+**The PDF is not in this repository.** The hash is what identifies it: a URL is
+a location, and locations are re-used across revisions.
+
+### DEC-043 — The SEE column settles what M10A.2 had to retract
+
+M10A.2 set `has_see` to NULL for all ten seeded subjects because the value had
+been asserted as a literal for the whole list and nobody had checked it. That
+was the right call on the evidence then available.
+
+The document has a **SEE Marks** column, and **every row of both semester tables
+prints 50**. A course assessed on CIE alone would print 0 there. So `has_see` is
+now `true` for all 57 rows as a **reading**, not an assumption.
+
+**The model did not change.** The column is still nullable, unknown is still
+representable, and the tests either side of the changed assertion still prove
+it. Only the evidence moved — which is exactly what the three-state model was
+built to allow.
+
+### What the document gave, and what it did not
+
+| Fact | Outcome |
+|---|---|
+| Subject codes, titles, semesters | Semesters **I and II**, 57 courses |
+| Credits | All 57, checked against the document's own printed TOTAL of 20 per semester |
+| SEE applicability | All 57, from the SEE Marks column |
+| **Scheme** L/T/P | All 57, from the Teaching Hours/Week columns |
+| **Taught** L/T/P | Not in this document. Still unknown, and a separate fact |
+| Semesters III–VIII | **Absent.** This document covers I and II only |
+| A programme credit total | **Absent.** Per-semester totals only |
+
+The elective expansions on pages 3 and 6 turned out to matter most: they list
+the concrete alternatives behind the `BESCK104x` and `BETCK105x` group
+placeholders — including **BESCK104B** and **BETCK105I**, the two courses on the
+supplied real result card that the catalogue had never held.
+
+### OQ-034 — remains OPEN, now for a stated reason rather than an absence
+
+The document prints a TOTAL of 20 credits for semester I and 20 for semester II.
+It states **no total for the degree**. Summing two semesters of an eight-semester
+programme and calling the result the requirement is precisely the fabrication
+this milestone forbids, so `graduationProgress` still reports credits remaining
+as unknown.
+
+**What would close it:** a VTU document stating the programme credit
+requirement for a scheme and branch. The scheme of teaching is not it.
+
+### OQ-053 — PARTIALLY RESOLVED, and narrowed
+
+With a verified catalogue to compare against, the audit is now conclusive for
+the documents that can be read:
+
+- **`BESC104C`** is neither the later-scheme code (`1BESC104C`, which its
+  backing file declares) nor the verified 2022 code (**`BESCK104C`**, with the
+  K). It is the later code with its leading digit stripped.
+- **`BMATC101`** and **`BPHYS102`** are backed by `1B…` model papers dated 2025,
+  recorded as a June/July 2024 sitting. `BPHYS102` happens to be a real CSE
+  code, so only its sitting is wrong; `BMATC101` is not in this scheme at all.
+
+**Why it stays open:** 56 of 65 papers are image-only scans, and six of the
+corpus's nine documents rest on them — so the audit is complete for what is
+readable and silent about the rest. The corpus itself is uncorrected: M10B is
+frozen and it is a local development database.
+
+**Now pinned in code**, so the mechanism cannot recur: `source-scan.ts` reads
+codes with one optional-digit pattern, refuses any document declaring a later
+code, and reports a filename/page disagreement without resolving it. A test
+asserts no `1B…` code can exist in the 2022 catalogue.
+
+### Not modelled, and why
+
+- **Taught L/T/P.** The scheme's hours are stored under `scheme_*` names. A
+  college's delivered hours differ and need their own source and columns.
+- **Subject initials** (`MAT`, `PHY`, `POP`). The official scheme does not
+  mention them at all — confirming M10A.1's reading that they are one college's
+  presentation shorthand, not academic data.
+- **The Chemistry-group semester-I table** (page 7). A parallel curriculum for
+  the same semester; `subjects` has no column for which group a row belongs to,
+  and seeding both would put two curricula in one semester indistinguishably.
+- **`KIDTK258`**, printed in a semester-II group row. Every sibling code in the
+  scheme begins with `B`, so it is either a document typo or a merged-cell
+  artefact. Reading it either way would be a guess.

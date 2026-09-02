@@ -53,6 +53,14 @@ const SUBJECT = {
   seeMax: 100,
   hasSee: true,
   moduleCount: 5,
+  // Present and nullable, like `moduleCount`. The contract is strict about
+  // PRESENCE on purpose: a server that stopped sending them should fail here
+  // with a clear message rather than have every subject quietly lose its
+  // workload hours downstream (M10A.4).
+  schemeLectureHours: 2,
+  schemeTutorialHours: 2,
+  schemePracticalHours: 2,
+  sourcePage: 1,
   provenance: {
     sourceUrl: 'https://vtu.ac.in/pdf/2022syll/csesch.pdf',
     sourceClause: 'Scheme of Teaching 2022',

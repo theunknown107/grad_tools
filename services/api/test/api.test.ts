@@ -345,8 +345,17 @@ describeDb('reference API', () => {
         .get('/api/v1/subjects')
         .query({ scheme: 'vtu-2022', branch: 'cse', semester: 1 });
       expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(10);
+      /*
+       * The FILTER is what this test is about, so it asserts that every row
+       * came back for the right semester rather than pinning a row count. The
+       * count was 10 until M10A.4 ingested semesters I and II from the official
+       * scheme, and a literal here just has to be edited again next time the
+       * catalogue legitimately grows — which teaches whoever edits it that the
+       * number means nothing.
+       */
+      expect(res.body.data.length).toBeGreaterThan(0);
       expect(res.body.data.every((s: { semester: number }) => s.semester === 1)).toBe(true);
+      expect(res.body.data.map((s: { code: string }) => s.code)).toContain('BMATS101');
     });
 
     it('returns an empty list rather than 404 for a semester with no data', async () => {

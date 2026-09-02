@@ -1946,3 +1946,63 @@ no network. Measured against the local, gitignored sample directory:
 and that a semester-end examination exists. **What it never carries:** credits,
 L/T/P, or scheme membership — so the credit and L/T/P gaps cannot be closed from
 this material at all, whatever its quality.
+
+## 22.46 The scheme, as ingested (M10A.4)
+
+`services/api/test/scheme-ingestion.test.ts` — 9 tests, real PostgreSQL, real
+migrations, real seed.
+
+These do not test that rows loaded. Rows loading is the easy part and proves
+nothing about whether they are TRUE.
+
+### The extraction check
+
+A student takes the core rows plus **one** course from each OR-group, so the
+seeded rows cannot simply be summed — they include every alternative. One
+student's path through semester I:
+
+```
+core                              4 + 4 + 3   = 11
+one ESC-I elective                            =  3
+one ETC-I or PLC-I elective                   =  3
+one AEC, one HSMC, one AEC/SDC    1 + 1 + 1   =  3
+                                                --
+                                                20
+```
+
+and the document's own TOTAL row prints **20**. Semester II likewise. A misread
+credit anywhere in the core or group rows breaks this — it is the cheapest
+available evidence that the table was read correctly rather than plausibly.
+
+| Also pinned | Why |
+|---|---|
+| Every row carries the document hash and a page | A URL names a location; revisions re-use locations |
+| Only `scheme_`-prefixed hour columns exist | Delivered hours are a different fact and must not land here |
+| Re-seeding does not multiply rows | Idempotency, over the seeded codes |
+| One row per (scheme, branch, code) | The M10A.1 identity, enforced by the database |
+| No `1B…` code in the 2022 catalogue | A later scheme's course cannot appear here (OQ-053) |
+| No `…x` placeholder seeded | `BESCK104x` is a family, not a course a student can take |
+| `BESCK104B` and `BETCK105I` present, with the document's titles | The two electives on the real card that the catalogue lacked |
+
+Two assertions elsewhere were **updated by evidence, not weakened**:
+`reference-knowledge.test.ts` expected `hasSee` to be null for semester 1 — the
+scheme document supplies it, so it now expects `true`, while the inserts either
+side still prove unknown is representable. `api.test.ts` pinned a literal count
+of 10 subjects; it now asserts the filter, since a literal there just gets
+edited again next time the catalogue legitimately grows.
+
+### The source inventory, extended
+
+`source:inventory` now also cross-checks a corpus against the verified
+catalogue when given `DATABASE_URL` and `CORPUS_DATABASE_URL`. Measured:
+
+| Stored code | Verdict | Backing file |
+|---|---|---|
+| BENGK106, BKSKK107, BMATS101, BPHYS102 | in the catalogue | June/July 2024 scans, except BPHYS102 |
+| BESC104C | **not in the catalogue** | `cmp-1BESC104C.pdf` |
+| BMATC101 | **not in the catalogue** | `cmp-1BMATC101.pdf` |
+| BCHEM102, BCIVC103, BCY358A | not in the catalogue | June/July 2024 scans |
+
+"Not in the catalogue" is **not** proof of an error — this catalogue covers CSE
+semesters I–II only, so a real code from another stream or a later semester
+lands there too. It is a list to check, not a list of defects.

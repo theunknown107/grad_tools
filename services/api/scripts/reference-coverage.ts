@@ -56,6 +56,7 @@ interface Row {
   readonly see_true: number;
   readonly see_false: number;
   readonly see_unknown: number;
+  readonly ltp_known: number;
 }
 
 const run = async (): Promise<void> => {
@@ -72,7 +73,8 @@ const run = async (): Promise<void> => {
            count(*) filter (where credits is not null)::int           as credits_known,
            count(*) filter (where has_see)::int                       as see_true,
            count(*) filter (where has_see = false)::int               as see_false,
-           count(*) filter (where has_see is null)::int               as see_unknown
+           count(*) filter (where has_see is null)::int               as see_unknown,
+           count(*) filter (where scheme_lecture_hours is not null)::int as ltp_known
       from subjects
      group by scheme_id, branch_id, semester
      order by scheme_id, branch_id, semester
@@ -111,40 +113,50 @@ const run = async (): Promise<void> => {
        */
       const counts =
         row === undefined
-          ? { subjects: 0, creditsKnown: 0, seeTrue: 0, seeFalse: 0, seeUnknown: 0, published: 0 }
+          ? {
+              subjects: 0,
+              creditsKnown: 0,
+              seeTrue: 0,
+              seeFalse: 0,
+              seeUnknown: 0,
+              ltpKnown: 0,
+              published: 0,
+            }
           : {
               subjects: row.subjects,
               creditsKnown: row.credits_known,
               seeTrue: row.see_true,
               seeFalse: row.see_false,
               seeUnknown: row.see_unknown,
+              ltpKnown: row.ltp_known,
               published: row.published,
             };
 
       /*
-       * L/T/P HAS NO COLUMN, so every subject is unknown and LTP+ is
-       * structurally zero. Printed rather than omitted: to a student a missing
-       * column and a column of nulls are the same fact, and leaving it out of
-       * the report is how the gap stops being noticed.
+       * LTP+ counts SCHEME hours, which is the only workload fact any source
+       * here states. A college's delivered hours are a different fact with no
+       * column, and this count must never be read as covering them.
        */
       console.log(
         `  ${String(semester).padStart(3)}  ${cell(counts.subjects, 8)}  ${cell(counts.creditsKnown, 8)}  ` +
           `${cell(counts.subjects - counts.creditsKnown, 8)}  ${cell(counts.seeTrue, 8)}  ` +
-          `${cell(counts.seeFalse, 9)}  ${cell(counts.seeUnknown, 8)}  ${cell(0, 4)}  ` +
-          `${cell(counts.subjects, 4)}  ${cell(counts.published, 9)}`,
+          `${cell(counts.seeFalse, 9)}  ${cell(counts.seeUnknown, 8)}  ${cell(counts.ltpKnown, 4)}  ` +
+          `${cell(counts.subjects - counts.ltpKnown, 4)}  ${cell(counts.published, 9)}`,
       );
     }
     console.log('');
   }
 
-  /* ---- The two fields that have no column at all ------------------------- */
-  console.log('Fields with no storage in the reference schema:');
-  console.log('  L / T / P (lecture, tutorial, practical hours) : UNKNOWN for every subject.');
-  console.log('    A real college timetable prints BOTH the hours as taught and the hours as per');
+  /* ---- What the workload columns do and do not cover --------------------- */
+  const [taught] = await sql<{ n: number }[]>`select count(*)::int as n from subjects`;
+  console.log('Workload hours:');
+  console.log('  scheme L/T/P  : stored, where a scheme of teaching states it.');
   console.log(
-    '    the VTU scheme, and they DIFFER — so this is two facts, not one, and neither is',
+    `  taught L/T/P  : NO COLUMN, so unknown for all ${String(taught?.n ?? 0)} subjects.`,
   );
-  console.log('    stored. Adding a single L/T/P column would silently pick one of them.');
+  console.log('    A real college timetable prints BOTH, and they DIFFER — one course is');
+  console.log('    delivered 3+0+2 against a scheme of 2+0+2. They are two facts about two');
+  console.log('    different things, and the scheme column must not be read as covering both.');
 
   /* ---- The gap that matters most to the marks engine --------------------- */
   const [see] = await sql<{ known: number; unknown: number }[]>`
