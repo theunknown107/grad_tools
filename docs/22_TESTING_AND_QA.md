@@ -1784,3 +1784,75 @@ and Chromium delivers that scroll event on the frame *after* the click that
 opened it — so letting the click do the scrolling opens the menu and closes it
 in one gesture. The harness scrolls first, as a person does. This is existing
 M9.6 behaviour, not a regression, and M9.6 stays frozen.
+
+## 22.41 Subject identity (M10A.1)
+
+`apps/web/test/subjects.test.ts` — 22 tests over `domain/subjects.ts`.
+
+**Not one test asserts that two titles match.** They assert that two CODES do,
+that every wording survives, and that a different code never merges however
+similar its name. That is the whole design: a real timetable and a real card
+name `BPHYS102` "Applied Physics for CSE stream" and "PHYSICS FOR CSE STREAM",
+and any comparison loose enough to join those also joins "Mathematics-I" to
+"Mathematics-II".
+
+| Pinned | Why |
+|---|---|
+| `bcs 301`, `  BCS301  `, `BCS301` → one identity | One code typed three ways is one subject |
+| `BESCK104B` ≠ `BESCK104C` | Real letter-suffixed electives; suffix-stripping would merge them |
+| Four sources, four wordings, **one** subject, no wording lost | The milestone in one assertion |
+| Identical titles under two codes → **two** subjects | Titles are never compared |
+| The code is not stored as a title | Screens fall back to the code; storing that would fake a name |
+| One wording recorded once across many sources | Otherwise the UI offers a "variant" that reads the same |
+| Canonical title from the catalogue only | A student's wording is a source title, never an endorsed one |
+| Two disagreeing catalogue rows → canonical **null**, both kept | Picking one invents an answer |
+| Hand-typed credits ignored; catalogue-backed accepted | A guess must not spread across four screens |
+| `hasSee: false` distinct from `null` | Unknown does not become false |
+| Credits unknown stay null, never `0` | Zero says the course carries no weight |
+| Display prefers the viewing screen's own wording | So a row matches the paper in the student's hand |
+| Falls back to catalogue, then to the code — never an empty cell | The timetable's real case |
+
+## 22.42 Reference-data coverage (M10A.1)
+
+`pnpm --filter @gradtools/api reference:coverage` — a report, never a seed.
+
+`credits` and `has_see` are `NOT NULL` in the reference schema, so a naive count
+reports total coverage of everything. A value is counted only where its row is
+`verification = 'verified'` — which is also what publication requires, so only
+verified values ever reach a student. **Measured against the seeded database:**
+
+| scheme / branch | sem | subjects | verified | published | SEE=true | SEE=false |
+|---|---|---|---|---|---|---|
+| vtu-2022 / cse | 1 | 10 | 10 | 10 | 10 | **0** |
+| vtu-2022 / cse | 2–8 | **0** | 0 | 0 | 0 | 0 |
+
+Three findings, none of them fixed by inventing data:
+
+- **Semesters 2–8 hold no subjects at all.** Reference-backed credits and SEE
+  applicability exist for semester 1 and nowhere else.
+- **No published subject has `has_see = false`.** The catalogue can currently
+  only ever answer "this course has a SEE" — and a real card carries a CIE-only
+  Physical Education row, so the one value that most needs reference backing
+  (`DEC-037`) has to be answered by the student today.
+- **L/T/P has no column, for a reason worth keeping.** A real college timetable
+  prints hours *as taught* and hours *as per the VTU scheme*, and they differ
+  (one subject: 3+0+2 taught against 2+0+2 scheme). That is two facts; a single
+  L/T/P column would silently pick one.
+
+## 22.43 Subject-identity browser QA (M10A.1)
+
+`tests/subject-identity-qa.mjs`. The seeded student has **one** subject recorded
+four times — a result card in capitals, a timetable holding a bare code, an
+attendance row abbreviating it, a backlog using an ampersand — under three
+spellings of the code.
+
+The failure this looks for is not a crash. It is the interface quietly
+presenting that as four subjects, which looks entirely normal on any one screen.
+
+5 routes × 4 widths (320, 390, 768, 1280) × both themes, then 6 identity checks:
+the timetable now names the subject *and* keeps the code; the result detail
+sheet lists the other wordings without replacing the card's own; and a subject
+every source agrees on gets **no** variants line at all.
+
+**Result: CLEAN in both themes** — 0 axe violations, 0 horizontal overflow, 0
+console errors, 6/6 identity checks. The other four harnesses still pass.

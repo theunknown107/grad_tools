@@ -69,6 +69,8 @@ import { Sheet } from '../../components/ui/Sheet.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useProfile, useResults } from '../../hooks/useCollection.js';
 import { useSubjects } from '../../hooks/useReference.js';
+import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
+import { otherTitles, resolveSubject, type SubjectIdentity } from '../../domain/subjects.js';
 import styles from './results.module.css';
 
 const ruleSet = vtu2022RuleSet;
@@ -87,6 +89,7 @@ function markText(value: number | null): string {
 export function ResultsPage() {
   const { items, loading, save, remove } = useResults();
   const { profile } = useProfile();
+  const { index } = useSubjectIndex();
   /** The result being edited, `'new'` while adding, null when neither. */
   const [editing, setEditing] = useState<SemesterResult | 'new' | null>(null);
   const [view, setView] = useState('overview');
@@ -203,6 +206,7 @@ export function ResultsPage() {
                       <SavedResult
                         key={result.id}
                         result={result}
+                        index={index}
                         onEdit={() => {
                           setEditing(result);
                         }}
@@ -764,10 +768,13 @@ function ResultsOverview({ items }: { readonly items: readonly SemesterResult[] 
 
 function SavedResult({
   result,
+  index,
   onEdit,
   onRemove,
 }: {
   readonly result: SemesterResult;
+  /** Resolved subject identities, so one subject reads as one subject (OQ-051). */
+  readonly index: ReadonlyMap<string, SubjectIdentity>;
   readonly onEdit: () => void;
   readonly onRemove: () => void;
 }) {
@@ -982,7 +989,11 @@ function SavedResult({
         description={`Semester ${String(result.semester)}`}
       >
         {detail !== null ? (
-          <SubjectDetail subject={detail} evaluation={evaluations.get(detail.id)} />
+          <SubjectDetail
+            subject={detail}
+            evaluation={evaluations.get(detail.id)}
+            identity={resolveSubject(index, detail.subjectCode)}
+          />
         ) : null}
       </Sheet>
     </section>
@@ -1022,9 +1033,11 @@ function BacklogMark({
 function SubjectDetail({
   subject,
   evaluation,
+  identity,
 }: {
   readonly subject: ResultSubject;
   readonly evaluation: SubjectEvaluation | undefined;
+  readonly identity: SubjectIdentity | null;
 }) {
   const seeMax = ruleSet.courseMax - ruleSet.cieMax;
   /*
@@ -1034,6 +1047,7 @@ function SubjectDetail({
    * from having to distinguish them three times over.
    */
   const computedGrade = evaluation?.computedGrade ?? null;
+  const variants = otherTitles(identity, subject.subjectTitle);
   const sourcePoints = evaluation?.sourceGrade?.points ?? null;
   const computedPoints = computedGrade?.points ?? null;
 
@@ -1129,6 +1143,21 @@ function SubjectDetail({
         <div>
           <dt>Announced on</dt>
           <dd>{subject.announcedOn}</dd>
+        </div>
+      ) : null}
+      {/*
+        ONE SUBJECT, SHOWN AS ONE SUBJECT (OQ-051 §29). The same code is named
+        differently by a result card, a timetable and the catalogue — "Applied
+        Physics for CSE stream" against "PHYSICS FOR CSE STREAM". This line
+        appears only where the wordings genuinely differ, so a student comparing
+        two screens is not left wondering whether they are two subjects. It is
+        not a correction: the card's own words stay above, and no source is
+        called wrong.
+      */}
+      {variants.length > 0 ? (
+        <div>
+          <dt>Also recorded as</dt>
+          <dd>{variants.map((entry) => entry.title).join(' · ')}</dd>
         </div>
       ) : null}
       {subject.provenance === 'manual' ? (

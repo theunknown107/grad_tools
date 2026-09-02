@@ -891,6 +891,84 @@ exist".
 `result_id` is therefore the one parent a client supplies. Every other
 collection's parent is filled in by the server from the session's profile.
 
+## 8.20 Subject identity (M10A.1)
+
+### The code is the identity. The title is not.
+
+The five real artifacts settle this. The same code is printed with different
+wording depending on who printed it:
+
+| Code | Timetable | Result card |
+|---|---|---|
+| `BMATS101` | Mathematics-I for CSE Stream | MATHEMATICS FOR CSE STREAM-I |
+| `BPHYS102` | Applied Physics for CSE stream | PHYSICS FOR CSE STREAM |
+
+The second row is the one that decides the design. **No comparison of names**
+— case-folded, token-sorted, edit-distance or otherwise — joins "Applied
+Physics for CSE stream" to "PHYSICS FOR CSE STREAM" while still keeping
+"Mathematics-I" apart from "Mathematics-II". A matcher loose enough for the
+first is loose enough to merge the second.
+
+The college timetable adds a third naming layer: the grid cells carry **subject
+initials** (`MAT`, `PHY`, `POP`), not codes, and the code appears only in the
+legend below. So one subject can legitimately be written three ways on a single
+sheet of paper.
+
+### No new stored entity, and no migration
+
+Every student collection **already** keys on the code — results, attendance,
+timetable slots, backlogs, planned subjects — as do question-paper documents.
+Nothing duplicated identity. What was missing was somewhere to see that they
+are the same subject, and one answer for what to call it on a given screen.
+
+That is a read-time question, so `apps/web/src/domain/subjects.ts` answers it at
+read time: a pure index built from records the app already holds. No table, no
+migration, no sync collection, and nothing new for a device to be offline from.
+
+```
+subjectKey(code)   trim, remove inner whitespace, upper-case. Nothing else.
+SubjectIdentity    code · canonicalTitle | null · titles[] · credits | null
+                   hasSee | null · semesters[] · sources[]
+```
+
+`subjectKey` performs **two transformations and no others**. A VTU code contains
+no spaces, so `"bcs 301"` and `"BCS301"` are one code typed two ways. There is
+no edit distance, no prefix matching and no stripping of trailing letters:
+`BESCK104B` and `BESCK104C` are two different electives, and a rule that folded
+the suffix would merge subjects a student really took separately.
+
+### Every wording is kept, and attributed
+
+A title is never corrected and never discarded. Each sighting records the source
+that used it, and a screen asks for the wording appropriate to it:
+
+1. this source's own title
+2. the verified catalogue's title
+3. any other source's title
+4. the code itself
+
+The catalogue is **second, not first**. It is the most authoritative wording and
+the least familiar one; overriding what a student's own result card says would
+make the screen harder to check against the paper in their hand, and §8.19's
+rule against overwriting source text applies to titles as much as to marks.
+
+Step 4 returns the code, which is honest: a subject with no known name is better
+shown as its code than as an empty cell. This is the timetable's ordinary case —
+a `TimetableSlot` stores a code and no title at all.
+
+### The canonical title is usually unknown, and that is correct
+
+`canonicalTitle` is non-null **only** when a verified catalogue row supplies it.
+Where two catalogue rows for one code disagree — uniqueness is
+`(scheme_id, branch_id, code)`, so one code can carry two rows across branches —
+it stays null and both wordings are kept. Picking one would invent an answer the
+reference data does not give.
+
+Reference `credits` and `hasSee` come from the catalogue, or from a result row
+whose `provenance` is `catalogue`. A **hand-typed** credit stays a fact about
+the row it was typed into: promoting it would spread one student's guess across
+four other screens.
+
 ## 8.x What five real academic artifacts showed the model
 
 Structures observed. **No values from the artifacts are reproduced here or in

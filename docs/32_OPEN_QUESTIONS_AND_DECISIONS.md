@@ -1700,3 +1700,101 @@ Total credits required for graduation are still not established by verified
 reference data, so `graduationProgress` still reports credits remaining as
 unknown. Richer result data does not help: it makes the numerator more
 accurate and says nothing about the denominator. Nothing here invents one.
+
+---
+
+## Part G — M10A.1: subject identity and reference integrity
+
+### OQ-051 — CLOSED · **one subject identity, many source titles**
+
+**Resolved as option C** of the three the milestone offered: neither a new
+subject entity nor an alias table, but a read-time index over records the app
+already holds. Every student collection already keyed on the code, so nothing
+duplicated identity; what was missing was a place to see that they are the same
+subject, and one answer for what to call it on a given screen.
+
+`apps/web/src/domain/subjects.ts` builds that index. `useSubjectIndex` is the
+single hook every screen reads it through, so no feature carries its own
+resolution rule.
+
+**Why no new stored entity.** A `Subject` record of its own would mean four
+collections migrated, four sync shapes changed, a new synced collection, and a
+decision about whether reference data becomes student-owned — for a question
+that is answered at read time from data already on the device. It would also
+have to be kept in step: a subject renamed in the catalogue would need every
+student's copy updated, or the copies would drift into exactly the inconsistency
+this closes.
+
+**The acceptance conditions, each met and tested:**
+
+| Condition | Evidence |
+|---|---|
+| One identity, multiple source titles | 4 sources, 4 wordings, 1 subject (§22.41) |
+| Consistent across results, attendance, timetable, backlogs, papers | All five feed one index; browser-verified (§22.43) |
+| No duplicate subject from title variation | Identical titles under two codes stay two subjects |
+| Manual subjects stay explicit | `provenance: 'manual'`; hand-typed credits never become reference data |
+| Existing data still renders | Every harness clean; no migration to be compatible with |
+
+**And what it deliberately does not do:** nothing anywhere compares two titles.
+`subjectKey` trims, removes inner whitespace and upper-cases — that is all.
+
+### DEC-041 — A canonical title is a claim only a verified catalogue may make
+
+Where the catalogue is silent, `canonicalTitle` is **null** and screens use a
+source title instead. Where two verified rows for one code disagree — possible,
+since uniqueness is `(scheme_id, branch_id, code)` — it is null and **both**
+wordings are kept.
+
+**Rationale:** calling a student's own wording "canonical" claims the university
+endorses it, and picking one of two verified rows invents an answer the
+reference data does not give. A screen showing a source title, attributed, is
+honest about where the words came from; a screen showing an invented canonical
+one is not.
+
+**Consequence:** `canonicalTitle` is null for most subjects today, because the
+catalogue covers one semester. That is a coverage fact, not a defect.
+
+### Reference-data coverage — measured, not estimated · **M10A.1**
+
+`pnpm --filter @gradtools/api reference:coverage`, against the seeded database:
+
+- **10 subjects, all `vtu-2022`/`cse`/semester 1**, all verified and published.
+- **Semesters 2–8: zero subjects.** Reference-backed credits and SEE
+  applicability exist for semester 1 and nowhere else.
+- **Zero published subjects with `has_see = false`.** The catalogue can only
+  ever answer "this course has a SEE".
+- **L/T/P: no column at all**, and adding one would be wrong as posed — a real
+  timetable prints hours as taught *and* as per the VTU scheme, and they differ.
+
+Even within semester 1 the catalogue is a **menu, not a student's load**: of the
+eight subjects on the real card, six are catalogued; the two letter-suffixed
+electives are not, and four catalogued alternatives were not taken.
+
+**Nothing was seeded to close these gaps.** Typing in seven semesters from a
+syllabus PDF would put unverified academic facts behind a UI that presents them
+as verified.
+
+### OQ-052 — The catalogue cannot express "we have not checked" · **opened by M10A.1**
+
+`subjects.has_see` is `NOT NULL DEFAULT true`, so a reference row always asserts
+SEE applicability whether or not anyone verified it. That is the mirror image of
+the hazard `DEC-037` guards against on the student side.
+
+**Why it is not urgent:** only `publication = 'published'` rows reach a client,
+and publication requires `verification = 'verified'`, so no defaulted value is
+currently visible to a student. The hazard is latent, not live.
+
+**Why it is still open:** the constraint makes the safe path depend on a
+reviewer remembering to check a field the schema already filled in. The same
+argument applies to `credits`.
+
+**Decision needed:** whether `has_see` and `credits` become nullable in the
+reference schema so "not checked" is representable, or whether the verification
+gate is considered sufficient protection on its own.
+
+### OQ-034 — remains OPEN · **unchanged by M10A.1**
+
+The coverage audit found **more** missing per-subject credits, not fewer, and a
+total-credit denominator for a scheme is not derivable from a catalogue that
+covers one semester of one branch. `graduationProgress` still reports credits
+remaining as unknown. Nothing here invents one.
