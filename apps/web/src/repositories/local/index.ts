@@ -15,6 +15,7 @@ import type {
   TimetableSlot,
 } from '../../domain/types.js';
 import type { NotificationPreferences, NotificationRecord } from '../../domain/notifications.js';
+import { normalizeResult } from '../../domain/results.js';
 import type {
   NotificationRepository,
   RepositoryBundle,
@@ -93,10 +94,25 @@ export function createLocalRepositories(scope: AccountScope): RepositoryBundle {
     },
   };
 
+  /*
+   * RESULTS ARE NORMALISED ON READ (OQ-049).
+   *
+   * A row saved before the marks fields existed carries `undefined` where the
+   * type now says `number | null`, and IndexedDB type-checks nothing. Doing this
+   * at the storage boundary rather than in a component means every reader —
+   * pages, hooks and the sync collector alike — sees one shape.
+   */
+  const results = createListRepository<SemesterResult>(scope, 'results');
+
   return {
     profile,
     attendance: createListRepository<AttendanceRecord>(scope, 'attendance'),
-    results: createListRepository<SemesterResult>(scope, 'results'),
+    results: {
+      ...results,
+      async list() {
+        return (await results.list()).map(normalizeResult);
+      },
+    },
     timetable: createListRepository<TimetableSlot>(scope, 'timetable'),
     semesters: createListRepository<SemesterRecord>(scope, 'semesters'),
     semesterSubjects: createListRepository<SemesterSubject>(scope, 'semesterSubjects'),

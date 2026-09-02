@@ -13,6 +13,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { normalizeResultSubject } from '../src/domain/results.js';
 import { getActiveRuleSetForScheme, VTU_2022_RULE_SET_ID } from '@gradtools/academic-rules';
 import {
   analyseStrengths,
@@ -48,13 +49,18 @@ function result(
     schemeId: 'vtu-2022',
     ruleSetId: VTU_2022_RULE_SET_ID,
     sgpaAsserted: null,
-    subjects: subjects.map(([code, credits, gradeLetter], index) => ({
-      id: `${String(semester)}-${String(index)}`,
-      subjectCode: code,
-      subjectTitle: code,
-      credits,
-      gradeLetter,
-    })),
+    // Through the real reader, so a fixture cannot describe a shape storage
+    // could never hold — and so adding a field does not mean editing four
+    // test files (OQ-049).
+    subjects: subjects.map(([code, credits, gradeLetter], index) =>
+      normalizeResultSubject({
+        id: `${String(semester)}-${String(index)}`,
+        subjectCode: code,
+        subjectTitle: code,
+        credits,
+        gradeLetter,
+      }),
+    ),
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     ...overrides,

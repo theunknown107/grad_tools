@@ -182,6 +182,14 @@ const SHAPES = {
 
   plus: <path d="M12 5.2v13.6M5.2 12h13.6" />,
 
+  // Arrives with the Results row menu that justifies it, per the note above.
+  edit: (
+    <>
+      <path d="M4.6 19.4h4l9.1-9.1a2.2 2.2 0 0 0 0-3.1l-.9-.9a2.2 2.2 0 0 0-3.1 0l-9.1 9.1Z" />
+      <path d="M13.4 6.6l4 4" />
+    </>
+  ),
+
   trash: (
     <>
       <path d="M4.6 6.6h14.8" />

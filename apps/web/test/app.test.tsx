@@ -10,6 +10,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { normalizeResultSubject } from '../src/domain/results.js';
 import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/dom';
 import { cleanup } from '@testing-library/react';
@@ -58,13 +59,15 @@ function result(
     sgpaAsserted,
     createdAt: '',
     updatedAt: '',
-    subjects: subjects.map((subject, index) => ({
-      id: `${id}-s${String(index)}`,
-      subjectCode: subject.code,
-      subjectTitle: subject.code,
-      credits: subject.credits,
-      gradeLetter: subject.grade,
-    })),
+    subjects: subjects.map((subject, index) =>
+      normalizeResultSubject({
+        id: `${id}-s${String(index)}`,
+        subjectCode: subject.code,
+        subjectTitle: subject.code,
+        credits: subject.credits,
+        gradeLetter: subject.grade,
+      }),
+    ),
   };
 }
 

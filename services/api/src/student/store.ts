@@ -86,7 +86,32 @@ export const COLLECTION_TABLES = {
   resultSubjects: {
     table: 'result_subjects',
     parent: null,
-    columns: ['result_id', 'subject_code', 'subject_title', 'credits', 'grade_letter', 'ordinal'],
+    /*
+     * THE PRINTED FIELDS TRAVEL, THE DERIVED ONES DO NOT (OQ-049 §3).
+     *
+     * `internal`, `external`, `total`, `result_status` and `announced_on` are
+     * what a result card prints and what the student typed; they are stored.
+     * The total the marks imply, the grade the rule set implies and the backlog
+     * state are all computed on read by @gradtools/academic-rules and appear
+     * nowhere here — accepting a device's version of any of them would be the
+     * same second engine `sgpa_asserted` already refuses to become (M9 §29).
+     */
+    columns: [
+      'result_id',
+      'subject_code',
+      'subject_title',
+      'internal',
+      'external',
+      'total',
+      'result_status',
+      'announced_on',
+      'grade_letter',
+      'grade_point',
+      'credits',
+      'has_see',
+      'provenance',
+      'ordinal',
+    ],
   },
   attendance: {
     table: 'attendance_records',
