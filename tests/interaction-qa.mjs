@@ -277,13 +277,23 @@ const run = async () => {
     expect(/BXXX301/.test(after), 'semesters tab did not show subject rows');
   });
 
-  await check('Results: the row-action menu opens and offers delete', async () => {
+  await check('Results: the row-action menu offers edit and delete', async () => {
+    /*
+     * OQ-049 §23 gave the row menu an Edit item, so a saved semester can be
+     * corrected instead of deleted and retyped — and Edit now leads, because
+     * correcting a mark is the ordinary action and deleting a semester is not.
+     * Both must be present, and delete must still be the destructive one.
+     */
     await page.click('button[aria-label^="Actions for semester"]');
     await page.waitForTimeout(300);
     const menu = await page.locator('[role="menu"]').count();
     expect(menu > 0, 'no menu opened');
-    const item = await page.locator('[role="menuitem"]').first().innerText();
-    expect(/Delete/i.test(item), `first menu item was ${item}`);
+    const items = await page.locator('[role="menuitem"]').allInnerTexts();
+    expect(/Edit/i.test(items[0] ?? ''), `first menu item was ${items[0] ?? '(none)'}`);
+    expect(
+      items.some((text) => /Delete/i.test(text)),
+      `delete is no longer offered: ${items.join(', ')}`,
+    );
     await page.keyboard.press('Escape');
   });
 

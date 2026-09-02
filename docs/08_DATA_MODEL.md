@@ -599,7 +599,7 @@ was set, so entering four years of history is not also four status changes.
 
 ### `SemesterSubject` is not `ResultSubject`
 
-`ResultSubject` is history: a code, credits and a grade, inside a saved result.
+`ResultSubject` is history: what a result card printed, inside a saved result.
 `SemesterSubject` is the present: what the student is taking, before any grade
 exists. Attendance and the timetable suggest from this list rather than each
 keeping their own copy, so a subject is named once (M6 §14, §16).
@@ -899,22 +899,54 @@ numbers (docs/12, docs/30).
 
 ### Results
 
-| Printed | In `ResultSubject` today |
+| Printed | In `ResultSubject` |
 |---|---|
 | Subject code | ✅ `subjectCode` |
 | Subject name | ✅ `subjectTitle` |
-| Internal marks | ❌ |
-| External marks | ❌ |
-| Total | ❌ |
-| Result status (P/F/A/W/X/NE) | ❌ |
-| Announced / updated on | ❌ |
-| — *not printed* — | ⚠️ `gradeLetter` (required) |
-| — *not printed* — | ⚠️ `credits` (required) |
+| Internal marks | ✅ `internal` |
+| External marks | ✅ `external` |
+| Total | ✅ `total`, as printed |
+| Result status (P/F/A/W/X/NE) | ✅ `resultStatus`, verbatim |
+| Announced / updated on | ✅ `announcedOn` |
+| — *not printed* — | ○ `gradeLetter`, nullable |
+| — *not printed* — | ○ `gradePoint`, nullable |
+| — *not printed* — | ○ `credits`, nullable, from the catalogue |
+| — *not printed, not inferable* — | ○ `hasSee`, three-valued |
 
-**The model stores two fields a provisional result does not print, and cannot
-store the six it does.** A student copying a real card must invent a grade
-letter. This is the largest gap the artifacts exposed and it is **not closed**
-in this milestone — see `OQ-049`.
+**Closed by OQ-049.** The model previously required two fields a provisional
+result does not print and could store none of the five it does, so a student
+copying a real card had to invent a grade before anything would save.
+
+Every source field now holds what the card printed and **stays null where the
+card is silent**. Null is not a placeholder for a value someone should fill in
+later: a credit of `0` says the course carries no weight, a grade of `F` says
+the student failed, and neither is what a silent card means.
+
+`hasSee` is the field that cannot be derived from any other. An external of `0`
+is equally consistent with *"this course has no semester-end examination"* and
+*"sat the SEE and scored nothing"*, and those have opposite outcomes
+(`DEC-037`) — so it is three-valued, and unknown propagates to a backlog state
+of "not known" rather than to a guess in either direction.
+
+### Source and computed are separate values, always
+
+Nothing writes a calculated figure onto a `ResultSubject`. `domain/results.ts`
+returns a `SubjectEvaluation` alongside the row — the total the columns imply,
+the grade the rule set implies, the grade point, the three passing heads and
+the backlog state — and the screen shows the two side by side, labelled.
+
+Two consequences worth stating, because both are deliberate refusals:
+
+- **A total that does not add up is refused, never repaired.** Where internal,
+  external and total are all present the columns must agree; a row that has
+  been mistyped or misread makes every figure derived from it wrong. Where one
+  side is missing there is nothing to disagree with, and the other side is not
+  demanded — that would be demanding a number the card may not have printed.
+- **An SGPA needs every subject, or none.** SGPA is credit-weighted across the
+  whole semester, so grading the six subjects that carry grades and ignoring
+  the three that do not produces a plausible number that is not the student's
+  SGPA. `sgpaInputs` reports which rows held it back, so the answer on screen
+  is what to finish rather than that the figure is simply unavailable.
 
 ### Subject identity is the code, not the name
 
