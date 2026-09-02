@@ -351,12 +351,44 @@
 
 /* -- One question ----------------------------------------------------------- */
 
+/*
+ * -----------------------------------------------------------------------------
+ * M9.6G: A QUESTION ROW MUST NOT LOOK LIKE A PAPER ROW
+ * -----------------------------------------------------------------------------
+ *
+ * Papers and Questions share one shell, which is right — they are two views of
+ * one library and the filters are the same. But the two modes rendered as the
+ * same shape, so switching tabs changed the words and not the reading.
+ *
+ * A PAPER row leads with a code: you are scanning an index.
+ * A QUESTION row leads with a SENTENCE: you are reading an excerpt.
+ *
+ * So the question text steps up to body size, gains a quoted left rail, and the
+ * provenance drops to a quiet footer under it. The rail is also where the
+ * source is encoded — a scan and a digital PDF get different edges — so
+ * native-versus-OCR is visible before the metadata is read.
+ */
 .questionRow {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) 0;
+  gap: var(--space-2);
+  padding: var(--space-4) 0 var(--space-4) var(--space-4);
   border-bottom: 1px solid var(--border);
+  border-inline-start: 2px solid var(--border-strong);
+  transition:
+    border-color var(--motion-fast) var(--ease-enter),
+    background var(--motion-fast) var(--ease-enter);
+}
+
+.questionRow:hover {
+  border-inline-start-color: var(--accent);
+  background: var(--surface);
+}
+
+/* Text lifted from a digital PDF is exact; a scan is a reading of an image.
+   The dashed edge says which before a word of metadata is read. */
+.questionRow[data-source='ocr'] {
+  border-inline-start-style: dashed;
 }
 
 .questionRow:last-child {
@@ -383,8 +415,9 @@
  */
 .questionText {
   margin: 0;
-  font-size: var(--text-small);
-  line-height: var(--text-small-lh);
+  /* Body, not small: this is the content of the row, not a label on it. */
+  font-size: var(--text-body);
+  line-height: 1.55;
   color: var(--text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -393,7 +426,7 @@
 .questionMeta {
   margin: 0;
   font-size: var(--text-caption);
-  color: var(--text-muted);
+  color: var(--text-subtle);
   overflow-wrap: anywhere;
 }
 

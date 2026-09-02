@@ -74,7 +74,7 @@ function QuestionRow({ result }: { readonly result: QuestionSearchResult }) {
   ].filter((part): part is string => part !== null && part !== '');
 
   return (
-    <li className={styles.questionRow}>
+    <li className={styles.questionRow} data-source={result.extractionSource}>
       <div className={styles.questionHead}>
         {result.questionNumber !== null && (
           <span className={styles.questionNumber}>{result.questionNumber}</span>

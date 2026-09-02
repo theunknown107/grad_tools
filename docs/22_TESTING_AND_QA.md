@@ -1639,3 +1639,66 @@ Nothing caught it, and it is worth being precise about why:
 The test was verified to fail before the fix — it reports
 `expected [ '/degree' ] to deeply equal []`, naming the broken link rather than
 just counting.
+
+## 22.36 Interaction QA (M9.6G)
+
+`tests/interaction-qa.mjs` — **31 scripted interactions in a real Chromium**,
+driving actual clicks, typing and key presses and asserting what happened
+afterwards.
+
+### What this catches that the unit tests cannot
+
+The unit suite runs in jsdom, which has no layout, no compositing, no real
+scroll and no true focus. It therefore cannot see a control covered by the
+bottom nav, a popover opening off-screen, or a keyboard path that works in
+isolation but not on the assembled page. This drives the built application.
+
+Covered: global search (Ctrl+K, `/`, type-filter, Arrow+Enter navigation,
+Escape), theme (light switch, accent change **surviving a reload**, System
+removing `data-theme`), Results tabs and the row-action menu, My Degree spine
+selection and its eight nodes, Timetable Today/Week and the next-class marker,
+Papers mode tabs and the Select listbox, Notifications mark-all-read **and its
+persistence across a reload**, Announcements relevance filtering and the
+synthetic labelling, Profile section switching, the Documents upload modal
+opening and closing on Escape, the public dropdown navigation, skip-link focus
+order, and on a phone: the detail sheet opening from a row, closing on Escape,
+the bottom nav **not covering content at full scroll**, and its active marker.
+
+### It found a defect on its first run
+
+The mobile detail-sheet check failed. Cause: `aria-haspopup="dialog"` is
+carried by three controls — the theme trigger, the notification bell and the
+subject row — so an unscoped `.first()` clicked the header. Scoped to `#main`.
+That is a test-authoring fault rather than a product one, but it is exactly the
+kind of ambiguity a real page has and an isolated component test does not.
+
+### Honest scope
+
+**Nobody looked at these screens while the script ran.** This is scripted
+browser interaction, not a human pass. It is reported as such throughout.
+
+## 22.37 Accent and system-appearance QA (M9.6G)
+
+`tests/accent-qa.mjs` — **50 page checks across all ten palettes** (5 accents ×
+2 appearances) on the five showcase pages, populated. Every check reads
+`data-accent`, `data-theme`, the computed `--accent` and `--a-glow-rgb` back
+off the document, then runs axe. **CLEAN.**
+
+Earlier milestones swept violet only, with the other four covered by the
+token-level contrast test. That test proves the *stops* are sound; it cannot
+prove they reach the pixels, which is where a hard-coded colour or an unmatched
+selector would show.
+
+### System appearance, verified for real
+
+Previously unit-tested only. The script now flips **Chromium's own colour-scheme
+emulation** with nothing written to storage — so `system` is in force — and
+reads the painted background back:
+
+| OS setting | `data-theme` | painted body background |
+|---|---|---|
+| light | *absent* | `rgb(244, 246, 251)` |
+| dark | *absent* | `rgb(5, 7, 13)` |
+
+Two genuinely different grounds, with the attribute absent in both. That is the
+three-state contract behaving, not merely a unit test asserting it.
