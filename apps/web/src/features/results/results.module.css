@@ -16,7 +16,7 @@
 
 @media (min-width: 640px) {
   .editorMeta {
-    grid-template-columns: 1fr 1.6fr;
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -26,19 +26,44 @@
   padding: 0;
 }
 
-.subjectRow {
+/*
+ * ONE SUBJECT BEING TYPED (OQ-049).
+ *
+ * A result row now carries eight fields, and no fixed column count survives
+ * 320px to 1280px without either overflowing or wasting half the width. So the
+ * track list is intrinsic: cells are at least 7rem and share what is left, and
+ * the browser decides how many fit. Nothing here can scroll sideways, which is
+ * the property the QA sweep actually checks.
+ *
+ * This class used to be called `.subjectRow` and collided with the read-only
+ * row button of the same name further down this file — the later rule won, so
+ * the editor grid had silently been flex for some time.
+ */
+.editorRow {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4);
   border-bottom: 1px solid var(--border);
   align-items: end;
 }
 
-@media (min-width: 720px) {
-  .subjectRow {
-    grid-template-columns: 2fr 1fr 1fr var(--touch-target-min);
-  }
+/* Identity spans the row: a code and a name read as one thing, not three cells. */
+.editorSubject {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.editorNotice {
+  padding: 0 var(--space-4);
+}
+
+/* A dash where a value is absent, quiet enough not to read as a value. */
+.absent {
+  color: var(--text-subtle);
 }
 
 .editorActions {
@@ -277,8 +302,12 @@
   display: grid;
 }
 
-/* 640px is where the three-column table stops needing to scroll. */
-@media (min-width: 640px) {
+/*
+ * 900px is where the card's seven columns stop needing to scroll. It was 640px
+ * for the old three-column table; the result table now carries internal,
+ * external, total, grade, result and credits, and at 768px those crush.
+ */
+@media (min-width: 900px) {
   .tableWide {
     display: block;
   }

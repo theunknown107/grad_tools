@@ -59,6 +59,7 @@ async function resetCloudDatabase(): Promise<void> {
       '0000_local_substrate.sql',
       '0001_student_cloud.sql',
       '0002_result_subject_sync.sql',
+      '0003_result_marks.sql',
     ]) {
       const path = new URL(`../src/db/supabase/${file}`, import.meta.url);
       await sql.unsafe(await readFile(path, 'utf8'));

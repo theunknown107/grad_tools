@@ -20,16 +20,15 @@
 import {
   calculateCGPA,
   calculatePercentage,
-  calculateSGPA,
   getRuleSet,
   getActiveRuleSetForScheme,
   isOk,
   resolveGrade,
-  type CourseGrade,
   type RuleSet,
   type SemesterSummary,
 } from '@gradtools/academic-rules';
 import type { BacklogRecord, SemesterRecord, SemesterResult, SemesterStatus } from './types.js';
+import { semesterSgpa, type SgpaInputs } from './results.js';
 
 /* -------------------------------------------------------------------------- */
 /* Rule-set resolution                                                        */
@@ -78,14 +77,6 @@ export function ruleSetForResult(result: SemesterResult): ResolvedRuleSet {
   };
 }
 
-function coursesOf(result: SemesterResult): CourseGrade[] {
-  return result.subjects.map((subject) => ({
-    credits: subject.credits,
-    gradeLetter: subject.gradeLetter,
-    subjectCode: subject.subjectCode,
-  }));
-}
-
 /* -------------------------------------------------------------------------- */
 /* Per-semester view                                                          */
 /* -------------------------------------------------------------------------- */
@@ -102,6 +93,14 @@ export interface SemesterView {
   readonly sgpaDisagrees: boolean;
   readonly credits: number;
   readonly subjectCount: number;
+  /**
+   * Subjects that stopped the SGPA being computed, and why (OQ-049).
+   *
+   * Empty when the semester is complete OR has no result at all. Non-empty is
+   * the difference between "we cannot grade this" and "you have not finished
+   * entering it", and only one of those is the student's to act on.
+   */
+  readonly sgpaMissing: readonly { readonly subjectCode: string; readonly reason: string }[];
   readonly ruleSetId: string | null;
   readonly ruleSetResolution: RuleSetResolution;
   /** The pinned identifier this build does not have, when `unavailable`. */
@@ -128,6 +127,8 @@ export function buildSemesterViews(
     const result = results.find((candidate) => candidate.semester === number) ?? null;
 
     let sgpaComputed: number | null = null;
+    let credits = 0;
+    let inputs: SgpaInputs = { courses: [], complete: false, missing: [] };
     let ruleSetId: string | null = null;
     let resolution: RuleSetResolution = 'fallback';
     let missingRuleSetId: string | null = null;
@@ -142,10 +143,17 @@ export function buildSemesterViews(
        * is undefined in that case, so no SGPA is produced and no substitute is
        * reached for.
        */
-      if (resolved.ruleSet !== undefined) {
-        const outcome = calculateSGPA(coursesOf(result), resolved.ruleSet);
-        if (isOk(outcome)) sgpaComputed = outcome.value;
-      }
+      /*
+       * AND ONLY FROM A COMPLETE SEMESTER (OQ-049 §16). A provisional result
+       * carries marks and no grades; grading six of its nine subjects would
+       * produce a credit-weighted average of part of a semester and present it
+       * as the SGPA. `semesterSgpa` is where that condition lives, so every
+       * screen applies it identically.
+       */
+      const graded = semesterSgpa(result, resolved.ruleSet);
+      sgpaComputed = graded.sgpa;
+      credits = graded.credits;
+      inputs = graded.inputs;
     }
 
     const asserted = result?.sgpaAsserted ?? null;
@@ -165,8 +173,9 @@ export function buildSemesterViews(
         sgpaComputed !== null &&
         asserted !== null &&
         Math.abs(sgpaComputed - asserted) > SGPA_TOLERANCE,
-      credits: result?.subjects.reduce((total, subject) => total + subject.credits, 0) ?? 0,
+      credits,
       subjectCount: result?.subjects.length ?? 0,
+      sgpaMissing: inputs.missing,
       ruleSetId,
       ruleSetResolution: resolution,
       missingRuleSetId,
@@ -281,7 +290,8 @@ export type SubjectTrend = 'improved' | 'declined' | 'unchanged' | 'single_attem
 export interface SubjectPerformance {
   readonly subjectCode: string;
   readonly subjectTitle: string;
-  readonly credits: number;
+  /** Null where the subject is not in the catalogue and the card printed none. */
+  readonly credits: number | null;
   /** The most recent grade recorded for this subject. */
   readonly gradeLetter: string;
   readonly gradePoint: number | null;
@@ -328,9 +338,16 @@ export function subjectPerformance(views: readonly SemesterView[]): SubjectPerfo
     const { ruleSet } = ruleSetForResult(view.result);
 
     for (const subject of view.result.subjects) {
+      /*
+       * A SUBJECT WITH NO GRADE HAS NO PERFORMANCE (OQ-049). Since a
+       * provisional result stores marks and no grade letter, a row without one
+       * is a row that has not been graded yet — not a row that scored nothing.
+       */
+      if (subject.gradeLetter === null) continue;
       const code = subject.subjectCode.toUpperCase();
-      const gradePoint = gradePointOf(subject.gradeLetter, ruleSet);
-      const attempt = { semester: view.number, gradeLetter: subject.gradeLetter, gradePoint };
+      const letter = subject.gradeLetter;
+      const gradePoint = gradePointOf(letter, ruleSet);
+      const attempt = { semester: view.number, gradeLetter: letter, gradePoint };
       const existing = byCode.get(code);
 
       const attempts = [...(existing?.attempts ?? []), attempt].sort(
@@ -355,7 +372,7 @@ export function subjectPerformance(views: readonly SemesterView[]): SubjectPerfo
         subjectCode: code,
         subjectTitle: subject.subjectTitle,
         credits: subject.credits,
-        gradeLetter: latest?.gradeLetter ?? subject.gradeLetter,
+        gradeLetter: latest?.gradeLetter ?? letter,
         gradePoint: latest?.gradePoint ?? gradePoint,
         semester: latest?.semester ?? view.number,
         attempts,
@@ -544,7 +561,9 @@ export type SemesterExclusion =
   /** A result exists, pinned to a rule set this build does not have (M6). */
   | 'ruleset_unavailable'
   /** A result exists and the rules refused to grade it — an unusable letter. */
-  | 'not_gradeable';
+  | 'not_gradeable'
+  /** A result exists but not every subject carries a grade and credits (OQ-049). */
+  | 'incomplete_entry';
 
 export interface SemesterComparison {
   readonly number: number;
@@ -614,6 +633,7 @@ export function semesterHistory(views: readonly SemesterView[]): SemesterHistory
   const exclusionOf = (view: SemesterView): SemesterExclusion | null => {
     if (view.result === null) return 'no_result';
     if (view.ruleSetResolution === 'unavailable') return 'ruleset_unavailable';
+    if (view.sgpaMissing.length > 0) return 'incomplete_entry';
     if (view.sgpaComputed === null) return 'not_gradeable';
     return null;
   };
@@ -682,6 +702,8 @@ export interface DataCompleteness {
   readonly missingResults: readonly number[];
   readonly unavailableRuleSets: readonly number[];
   readonly notGradeable: readonly number[];
+  /** Results entered without a grade and credits on every subject (OQ-049). */
+  readonly incompleteResults: readonly number[];
   /** One sentence naming what the analysis rests on. Always present. */
   readonly basis: string;
   /** One sentence per gap. Empty when there is nothing missing. */
@@ -708,6 +730,7 @@ export function dataCompleteness(views: readonly SemesterView[]): DataCompletene
   const missing: number[] = [];
   const unavailable: number[] = [];
   const notGradeable: number[] = [];
+  const incomplete: number[] = [];
 
   for (const view of views) {
     if (view.result === null) {
@@ -716,6 +739,7 @@ export function dataCompleteness(views: readonly SemesterView[]): DataCompletene
       continue;
     }
     if (view.ruleSetResolution === 'unavailable') unavailable.push(view.number);
+    else if (view.sgpaMissing.length > 0) incomplete.push(view.number);
     else if (view.sgpaComputed === null) notGradeable.push(view.number);
     else graded.push(view.number);
   }
@@ -735,6 +759,11 @@ export function dataCompleteness(views: readonly SemesterView[]): DataCompletene
       `${plural(unavailable, 'Semester', 'Semesters')} ${list(unavailable)} cannot be calculated because the rule set it was graded under is not available in this version.`,
     );
   }
+  if (incomplete.length > 0) {
+    gaps.push(
+      `${plural(incomplete, 'Semester', 'Semesters')} ${list(incomplete)} ${plural(incomplete, 'has', 'have')} a result entered, but not every subject in ${plural(incomplete, 'it', 'them')} carries both a grade and credits — so no SGPA is calculated.`,
+    );
+  }
   if (notGradeable.length > 0) {
     gaps.push(
       `${plural(notGradeable, 'Semester', 'Semesters')} ${list(notGradeable)} could not be graded — a grade letter may not be one this scheme uses.`,
@@ -746,6 +775,7 @@ export function dataCompleteness(views: readonly SemesterView[]): DataCompletene
     missingResults: missing,
     unavailableRuleSets: unavailable,
     notGradeable,
+    incompleteResults: incomplete,
     basis:
       graded.length === 0
         ? 'Nothing is calculated yet — no semester has a result that could be graded.'

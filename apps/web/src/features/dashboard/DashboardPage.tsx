@@ -37,7 +37,6 @@ import {
   calculateAttendance,
   calculateCGPA,
   calculatePercentage,
-  calculateSGPA,
   vtu2022RuleSet,
 } from '@gradtools/academic-rules';
 import {
@@ -63,6 +62,7 @@ import {
   useTimetable,
 } from '../../hooks/useCollection.js';
 import { buildSemesterViews, currentSemester, summariseBacklogs } from '../../domain/academics.js';
+import { semesterSgpa } from '../../domain/results.js';
 import { LatestAnnouncements } from '../announcements/AnnouncementsPage.js';
 import styles from './dashboard.module.css';
 
@@ -191,21 +191,17 @@ function Snapshot({
   readonly subjectCount: number;
   readonly outstanding: number;
 }) {
+  /*
+   * `semesterSgpa` is the ONE place that decides whether a semester can be
+   * graded — including the OQ-049 condition that every subject carries both a
+   * grade and credits. A provisional result entered from a card shows its marks
+   * on the results page and takes no part in the CGPA, rather than contributing
+   * a partial average nobody could see the shape of.
+   */
   const graded = results
     .map((result) => {
-      const sgpa = calculateSGPA(
-        result.subjects.map((subject) => ({
-          credits: subject.credits,
-          gradeLetter: subject.gradeLetter,
-          subjectCode: subject.subjectCode,
-        })),
-        ruleSet,
-      );
-      return {
-        semester: result.semester,
-        credits: result.subjects.reduce((total, subject) => total + subject.credits, 0),
-        sgpa: sgpa.ok ? sgpa.value : null,
-      };
+      const { sgpa, credits } = semesterSgpa(result, ruleSet);
+      return { semester: result.semester, credits, sgpa };
     })
     .filter((entry) => entry.sgpa !== null && entry.credits > 0);
 

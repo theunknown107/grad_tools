@@ -44,6 +44,7 @@ import {
 } from '../../components/ui/index.js';
 import { formatGpa, formatPercent } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
+import { semesterSgpa } from '../../domain/results.js';
 import { useResults, useSemesters } from '../../hooks/useCollection.js';
 import styles from './academics.module.css';
 
@@ -392,23 +393,16 @@ function CgpaCalculator() {
                 onClick={() => {
                   setRows(
                     savedResults.map((saved) => {
-                      const computed = calculateSGPA(
-                        saved.subjects.map((subject) => ({
-                          credits: subject.credits,
-                          gradeLetter: subject.gradeLetter,
-                          subjectCode: subject.subjectCode,
-                        })),
-                        ruleSet,
-                      );
-                      const credits = saved.subjects.reduce(
-                        (total, subject) => total + subject.credits,
-                        0,
-                      );
+                      // Through `semesterSgpa`, so an incomplete semester fills
+                      // in its credits and leaves the SGPA box empty for the
+                      // student rather than arriving with a partial figure
+                      // already typed in (OQ-049 §16).
+                      const { sgpa, credits } = semesterSgpa(saved, ruleSet);
                       return {
                         id: saved.id,
                         semester: String(saved.semester),
                         credits: String(credits),
-                        sgpa: computed.ok ? computed.value.toFixed(2) : '',
+                        sgpa: sgpa === null ? '' : sgpa.toFixed(2),
                       };
                     }),
                   );

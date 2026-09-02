@@ -699,4 +699,155 @@ describeDb('results and their subjects', () => {
       expect(subject?.data.credits).toBeDefined();
     });
   });
+  /* ------------------------------------------------------------------------ */
+  /* What a result card prints (OQ-049)                                       */
+  /* ------------------------------------------------------------------------ */
+
+  describe('the printed marks fields', () => {
+    /*
+     * `result_subjects` REQUIRED credits and a grade letter and could store
+     * none of internal, external, total, status or the announcement date — the
+     * exact inverse of what a VTU provisional result prints. Supabase 0003
+     * corrects that, and these tests fail if the columns, their nullability or
+     * the cross-column invariant regress.
+     *
+     * Marks below are invented. The SHAPE is a real card's; the values are not.
+     */
+    const resultId = randomUUID();
+
+    async function seedResult() {
+      await push(A, profileA, {
+        id: resultId,
+        collection: 'results',
+        baseRevision: null,
+        data: { semester: 4, schemeId: 'vtu-2022', ruleSetId: 'vtu-2022-22ob' },
+      });
+    }
+
+    it('carries every printed column to the second device', async () => {
+      await seedResult();
+      const subjectId = randomUUID();
+
+      const outcome = await push(A, profileA, {
+        id: subjectId,
+        collection: 'resultSubjects',
+        baseRevision: null,
+        data: {
+          resultId,
+          subjectCode: 'BCS401',
+          subjectTitle: 'Analysis & Design of Algorithms',
+          internal: 44,
+          external: 36,
+          total: 80,
+          resultStatus: 'P',
+          announcedOn: '2026-07-23',
+          credits: 4,
+          hasSee: true,
+          provenance: 'catalogue',
+          ordinal: 0,
+        },
+      });
+      expect(outcome.status).toBe('applied');
+
+      const rows = await withUser(cloud, sessionFor(A), (tx) =>
+        pullChanges(tx, null, 'resultSubjects'),
+      );
+      const carried = rows.find((row) => row.id === subjectId);
+
+      expect(Number(carried?.data.internal)).toBe(44);
+      expect(Number(carried?.data.external)).toBe(36);
+      expect(Number(carried?.data.total)).toBe(80);
+      expect(carried?.data.resultStatus).toBe('P');
+      expect(carried?.data.hasSee).toBe(true);
+      expect(carried?.data.provenance).toBe('catalogue');
+      expect(new Date(carried?.data.announcedOn as string).toISOString()).toMatch(/^2026-07-23/);
+    });
+
+    it('accepts a provisional row with no grade and no credits', async () => {
+      /*
+       * THE ROW THAT COULD NOT BE SAVED BEFORE. A card printing marks and a
+       * status, and no grade or credits at all, is the ordinary case — and the
+       * NOT NULL constraints made it the impossible one.
+       */
+      await seedResult();
+      const outcome = await push(A, profileA, {
+        id: randomUUID(),
+        collection: 'resultSubjects',
+        baseRevision: null,
+        data: {
+          resultId,
+          subjectCode: 'BENGK106',
+          subjectTitle: 'Communicative English',
+          internal: 33,
+          external: 34,
+          total: 67,
+          resultStatus: 'P',
+          gradeLetter: null,
+          credits: null,
+          ordinal: 0,
+        },
+      });
+      expect(outcome.status).toBe('applied');
+    });
+
+    it('stores "we do not know whether this course has a SEE" as unknown', async () => {
+      // NULL, not false and not true. An external of 0 does not decide it, and
+      // a default would silently decide it for every legacy row (DEC-037).
+      await seedResult();
+      const subjectId = randomUUID();
+      await push(A, profileA, {
+        id: subjectId,
+        collection: 'resultSubjects',
+        baseRevision: null,
+        data: { resultId, subjectCode: 'BCS402', subjectTitle: 'X', internal: 40, ordinal: 0 },
+      });
+
+      const [row] = await admin<{ has_see: boolean | null }[]>`
+        SELECT has_see FROM result_subjects WHERE id = ${subjectId}::uuid
+      `;
+      expect(row?.has_see).toBeNull();
+    });
+
+    it('refuses a row whose columns do not add up', async () => {
+      /*
+       * Refused, never repaired. A row that has been mistyped or misread makes
+       * every figure derived from it wrong, and the database is the last place
+       * that can still say no.
+       */
+      await seedResult();
+      await expect(
+        admin`
+          INSERT INTO result_subjects
+            (result_id, auth_user_id, subject_code, subject_title, internal, external, total)
+          VALUES (${resultId}::uuid, ${A}::uuid, 'BCS403', 'DBMS', 39, 28, 99)
+        `,
+      ).rejects.toThrow(/result_subjects_total_adds_up/i);
+    });
+
+    it('allows a total with only one side present', async () => {
+      // Nothing to disagree with. Requiring the other side would require a
+      // number the card may not have printed.
+      await seedResult();
+      const outcome = await push(A, profileA, {
+        id: randomUUID(),
+        collection: 'resultSubjects',
+        baseRevision: null,
+        data: { resultId, subjectCode: 'BCS404', subjectTitle: 'Y', total: 80, ordinal: 0 },
+      });
+      expect(outcome.status).toBe('applied');
+    });
+
+    it('will not let one student attach a marked subject row to a result of another', async () => {
+      // The M9.1 ownership invariant, re-checked with the new columns in play:
+      // more columns must not mean a new way across the boundary.
+      await seedResult();
+      await expect(
+        admin`
+          INSERT INTO result_subjects
+            (result_id, auth_user_id, subject_code, subject_title, internal, external, total)
+          VALUES (${resultId}::uuid, ${B}::uuid, 'BCS405', 'Z', 40, 30, 70)
+        `,
+      ).rejects.toThrow(/foreign key|result_subjects_belong_to_their_result/i);
+    });
+  });
 });

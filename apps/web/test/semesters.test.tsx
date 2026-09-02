@@ -8,6 +8,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { normalizeResultSubject } from '../src/domain/results.js';
 import { cleanup } from '@testing-library/react';
 import { screen, waitFor, within } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
@@ -33,13 +34,15 @@ function result(semester: number, subjects: readonly [string, number, string][])
     schemeId: 'vtu-2022',
     ruleSetId: VTU_2022_RULE_SET_ID,
     sgpaAsserted: null,
-    subjects: subjects.map(([subjectCode, credits, gradeLetter], index) => ({
-      id: `${String(semester)}-${String(index)}`,
-      subjectCode,
-      subjectTitle: subjectCode,
-      credits,
-      gradeLetter,
-    })),
+    subjects: subjects.map(([subjectCode, credits, gradeLetter], index) =>
+      normalizeResultSubject({
+        id: `${String(semester)}-${String(index)}`,
+        subjectCode,
+        subjectTitle: subjectCode,
+        credits,
+        gradeLetter,
+      }),
+    ),
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
   };

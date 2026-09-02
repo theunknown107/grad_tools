@@ -60,13 +60,79 @@ export interface AttendanceRecord {
   readonly updatedAt: string;
 }
 
-/** One subject inside a saved semester result. */
+/**
+ * What a result card prints in its status column.
+ *
+ * OBSERVED, NOT DEFINED (OQ-049 §12). These six are the nomenclature block a
+ * real VTU provisional result prints at the foot of the page. GradTools stores
+ * and displays them; it assigns academic meaning to NONE of them, because the
+ * card legends them and the regulation defines pass/fail through the marks,
+ * which `evaluateCourseResult` already reads. A status GradTools has never seen
+ * is stored as typed rather than rejected — an unknown letter on a real card is
+ * a fact about the card, not a data error.
+ */
+export const RESULT_STATUSES = ['P', 'F', 'A', 'W', 'X', 'NE'] as const;
+export type ResultStatus = (typeof RESULT_STATUSES)[number];
+
+/** How a subject row came to be. Display information, never a trust level. */
+export const SUBJECT_PROVENANCES = ['catalogue', 'manual'] as const;
+export type SubjectProvenance = (typeof SUBJECT_PROVENANCES)[number];
+
+/**
+ * One subject inside a saved semester result.
+ *
+ * ---------------------------------------------------------------------------
+ * EVERY ACADEMIC FIELD IS NULLABLE, AND THAT IS THE POINT (OQ-049)
+ * ---------------------------------------------------------------------------
+ *
+ * This type used to REQUIRE `credits` and `gradeLetter` and could store none of
+ * internal, external, total or status. A VTU provisional result is the exact
+ * inverse: it prints the four marks fields and prints no grade, no grade point,
+ * no credits and no SGPA. A student copying their own card therefore had to
+ * invent a grade before they could save anything — the manufacturing of missing
+ * values docs/37 forbids, forced by the schema.
+ *
+ * So: **source fields hold what the card printed, and nothing else.** Where the
+ * card is silent the field is null and stays null. Every computed counterpart —
+ * the total from the marks, the grade from the rule set, the grade point, the
+ * backlog state — is derived on read in `domain/results.ts` and is NEVER
+ * written back over its source (OQ-049 §3).
+ *
+ * `credits` and `hasSee` are the two fields that are neither printed nor
+ * inferable. They come from the subject catalogue when the subject is in it
+ * (`provenance: 'catalogue'`), and are null otherwise. An external of 0 must
+ * never be read as "no SEE" — DEC-037 — so `hasSee: null` means unknown, and
+ * unknown propagates into a backlog state of "not known" rather than a guess.
+ */
 export interface ResultSubject {
   readonly id: string;
   readonly subjectCode: string;
   readonly subjectTitle: string;
-  readonly credits: number;
-  readonly gradeLetter: string;
+
+  /* ---- Source: what the result card printed, as the student read it ------ */
+
+  /** CIE marks. */
+  readonly internal: number | null;
+  /** The SEE's PRINTED contribution, on the card's own scale — not a raw script. */
+  readonly external: number | null;
+  /** The printed total. Kept as printed; never repaired to match the columns. */
+  readonly total: number | null;
+  /** The printed status letter, verbatim. See RESULT_STATUSES. */
+  readonly resultStatus: string | null;
+  /** The card's "Announced / Updated on" date, ISO `YYYY-MM-DD`. */
+  readonly announcedOn: string | null;
+  /** A grade letter the SOURCE gave. Null on a provisional card, which prints none. */
+  readonly gradeLetter: string | null;
+  /** A grade point the SOURCE gave. Almost always null; a few consolidated cards print one. */
+  readonly gradePoint: number | null;
+
+  /* ---- Reference: authoritative, or absent -------------------------------- */
+
+  /** From the subject catalogue. Null when the subject is not in it (§15). */
+  readonly credits: number | null;
+  /** Whether this course has a semester-end examination. Null = unknown (DEC-037). */
+  readonly hasSee: boolean | null;
+  readonly provenance: SubjectProvenance;
 }
 
 /**

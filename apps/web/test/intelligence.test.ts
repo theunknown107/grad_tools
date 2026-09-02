@@ -12,6 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { normalizeResultSubject } from '../src/domain/results.js';
 import {
   MIN_SEMESTERS_FOR_TREND,
   buildSemesterViews,
@@ -38,13 +39,15 @@ function result(
     sgpaAsserted: null,
     createdAt: '',
     updatedAt: '',
-    subjects: subjects.map((subject, index) => ({
-      id: `r${String(semester)}-s${String(index)}`,
-      subjectCode: subject.code,
-      subjectTitle: subject.code,
-      credits: subject.credits,
-      gradeLetter: subject.grade,
-    })),
+    subjects: subjects.map((subject, index) =>
+      normalizeResultSubject({
+        id: `r${String(semester)}-s${String(index)}`,
+        subjectCode: subject.code,
+        subjectTitle: subject.code,
+        credits: subject.credits,
+        gradeLetter: subject.grade,
+      }),
+    ),
     ...overrides,
   };
 }

@@ -39,6 +39,8 @@ import {
   type SyncBookkeeping,
 } from '../../domain/sync.js';
 import { readValue, writeValue } from '../../repositories/local/store.js';
+import { normalizeResultSubject } from '../../domain/results.js';
+import type { ResultSubject } from '../../domain/types.js';
 import type { RepositoryBundle } from '../../repositories/types.js';
 
 /** Which local repository backs each synced collection (M9 §53). */
@@ -67,14 +69,18 @@ const COLLECTIONS = [
  * So the array is flattened on the way up and reassembled on the way down.
  * Neither side changes shape to suit the other.
  */
-interface LocalResultSubject {
-  readonly id: string;
-  readonly subjectCode: string;
-  readonly subjectTitle: string;
-  readonly credits: number;
-  readonly gradeLetter: string;
-}
+type LocalResultSubject = ResultSubject;
 
+/**
+ * The subject fields that travel, and every one of them travels.
+ *
+ * Listed explicitly rather than spread, so that a field added to
+ * `ResultSubject` fails the type check here instead of silently staying on one
+ * device. A marks column that never reached the cloud would be worse than one
+ * that never existed: the second device would show a result whose marks are
+ * simply absent, and there is nothing on screen to distinguish that from a card
+ * that printed none (OQ-049 §24).
+ */
 function subjectToRecord(
   resultId: string,
   subject: LocalResultSubject,
@@ -87,8 +93,16 @@ function subjectToRecord(
       resultId,
       subjectCode: subject.subjectCode,
       subjectTitle: subject.subjectTitle,
-      credits: subject.credits,
+      internal: subject.internal,
+      external: subject.external,
+      total: subject.total,
+      resultStatus: subject.resultStatus,
+      announcedOn: subject.announcedOn,
       gradeLetter: subject.gradeLetter,
+      gradePoint: subject.gradePoint,
+      credits: subject.credits,
+      hasSee: subject.hasSee,
+      provenance: subject.provenance,
       ordinal,
     },
   };
@@ -157,18 +171,15 @@ async function applySubjectToResult(
     (parent as unknown as { subjects?: readonly LocalResultSubject[] }).subjects ?? [];
   const without = existing.filter((subject) => subject.id !== subjectId);
 
+  /*
+   * A pulled row is normalised through the same reader as stored rows, so a
+   * null column arrives as null rather than as `Number(null) === 0` — which
+   * would turn "this card printed no credits" into "this course is worth
+   * nothing" on the receiving device.
+   */
   const subjects = remove
     ? without
-    : [
-        ...without,
-        {
-          id: subjectId,
-          subjectCode: String(data.subjectCode ?? ''),
-          subjectTitle: String(data.subjectTitle ?? ''),
-          credits: Number(data.credits ?? 0),
-          gradeLetter: String(data.gradeLetter ?? ''),
-        },
-      ];
+    : [...without, normalizeResultSubject({ ...data, id: subjectId })];
 
   await repositories.results.upsert({ ...parent, subjects } as never);
 }
