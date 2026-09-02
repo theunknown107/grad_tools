@@ -1045,3 +1045,53 @@ the new compositions; every assertion is unchanged.
   and linking to them would produce the exact dead-link defect just fixed.
 - **Questions** — shares the Papers page and inherited its rebuild; it was not
   separately composed.
+
+## 31.25 M9.6G — Final frontend completion and interaction QA · ✅ **DELIVERED**
+
+Closes the M9.6 track. The four compositions M9.6F left open are rebuilt, and
+the verification gaps it named are closed.
+
+| Page | What changed |
+|---|---|
+| **Profile** | One "Academic profile" panel → **four sections** (Academic, You, Appearance, Your data) on the same `SectionedForm` as Account |
+| **Sign-in** | PageHeader over a generic Panel → **one auth card** on the lit stage, theme control beside the mark |
+| **Footer** | Equal-weight columns → brand column **carrying the disclaimer at full size**, quiet bottom bar |
+| **Questions** | Looked like Papers → **text-led rows** with a source-encoded rail, distinct from the code-led index |
+
+Academic leads Profile deliberately: branch, scheme and semester drive every
+computed figure, while name and USN are optional.
+
+The sign-in **unavailable state** gets the same card as the form. A build with
+no provider used to render a bare notice on a plain page, which looked like a
+different product. The message is unchanged and still refuses to show a form
+that cannot work.
+
+### Verification gaps closed
+
+- **Interaction QA** — 31 scripted interactions in a real browser (docs/22
+  §22.36), including reload-persistence for theme and notification read state.
+- **All five accents** — 50 checks across ten palettes, populated (§22.37).
+- **System appearance** — verified by flipping Chromium's colour-scheme
+  emulation and reading the painted ground back, not by unit test.
+
+### Defects found and fixed in this milestone
+
+1. **Auth stage overflowed `<html>` by up to 155px** — its light layer extends
+   20% either side by design and nothing clipped it. Invisible on the page
+   because `body` already hides `overflow-x`.
+2. **The sectioned-form rail overflowed at 390** — a grid item's default
+   `min-width: auto` refuses to shrink below its content.
+
+Both were mine, introduced in this milestone and caught by the sweep.
+
+### NOT VERIFIED
+
+- **The signed-in Account and the sign-in form itself.** No auth provider is
+  configured for the QA build, so both render their unavailable/signed-out
+  states. The signed-in compositions are covered by unit tests only.
+- **No screen reader was driven.** ARIA roles and names are asserted by axe and
+  by unit tests; no announcement was heard.
+- **No human looked at the screens during the interaction run** — it is
+  scripted browser interaction, not a manual pass.
+- The full 6-width × 2-theme matrix was swept for **violet**; the other four
+  accents were swept at 1280 on five pages.
