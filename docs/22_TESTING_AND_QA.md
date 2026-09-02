@@ -2006,3 +2006,34 @@ catalogue when given `DATABASE_URL` and `CORPUS_DATABASE_URL`. Measured:
 "Not in the catalogue" is **not** proof of an error — this catalogue covers CSE
 semesters I–II only, so a real code from another stream or a later semester
 lands there too. It is a list to check, not a list of defects.
+
+## 22.47 The daily attendance loop
+
+`apps/web/test/attendance-marking.test.ts` (11) and
+`apps/web/test/attendance-workflow.test.tsx` (7).
+
+Attendance is a **ratio**, and the two ways of getting an increment wrong are
+symmetrical: counting a present day as `attended` only quietly improves the
+percentage, and counting an absent day as nothing quietly preserves it. Both
+treat attendance as a score. A class that happened raises `conducted` either
+way, and that is the assertion the rest hangs from.
+
+| Pinned | Why |
+|---|---|
+| Attended → `31/41`; missed → `30/41` | The ratio, in both directions |
+| The percentage moves the right way, from `calculateAttendance` | The row and the mark cannot disagree |
+| Nothing else on the record changes | Identity and subject are not the increment's business |
+| `updatedAt` is stamped | So a sync can see the change |
+| **Property:** over every ratio to 30/30, `attended <= conducted` | No sequence of taps can manufacture >100% |
+| Undo restores the previous record | Not `count - 1`, which reaches −1 when tapped twice |
+| A first class starts a record from nothing | Otherwise a one-tap action is a three-screen errand |
+| `BCS 501` on the timetable finds `bcs501` in attendance | One subject (M10A.1); a second record would halve the count |
+| A record with `attended > conducted` is not countable | Recognisable rather than rendered |
+
+### In a real browser
+
+`tests/interaction-qa.mjs` gained three checks, clicked rather than asserted:
+marking a class moves the figure and offers undo; undo restores it; and today's
+timetable can mark a class without leaving the page. On a day with no seeded
+classes the timetable check passes with nothing to mark, which is correct rather
+than a failure.

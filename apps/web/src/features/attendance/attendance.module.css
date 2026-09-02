@@ -330,3 +330,36 @@
 .addCourse .formError {
   padding: var(--space-4);
 }
+
+/*
+ * The two actions the page is opened for, on the row itself.
+ *
+ * They sit after the figure rather than before it: the percentage is what a
+ * student came to read, and an action placed ahead of the answer makes the
+ * answer harder to scan down a column.
+ */
+.rowActions {
+  display: flex;
+  gap: var(--space-2);
+  flex: none;
+}
+
+/*
+ * Undo, as a quiet strip rather than a toast.
+ *
+ * A toast disappears on its own, which is the wrong behaviour for the one
+ * affordance that reverses a mistake — a student walking out of a lecture will
+ * not beat a timer. It stays until the next action replaces it.
+ */
+.undoBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+}

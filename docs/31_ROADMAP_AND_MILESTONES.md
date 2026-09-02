@@ -1253,3 +1253,83 @@ totals of 20 and no total for the degree.
 **Verification.** 1543 → 1552 tests. Five browser harnesses clean in both themes
 — run because the catalogue reaching the UI grew from 10 subjects to 29, even
 though no UI code changed. No scraper, poller or scheduled fetch was built.
+
+---
+
+# Product scope reset — the core student experience
+
+**Direction change, and it supersedes the milestone ordering above.**
+
+GradTools is a **student academic dashboard**. The product is:
+
+| Priority | Area |
+|---|---|
+| **P0** | Results · SGPA/CGPA · Analytics · Attendance · Timetable · Announcements · the 8-semester degree |
+| P1 | Notifications · Account/Profile |
+| **P2** | Question Papers · Documents |
+
+### Question-paper intelligence is PARKED
+
+M10B, M10B.1, M10B.2 and M10B.3 remain in the repository and keep working. The
+library, question search, the document pipeline, the extraction architecture
+and their visibility rules are **not** to be deleted, rewritten or broken.
+
+They are simply **no longer extended**. No milestone is spent improving them —
+no similarity, no embeddings, no prediction, no OCR work, no further paper
+infrastructure — unless the scope is explicitly reopened.
+
+**OQ-053** (question-paper scheme attribution) is parked with them. It is
+repaired only if a change to shared reference data causes a real regression.
+
+**Reference-data work is justified only where it serves the P0 areas** —
+credits, SEE applicability, subject identity, semester membership. Not to make
+the paper system better.
+
+### The loop the product is judged on
+
+```
+open app        -> today's classes
+attend a class  -> record it
+check           -> how many can I still miss
+result released -> add it
+                -> SGPA updates
+semester ends   -> CGPA updates
+                -> analytics show the trend
+```
+
+## 31.30 Core product — the daily attendance loop · ✅ **DELIVERED**
+
+**The gap, found by walking the loop rather than reading the roadmap.** All six
+core pages existed and were substantial. What did not exist was the single most
+frequent action in the product: **recording that a class happened.**
+
+Attendance offered exactly two operations — add a subject with both totals typed
+in, or delete it. A student who went to five lectures had to retype five subject
+codes and ten numbers to record the day. The counts were storable and not
+maintainable.
+
+**What shipped.** Two buttons on each attendance row, and the same two on each
+of today's timetable classes: **Attended** and **Missed**. Both raise the
+classes-held count — attendance is a ratio, not a score, and counting a present
+day as `attended` only, or an absent day as nothing, are the same mistake in
+opposite directions.
+
+- **Undo, one step**, as a strip rather than a toast. The buttons sit beside
+  each other and get pressed while walking out of a lecture; a student will not
+  beat a timer. Undo restores the *previous record*, not `count - 1`, because
+  arithmetic undo happily reaches −1 when tapped twice.
+- **From today's timetable**, a subject with no attendance record yet gets one —
+  titled through the M10A.1 subject index rather than retyped. `BCS 501` on the
+  timetable and `bcs501` in attendance are one subject, so no second record is
+  created.
+- **Only today's agenda offers it.** A button on next week's grid would invite
+  recording Thursday's attendance on a Monday.
+
+**Not built:** no per-class attendance events, no calendar, no history of
+individual classes. Counts remain the storage model (docs/08 §8.9); this
+milestone gave them the operation they were missing, nothing more.
+
+**Verification.** 1552 → 1570 tests, including a property check that no sequence
+of marks can make attended exceed conducted. Six browser harnesses clean, with
+the loop clicked in a real browser — mark, watch the percentage move, undo,
+watch it return.
