@@ -136,7 +136,13 @@ const TRAILING = /\s(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s+([A-Z]{1,2})(?:\s+(\S+))
 /** `Semester : 4`, however it is spaced or punctuated. */
 const SEMESTER_LINE = /semester\s*[:-]?\s*(\d)\b/i;
 
-/** `2BU24CB076`-shaped. Recognised only to show it back, never to trust it. */
+/**
+ * A seat-number shape: digit, two letters, two digits, two letters, three
+ * digits. Recognised only to show it back, never to trust it.
+ *
+ * The pattern is described rather than exemplified on purpose — a specimen here
+ * would be somebody's real seat number, and this file is public.
+ */
 const SEAT_NUMBER = /\b(\d[A-Z]{2}\d{2}[A-Z]{2}\d{3})\b/;
 
 /**
