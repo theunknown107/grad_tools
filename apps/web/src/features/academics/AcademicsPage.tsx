@@ -23,8 +23,17 @@ import {
   type SemesterSummary,
 } from '@gradtools/academic-rules';
 import { PageHeader } from '../../components/AppShell.js';
+import { IslandTabs, IslandTabPanel } from '../../components/ui/IslandTabs.js';
+import { MetricStrip } from '../../components/ui/layout.js';
+import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
+import {
+  buildSemesterViews,
+  cumulativeStanding,
+  dataCompleteness,
+} from '../../domain/academics.js';
 import { Icon } from '../../components/icons.js';
 import {
+  EmptyState,
   Button,
   ExplanationDisclosure,
   Notice,
@@ -35,7 +44,7 @@ import {
 } from '../../components/ui/index.js';
 import { formatGpa, formatPercent } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
-import { useResults } from '../../hooks/useCollection.js';
+import { useResults, useSemesters } from '../../hooks/useCollection.js';
 import styles from './academics.module.css';
 
 const ruleSet = vtu2022RuleSet;
@@ -55,17 +64,129 @@ function blankRow(): CourseRow {
 }
 
 export function AcademicsPage() {
+  const [view, setView] = useState('yours');
   return (
     <>
       <PageHeader
         title="SGPA & CGPA"
         subtitle="Every figure is computed by the shared rules engine against the VTU 2022 regulation, and every one can show its working."
       />
-      <div className={styles.stack}>
-        <SgpaCalculator />
-        <CgpaCalculator />
-      </div>
+      {/*
+        -------------------------------------------------------------------
+        M9.6F: YOUR FIGURES FIRST, THE CALCULATOR SECOND
+        -------------------------------------------------------------------
+
+        The page was two blank calculators stacked on top of each other. But a
+        student who has entered their results already HAS an SGPA and a CGPA —
+        and this page, named after those two figures, made them type everything
+        again to see one.
+
+        So the page leads with what GradTools already knows: cumulative
+        standing, the trend across eight semesters, and what those figures rest
+        on. The calculators remain, one tab away, because they answer a
+        different and still-real question — "what would I get if…" — for a
+        semester that has not happened yet.
+      */}
+      <IslandTabs
+        label="Figures"
+        value={view}
+        onChange={setView}
+        tabs={[
+          { id: 'yours', label: 'Your figures' },
+          { id: 'calculator', label: 'Calculator' },
+        ]}
+      />
+
+      {view === 'yours' ? (
+        <IslandTabPanel id="yours">
+          <YourFigures />
+        </IslandTabPanel>
+      ) : (
+        <IslandTabPanel id="calculator">
+          <div className={styles.stack}>
+            <SgpaCalculator />
+            <CgpaCalculator />
+          </div>
+        </IslandTabPanel>
+      )}
     </>
+  );
+}
+
+/**
+ * What GradTools already knows, from the results the student saved.
+ *
+ * Nothing here is computed in this component beyond summing credits: the SGPA,
+ * the CGPA and the completeness statement all come from the rules engine and
+ * the semester-view builder, so this page and My Degree cannot disagree.
+ */
+function YourFigures() {
+  const { items: results } = useResults();
+  const { items: semesters } = useSemesters();
+
+  const views = useMemo(() => buildSemesterViews(semesters, results), [semesters, results]);
+  const standing = useMemo(() => cumulativeStanding(views), [views]);
+  const completeness = useMemo(() => dataCompleteness(views), [views]);
+
+  const points: readonly SemesterPoint[] = useMemo(
+    () =>
+      Array.from({ length: 8 }, (_, index) => {
+        const view = views.find((candidate) => candidate.number === index + 1);
+        return {
+          semester: index + 1,
+          sgpa: view?.sgpaComputed ?? null,
+          state:
+            view?.status === 'in_progress'
+              ? ('in_progress' as const)
+              : view?.sgpaComputed !== null && view?.sgpaComputed !== undefined
+                ? ('graded' as const)
+                : ('planned' as const),
+        };
+      }),
+    [views],
+  );
+
+  const graded = points.filter((point) => point.sgpa !== null);
+
+  if (graded.length === 0) {
+    return (
+      <EmptyState title="No figures yet" icons={['gpa', 'results', 'degree']}>
+        Save a semester result and your SGPA, CGPA and trend appear here. The calculator tab works
+        without any saved data.
+      </EmptyState>
+    );
+  }
+
+  return (
+    <div className={styles.stack}>
+      <MetricStrip
+        metrics={[
+          { label: 'CGPA', value: standing.cgpa === null ? '—' : formatGpa(standing.cgpa) },
+          {
+            label: 'Percentage',
+            value: standing.percentage === null ? '—' : formatPercent(standing.percentage),
+          },
+          { label: 'Credits', value: String(standing.creditsCompleted) },
+          { label: 'Semesters', value: String(standing.semestersCompleted) },
+        ]}
+      />
+
+      <Panel title="SGPA across the degree" material="quiet">
+        <SgpaTrend points={points} />
+      </Panel>
+
+      {/*
+        WHAT THE FIGURES REST ON. A CGPA of 7.85 means something different
+        across four semesters than across one, and a student cannot tell which
+        they are looking at unless the page says (M10A §19).
+      */}
+      <p className={styles.basis}>{completeness.basis}</p>
+      {completeness.gaps.map((gap) => (
+        <p className={styles.gap} key={gap}>
+          {gap}
+        </p>
+      ))}
+    </div>
   );
 }
 

@@ -217,10 +217,21 @@ describe('dashboard', () => {
 /* SGPA / CGPA                                                                */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * M9.6F put the student's OWN figures first on the SGPA/CGPA page and moved the
+ * blank calculators to a second tab — the page is named after two figures and
+ * used to make you re-type everything to see one. These tests open the
+ * calculator tab; their assertions are unchanged.
+ */
+async function openCalculator(): Promise<void> {
+  await userEvent.click(await screen.findByRole('tab', { name: /calculator/i }));
+}
+
 describe('SGPA calculator', () => {
   it('computes from entered credits and grades', async () => {
     const user = userEvent.setup();
     renderWith(<AcademicsPage />);
+    await openCalculator();
 
     // Two 4-credit courses at A (8) and A+ (9): 68/8 = 8.50
     await user.selectOptions(screen.getByLabelText(/credits, course 1/i), '4');
@@ -238,6 +249,7 @@ describe('SGPA calculator', () => {
 
   it('exposes the derivation with its regulation clause', async () => {
     renderWith(<AcademicsPage />);
+    await openCalculator();
     const disclosures = await screen.findAllByText(/how was this calculated/i);
     expect(disclosures.length).toBeGreaterThan(0);
     expect(screen.getAllByText(/22OB 6.6\(2a\)/).length).toBeGreaterThan(0);
@@ -247,6 +259,7 @@ describe('SGPA calculator', () => {
   it('can add and remove course rows', async () => {
     const user = userEvent.setup();
     renderWith(<AcademicsPage />);
+    await openCalculator();
     expect(screen.getByLabelText(/subject code, course 5/i)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: /add course/i }));
     expect(screen.getByLabelText(/subject code, course 6/i)).toBeTruthy();
@@ -259,6 +272,7 @@ describe('CGPA calculator', () => {
   it('computes CGPA, percentage and class from the rules engine', async () => {
     const user = userEvent.setup();
     renderWith(<AcademicsPage />);
+    await openCalculator();
 
     await user.type(screen.getByLabelText(/total credits, row 1/i), '20');
     await user.type(screen.getByLabelText(/sgpa, row 1/i), '8.20');
@@ -275,6 +289,7 @@ describe('CGPA calculator', () => {
   it('explains why its percentage differs from other calculators', async () => {
     const user = userEvent.setup();
     renderWith(<AcademicsPage />);
+    await openCalculator();
     await user.type(screen.getByLabelText(/total credits, row 1/i), '20');
     await user.type(screen.getByLabelText(/sgpa, row 1/i), '8.20');
     expect(await screen.findByText(/7.5 percentage points lower/i)).toBeTruthy();
