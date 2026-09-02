@@ -662,6 +662,35 @@ function Footer(): ReactNode {
   ];
 
   return (
+    /*
+      -------------------------------------------------------------------------
+      M9.6G: THE FOOTER IS A CLOSING SURFACE, NOT A LIST OF LISTS
+      -------------------------------------------------------------------------
+
+      M9.6F repaired its dead links but left the composition: a brand block
+      beside three equal columns, then a legal line. Everything had the same
+      weight, so the disclaimer that actually matters — GradTools is not VTU —
+      read as small print rather than as the point.
+
+      Reference 16's real contribution is the SHAPE: a wide brand column,
+      grouped link columns, and a distinct bottom bar. Taken, with the
+      hierarchy corrected:
+
+        - the brand column carries the disclaimer, so it sits at full size
+          beside the navigation instead of below it in grey
+        - the columns are grouped by what a person is trying to do
+        - the bottom bar is reduced to the copyright and the build state
+
+      NOT taken: the reference's nine social icon links. GradTools has no social
+      accounts, and the milestone forbids inventing them. The markup for that
+      row is deliberately absent rather than stubbed with dead anchors — an
+      inactive icon that goes nowhere is worse than no icon.
+
+      Privacy, Terms and Contact are likewise ABSENT rather than linked: those
+      routes do not exist, and adding them would reproduce exactly the dead-link
+      defect fixed in M9.6F. They belong to a content milestone, not a styling
+      one.
+    */
     <footer className={styles.footer}>
       <div className={styles.footerTop}>
         <div className={styles.footerBrand}>
@@ -672,7 +701,11 @@ function Footer(): ReactNode {
             <span>GradTools</span>
           </Link>
           <p className={styles.footerBlurb}>
-            An independent student project for keeping a VTU degree in one place.
+            An independent student project for keeping a VTU degree in one place. Every academic
+            figure follows the VTU 2022 regulations and can show the clause it came from.
+          </p>
+          <p className={styles.footerDisclaimer}>
+            Not affiliated with, endorsed by, or connected to Visvesvaraya Technological University.
           </p>
         </div>
 
@@ -695,11 +728,10 @@ function Footer(): ReactNode {
       </div>
 
       <div className={styles.footerBottom}>
-        <p>
-          GradTools is an independent student project. It is not affiliated with, endorsed by, or
-          connected to Visvesvaraya Technological University.
+        <p className={styles.footerYear}>&copy; {new Date().getFullYear()} GradTools</p>
+        <p className={styles.footerBuild}>
+          Experimental version &middot; data stays on your device
         </p>
-        <p className={styles.footerYear}>© {new Date().getFullYear()} GradTools</p>
       </div>
     </footer>
   );

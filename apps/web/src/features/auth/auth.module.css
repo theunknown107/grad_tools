@@ -209,6 +209,15 @@
   justify-content: center;
   padding-block: var(--space-7) var(--space-9);
   isolation: isolate;
+  /*
+   * The light layer below is deliberately wider than the stage (inset -20%
+   * either side) so the glow has somewhere to fall off. Nothing clipped it, so
+   * <html> gained up to 155px of horizontal scroll — invisible on the page
+   * because body already hides overflow-x, and caught only by measuring the
+   * document. `clip` rather than `hidden`: it must not create a scroll
+   * container of its own.
+   */
+  overflow: clip;
 }
 
 .stageSky {
@@ -240,4 +249,74 @@
 .stage .page {
   inline-size: 100%;
   animation: riseIn var(--motion-slow) var(--ease-enter) both;
+}
+
+/* -------------------------------------------------------------------------- */
+/* M9.6G — the auth card                                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * One object, not a page header above a panel. An auth screen has exactly one
+ * job, so mark, heading, lead and form belong to a single surface standing in
+ * the stage's light.
+ */
+.authCard {
+  position: relative;
+  inline-size: min(100%, 27rem);
+  margin-inline: auto;
+  padding: var(--space-6);
+  border: 1px solid var(--glass-panel-border);
+  border-radius: var(--radius-lg);
+  background: var(--glass-panel-bg);
+  -webkit-backdrop-filter: blur(var(--glass-panel-blur)) saturate(180%);
+  backdrop-filter: blur(var(--glass-panel-blur)) saturate(180%);
+  box-shadow: var(--glass-highlight), var(--shadow-glass);
+  animation: riseIn var(--motion-slow) var(--ease-spring) both;
+}
+
+.authTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-block-end: var(--space-5);
+}
+
+.authMark {
+  display: grid;
+  place-items: center;
+  inline-size: 34px;
+  block-size: 34px;
+  border-radius: 11px;
+  background: var(--action-bg);
+  border: 1px solid var(--action-border);
+  color: var(--action-fg);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--glow-accent-soft);
+}
+
+.authTitle {
+  margin: 0;
+  font-size: var(--text-h1);
+  line-height: var(--text-h1-lh);
+  font-weight: var(--weight-light);
+  letter-spacing: var(--tracking-display);
+}
+
+.authLead {
+  margin: var(--space-2) 0 var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  line-height: 1.55;
+}
+
+.authBody {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* The stage's own drop shadow is on the card now, so the old panel rule that
+   applied it to a <section> no longer has a target. */
+.stage .page > section {
+  box-shadow: none;
 }

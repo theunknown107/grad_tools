@@ -24,8 +24,8 @@
 
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { PageHeader } from '../../components/AppShell.js';
-import { Button, Notice, Panel, TextField } from '../../components/ui/index.js';
+import { ThemeControl } from '../../components/ThemeControl.js';
+import { Button, Notice, TextField } from '../../components/ui/index.js';
 import { useAuth } from './AuthContext.js';
 import styles from './auth.module.css';
 
@@ -53,16 +53,43 @@ export function SignInPage() {
    * form that cannot work (M9 §68).
    */
   if (adapter === null) {
+    /*
+     * M9.6G: the unavailable state gets the SAME STAGE as the form.
+     *
+     * It used to be a bare notice on a plain page, so a build without a
+     * provider looked like a different product from one with it. The message is
+     * unchanged and still honest — no form is shown that cannot work — but it
+     * now sits on the same lit surface, because "accounts are off" is a normal
+     * state of this screen rather than an error page.
+     */
     return (
-      <div className={styles.page}>
-        <PageHeader
-          title="Accounts"
-          subtitle="GradTools works fully without one. Your data is on this device."
-        />
-        <Notice tone="info">
-          Accounts are not available in this build. Everything you enter stays on this device, and
-          nothing is sent anywhere.
-        </Notice>
+      <div className={styles.stage}>
+        <div className={styles.stageSky} aria-hidden="true">
+          <span className={styles.stageGlow} />
+        </div>
+
+        <div className={styles.authCard}>
+          <div className={styles.authTop}>
+            <span className={styles.authMark} aria-hidden="true">
+              G
+            </span>
+            <ThemeControl />
+          </div>
+
+          <h1 className={styles.authTitle}>Accounts</h1>
+          <p className={styles.authLead}>
+            GradTools works fully without one. Your data is on this device.
+          </p>
+
+          <Notice tone="info">
+            Accounts are not available in this build. Everything you enter stays on this device, and
+            nothing is sent anywhere.
+          </Notice>
+
+          <p className={styles.note}>
+            <Link to="/">Continue to GradTools</Link>
+          </p>
+        </div>
       </div>
     );
   }
@@ -133,13 +160,29 @@ export function SignInPage() {
         <span className={styles.stageGlow} />
       </div>
 
-      <div className={styles.page}>
-        <PageHeader
-          title={HEADING[mode]}
-          subtitle="An account syncs your records between devices. GradTools works without one."
-        />
+      <div className={styles.authCard}>
+        {/*
+          M9.6G: ONE CARD, NOT A PAGE HEADER PLUS A PANEL.
+          The screen carried the application's PageHeader above a generic
+          Panel, so it read as an app page that happened to contain a form. An
+          auth screen has exactly one job and should be one object: mark,
+          heading, lead, form. The theme control sits with the mark, because a
+          person arriving in the wrong appearance should not have to sign in to
+          fix it.
+        */}
+        <div className={styles.authTop}>
+          <span className={styles.authMark} aria-hidden="true">
+            G
+          </span>
+          <ThemeControl />
+        </div>
 
-        <Panel>
+        <h1 className={styles.authTitle}>{HEADING[mode]}</h1>
+        <p className={styles.authLead}>
+          An account syncs your records between devices. GradTools works without one.
+        </p>
+
+        <div className={styles.authBody}>
           {/*
           WHAT AN ACCOUNT DOES, BEFORE THEY MAKE ONE (M9 §52). Stated as fact,
           including the part about local data staying put.
@@ -245,7 +288,7 @@ export function SignInPage() {
               </button>
             )}
           </div>
-        </Panel>
+        </div>
 
         <p className={styles.note}>
           Prefer to stay local? <Link to="/">Keep using GradTools without an account.</Link> Nothing

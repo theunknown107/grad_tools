@@ -60,3 +60,11 @@
   line-height: var(--text-caption-lh);
   color: var(--text-subtle);
 }
+
+/* M9.6G — the appearance section's control sits on its own line. */
+.themeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+}
