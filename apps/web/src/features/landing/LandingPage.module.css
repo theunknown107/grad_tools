@@ -1126,3 +1126,30 @@
   color: var(--text-subtle);
   font-size: var(--text-caption);
 }
+
+/* -------------------------------------------------------------------------- */
+/* M9.6G — the footer as a closing surface                                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The disclaimer moves INTO the brand column at full size. It used to sit in
+ * the bottom bar in caption grey, which made the most legally important
+ * sentence on the site read as small print.
+ */
+.footerDisclaimer {
+  margin-block-start: var(--space-3);
+  max-inline-size: 42ch;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: 1.6;
+}
+
+/* The bottom bar is now only the copyright and the build state, so it can be
+   a quiet single line rather than a paragraph block. */
+.footerBuild {
+  color: var(--text-subtle);
+}
+
+.footerBottom {
+  align-items: center;
+}

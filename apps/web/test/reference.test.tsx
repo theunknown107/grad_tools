@@ -304,10 +304,18 @@ describe('student data stays local', () => {
     renderWith(<ProfilePage />, { repositories: bundle });
 
     await screen.findByText('BMATS101');
-    await user.type(screen.getByLabelText(/^name$/i), 'Ravi');
-    // M9.6F relabelled the field "USN (optional)"; the assertion that follows
-    // — that it is never sent to the server — is unchanged.
+
+    /*
+     * M9.6G split Profile into sections, with Academic first (branch, scheme
+     * and semester drive every figure) and identity under "You". Name and USN
+     * are therefore one click away. The assertion below — that neither ever
+     * reaches a URL — is unchanged.
+     */
+    await user.click(screen.getByRole('button', { name: /^You$/ }));
+    await user.type(await screen.findByLabelText(/^name$/i), 'Ravi');
     await user.type(screen.getByLabelText(/^usn/i), '1XX22CS001');
+
+    await user.click(screen.getByRole('button', { name: /^Academic$/ }));
     await user.click(screen.getByRole('button', { name: /save profile/i }));
 
     await waitFor(() => {
