@@ -48,7 +48,7 @@ vi.mock('../src/lib/pdf-text.js', () => ({
       hasTextLayer: next?.hasTextLayer ?? true,
     });
   }),
-  renderPdfPage: vi.fn(() => Promise.resolve({ width: 800, height: 1000 })),
+  renderPdfPage: vi.fn(() => Promise.resolve({ width: 800, height: 1000, getContext: () => null })),
 }));
 
 /* ---------------------------------------------------------------------- */
@@ -76,7 +76,7 @@ vi.mock('../src/lib/ocr.js', () => ({
   MAX_IMAGE_BYTES: 20 * 1024 * 1024,
   decodeImage: vi.fn(() =>
     Promise.resolve({
-      canvas: { width: 800, height: 1000 },
+      canvas: { width: 800, height: 1000, getContext: () => null },
       width: 800,
       height: 1000,
       sourceWidth: 800,
