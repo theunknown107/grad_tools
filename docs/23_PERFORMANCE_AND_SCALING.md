@@ -812,3 +812,48 @@ would be a guess.
 execution.
 
 Bundle: JS 704.05 kB (203.60 kB gzip), CSS unchanged at 66.88 kB.
+
+## 23.x What recognition costs, and where it was measured (M10A.6B)
+
+### The bundle
+
+| | Before | After | Delta |
+|---|---|---|---|
+| Main chunk | 807,892 B (235,682 gzip) | 815,476 B (238,468 gzip) | **+7,584 B (+2,786 gzip)** |
+| Lazy OCR chunk | — | 15,872 B (6,811 gzip) | fetched on first picture import |
+
+The engine itself is not in either: the worker (111kB), one core variant
+(~3.9MB) and the language model (2.95MB) — **≈6.65MB** — are fetched from our
+own origin on the first picture import and then browser-cached. A student who
+only ever imports text PDFs downloads none of it.
+
+Three core variants sit in `public/ocr/` (14.08MB on disk) because `getCore`
+chooses by SIMD support at runtime. A browser fetches exactly one; in Chromium
+it was `tesseract-core-relaxedsimd-lstm.wasm.js`.
+
+### The measurement, and its limits
+
+On a desktop machine over localhost, a 1000×700 card went from chosen file to
+reviewable rows in **~1.3s including the first fetch of the engine**. That
+number is close to useless as a phone estimate and is recorded only as a floor.
+
+**No real phone was measured.** The honest statement is what the design assumes
+rather than what was observed:
+
+- **Memory** is the constraint that kills a tab, not time. One worker serves a
+  whole batch, scanned pages are rendered one at a time and their canvases
+  released immediately, and images are downscaled to a 2000px longest edge —
+  a 12MP photo is ~4000px wide, which costs several times as much to recognise
+  and finds no more text, because Tesseract wants roughly 30px of glyph height
+  and a card reaches that long before 4000px.
+- **Refusals are cheap and come first.** Under 600px on the longest edge, and
+  over four pages for a scan, are rejected before the engine is started.
+- **Sequential beats parallel** on a phone: two pages competing for the same
+  cores finish later than the same two in order, and a second worker doubles
+  the resident engine.
+
+### What is still unknown
+
+How long a 12MP photo takes on a mid-range Android phone, and how often such a
+device runs out of memory during the wasm instantiation. Both need a real
+device; neither is guessed at here.
