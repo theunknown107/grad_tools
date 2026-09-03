@@ -26,7 +26,7 @@
  * In each case a person can tell what happened and a rule cannot.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import type { Subject } from '@gradtools/shared-types';
 import type { ResultSubject, SemesterResult } from '../../domain/types.js';
@@ -39,7 +39,15 @@ import {
   type ImportedFile,
   type SemesterGroup,
 } from '../../domain/result-reconcile.js';
-import { extractPdfLines, PdfReadError } from '../../lib/pdf-text.js';
+import { PdfReadError } from '../../lib/pdf-text.js';
+import { OcrError, startOcr, type OcrSession } from '../../lib/ocr.js';
+import {
+  fileKind,
+  readImageFile,
+  readPdfFile,
+  type FileReading,
+  type Recognize,
+} from '../../lib/result-file.js';
 import { subjectKey } from '../../domain/subjects.js';
 import type { asStudentProfileId } from '../../domain/identity.js';
 import { Icon } from '../../components/icons.js';
@@ -68,10 +76,19 @@ interface FileState {
   readonly id: string;
   readonly fileName: string;
   readonly bytes: number;
-  readonly status: 'reading' | 'read' | 'failed';
+  /**
+   * `queued` is a file waiting its turn at the recogniser.
+   *
+   * It is a state of its own because OCR is SEQUENTIAL — one worker for the
+   * batch — and a file that shows "Reading…" for ninety seconds while three
+   * others go first looks broken. "Waiting to be read" is the truth.
+   */
+  readonly status: 'reading' | 'queued' | 'recognising' | 'read' | 'failed';
   /** Why it failed, in words a student can act on. Null while it has not. */
   readonly error: string | null;
   readonly file: ImportedFile | null;
+  /** How this file was read. Carried to the review, not just logged. */
+  readonly reading: FileReading | null;
 }
 
 /** A row being reviewed. Strings, because "" and 0 are different answers. */
@@ -105,6 +122,41 @@ function toDraft(row: ParsedRow): DraftRow {
     sourceLine: row.sourceLine,
     warnings: row.warnings,
   };
+}
+
+const STATUS_PILL: Record<FileState['status'], string> = {
+  reading: '…',
+  queued: 'Waiting',
+  recognising: 'Reading',
+  read: 'Read',
+  failed: 'Failed',
+};
+
+/**
+ * What one file is doing, in a phrase.
+ *
+ * A recognised file says so. Presenting figures read off a photograph exactly
+ * as it presents figures extracted from a PDF's own text would imply the two
+ * are equally reliable, and they are not (§13, §42).
+ */
+function fileMeta(entry: FileState): string {
+  if (entry.status === 'failed') return entry.error ?? 'Could not be read';
+  if (entry.status === 'queued') return 'Waiting to be read…';
+  if (entry.status === 'recognising') return 'Reading the text in this picture…';
+  if (entry.status === 'reading') return 'Reading…';
+
+  const rows = entry.file?.card.rows.length ?? 0;
+  if (entry.reading?.source !== 'ocr') return `${String(rows)} rows read`;
+
+  /*
+   * The count of doubtful words is offered as a REASON TO LOOK, never as a
+   * score. A confidently misread digit is exactly as wrong as an unconfident
+   * one, so there is no percentage here that would mean anything.
+   */
+  const doubtful = entry.reading.lowConfidenceWords;
+  return doubtful === 0
+    ? `${String(rows)} rows read from a picture · check them against the card`
+    : `${String(rows)} rows read from a picture · ${String(doubtful)} words were unclear`;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -146,65 +198,177 @@ export function ResultImport({
   const [dragging, setDragging] = useState(false);
   const [saved, setSaved] = useState<readonly number[]>([]);
 
+  /*
+   * ONE ENGINE FOR THE WHOLE PANEL.
+   *
+   * Starting a worker per file would put several copies of a 3.7MB engine and a
+   * 2.8MB model in memory at once, which on a phone is how the tab gets killed.
+   * So the session is created on the first file that actually needs it — a
+   * student importing text PDFs never downloads it at all — and terminated when
+   * the panel closes (§8, §9, §10).
+   */
+  const session = useRef<OcrSession | null>(null);
+  const cancelled = useRef(false);
+
+  useEffect(
+    () => () => {
+      cancelled.current = true;
+      void session.current?.close();
+      session.current = null;
+    },
+    [],
+  );
+
+  const patch = (id: string, changes: Partial<FileState>) => {
+    setFiles((current) =>
+      current.map((entry) => (entry.id === id ? { ...entry, ...changes } : entry)),
+    );
+  };
+
+  /** Starts the engine on first need, and hands back a way to use it. */
+  const recognizer = async (): Promise<Recognize> => {
+    if (session.current === null) {
+      session.current = await startOcr();
+    }
+    const live = session.current;
+    return (canvas, page) => live.recognize(canvas, page);
+  };
+
   const read = async (chosen: readonly File[]) => {
+    cancelled.current = false;
     const accepted = chosen.slice(0, MAX_FILES);
     const pending: FileState[] = accepted.map((file) => ({
       id: newId(),
       fileName: file.name,
       bytes: file.size,
-      status: 'reading',
+      status: fileKind(file) === 'image' ? 'queued' : 'reading',
       error: null,
       file: null,
+      reading: null,
     }));
     setFiles((current) => [...current, ...pending]);
 
+    const store = (id: string, fileName: string, reading: FileReading) => {
+      patch(id, {
+        status: 'read',
+        reading,
+        file: { fileName, card: parseResultCard(reading.lines) },
+      });
+    };
+
+    const fail = (id: string, cause: unknown) => {
+      const message =
+        cause instanceof PdfReadError || cause instanceof OcrError
+          ? cause.message
+          : 'This file could not be read.';
+      patch(id, { status: 'failed', error: message });
+    };
+
     /*
-     * ONE FILE'S FAILURE IS ONE FILE'S FAILURE (§19). Each is read and settled
-     * on its own, so four good cards and one corrupt one leave four ready to
-     * review rather than a rejected batch.
+     * PASS ONE: EVERYTHING THAT NEEDS NO RECOGNISER.
+     *
+     * Text extraction is cheap and independent, so these settle in parallel and
+     * ONE FILE'S FAILURE IS ONE FILE'S FAILURE (§19) — four good cards and one
+     * corrupt one leave four ready to review rather than a rejected batch. What
+     * turns out to be a scan is set aside for pass two instead of failing here.
      */
+    const queue: { id: string; file: File; kind: 'image' | 'pdf'; data?: ArrayBuffer }[] = [];
+
     await Promise.all(
       accepted.map(async (file, index) => {
-        const id = pending[index]?.id;
-        if (id === undefined) return;
+        const entry = pending[index];
+        if (entry === undefined) return;
+        const kind = fileKind(file);
+
+        if (kind === 'unsupported') {
+          patch(entry.id, {
+            status: 'failed',
+            error: 'GradTools reads PDFs and photos (JPG, PNG). This is neither.',
+          });
+          return;
+        }
+
+        if (kind === 'image') {
+          queue.push({ id: entry.id, file, kind });
+          return;
+        }
+
+        const data = await file.arrayBuffer();
         try {
-          const extraction = await extractPdfLines(await file.arrayBuffer());
-          if (!extraction.hasTextLayer) {
-            /*
-             * A scan. Reading it needs OCR, which this build does not have, and
-             * saying so is the difference between an honest limit and a silent
-             * empty result.
-             */
-            throw new PdfReadError(
-              'This PDF has no selectable text, so it is a scan or a photo. GradTools cannot read those yet — enter this result by hand.',
-            );
-          }
-          const card = parseResultCard(extraction.lines);
-          setFiles((current) =>
-            current.map((entry) =>
-              entry.id === id
-                ? { ...entry, status: 'read', file: { fileName: file.name, card } }
-                : entry,
-            ),
-          );
+          store(entry.id, file.name, await readPdfFile(data, null));
         } catch (cause) {
-          const message =
-            cause instanceof PdfReadError ? cause.message : 'This file could not be read.';
-          setFiles((current) =>
-            current.map((entry) =>
-              entry.id === id ? { ...entry, status: 'failed', error: message } : entry,
-            ),
-          );
+          /*
+           * A scan reaches here as the "no selectable text" refusal, because
+           * pass one is run without a recogniser on purpose: a text PDF must
+           * never pay for an engine it does not need. Anything else is a real
+           * failure and stays one.
+           */
+          if (cause instanceof PdfReadError && cause.message.includes('no selectable text')) {
+            queue.push({ id: entry.id, file, kind, data });
+            patch(entry.id, { status: 'queued' });
+            return;
+          }
+          fail(entry.id, cause);
         }
       }),
     );
+
+    if (queue.length === 0) return;
+
+    /*
+     * PASS TWO: RECOGNITION, ONE FILE AT A TIME.
+     *
+     * Sequential because there is one worker, and because two pages competing
+     * for a phone's cores finish later than the same two in order.
+     */
+    let recognize: Recognize;
+    try {
+      recognize = await recognizer();
+    } catch (cause) {
+      for (const item of queue) fail(item.id, cause);
+      return;
+    }
+
+    for (const item of queue) {
+      if (cancelled.current) {
+        patch(item.id, { status: 'failed', error: 'Cancelled before this file was read.' });
+        continue;
+      }
+      patch(item.id, { status: 'recognising' });
+      try {
+        const reading =
+          item.kind === 'image'
+            ? await readImageFile(item.file, recognize)
+            : await readPdfFile(item.data ?? (await item.file.arrayBuffer()), recognize);
+        store(item.id, item.file.name, reading);
+      } catch (cause) {
+        fail(item.id, cause);
+      }
+    }
   };
 
   const groups = groupBySemester(
     files.flatMap((entry) => (entry.file === null ? [] : [entry.file])),
     [...savedSemesters, ...saved],
   );
-  const reading = files.some((entry) => entry.status === 'reading');
+  const busy = files.some(
+    (entry) =>
+      entry.status === 'reading' || entry.status === 'queued' || entry.status === 'recognising',
+  );
+
+  /**
+   * Which readings came off a picture, matched by the object the group holds.
+   *
+   * Reference equality rather than filename: two files can share a name, and a
+   * name is not evidence of anything here (§22).
+   */
+  const recognisedIn = (group: SemesterGroup) =>
+    files.filter(
+      (entry) =>
+        entry.reading?.source === 'ocr' &&
+        entry.file !== null &&
+        group.files.includes(entry.file),
+    );
 
   return (
     <Panel title="Import a result" flush>
@@ -236,12 +400,12 @@ export function ResultImport({
         }}
       >
         <Icon name="results" size="nav" />
-        <span>Drop result PDFs here, or</span>
+        <span>Drop a result PDF or photo here, or</span>
         <label className={styles.browse}>
           <span>browse</span>
           <input
             type="file"
-            accept="application/pdf"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
             multiple
             onChange={(event) => {
               void read([...(event.target.files ?? [])]);
@@ -260,23 +424,17 @@ export function ResultImport({
                 as evidence of a semester, not as a path, not as identity (§22).
               */}
               <span className={styles.fileName}>{entry.fileName}</span>
-              <span className={styles.fileMeta}>
-                {entry.status === 'reading'
-                  ? 'Reading…'
-                  : entry.status === 'failed'
-                    ? (entry.error ?? 'Could not be read')
-                    : `${String(entry.file?.card.rows.length ?? 0)} rows read`}
-              </span>
+              <span className={styles.fileMeta}>{fileMeta(entry)}</span>
               <StatusPill
                 tone={
                   entry.status === 'failed'
                     ? 'danger'
-                    : entry.status === 'reading'
-                      ? 'neutral'
-                      : 'success'
+                    : entry.status === 'read'
+                      ? 'success'
+                      : 'neutral'
                 }
               >
-                {entry.status === 'failed' ? 'Failed' : entry.status === 'reading' ? '…' : 'Read'}
+                {STATUS_PILL[entry.status]}
               </StatusPill>
             </li>
           ))}
@@ -287,6 +445,7 @@ export function ResultImport({
         <ImportGroup
           key={`${String(group.semester)}-${group.files.map((file) => file.fileName).join('|')}`}
           group={group}
+          recognised={recognisedIn(group).length > 0}
           catalogue={catalogue}
           profileId={profileId}
           onSave={(result) => {
@@ -297,7 +456,22 @@ export function ResultImport({
       ))}
 
       <div className={styles.editorActions}>
-        <Button onClick={onCancel}>{reading ? 'Cancel' : 'Done'}</Button>
+        <Button
+          onClick={() => {
+            /*
+             * CANCEL STOPS THE QUEUE, not just the panel. Files still waiting
+             * are abandoned and the engine is torn down; a worker left running
+             * behind a closed panel holds the model in memory for the rest of
+             * the session (§10).
+             */
+            cancelled.current = true;
+            void session.current?.close();
+            session.current = null;
+            onCancel();
+          }}
+        >
+          {busy ? 'Cancel' : 'Done'}
+        </Button>
       </div>
     </Panel>
   );
@@ -309,11 +483,14 @@ export function ResultImport({
 
 function ImportGroup({
   group,
+  recognised,
   catalogue,
   profileId,
   onSave,
 }: {
   readonly group: SemesterGroup;
+  /** True when any file behind this semester was read off a picture. */
+  readonly recognised: boolean;
   readonly catalogue: readonly Subject[];
   readonly profileId: ReturnType<typeof asStudentProfileId>;
   readonly onSave: (result: SemesterResult) => void;
@@ -410,6 +587,22 @@ function ImportGroup({
       {blocked !== null && (
         <div className={styles.editorNotice}>
           <Notice tone="warning">{blocked}</Notice>
+        </div>
+      )}
+
+      {/*
+        A RECOGNISED CARD SAYS SO, ABOVE THE FIGURES IT PRODUCED.
+        Extracted text is the characters the university printed; recognised text
+        is a machine's reading of a photograph of them. Showing both the same
+        way would imply they are equally reliable, and the one place that
+        difference can still be caught is here, before saving.
+      */}
+      {recognised && (
+        <div className={styles.editorNotice}>
+          <Notice tone="warning">
+            These figures were read from a picture, not from a PDF&apos;s own text. Check every mark
+            against the card before saving — a misread digit becomes an SGPA you cannot explain.
+          </Notice>
         </div>
       )}
 
