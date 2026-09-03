@@ -30,6 +30,17 @@ const state = {
   rendered: [] as number[],
 };
 
+/*
+ * A canvas stand-in whose `getContext` yields nothing. jsdom has no 2D context,
+ * and a reading pipeline that cannot copy the pixels back falls to ONE pass —
+ * which is what these tests are about. The two-pass choice is a pure function,
+ * `betterReading`, and is tested as one below.
+ */
+const { fakeCanvas } = vi.hoisted(() => ({
+  fakeCanvas: () =>
+    ({ width: 800, height: 1000, getContext: () => null }) as unknown as HTMLCanvasElement,
+}));
+
 const { PdfReadError } = vi.hoisted(() => ({ PdfReadError: class PdfReadError extends Error {} }));
 const { OcrError } = vi.hoisted(() => ({ OcrError: class OcrError extends Error {} }));
 
@@ -45,7 +56,7 @@ vi.mock('../src/lib/pdf-text.js', () => ({
   ),
   renderPdfPage: vi.fn((_data: ArrayBuffer, page: number) => {
     state.rendered.push(page);
-    return Promise.resolve({ width: 800, height: 1000 } as unknown as HTMLCanvasElement);
+    return Promise.resolve(fakeCanvas());
   }),
 }));
 
@@ -53,7 +64,7 @@ vi.mock('../src/lib/ocr.js', () => ({
   OcrError,
   decodeImage: vi.fn(() =>
     Promise.resolve({
-      canvas: { width: 800, height: 1000 },
+      canvas: fakeCanvas(),
       width: 800,
       height: 1000,
       sourceWidth: 1600,
@@ -63,7 +74,7 @@ vi.mock('../src/lib/ocr.js', () => ({
   normalizeContrast: vi.fn(),
 }));
 
-const { fileKind, readImageFile, readPdfFile, MAX_OCR_PAGES } = await import(
+const { betterReading, fileKind, readImageFile, readPdfFile, MAX_OCR_PAGES } = await import(
   '../src/lib/result-file.js'
 );
 
@@ -235,5 +246,66 @@ describe('the confidence summary', () => {
     // (90*90 + 30*10) / 100
     expect(reading.meanConfidence).toBeCloseTo(84, 5);
     expect(reading.lowConfidenceWords).toBe(5);
+  });
+});
+
+describe('choosing between two readings of the same page', () => {
+  /**
+   * Preprocessing is not a setting that can be chosen in advance.
+   *
+   * Measured on two genuine VTU result cards: a dim phone screenshot went from
+   * 53 words raw to 187 with the contrast stretch, and from one readable row to
+   * seven — without the stretch it is unusable. A sharper screenshot carrying
+   * the university's diagonal watermark went the OTHER way: raw, all nine rows
+   * with their marks; stretched, the marks gone from six of them.
+   *
+   * No statistic separates them — the card that NEEDS the stretch has the wider
+   * dynamic range of the pair. So the choice is measured, not predicted.
+   */
+  const reading = (lines: readonly string[], words: number, confidence: number): OcrPageResult => ({
+    lines: lines.map((text) => ({ text, page: 1 })),
+    meanConfidence: confidence,
+    wordCount: words,
+    lowConfidenceWords: 0,
+  });
+
+  const ROW = (code: string) => `${code} SUBJECT 44 36 80 P 2026-07-23`;
+
+  it('keeps the reading that yields more importable rows', () => {
+    const few = reading([ROW('BQAS401')], 60, 95);
+    const many = reading([ROW('BQAS401'), ROW('BQAS402'), ROW('BQAS403')], 40, 70);
+    expect(betterReading(few, many)).toBe(many);
+    expect(betterReading(many, few)).toBe(many);
+  });
+
+  it('ignores confidence, because the confident reading lost the marks', () => {
+    /*
+     * THE EXACT REAL FAILURE. On the watermarked card the stretched pass was
+     * the MORE confident of the two and its digits had vanished: a page can be
+     * sure of a heading while losing every mark under a watermark.
+     */
+    const confidentAndEmpty = reading(['VTU PROVISIONAL RESULTS'], 80, 96);
+    const unsureWithRows = reading([ROW('BQAS401'), ROW('BQAS402')], 50, 61);
+    expect(betterReading(confidentAndEmpty, unsureWithRows)).toBe(unsureWithRows);
+  });
+
+  it('breaks a tie on rows by preferring fewer rows it could not read', () => {
+    const clean = reading([ROW('BQAS401')], 40, 90);
+    const lossy = reading([ROW('BQAS401'), 'BQAS402 FINANCIAL 19 2026-07-'], 40, 90);
+    expect(betterReading(lossy, clean)).toBe(clean);
+  });
+
+  it('breaks a remaining tie on how much text was found', () => {
+    const thin = reading([ROW('BQAS401')], 30, 90);
+    const full = reading([ROW('BQAS401')], 90, 90);
+    expect(betterReading(thin, full)).toBe(full);
+  });
+
+  it('keeps the first reading when neither is better', () => {
+    // Stable by design: the first pass is the stretched one, which is what
+    // rescues the dim screenshots.
+    const first = reading([ROW('BQAS401')], 50, 90);
+    const second = reading([ROW('BQAS401')], 50, 99);
+    expect(betterReading(first, second)).toBe(first);
   });
 });

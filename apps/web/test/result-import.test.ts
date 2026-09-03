@@ -274,3 +274,160 @@ describe('what the rules engine makes of an imported row', () => {
     expect(evaluation.unavailableReason).toMatch(/semester-end exam/i);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* What a REAL card does that a generated one never does (M10A.6C)            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every case below is a shape observed on a genuine VTU result card read
+ * through the shipped pipeline. None of them appears in a synthetic document,
+ * and each one silently cost whole rows before it was fixed.
+ *
+ * The values are invented. Only the SHAPES are real.
+ */
+describe('rows as recognition actually delivers them', () => {
+  const read = (text: string) => parseRow({ text, page: 1 }, true);
+
+  it('reads a row whose columns are separated by the table rule', () => {
+    /*
+     * A ruled table read from a picture brings its borders along as pipes,
+     * landing inside the row. The marks pattern wants three numbers separated
+     * by whitespace, so one border character between two columns cost the whole
+     * row — seven readable rows became two.
+     */
+    const row = read('BQAS101 | MATHEMATICS FOR CSE 38 | 18 56 P 2025-03-13');
+    expect(row?.internal).toBe(38);
+    expect(row?.external).toBe(18);
+    expect(row?.total).toBe(56);
+    expect(row?.resultStatus).toBe('P');
+  });
+
+  it('reads a row whose code carries a stray quote from the table border', () => {
+    const row = read("'BQAK459 PHYSICAL EDUCATION 96 0 96 P 2026-07-23");
+    expect(row?.subjectCode).toBe('BQAK459');
+    expect(row?.internal).toBe(96);
+  });
+
+  it('keeps the marks when the status letter could not be read', () => {
+    /*
+     * THE TRADE THAT WAS WRONG BEFORE. Recognition dropped the single status
+     * letter on three rows out of nine while reading all three marks
+     * perfectly, and requiring the letter threw the marks away with it.
+     */
+    const row = read('BQAS403 DATABASE MANAGEMENT 39 28 67 2026-07-');
+    expect(row?.internal).toBe(39);
+    expect(row?.external).toBe(28);
+    expect(row?.total).toBe(67);
+    expect(row?.resultStatus).toBeNull();
+    expect(row?.warnings.map((warning) => warning.kind)).toContain('missing_status');
+  });
+
+  it('strips punctuation off a status without ever changing the letter', () => {
+    expect(read('BQAS401 ALGORITHMS 44 36 80 P. 2026-07-23')?.resultStatus).toBe('P');
+    // And a letter is never corrected into a different one: F stays F.
+    expect(read('BQAS401 ALGORITHMS 44 36 80 F. 2026-07-23')?.resultStatus).toBe('F');
+  });
+
+  it('refuses a truncated date rather than storing half of one', () => {
+    // The date column wraps mid-value on a real card: `2026-07-` then `23`.
+    const row = read('BQAS405 GRAPH THEORY 44 22 66 P 2026-07-');
+    expect(row?.announcedOn).toBeNull();
+    expect(row?.total).toBe(66);
+  });
+
+  it('reports an unknown status rather than dropping the row', () => {
+    const row = read('BQAS404 ALGORITHMS LAB 45 49 94 B 2026-07-23');
+    expect(row?.resultStatus).toBe('B');
+    expect(row?.warnings.map((warning) => warning.kind)).toContain('unknown_status');
+  });
+});
+
+describe('a row carrying more numbers than it has columns', () => {
+  const read = (text: string) => parseRow({ text, page: 1 }, true);
+
+  it('prefers a run that adds up over the rightmost one', () => {
+    /*
+     * The rightmost three are NOT automatically the columns. Where an earlier
+     * run satisfies the card's own arithmetic and the last three do not, the
+     * earlier run is the one the card printed.
+     */
+    const row = read('BQAS158 SUBJECT 11 22 33 44 2025-03-13');
+    expect([row?.internal, row?.external, row?.total]).toEqual([11, 22, 33]);
+  });
+
+  it('picks the three that add up, and says it had to', () => {
+    /*
+     * THE DANGEROUS CLASS. Recognition inserted a stray digit after the total:
+     * `27 39 66 3`. Reading three marks from the right shifted every column and
+     * produced marks that were WRONG rather than missing — 39, 66 and 3 — which
+     * is the failure this whole workflow exists to prevent.
+     *
+     * The card's own arithmetic says which three are the columns. That chooses
+     * an ALIGNMENT; it changes no value and invents none.
+     */
+    const row = read('BQAS158 INNOVATION AND 27 39 66 3 2025-03-13');
+    expect([row?.internal, row?.external, row?.total]).toEqual([27, 39, 66]);
+    expect(row?.warnings.map((warning) => warning.kind)).toContain('ambiguous_marks');
+  });
+
+  it('keeps the number out of the subject name once it is taken as a mark', () => {
+    expect(read('BQAS158 INNOVATION AND 27 39 66 3 2025-03-13')?.subjectTitle).toBe(
+      'INNOVATION AND',
+    );
+  });
+
+  it('falls back to the last three when nothing adds up, and still flags it', () => {
+    /*
+     * No repair. The rightmost three stand exactly as before, the existing
+     * total mismatch is reported, and the row is marked as one to look at.
+     */
+    const row = read('BQAS158 SUBJECT 11 25 37 49 2025-03-13');
+    expect([row?.internal, row?.external, row?.total]).toEqual([25, 37, 49]);
+    const kinds = row?.warnings.map((warning) => warning.kind) ?? [];
+    expect(kinds).toContain('ambiguous_marks');
+    expect(kinds).toContain('total_mismatch');
+  });
+
+  it('leaves an ordinary row completely alone', () => {
+    // The disambiguation must not fire where there is nothing to disambiguate.
+    const row = read('BQAS401 ANALYSIS AND DESIGN 44 36 80 P 2026-07-23');
+    expect(row?.warnings).toEqual([]);
+    expect(row?.subjectTitle).toBe('ANALYSIS AND DESIGN');
+  });
+});
+
+describe('a row that could not be read is counted, never dropped in silence', () => {
+  it('reports a line that is plainly a subject row and would not parse', () => {
+    /*
+     * A nine-subject card arriving as eight rows, every one correct, with
+     * nothing on screen saying a subject is missing, is the worst available
+     * outcome: the card does not print how many subjects it has, so the student
+     * cannot notice.
+     */
+    const card = parseResultCard([
+      { text: 'VISVESVARAYA TECHNOLOGICAL UNIVERSITY, BELAGAVI', page: 1 },
+      { text: 'University Seat Number : 9ZZ99ZZ999', page: 1 },
+      { text: 'Semester : 4', page: 1 },
+      { text: 'BQAS401 ALGORITHMS 44 36 80 P 2026-07-23', page: 1 },
+      // Recognition lost one mark, so this row cannot be read as a row.
+      { text: 'BQAS402 FINANCIAL MANAGEMENT 19 2026-07-', page: 1 },
+    ]);
+
+    expect(card.rows).toHaveLength(1);
+    expect(card.unreadableRows.map((line) => line.text)).toEqual([
+      'BQAS402 FINANCIAL MANAGEMENT 19 2026-07-',
+    ]);
+    expect(card.warnings.map((warning) => warning.kind)).toContain('unreadable_row');
+  });
+
+  it('does not count an ordinary heading as an unreadable row', () => {
+    const card = parseResultCard([
+      { text: 'Subject Code Subject Name Internal Marks External Marks Total Result', page: 1 },
+      { text: 'University Seat Number : 9ZZ99ZZ999', page: 1 },
+      { text: 'Semester : 4', page: 1 },
+      { text: 'BQAS401 ALGORITHMS 44 36 80 P 2026-07-23', page: 1 },
+    ]);
+    expect(card.unreadableRows).toEqual([]);
+  });
+});

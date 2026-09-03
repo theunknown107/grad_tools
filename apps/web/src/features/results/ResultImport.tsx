@@ -628,6 +628,32 @@ function ImportGroup({
       )}
 
       {/*
+        A SUBJECT THAT WENT MISSING SAYS SO, WITH THE LINE IT CAME FROM.
+
+        A nine-subject card arriving as eight rows, every one of them correct,
+        is the worst available outcome: the card does not print how many
+        subjects it has, so nothing on screen would tell the student that one is
+        gone. The line is shown as text for them to compare against their card —
+        never repaired, never guessed at (M10A.6C §6).
+      */}
+      {group.files.some((file) => file.card.unreadableRows.length > 0) && (
+        <div className={styles.editorNotice}>
+          <Notice tone="warning">
+            {group.files.flatMap((file) => file.card.unreadableRows).length === 1
+              ? 'One line looks like a subject row but could not be read. Check it against your card and add it by hand if the subject is missing below.'
+              : `${String(group.files.flatMap((file) => file.card.unreadableRows).length)} lines look like subject rows but could not be read. Check them against your card and add any missing subjects by hand.`}
+            <ul className={styles.differences}>
+              {group.files
+                .flatMap((file) => file.card.unreadableRows)
+                .map((line) => (
+                  <li key={`${String(line.page)}-${line.text}`}>{line.text}</li>
+                ))}
+            </ul>
+          </Notice>
+        </div>
+      )}
+
+      {/*
         TWO FILES THAT DISAGREE ARE SHOWN, NOT RESOLVED (§18). A revaluation and
         the wrong file both have plausible row counts and arithmetic that adds
         up; only a person can tell them apart.
