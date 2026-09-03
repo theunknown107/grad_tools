@@ -2203,3 +2203,9 @@ photograph taken at an angle in poor light is the hard end, and the harness
 covers only the part of it that can be generated. Three requests reached
 `/ocr/`, all on our own origin; zero requests left it. A heavily blurred card
 was **refused**, not half-read.
+
+**The scanned PDF is checked here and nowhere else.** The harness builds a
+one-page PDF whose only content is a JPEG of the card — what a scanner or a
+"print to PDF from a photo" produces — because that path is pdf.js rendering to
+a real canvas, which no unit test can stand in for. All four subject codes came
+back. 17 checks in total.

@@ -115,7 +115,7 @@ const TRUTH = {
  * matters on a phone — how the pipeline behaves on a photograph rather than a
  * screenshot — without needing a real camera in CI.
  */
-const DRAW = ({ truth, blur, skew, scale }) => {
+const DRAW = ({ truth, blur, skew, scale, mime }) => {
   const width = Math.round(1000 * scale);
   const height = Math.round(700 * scale);
   const canvas = document.createElement('canvas');
@@ -162,8 +162,78 @@ const DRAW = ({ truth, blur, skew, scale }) => {
     );
   });
 
-  return canvas.toDataURL('image/png');
+  return canvas.toDataURL(mime ?? 'image/png');
 };
+
+/* ---------------------------------------------------------------------- */
+/* The same card, wrapped in a PDF that carries no text                    */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * A one-page PDF whose only content is a JPEG.
+ *
+ * This is what a scanner, or "print to PDF" from a photo, produces: a document
+ * with no text layer at all. It is the case that has to be RENDERED before it
+ * can be read, and the one no unit test can prove, because rendering is pdf.js
+ * and a canvas doing real work.
+ *
+ * The JPEG is embedded as a `/DCTDecode` image XObject, so its bytes go into
+ * the stream unaltered and there is no filter to implement here.
+ */
+function scannedPdf(jpeg, width, height) {
+  const w = String(width);
+  const h = String(height);
+  const content = `q\n${w} 0 0 ${h} 0 0 cm\n/Im0 Do\nQ`;
+
+  const image =
+    `3 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h}` +
+    ` /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode` +
+    ` /Length ${String(jpeg.length)} >>\nstream\n`;
+
+  const parts = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [5 0 R] /Count 1 >>\nendobj\n',
+    image,
+    '\nendstream\nendobj\n',
+    `4 0 obj\n<< /Length ${String(content.length)} >>\nstream\n${content}\nendstream\nendobj\n`,
+    `5 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w} ${h}]` +
+      ` /Resources << /XObject << /Im0 3 0 R >> >> /Contents 4 0 R >>\nendobj\n`,
+  ];
+
+  /*
+   * Assembled as BYTES rather than as one string. The JPEG is binary, and a
+   * latin1 round trip through the offset bookkeeping is how an xref table ends
+   * up pointing a few bytes past where its object actually starts.
+   */
+  const chunks = [Buffer.from('%PDF-1.4\n', 'latin1')];
+  let offset = chunks[0].length;
+  const offsets = [];
+  const push = (buffer) => {
+    chunks.push(buffer);
+    offset += buffer.length;
+  };
+
+  offsets.push(offset);
+  push(Buffer.from(parts[0], 'latin1'));
+  offsets.push(offset);
+  push(Buffer.from(parts[1], 'latin1'));
+  offsets.push(offset);
+  push(Buffer.from(parts[2], 'latin1'));
+  push(jpeg);
+  push(Buffer.from(parts[3], 'latin1'));
+  offsets.push(offset);
+  push(Buffer.from(parts[4], 'latin1'));
+  offsets.push(offset);
+  push(Buffer.from(parts[5], 'latin1'));
+
+  const xref = offset;
+  let table = 'xref\n0 6\n0000000000 65535 f \n';
+  for (const value of offsets) table += `${String(value).padStart(10, '0')} 00000 n \n`;
+  table += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${String(xref)}\n%%EOF`;
+  push(Buffer.from(table, 'latin1'));
+
+  return Buffer.concat(chunks);
+}
 
 /* ---------------------------------------------------------------------- */
 
@@ -361,7 +431,50 @@ const run = async () => {
   };
 
   /* -------------------------------------------------------------------- */
-  /* 4. A photograph that is not good enough is refused, not half-read    */
+  /* 4. A SCANNED PDF: rendered, then recognised                          */
+  /* -------------------------------------------------------------------- */
+
+  /*
+   * The path no unit test can prove, because it is pdf.js rendering to a real
+   * canvas. A document with no text layer must be RENDERED before it can be
+   * read — and a text PDF must never take this route, which §6 below checks.
+   */
+  await openImport(page);
+  const jpegUrl = await page.evaluate(DRAW, {
+    truth: TRUTH,
+    blur: 0,
+    skew: 0,
+    scale: 1,
+    mime: 'image/jpeg',
+  });
+  const scanned = scannedPdf(Buffer.from(jpegUrl.split(',')[1], 'base64'), 1000, 700);
+  await page
+    .locator('input[type="file"]')
+    .first()
+    .setInputFiles({ name: 'scan.pdf', mimeType: 'application/pdf', buffer: scanned });
+  await page
+    .locator('text=/rows read from a picture|could not|Failed/i')
+    .first()
+    .waitFor({ timeout: 180_000 })
+    .catch(() => undefined);
+
+  const scannedRead = await readBack(page);
+  const scannedText = await page.locator('#main').innerText();
+  expect(
+    scannedRead.rows.length === TRUTH.rows.length,
+    `OCR: a scanned PDF yielded ${String(scannedRead.rows.length)} rows, expected ${String(TRUTH.rows.length)}`,
+  );
+  expect(
+    /check every mark against the card/i.test(scannedText),
+    'OCR: a scanned PDF was not marked as read from a picture',
+  );
+  report.scannedPdf = {
+    rowsRead: scannedRead.rows.length,
+    codes: scannedRead.rows.map((row) => row.code),
+  };
+
+  /* -------------------------------------------------------------------- */
+  /* 5. A photograph that is not good enough is refused, not half-read    */
   /* -------------------------------------------------------------------- */
 
   await openImport(page);
@@ -378,7 +491,7 @@ const run = async () => {
       : 'failed';
 
   /* -------------------------------------------------------------------- */
-  /* 5. Too small to read is refused before the engine is bothered        */
+  /* 6. Too small to read is refused before the engine is bothered        */
   /* -------------------------------------------------------------------- */
 
   await openImport(page);
@@ -393,7 +506,7 @@ const run = async () => {
   await context.close();
 
   /* -------------------------------------------------------------------- */
-  /* 6. The import surface, at every width, both themes                   */
+  /* 7. The import surface, at every width, both themes                   */
   /* -------------------------------------------------------------------- */
 
   for (const vp of VIEWPORTS) {
