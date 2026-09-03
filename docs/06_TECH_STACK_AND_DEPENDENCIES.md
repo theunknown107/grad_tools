@@ -177,3 +177,31 @@ These are stated but **not yet proven** for this project. Each must be validated
 | Server-side rendering framework | No SEO requirement for an authenticated utility; SPA is adequate and simpler given the chosen split |
 | React Native / Flutter | A responsive PWA meets the persona need; two more pipelines does not |
 | An LLM anywhere in the calculation path | Prohibited by `19` |
+
+## 6.x Reading a result card in the browser (M10A.6B)
+
+| Package | Version | Licence | Why it is here |
+|---|---|---|---|
+| `tesseract.js` | 7.0.0 | Apache-2.0 | The only maintained OCR engine that runs entirely in a browser |
+| `tesseract.js-core` | 7.0.0 | Apache-2.0 | Its WebAssembly engine; transitive |
+| `@tesseract.js-data/eng` | 1.0.0 | MIT | The English LSTM model |
+
+**Self-hosted, not CDN-loaded.** `scripts/vendor-ocr-assets.mjs` copies five
+files into `apps/web/public/ocr/` from `prebuild` and `predev`. The directory is
+gitignored: several megabytes of build output that npm already holds
+canonically. The copy step exists because tesseract.js builds two of its asset
+URLs by string concatenation, so a bundler's content-hashed import cannot serve
+them.
+
+**What is served, and what a browser actually fetches.** Three LSTM core
+variants are copied (14.08MB on disk) because `getCore` picks one at runtime by
+SIMD support; a given browser fetches exactly one. The download is the worker
+(111kB) + one core (~3.9MB) + the model (2.95MB) ≈ **6.65MB**, on first picture
+import only, then browser-cached.
+
+**`4.0.0_best_int`, not `4.0.0`.** The integer-quantised LSTM model is 2.95MB
+against 10.9MB; the larger file's extra size is legacy-engine data this build
+never uses.
+
+**The legacy-engine cores are deliberately absent.** They need the 10.9MB model
+for worse results on printed text.

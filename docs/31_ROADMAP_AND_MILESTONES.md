@@ -1371,3 +1371,57 @@ whole pipeline driven in Chromium. Four existing harnesses still clean.
 preferential: the portal's own *Save as PDF* produces a text-layer PDF, which
 works. How often a real student instead has a photo is not yet measured, and a
 scan is reported honestly rather than guessed at.
+
+*Superseded by §31.32: OCR shipped in M10A.6B. The evidential point still
+stands — a text-layer PDF is preferred wherever one exists, and recognition is
+reached only when a document has no text at all.*
+
+## 31.32 M10A.6B — Local OCR and image/scanned result import · ✅ **DELIVERED**
+
+**What a student can now do:** import a JPG, a PNG or a scanned PDF of a result
+card, on their own device, and get the same review screen a text PDF gets.
+
+**The goal was never "AI reads your marks."** It was a trustworthy, local,
+reviewable import path: IMAGE → LOCAL OCR → ROW RECONSTRUCTION → VALIDATION →
+REVIEW → CORRECTION → CONFIRM → SAVE. Every recognised figure goes through the
+same review as a hand-typed one, and nothing is saved until a person presses
+*Confirm and save result*.
+
+**Nothing leaves the device.** Tesseract runs in a worker on the page, and every
+asset it needs is served from our own origin — tesseract.js defaults all three
+of its asset paths to jsDelivr, which would tell a third party when a student
+reads their marks and would break the feature offline. Proved by a network log,
+not by a configuration file: zero off-origin requests while importing a photo.
+
+**One engine, terminated.** A worker per file would put several copies of a
+3.9MB core and a 2.95MB model in memory on a phone. Recognition runs
+sequentially through one worker, started by the first file that needs it and
+torn down when the panel closes or the student cancels.
+
+**Text is preferred over recognition, always.** A PDF with a text layer is
+extracted, never rendered and recognised — that would swap certainty for a guess
+with plausible-looking output.
+
+**The preprocessing is a contrast stretch, deliberately not a threshold.**
+Binarising a phone photo at one global cut point is what loses marks: uneven
+lighting puts half the table on the wrong side, and those rows do not arrive
+misread where a student would catch them — they do not arrive at all.
+
+**The defect that cost a whole card**, found by running the real engine in a
+real browser: rows were keyed on the bottom edge of a word's ink box. A PDF
+positions text on a shared baseline; OCR reports ink, and `BQAS401`'s Q tail put
+nine pixels between its bottom edge and that of `ALGORITHMS` on the same line.
+The row split, the code was separated from its marks, and a card recognised
+almost perfectly parsed as zero subjects. Rows are now keyed on the vertical
+centre.
+
+**What it will not do:** claim an accuracy percentage, read Kannada, correct a
+mark, save without confirmation, or send anything to an external service.
+
+**Verification.** 1280 web/API tests (34 new). OCR QA clean in both themes at 4
+widths — 15 checks, 0 problems, 0 axe, 0 overflow, 0 console errors — with every
+field of a synthetic card read correctly and a blurred card refused rather than
+half-read. The M10A.6A text-PDF harness still clean in both themes.
+
+**Cost.** +7.6kB raw (+2.8kB gzip) on first load; a 15.9kB lazy chunk and
+~6.65MB of engine fetched only on first picture import, then browser-cached.

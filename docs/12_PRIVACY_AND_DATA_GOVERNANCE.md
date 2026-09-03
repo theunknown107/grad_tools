@@ -537,3 +537,50 @@ Removing the fixture in a new commit does not remove it from earlier commits.
 Git history was therefore rewritten as well, on 2026-08-31 — see `31` §31.19
 for the purge and, importantly, for what it did **not** achieve. Do not read
 this section as a claim that the data is gone from the internet.
+
+## 12.17 Reading a result card that is a picture (M10A.6B)
+
+A student can now import a photograph or a scan of a result card. The claim
+attached to that feature is narrow and testable: **the image never leaves the
+device, and neither does anything read from it.**
+
+### What was actually done
+
+| Concern | What ships |
+|---|---|
+| The image | Decoded, recognised and discarded in the tab. Never uploaded. |
+| The recognised text | Held in memory for review. Only the result a student confirms is saved. |
+| The recogniser | Tesseract, compiled to WebAssembly, running in a worker on the page. |
+| Its assets | Copied out of `node_modules` into `apps/web/public/ocr/` at build time and served from our own origin. |
+| External OCR APIs | None. No OpenAI, no Anthropic, no Gemini, no cloud OCR service. |
+
+### The CDN was the whole problem
+
+tesseract.js defaults `workerPath`, `corePath` and `langPath` to jsDelivr. Left
+alone, a page with a student's result card open in it would fetch ~6.6MB from a
+third party, telling that third party **when a student reads their marks** — and
+the feature would stop working with the network off. All three paths are set
+explicitly, and the two that matter are built by string concatenation
+(`${langPath}/${lang}.traineddata.gz`), which is why a bundler import cannot
+serve them and a copy step into `public/` can.
+
+That is a claim about a running page, not about a configuration file, so it is
+checked as one: `tests/ocr-qa.mjs` records every request the page makes while
+importing a photograph and fails if any leaves the origin. At the time of
+writing: three requests to `/ocr/`, all local; **zero off-origin**.
+
+### What a student pays for it
+
+Nothing until they import a picture. The engine is a lazily-loaded chunk, and
+the ~6.65MB of worker, core and language model is fetched on first use and then
+cached by the browser. A student who only ever imports text PDFs never
+downloads any of it.
+
+### What is not claimed
+
+Recognition is not accuracy. Every recognised figure goes through the same
+review as a hand-typed one, the screen says plainly that the figures came from a
+picture, and there is **no accuracy percentage anywhere** — a confidently
+misread digit is exactly as wrong as an unconfident one, and only a person
+reading the row against the card catches either. Kannada is not supported; the
+language model is English only, and a card in Kannada script will not be read.

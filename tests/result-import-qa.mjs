@@ -152,7 +152,7 @@ const run = async () => {
   const openImport = async (page) => {
     await page.goto(`http://localhost:${PORT}/results`);
     await page.waitForTimeout(500);
-    const opener = page.getByRole('button', { name: /import a pdf/i });
+    const opener = page.getByRole('button', { name: /import a result card/i });
     if (await opener.count()) await opener.first().click();
     await page.waitForTimeout(300);
   };

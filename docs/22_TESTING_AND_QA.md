@@ -2119,3 +2119,87 @@ after a reload, and on the dashboard and degree pages.
 - A page-level catalogue fetch fired on every visit to Results and returned 400
   when a profile's `branch` held a display name rather than an id. It now lives
   in the import panel and asks by scheme only.
+
+## 22.51 OCR word boxes as printed rows (M10A.6B)
+
+`apps/web/test/ocr-layout.test.ts` (14). A PDF places text in user space, where
+larger y is HIGHER on the page. An image numbers rows downward. Hand image
+coordinates to a reader built for the first convention and the page comes out
+upside down — subject rows arrive before the "Semester : 4" line that gives them
+their semester, and a card that plainly states its semester parses as one with
+none. Nothing crashes; the student is simply asked which semester their
+clearly-labelled card is for.
+
+**The defect this file was extended to prevent.** A row was keyed on the BOTTOM
+edge of a word's ink box. A PDF positions text on its baseline, which every word
+on a line shares exactly; OCR reports the box around the ink, which no two words
+share. On a real recognised card `BQAS401` came back as (227, 254) and
+`ALGORITHMS`, printed on the same line, as (231, 245) — the Q's tail putting
+nine pixels between their bottom edges, more than the row tolerance allows. The
+row split, the subject code was separated from its marks, and a card recognised
+almost perfectly parsed as **zero subjects**. Rows are now keyed on the vertical
+CENTRE, which moves by half a descender rather than a whole one, and moves the
+same way for every word on the line. The observed boxes are pinned in the test.
+
+Also pinned: confidence is summarised and never acted on — a low-confidence word
+is COUNTED, not dropped, because dropping it removes the evidence that a row is
+doubtful while leaving the row; and a page of junk is refused rather than
+presented as rows a student then has to disprove.
+
+## 22.52 The one image adjustment made before OCR (M10A.6B)
+
+`apps/web/test/ocr-preprocess.test.ts` (8). The obvious preprocessing step is to
+binarise: pick a cut point, darker is ink, lighter is paper. On a phone photo of
+a result card that is the step that loses marks — lighting across a held page is
+uneven, so a single global cut puts half the table on the wrong side of it, and
+those rows do not arrive misread where a student would catch them. **They do not
+arrive at all.**
+
+What ships is a linear stretch between the observed 2nd and 98th percentiles: no
+pixel is ever declared background, and the local decision is left to Tesseract,
+which makes it per region. Pinned: a washed-out scan is pulled to the full range
+monotonically; mid-tones stay distinguishable; a flat image is refused rather
+than amplified into speckle; one black speck and one blown highlight do not
+define the range.
+
+## 22.53 Which reader a dropped file gets (M10A.6B)
+
+`apps/web/test/result-file.test.ts` (12). A PDF with a text layer already holds
+the exact characters the university printed, so **OCR is reached only when
+extraction comes back with nothing**. A regression in that order would swap
+certainty for a guess, silently, with plausible-looking output.
+
+Pinned: a text PDF is never recognised however available the engine is, and
+reports no confidence because confidence is an OCR idea; a scan is rendered page
+by page; a scan with no engine to hand gets a sentence a student can act on;
+a scan longer than a result card could be is refused before the engine is
+bothered; junk is refused; and the confidence summary is weighted by word count
+so a page holding three words cannot drag the figure about.
+
+## 22.54 Recognition in a real browser, field by field (M10A.6B)
+
+`tests/ocr-qa.mjs`. Three things are properties of the shipped page and of
+nothing smaller:
+
+1. **Every OCR asset comes from our own origin.** tesseract.js defaults its
+   worker, core and language paths to jsDelivr, and the page making those
+   requests has a student's result card open in it. The check is a network log,
+   because a configuration that LOOKS local and a page that IS are different
+   claims.
+2. **What the engine reads off a card, per field** — a tally of correct, wrong
+   and missing, never one accuracy percentage. A missing mark is a blank a
+   student fills in; a WRONG one is an SGPA they cannot explain. Averaging the
+   two hides exactly that difference.
+3. **That the review says the figures came from a picture.**
+
+**Result: CLEAN in both themes** — 15 checks, 0 problems, 0 axe violations, 0
+horizontal overflow, 0 console errors across 320/390/768/1280.
+
+On a synthetic card drawn by the browser (4 subjects, 2- and 3-digit totals, a
+`0`/`6`/`8` cluster): every field correct — semester, code, title, internal,
+external, total and status. **This is not a claim about real VTU cards.** It is
+clean printed text at a known size, which is the easy end of the problem; a
+photograph taken at an angle in poor light is the hard end, and the harness
+covers only the part of it that can be generated. Three requests reached
+`/ocr/`, all on our own origin; zero requests left it. A heavily blurred card
+was **refused**, not half-read.
