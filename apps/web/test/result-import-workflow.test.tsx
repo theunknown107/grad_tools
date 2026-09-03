@@ -82,8 +82,21 @@ async function choose(user: ReturnType<typeof userEvent.setup>, name = 'result.p
   const input = document.querySelector('input[type="file"]') as HTMLInputElement;
   const file = new File(['%PDF-1.4'], name, { type: 'application/pdf' });
   Object.defineProperty(file, 'arrayBuffer', { value: () => Promise.resolve(new ArrayBuffer(8)) });
-  Object.defineProperty(input, 'files', { value: [file], configurable: true });
-  await user.upload(input, file).catch(() => undefined);
+  /*
+   * The list is built by hand and `change` dispatched directly. `user.upload`
+   * is deliberately NOT used: it reads `input.files.item()` from inside a jsdom
+   * event listener, where a throw becomes an unhandled error no `catch` here
+   * can reach — eleven of them per run, drowning any real one.
+   */
+  const list = {
+    0: file,
+    length: 1,
+    item: (index: number) => (index === 0 ? file : null),
+    [Symbol.iterator]: function* () {
+      yield file;
+    },
+  };
+  Object.defineProperty(input, 'files', { value: list, configurable: true });
   input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 

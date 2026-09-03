@@ -55,3 +55,10 @@ GradTools_M9.4_Reference_Images/
 # Supplied academic reference images. REAL student/institutional PII —
 # inspected locally, never committed (see docs/12, docs/30).
 GradTools_Academic_References_5_Images/
+
+# OCR engine assets, copied out of node_modules by
+# apps/web/scripts/vendor-ocr-assets.mjs so they are served from our own origin
+# rather than a CDN (M10A.6B). Several megabytes of build output that npm
+# already holds canonically — committing them would put binaries in the history
+# to no purpose.
+apps/web/public/ocr/

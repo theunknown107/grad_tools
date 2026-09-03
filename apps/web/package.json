@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "vendor:ocr": "node scripts/vendor-ocr-assets.mjs",
+    "prebuild": "node scripts/vendor-ocr-assets.mjs",
+    "predev": "node scripts/vendor-ocr-assets.mjs",
     "dev": "vite",
     "build": "tsc -b tsconfig.build.json && vite build",
     "preview": "vite preview",
