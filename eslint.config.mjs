@@ -11,6 +11,8 @@ export default tseslint.config(
       'docs/**',
       // Vendored, minified OCR engine. Not ours to lint or to fix.
       'apps/web/public/ocr/**',
+      // QA output and private validation scratch. Gitignored, never shipped.
+      '.qa-*/**',
     ],
   },
 

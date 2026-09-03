@@ -27,7 +27,7 @@
  */
 
 import { isWorthReviewing, type OcrPageResult } from '../domain/ocr-layout.js';
-import type { ImportLine } from '../domain/result-import.js';
+import { parseResultCard, type ImportLine } from '../domain/result-import.js';
 import { decodeImage, normalizeContrast, OcrError } from './ocr.js';
 import { extractPdfLines, renderPdfPage, PdfReadError } from './pdf-text.js';
 
@@ -78,6 +78,44 @@ export function fileKind(file: File): 'pdf' | 'image' | 'unsupported' {
   return 'unsupported';
 }
 
+/**
+ * How many subject rows a reading actually yields.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY THE PIPELINE READS A PICTURE TWICE
+ * ---------------------------------------------------------------------------
+ *
+ * Preprocessing is not a setting that can be chosen in advance. Measured on two
+ * genuine VTU result cards:
+ *
+ *   A phone screenshot of a print preview — dim, small — went from 53 words
+ *   raw to 187 with the contrast stretch, and from one readable row to seven.
+ *   Without the stretch it is unusable.
+ *
+ *   A sharper screenshot carrying the university's diagonal watermark went the
+ *   OTHER WAY: raw, all nine rows read with their marks; stretched, the marks
+ *   vanished from six of them, because darkening the mid-tones brings the
+ *   watermark up to compete with thin digits.
+ *
+ * No statistic of the image separates those two cases — the one that NEEDS the
+ * stretch has the wider dynamic range of the pair. So the choice is not
+ * predicted, it is MADE BY MEASUREMENT: recognise both, keep whichever yields
+ * more readable subject rows.
+ *
+ * The second pass is skipped whenever the first leaves nothing on the table, so
+ * a clean document pays for one. The score is "rows a student could actually
+ * import", not confidence — confidence rose on the stretched watermarked card
+ * while the marks disappeared.
+ */
+function readableRows(lines: readonly ImportLine[]): number {
+  return parseResultCard(lines).rows.length;
+}
+
+/** Rows the parser could see were rows but could not read. */
+function droppedRows(lines: readonly ImportLine[]): number {
+  return parseResultCard(lines).unreadableRows.length;
+}
+
 /** The message shown when a page produced too little to be worth reviewing. */
 const UNREADABLE =
   'The text on this could not be made out. A sharper, straighter photo in better light may work — or enter this result by hand.';
@@ -112,12 +150,74 @@ function summarise(
  */
 export async function readImageFile(file: File, recognize: Recognize): Promise<FileReading> {
   const image = await decodeImage(file);
-  normalizeContrast(image.canvas);
-
-  const page = await recognize(image.canvas, 1);
+  const page = await recognizeBothWays(image.canvas, 1, recognize);
   if (!isWorthReviewing(page)) throw new OcrError(UNREADABLE);
 
   return summarise([page], 1);
+}
+
+/**
+ * Recognises a canvas stretched, and again unstretched if that left rows behind.
+ *
+ * The canvas is MUTATED by the stretch, so the original pixels are kept aside
+ * first — re-deriving them by inverting the stretch is not possible once values
+ * have clamped, and re-decoding the file costs more than a copy.
+ */
+async function recognizeBothWays(
+  canvas: HTMLCanvasElement,
+  page: number,
+  recognize: Recognize,
+): Promise<OcrPageResult> {
+  const context =
+    typeof canvas.getContext === 'function'
+      ? canvas.getContext('2d', { willReadFrequently: true })
+      : null;
+  const original = context?.getImageData(0, 0, canvas.width, canvas.height) ?? null;
+
+  normalizeContrast(canvas);
+  const stretched = await recognize(canvas, page);
+
+  /*
+   * A first pass that read every row it could see has nothing to gain from a
+   * second, and a second costs a student seconds on a phone. The retry fires
+   * only where the parser can SEE it lost something — a line shaped like a
+   * subject row that would not parse — or where it found no rows at all.
+   */
+  const dropped = droppedRows(stretched.lines);
+  const rows = readableRows(stretched.lines);
+  if (original === null || (dropped === 0 && rows > 0)) return stretched;
+
+  context?.putImageData(original, 0, 0);
+  const raw = await recognize(canvas, page);
+
+  return betterReading(stretched, raw);
+}
+
+/**
+ * Which of two readings of the same page to keep.
+ *
+ * MORE READABLE ROWS WINS, because that is what the student can actually
+ * import. On a tie, fewer rows the parser saw and could not read; then more
+ * words.
+ *
+ * Confidence is deliberately absent from this decision. On a real watermarked
+ * card the stretched pass was the MORE confident of the two and its marks had
+ * vanished — a page can be confidently sure of a heading while losing every
+ * digit under a watermark.
+ *
+ * Ties go to `first`, which is the stretched pass: it is the one that helps the
+ * dim phone screenshots, and preferring it keeps the choice stable when neither
+ * reading is better.
+ */
+export function betterReading(first: OcrPageResult, second: OcrPageResult): OcrPageResult {
+  const rows = [readableRows(first.lines), readableRows(second.lines)];
+  if (rows[0] !== rows[1]) return (rows[1] as number) > (rows[0] as number) ? second : first;
+
+  const dropped = [droppedRows(first.lines), droppedRows(second.lines)];
+  if (dropped[0] !== dropped[1])
+    return (dropped[1] as number) < (dropped[0] as number) ? second : first;
+
+  return second.wordCount > first.wordCount ? second : first;
 }
 
 /**
@@ -171,8 +271,7 @@ export async function readPdfFile(
   const pages: OcrPageResult[] = [];
   for (let number = 1; number <= extraction.pageCount; number += 1) {
     const canvas = await renderPdfPage(data.slice(0), number);
-    normalizeContrast(canvas);
-    pages.push(await recognize(canvas, number));
+    pages.push(await recognizeBothWays(canvas, number, recognize));
     // Releasing the backing store now, rather than waiting for the collector to
     // notice, is what keeps peak memory at one page instead of all of them.
     canvas.width = 0;

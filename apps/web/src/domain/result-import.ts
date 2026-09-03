@@ -64,7 +64,13 @@ export type RowWarningKind =
   /** A status letter the card's own legend does not list. */
   | 'unknown_status'
   /** A mark is present but not a whole number. */
-  | 'non_numeric_mark';
+  | 'non_numeric_mark'
+  /** No pass/fail letter was read on a row that otherwise parsed. */
+  | 'missing_status'
+  /** A line looked like a subject row but could not be read as one. */
+  | 'unreadable_row'
+  /** The row carried more numbers than a result row has columns. */
+  | 'ambiguous_marks';
 
 export interface RowWarning {
   readonly kind: RowWarningKind;
@@ -98,6 +104,15 @@ export interface ParsedCard {
   readonly semester: number | null;
   readonly rows: readonly ParsedRow[];
   /**
+   * Lines that begin with a course code but could not be read as a row.
+   *
+   * Shown to the student rather than discarded, because a row dropped in
+   * silence is a subject missing from a semester with nothing to indicate it
+   * (M10A.6C §6). The line is offered as text, for a person to compare against
+   * their card — never repaired, never guessed at.
+   */
+  readonly unreadableRows: readonly ImportLine[];
+  /**
    * Whether this document looks like a result card at all.
    *
    * False means the file is not refused outright — it means the import screen
@@ -130,8 +145,23 @@ export interface ParsedCard {
  */
 const COURSE_CODE = /^(1?B[A-Z]{2,6}\d{3}[A-Z]?)\b/;
 
-/** The trailing block: three marks, a status letter, and an optional date. */
-const TRAILING = /\s(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s+([A-Z]{1,2})(?:\s+(\S+))?\s*$/;
+/**
+ * The trailing block: three marks, then an optional status and date.
+ *
+ * BOTH TAILS ARE OPTIONAL, and that is a lesson from real cards rather than a
+ * relaxation for its own sake. Recognition on a genuine result card dropped the
+ * single status letter on three rows out of nine while reading all three marks
+ * perfectly — and requiring the letter threw away the marks with it. Losing a
+ * whole row because one smudged glyph was unreadable is the wrong trade: the
+ * marks are the part that matters, and a missing status is reported and filled
+ * in during review.
+ *
+ * The status also tolerates a trailing full stop or comma, because a table rule
+ * next to the letter is routinely read as one. That is stripping punctuation,
+ * never correcting a letter: `F` is never turned into `P` (M10A.6C §6).
+ */
+const TRAILING =
+  /\s(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})(?:\s+([A-Za-z]{1,2})[.,]?)?(?:\s+(\S+))?\s*$/;
 
 /** `Semester : 4`, however it is spaced or punctuated. */
 const SEMESTER_LINE = /semester\s*[:-]?\s*(\d)\b/i;
@@ -182,6 +212,69 @@ export interface ImportLine {
 /* Parsing                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A row with the table's own vertical rules taken out.
+ *
+ * A ruled table read from a picture brings its borders along as pipes, landing
+ * INSIDE the row: `38 | 18 56 P`. The marks pattern wants three numbers
+ * separated by whitespace, so a single border character between two columns
+ * cost the whole row — on a real card this was the difference between seven
+ * readable rows and two.
+ *
+ * A pipe is never data on a result card: it is not a digit, a letter of a
+ * course code, or part of a status. Removing it is reading the table, not
+ * correcting the marks (M10A.6C §6).
+ */
+function stripRules(text: string): string {
+  return text.replace(/[|¦]+/g, ' ').replace(/\s+$/, '');
+}
+
+/**
+ * Whether a line begins with something shaped like a course code.
+ *
+ * The weaker half of `parseRow`'s test: enough to say "this was meant to be a
+ * subject row", not enough to read one. It exists so a line that fails the full
+ * parse can be COUNTED rather than dropped.
+ */
+function looksLikeSubjectRow(text: string): boolean {
+  return COURSE_CODE.test(stripRules(text).trimStart().replace(/^[^A-Za-z0-9]+/, ''));
+}
+
+/**
+ * Trailing whole numbers on the stretch between the code and the marks.
+ *
+ * These are the EXTRA numbers: a row's three marks are matched separately, so
+ * anything numeric still sitting at the end of the title is a token the reader
+ * produced that a result row has no column for.
+ */
+function trailingNumbers(between: string): string[] {
+  const tokens = between.split(/\s+/).filter((token) => token !== '');
+  const extras: string[] = [];
+  while (tokens.length > 0 && /^\d{1,3}$/.test(tokens[tokens.length - 1] as string)) {
+    extras.unshift(tokens.pop() as string);
+  }
+  return extras;
+}
+
+/**
+ * The rightmost three consecutive numbers where the first two make the third.
+ *
+ * The card prints internal, external and total, and the total is their sum. On
+ * a row carrying more numbers than columns that invariant says which three are
+ * the columns — without changing any of them.
+ */
+function rightmostConsistentTriple(values: readonly string[]): [string, string, string] | null {
+  for (let i = values.length - 3; i >= 0; i -= 1) {
+    const triple = values.slice(i, i + 3) as [string, string, string];
+    const numbers = triple.map((value) => wholeNumber(value));
+    const [a, b, c] = numbers;
+    if (a !== null && a !== undefined && b !== null && b !== undefined && c !== null && c !== undefined && a + b === c) {
+      return triple;
+    }
+  }
+  return null;
+}
+
 function wholeNumber(raw: string): number | null {
   if (!/^\d{1,3}$/.test(raw)) return null;
   return Number(raw);
@@ -195,8 +288,15 @@ function wholeNumber(raw: string): number | null {
  * result card are not rows.
  */
 export function parseRow(line: ImportLine, schemeFamily2022: boolean): ParsedRow | null {
-  const text = line.text.replace(/\s+$/, '');
-  const code = COURSE_CODE.exec(text.trimStart())?.[1];
+  const text = stripRules(line.text);
+  /*
+   * Leading punctuation is stripped before the code is matched. A table's
+   * vertical rule at the left edge of a scanned row comes back as a stray
+   * quote or pipe attached to the code — `'BQEK459` — and an anchored pattern
+   * then fails to see a code that is plainly there. Removing non-alphanumeric
+   * noise cannot invent a code where there is none.
+   */
+  const code = COURSE_CODE.exec(text.trimStart().replace(/^[^A-Za-z0-9]+/, ''))?.[1];
   if (code === undefined) return null;
 
   const trailing = TRAILING.exec(text);
@@ -210,13 +310,53 @@ export function parseRow(line: ImportLine, schemeFamily2022: boolean): ParsedRow
    * therefore needs no special case — the two anchors define it.
    */
   const start = text.indexOf(code) + code.length;
-  const title = text.slice(start, text.length - trailing[0].length).trim();
-
-  const internal = wholeNumber(rawInternal ?? '');
-  const external = wholeNumber(rawExternal ?? '');
-  const total = wholeNumber(rawTotal ?? '');
+  const between = text.slice(start, text.length - trailing[0].length).trim();
 
   const warnings: RowWarning[] = [];
+
+  /*
+   * MORE NUMBERS THAN COLUMNS.
+   *
+   * On a real card, recognition inserted a stray digit after the total:
+   * `... 27 39 66 3 2025-03-13`. Reading three marks from the right then
+   * shifted every column left by one and produced marks that were wrong rather
+   * than missing — the failure this whole workflow exists to prevent.
+   *
+   * Where the row carries extra trailing numbers, the columns are chosen by the
+   * card's OWN ARITHMETIC: the rightmost run of three where internal + external
+   * equals the total. That picks an ALIGNMENT; it never alters a value, and it
+   * never invents one. When no run adds up, the rightmost three stand exactly
+   * as before and the existing mismatch warning says so.
+   *
+   * Either way the row is flagged, because a row whose columns had to be
+   * inferred is a row a person should look at.
+   */
+  const extras = trailingNumbers(between);
+  const candidates = [...extras, rawInternal ?? '', rawExternal ?? '', rawTotal ?? ''];
+  let [rawA, rawB, rawC] = candidates.slice(-3) as [string, string, string];
+
+  if (extras.length > 0) {
+    const consistent = rightmostConsistentTriple(candidates);
+    if (consistent !== null) [rawA, rawB, rawC] = consistent;
+    warnings.push({
+      kind: 'ambiguous_marks',
+      message:
+        consistent === null
+          ? 'This row had more numbers on it than a result row has columns, and none of them add up. The three nearest the end were used — check them against your card.'
+          : 'This row had more numbers on it than a result row has columns. The three that add up were used — check them against your card.',
+    });
+  }
+
+  const internal = wholeNumber(rawA);
+  const external = wholeNumber(rawB);
+  const total = wholeNumber(rawC);
+
+  /* Whatever was taken as a mark is not part of the printed subject name. */
+  const title = between
+    .split(/\s+/)
+    .slice(0, between.split(/\s+/).length - extras.length)
+    .join(' ')
+    .trim();
 
   if (internal === null || external === null || total === null) {
     warnings.push({
@@ -239,7 +379,12 @@ export function parseRow(line: ImportLine, schemeFamily2022: boolean): ParsedRow
     warnings.push({ kind: 'missing_title', message: 'No subject name was read on this row.' });
   }
 
-  if (status !== undefined && !KNOWN_STATUSES.has(status)) {
+  if (status === undefined) {
+    warnings.push({
+      kind: 'missing_status',
+      message: 'No pass or fail letter was read on this row. Choose one before importing.',
+    });
+  } else if (!KNOWN_STATUSES.has(status)) {
     warnings.push({
       kind: 'unknown_status',
       message: `"${status}" is not one of the statuses this card legends. It has been kept as printed.`,
@@ -288,9 +433,23 @@ export function parseResultCard(
   const joined = lines.map((line) => line.text).join('\n');
 
   const rows: ParsedRow[] = [];
+  /*
+   * A LINE THAT LOOKS LIKE A SUBJECT ROW AND DID NOT PARSE IS KEPT.
+   *
+   * Silently dropping it is the worst available outcome: a nine-subject card
+   * arrives as eight rows, every one of them correct, and nothing on screen
+   * says a subject is missing. The student has no way to notice — the card does
+   * not print how many subjects it has. On a real card this happened where
+   * recognition lost one mark out of a row, and the row vanished with it.
+   */
+  const unreadable: ImportLine[] = [];
   for (const line of lines) {
     const row = parseRow(line, schemeFamily2022);
-    if (row !== null) rows.push(row);
+    if (row !== null) {
+      rows.push(row);
+    } else if (looksLikeSubjectRow(line.text)) {
+      unreadable.push(line);
+    }
   }
 
   const cues = CARD_CUES.filter((cue) => cue.test(joined)).length;
@@ -310,6 +469,15 @@ export function parseResultCard(
         : null;
 
   const warnings: RowWarning[] = [];
+  if (unreadable.length > 0) {
+    warnings.push({
+      kind: 'unreadable_row',
+      message:
+        unreadable.length === 1
+          ? 'One line looks like a subject row but could not be read. Check it against your card and add it by hand if it is missing.'
+          : `${String(unreadable.length)} lines look like subject rows but could not be read. Check them against your card and add any that are missing by hand.`,
+    });
+  }
   if (looksLikeResultCard && semester === null) {
     warnings.push({
       kind: 'unknown_status',
@@ -320,6 +488,7 @@ export function parseResultCard(
   return {
     semester,
     rows,
+    unreadableRows: unreadable,
     looksLikeResultCard,
     seatNumber: SEAT_NUMBER.exec(joined)?.[1] ?? null,
     warnings,
