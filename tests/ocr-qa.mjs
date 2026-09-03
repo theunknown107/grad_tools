@@ -37,6 +37,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { Buffer } from 'node:buffer';
+import { scannedPdf } from './lib/documents.mjs';
 
 const DIST = resolve('apps/web/dist');
 const OUT = resolve(process.env.OUT ?? '.qa-ocr');
@@ -164,76 +165,6 @@ const DRAW = ({ truth, blur, skew, scale, mime }) => {
 
   return canvas.toDataURL(mime ?? 'image/png');
 };
-
-/* ---------------------------------------------------------------------- */
-/* The same card, wrapped in a PDF that carries no text                    */
-/* ---------------------------------------------------------------------- */
-
-/**
- * A one-page PDF whose only content is a JPEG.
- *
- * This is what a scanner, or "print to PDF" from a photo, produces: a document
- * with no text layer at all. It is the case that has to be RENDERED before it
- * can be read, and the one no unit test can prove, because rendering is pdf.js
- * and a canvas doing real work.
- *
- * The JPEG is embedded as a `/DCTDecode` image XObject, so its bytes go into
- * the stream unaltered and there is no filter to implement here.
- */
-function scannedPdf(jpeg, width, height) {
-  const w = String(width);
-  const h = String(height);
-  const content = `q\n${w} 0 0 ${h} 0 0 cm\n/Im0 Do\nQ`;
-
-  const image =
-    `3 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h}` +
-    ` /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode` +
-    ` /Length ${String(jpeg.length)} >>\nstream\n`;
-
-  const parts = [
-    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
-    '2 0 obj\n<< /Type /Pages /Kids [5 0 R] /Count 1 >>\nendobj\n',
-    image,
-    '\nendstream\nendobj\n',
-    `4 0 obj\n<< /Length ${String(content.length)} >>\nstream\n${content}\nendstream\nendobj\n`,
-    `5 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w} ${h}]` +
-      ` /Resources << /XObject << /Im0 3 0 R >> >> /Contents 4 0 R >>\nendobj\n`,
-  ];
-
-  /*
-   * Assembled as BYTES rather than as one string. The JPEG is binary, and a
-   * latin1 round trip through the offset bookkeeping is how an xref table ends
-   * up pointing a few bytes past where its object actually starts.
-   */
-  const chunks = [Buffer.from('%PDF-1.4\n', 'latin1')];
-  let offset = chunks[0].length;
-  const offsets = [];
-  const push = (buffer) => {
-    chunks.push(buffer);
-    offset += buffer.length;
-  };
-
-  offsets.push(offset);
-  push(Buffer.from(parts[0], 'latin1'));
-  offsets.push(offset);
-  push(Buffer.from(parts[1], 'latin1'));
-  offsets.push(offset);
-  push(Buffer.from(parts[2], 'latin1'));
-  push(jpeg);
-  push(Buffer.from(parts[3], 'latin1'));
-  offsets.push(offset);
-  push(Buffer.from(parts[4], 'latin1'));
-  offsets.push(offset);
-  push(Buffer.from(parts[5], 'latin1'));
-
-  const xref = offset;
-  let table = 'xref\n0 6\n0000000000 65535 f \n';
-  for (const value of offsets) table += `${String(value).padStart(10, '0')} 00000 n \n`;
-  table += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${String(xref)}\n%%EOF`;
-  push(Buffer.from(table, 'latin1'));
-
-  return Buffer.concat(chunks);
-}
 
 /* ---------------------------------------------------------------------- */
 
