@@ -4,7 +4,14 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', 'docs/**'],
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      'docs/**',
+      // Vendored, minified OCR engine. Not ours to lint or to fix.
+      'apps/web/public/ocr/**',
+    ],
   },
 
   js.configs.recommended,
@@ -135,6 +142,18 @@ export default tseslint.config(
         getComputedStyle: 'readonly',
         window: 'readonly',
       },
+    },
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  {
+    // Build scripts run under Node and report to a terminal, so Node globals
+    // and printing are the point rather than an oversight.
+    files: ['apps/*/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { console: 'readonly', process: 'readonly' },
     },
     rules: {
       'no-console': 'off',

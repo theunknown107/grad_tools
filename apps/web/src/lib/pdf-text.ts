@@ -79,6 +79,81 @@ function toPositioned(item: PdfTextItem): PositionedText | null {
   };
 }
 
+/**
+ * Where the pdf.js worker lives.
+ *
+ * The bundled URL is a Vite `?url` import, which in a Node test is a dev-server
+ * path Node cannot import — so tests pass a filesystem URL instead. That seam
+ * is the only reason this is a parameter; nothing else differs between the two.
+ */
+async function resolveWorkerSrc(override: string | undefined): Promise<string> {
+  if (override !== undefined) return override;
+  const module = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url');
+  return (module as { default?: string }).default ?? '';
+}
+
+/**
+ * Renders one page to a canvas, for the OCR path.
+ *
+ * SEPARATE FROM EXTRACTION, and only reached when a document turned out to have
+ * no text layer. Rendering a text PDF and recognising the picture of it would
+ * throw away exact characters and hand back guesses (M10A.6B §15).
+ *
+ * Pages are rendered ONE AT A TIME by the caller rather than all at once: a
+ * canvas at this scale is several megabytes, and a ten-page scan would put all
+ * of them in memory simultaneously for no benefit (§16).
+ */
+export async function renderPdfPage(
+  data: ArrayBuffer,
+  pageNumber: number,
+  options: { readonly workerSrc?: string; readonly maxEdge?: number } = {},
+): Promise<HTMLCanvasElement> {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  (pdfjs.GlobalWorkerOptions as { workerSrc: string }).workerSrc = await resolveWorkerSrc(
+    options.workerSrc,
+  );
+
+  const task = pdfjs.getDocument({
+    data: new Uint8Array(data),
+    disableFontFace: true,
+    useSystemFonts: false,
+    useWorkerFetch: false,
+    stopAtErrors: false,
+  });
+  const pdf = await task.promise;
+
+  try {
+    const page = await pdf.getPage(pageNumber);
+    const base = page.getViewport({ scale: 1 });
+
+    /*
+     * Scaled to a working resolution rather than a fixed DPI. A scan's own page
+     * size varies, and what OCR needs is glyph height in pixels — so the target
+     * is a longest edge, the same one the image path uses.
+     */
+    const longest = Math.max(base.width, base.height);
+    const scale = Math.min((options.maxEdge ?? 2000) / longest, 4);
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const context = canvas.getContext('2d');
+    if (context === null) throw new PdfReadError('This browser could not render the PDF page.');
+
+    // White ground: a scan with a transparent background otherwise renders as
+    // black-on-black, which is not text to any recogniser.
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    await page.render({ canvas, canvasContext: context, viewport }).promise;
+    page.cleanup();
+    return canvas;
+  } finally {
+    await task.destroy();
+  }
+}
+
 export interface PdfExtraction {
   readonly lines: readonly ImportLine[];
   readonly pageCount: number;
@@ -126,26 +201,14 @@ export async function extractPdfLines(
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
   /*
-   * WHERE THE WORKER COMES FROM IS THE ONE THING THE CALLER CAN CHANGE.
-   *
-   * In the browser it is resolved by the bundler and served from our own
-   * origin — `?url` rather than a CDN, because a student's result card is open
-   * in this tab and fetching the engine from someone else's host would make a
-   * third party a participant in reading it. That also keeps the path working
-   * with the network off (§27).
-   *
-   * The `?url` specifier is a bundler instruction, and it resolves to a
-   * dev-server path that Node cannot import. So tests pass a filesystem URL
-   * instead. The seam exists for that reason alone; nothing else about the
-   * extraction differs between the two.
+   * Served from OUR OWN ORIGIN — `?url` rather than a CDN, because a student's
+   * result card is open in this tab and fetching the engine from someone else's
+   * host would make a third party a participant in reading it. It also keeps
+   * this path working with the network off (§27).
    */
-  const bundled = await (options.workerSrc === undefined
-    ? import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url').then(
-        (module) => (module as { default?: string }).default,
-      )
-    : Promise.resolve(options.workerSrc));
-  const workerSrc = bundled ?? '';
-  (pdfjs.GlobalWorkerOptions as { workerSrc: string }).workerSrc = workerSrc;
+  (pdfjs.GlobalWorkerOptions as { workerSrc: string }).workerSrc = await resolveWorkerSrc(
+    options.workerSrc,
+  );
 
   /*
    * The LOADING TASK is kept, not just the document it resolves to: `destroy`
