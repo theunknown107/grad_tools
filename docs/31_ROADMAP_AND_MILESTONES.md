@@ -1333,3 +1333,41 @@ milestone gave them the operation they were missing, nothing more.
 of marks can make attended exceed conducted. Six browser harnesses clean, with
 the loop clicked in a real browser — mark, watch the percentage move, undo,
 watch it return.
+
+## 31.31 M10A.6A — PDF result import and review · ✅ **DELIVERED**
+
+**The pipeline a student meets:** choose a result PDF → it is read on the device
+→ the rows are shown beside the lines they came from → anything wrong is
+corrected in place → *Confirm and save result* → SGPA, CGPA, backlogs, analytics,
+dashboard and the degree timeline all follow from an ordinary result record.
+
+**No second result model.** A confirmed import is an OQ-049 result and nothing
+else, so every calculation, every rule-set pin and every sync path already
+applies to it unchanged.
+
+**Rows come from coordinates, not reading order.** A PDF has no rows, and a
+table is frequently emitted column by column — joining text in reading order
+produces something that parses to nothing.
+
+**What it will not do:** repair a total, match a code by similarity,
+reinterpret a later-scheme code, choose between two files that disagree, or
+replace a semester that already has a result.
+
+**Three defects found by actually running it**, none of which a unit test would
+have caught:
+
+- pdf.js v6's default build hangs forever on any browser older than Chrome 128
+  or Safari 18.2. The legacy build now ships.
+- The "not a result card" message was hidden exactly when it mattered — a
+  non-result PDF has no semester, and the message was suppressed in that state.
+- A page-level catalogue fetch 400'd on every Results visit when a profile's
+  branch held a display name.
+
+**Verification.** 1570 → 1637 tests, 24 of them reading real generated PDFs
+through the real engine. Import QA clean in both themes at 4 widths, with the
+whole pipeline driven in Chromium. Four existing harnesses still clean.
+
+**OCR remains deferred**, and the reason is now evidential rather than
+preferential: the portal's own *Save as PDF* produces a text-layer PDF, which
+works. How often a real student instead has a photo is not yet measured, and a
+scan is reported honestly rather than guessed at.

@@ -69,6 +69,7 @@ import { Sheet } from '../../components/ui/Sheet.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useProfile, useResults } from '../../hooks/useCollection.js';
 import { useSubjects } from '../../hooks/useReference.js';
+import { ResultImport } from './ResultImport.js';
 import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
 import { otherTitles, resolveSubject, type SubjectIdentity } from '../../domain/subjects.js';
 import styles from './results.module.css';
@@ -92,6 +93,7 @@ export function ResultsPage() {
   const { index } = useSubjectIndex();
   /** The result being edited, `'new'` while adding, null when neither. */
   const [editing, setEditing] = useState<SemesterResult | 'new' | null>(null);
+  const [importing, setImporting] = useState(false);
   const [view, setView] = useState('overview');
 
   /*
@@ -111,15 +113,27 @@ export function ResultsPage() {
         title="Results"
         subtitle="Enter a result card as it is printed. SGPA, CGPA and backlogs follow from it."
         action={
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditing((current) => (current === null ? 'new' : null));
-            }}
-          >
-            <Icon name="plus" size="nav" />
-            {editing === null ? 'Add a semester' : 'Cancel'}
-          </Button>
+          <>
+            <Button
+              onClick={() => {
+                setImporting((current) => !current);
+                setEditing(null);
+              }}
+            >
+              <Icon name="results" size="nav" />
+              {importing ? 'Close import' : 'Import a PDF'}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditing((current) => (current === null ? 'new' : null));
+                setImporting(false);
+              }}
+            >
+              <Icon name="plus" size="nav" />
+              {editing === null ? 'Add a semester' : 'Cancel'}
+            </Button>
+          </>
         }
       />
 
@@ -135,6 +149,20 @@ export function ResultsPage() {
             Where a grade card and the calculated figure disagree, GradTools shows both rather than
             picking one. It usually means a subject entry has a typo, or a grade needs checking.
           </p>
+        )}
+
+        {importing && (
+          <ResultImport
+            profileId={profile?.id ?? asStudentProfileId('local')}
+            schemeId={profile?.schemeId ?? ruleSet.schemeId}
+            savedSemesters={items.map((item) => item.semester)}
+            onSave={(result) => {
+              void save(result);
+            }}
+            onCancel={() => {
+              setImporting(false);
+            }}
+          />
         )}
 
         {editing !== null && (
