@@ -137,7 +137,7 @@ async function choose(
   type = 'application/pdf',
 ) {
   // The panel stays open after a save, so a second import does not reopen it.
-  const opener = screen.queryByRole('button', { name: /import a pdf/i });
+  const opener = screen.queryByRole('button', { name: /import a result card/i });
   if (opener !== null) await user.click(opener);
   const input = document.querySelector('input[type="file"]') as HTMLInputElement;
   const file = new File(['%PDF-1.4'], name, { type });
