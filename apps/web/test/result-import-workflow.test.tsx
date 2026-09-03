@@ -48,6 +48,62 @@ vi.mock('../src/lib/pdf-text.js', () => ({
       hasTextLayer: next?.hasTextLayer ?? true,
     });
   }),
+  renderPdfPage: vi.fn(() => Promise.resolve({ width: 800, height: 1000 })),
+}));
+
+/* ---------------------------------------------------------------------- */
+/* The recogniser, stubbed at the same boundary                            */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * What Tesseract does with a picture is not what this file is asking about, and
+ * jsdom has no canvas to give it. So the ENGINE is replaced and the pipeline
+ * around it is exercised: whether a scan reaches the recogniser at all, whether
+ * one worker serves the batch, whether it is closed, and whether the review
+ * says plainly that these figures came from a picture.
+ *
+ * `ocrLines` is what the stub "recognises"; `ocrFailsWith` makes the engine
+ * refuse to start, which is a real outcome on a device that cannot fetch it.
+ */
+let ocrLines: ImportLine[] = [];
+let ocrFailsWith: string | null = null;
+const ocrCalls = { started: 0, recognised: 0, closed: 0 };
+
+const { OcrError } = vi.hoisted(() => ({ OcrError: class OcrError extends Error {} }));
+
+vi.mock('../src/lib/ocr.js', () => ({
+  OcrError,
+  MAX_IMAGE_BYTES: 20 * 1024 * 1024,
+  decodeImage: vi.fn(() =>
+    Promise.resolve({
+      canvas: { width: 800, height: 1000 },
+      width: 800,
+      height: 1000,
+      sourceWidth: 800,
+      sourceHeight: 1000,
+    }),
+  ),
+  normalizeContrast: vi.fn(),
+  stretchGrey: vi.fn(() => true),
+  startOcr: vi.fn(() => {
+    if (ocrFailsWith !== null) return Promise.reject(new OcrError(ocrFailsWith));
+    ocrCalls.started += 1;
+    return Promise.resolve({
+      recognize: (_canvas: unknown, page = 1) => {
+        ocrCalls.recognised += 1;
+        return Promise.resolve({
+          lines: ocrLines.map((line) => ({ ...line, page })),
+          meanConfidence: 91,
+          wordCount: 60,
+          lowConfidenceWords: 2,
+        });
+      },
+      close: () => {
+        ocrCalls.closed += 1;
+        return Promise.resolve();
+      },
+    });
+  }),
 }));
 
 const { ResultsPage } = await import('../src/features/results/ResultsPage.js');
@@ -75,12 +131,16 @@ function setCard(semester: number, rows: readonly string[] = ROWS) {
 }
 
 /** Drops a file on the import surface. jsdom needs the list built by hand. */
-async function choose(user: ReturnType<typeof userEvent.setup>, name = 'result.pdf') {
+async function choose(
+  user: ReturnType<typeof userEvent.setup>,
+  name = 'result.pdf',
+  type = 'application/pdf',
+) {
   // The panel stays open after a save, so a second import does not reopen it.
   const opener = screen.queryByRole('button', { name: /import a pdf/i });
   if (opener !== null) await user.click(opener);
   const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-  const file = new File(['%PDF-1.4'], name, { type: 'application/pdf' });
+  const file = new File(['%PDF-1.4'], name, { type });
   Object.defineProperty(file, 'arrayBuffer', { value: () => Promise.resolve(new ArrayBuffer(8)) });
   /*
    * The list is built by hand and `change` dispatched directly. `user.upload`
@@ -102,6 +162,11 @@ async function choose(user: ReturnType<typeof userEvent.setup>, name = 'result.p
 
 beforeEach(() => {
   failWith = null;
+  ocrLines = [];
+  ocrFailsWith = null;
+  ocrCalls.started = 0;
+  ocrCalls.recognised = 0;
+  ocrCalls.closed = 0;
   setCard(4);
 });
 afterEach(cleanup);
@@ -216,10 +281,17 @@ describe('a semester the document did not print', () => {
   });
 });
 
-describe('a file that cannot be read', () => {
-  it('reports a scan instead of saving an empty result', async () => {
+describe('a scan, a photo, and a file that cannot be read', () => {
+  it('sends a PDF with no text layer to the recogniser, and says so', async () => {
+    /*
+     * A PDF whose pages are pictures. Extraction finds nothing, so the pages
+     * are rendered and recognised — and the review says the figures came from a
+     * picture, because presenting them like extracted text would imply the two
+     * are equally reliable.
+     */
     extractions.clear();
     extractions.set('a', { lines: [], hasTextLayer: false });
+    ocrLines = cardLines(4, ROWS);
 
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
@@ -227,8 +299,75 @@ describe('a file that cannot be read', () => {
 
     await choose(user, 'scan.pdf');
 
-    expect(await screen.findByText(/no selectable text/i)).toBeTruthy();
+    expect(await screen.findByText(/check every mark against the card/i)).toBeTruthy();
+    expect(await screen.findByText(/rows read from a picture/i)).toBeTruthy();
+    expect(ocrCalls.recognised).toBe(1);
+    // Still nothing saved. Recognition changes where the figures came from, not
+    // whether a person has to confirm them.
     expect(peek.results()).toHaveLength(0);
+  });
+
+  it('reads a photograph of a card', async () => {
+    ocrLines = cardLines(4, ROWS);
+
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ResultsPage />, { repositories: bundle });
+
+    await choose(user, 'card.jpg', 'image/jpeg');
+
+    expect(await screen.findByText(/check every mark against the card/i)).toBeTruthy();
+    await user.click(await screen.findByRole('button', { name: /confirm and save result/i }));
+
+    const saved = peek.results();
+    expect(saved).toHaveLength(1);
+    expect(saved[0]?.subjects.map((subject) => subject.subjectCode)).toEqual([
+      'BQAS401',
+      'BQAS402',
+    ]);
+  });
+
+  it('starts one engine for a batch and closes it when the panel does', async () => {
+    /*
+     * ONE WORKER. A worker per file would put several copies of a 3.7MB engine
+     * and a 2.8MB model in memory at once, which on a phone kills the tab.
+     */
+    ocrLines = cardLines(4, ROWS);
+
+    const user = userEvent.setup();
+    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+
+    await choose(user, 'one.jpg', 'image/jpeg');
+    await choose(user, 'two.jpg', 'image/jpeg');
+    await screen.findAllByText(/rows read from a picture/i);
+
+    expect(ocrCalls.started).toBe(1);
+    expect(ocrCalls.recognised).toBe(2);
+
+    await user.click(screen.getByRole('button', { name: /^done$|^cancel$/i }));
+    expect(ocrCalls.closed).toBeGreaterThan(0);
+  });
+
+  it('says the recogniser could not start, and offers manual entry', async () => {
+    // A device that cannot fetch the engine. An honest limit beats a spinner.
+    ocrFailsWith = 'The text recogniser could not start. You can still enter this result by hand.';
+
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ResultsPage />, { repositories: bundle });
+
+    await choose(user, 'card.png', 'image/png');
+
+    expect(await screen.findByText(/could not start/i)).toBeTruthy();
+    expect(peek.results()).toHaveLength(0);
+  });
+
+  it('refuses a file that is neither a PDF nor a picture', async () => {
+    const user = userEvent.setup();
+    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+
+    await choose(user, 'marks.docx', 'application/vnd.openxmlformats');
+    expect(await screen.findByText(/reads PDFs and photos/i)).toBeTruthy();
   });
 
   it('reports a corrupt file with a message, not a stack', async () => {
