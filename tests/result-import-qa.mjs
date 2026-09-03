@@ -25,6 +25,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { Buffer } from 'node:buffer';
+import { graded, makePdf, resultPdf } from './lib/documents.mjs';
 
 const DIST = resolve('apps/web/dist');
 const OUT = resolve(process.env.OUT ?? '.qa-import');
@@ -65,73 +66,6 @@ function serve() {
     server.listen(PORT, () => ok(server));
   });
 }
-
-/* ---------------------------------------------------------------------- */
-/* A synthetic result PDF, built from PDF operators                        */
-/* ---------------------------------------------------------------------- */
-
-function makePdf(placed) {
-  const escape = (text) => text.replace(/([\\()])/g, '\\$1');
-  const content =
-    'BT\n' +
-    placed
-      .map(
-        (item) =>
-          `/F1 10 Tf\n1 0 0 1 ${String(item.x)} ${String(item.y)} Tm\n(${escape(item.text)}) Tj`,
-      )
-      .join('\n') +
-    '\nET';
-
-  const body = [
-    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
-    '2 0 obj\n<< /Type /Pages /Kids [5 0 R] /Count 1 >>\nendobj\n',
-    '3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
-    `4 0 obj\n<< /Length ${String(content.length)} >>\nstream\n${content}\nendstream\nendobj\n`,
-    '5 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>\nendobj\n',
-  ];
-
-  let pdf = '%PDF-1.4\n';
-  const offsets = [];
-  for (const object of body) {
-    offsets.push(pdf.length);
-    pdf += object;
-  }
-  const xref = pdf.length;
-  pdf += `xref\n0 6\n0000000000 65535 f \n`;
-  for (let i = 0; i < 5; i += 1) pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
-  pdf += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${String(xref)}\n%%EOF`;
-  return Buffer.from(pdf, 'latin1');
-}
-
-/** A VTU-shaped card. Columns placed independently, as a real producer emits. */
-function resultPdf(semester, rows) {
-  const placed = [
-    { text: 'VISVESVARAYA TECHNOLOGICAL UNIVERSITY, BELAGAVI', x: 60, y: 750 },
-    { text: 'VTU PROVISIONAL RESULTS OF UG / PG EXAMINATION', x: 60, y: 735 },
-    { text: 'University Seat Number : 9ZZ99ZZ999', x: 60, y: 715 },
-    { text: `Semester : ${String(semester)}`, x: 60, y: 700 },
-    { text: 'Subject Code', x: 60, y: 680 },
-    { text: 'Internal Marks', x: 300, y: 680 },
-    { text: 'External Marks', x: 380, y: 680 },
-  ];
-  rows.forEach((row, index) => {
-    const y = 660 - index * 18;
-    const xs = [60, 140, 310, 390, 450, 495, 525];
-    row.forEach((cell, column) => placed.push({ text: cell, x: xs[column], y }));
-  });
-  return makePdf(placed);
-}
-
-const graded = (prefix, count) =>
-  Array.from({ length: count }, (_, i) => [
-    `${prefix}${String(i)}`,
-    `SUBJECT ${String(i)}`,
-    '40',
-    '30',
-    '70',
-    'P',
-    '2026-03-13',
-  ]);
 
 /* ---------------------------------------------------------------------- */
 
@@ -318,9 +252,12 @@ const run = async () => {
   /* ---- a file that is not a result card ------------------------------ */
   await feed(
     page,
+    /* One page, hence the extra array: `makePdf` takes a list of pages. */
     makePdf([
-      { text: 'ACME SUPPLIES LIMITED', x: 60, y: 700 },
-      { text: 'Invoice 4417', x: 60, y: 680 },
+      [
+        { text: 'ACME SUPPLIES LIMITED', x: 60, y: 700 },
+        { text: 'Invoice 4417', x: 60, y: 680 },
+      ],
     ]),
     'invoice.pdf',
   );
