@@ -140,6 +140,45 @@ describe('rows from OCR words', () => {
     ]);
   });
 
+  it('keeps a descender from splitting a row in two', () => {
+    /*
+     * THE BUG THAT COST A WHOLE CARD.
+     *
+     * These boxes are the ones a real recogniser returned for one line of a
+     * synthetic card. `BQAS401` reaches from 227 to 254 because of the Q's
+     * tail; `ALGORITHMS`, printed on the same line, from 231 to 245. Keyed on
+     * the BOTTOM edge those are nine pixels apart — more than the row tolerance
+     * — so the row split, the subject code was separated from its marks, and a
+     * perfectly recognised card parsed as zero subjects.
+     *
+     * Keyed on the CENTRE they are two and a half pixels apart.
+     */
+    const box = (text: string, x0: number, x1: number, y0: number, y1: number): OcrWord => ({
+      text,
+      bbox: { x0, y0, x1, y1 },
+      confidence: 92,
+    });
+
+    const observed = [
+      box('BQAS401', 61, 141, 227, 254),
+      box('ALGORITHMS', 210, 335, 231, 245),
+      box('44', 560, 580, 227, 254),
+      box('36', 661, 680, 231, 245),
+      box('80', 761, 780, 231, 245),
+      box('P', 851, 862, 231, 245),
+    ];
+
+    const lines = ocrPageToLines(observed, PAGE_HEIGHT).lines;
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.text).toBe('BQAS401 ALGORITHMS 44 36 80 P');
+
+    // And the row still parses as a subject, which is the point of the row.
+    const card = parseResultCard([{ text: 'Semester : 4', page: 1 }, ...lines]);
+    expect(card.rows.map((row) => [row.subjectCode, row.internal, row.external, row.total])).toEqual(
+      [['BQAS401', 44, 36, 80]],
+    );
+  });
+
   it('carries the page number through', () => {
     expect(ocrPageToLines([word('BQAS401', 60, 400)], PAGE_HEIGHT, 3).lines[0]?.page).toBe(3);
   });

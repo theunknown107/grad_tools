@@ -121,7 +121,7 @@ export function ResultsPage() {
               }}
             >
               <Icon name="results" size="nav" />
-              {importing ? 'Close import' : 'Import a PDF'}
+              {importing ? 'Close import' : 'Import a result card'}
             </Button>
             <Button
               variant="primary"

@@ -63,6 +63,25 @@ export const LOW_CONFIDENCE = 70;
  * `pageHeight` flips the axis. Without it the page reads bottom-to-top: rows
  * arrive before the heading that names their semester, and a card that plainly
  * says "Semester : 4" parses as a card with no semester at all.
+ *
+ * ---------------------------------------------------------------------------
+ * A ROW IS KEYED ON THE MIDDLE OF A WORD, NOT ITS BOTTOM
+ * ---------------------------------------------------------------------------
+ *
+ * A PDF positions text on its BASELINE, which every word on a line shares
+ * exactly. OCR reports the box around the INK, which no two words share: a word
+ * with a descender reaches lower than one without.
+ *
+ * On a real recognised card `BQAS401` came back as (227, 254) and `ALGORITHMS`,
+ * printed on the same line, as (231, 245) — the Q's tail putting nine pixels
+ * between their bottom edges, more than the row tolerance allows. The row split
+ * in two, the subject code was separated from its marks, and a perfectly
+ * recognised card parsed as zero subjects.
+ *
+ * The vertical CENTRE moves by half a descender instead of a whole one, and
+ * moves the same way for every word on the line. Two and a half pixels of
+ * spread against a forty-pixel line pitch is the difference between a table and
+ * a pile of words.
  */
 export function wordsToPositioned(words: readonly OcrWord[], pageHeight: number): PositionedText[] {
   return words
@@ -75,7 +94,7 @@ export function wordsToPositioned(words: readonly OcrWord[], pageHeight: number)
        * grows upward. Subtracting from the page height converts one to the
        * other and keeps the arithmetic in one place.
        */
-      y: pageHeight - word.bbox.y1,
+      y: pageHeight - (word.bbox.y0 + word.bbox.y1) / 2,
       width: Math.max(0, word.bbox.x1 - word.bbox.x0),
       height: Math.max(1, word.bbox.y1 - word.bbox.y0),
     }));
