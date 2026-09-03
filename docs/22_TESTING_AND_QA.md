@@ -2037,3 +2037,85 @@ marking a class moves the figure and offers undo; undo restores it; and today's
 timetable can mark a class without leaving the page. On a day with no seeded
 classes the timetable check passes with nothing to mark, which is correct rather
 than a failure.
+
+## 22.49 Reading a PDF (M10A.6A)
+
+`apps/web/test/pdf-layout.test.ts` (15) and `apps/web/test/pdf-text.test.ts` (9).
+
+A PDF has no rows. It has glyphs at coordinates, emitted in whatever order the
+producer chose — for a table, frequently column by column. So the layout tests
+do not ask "does it join text", they ask **does it still produce the right rows
+when the items arrive in the wrong order**.
+
+| Pinned | Why |
+|---|---|
+| A table emitted column-first rebuilds correctly | The case the module exists for |
+| Rows come out top to bottom | `Semester : N` must precede the rows it applies to |
+| A row is anchored to its FIRST item, not chained | Chaining lets a wide row drift into the row beneath it |
+| `MATHE` + `MATICS` → `MATHEMATICS` | pdf.js splits words; a space here destroys the title |
+| One identical 4pt gap: a space at 6pt, not at 24pt | A fixed threshold is wrong for one of them |
+| Zero-width positioning runs ignored | They would widen rows for no reason |
+
+### Against a real engine
+
+`pdf-text.test.ts` builds PDFs **byte by byte from PDF operators** rather than
+shipping binary fixtures — a reader can see exactly what the parser is fed,
+including the coordinates, and change one number to make a new case. It runs in
+the **node** environment because pdf.js only takes its main-thread path when it
+detects Node; under jsdom it tries to construct a Worker and the read hangs.
+
+Covered: a column-first table, 8- and 9-subject cards, a two-page document that
+keeps the page each row came from, a total that does not add up, a non-result
+PDF, a corrupt file, an oversized file, a `<script>` tag carried through as
+text, and a page with no text layer at all.
+
+**Two real defects were found while wiring this up**, neither of which any unit
+test would have caught later:
+
+- pdf.js v6's default build calls `Promise.try` — Chrome 128+, Safari 18.2+,
+  Node 23+ only. On anything older the failure happens inside the worker message
+  handler, the promise never settles, and a student watches a spinner forever.
+  The **legacy build** now ships.
+- `isEvalSupported` was carried over from older pdf.js and is not a v6 option.
+  There is nothing to switch off: v6 removed its eval path entirely.
+
+## 22.50 Import, review, confirm (M10A.6A)
+
+`apps/web/test/result-import-workflow.test.tsx` (10) drives the screen with the
+PDF read stubbed — what extraction produces is proved elsewhere; this asks
+whether a student can see what was read, correct it, and end up with an ordinary
+result.
+
+**The assertion that matters is the negative one:** nothing is saved until the
+confirm button is pressed. An extraction that is right nine times in ten and
+silent about the tenth is worse than one a student checks, because the tenth
+becomes an SGPA they cannot explain.
+
+Also pinned: the printed marks are kept as source values with no grade invented;
+the line the parser read is shown beside the fields it produced; a misread cell
+is corrected in place rather than by re-uploading; a row can be removed; a
+document that printed no semester asks rather than guessing and stays disabled
+until answered — *even when the filename says `semester4.pdf`*; a scan is
+reported rather than saved empty; a corrupt file gets a message; a semester that
+already has a result is blocked; and a filename containing a script tag is
+rendered as text.
+
+### In a real browser
+
+`tests/result-import-qa.mjs` — the only place pdf.js is exercised **as it
+ships**. A file chosen in a file input, read by the bundled worker on the page's
+own origin, parsed, reviewed, corrected, confirmed, then verified in Results,
+after a reload, and on the dashboard and degree pages.
+
+4 widths × both themes + 13 pipeline checks. **Result: CLEAN in both themes** —
+0 axe violations, 0 horizontal overflow, 0 console errors.
+
+**Two UI defects the sweep found**, both invisible to the unit tests:
+
+- The "this does not look like a VTU result card" message was suppressed
+  whenever the semester was unknown — which is precisely the state a non-result
+  PDF lands in. The one message that mattered was hidden exactly when it
+  mattered, and an invoice was offered a semester picker instead.
+- A page-level catalogue fetch fired on every visit to Results and returned 400
+  when a profile's `branch` held a display name rather than an id. It now lives
+  in the import panel and asks by scheme only.

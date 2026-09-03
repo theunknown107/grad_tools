@@ -2059,3 +2059,83 @@ asserts no `1B…` code can exist in the 2022 catalogue.
 - **`KIDTK258`**, printed in a semester-II group row. Every sibling code in the
   scheme begins with `B`, so it is either a document typo or a merged-cell
   artefact. Reading it either way would be a guess.
+
+---
+
+## Part K — M10A.6A: importing a result PDF
+
+### DEC-044 — The review is the feature, not the extraction
+
+Nothing in the import path saves on its own. A file is read, what was read is
+shown **beside the line it came from**, every field can be corrected, and only
+then is there a button — labelled *Confirm and save result*, because that is
+what it does.
+
+**Why, in one sentence:** an extraction that is right nine times out of ten and
+silent about the tenth is worse than one a student checks, because the tenth
+becomes an SGPA they cannot explain.
+
+### What the pipeline refuses to decide
+
+| Situation | What happens |
+|---|---|
+| Total ≠ internal + external | Reported with the arithmetic spelled out. **Never recomputed.** |
+| A code that could be a near-miss for another | Read as-is. **Never matched** to a catalogue entry by similarity. |
+| A `1B…` code on a 2022 profile | Scheme mismatch, **not reinterpreted** (the OQ-053 failure, refused at entry). |
+| Two files, one semester, different values | Field-by-field difference. **No winner chosen.** |
+| A semester that already has a result | Blocked, **not replaced**. |
+| No semester printed | Asks. The filename is never evidence. |
+
+The two-file case is the one worth stating plainly: a revaluation, a duplicate
+download and *the wrong student's file* all have plausible row counts and
+arithmetic that adds up. No property of the documents separates the third from
+the first. A person can; a rule cannot.
+
+### Raw files are never kept, and never leave the device
+
+Bytes are read in the browser. No OCR service, no parsing endpoint, no
+telemetry, nothing written to storage, and the whole path works with the network
+off. The temporary file is discarded when the panel closes; only the confirmed,
+structured result is saved, and it syncs like any other result.
+
+### DEC-045 — The legacy pdf.js build, for a browser reason
+
+pdf.js v6's default build calls `Promise.try` — Chrome 128+, Safari 18.2+, Node
+23+ only. Older engines do not throw where it can be caught: the failure happens
+inside the worker message handler, the promise never settles, and a student on
+last year's phone watches a spinner forever.
+
+The legacy build is the same API transpiled down. pdf.js prints a Node warning
+about it; **the browser reason is the stronger one.**
+
+`isEvalSupported` was also removed — not disabled, *removed*: v6 has no eval
+path, so there is nothing to switch off.
+
+### OCR — NOT REQUIRED for this increment, and still UNKNOWN overall
+
+A VTU result reaches a student through the portal's own *Save as PDF*, which
+produces a **text-layer PDF** — the path now implemented and verified end to end
+in a real browser.
+
+**What is not yet known** is how often a real student instead has a screenshot
+or a photo. The supplied reference cards are screenshots, which is one data
+point and not a measurement.
+
+A document with no text layer is **reported as a scan**, with an honest message,
+rather than producing an empty result that looks like a parse failure. That is
+the gate: when there is evidence of how many real cards arrive as images, OCR
+becomes a separate increment with its own justification.
+
+**Measured cost of the deferred option:** `tesseract.js` fetches roughly 15MB of
+WASM and language data at runtime — from a CDN, which would make a third party a
+participant in reading a student's marks and would break the offline path, or
+bundled, which makes a 15MB app. The server pipeline that already exists
+(`tesseract` + `pdftoppm`, local-only) would require uploading the card, which
+§4 rules out.
+
+### The USN-history incident — decision still pending
+
+One real seat number was committed in a code comment in `e2d07c2` and removed in
+`3bda2a0`. It is absent from the working tree and from HEAD, and present in that
+one commit's history. **A history rewrite has not been authorised and has not
+been performed.** The decision remains with the repository owner.
