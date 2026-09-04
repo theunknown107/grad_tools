@@ -114,12 +114,12 @@ const DESTINATIONS: readonly Destination[] = [
     keywords: 'schedule classes lab',
   },
   {
-    to: '/papers',
-    title: 'Question papers',
-    description: 'The paper library',
+    to: '/import',
+    title: 'Add academic document',
+    description: 'Result card, academic calendar or class timetable',
     icon: 'papers',
     group: 'Academics',
-    keywords: 'pyq previous year exam',
+    keywords: 'import upload calendar timetable result document',
   },
   {
     to: '/profile',
