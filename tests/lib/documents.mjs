@@ -181,6 +181,24 @@ export function calendarPdf({
 }
 
 /**
+ * A calendar carrying a holiday and a full set of milestones.
+ *
+ * Used for the end-to-end semester scenario, where the point is that three
+ * documents together produce one organised term rather than three separate
+ * screens.
+ */
+export function semesterCalendarPdf({ holiday = null, academicYear = '2026-27' } = {}) {
+  const rows = [
+    ['Commencement of classes for the semester', '07 Sep 2026'],
+    ['Last date for registration without late fee', '11 Sep 2026'],
+    ['Semester end examinations', '05 Dec 2026 to 24 Dec 2026'],
+    ['Last working day of the semester', '04 Dec 2026'],
+  ];
+  if (holiday !== null) rows.push(['Mid-term holidays', holiday]);
+  return calendarPdf({ academicYear, rows });
+}
+
+/**
  * A university examination schedule.
  *
  * Academic, dated, university-issued — and not one of the three documents

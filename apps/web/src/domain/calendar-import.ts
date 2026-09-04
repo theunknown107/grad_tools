@@ -402,6 +402,119 @@ export function fingerprintOf(lines: readonly ImportLineLike[]): string {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Which calendar is in force                                                 */
+/* -------------------------------------------------------------------------- */
+
+/** A term, as the pair of facts that identifies one. */
+function termOf(calendar: SavedCalendar): string {
+  return `${String(calendar.semester ?? '?')}|${calendar.academicYear ?? '?'}`;
+}
+
+/**
+ * The calendars actually in force, one per term.
+ *
+ * A REISSUED CALENDAR REPLACES ITS PREDECESSOR RATHER THAN JOINING IT. The
+ * dashboard used to read every saved calendar at once, so a superseded one kept
+ * producing events — a student who imported a corrected calendar would still be
+ * shown the old registration date, sitting beside the new one with nothing to
+ * say which was which (M10A.10 §13, §45).
+ *
+ * Within a term the most recently imported is the one in force. That IS upload
+ * order, and it is the only evidence a calendar offers: unlike a timetable,
+ * these documents do not print an effective date. Where that rule has to choose
+ * between two disagreeing calendars, `calendarConflicts` reports the
+ * disagreement rather than letting the choice pass unseen (§12).
+ *
+ * Calendars for DIFFERENT terms all stay in force. A student holding this
+ * semester's and next semester's calendar has two useful documents, not a
+ * conflict.
+ */
+export function activeCalendars(saved: readonly SavedCalendar[]): SavedCalendar[] {
+  const byTerm = new Map<string, SavedCalendar>();
+  for (const calendar of saved) {
+    const key = termOf(calendar);
+    const held = byTerm.get(key);
+    if (held === undefined || calendar.importedAt > held.importedAt) byTerm.set(key, calendar);
+  }
+  return [...byTerm.values()];
+}
+
+/** One term that has more than one calendar, and the dates they disagree on. */
+export interface CalendarConflict {
+  readonly semester: number | null;
+  readonly academicYear: string | null;
+  /** `Commencement of classes: 2026-09-07 → 2026-09-14`. */
+  readonly differences: readonly string[];
+}
+
+/**
+ * Terms where two calendars say different things.
+ *
+ * SHOWN, NEVER RESOLVED. A reissued calendar and a wrong upload look identical
+ * from here, and picking one silently is how a student ends up planning around
+ * a date the university replaced (§12).
+ *
+ * Only categories the parser could actually name are compared. Two rows that
+ * both came back as `OTHER_ACADEMIC` are not evidence of disagreement — they
+ * are two rows nobody identified.
+ */
+export function calendarConflicts(saved: readonly SavedCalendar[]): CalendarConflict[] {
+  const byTerm = new Map<string, SavedCalendar[]>();
+  for (const calendar of saved) {
+    const key = termOf(calendar);
+    byTerm.set(key, [...(byTerm.get(key) ?? []), calendar]);
+  }
+
+  const conflicts: CalendarConflict[] = [];
+  for (const group of byTerm.values()) {
+    if (group.length < 2) continue;
+    const ordered = [...group].sort((a, b) => a.importedAt.localeCompare(b.importedAt));
+    const older = ordered[0] as SavedCalendar;
+    const newer = ordered[ordered.length - 1] as SavedCalendar;
+
+    const differences: string[] = [];
+    for (const event of newer.events) {
+      if (event.category === 'OTHER_ACADEMIC') continue;
+      const previous = older.events.find((candidate) => candidate.category === event.category);
+      if (previous !== undefined && previous.startDate !== event.startDate) {
+        differences.push(`${event.title}: ${previous.startDate} → ${event.startDate}`);
+      }
+    }
+    if (differences.length > 0) {
+      conflicts.push({
+        semester: newer.semester,
+        academicYear: newer.academicYear,
+        differences,
+      });
+    }
+  }
+  return conflicts;
+}
+
+/**
+ * Whether the calendar says today falls on a non-teaching day.
+ *
+ * ONLY WHERE THE DOCUMENT SAYS SO (§18). A holiday is a row the calendar
+ * printed and the parser categorised as one; nothing here infers that a Sunday
+ * is a holiday, or that a gap between events means the college is shut. A
+ * calendar with no holiday rows produces no holidays.
+ */
+export function holidayOn(
+  calendars: readonly SavedCalendar[],
+  date: string,
+): CalendarEvent | null {
+  for (const calendar of calendars) {
+    for (const event of calendar.events) {
+      if (event.category !== 'HOLIDAY') continue;
+      const from = event.startDate;
+      const to = event.endDate ?? event.startDate;
+      if (date >= from && date <= to) return event;
+    }
+  }
+  return null;
+}
+
+/* -------------------------------------------------------------------------- */
 /* What the product does with it                                              */
 /* -------------------------------------------------------------------------- */
 

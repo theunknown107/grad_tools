@@ -20,7 +20,10 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  activeCalendars,
+  calendarConflicts,
   daysUntil,
+  holidayOn,
   fingerprintOf,
   nextEvent,
   parseAcademicCalendar,
@@ -269,6 +272,150 @@ describe('the same calendar, and the one that replaces it', () => {
     const a = fingerprintOf(lines('Classes begin 07 Sep 2026'));
     const b = fingerprintOf(lines('Classes begin 14 Sep 2026'));
     expect(a).not.toBe(b);
+  });
+});
+
+describe('which calendar is actually in force', () => {
+  const held = (over: Partial<SavedCalendar>): SavedCalendar => ({
+    id: 'c',
+    semester: 5,
+    academicYear: '2026-27',
+    fingerprint: 'f',
+    importedAt: '2026-09-01T00:00:00.000Z',
+    sourceKind: 'text',
+    events: [],
+    ...over,
+  });
+
+  const dated = (category: CalendarEvent['category'], startDate: string): CalendarEvent => ({
+    id: startDate,
+    startDate,
+    endDate: null,
+    title: 'Commencement of classes',
+    category,
+    sourceLine: '',
+    page: 1,
+  });
+
+  it('keeps the latest calendar for a term and drops the one it replaced', () => {
+    /*
+     * THE DEFECT THIS FIXES. The dashboard read every saved calendar at once,
+     * so a calendar a reissue had replaced kept producing events — the old
+     * registration date sat beside the new one with nothing to say which was
+     * which (§13, §45).
+     */
+    const older = held({ id: 'old', fingerprint: 'a', importedAt: '2026-09-01T00:00:00.000Z' });
+    const newer = held({ id: 'new', fingerprint: 'b', importedAt: '2026-09-08T00:00:00.000Z' });
+
+    expect(activeCalendars([older, newer]).map((entry) => entry.id)).toEqual(['new']);
+  });
+
+  it('keeps calendars for DIFFERENT terms all in force', () => {
+    /* Two useful documents, not a conflict: this term's and next term's. */
+    const odd = held({ id: 'odd', semester: 5 });
+    const even = held({ id: 'even', semester: 6, fingerprint: 'z' });
+    expect(activeCalendars([odd, even]).map((entry) => entry.id).sort()).toEqual(['even', 'odd']);
+  });
+
+  it('reports two calendars for one term that disagree', () => {
+    const older = held({
+      id: 'old',
+      fingerprint: 'a',
+      importedAt: '2026-09-01T00:00:00.000Z',
+      events: [dated('SEMESTER_START', '2026-09-07')],
+    });
+    const newer = held({
+      id: 'new',
+      fingerprint: 'b',
+      importedAt: '2026-09-08T00:00:00.000Z',
+      events: [dated('SEMESTER_START', '2026-09-14')],
+    });
+
+    const conflicts = calendarConflicts([older, newer]);
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0]?.differences.join(' ')).toContain('2026-09-07 → 2026-09-14');
+  });
+
+  it('does not call two unnamed rows a disagreement', () => {
+    /*
+     * Two rows the parser could not categorise are not evidence that anything
+     * changed — they are two rows nobody identified.
+     */
+    const older = held({
+      id: 'old',
+      fingerprint: 'a',
+      events: [dated('OTHER_ACADEMIC', '2026-09-07')],
+    });
+    const newer = held({
+      id: 'new',
+      fingerprint: 'b',
+      importedAt: '2026-09-08T00:00:00.000Z',
+      events: [dated('OTHER_ACADEMIC', '2026-09-14')],
+    });
+    expect(calendarConflicts([older, newer])).toEqual([]);
+  });
+
+  it('reports nothing when one calendar covers a term', () => {
+    expect(calendarConflicts([held({ events: [dated('SEMESTER_START', '2026-09-07')] })])).toEqual(
+      [],
+    );
+  });
+});
+
+describe('a day the calendar says is not a teaching day', () => {
+  const withHoliday = (startDate: string, endDate: string | null): SavedCalendar => ({
+    id: 'c',
+    semester: 5,
+    academicYear: '2026-27',
+    fingerprint: 'f',
+    importedAt: '2026-09-01T00:00:00.000Z',
+    sourceKind: 'text',
+    events: [
+      {
+        id: 'h',
+        startDate,
+        endDate,
+        title: 'Dasara holidays',
+        category: 'HOLIDAY',
+        sourceLine: '',
+        page: 1,
+      },
+    ],
+  });
+
+  it('finds a holiday the document printed', () => {
+    expect(holidayOn([withHoliday('2026-10-12', null)], '2026-10-12')?.title).toMatch(/Dasara/);
+  });
+
+  it('covers every day of a holiday range', () => {
+    const calendar = withHoliday('2026-10-12', '2026-10-20');
+    expect(holidayOn([calendar], '2026-10-16')).not.toBeNull();
+    expect(holidayOn([calendar], '2026-10-21')).toBeNull();
+  });
+
+  it('invents no holiday the document did not print', () => {
+    /*
+     * ONLY WHERE THE DOCUMENT SAYS SO (§18). Nothing here infers that a Sunday
+     * is a holiday, or that a gap between events means the college is shut. A
+     * calendar with no holiday rows produces none.
+     */
+    const noHolidays: SavedCalendar = {
+      ...withHoliday('2026-10-12', null),
+      events: [
+        {
+          id: 'x',
+          startDate: '2026-10-12',
+          endDate: null,
+          title: 'Internal assessment',
+          category: 'ACADEMIC_PERIOD',
+          sourceLine: '',
+          page: 1,
+        },
+      ],
+    };
+    expect(holidayOn([noHolidays], '2026-10-12')).toBeNull();
+    /* A Sunday, with no calendar at all. */
+    expect(holidayOn([], '2026-10-11')).toBeNull();
   });
 });
 
