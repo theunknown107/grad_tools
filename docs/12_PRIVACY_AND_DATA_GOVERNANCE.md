@@ -584,3 +584,42 @@ picture, and there is **no accuracy percentage anywhere** — a confidently
 misread digit is exactly as wrong as an unconfident one, and only a person
 reading the row against the card catches either. Kannada is not supported; the
 language model is English only, and a card in Kannada script will not be read.
+
+## 12.18 Validating against a real card without the card entering the repository
+(M10A.6C)
+
+Proving the import pipeline works needed a real result card. A real card carries
+a name, a seat number and a person's marks, and this repository is public.
+
+**The document and its values stay outside the repository.** `tests/real-result-qa.mjs`
+is committed and contains no student data; it reads the document path and the
+expected values from a gitignored `.qa/real/truth.json` that the person running
+it writes for their own card. On a machine without that file the harness reports
+`REAL-DOCUMENT VERIFIED = NOT VERIFIED` and exits rather than passing quietly.
+
+**The report it writes is structural.** Filenames are deliberately omitted from
+it — a filename can carry a name or a seat number — and mismatches are recorded
+as `{row, field, outcome}` with no values. `REVEAL=1` adds the values, for a
+terminal, for the person doing the validation; that output never reaches a file,
+a commit or a log.
+
+**The console is checked for leakage, not just for errors.** A stray log of
+recognised text would put a name and a seat number somewhere nobody thinks of as
+storage. The harness fails if any console line matches a seat-number shape or
+the card's identity labels. Measured on both real cards: **0 lines leaking
+identity, 0 requests off-origin.**
+
+### What is actually kept after an import
+
+Read out of storage rather than off the code, because "we do not persist the
+file" is a claim about what is on the device afterwards:
+
+| Key | Size | What it is |
+|---|---|---|
+| `gradtools:v1:anon:results` | 3,091 B | The confirmed semesters. Numbers. |
+| `./eng.traineddata` | ~5 MB | **tesseract.js's own cache of its language model.** |
+
+The engine's cache is intentional: it is what stops a student re-downloading the
+model on every import and what lets recognition work offline. It is not a
+document. No binary value, no PDF or data-URL signature, and nothing at all in
+local or session storage — asserted on every run of the workflow harness.

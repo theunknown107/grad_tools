@@ -2209,3 +2209,77 @@ one-page PDF whose only content is a JPEG of the card — what a scanner or a
 "print to PDF from a photo" produces — because that path is pdf.js rendering to
 a real canvas, which no unit test can stand in for. All four subject codes came
 back. 17 checks in total.
+
+## 22.55 A real result card, privately (M10A.6C)
+
+`tests/real-result-qa.mjs`. Every other harness proves the pipeline on text
+GradTools drew itself. That is the easy end. A real VTU result card carries
+things no generator produces: a Kannada header the English model cannot read, a
+diagonal watermark across the marks columns, subject titles that wrap onto a
+second line, a date column that wraps mid-value, and — on a phone — the
+browser's own chrome above the document.
+
+**The document never enters the repository.** The card and its expected values
+live in a gitignored `.qa/real/truth.json` that the person running the harness
+writes for their own document. Without that file the harness reports
+`REAL-DOCUMENT VERIFIED = NOT VERIFIED` and exits — a green run on a machine
+that has no document is never reported as a pass. `REVEAL=1` prints mismatched
+values to a terminal for whoever is doing the validation; that output is never
+committed, logged or quoted.
+
+Rows are scored **by subject code, not by position**: a dropped row would
+otherwise shift every row beneath it and turn one missing subject into eight
+wrong ones. The tally is correct / incorrect / missing, never averaged — a
+missing mark is a blank a student fills in, a *wrong* one is an SGPA they cannot
+explain.
+
+**What it found, and what changed as a result**, is recorded in §31.33. The
+harness also checks the two things that matter more than the score: whether the
+student was told a row could not be read, and whether the screen says the
+figures came from a picture.
+
+## 22.56 The whole import workflow, in a browser (M10A.6C)
+
+`tests/import-workflow-qa.mjs` — 55 checks, both themes, four widths. Four
+things here cannot be tested any smaller:
+
+- **A multi-select** is one `setInputFiles` call with four files of four
+  formats, not four clicks. Sequential feeds hide races between files sharing
+  one OCR worker.
+- **A multi-page card** prints its semester on page one only; page two's rows
+  must join that semester rather than becoming a semester of their own.
+- **A duplicate and a revision** look identical to a parser. Only the saved
+  record distinguishes them, and only the screen can put the choice to a person.
+- **The calculation chain** has to run through the ordinary academic engine. An
+  imported result needing its own calculator would be a second result model
+  wearing the first one's clothes.
+
+Covered: text PDF, PNG, WebP and a scanned PDF in one action; a bad file among
+four good ones leaving the four usable; two files for one semester shown as a
+conflict with saving refused; a saved semester blocked on re-import *even under
+a different filename*; cancel leaving the store untouched; edit-after-import
+through the semester's own actions menu; SGPA, CGPA, percentage and backlogs
+following on Results, Analytics, Dashboard and Degree; hostile filenames and
+markup-shaped document text rendered as text and nothing else; a 21MB image
+refused before any engine starts; zero requests off-origin.
+
+**WebP is verified end to end here** rather than claimed from a MIME switch.
+
+**The harness caught the editor doing the right thing.** Raising one mark
+without its total is refused, with the arithmetic shown and nothing recomputed —
+the same rule the parser follows, applied where a person is doing the changing.
+That refusal is now pinned.
+
+### Retention, read off the device rather than off the code
+
+Every key in local storage is inspected after an import. Two kinds of thing live
+there: GradTools' own data, and **tesseract.js's cache of its language model**,
+which it writes to the same `keyval-store` database under `./eng.traineddata`.
+That cache is intentional — it is what stops a student re-downloading six
+megabytes per import, and what makes the feature work offline. So the assertions
+are made against GradTools' keys, the engine cache is named explicitly rather
+than admitted by a size threshold, and anything unrecognised fails.
+
+Measured after four files and three saved semesters: **3,091 bytes under one
+GradTools key**, no binary values, no PDF or data-URL signatures, nothing in
+local or session storage.
