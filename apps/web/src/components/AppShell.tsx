@@ -99,10 +99,20 @@ const DESTINATIONS: readonly Destination[] = [
     icon: 'timetable',
     group: 'Academics',
   },
+  /*
+   * ADDING A DOCUMENT IS A DESTINATION, because handing GradTools a result
+   * card, a calendar or a timetable is how information gets in — and typing it
+   * is the fallback (M10A.9 §1, §6, §11).
+   *
+   * It takes the slot question papers had. That feature is not part of the
+   * product and was holding one of five mobile tabs, which is the most
+   * prominent placement the application has; the route still exists and
+   * nothing points at it.
+   */
   {
-    to: '/papers',
-    label: 'Question papers',
-    shortLabel: 'Papers',
+    to: '/import',
+    label: 'Add document',
+    shortLabel: 'Import',
     icon: 'papers',
     group: 'Academics',
   },
@@ -119,7 +129,7 @@ const GROUPS = ['Overview', 'Academics', 'Account'] as const;
  * The mobile bar, CHOSEN rather than truncated (M9.3 §18). Five is the ceiling:
  * past that, labels stop being legible at 320px.
  */
-const MOBILE_PATHS = ['/', '/academics', '/attendance', '/papers', '/account'] as const;
+const MOBILE_PATHS = ['/', '/academics', '/attendance', '/import', '/account'] as const;
 const MOBILE_TABS: readonly Destination[] = MOBILE_PATHS.map(
   (path) => DESTINATIONS.find((destination) => destination.to === path) as Destination,
 );

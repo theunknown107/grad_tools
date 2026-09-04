@@ -614,7 +614,14 @@ describe('navigation', () => {
     // Academics is one tap away, and opening it reveals the rest.
     await user.click(screen.getByRole('link', { name: 'Academics' }));
     expect(shellLabels().some((l) => /attendance/i.test(l))).toBe(true);
-    expect(shellLabels().some((l) => /question papers/i.test(l))).toBe(true);
+    /*
+     * Adding a document replaced question papers here. Handing GradTools a
+     * result card, a calendar or a timetable is how information gets in;
+     * question papers are not part of the product and no longer occupy a
+     * navigation slot (M10A.9 §2, §6).
+     */
+    expect(shellLabels().some((l) => /add document/i.test(l))).toBe(true);
+    expect(shellLabels().some((l) => /question papers/i.test(l))).toBe(false);
     expect(shellLabels().some((l) => /my degree/i.test(l))).toBe(true);
 
     // Later milestones must still not appear as dead links anywhere.
