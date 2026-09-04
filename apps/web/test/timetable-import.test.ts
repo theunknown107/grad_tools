@@ -341,7 +341,15 @@ describe('context comes from the document', () => {
       effectiveFrom: '2026-11-07',
       room: 'B205',
     });
-    expect(parsed.context.className).toMatch(/CSBS/);
+    /*
+     * WITHOUT THE REVISION LABEL BESIDE IT. `CLASS: ...` and `TIME-TABLE (R2)`
+     * sit side by side on the real document and land on one reconstructed row.
+     * A class name that swallowed the label made two revisions of one class
+     * look like two different classes, and the older one stopped being
+     * recognised as older — the check that stops a stale upload replacing a
+     * student's week.
+     */
+    expect(parsed.context.className).toBe('I (E) CSBS SEMESTER I');
   });
 
   it('says so when no effective date is printed', () => {
