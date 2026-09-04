@@ -541,36 +541,40 @@ function DegreeStory(): ReactNode {
   );
 }
 
-function PapersStory(): ReactNode {
+/**
+ * What the product actually does now.
+ *
+ * This section used to sell a question-paper library. That is no longer part
+ * of GradTools, and a landing page that advertises a feature the application
+ * does not have is the worst kind of copy — it is a promise nobody can keep.
+ * What replaced it is the thing the last several milestones built.
+ */
+function ImportStory(): ReactNode {
   return (
-    <section className={styles.section} id="papers">
+    <section className={styles.section} id="import">
       <div className={`${styles.split ?? ''} glassSurface`}>
         <div className={styles.splitText}>
-          <p className={styles.eyebrow}>Question papers</p>
-          <h2 className={styles.splitTitle}>Search the questions, not just the papers</h2>
+          <p className={styles.eyebrow}>Academic documents</p>
+          <h2 className={styles.splitTitle}>Give it the documents you already have</h2>
           <p className={styles.splitLead}>
-            Papers are read once and their text extracted, so a search reaches individual questions
-            and their sub-parts. Where the text came from an imperfect scan, GradTools says so
-            rather than presenting a guess as a fact.
+            A result card, your semester&apos;s academic calendar, your class timetable. GradTools
+            works out which is which, reads it on your device, shows you what it read, and keeps
+            only what you confirm. The file is never uploaded.
           </p>
-          <Link to="/papers" className={styles.textCta ?? ''}>
-            Open the library
+          <Link to="/import" className={styles.textCta ?? ''}>
+            Add a document
             <Icon name="chevronRight" size="small" />
           </Link>
         </div>
         <div className={styles.splitDemo} aria-hidden="true">
-          <div className={`${styles.demoSearch ?? ''} glassInput`}>
-            <Icon name="search" size="nav" />
-            <span>normalisation</span>
-          </div>
           {[
-            'Explain 3NF with an example.',
-            'Define functional dependency.',
-            'Normalise to BCNF.',
-          ].map((text) => (
+            ['results', 'Result card — 9 subjects read'],
+            ['calendar', 'Academic calendar — 4 dates read'],
+            ['timetable', 'Class timetable — 25 classes read'],
+          ].map(([icon, text]) => (
             <div key={text} className={styles.demoRow}>
               <span className={styles.demoIcon}>
-                <Icon name="papers" size="small" />
+                <Icon name={icon as 'results'} size="small" />
               </span>
               <span>{text}</span>
             </div>
@@ -639,7 +643,7 @@ function Footer(): ReactNode {
         { to: '/', label: 'Dashboard' },
         { to: '/results', label: 'Results' },
         { to: '/attendance', label: 'Attendance' },
-        { to: '/papers', label: 'Question papers' },
+        { to: '/import', label: 'Add a document' },
       ],
     },
     {
@@ -758,7 +762,7 @@ export function LandingPage(): ReactNode {
         <ResultsStory />
         <AttendanceStory />
         <DegreeStory />
-        <PapersStory />
+        <ImportStory />
         <AnnouncementsStory />
         <ClosingCta />
       </main>

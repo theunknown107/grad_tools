@@ -6,7 +6,6 @@
  */
 
 import { Route, Routes } from 'react-router-dom';
-import { DocumentsPage } from './features/documents/DocumentsPage.js';
 import { AppShell, Disclaimer } from './components/AppShell.js';
 import { DashboardPage } from './features/dashboard/DashboardPage.js';
 import { AnnouncementsPage } from './features/announcements/AnnouncementsPage.js';
@@ -18,8 +17,6 @@ import { ResultsPage } from './features/results/ResultsPage.js';
 import { ImportPage } from './features/import/ImportPage.js';
 import { TimetablePage } from './features/timetable/TimetablePage.js';
 import { ProfilePage } from './features/profile/ProfilePage.js';
-import { PapersPage } from './features/papers/PapersPage.js';
-import { PaperDetailPage } from './features/papers/PaperDetailPage.js';
 import { SignInPage } from './features/auth/SignInPage.js';
 import { AccountPage } from './features/auth/AccountPage.js';
 import { FirstSyncPage } from './features/auth/FirstSyncPage.js';
@@ -60,9 +57,6 @@ function ShellRoutes() {
         {/* Automatic ingestion is the primary workflow, so it has a destination. */}
         <Route path="/import" element={<ImportPage />} />
         <Route path="/timetable" element={<TimetablePage />} />
-        <Route path="/papers" element={<PapersPage />} />
-        <Route path="/papers/:id" element={<PaperDetailPage />} />
-        <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/account" element={<AccountPage />} />
