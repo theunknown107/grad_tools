@@ -33,7 +33,7 @@
 import { useMemo, useState } from 'react';
 import { calculateCGPA, vtu2022RuleSet } from '@gradtools/academic-rules';
 import type { Subject } from '@gradtools/shared-types';
-import type { ResultSubject, SemesterResult, TimetableSlot } from '../../domain/types.js';
+import type { ResultSubject, SemesterResult } from '../../domain/types.js';
 import { RESULT_STATUSES } from '../../domain/types.js';
 import {
   evaluateResultSubject,
@@ -67,15 +67,9 @@ import { MetricStrip } from '../../components/ui/layout.js';
 import { DropdownMenu } from '../../components/ui/DropdownMenu.js';
 import { Sheet } from '../../components/ui/Sheet.js';
 import { newId, nowIso } from '../../lib/id.js';
-import {
-  useCalendars,
-  useProfile,
-  useResults,
-  useTimetable,
-  useTimetableImports,
-} from '../../hooks/useCollection.js';
+import { useProfile, useResults } from '../../hooks/useCollection.js';
 import { useSubjects } from '../../hooks/useReference.js';
-import { ResultImport } from './ResultImport.js';
+import { DocumentImportPanel } from '../import/DocumentImportPanel.js';
 import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
 import { otherTitles, resolveSubject, type SubjectIdentity } from '../../domain/subjects.js';
 import styles from './results.module.css';
@@ -96,28 +90,10 @@ function markText(value: number | null): string {
 export function ResultsPage() {
   const { items, loading, save, remove } = useResults();
   /*
-   * Calendars live beside results because they arrive through the same upload.
-   * The panel routes a document by what it IS; the page just holds both sides
-   * of the store so the review can see what is already saved (M10A.7 §23).
+   * The import wiring moved to `DocumentImportPanel`, which `/import` also
+   * renders. Results keeps the panel because a student looking at their marks
+   * may as well be able to add some — but only one copy of the wiring exists.
    */
-  const { items: calendars, save: saveCalendar } = useCalendars();
-  /*
-   * ONE ACTIVE TIMETABLE (M10A.8 §31). A confirmed import REPLACES the stored
-   * classes rather than adding to them: merging a revision into what is already
-   * there leaves a week that is partly last month's, which is the failure where
-   * a student turns up to a class that moved.
-   */
-  const { items: timetable, save: saveSlot, remove: removeSlot } = useTimetable();
-  const { items: timetableImports, save: saveImport } = useTimetableImports();
-
-  const replaceTimetable = async (
-    slots: readonly TimetableSlot[],
-    record: Parameters<typeof saveImport>[0],
-  ) => {
-    for (const slot of timetable) await removeSlot(slot.id);
-    for (const slot of slots) await saveSlot(slot);
-    await saveImport(record);
-  };
   const { profile } = useProfile();
   const { index } = useSubjectIndex();
   /** The result being edited, `'new'` while adding, null when neither. */
@@ -150,7 +126,7 @@ export function ResultsPage() {
               }}
             >
               <Icon name="results" size="nav" />
-              {importing ? 'Close import' : 'Import a result card'}
+              {importing ? 'Close import' : 'Add academic document'}
             </Button>
             <Button
               variant="primary"
@@ -181,22 +157,9 @@ export function ResultsPage() {
         )}
 
         {importing && (
-          <ResultImport
-            profileId={profile?.id ?? asStudentProfileId('local')}
-            schemeId={profile?.schemeId ?? ruleSet.schemeId}
-            savedSemesters={items.map((item) => item.semester)}
-            savedCalendars={calendars}
-            savedTimetables={timetableImports}
-            onSave={(result) => {
-              void save(result);
-            }}
-            onSaveCalendar={(calendar) => {
-              void saveCalendar(calendar);
-            }}
-            onSaveTimetable={(slots, record) => {
-              void replaceTimetable(slots, record);
-            }}
-            onCancel={() => {
+          /* The same panel `/import` shows. One wiring, so the two cannot drift. */
+          <DocumentImportPanel
+            onDone={() => {
               setImporting(false);
             }}
           />

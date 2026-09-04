@@ -128,7 +128,7 @@ const run = async () => {
     }, process.env.TTPSM ?? '');
     await page.goto(`${ORIGIN}/results`);
     await page.waitForTimeout(600);
-    const opener = page.getByRole('button', { name: /import a result card/i });
+    const opener = page.getByRole('button', { name: /add academic document/i });
     if (await opener.count()) await opener.first().click();
     await page.waitForTimeout(300);
 

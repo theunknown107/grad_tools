@@ -201,7 +201,7 @@ const run = async () => {
   const openImport = async (target) => {
     await target.goto(`${ORIGIN}/results`);
     await target.waitForTimeout(500);
-    const opener = target.getByRole('button', { name: /import a result card/i });
+    const opener = target.getByRole('button', { name: /add academic document/i });
     if (await opener.count()) await opener.first().click();
     await target.waitForTimeout(300);
   };

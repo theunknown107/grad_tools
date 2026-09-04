@@ -1,0 +1,23 @@
+/**
+ * The document import page.
+ *
+ * Authority: docs/05 §5.x · M10A.9 §29
+ *
+ * Deliberately thin. The uploader is a polished control surface, not a
+ * landing-page hero — the glass language already exists and this page is
+ * mostly the panel that carries it.
+ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Secondary by weight as well as by position: the fallback is a sentence, not
+   a second call to action. */
+.fallback {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}

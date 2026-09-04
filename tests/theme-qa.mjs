@@ -34,15 +34,26 @@ const PORT = 4322; // the origin the API allows (tests/README) — an ad-hoc por
 const APPEARANCES = ['light', 'dark'];
 const ACCENTS = ['violet', 'cyan', 'amber', 'rose', 'green'];
 
-/* 390 is a phone, 1280 the desktop composition. */
+/*
+ * The widths a student actually uses: the narrowest phone the product supports,
+ * a common phone, a tablet, and three desktop sizes. Every palette is checked
+ * at each, because a contrast or overflow fault usually shows at one width and
+ * one appearance rather than everywhere (M10A.9 §34).
+ */
 const VIEWPORTS = [
+  { name: '320', width: 320, height: 720 },
   { name: '390', width: 390, height: 844 },
+  { name: '768', width: 768, height: 1024 },
   { name: '1280', width: 1280, height: 900 },
+  { name: '1440', width: 1440, height: 900 },
+  { name: '1920', width: 1920, height: 1080 },
 ];
 
 const ROUTES = [
   ['/', 'dashboard'],
   ['/results', 'results'],
+  ['/import', 'import'],
+  ['/timetable', 'timetable'],
   ['/account', 'account'],
 ];
 
@@ -160,6 +171,132 @@ const run = async () => {
         await context.close();
       }
     }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* The accent picker offers five DIFFERENT colours                     */
+  /* ---------------------------------------------------------------- */
+
+  /*
+   * The picker used to offer five identical circles. Each swatch sets
+   * `data-accent` on itself to paint its own hue, but the accent blocks were
+   * scoped to `:root`, so the attribute matched nothing and every swatch
+   * inherited the root's fill. The palette looked broken because it was, and
+   * no test could see it: the tokens were correct, the markup was correct, and
+   * the cascade between them was not.
+   *
+   * This reads the colours the browser actually paints.
+   */
+  {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.evaluate(() => localStorage.removeItem('gradtools:v1:theme'));
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(500);
+
+    /* Light is the default for a device with no stored preference (§26). */
+    const applied = await page.evaluate(() => ({
+      theme: document.documentElement.getAttribute('data-theme'),
+      scheme: getComputedStyle(document.documentElement).colorScheme,
+    }));
+    checks += 1;
+    if (applied.theme !== 'light') {
+      problems.push(`DEFAULT: a device with no preference rendered "${String(applied.theme)}", not light`);
+    }
+
+    const toggle = page.getByRole('button', { name: /appearance|theme/i }).first();
+    if ((await toggle.count()) === 0) {
+      problems.push('THEME: no appearance control was reachable from the app bar');
+    } else {
+      await toggle.click();
+      await page.waitForTimeout(400);
+
+      const swatches = page.locator('[data-accent]');
+      const colours = await swatches.evaluateAll((nodes) =>
+        nodes
+          .filter((node) => node.tagName === 'BUTTON')
+          .map((node) => ({
+            accent: node.getAttribute('data-accent'),
+            fill: getComputedStyle(node).backgroundColor,
+            label: node.getAttribute('aria-label'),
+          })),
+      );
+
+      checks += 1;
+      if (colours.length !== ACCENTS.length) {
+        problems.push(`ACCENTS: found ${String(colours.length)} swatches, expected ${String(ACCENTS.length)}`);
+      }
+      const distinct = new Set(colours.map((entry) => entry.fill));
+      if (distinct.size !== colours.length) {
+        problems.push(
+          `ACCENTS: ${String(colours.length)} swatches painted only ${String(distinct.size)} distinct colours`,
+        );
+      }
+      if (colours.some((entry) => (entry.label ?? '') === '')) {
+        problems.push('ACCENTS: a swatch has no accessible name');
+      }
+
+      /* And the appearance options are reachable by keyboard. */
+      const options = await page.getByRole('radio').count();
+      const buttons = await page.getByRole('button', { name: /light|dark|system/i }).count();
+      checks += 1;
+      if (options + buttons < 3) {
+        problems.push('THEME: fewer than three appearance options were exposed');
+      }
+
+      await page.screenshot({ path: join(OUT, 'appearance-popover.png') });
+    }
+    await context.close();
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* System follows the device, in BOTH directions                       */
+  /* ---------------------------------------------------------------- */
+
+  /*
+   * "System" is the absence of `data-theme`, which is what lets
+   * prefers-color-scheme decide. Checking only one direction would pass on a
+   * build that hard-coded either answer (§53).
+   */
+  for (const scheme of ['light', 'dark']) {
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+      colorScheme: scheme,
+    });
+    const page = await context.newPage();
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.evaluate(() =>
+      localStorage.setItem(
+        'gradtools:v1:theme',
+        JSON.stringify({ appearance: 'system', accent: 'violet' }),
+      ),
+    );
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(400);
+
+    const seen = await page.evaluate(() => ({
+      stamped: document.documentElement.hasAttribute('data-theme'),
+      ground: getComputedStyle(document.body).backgroundColor,
+    }));
+
+    checks += 1;
+    if (seen.stamped) {
+      problems.push(`SYSTEM/${scheme}: data-theme was stamped, so the device cannot decide`);
+    }
+    /* A dark ground is dark; a light one is not. Read, not assumed. */
+    const channels = /(\d+)\D+(\d+)\D+(\d+)/.exec(seen.ground);
+    const luminance =
+      channels === null
+        ? -1
+        : (Number(channels[1]) + Number(channels[2]) + Number(channels[3])) / 3;
+    if (scheme === 'dark' && luminance > 90) {
+      problems.push(`SYSTEM/dark: the ground rendered light (${seen.ground})`);
+    }
+    if (scheme === 'light' && luminance < 160) {
+      problems.push(`SYSTEM/light: the ground rendered dark (${seen.ground})`);
+    }
+    await context.close();
   }
 
   await browser.close();
