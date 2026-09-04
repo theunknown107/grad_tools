@@ -2536,3 +2536,48 @@ same action and **no longer points at question papers**.
 
 Every routing, review, duplicate, revision, conflict, retention and privacy
 check from M10A.7–M10A.8.1 continues to run in the same sweep.
+
+## 22.65 A semester, end to end (M10A.10)
+
+`tests/import-workflow-qa.mjs` — **103 checks**. The new section hands the
+application four documents in one sitting, the way a student starting a semester
+actually would: two result cards, an academic calendar and a class timetable.
+
+It then asserts on **stored state**, not on the screens that produced it: two
+results, one calendar, twenty-five classes and one timetable import record, all
+present at once and none of them having overwritten another. Every previous
+section drove one document type at a time, so nothing was watching for the
+failure where a second import quietly clears the first collection.
+
+```
+semester      results 2 · calendars 1 · timetable 25 · timetableImports 1
+storage       calendars 1137 B · results 2085 B · timetable 4522 B
+four documents, start to finish                          229 ms
+```
+
+The 229 ms is worth stating plainly: importing a whole semester is not a
+long-running operation, so nothing here needs a progress model.
+
+## 22.66 The calendar in force (M10A.10)
+
+`apps/web/test/calendar-import.test.ts` gains 8 tests for the three functions
+the dashboard now depends on.
+
+`activeCalendars` was written because the dashboard read **every saved
+calendar**, superseded ones included, so a revised calendar did not replace the
+old one — it competed with it, and the next date shown was whichever the sort
+happened to reach first. A term is `semester|academicYear` and the latest
+`importedAt` within a term is what is in force.
+
+`calendarConflicts` reports where two calendars **in force** disagree about the
+same dated event. `OTHER_ACADEMIC` is excluded: it is the bucket for events the
+parser could not categorise, and two uncategorised events on one day are not
+evidence of a conflict.
+
+`holidayOn` is what lets the dashboard say *"Independence Day — no classes
+today"* instead of printing a timetable for a day the college is shut.
+
+Tests removed in this milestone (`papers.test.ts`, `papers-ui.test.tsx`,
+`documents.test.tsx`) covered a feature that no longer exists. **Unit count
+1378 → 1284; coverage of the active product is unchanged.** The route-integrity
+test earned its keep here, failing on two dangling links into removed pages.
