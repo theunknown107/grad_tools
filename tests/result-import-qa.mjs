@@ -261,8 +261,18 @@ const run = async () => {
     ]),
     'invoice.pdf',
   );
+  /*
+   * REFUSED EARLIER THAN IT USED TO BE. Before the document router (M10A.7)
+   * an invoice reached the result parser and was rejected by it, with "this
+   * does not look like a VTU result card". It is now refused at
+   * classification, before any parser sees it, and the message says what to do
+   * instead. Either sentence is a correct refusal; what must never happen is
+   * the invoice being treated as a result.
+   */
   expect(
-    /does not look like a VTU result card/i.test(await page.locator('#main').innerText()),
+    /does not look like a VTU result card|could not identify this as a result card/i.test(
+      await page.locator('#main').innerText(),
+    ),
     'IMPORT: a non-result PDF was treated as a result',
   );
 
