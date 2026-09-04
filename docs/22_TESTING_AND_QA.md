@@ -2494,3 +2494,45 @@ it looks complete, and a student would plan around the ones that are missing.
 
 **Browser QA: 84 checks, both themes, four widths, 0 axe / 0 overflow / 0
 console errors.** 1370 unit tests.
+
+## 22.63 The theme matrix, widened (M10A.9)
+
+`tests/theme-qa.mjs` — **305 page checks across ten palettes**, up from 60. Six
+widths (320 / 390 / 768 / 1280 / 1440 / 1920) × five accents × light and dark,
+over Dashboard, Results, Import, Timetable and Account. 0 axe / 0 overflow / 0
+console errors.
+
+### The accent picker offered five identical circles
+
+Each swatch sets `data-accent` on **itself** to paint its own hue, and the CSS
+comment said so. But the accent blocks were written `:root[data-accent='…']`,
+so the attribute matched nothing on a button and every swatch inherited the
+root's fill.
+
+**Nothing could have caught it.** The tokens were right, the markup was right,
+and the fault lived in the cascade between them — invisible to a unit test that
+reads either one. The harness now reads the colours the browser actually paints
+and fails if five swatches produce fewer than five.
+
+### System mode, both directions
+
+"System" is the *absence* of `data-theme`, which is what lets
+`prefers-color-scheme` decide. The harness now runs with the browser set to
+light and to dark, asserts the attribute is absent, and reads the rendered
+ground — a build that hard-coded either answer would have passed the old check.
+
+### Light default
+
+A device with no stored preference now renders light (§26). Asserted in the
+harness rather than only in the unit test, because the default is a property of
+what the page does on first load.
+
+## 22.64 The document hub in a browser (M10A.9)
+
+Added to `tests/import-workflow-qa.mjs` — **89 checks**. `/import` is reached
+directly, not through Results: it has a file input, it names all three document
+types it accepts, and it still offers manual entry. The dashboard offers the
+same action and **no longer points at question papers**.
+
+Every routing, review, duplicate, revision, conflict, retention and privacy
+check from M10A.7–M10A.8.1 continues to run in the same sweep.

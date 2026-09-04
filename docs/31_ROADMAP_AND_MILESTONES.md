@@ -1686,3 +1686,59 @@ The parser reports coverage and the review says how much was read.
   with the M10A.6B finding.
 - **Real device**: not tested.
 - **Light theme**: untouched, still the next dedicated frontend milestone.
+
+## 31.37 M10A.9 — Document hub and light-theme reset · ✅ **DELIVERED**
+
+Two problems that turned out to be the same one: the product's primary workflow
+was hidden inside a page about marks, and the appearance it opens in did not
+look like the same product as the dark one.
+
+### The importer had nowhere to live
+
+Result, calendar and timetable import all worked. The only way in was a button
+on Results — so a student holding a semester calendar or a class timetable had
+no reason to look there and no way to guess. There is now `/import`, the
+dashboard's first quiet row points at it, and it holds a mobile navigation slot.
+
+**That slot came from question papers**, which is not part of the product and
+was occupying one of five mobile tabs — the most prominent placement the
+application has. The route still exists; nothing points at it.
+
+The panel is the same one Results renders, so the wiring exists once. Its copy
+still said "Import a result" and asked for a result PDF, which on a page whose
+point is automatic detection was the one thing still insisting on a single type.
+
+### Three defects in the light interface
+
+**The accent picker offered five identical circles.** Each swatch sets
+`data-accent` on itself to paint its own hue — the CSS comment said so — but the
+accent blocks were scoped to `:root`, so the attribute matched nothing on a
+button. The tokens were right and the markup was right; the cascade between them
+was not, which is exactly why no test saw it.
+
+**The light ground was too close to white** for translucent white surfaces to
+read against, so the interface had no visible hierarchy. The complaint about
+opaque cards and flattened glass was a precise description of that. The ground
+is deeper and cooler and the ambient carries more of the atmosphere dark already
+had; the surfaces are unchanged and now have something to sit on.
+
+**Light is the default** for a device with no stored preference. System stays
+available and an explicit choice still wins.
+
+### Verification
+
+1370 unit tests. **305 theme checks** across six widths, five accents and both
+appearances; **89 workflow checks** in both themes. Result, OCR, calendar,
+timetable, results, identity, interaction and visual harnesses all re-run clean,
+and the real result cards remain at baseline with zero incorrect marks.
+
+### NOT VERIFIED
+
+- **No human has looked at this on a real device.** Every browser claim is
+  Playwright; screenshots were inspected by me, not by a person using the app.
+- **Motion** was left as it was. The existing tokens already carry restrained
+  transitions and `prefers-reduced-motion`; adding more without a person to
+  judge it would be decoration.
+- **Photographed-timetable extraction** is unchanged and still partial (§31.36).
+- Question-paper code remains in the tree, unadvertised. Removing it is a
+  separate cleanup.
