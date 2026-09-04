@@ -17,7 +17,6 @@ import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { LocalObjectStore, type ObjectStore } from '../documents/storage.js';
-import { createQuestionPaperRouter } from '../routes/question-papers.js';
 import { createStudentRouter } from '../routes/me.js';
 import { createAccountDeleter, createCloudClient } from '../db/cloud.js';
 import { authConfigFor, createVerifier } from '../auth/session.js';
@@ -222,7 +221,6 @@ export function createApp(
     );
   }
 
-  app.use(createQuestionPaperRouter(sql, store, config.allowedOrigins));
   app.use(createDocumentRouter(sql, store));
   app.use(createReferenceRouter(sql));
 
