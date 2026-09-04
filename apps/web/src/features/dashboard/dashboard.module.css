@@ -227,3 +227,18 @@
 .quietStack {
   display: grid;
 }
+
+/*
+ * Two calendars for one term disagreeing.
+ *
+ * Deliberately a line of text rather than a card: it is uncommon, it is not an
+ * error, and it needs to be read once and acted on — not to become a permanent
+ * fixture the eye learns to skip (M10A.10 §12).
+ */
+.conflict {
+  padding: var(--space-3) var(--space-4);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  border-bottom: 1px solid var(--border);
+}
