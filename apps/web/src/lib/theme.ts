@@ -43,7 +43,15 @@ export interface ThemePreference {
   readonly accent: Accent;
 }
 
-export const DEFAULT_THEME: ThemePreference = { appearance: 'system', accent: 'violet' };
+/**
+ * What a student sees before they have chosen anything.
+ *
+ * LIGHT, not system (M10A.9 §26). GradTools is used in daylight, in lecture
+ * halls and on library desks, and the light interface is the one the product is
+ * designed around. "System" remains available and an explicit choice always
+ * wins — this is only the answer for someone who has not given one.
+ */
+export const DEFAULT_THEME: ThemePreference = { appearance: 'light', accent: 'violet' };
 
 /** Device-scoped on purpose — see the header. */
 export const THEME_STORAGE_KEY = 'gradtools:v1:theme';

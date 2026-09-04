@@ -15,6 +15,7 @@ import { SemestersPage } from './features/semesters/SemestersPage.js';
 import { AcademicsPage } from './features/academics/AcademicsPage.js';
 import { AttendancePage } from './features/attendance/AttendancePage.js';
 import { ResultsPage } from './features/results/ResultsPage.js';
+import { ImportPage } from './features/import/ImportPage.js';
 import { TimetablePage } from './features/timetable/TimetablePage.js';
 import { ProfilePage } from './features/profile/ProfilePage.js';
 import { PapersPage } from './features/papers/PapersPage.js';
@@ -56,6 +57,8 @@ function ShellRoutes() {
         <Route path="/academics" element={<AcademicsPage />} />
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/results" element={<ResultsPage />} />
+        {/* Automatic ingestion is the primary workflow, so it has a destination. */}
+        <Route path="/import" element={<ImportPage />} />
         <Route path="/timetable" element={<TimetablePage />} />
         <Route path="/papers" element={<PapersPage />} />
         <Route path="/papers/:id" element={<PaperDetailPage />} />
