@@ -13,6 +13,7 @@ export default tseslint.config(
       'apps/web/public/ocr/**',
       // QA output and private validation scratch. Gitignored, never shipped.
       '.qa-*/**',
+      '.qa/**',
     ],
   },
 
