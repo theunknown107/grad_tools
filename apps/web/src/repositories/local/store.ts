@@ -49,6 +49,8 @@ export type StorageKey =
   | 'backlogs'
   | 'notificationState'
   | 'notificationPreferences'
+  /** Academic calendars a student imported, as structured events (M10A.7). */
+  | 'calendars'
   /** Sync bookkeeping: the cursor and the pending queue (M9 §40). */
   | 'syncState';
 

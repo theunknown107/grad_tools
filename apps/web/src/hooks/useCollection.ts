@@ -16,6 +16,7 @@ import type {
   StudentProfile,
   TimetableSlot,
 } from '../domain/types.js';
+import type { SavedCalendar } from '../domain/calendar-import.js';
 import { useRepositories } from '../repositories/context.js';
 
 interface ListLike<T> {
@@ -98,6 +99,11 @@ export function useSemesterSubjects(): CollectionState<SemesterSubject> {
 
 export function useBacklogs(): CollectionState<BacklogRecord> {
   return useCollection(useRepositories().backlogs);
+}
+
+/** Academic calendars a student imported, as structured events (M10A.7). */
+export function useCalendars(): CollectionState<SavedCalendar> {
+  return useCollection(useRepositories().calendars);
 }
 
 export interface ProfileState {

@@ -67,7 +67,7 @@ import { MetricStrip } from '../../components/ui/layout.js';
 import { DropdownMenu } from '../../components/ui/DropdownMenu.js';
 import { Sheet } from '../../components/ui/Sheet.js';
 import { newId, nowIso } from '../../lib/id.js';
-import { useProfile, useResults } from '../../hooks/useCollection.js';
+import { useCalendars, useProfile, useResults } from '../../hooks/useCollection.js';
 import { useSubjects } from '../../hooks/useReference.js';
 import { ResultImport } from './ResultImport.js';
 import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
@@ -89,6 +89,12 @@ function markText(value: number | null): string {
 
 export function ResultsPage() {
   const { items, loading, save, remove } = useResults();
+  /*
+   * Calendars live beside results because they arrive through the same upload.
+   * The panel routes a document by what it IS; the page just holds both sides
+   * of the store so the review can see what is already saved (M10A.7 §23).
+   */
+  const { items: calendars, save: saveCalendar } = useCalendars();
   const { profile } = useProfile();
   const { index } = useSubjectIndex();
   /** The result being edited, `'new'` while adding, null when neither. */
@@ -156,8 +162,12 @@ export function ResultsPage() {
             profileId={profile?.id ?? asStudentProfileId('local')}
             schemeId={profile?.schemeId ?? ruleSet.schemeId}
             savedSemesters={items.map((item) => item.semester)}
+            savedCalendars={calendars}
             onSave={(result) => {
               void save(result);
+            }}
+            onSaveCalendar={(calendar) => {
+              void saveCalendar(calendar);
             }}
             onCancel={() => {
               setImporting(false);
