@@ -21,7 +21,6 @@
 
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/AppShell.js';
-import { Notice } from '../../components/ui/index.js';
 import { DocumentImportPanel } from './DocumentImportPanel.js';
 import styles from './import.module.css';
 
@@ -34,11 +33,11 @@ export function ImportPage() {
       />
 
       <div className={styles.stack}>
-        <Notice>
-          Documents are read on this device. Nothing is uploaded, and GradTools keeps only the
-          information you confirm — never the file itself.
-        </Notice>
-
+        {/*
+          The panel carries the privacy statement already. Repeating it here
+          would be the same sentence twice on one screen, which reads as
+          boilerplate and gets skipped — including by the person who needed it.
+        */}
         <DocumentImportPanel onDone={() => undefined} />
 
         {/*

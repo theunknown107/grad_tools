@@ -31,7 +31,14 @@ import {
 } from '../../hooks/useCollection.js';
 import { ResultImport } from '../results/ResultImport.js';
 
-export function DocumentImportPanel({ onDone }: { readonly onDone: () => void }) {
+export function DocumentImportPanel({
+  onDone,
+  title,
+}: {
+  readonly onDone: () => void;
+  /** Omitted where the page heading already says it. */
+  readonly title?: string | undefined;
+}) {
   const { profile } = useProfile();
   const { items: results, save: saveResult } = useResults();
   const { items: calendars, save: saveCalendar } = useCalendars();
@@ -55,6 +62,7 @@ export function DocumentImportPanel({ onDone }: { readonly onDone: () => void })
 
   return (
     <ResultImport
+      title={title}
       profileId={profile?.id ?? asStudentProfileId('local')}
       schemeId={profile?.schemeId ?? vtu2022RuleSet.schemeId}
       savedSemesters={results.map((result) => result.semester)}
