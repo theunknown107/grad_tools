@@ -28,6 +28,8 @@
 
 import { isWorthReviewing, type OcrPageResult } from '../domain/ocr-layout.js';
 import { parseResultCard, type ImportLine } from '../domain/result-import.js';
+import { classifyDocument } from '../domain/document-type.js';
+import { parseTimetable } from '../domain/timetable-import.js';
 import { decodeImage, normalizeContrast, OcrError } from './ocr.js';
 import { extractPdfLines, renderPdfPage, PdfReadError, type PlacedText } from './pdf-text.js';
 
@@ -57,7 +59,11 @@ export interface FileReading {
  * Injected rather than imported so the engine is started ONCE for a batch and
  * torn down when the batch ends — and so this module can be tested without one.
  */
-export type Recognize = (canvas: HTMLCanvasElement, page: number) => Promise<OcrPageResult>;
+export type Recognize = (
+  canvas: HTMLCanvasElement,
+  page: number,
+  options?: { readonly sparse?: boolean },
+) => Promise<OcrPageResult>;
 
 /**
  * A scan is at most this many pages before OCR is refused.
@@ -201,7 +207,49 @@ async function recognizeBothWays(
   context?.putImageData(original, 0, 0);
   const raw = await recognize(canvas, page);
 
-  return betterReading(stretched, raw);
+  return sparseIfGrid(canvas, page, recognize, betterReading(stretched, raw));
+}
+
+/**
+ * One more reading, in sparse mode, when the document turns out to be a grid.
+ *
+ * MEASURED, NOT ASSUMED. On a real college timetable the engine's default page
+ * segmentation returned the subject dictionary — the only place the grid's
+ * initials are defined — as EMPTY, and the whole timetable therefore produced
+ * no classes at all. In sparse mode the same photograph gave up seven of its
+ * eight dictionary rows.
+ *
+ * It is not the default because it is WORSE where the default is right: on the
+ * same real result cards, sparse mode dropped a nine-row card to four and
+ * produced one incorrect mark. An incorrect mark is the failure this whole
+ * workflow exists to prevent.
+ *
+ * So the extra pass is gated on the document actually being a timetable, and
+ * on the ordinary reading having produced a poor grid. A result card and a
+ * calendar never pay for it.
+ */
+async function sparseIfGrid(
+  canvas: HTMLCanvasElement,
+  page: number,
+  recognize: Recognize,
+  best: OcrPageResult,
+): Promise<OcrPageResult> {
+  if (classifyDocument(best.lines).type !== 'college_timetable') return best;
+
+  const before = parseTimetable(best.placed.map((item) => ({ ...item, page })));
+  if (before.dictionary.length > 0 && before.classes.length > 0) return best;
+
+  const sparse = await recognize(canvas, page, { sparse: true });
+  const after = parseTimetable(sparse.placed.map((item) => ({ ...item, page })));
+
+  /*
+   * More classes wins, then more dictionary rows. Both are things a student can
+   * actually use; word count is not, and confidence least of all.
+   */
+  if (after.classes.length !== before.classes.length) {
+    return after.classes.length > before.classes.length ? sparse : best;
+  }
+  return after.dictionary.length > before.dictionary.length ? sparse : best;
 }
 
 /**

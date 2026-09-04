@@ -59,6 +59,10 @@ GradTools_M9.4_Reference_Images/
 # Supplied academic reference images. REAL student/institutional PII —
 # inspected locally, never committed (see docs/12, docs/30).
 GradTools_Academic_References_5_Images/
+# Real academic documents the owner supplied as parser references. A result
+# card, a calendar and a timetable carry names, seat numbers, marks, faculty
+# contact details and roll ranges. They are read locally and never committed.
+GradTools_Academic_Calendar_and_Timetable_References/
 
 # OCR engine assets, copied out of node_modules by
 # apps/web/scripts/vendor-ocr-assets.mjs so they are served from our own origin

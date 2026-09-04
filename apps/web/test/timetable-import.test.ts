@@ -448,6 +448,49 @@ describe('a revision replaces, a duplicate does not', () => {
   });
 });
 
+describe('how much of the timetable actually came back', () => {
+  it('calls a full reading complete', () => {
+    const parsed = parseTimetable(
+      page(
+        MONDAY,
+        dayRow('TUESDAY', 640, ['MAT', 'PHY', null, 'POP', 'ESC', null, null, null]),
+        dayRow('WEDNESDAY', 620, ['ETC', 'ESC', null, 'MAT', 'POP', null, null, null]),
+      ),
+    );
+    expect(parsed.coverage.looksComplete).toBe(true);
+    expect(parsed.coverage.cellsResolved).toBe(parsed.coverage.cellsFound);
+  });
+
+  it('refuses to call a fragment a week', () => {
+    /*
+     * MEASURED ON A REAL PHOTOGRAPH. A reading can recover the dictionary,
+     * every day name and a handful of correct classes while losing most of the
+     * time columns — and the classes it did read are right. Presenting those as
+     * "your timetable" would be a week missing most of itself that looks whole,
+     * which is worse than saying so (§26).
+     */
+    const thin = parseTimetable([
+      ...CONTEXT,
+      /* Only two columns of the header survived. */
+      at('10:00-10:55am', COLUMNS[0] as number, HEADER_Y),
+      at('10:55-11:50am', COLUMNS[1] as number, HEADER_Y),
+      ...dayRow('MONDAY', 660, ['ESC', 'MAT']),
+      ...DICTIONARY,
+    ]);
+
+    expect(thin.coverage.looksComplete).toBe(false);
+    expect(thin.warnings.join(' ')).toMatch(/only part of this timetable/i);
+  });
+
+  it('counts a class it could not identify as found but not resolved', () => {
+    const parsed = parseTimetable(
+      page(dayRow('MONDAY', 660, ['XYZ', 'MAT', null, 'PHY', 'POP', null, null, null])),
+    );
+    expect(parsed.coverage.cellsFound).toBe(4);
+    expect(parsed.coverage.cellsResolved).toBe(3);
+  });
+});
+
 describe('a document that is not a grid', () => {
   it('says the times could not be read rather than inventing a week', () => {
     const parsed = parseTimetable([at('Some notes about nothing in particular', 60, 700, 400)]);
