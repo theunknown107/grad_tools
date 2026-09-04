@@ -334,6 +334,26 @@ function readEffectiveFrom(text: string): string | null {
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
+/**
+ * The class this timetable is for, without whatever was printed beside it.
+ *
+ * `CLASS: I (E) CSBS SEMESTER I` and `TIME-TABLE (R2)` sit side by side on the
+ * real document, so they land on one reconstructed row and the class name
+ * swallows the revision label. That made two revisions of ONE class look like
+ * two different classes — and the older one stopped being recognised as older,
+ * which is exactly the check that stops a stale upload replacing a student's
+ * week (§13, §16).
+ */
+function readClassName(text: string): string | null {
+  const raw = /\bclass\s*[:\-–]\s*([^\n]{1,60})/i.exec(text)?.[1];
+  if (raw === undefined) return null;
+  const cut = raw.split(
+    /\bTIME\s*-?\s*TABLE\b|\bROOM\b|\bW\.?\s*E\.?\s*F\b|\bACADEMIC\s+YEAR\b/i,
+  )[0];
+  const trimmed = cut?.trim() ?? '';
+  return trimmed === '' ? null : trimmed;
+}
+
 function readContext(text: string): TimetableContext {
   const semesterMatch =
     /\bsemester\s*[:\-–]?\s*([1-8])\b/i.exec(text) ??
@@ -356,7 +376,7 @@ function readContext(text: string): TimetableContext {
         })();
 
   return {
-    className: /\bclass\s*[:\-–]\s*([^\n]{1,40})/i.exec(text)?.[1]?.trim() ?? null,
+    className: readClassName(text),
     semester,
     academicYear,
     /* `TIME-TABLE (R2)`. The label the document gave its own revision (§13). */
