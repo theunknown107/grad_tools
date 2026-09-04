@@ -265,7 +265,15 @@ export function timetablePdf({
     const y = 560 - index * 24;
     placed.push({ text: day, x: 50, y });
     cells.forEach((cell, column) => {
-      if (cell !== null) placed.push({ text: cell, x: xs[column], y });
+      if (cell === null) return;
+      /*
+       * A MERGED CELL'S TEXT IS CENTRED ACROSS THE COLUMNS IT COVERS, which is
+       * how the real document prints its lab, and it is what tells a reader the
+       * cell spans them. Placing it at the left column's own x would make it
+       * look like an ordinary one-column entry.
+       */
+      const spans = /\bLAB\b/i.test(cell);
+      placed.push({ text: cell, x: spans ? xs[column] + 45 : xs[column], y });
     });
   });
 

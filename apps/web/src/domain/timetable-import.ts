@@ -129,7 +129,34 @@ export interface ParsedTimetable {
   /** Batches the grid mentions, e.g. `['E1', 'E2']`. Empty when it has none. */
   readonly batches: readonly string[];
   readonly conflicts: readonly TimetableConflict[];
+  /**
+   * How much of the grid actually came back, so the screen can say so.
+   *
+   * A timetable read from a photograph can lose most of its columns and still
+   * produce a handful of perfectly correct classes. Six right classes shown as
+   * "your week" is worse than an honest refusal: it looks complete, and a
+   * student would plan around the twenty-two that are missing (M10A.8.1 §26).
+   */
+  readonly coverage: TimetableCoverage;
   readonly warnings: readonly string[];
+}
+
+export interface TimetableCoverage {
+  /** Cells the grid produced, whether or not their subject was identified. */
+  readonly cellsFound: number;
+  /** Of those, the ones with a subject code — the only ones that can be saved. */
+  readonly cellsResolved: number;
+  /** Time columns read from the header. */
+  readonly slotsFound: number;
+  readonly dictionaryEntries: number;
+  /**
+   * Whether this reading is complete enough to stand as a student's week.
+   *
+   * FALSE is not a failure to hide. It is the difference between "here is your
+   * timetable" and "this is all that could be read from the picture", and only
+   * one of those is true when half the columns are missing.
+   */
+  readonly looksComplete: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -415,6 +442,14 @@ function slotAt(slots: readonly TimeSlot[], left: number, right: number): number
  * words, already normalised to the same coordinate convention. This does not
  * know or care which it was given (§8).
  */
+const EMPTY_COVERAGE: TimetableCoverage = {
+  cellsFound: 0,
+  cellsResolved: 0,
+  slotsFound: 0,
+  dictionaryEntries: 0,
+  looksComplete: false,
+};
+
 export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
   const warnings: string[] = [];
   if (placed.length === 0) {
@@ -432,6 +467,7 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
       classes: [],
       batches: [],
       conflicts: [],
+      coverage: EMPTY_COVERAGE,
       warnings: ['Nothing could be read from this document.'],
     };
   }
@@ -450,33 +486,119 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
    * document with a logo, a title block or a stamp above the grid still works
    * (§18).
    */
+  /*
+   * THE HEADER WRAPS. On the real document a column is printed as
+   *
+   *     10:00 -
+   *     10:55am
+   *
+   * so a range lives across two or three PRINTED LINES, not one. Scanning row
+   * by row found the single column narrow enough to fit on one line and missed
+   * the other seven — two slots out of eight, which left almost every cell with
+   * no column to belong to.
+   *
+   * So the header is looked for in a WINDOW of consecutive rows, and within
+   * that window text is grouped by the column it sits under before being read.
+   * A column's extent is the extent of everything that made it up, which is
+   * what later places the cells (M10A.8.1 §16).
+   */
+  /*
+   * THE HEADER WRAPS. On the real document a column is printed as
+   *
+   *     10:00 -
+   *     10:55am
+   *
+   * so a range lives across two or three PRINTED LINES, not one. Scanning row
+   * by row found the single column narrow enough to fit on one line and missed
+   * the other seven — two slots of eight, which left almost every cell with no
+   * column to belong to.
+   *
+   * The header is therefore a BLOCK of consecutive rows, identified by what
+   * they contain rather than by where they are: rows carrying a clock fragment
+   * and no day name. A day row ends the block, which is what stops the window
+   * swallowing Monday.
+   */
+  const CLOCK = /\d{1,2}[:.]\d{2}/;
+  const isHeaderRow = (index: number) => {
+    const row = rows[index];
+    if (row === undefined) return false;
+    const text = row.map((item) => item.text).join(' ');
+    if (!CLOCK.test(text)) return false;
+    return !row.some(
+      (item) => DAY_NAMES[item.text.replace(/[^A-Za-z]/g, '').toLowerCase()] !== undefined,
+    );
+  };
+
   let headerIndex = -1;
   let headerSlots: TimeSlot[] = [];
-  rows.forEach((row, index) => {
-    const found: TimeSlot[] = [];
+
+  for (let index = 0; index < rows.length; index += 1) {
+    if (!isHeaderRow(index)) continue;
+    let last = index;
+    while (last + 1 < rows.length && isHeaderRow(last + 1)) last += 1;
+
     /*
-     * A header cell may be split across several runs — `10:00 -` then
-     * `10:55am` — so neighbouring runs are joined before being read, and the
-     * column's extent is the extent of everything that made it up.
+     * BLANK RUNS ARE NOT COLUMNS. A PDF is full of zero-content positioning
+     * runs, and pdf.js reports them with a width that spans the gap they were
+     * emitted to cross. Letting them into the column grouping bridged every gap
+     * in the header and merged seven time columns into one — eight slots became
+     * two, and almost every cell lost the column it belonged to.
+     *
+     * The line reader already drops them for the same reason; the column reader
+     * had not learned it yet.
      */
-    for (let i = 0; i < row.length; i += 1) {
-      for (let span = 1; span <= 3 && i + span <= row.length; span += 1) {
-        const group = row.slice(i, i + span);
-        const text = group.map((item) => item.text).join(' ');
-        const slot = readSlot(text);
-        if (slot === null) continue;
-        const left = Math.min(...group.map((item) => item.x));
-        const right = Math.max(...group.map((item) => item.x + item.width));
-        found.push({ ...slot, left, right, isBreak: false });
-        i += span - 1;
-        break;
-      }
+    const block = rows
+      .slice(index, last + 1)
+      .flat()
+      .filter((item) => item.text.trim() !== '');
+
+    /*
+     * Grouped by horizontal overlap rather than exact position: the halves of
+     * `10:00 -` and `10:55am` sit under one another but rarely at the same x,
+     * and a column is where they overlap.
+     */
+    const byColumn: PlacedLike[][] = [];
+    /*
+     * STRICT OVERLAP, not a tolerance. Allowing a few pixels of slack was
+     * measured on the real photograph and made things WORSE — six readable
+     * classes fell to three — because neighbouring columns on a dense timetable
+     * are close enough that any slack merges them, and a merged column reads as
+     * no time range at all.
+     */
+    for (const item of [...block].sort((a, b) => a.x - b.x)) {
+      const group = byColumn.find((candidate) => {
+        const left = Math.min(...candidate.map((member) => member.x));
+        const right = Math.max(...candidate.map((member) => member.x + member.width));
+        return item.x <= right && item.x + item.width >= left;
+      });
+      if (group === undefined) byColumn.push([item]);
+      else group.push(item);
     }
+
+    const found: TimeSlot[] = [];
+    for (const group of byColumn) {
+      /* Reading order within the column: top line first, then left to right. */
+      const text = [...group]
+        .sort((a, b) => b.y - a.y || a.x - b.x)
+        .map((item) => item.text)
+        .join(' ');
+      const slot = readSlot(text);
+      if (slot === null) continue;
+      found.push({
+        ...slot,
+        left: Math.min(...group.map((item) => item.x)),
+        right: Math.max(...group.map((item) => item.x + item.width)),
+        isBreak: false,
+      });
+    }
+
     if (found.length > headerSlots.length) {
       headerSlots = found;
-      headerIndex = index;
+      /* Day rows are searched below the header's LAST line, not its first. */
+      headerIndex = last;
     }
-  });
+    index = last;
+  }
 
   if (headerSlots.length < 2) {
     return {
@@ -486,6 +608,7 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
       classes: [],
       batches: [],
       conflicts: [],
+      coverage: { ...EMPTY_COVERAGE, dictionaryEntries: dictionary.length },
       warnings: ['The times along the top of this timetable could not be read.'],
     };
   }
@@ -666,6 +789,41 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
     );
   }
 
+  /*
+   * WHETHER THIS IS A WEEK OR A FRAGMENT OF ONE.
+   *
+   * Measured against the real photograph: a reading can recover the dictionary,
+   * every day name and a handful of correct classes while losing five of the
+   * eight time columns — and the classes it did read are right. Presenting
+   * those as "your timetable" would be a week missing three quarters of itself
+   * that looks whole (§26).
+   *
+   * The thresholds are deliberately blunt: at least half the cells identified,
+   * at least four teaching columns, and classes on at least three days. A
+   * document that clears them is worth offering; one that does not is offered
+   * with the truth attached rather than withheld.
+   */
+  const resolved = teaching.filter((entry) => entry.subjectCode !== null).length;
+  const teachingSlots = withBreaks.filter((slot) => !slot.isBreak).length;
+  const daysSeen = new Set(teaching.map((entry) => entry.day)).size;
+  const coverage: TimetableCoverage = {
+    cellsFound: teaching.length,
+    cellsResolved: resolved,
+    slotsFound: withBreaks.length,
+    dictionaryEntries: dictionary.length,
+    looksComplete:
+      teaching.length > 0 &&
+      resolved >= Math.ceil(teaching.length / 2) &&
+      teachingSlots >= 4 &&
+      daysSeen >= 3,
+  };
+
+  if (!coverage.looksComplete && teaching.length > 0) {
+    warnings.push(
+      `Only part of this timetable could be read — ${String(resolved)} of ${String(teaching.length)} classes, across ${String(teachingSlots)} of its time columns. Check it against the printed timetable, or add the rest by hand.`,
+    );
+  }
+
   return {
     context,
     slots: withBreaks,
@@ -673,6 +831,7 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
     classes: teaching,
     batches: [...batches].sort(),
     conflicts,
+    coverage,
     warnings,
   };
 }
