@@ -102,6 +102,34 @@ describe('documents that are academic and still not supported', () => {
     expect(seen.reason).toMatch(/examination time table/i);
   });
 
+  it('names an exam schedule even when it scores higher as a timetable', () => {
+    /*
+     * FOUND ON A REAL DOCUMENT. A university exam schedule scored NINE on the
+     * class-timetable signals and seven on its own: its "Date, Day" column
+     * lists weekday names in sequence and its heading carries sitting times.
+     * The generic reading won and the product told the student it was a class
+     * timetable.
+     *
+     * Both answers refuse the document, so nothing unsafe happened — the
+     * message was simply untrue. A more specific signature now settles it, and
+     * these signals cannot fire on a weekly class timetable.
+     */
+    const looksLikeBoth = lines(
+      'Visvesvaraya Technological University, Belagavi',
+      'Draft Time Table for Eligible Students of B.E. Examinations, Dec.2026',
+      'Date, Day    III - Semester 2.00pm to 5.00pm    IV - Semester',
+      '23-01-2027, Friday    BQAT301',
+      '27-01-2027, Tuesday   BQAT302',
+      '28-01-2027, Wednesday BQAT303',
+      'Registrar (Evaluation)',
+    );
+
+    const seen = classifyDocument(looksLikeBoth);
+    expect(seen.type).toBe('unsupported');
+    expect(seen.reason).toMatch(/examination time table/i);
+    expect(seen.reason).not.toMatch(/class timetable/i);
+  });
+
   it('refuses a question paper rather than routing it anywhere', () => {
     const paper = lines(
       'Visvesvaraya Technological University, Belagavi',

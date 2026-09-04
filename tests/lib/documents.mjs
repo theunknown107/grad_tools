@@ -136,6 +136,106 @@ export function graded(prefix, count, { internal = 40, external = 30 } = {}) {
 }
 
 /**
+ * An academic calendar, as a text PDF.
+ *
+ * Shaped after a real one: a heading naming the term, a table of dated
+ * milestones, and — crucially — the paperwork that surrounds them. The
+ * notification number, the circular reference and the distribution list all
+ * carry dates and none of them is an event, which is the case the parser has
+ * to get right (M10A.7 §20).
+ */
+export function calendarPdf({
+  academicYear = '2026-27',
+  semester = 'V',
+  rows = [
+    ['Commencement of classes for the semester', '07 Sep 2026'],
+    ['Last date for registration without late fee', '11 Sep 2026'],
+    ['Semester end examinations', '05 Dec 2026 to 24 Dec 2026'],
+    ['Last working day of the semester', '04 Dec 2026'],
+  ],
+  withPaperwork = true,
+} = {}) {
+  const placed = [
+    { text: 'VISVESVARAYA TECHNOLOGICAL UNIVERSITY, BELAGAVI', x: 60, y: 750 },
+    { text: `ACADEMIC CALENDAR FOR THE ODD SEMESTER ${academicYear}`, x: 60, y: 730 },
+    { text: `${semester} SEMESTER B.E.`, x: 60, y: 712 },
+    { text: 'Event', x: 60, y: 685 },
+    { text: 'Date', x: 400, y: 685 },
+  ];
+
+  rows.forEach((row, index) => {
+    const y = 660 - index * 20;
+    placed.push({ text: row[0], x: 60, y });
+    placed.push({ text: row[1], x: 400, y });
+  });
+
+  if (withPaperwork) {
+    const y = 660 - rows.length * 20 - 30;
+    placed.push({ text: 'Note : As per Notification No. EX/BGM/598/2026-27/4718 dt. 05/12/2026', x: 60, y });
+    placed.push({ text: 'Ref No. EX/ACA/2026-27 dated 01/08/2026', x: 60, y: y - 18 });
+    placed.push({ text: 'Copy to: The Principal, all affiliated colleges — 01/09/2026', x: 60, y: y - 36 });
+  }
+
+  return makePdf([placed]);
+}
+
+/**
+ * A university examination schedule.
+ *
+ * Academic, dated, university-issued — and not one of the three documents
+ * GradTools reads. It exists here so the classifier's refusal can be proved
+ * against the document that most resembles a calendar without being one.
+ */
+export function examSchedulePdf() {
+  const placed = [
+    { text: 'Visvesvaraya Technological University, Belagavi', x: 60, y: 750 },
+    { text: 'Draft Time Table for Eligible Students of B.E. III & IV Examinations, Dec.2026', x: 60, y: 730 },
+    { text: 'Date, Day', x: 60, y: 700 },
+    { text: 'III - Semester', x: 260, y: 700 },
+    { text: 'IV - Semester', x: 420, y: 700 },
+  ];
+  [
+    ['23-01-2027, Friday', 'BQAT301', '--'],
+    ['27-01-2027, Tuesday', '--', 'BQOK407'],
+    ['28-01-2027, Wednesday', 'BQAT302', '--'],
+  ].forEach((row, index) => {
+    const y = 675 - index * 20;
+    placed.push({ text: row[0], x: 60, y });
+    placed.push({ text: row[1], x: 260, y });
+    placed.push({ text: row[2], x: 420, y });
+  });
+  placed.push({ text: 'Registrar (Evaluation)', x: 400, y: 580 });
+  return makePdf([placed]);
+}
+
+/** A class timetable. Recognised, and refused until the parser exists. */
+export function timetablePdf() {
+  const placed = [
+    { text: 'EXAMPLE INSTITUTE OF TECHNOLOGY', x: 60, y: 750 },
+    { text: 'CLASS TIME TABLE  W.E.F. 01/07/2026', x: 60, y: 730 },
+    { text: 'Day  09:00-09:55  10:00-10:55  11:00-11:55  LUNCH  02:00-02:55', x: 60, y: 700 },
+  ];
+  ['MONDAY  MAT  PHY  POP  ---  ESC', 'TUESDAY  PHY  MAT  ETC  ---  POP', 'WEDNESDAY  POP  ESC  MAT  ---  PHY'].forEach(
+    (row, index) => {
+      placed.push({ text: row, x: 60, y: 675 - index * 20 });
+    },
+  );
+  return makePdf([placed]);
+}
+
+/** An invoice. Not academic at all. */
+export function invoicePdf() {
+  return makePdf([
+    [
+      { text: 'ACME SUPPLIES LIMITED', x: 60, y: 700 },
+      { text: 'Invoice 4417', x: 60, y: 680 },
+      { text: 'Date: 03/06/2026', x: 60, y: 660 },
+      { text: 'Amount due: 12,400.00', x: 60, y: 640 },
+    ],
+  ]);
+}
+
+/**
  * A one-page PDF whose only content is a JPEG: a scan, or "print to PDF" from
  * a photo. It carries no text layer, so it must be rendered before it is read.
  *
@@ -193,6 +293,42 @@ export function scannedPdf(jpeg, width, height) {
 
   return Buffer.concat(chunks);
 }
+
+/**
+ * Draws an academic calendar IN THE BROWSER and returns a data URL.
+ *
+ * The picture path for a calendar is the SAME pipeline the result cards use —
+ * decode, recognise, classify, parse — so this exists to prove the shared
+ * route works end to end, not to test a second OCR engine (M10A.7 §41, §42).
+ */
+export const DRAW_CALENDAR = ({ academicYear, rows, mime }) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1000;
+  canvas.height = 560;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#111111';
+  ctx.textBaseline = 'top';
+  const line = (text, x, y, size = 20, weight = '') => {
+    ctx.font = `${weight} ${String(size)}px "DejaVu Sans", Arial, sans-serif`.trim();
+    ctx.fillText(text, x, y);
+  };
+
+  line('VISVESVARAYA TECHNOLOGICAL UNIVERSITY, BELAGAVI', 50, 40, 22, 'bold');
+  line(`ACADEMIC CALENDAR FOR THE ODD SEMESTER ${academicYear}`, 50, 80, 21);
+  line('V SEMESTER B.E.', 50, 118, 20);
+  line('Event', 50, 170, 20, 'bold');
+  line('Date', 640, 170, 20, 'bold');
+
+  rows.forEach((row, index) => {
+    const y = 220 + index * 46;
+    line(row[0], 50, y, 20);
+    line(row[1], 640, y, 20);
+  });
+
+  return canvas.toDataURL(mime ?? 'image/png');
+};
 
 /**
  * Draws a result card onto a canvas IN THE BROWSER and returns a data URL.

@@ -203,7 +203,21 @@ export function classifyDocument(lines: readonly ImportLine[]): Classification {
     return { type: 'unsupported', reason: NOT_ACADEMIC, signals: [] };
   }
 
-  if (exam.total >= MINIMUM && exam.total >= best.total) {
+  /*
+   * A MORE SPECIFIC SIGNATURE OUTRANKS A MORE GENERAL ONE, whatever the totals.
+   *
+   * Found on the real document: a university exam schedule scored NINE on the
+   * class-timetable signals and only seven on its own. It deserved both — its
+   * "Date, Day" column lists Friday, Tuesday, Wednesday in sequence, and its
+   * heading carries the sitting times — so the generic reading won and the
+   * product told the student it was a class timetable.
+   *
+   * Both answers refuse the document, so nothing unsafe happened; the message
+   * was simply untrue. The exam signals cannot fire on a weekly class
+   * timetable — no class timetable says "Draft Time Table", "Date, Day" or
+   * "Registrar (Evaluation)" — so once they clear the floor they settle it.
+   */
+  if (exam.total >= MINIMUM) {
     return {
       type: 'unsupported',
       reason:
@@ -212,7 +226,7 @@ export function classifyDocument(lines: readonly ImportLine[]): Classification {
     };
   }
 
-  if (paper.total >= MINIMUM && paper.total >= best.total) {
+  if (paper.total >= MINIMUM) {
     return {
       type: 'unsupported',
       reason: 'This looks like a question paper. GradTools does not read question papers.',

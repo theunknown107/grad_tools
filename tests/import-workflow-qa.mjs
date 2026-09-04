@@ -46,11 +46,16 @@ import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { Buffer } from 'node:buffer';
 import {
+  DRAW_CALENDAR,
   DRAW_CARD,
+  calendarPdf,
+  examSchedulePdf,
   graded,
+  invoicePdf,
   multiPageResultPdf,
   resultPdf,
   scannedPdf,
+  timetablePdf,
 } from './lib/documents.mjs';
 
 const DIST = resolve('apps/web/dist');
@@ -637,7 +642,171 @@ const run = async () => {
   );
 
   /* -------------------------------------------------------------------- */
-  /* 10. THE RAW FILE IS NOT KEPT                                         */
+  /* 10. THE DOCUMENT DECIDES WHERE IT GOES                               */
+  /* -------------------------------------------------------------------- */
+
+  /*
+   * Four documents in one action, none of them announced. The student picks no
+   * parser; each file is classified from its own contents and routed or
+   * refused (M10A.7 §7, §12, §39).
+   */
+  await openImport();
+  await feed(page, [
+    { name: 'a.pdf', mimeType: 'application/pdf', buffer: calendarPdf() },
+    { name: 'b.pdf', mimeType: 'application/pdf', buffer: examSchedulePdf() },
+    { name: 'c.pdf', mimeType: 'application/pdf', buffer: timetablePdf() },
+    { name: 'd.pdf', mimeType: 'application/pdf', buffer: invoicePdf() },
+  ]);
+
+  text = await mainText();
+  expect(/Academic calendar 2026-27/i.test(text), 'ROUTER: the calendar was not detected');
+  expect(
+    /Commencement of classes/i.test(text),
+    'ROUTER: the calendar was detected but its dates were not read',
+  );
+  expect(
+    /examination time table/i.test(text),
+    'ROUTER: a university exam schedule was not identified as one',
+  );
+  expect(
+    /cannot read timetables yet/i.test(text),
+    'ROUTER: a class timetable was not recognised as a timetable',
+  );
+  expect(
+    /could not identify this as a result card or an academic calendar/i.test(text),
+    'ROUTER: an invoice was not refused with a usable message',
+  );
+  /*
+   * THE PAPERWORK IS NOT EVENTS. The fixture carries a notification number, a
+   * reference and a distribution list, each with a date on it.
+   */
+  expect(
+    !/Notification No|Copy to|Ref No/i.test(text),
+    'ROUTER: a circular reference or distribution line became a calendar event',
+  );
+  expect(
+    !/2026-27\/4718/.test(text),
+    'ROUTER: a notification number was read as a date row',
+  );
+  await page.screenshot({ path: join(OUT, 'router-1280.png'), fullPage: true });
+
+  /* ---- saving a calendar, and refusing the same one twice ------------- */
+  const confirmCalendar = page.getByRole('button', { name: /confirm and save calendar/i }).first();
+  expect((await confirmCalendar.count()) > 0, 'CALENDAR: no way to confirm the calendar was shown');
+  await confirmCalendar.scrollIntoViewIfNeeded();
+  await confirmCalendar.click();
+  await page.waitForTimeout(700);
+
+  const storedCalendars = await page.evaluate(
+    () =>
+      new Promise((ok) => {
+        const open = globalThis.indexedDB.open('keyval-store', 1);
+        open.onsuccess = () => {
+          const request = open.result
+            .transaction('keyval', 'readonly')
+            .objectStore('keyval')
+            .get('gradtools:v1:anon:calendars');
+          request.onsuccess = () => ok(request.result ?? []);
+          request.onerror = () => ok([]);
+        };
+        open.onerror = () => ok([]);
+      }),
+  );
+  expect(storedCalendars.length === 1, `CALENDAR: expected 1 saved calendar, found ${String(storedCalendars.length)}`);
+  expect(
+    (storedCalendars[0]?.events ?? []).length === 4,
+    `CALENDAR: expected 4 dates, stored ${String((storedCalendars[0]?.events ?? []).length)}`,
+  );
+  /* The range stayed a range rather than becoming twenty daily rows. */
+  expect(
+    (storedCalendars[0]?.events ?? []).some((event) => event.endDate !== null),
+    'CALENDAR: the examination span was not stored as a range',
+  );
+  report.calendar = {
+    saved: storedCalendars.length,
+    events: (storedCalendars[0]?.events ?? []).length,
+    categories: (storedCalendars[0]?.events ?? []).map((event) => event.category),
+  };
+
+  await openImport();
+  await feed(page, [{ name: 'again.pdf', mimeType: 'application/pdf', buffer: calendarPdf() }]);
+  expect(
+    /already imported this calendar/i.test(await mainText()),
+    'CALENDAR: the same calendar was not recognised on a second upload',
+  );
+
+  /* ---- the same calendar as a PICTURE goes down the same route ------- */
+  /*
+   * A photographed or scanned calendar is decoded and recognised by the very
+   * pipeline the result cards use, then classified and parsed like any other
+   * document. This proves the shared route, not a second OCR engine (§41).
+   */
+  await openImport();
+  const calendarImage = await page.evaluate(DRAW_CALENDAR, {
+    academicYear: '2027-28',
+    rows: [
+      ['Commencement of classes for the semester', '06 Sep 2027'],
+      ['Last working day of the semester', '03 Dec 2027'],
+    ],
+    mime: 'image/jpeg',
+  });
+  const calendarJpeg = Buffer.from(calendarImage.split(',')[1], 'base64');
+  await feed(page, [
+    { name: 'scan.pdf', mimeType: 'application/pdf', buffer: scannedPdf(calendarJpeg, 1000, 560) },
+  ]);
+  const scannedText = await mainText();
+  expect(
+    /Academic calendar 2027-28/i.test(scannedText),
+    'CALENDAR: a scanned calendar was not detected through the shared OCR path',
+  );
+  expect(
+    /Commencement of classes/i.test(scannedText),
+    'CALENDAR: a scanned calendar produced no dates',
+  );
+  report.scannedCalendar = { detected: /Academic calendar 2027-28/i.test(scannedText) };
+  await page.screenshot({ path: join(OUT, 'calendar-scanned-1280.png'), fullPage: true });
+
+  /* ---- a reissued calendar is a revision, and is not resolved --------- */
+  await openImport();
+  await feed(page, [
+    {
+      name: 'revised.pdf',
+      mimeType: 'application/pdf',
+      buffer: calendarPdf({
+        rows: [
+          ['Commencement of classes for the semester', '14 Sep 2026'],
+          ['Last date for registration without late fee', '18 Sep 2026'],
+        ],
+      }),
+    },
+  ]);
+  const revisedText = await mainText();
+  expect(
+    /already have a calendar for this term/i.test(revisedText),
+    'CALENDAR: a second calendar for the same term was not flagged as a revision',
+  );
+  expect(
+    /2026-09-07 → 2026-09-14/.test(revisedText),
+    'CALENDAR: the revision did not name the date that moved',
+  );
+  await page.screenshot({ path: join(OUT, 'calendar-revision-1280.png'), fullPage: true });
+
+  /* ---- and the dashboard shows ONE upcoming date --------------------- */
+  await page.goto(`${ORIGIN}/`);
+  await page.waitForTimeout(800);
+  const dashboard = await mainText();
+  expect(
+    /Next on the calendar/i.test(dashboard),
+    'DASHBOARD: an imported calendar produced no upcoming date',
+  );
+  expect(
+    (dashboard.match(/Commencement of classes/gi) ?? []).length <= 1,
+    'DASHBOARD: more than one calendar date was shown',
+  );
+  await page.screenshot({ path: join(OUT, 'dashboard-calendar-1280.png'), fullPage: true });
+
+  /* -------------------------------------------------------------------- */
+  /* 11. THE RAW FILE IS NOT KEPT                                         */
   /* -------------------------------------------------------------------- */
 
   /*
@@ -753,7 +922,7 @@ const run = async () => {
   );
 
   /* -------------------------------------------------------------------- */
-  /* 11. NOTHING LEFT THE ORIGIN                                          */
+  /* 12. NOTHING LEFT THE ORIGIN                                          */
   /* -------------------------------------------------------------------- */
 
   const OWN = [ORIGIN, 'http://localhost:3001', 'data:', 'blob:'];
@@ -774,7 +943,7 @@ const run = async () => {
   await context.close();
 
   /* -------------------------------------------------------------------- */
-  /* 12. THE SWEEP: every width, the chosen theme                         */
+  /* 13. THE SWEEP: every width, the chosen theme                         */
   /* -------------------------------------------------------------------- */
 
   for (const vp of VIEWPORTS) {
