@@ -284,3 +284,71 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+/* -------------------------------------------------------------------------- */
+/* M10A.11 — the daily loop                                                    */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The class happening right now. Derived from the clock, never stored (§17),
+ * and deliberately quieter than the NEXT rail so the two do not compete when a
+ * class is both.
+ */
+.nowTag {
+  align-self: flex-start;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: var(--text-micro);
+  line-height: 1.6;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/*
+ * ALREADY ANSWERED (§28).
+ *
+ * The pressed button carries the state; this only tints the row so a week of
+ * marked classes is readable at a glance. Colour is never the only signal —
+ * `aria-pressed` is on the button itself, which is what a screen reader and a
+ * greyscale screen both read.
+ */
+.slot[data-marked] .slotSubject {
+  color: var(--text-muted);
+}
+
+.slot[data-marked='missed'] {
+  border-inline-start: 2px solid var(--danger);
+}
+
+.slot[data-marked='attended'] {
+  border-inline-start: 2px solid var(--success);
+}
+
+/*
+ * Which timetable this is (§23). One line, muted, above the tabs: the answer
+ * to "am I looking at R1 or R2" should be available without being the headline.
+ */
+.provenance {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+}
+
+/* Matches the attendance screen's undo, because it is the same one step. */
+.undoBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-block-start: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+}

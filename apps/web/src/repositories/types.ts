@@ -37,6 +37,7 @@ import type { NotificationPreferences, NotificationRecord } from '../domain/noti
 import type {
   AttendanceRecord,
   BacklogRecord,
+  ClassMark,
   SemesterRecord,
   SemesterResult,
   SemesterSubject,
@@ -141,6 +142,20 @@ export interface TimetableImportRepository {
   remove(id: string): Promise<void>;
 }
 
+/**
+ * What the student said happened to a scheduled class (M10A.11 §11-13).
+ *
+ * A GUARD, NOT A LEDGER. The attendance counts remain the only source of every
+ * number; this exists so a class cannot be counted twice and a mis-tap can be
+ * taken back, and it is pruned to a fortnight so it never becomes per-class
+ * history the product has to keep true.
+ */
+export interface ClassMarkRepository {
+  list(): Promise<ClassMark[]>;
+  upsert(mark: ClassMark): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
 export interface RepositoryBundle {
   readonly profile: StudentProfileRepository;
   readonly attendance: AttendanceRepository;
@@ -152,4 +167,5 @@ export interface RepositoryBundle {
   readonly notifications: NotificationRepository;
   readonly calendars: CalendarRepository;
   readonly timetableImports: TimetableImportRepository;
+  readonly classMarks: ClassMarkRepository;
 }

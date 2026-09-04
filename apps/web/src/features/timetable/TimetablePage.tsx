@@ -10,8 +10,13 @@
  * No institutional synchronisation exists — slots are entered by the student.
  */
 
-import { useMemo, useState } from 'react';
-import { WEEKDAYS, type TimetableSlot, type Weekday } from '../../domain/types.js';
+import { useMemo, useRef, useState } from 'react';
+import {
+  WEEKDAYS,
+  type AttendanceRecord,
+  type TimetableSlot,
+  type Weekday,
+} from '../../domain/types.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
 import { IslandTabs, IslandTabPanel } from '../../components/ui/IslandTabs.js';
@@ -24,15 +29,31 @@ import {
   SelectField,
   TextField,
 } from '../../components/ui/index.js';
-import { formatTime } from '../../lib/format.js';
+import { formatDay, formatTime, localDay } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
 import {
   useAttendance,
+  useCalendars,
+  useClassMarks,
   useProfile,
   useSemesterSubjects,
   useTimetable,
+  useTimetableImports,
 } from '../../hooks/useCollection.js';
-import { markClass, startRecord, type ClassOutcome } from '../../domain/attendance.js';
+import {
+  applyDelta,
+  countDelta,
+  markFor,
+  markId,
+  staleMarks,
+  startRecord,
+  type ClassOutcome,
+} from '../../domain/attendance.js';
+import {
+  activeCalendars,
+  holidayOn,
+  type CalendarEvent,
+} from '../../domain/calendar-import.js';
 import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
 import { displayTitle, resolveSubject } from '../../domain/subjects.js';
 import styles from './timetable.module.css';
@@ -58,24 +79,82 @@ export function TimetablePage() {
    * is the errand this removes.
    */
   const { items: attendance, save: saveAttendance } = useAttendance();
+  const { items: marks, save: saveMark, remove: removeMark } = useClassMarks();
+  const { items: calendars } = useCalendars();
+  const { items: imports } = useTimetableImports();
 
-  const markToday = (subjectCode: string, outcome: ClassOutcome) => {
-    const code = subjectCode.replace(/\s+/g, '').toUpperCase();
-    const existing = attendance.find(
-      (record) => record.subjectCode.replace(/\s+/g, '').toUpperCase() === code,
-    );
+  /* The day the student is standing in, not the day UTC is having (§13, §19). */
+  const today = localDay();
+
+  /*
+   * CALENDAR SAYS WHEN, TIMETABLE SAYS WHAT (§20). Only the calendar in force
+   * for its term is consulted, so a superseded one cannot cancel a Monday
+   * (M10A.10 §7).
+   */
+  const holiday = holidayOn(activeCalendars(calendars), today);
+
+  /*
+   * -----------------------------------------------------------------------
+   * WHAT HAS ALREADY BEEN ANSWERED, READ WITHOUT WAITING FOR A RENDER (§13)
+   * -----------------------------------------------------------------------
+   *
+   * Two taps on Attended are one class. A tap, a walk to the dashboard and a
+   * tap on the way back is also one class. The stored mark settles both, but
+   * only once it has been read back - and a second click can arrive before
+   * React has re-rendered with the first one in it.
+   *
+   * So the intent is recorded synchronously in a ref the moment it is
+   * expressed, and every decision is read from there first. The ref is a
+   * write-through cache of the marks, not a second source: it is empty on
+   * mount and the stored marks answer everything it has not seen.
+   */
+  const decided = useRef(new Map<string, ClassOutcome | null>());
+  const outcomeOf = (slotId: string): ClassOutcome | null => {
+    const id = markId(today, slotId);
+    const pending = decided.current.get(id);
+    return pending !== undefined ? pending : (markFor(marks, today, slotId)?.outcome ?? null);
+  };
+
+  /* The same protection for the counts: two classes of one subject in a row. */
+  const counted = useRef(new Map<string, AttendanceRecord>());
+  const recordFor = (code: string): AttendanceRecord | undefined =>
+    counted.current.get(code) ??
+    attendance.find((record) => record.subjectCode.replace(/\s+/g, '').toUpperCase() === code);
+
+  const [undo, setUndo] = useState<{ readonly slot: TimetableSlot; readonly label: string } | null>(
+    null,
+  );
+
+  /**
+   * Move one scheduled class to a decision, or back out of one.
+   *
+   * `null` is "the student has not said", which is where a class starts and
+   * where Undo returns it to. Nothing here is automatic: a class the student
+   * never touches produces no mark and changes no count (§8, §10, §30).
+   */
+  const setOutcome = (slot: TimetableSlot, next: ClassOutcome | null) => {
+    const before = outcomeOf(slot.id);
+    /* Already there. A repeated tap is a repeated tap, not a second class. */
+    if (before === next) return;
+
+    const id = markId(today, slot.id);
+    decided.current.set(id, next);
+
+    const code = slot.subjectCode.replace(/\s+/g, '').toUpperCase();
+    const existing = recordFor(code);
+    const delta = countDelta(before, next);
     if (existing !== undefined) {
-      void saveAttendance(markClass(existing, outcome));
-      return;
-    }
-    /*
-     * No record yet: the first class of a subject the student has never opened
-     * the attendance screen for. The title is resolved through the subject
-     * index rather than typed again (M10A.1) — and falls back to the code,
-     * which is honest rather than blank.
-     */
-    void saveAttendance(
-      startRecord(
+      const updated = applyDelta(existing, delta);
+      counted.current.set(code, updated);
+      void saveAttendance(updated);
+    } else if (next !== null) {
+      /*
+       * The first class of a subject the student has never opened the
+       * attendance screen for. The title is resolved through the subject index
+       * rather than typed again (M10A.1) - and falls back to the code, which is
+       * honest rather than blank.
+       */
+      const created = startRecord(
         {
           id: newId(),
           profileId: profile?.id ?? asStudentProfileId('local'),
@@ -83,9 +162,29 @@ export function TimetablePage() {
           subjectCode: code,
           subjectTitle: displayTitle(resolveSubject(index, code), 'timetable') || code,
         },
-        outcome,
-      ),
-    );
+        next,
+      );
+      counted.current.set(code, created);
+      void saveAttendance(created);
+    }
+
+    if (next === null) {
+      void removeMark(id);
+      setUndo(null);
+      return;
+    }
+    void saveMark({
+      id,
+      profileId: profile?.id ?? asStudentProfileId('local'),
+      date: today,
+      slotId: slot.id,
+      subjectCode: code,
+      outcome: next,
+      markedAt: new Date().toISOString(),
+    });
+    /* A mark's job is done in a fortnight; nothing reads it after that (§44). */
+    for (const stale of staleMarks(marks, today)) void removeMark(stale.id);
+    setUndo({ slot, label: `${code} ${next}` });
   };
 
   const [day, setDay] = useState<Weekday>('Mon');
@@ -146,6 +245,34 @@ export function TimetablePage() {
 
   const activeIndex = WEEKDAYS.indexOf(activeDay);
 
+  /*
+   * -----------------------------------------------------------------------
+   * WHICH TIMETABLE AM I LOOKING AT? (§23, §24)
+   * -----------------------------------------------------------------------
+   *
+   * The revision label and the printed effective date were read at import and
+   * stored, and then shown nowhere - so a student holding a printed R2 had no
+   * way to tell whether the screen was R1 or R2 (M10A.10 §43).
+   *
+   * The classes on screen came from the most recent confirmed import, because
+   * confirming REPLACES the week rather than merging into it. That is the one
+   * whose provenance is true, and any stored import with a later effective date
+   * is a fact the student should see rather than one the screen settles quietly.
+   */
+  const source = useMemo(() => {
+    const sorted = [...imports].sort((a, b) => b.importedAt.localeCompare(a.importedAt));
+    const active = sorted[0];
+    if (active === undefined) return null;
+    const later =
+      sorted.find(
+        (candidate) =>
+          candidate.id !== active.id &&
+          candidate.effectiveFrom !== null &&
+          (active.effectiveFrom === null || candidate.effectiveFrom > active.effectiveFrom),
+      ) ?? null;
+    return { active, later };
+  }, [imports]);
+
   return (
     <>
       <PageHeader title="Timetable" subtitle="Your weekly schedule, stored on this device." />
@@ -165,6 +292,42 @@ export function TimetablePage() {
           disclosure at the end. Entry happens once a semester; consultation
           happens every morning.
         */}
+        {/*
+          COMPACT, AND NOT THE POINT OF THE SCREEN (§23). The student mainly
+          needs to know which timetable this is; one line answers it.
+        */}
+        {source !== null && items.length > 0 && (
+          <p className={styles.provenance}>
+            {[
+              source.active.className,
+              source.active.revision,
+              source.active.effectiveFrom !== null
+                ? `from ${formatDay(source.active.effectiveFrom)}`
+                : null,
+            ]
+              .filter((part): part is string => part !== null && part !== '')
+              .join(' · ')}
+          </p>
+        )}
+
+        {/* A timetable that is active but not yet in effect is not a mistake -
+            it is a fact the student is entitled to (§24). */}
+        {source?.active.effectiveFrom !== null &&
+          source !== null &&
+          source.active.effectiveFrom > today && (
+            <Notice tone="info">
+              These classes take effect on {formatDay(source.active.effectiveFrom)}.
+            </Notice>
+          )}
+
+        {source !== null && source.later !== null && (
+          <Notice tone="warning">
+            A timetable effective {formatDay(source.later.effectiveFrom as string)} was also
+            imported. These classes came from the one imported most recently
+            {source.active.revision !== null ? ` (${source.active.revision})` : ''}.
+          </Notice>
+        )}
+
         {items.length > 0 ? (
           <>
             <IslandTabs
@@ -182,9 +345,31 @@ export function TimetablePage() {
                 <TodayAgenda
                   slots={byDay.get(todayName) ?? []}
                   titleFor={(code) => displayTitle(resolveSubject(index, code), 'timetable')}
-                  onMark={markToday}
+                  outcomeOf={outcomeOf}
+                  holiday={holiday}
+                  onMark={setOutcome}
                   onRemove={remove}
                 />
+                {/*
+                  ONE STEP OF UNDO, WHICH IS THE STEP THAT GETS USED (§14, §29).
+                  A tap on the wrong row, or a class that turned out not to have
+                  happened, is taken back by reversing exactly what was applied
+                  — the same arithmetic backwards, so nothing has to remember a
+                  copy of the record it replaced.
+                */}
+                {undo !== null && (
+                  <div className={styles.undoBar}>
+                    <span>Recorded {undo.label}.</span>
+                    <Button
+                      small
+                      onClick={() => {
+                        setOutcome(undo.slot, null);
+                      }}
+                    >
+                      Undo
+                    </Button>
+                  </div>
+                )}
               </IslandTabPanel>
             ) : null}
           </>
@@ -357,28 +542,48 @@ export function TimetablePage() {
 /**
  * Today, as an agenda.
  *
- * The primary view (M9.6F §10). Marks the class that has not finished yet as
- * NEXT, which is the single most useful thing this page can say and was
- * previously only on the dashboard.
+ * The primary view (M9.6F §10) and, since M10A.11, the place the daily loop
+ * actually happens: the class is in front of the student, so the answer to
+ * "did you go" is one tap rather than a trip to another screen to find the
+ * same subject.
  *
- * Times are compared as "HH:MM" strings, which sort correctly because the
- * format is zero-padded and 24-hour — no date arithmetic and no timezone to
- * get wrong.
+ * NOW and NEXT are DERIVED, never stored (§17). Times are compared as "HH:MM"
+ * strings, which sort correctly because the format is zero-padded and 24-hour —
+ * no date arithmetic and no timezone to get wrong.
  */
 function TodayAgenda({
   slots,
   titleFor,
+  outcomeOf,
+  holiday,
   onMark,
   onRemove,
 }: {
   readonly slots: readonly TimetableSlot[];
   readonly titleFor: (code: string) => string;
-  readonly onMark: (subjectCode: string, outcome: ClassOutcome) => void;
+  readonly outcomeOf: (slotId: string) => ClassOutcome | null;
+  /** The calendar's own holiday covering today, where it printed one (§19). */
+  readonly holiday: CalendarEvent | null;
+  readonly onMark: (slot: TimetableSlot, outcome: ClassOutcome | null) => void;
   readonly onRemove: (id: string) => Promise<void> | void;
 }) {
   const now = new Date();
   const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const next = slots.find((slot) => slot.endTime > clock);
+
+  /*
+   * THE CALENDAR OUTRANKS THE TIMETABLE ON A DAY THE COLLEGE IS SHUT (§19,
+   * §20). A timetable says what a Monday contains; the calendar says whether
+   * this Monday is one. Showing the classes anyway would invite a student to
+   * record attendance for a class that could not have happened.
+   */
+  if (holiday !== null) {
+    return (
+      <EmptyState title="No classes today" icons={['info']}>
+        {holiday.title} — from your academic calendar.
+      </EmptyState>
+    );
+  }
 
   if (slots.length === 0) {
     return (
@@ -396,8 +601,10 @@ function TodayAgenda({
           slot={slot}
           title={titleFor(slot.subjectCode)}
           isNext={slot.id === next?.id}
+          isNow={slot.startTime <= clock && clock < slot.endTime}
+          outcome={outcomeOf(slot.id)}
           onMark={(outcome) => {
-            onMark(slot.subjectCode, outcome);
+            onMark(slot, outcome);
           }}
           onRemove={() => void onRemove(slot.id)}
         />
@@ -411,15 +618,20 @@ function SlotItem({
   title,
   onMark,
   onRemove,
+  outcome = null,
   isNext = false,
+  isNow = false,
 }: {
   slot: TimetableSlot;
   /** Resolved by code from the student's own records. '' when nothing names it. */
   title: string;
   /** Only today's agenda offers this: marking a class in next week's grid is a guess. */
-  onMark?: ((outcome: ClassOutcome) => void) | undefined;
+  onMark?: ((outcome: ClassOutcome | null) => void) | undefined;
   onRemove: () => void;
+  /** What the student has already said about this class today, if anything. */
+  outcome?: ClassOutcome | null;
   isNext?: boolean;
+  isNow?: boolean;
 }) {
   /*
    * The code leads when it is all there is, and the name leads when one is
@@ -428,10 +640,12 @@ function SlotItem({
    */
   const named = title !== '' && title !== slot.subjectCode;
   return (
-    <li className={styles.slot} data-next={isNext}>
+    <li className={styles.slot} data-next={isNext} data-now={isNow} data-marked={outcome ?? undefined}>
       <div className={styles.slotTime}>
         <span>{formatTime(slot.startTime)}</span>
         <span className={styles.slotTimeEnd}>{formatTime(slot.endTime)}</span>
+        {/* DERIVED, never stored (§17). It stops being true a minute later. */}
+        {isNow && <span className={styles.nowTag}>Now</span>}
       </div>
       <div className={styles.slotBody}>
         <span className={styles.slotSubject}>{named ? title : slot.subjectCode}</span>
@@ -446,8 +660,15 @@ function SlotItem({
       */}
       {onMark !== undefined && (
         <span className={styles.slotActions}>
+          {/*
+            `aria-pressed` IS THE MARKED STATE (§28). A student must not have to
+            remember what they tapped, and a screen reader must not have to
+            guess it from a colour. Pressing the button that is already pressed
+            is a no-op upstream, so a double tap cannot become a second class.
+          */}
           <Button
             small
+            aria-pressed={outcome === 'attended'}
             aria-label={`Mark ${slot.subjectCode} attended`}
             onClick={() => {
               onMark('attended');
@@ -457,6 +678,7 @@ function SlotItem({
           </Button>
           <Button
             small
+            aria-pressed={outcome === 'missed'}
             aria-label={`Mark ${slot.subjectCode} missed`}
             onClick={() => {
               onMark('missed');
