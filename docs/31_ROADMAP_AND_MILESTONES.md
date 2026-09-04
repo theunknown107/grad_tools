@@ -1634,3 +1634,55 @@ re-run clean; no cross-routing between the three document types.
   allowlist and neither is on it.
 - **Light theme** remains as recorded — the next dedicated frontend milestone,
   untouched here.
+
+## 31.36 M10A.8.1 — Real-world timetable image extraction · ✅ **DELIVERED**
+
+M10A.8 left one honest gap: a real photographed timetable was detected and then
+produced **zero classes**. It now produces **twelve**, and says plainly that
+twelve is not all of them.
+
+### What was actually wrong
+
+Three causes, each measured on the document (see §22.62): a header whose time
+ranges wrap across printed lines, blank positioning runs that bridged every gap
+between columns, and an engine reading a dense ruled table with the page
+segmentation meant for prose — which returned the subject dictionary empty, so
+every class was dropped for want of a code.
+
+### Measured result on the real photograph
+
+Dictionary **0 → 7 of 8**. Classes **0 → 12**. All six days. Revision, effective
+date and room correct throughout. Time columns 2 → 3 of 8, which is the
+remaining limit.
+
+### What it cost on the way
+
+Two regressions, both found only by re-running the real *result* cards:
+
+- A **DPI hint** added to silence a console warning changed what the engine read
+  and produced **one incorrect total**. Silencing a log must not alter a
+  student's marks.
+- **Restoring page segmentation to AUTO** was not Tesseract's real default of
+  `SINGLE_BLOCK`, and also changed the reading.
+
+Both cards are back to their exact baseline with **zero incorrect marks**.
+Sparse mode stays off the result path entirely — on those cards it dropped a
+nine-row card to four and produced an incorrect mark.
+
+### A partial read is labelled as one
+
+Twelve correct classes presented as "your week" is worse than an honest partial:
+it looks complete, and a student would plan around the ones that are missing.
+The parser reports coverage and the review says how much was read.
+
+### NOT VERIFIED
+
+- **A photographed timetable still cannot be imported as a complete week.**
+  Three of eight time columns are recovered, so most cells have no column to
+  belong to. Twelve classes of roughly twenty-eight is a partial import, and is
+  presented as one. The remaining limit is OCR text recovery on a dense ruled
+  header at 1536px, not the grid logic.
+- **Upscaling does not help** — measured at 1.5× and 2×, both worse, consistent
+  with the M10A.6B finding.
+- **Real device**: not tested.
+- **Light theme**: untouched, still the next dedicated frontend milestone.

@@ -2432,3 +2432,65 @@ subject table does not**. Without that table the grid's initials have nothing to
 resolve against, so every class is dropped for want of a subject code. Detection
 is real-document verified; extraction from a photographed timetable is **NOT
 VERIFIED** and is the honest limit of this milestone.
+
+## 22.62 What a photographed timetable actually gives up (M10A.8.1)
+
+The M10A.8 report recorded a real photographed timetable producing **zero
+classes**. This is what was wrong and what changed, measured on the document
+rather than reasoned about.
+
+| | Before | After |
+|---|---|---|
+| Dictionary rows | 0 of 8 | **7 of 8** |
+| Classes found | 0 | **12** |
+| Days recognised | — | **6 of 6** |
+| Revision, W.E.F., room | correct | correct |
+| Time columns | 2 of 8 | 3 of 8 |
+| Time to read | 24s | **7.6s** |
+
+### Three causes
+
+**The header wraps.** A column is printed as `10:00 -` above `10:55am`, so a
+range lives across two or three printed lines. Row-by-row scanning found the one
+column narrow enough to fit on a single line. The header is now a *block* of
+consecutive rows, identified by carrying a clock and no day name.
+
+**Blank runs are not columns.** pdf.js reports zero-content positioning runs with
+a width spanning the gap they cross; letting them into the column grouping
+bridged every gap and merged seven columns into one. The line reader already
+drops them — the column reader had not learned it.
+
+**The engine was reading a table as prose.** Its default page segmentation
+returned the subject dictionary empty, so every class was dropped for want of a
+code. Sparse mode returns seven of its eight rows.
+
+### Two regressions the real result cards caught
+
+Both were changes made *around* the fix, not by it, and both were found only by
+re-running the real cards:
+
+- A **DPI hint** added to silence `Estimating resolution as 185` changed what the
+  engine read — one gained row and **one incorrect total**. Silencing a log must
+  not alter a student's marks; it now applies only to the sparse pass.
+- **Restoring page segmentation to AUTO** afterwards looked harmless and was not
+  Tesseract's actual default of `SINGLE_BLOCK`. That also changed the reading.
+
+Both cards are back to their exact baseline: 4 and 8 rows, **zero incorrect
+marks**, 0 console errors.
+
+### Sparse mode is not the default, deliberately
+
+On the same real result cards, sparse mode dropped a nine-row card to four and
+produced an incorrect mark. It runs only when the document classifies as a
+timetable *and* the ordinary reading produced a poor grid. Result cards and
+calendars never pay for it.
+
+### A partial read says so
+
+`apps/web/test/timetable-import.test.ts` (33) now pins `coverage`. A photograph
+can give up a handful of perfectly correct classes and lose most of its columns,
+and twelve right classes shown as "your week" is worse than an honest partial —
+it looks complete, and a student would plan around the ones that are missing.
+
+**Browser QA: 84 checks, both themes, four widths, 0 axe / 0 overflow / 0
+console errors.** 1370 unit tests.
