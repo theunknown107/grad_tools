@@ -669,8 +669,8 @@ const run = async () => {
     'ROUTER: a university exam schedule was not identified as one',
   );
   expect(
-    /cannot read timetables yet/i.test(text),
-    'ROUTER: a class timetable was not recognised as a timetable',
+    /I \(E\) CSBS SEMESTER I/i.test(text),
+    'ROUTER: a class timetable was not detected and read',
   );
   expect(
     /could not identify this as a result card or an academic calendar/i.test(text),
@@ -734,6 +734,110 @@ const run = async () => {
     /already imported this calendar/i.test(await mainText()),
     'CALENDAR: the same calendar was not recognised on a second upload',
   );
+
+  /* -------------------------------------------------------------------- */
+  /* 11. A TIMETABLE BECOMES THE STUDENT'S WEEK                           */
+  /* -------------------------------------------------------------------- */
+
+  /*
+   * Imported on its own rather than relying on the router batch still being on
+   * screen: the calendar checks above navigate away, which clears the panel.
+   */
+  await openImport();
+  await feed(page, [{ name: 'week.pdf', mimeType: 'application/pdf', buffer: timetablePdf() }]);
+
+  /*
+   * The batch is the one question the document leaves open: a cell reading
+   * `PHYE1/POPE2` is two classes and only the student knows which half they
+   * are in (§23). Until it is answered, saving is refused.
+   */
+  const saveTimetable = page.getByRole('button', { name: /confirm and save timetable/i }).first();
+  expect((await saveTimetable.count()) > 0, 'TIMETABLE: no way to confirm the timetable');
+  expect(
+    await saveTimetable.isDisabled(),
+    'TIMETABLE: a timetable with split batches offered to save before a batch was chosen',
+  );
+
+  await page.getByLabel(/your batch/i).first().selectOption('E1');
+  await page.waitForTimeout(300);
+  await saveTimetable.scrollIntoViewIfNeeded();
+  await saveTimetable.click();
+  await page.waitForTimeout(800);
+
+  const readStore = (key) =>
+    page.evaluate(
+      (name) =>
+        new Promise((ok) => {
+          const open = globalThis.indexedDB.open('keyval-store', 1);
+          open.onsuccess = () => {
+            const request = open.result
+              .transaction('keyval', 'readonly')
+              .objectStore('keyval')
+              .get(name);
+            request.onsuccess = () => ok(request.result ?? []);
+            request.onerror = () => ok([]);
+          };
+          open.onerror = () => ok([]);
+        }),
+      key,
+    );
+
+  const slots = await readStore('gradtools:v1:anon:timetable');
+  expect(slots.length > 0, 'TIMETABLE: nothing was saved');
+  /* Breaks are time passing, not classes. None may reach the week (§19). */
+  expect(
+    !slots.some((slot) => /break|lunch/i.test(slot.subjectCode ?? '')),
+    'TIMETABLE: a break was stored as a class',
+  );
+  /* The batch-split cell gave this student PHY on Tuesday, not POP. */
+  const tuesday = slots.filter((slot) => slot.day === 'Tue');
+  expect(
+    tuesday.some((slot) => slot.subjectCode === 'BQHYS102'),
+    'TIMETABLE: batch E1 did not get its own class from the split cell',
+  );
+  expect(
+    !tuesday.some((slot) => slot.startTime === '10:00' && slot.subjectCode === 'BQOPS103'),
+    "TIMETABLE: batch E1 was given the other batch's class",
+  );
+  /* The lab written across two columns is ONE class, not two (§25). */
+  const lab = slots.find((slot) => slot.day === 'Thu' && slot.startTime === '15:10');
+  expect(lab?.endTime === '17:00', `TIMETABLE: the lab did not span its columns (${String(lab?.endTime)})`);
+
+  report.timetable = {
+    slots: slots.length,
+    days: [...new Set(slots.map((slot) => slot.day))],
+    labEnd: lab?.endTime ?? null,
+  };
+  await page.screenshot({ path: join(OUT, 'timetable-review-1280.png'), fullPage: true });
+
+  /* ---- the same timetable again is a duplicate ----------------------- */
+  await openImport();
+  await feed(page, [{ name: 'again.pdf', mimeType: 'application/pdf', buffer: timetablePdf() }]);
+  expect(
+    /already imported this timetable/i.test(await mainText()),
+    'TIMETABLE: the same timetable was not recognised on a second upload',
+  );
+
+  /* ---- an OLDER revision does not quietly take over ------------------ */
+  await openImport();
+  await feed(page, [
+    {
+      name: 'old.pdf',
+      mimeType: 'application/pdf',
+      buffer: timetablePdf({ revision: 'R1', effective: '01/07/2026' }),
+    },
+  ]);
+  expect(
+    /takes effect before the one you are already using/i.test(await mainText()),
+    'TIMETABLE: an older revision was not flagged as older',
+  );
+
+  /* ---- and today's classes appear without any manual entry ----------- */
+  await page.goto(`${ORIGIN}/timetable`);
+  await page.waitForTimeout(800);
+  const week = await mainText();
+  expect(/BQATS101|BQHYS102|BQSCK104B/.test(week), 'TIMETABLE: the week view shows no imported classes');
+  await page.screenshot({ path: join(OUT, 'timetable-week-1280.png'), fullPage: true });
 
   /* ---- the same calendar as a PICTURE goes down the same route ------- */
   /*
@@ -806,7 +910,7 @@ const run = async () => {
   await page.screenshot({ path: join(OUT, 'dashboard-calendar-1280.png'), fullPage: true });
 
   /* -------------------------------------------------------------------- */
-  /* 11. THE RAW FILE IS NOT KEPT                                         */
+  /* 12. THE RAW FILE IS NOT KEPT                                         */
   /* -------------------------------------------------------------------- */
 
   /*
@@ -922,7 +1026,7 @@ const run = async () => {
   );
 
   /* -------------------------------------------------------------------- */
-  /* 12. NOTHING LEFT THE ORIGIN                                          */
+  /* 13. NOTHING LEFT THE ORIGIN                                          */
   /* -------------------------------------------------------------------- */
 
   const OWN = [ORIGIN, 'http://localhost:3001', 'data:', 'blob:'];
@@ -943,7 +1047,7 @@ const run = async () => {
   await context.close();
 
   /* -------------------------------------------------------------------- */
-  /* 13. THE SWEEP: every width, the chosen theme                         */
+  /* 14. THE SWEEP: every width, the chosen theme                         */
   /* -------------------------------------------------------------------- */
 
   for (const vp of VIEWPORTS) {

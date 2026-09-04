@@ -28,7 +28,7 @@ import { Buffer } from 'node:buffer';
  * how a real producer emits a table — column by column — and joining text in
  * reading order is exactly the mistake the row reader exists to avoid.
  */
-export function makePdf(pages) {
+export function makePdf(pages, { width = 612, height = 792 } = {}) {
   const escape = (text) => text.replace(/([\\()])/g, '\\$1');
 
   const contents = pages.map(
@@ -60,7 +60,8 @@ export function makePdf(pages) {
     ...contents.map((content) => `<< /Length ${String(content.length)} >>\nstream\n${content}\nendstream`),
     ...pages.map(
       (_, index) =>
-        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${String(contentFirst + index)} 0 R >>`,
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${String(width)} ${String(height)}]` +
+        ` /Resources << /Font << /F1 3 0 R >> >> /Contents ${String(contentFirst + index)} 0 R >>`,
     ),
   ];
 
@@ -208,19 +209,87 @@ export function examSchedulePdf() {
   return makePdf([placed]);
 }
 
-/** A class timetable. Recognised, and refused until the parser exists. */
-export function timetablePdf() {
+/**
+ * A class timetable, laid out as a real one is.
+ *
+ * A GRID, not rows of text: each cell is placed under the time column it
+ * belongs to, because that is the only thing that tells the parser what hour a
+ * cell means. Shaped after the reference document — a header of time ranges,
+ * six day rows, break and lunch columns, batch-split cells, a lab across two
+ * columns, and a subject table at the foot that is the only place the initials
+ * are defined.
+ *
+ * EVERY VALUE IS SYNTHETIC: no real college, subject, room or person.
+ */
+export function timetablePdf({
+  revision = 'R2',
+  effective = '07/11/2026',
+  className = 'I (E) CSBS SEMESTER I',
+  monday = ['ESC', 'MAT', 'BREAK', 'PHY', 'POP', 'LUNCH', 'ETC', null],
+} = {}) {
+  /* Column x positions, one per time slot. */
+  const xs = [150, 250, 350, 440, 530, 620, 720, 820];
   const placed = [
-    { text: 'EXAMPLE INSTITUTE OF TECHNOLOGY', x: 60, y: 750 },
-    { text: 'CLASS TIME TABLE  W.E.F. 01/07/2026', x: 60, y: 730 },
-    { text: 'Day  09:00-09:55  10:00-10:55  11:00-11:55  LUNCH  02:00-02:55', x: 60, y: 700 },
+    { text: 'EXAMPLE INSTITUTE OF TECHNOLOGY', x: 60, y: 670 },
+    { text: `CLASS: ${className}`, x: 60, y: 652 },
+    { text: `TIME-TABLE (${revision})`, x: 420, y: 652 },
+    { text: 'ACADEMIC YEAR: 2026-27', x: 60, y: 634 },
+    { text: 'ROOM NO.: B205', x: 700, y: 634 },
+    { text: `W.E.F: ${effective}`, x: 700, y: 616 },
+    { text: 'DAY/TIME', x: 50, y: 590 },
   ];
-  ['MONDAY  MAT  PHY  POP  ---  ESC', 'TUESDAY  PHY  MAT  ETC  ---  POP', 'WEDNESDAY  POP  ESC  MAT  ---  PHY'].forEach(
-    (row, index) => {
-      placed.push({ text: row, x: 60, y: 675 - index * 20 });
-    },
-  );
-  return makePdf([placed]);
+
+  [
+    '10:00-10:55am',
+    '10:55-11:50am',
+    '11:50-12.10pm',
+    '12.10-1:05pm',
+    '1:05-02:00pm',
+    '2:00-03:10pm',
+    '03:10-04:05pm',
+    '04:05-05:00pm',
+  ].forEach((slot, index) => {
+    placed.push({ text: slot, x: xs[index], y: 590 });
+  });
+
+  const rows = [
+    ['MONDAY', monday],
+    ['TUESDAY', ['PHYE1/POPE2', null, 'BREAK', 'IDT', 'POP', 'LUNCH', null, null]],
+    ['WEDNESDAY', ['ETC', 'ESC', 'BREAK', 'MAT', 'POP', 'LUNCH', null, null]],
+    ['THURSDAY', ['PHYE2/POPE1', null, 'BREAK', 'PHY', 'ETC', 'LUNCH', 'MAT LAB(E1+E2)', null]],
+    ['FRIDAY', ['ETC', 'MAT', 'BREAK', 'PHY', 'ENG', 'LUNCH', 'ESC', null]],
+    ['SATURDAY', ['MAT', 'ICO', 'BREAK', 'PHY', 'ESC', 'LUNCH', null, null]],
+  ];
+
+  rows.forEach(([day, cells], index) => {
+    const y = 560 - index * 24;
+    placed.push({ text: day, x: 50, y });
+    cells.forEach((cell, column) => {
+      if (cell !== null) placed.push({ text: cell, x: xs[column], y });
+    });
+  });
+
+  /* The subject table: the ONLY place the grid's initials are defined. */
+  [
+    ['BQATS101', 'Mathematics-I for CSE Stream', 'MAT', 'Prof. Anita R', '2+2+2', '2+2+2'],
+    ['BQHYS102', 'Applied Physics for CSE stream', 'PHY', 'Prof. Bala V', '2+2+2', '2+2+2'],
+    ['BQOPS103', 'Principles of Programming', 'POP', 'Prof. Chandra M', '3+0+2', '2+0+2'],
+    ['BQSCK104B', 'Introduction to Electrical', 'ESC', 'Prof. Divya K', '4+0+0', '3+0+0'],
+    ['BQTCK105I', 'Introduction to Cyber Security', 'ETC', 'Dr. Esha G', '2+0+2', '2+0+2'],
+    ['BQNGK106', 'Communicative English', 'ENG', 'Prof. Farid S', '1+0+0', '1+0+0'],
+    ['BQCOK107', 'Indian Constitution', 'ICO', 'Adv. Gita D', '1+0+0', '1+0+0'],
+    ['BQDTK158', 'Innovation and Design Thinking', 'IDT', 'Prof. Hari C', '1+0+0', '1+0+0'],
+  ].forEach((row, index) => {
+    placed.push({ text: row.join('  '), x: 60, y: 400 - index * 20 });
+  });
+
+  /*
+   * LANDSCAPE, because a timetable is. Eight time columns do not fit across a
+   * portrait page, and text placed past the MediaBox is not merely off the
+   * edge of the design — it is not in the document at all, which is how the
+   * first version of this fixture silently lost half its grid.
+   */
+  return makePdf([placed], { width: 1000, height: 700 });
 }
 
 /** An invoice. Not academic at all. */
