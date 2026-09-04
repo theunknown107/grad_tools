@@ -55,6 +55,7 @@ import { formatGpa, formatPercent, formatTime } from '../../lib/format.js';
 import {
   useAttendance,
   useBacklogs,
+  useCalendars,
   useProfile,
   useResults,
   useSemesters,
@@ -62,6 +63,7 @@ import {
   useTimetable,
 } from '../../hooks/useCollection.js';
 import { buildSemesterViews, currentSemester, summariseBacklogs } from '../../domain/academics.js';
+import { daysUntil, nextEvent } from '../../domain/calendar-import.js';
 import { semesterSgpa } from '../../domain/results.js';
 import { LatestAnnouncements } from '../announcements/AnnouncementsPage.js';
 import styles from './dashboard.module.css';
@@ -159,6 +161,7 @@ export function DashboardPage() {
 
           <div className={styles.quietStack}>
             <Today timetable={timetable} subjects={semesterSubjects} />
+            <NextDate />
             <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
             <LatestAnnouncements />
             <Resources />
@@ -372,6 +375,62 @@ function Today({
       )}
     </Panel>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The next thing the calendar says                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * ONE upcoming date from the imported academic calendar.
+ *
+ * One, not ten (M10A.7 §32, §54). The student already has a calendar; what the
+ * dashboard can add is the next thing on it. A list of every date would be a
+ * worse copy of the document they uploaded.
+ *
+ * RENDERS NOTHING WHEN THERE IS NOTHING — no calendar imported, or every date
+ * on it already past. A panel that says "no upcoming dates" trains people to
+ * stop reading the region, exactly as `Attention` explains.
+ *
+ * The countdown is computed here and stored nowhere: "in 3 days" is true for
+ * one day, and a saved copy would be wrong by morning (§22).
+ */
+function NextDate() {
+  const { items: calendars } = useCalendars();
+
+  const today = new Date().toISOString().slice(0, 10);
+  const events = calendars.flatMap((calendar) => calendar.events);
+  const next = nextEvent(events, today);
+  if (next === null) return null;
+
+  const days = daysUntil(next, today);
+  const when =
+    days > 1
+      ? `in ${String(days)} days`
+      : days === 1
+        ? 'tomorrow'
+        : days === 0
+          ? 'today'
+          : 'under way';
+
+  return (
+    <Panel material="quiet" title="Next on the calendar" flush>
+      <Rows>
+        <Row
+          title={next.title}
+          meta={next.endDate === null ? formatDay(next.startDate) : `${formatDay(next.startDate)} – ${formatDay(next.endDate)}`}
+          trailing={when}
+        />
+      </Rows>
+    </Panel>
+  );
+}
+
+/** `2026-09-07` as `7 Sep`. The year is noise when the date is weeks away. */
+function formatDay(iso: string): string {
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
 /* -------------------------------------------------------------------------- */

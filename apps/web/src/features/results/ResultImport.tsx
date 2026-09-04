@@ -32,6 +32,14 @@ import type { Subject } from '@gradtools/shared-types';
 import type { ResultSubject, SemesterResult } from '../../domain/types.js';
 import { RESULT_STATUSES } from '../../domain/types.js';
 import { parseResultCard, rowToSubject, type ParsedRow } from '../../domain/result-import.js';
+import { classifyDocument } from '../../domain/document-type.js';
+import {
+  fingerprintOf,
+  parseAcademicCalendar,
+  type ParsedCalendar,
+  type SavedCalendar,
+} from '../../domain/calendar-import.js';
+import { CalendarReview } from './CalendarReview.js';
 import {
   blockingReason,
   groupBySemester,
@@ -87,6 +95,9 @@ interface FileState {
   /** Why it failed, in words a student can act on. Null while it has not. */
   readonly error: string | null;
   readonly file: ImportedFile | null;
+  /** Set instead of `file` when the document turned out to be a calendar. */
+  readonly calendar: ParsedCalendar | null;
+  readonly fingerprint: string | null;
   /** How this file was read. Carried to the review, not just logged. */
   readonly reading: FileReading | null;
 }
@@ -167,13 +178,17 @@ export function ResultImport({
   profileId,
   schemeId,
   savedSemesters,
+  savedCalendars,
   onSave,
+  onSaveCalendar,
   onCancel,
 }: {
   readonly profileId: ReturnType<typeof asStudentProfileId>;
   readonly schemeId: string;
   readonly savedSemesters: readonly number[];
+  readonly savedCalendars: readonly SavedCalendar[];
   readonly onSave: (result: SemesterResult) => void;
+  readonly onSaveCalendar: (calendar: SavedCalendar) => void;
   readonly onCancel: () => void;
 }) {
   /*
@@ -244,11 +259,42 @@ export function ResultImport({
       status: fileKind(file) === 'image' ? 'queued' : 'reading',
       error: null,
       file: null,
+      calendar: null,
+      fingerprint: null,
       reading: null,
     }));
     setFiles((current) => [...current, ...pending]);
 
+    /*
+     * THE DOCUMENT DECIDES WHERE IT GOES, not the student and not the filename.
+     *
+     * One upload surface, one extraction, then a classifier over the lines it
+     * produced. Asking a person "is this a result or a calendar?" pushes onto
+     * them a question the document already answers (M10A.7 §7, §12, §23).
+     */
     const store = (id: string, fileName: string, reading: FileReading) => {
+      const seen = classifyDocument(reading.lines);
+
+      if (seen.type === 'academic_calendar') {
+        patch(id, {
+          status: 'read',
+          reading,
+          calendar: parseAcademicCalendar(reading.lines, newId),
+          fingerprint: fingerprintOf(reading.lines),
+        });
+        return;
+      }
+
+      if (seen.type !== 'result') {
+        /*
+         * A timetable, an exam schedule, a question paper, an invoice. Refused
+         * with the classifier's own sentence, which says what the document
+         * looked like and what to do — never a parser error (§11, §75).
+         */
+        patch(id, { status: 'failed', error: seen.reason });
+        return;
+      }
+
       patch(id, {
         status: 'read',
         reading,
@@ -439,6 +485,25 @@ export function ResultImport({
             </li>
           ))}
         </ul>
+      )}
+
+      {/*
+        A CALENDAR REVIEWS BESIDE A RESULT, in the same panel. One upload
+        surface handles whatever the student dropped into it, and each document
+        gets the review its own kind needs (§23, §24).
+      */}
+      {files.map((entry) =>
+        entry.calendar === null || entry.fingerprint === null ? null : (
+          <CalendarReview
+            key={entry.id}
+            fileName={entry.fileName}
+            parsed={entry.calendar}
+            fingerprint={entry.fingerprint}
+            sourceKind={entry.reading?.source === 'ocr' ? 'ocr' : 'text'}
+            saved={savedCalendars}
+            onSave={onSaveCalendar}
+          />
+        ),
       )}
 
       {groups.map((group) => (

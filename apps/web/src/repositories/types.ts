@@ -31,6 +31,7 @@
  * be a second implementation of the domain.
  */
 
+import type { SavedCalendar } from '../domain/calendar-import.js';
 import type { NotificationPreferences, NotificationRecord } from '../domain/notifications.js';
 import type {
   AttendanceRecord,
@@ -111,6 +112,20 @@ export interface NotificationRepository {
  * API-backed bundle for signed-in students while keeping the local one for
  * anonymous use.
  */
+/**
+ * Saved academic calendars (M10A.7).
+ *
+ * A LIST, not a single record, because the same term can be reissued: a
+ * revision and the calendar it replaces are both facts, and which one is
+ * active is a question the student answers rather than one storage settles by
+ * overwriting.
+ */
+export interface CalendarRepository {
+  list(): Promise<SavedCalendar[]>;
+  upsert(calendar: SavedCalendar): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
 export interface RepositoryBundle {
   readonly profile: StudentProfileRepository;
   readonly attendance: AttendanceRepository;
@@ -120,4 +135,5 @@ export interface RepositoryBundle {
   readonly semesterSubjects: SemesterSubjectRepository;
   readonly backlogs: BacklogRepository;
   readonly notifications: NotificationRepository;
+  readonly calendars: CalendarRepository;
 }

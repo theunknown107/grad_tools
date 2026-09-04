@@ -19,6 +19,7 @@ import type {
   StudentProfile,
   TimetableSlot,
 } from '../src/domain/types.js';
+import type { SavedCalendar } from '../src/domain/calendar-import.js';
 import type { NotificationPreferences, NotificationRecord } from '../src/domain/notifications.js';
 import type { RepositoryBundle } from '../src/repositories/types.js';
 import { RepositoryProvider } from '../src/repositories/context.js';
@@ -31,6 +32,7 @@ export interface MemorySeed {
   semesters?: SemesterRecord[];
   semesterSubjects?: SemesterSubject[];
   backlogs?: BacklogRecord[];
+  calendars?: SavedCalendar[];
   notificationState?: NotificationRecord[];
   notificationPreferences?: NotificationPreferences | null;
 }
@@ -60,6 +62,7 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
   const semesters = listRepo<SemesterRecord>(seed.semesters ?? []);
   const semesterSubjects = listRepo<SemesterSubject>(seed.semesterSubjects ?? []);
   const backlogs = listRepo<BacklogRecord>(seed.backlogs ?? []);
+  const calendars = listRepo<SavedCalendar>(seed.calendars ?? []);
   let notificationState: NotificationRecord[] = [...(seed.notificationState ?? [])];
   let notificationPreferences: NotificationPreferences | null =
     seed.notificationPreferences ?? null;
@@ -82,6 +85,7 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
     semesters,
     semesterSubjects,
     backlogs,
+    calendars,
     notifications: {
       async listStates() {
         return notificationState;
@@ -108,6 +112,7 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
       semesters: semesters.peek,
       semesterSubjects: semesterSubjects.peek,
       backlogs: backlogs.peek,
+      calendars: calendars.peek,
       notificationState: () => notificationState,
       notificationPreferences: () => notificationPreferences,
     },
