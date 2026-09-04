@@ -1499,3 +1499,74 @@ database either. The harness now supplies its own feed and needs no database.
 - **Wrapped subject titles.** A title that wraps to a second line is read as its
   first line only. The mark columns are unaffected and the code — which is the
   subject's identity — is read correctly.
+
+## 31.34 M10A.7 — Automatic academic calendar import · ✅ **DELIVERED**
+
+**The change in kind:** GradTools stops asking a student which parser to use.
+One upload surface, one extraction, then a classifier over the lines it produced
+— because asking "is this a result or a calendar?" pushes onto a person a
+question the document already answers.
+
+### Wrong-file rejection is the feature, not the error path
+
+A file that is not one of the three supported documents is refused *with its own
+sentence*: an exam schedule is told it is an exam schedule, a class timetable is
+told the parser does not exist yet, a question paper is told GradTools does not
+read question papers, and anything else is offered manual entry. No parser
+error, no stack trace, no schema name.
+
+Classification is **deterministic and local** — signatures over extracted text,
+no model, no network, no new dependency. A lone signal can never carry a
+document, and two close readings are refused rather than guessed at.
+
+### What the calendar parser refuses to do
+
+**Most dates in an academic calendar are not events.** The notification number,
+the circular reference, the signature block and the distribution list all carry
+dates. A date is necessary and never sufficient: a row becomes an event only
+when it also carries a description.
+
+- A **range stays a range** — "05 Dec to 24 Dec" is one printed fact, not twenty.
+- A **category is read, never assumed**; `OTHER_ACADEMIC` beats a false label.
+- **Semester and academic year come from the document.** Where it does not print
+  them the review asks, because a calendar dated by the month it was uploaded in
+  would be a fact GradTools invented.
+- The **countdown is computed, never stored** — "in 3 days" is true for one day.
+
+### Duplicate, revision, conflict
+
+The same document again is recognised by a **fingerprint of its text**, so a
+renamed file is not a new calendar. A different document covering the same term
+is a **revision**: both are kept and the dates that moved are named. Neither is
+resolved silently — a reissued calendar and a wrong upload look identical from
+inside the parser, and only the student knows which they meant.
+
+### What a real document changed
+
+Run against the five real documents on this machine, one message was wrong: a
+university exam schedule scored higher on the generic class-timetable signals
+than on its own, so the product called it a timetable. Both answers refuse it,
+but the sentence was untrue. A more specific signature now settles it. **All
+five now route correctly and none reaches the wrong parser.**
+
+### Verification
+
+1337 unit tests (39 new). 73 browser checks in both themes at four widths.
+Result import, OCR, results, identity, interaction and visual harnesses all
+re-run clean.
+
+### NOT VERIFIED
+
+- **REAL-DOCUMENT VERIFIED = NOT VERIFIED for calendar extraction.** No real
+  academic calendar exists on this machine. The router is real-document
+  verified; the parser is synthetic-document verified only, against fixtures
+  shaped after the reference structure.
+- **Photographed timetables.** One of the two real timetable photographs does
+  not recognise well enough to be classified as a timetable, and is refused as
+  unidentifiable. The parser does not exist yet regardless.
+- **Calendars do not sync.** The sync collection list is an allowlist and this
+  is not on it — the right default until there is a reason to move a student's
+  term dates off their device. No migration was added.
+- **No dedicated import entry point.** Calendar import is reached through the
+  same panel as result import. A discoverable "add academic document" action
+  belongs with the light-theme pass rather than bolted on before it.
