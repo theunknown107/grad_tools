@@ -63,7 +63,16 @@ import {
   useTimetable,
 } from '../../hooks/useCollection.js';
 import { buildSemesterViews, currentSemester, summariseBacklogs } from '../../domain/academics.js';
-import { daysUntil, nextEvent } from '../../domain/calendar-import.js';
+import {
+  activeCalendars,
+  calendarConflicts,
+  daysUntil,
+  holidayOn,
+  nextEvent,
+  type CalendarConflict,
+  type CalendarEvent,
+  type SavedCalendar,
+} from '../../domain/calendar-import.js';
 import { semesterSgpa } from '../../domain/results.js';
 import { LatestAnnouncements } from '../announcements/AnnouncementsPage.js';
 import styles from './dashboard.module.css';
@@ -88,6 +97,7 @@ export function DashboardPage() {
   const { items: semesters } = useSemesters();
   const { items: semesterSubjects } = useSemesterSubjects();
   const { items: backlogs } = useBacklogs();
+  const { items: calendars } = useCalendars();
 
   const loading = attendanceLoading || resultsLoading || timetableLoading;
   const current = currentSemester(buildSemesterViews(semesters, results));
@@ -101,6 +111,15 @@ export function DashboardPage() {
     (subject) => semesterNumber === null || subject.semester === semesterNumber,
   );
   const outstanding = summariseBacklogs(backlogs).outstanding;
+
+  /*
+   * The calendar reaches the day view here rather than inside `Today`, so the
+   * two panels that read calendar data both take it from one place and cannot
+   * disagree about which calendars are in force.
+   */
+  const inForce = activeCalendars(calendars);
+  const holiday = holidayOn(inForce, new Date().toISOString().slice(0, 10));
+  const conflicts = calendarConflicts(calendars);
 
   return (
     <div className={styles.page}>
@@ -160,8 +179,8 @@ export function DashboardPage() {
           </section>
 
           <div className={styles.quietStack}>
-            <Today timetable={timetable} subjects={semesterSubjects} />
-            <NextDate />
+            <Today timetable={timetable} subjects={semesterSubjects} holiday={holiday} />
+            <NextDate calendars={inForce} conflicts={conflicts} />
             <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
             <LatestAnnouncements />
             <Resources />
@@ -320,9 +339,12 @@ function Snapshot({
 function Today({
   timetable,
   subjects,
+  holiday,
 }: {
   readonly timetable: readonly TimetableSlot[];
   readonly subjects: readonly SemesterSubject[];
+  /** The calendar's own holiday covering today, where it printed one (§18). */
+  readonly holiday: CalendarEvent | null;
 }) {
   const day = todayWeekday();
   const slots = timetable
@@ -352,7 +374,16 @@ function Today({
         </Link>
       }
     >
-      {slots.length === 0 ? (
+      {holiday !== null ? (
+        /*
+         * THE CALENDAR SAID SO, and nothing else did. This appears only for a
+         * row the document printed and the parser categorised as a holiday —
+         * no inference from the day of the week, and no guess from a gap
+         * between events (§18). The week's classes are unchanged; today simply
+         * is not one of the days they happen.
+         */
+        <Empty>{holiday.title} — no classes today.</Empty>
+      ) : slots.length === 0 ? (
         <Empty action={<Link to="/timetable">Add your timetable</Link>}>
           Nothing scheduled today.
         </Empty>
@@ -395,15 +426,26 @@ function Today({
  * The countdown is computed here and stored nowhere: "in 3 days" is true for
  * one day, and a saved copy would be wrong by morning (§22).
  */
-function NextDate() {
-  const { items: calendars } = useCalendars();
-
+function NextDate({
+  calendars,
+  conflicts,
+}: {
+  readonly calendars: readonly SavedCalendar[];
+  readonly conflicts: readonly CalendarConflict[];
+}) {
   const today = new Date().toISOString().slice(0, 10);
+  /*
+   * ONLY THE CALENDARS IN FORCE. Reading every saved one meant a calendar a
+   * later revision had replaced kept producing events, so a student who
+   * imported a corrected calendar was still shown the old date beside the new
+   * one with nothing to say which was which (M10A.10 §13, §45).
+   */
+  /* Already narrowed to the calendars in force by the page (§13, §45). */
   const events = calendars.flatMap((calendar) => calendar.events);
   const next = nextEvent(events, today);
-  if (next === null) return null;
+  if (next === null && conflicts.length === 0) return null;
 
-  const days = daysUntil(next, today);
+  const days = next === null ? 0 : daysUntil(next, today);
   const when =
     days > 1
       ? `in ${String(days)} days`
@@ -415,13 +457,30 @@ function NextDate() {
 
   return (
     <Panel material="quiet" title="Next on the calendar" flush>
-      <Rows>
-        <Row
-          title={next.title}
-          meta={next.endDate === null ? formatDay(next.startDate) : `${formatDay(next.startDate)} – ${formatDay(next.endDate)}`}
-          trailing={when}
-        />
-      </Rows>
+      {conflicts.length > 0 && (
+        /*
+         * SHOWN, NEVER RESOLVED. Two calendars for one term disagree about a
+         * date, and a reissue and a wrong upload look identical from here — so
+         * the student is told rather than quietly given one of the two (§12).
+         */
+        <div className={styles.conflict}>
+          <strong>Two calendars for this term disagree.</strong>{' '}
+          {conflicts.flatMap((conflict) => conflict.differences).join('; ')}
+        </div>
+      )}
+      {next !== null && (
+        <Rows>
+          <Row
+            title={next.title}
+            meta={
+              next.endDate === null
+                ? formatDay(next.startDate)
+                : `${formatDay(next.startDate)} – ${formatDay(next.endDate)}`
+            }
+            trailing={when}
+          />
+        </Rows>
+      )}
     </Panel>
   );
 }

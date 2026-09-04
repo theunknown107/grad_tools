@@ -55,6 +55,7 @@ import {
   multiPageResultPdf,
   resultPdf,
   scannedPdf,
+  semesterCalendarPdf,
   timetablePdf,
 } from './lib/documents.mjs';
 
@@ -960,6 +961,137 @@ const run = async () => {
   /* Manual entry remains available, and visibly second (§15). */
   expect(/by hand|manually/i.test(hub), 'HUB: no manual fallback is offered');
   await page.screenshot({ path: join(OUT, 'import-hub-1280.png'), fullPage: true });
+
+  /* -------------------------------------------------------------------- */
+  /* 11c. ONE SEMESTER, FROM THREE DOCUMENTS                              */
+  /* -------------------------------------------------------------------- */
+
+  /*
+   * THE WHOLE POINT OF THE PRODUCT, in one pass. A student uploads a calendar,
+   * a timetable and two result cards, and then opens GradTools to find their
+   * term already organised — dates, classes, marks and the figures that follow
+   * from them — without typing any of it twice (M10A.10 §4, §42, §43).
+   */
+  await page.evaluate(
+    () =>
+      new Promise((ok) => {
+        const open = globalThis.indexedDB.open('keyval-store', 1);
+        open.onsuccess = () => {
+          const store = open.result.transaction('keyval', 'readwrite').objectStore('keyval');
+          for (const key of ['results', 'calendars', 'timetable', 'timetableImports', 'attendance']) {
+            store.delete(`gradtools:v1:anon:${key}`);
+          }
+          ok(true);
+        };
+        open.onerror = () => ok(false);
+      }),
+  );
+
+  await openImport();
+  const semesterStart = Date.now();
+  await feed(page, [
+    { name: 'calendar.pdf', mimeType: 'application/pdf', buffer: semesterCalendarPdf() },
+    { name: 'week.pdf', mimeType: 'application/pdf', buffer: timetablePdf() },
+    { name: 's1.pdf', mimeType: 'application/pdf', buffer: resultPdf(1, rowsFor(1, 3)) },
+    { name: 's2.pdf', mimeType: 'application/pdf', buffer: resultPdf(2, rowsFor(2, 3)) },
+  ]);
+  report.timings.semesterFourDocumentsMs = Date.now() - semesterStart;
+
+  text = await mainText();
+  expect(/Academic calendar/i.test(text), 'SEMESTER: the calendar was not detected in the batch');
+  expect(/CSBS SEMESTER I/i.test(text), 'SEMESTER: the timetable was not detected in the batch');
+  expect(
+    (await page.locator('h3:has-text("Semester")').count()) >= 2,
+    'SEMESTER: both result cards were not offered for review',
+  );
+
+  /* Confirm all four, in the order a student would meet them. */
+  await page.getByRole('button', { name: /confirm and save calendar/i }).first().click();
+  await page.waitForTimeout(400);
+  await page.getByLabel(/your batch/i).first().selectOption('E1');
+  await page.waitForTimeout(200);
+  await page.getByRole('button', { name: /confirm and save timetable/i }).first().click();
+  await page.waitForTimeout(400);
+
+  /*
+   * Drained rather than indexed: confirming a semester replaces its button with
+   * a "Saved" pill, so the list shrinks under `nth()` and the second card never
+   * gets pressed. Always take the first one still offering to save.
+   */
+  for (let guard = 0; guard < 6; guard += 1) {
+    const confirm = page.getByRole('button', { name: /confirm and save result/i }).first();
+    if ((await confirm.count()) === 0) break;
+    await confirm.scrollIntoViewIfNeeded();
+    await confirm.click();
+    await page.waitForTimeout(600);
+  }
+
+  /* ---- and now the product, with nothing typed by hand ---------------- */
+  const surface = async (path) => {
+    await page.goto(`${ORIGIN}${path}`);
+    await page.waitForTimeout(700);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    if (overflow > 0) fail(`OVERFLOW ${path} after the semester import: ${String(overflow)}px`);
+    return mainText();
+  };
+
+  const organised = await surface('/');
+  expect(/Next on the calendar/i.test(organised), 'SEMESTER: the dashboard shows no calendar date');
+  expect(/Today/i.test(organised), 'SEMESTER: the dashboard shows no day view');
+  expect(/CGPA/i.test(organised), 'SEMESTER: the dashboard shows no academic standing');
+
+  const classes = await surface('/timetable');
+  expect(/BQATS101|BQHYS102|BQSCK104B/.test(classes), 'SEMESTER: the week view has no classes');
+  /* Attendance is markable from the classes themselves, not a second screen. */
+  expect(
+    (await page.getByRole('button', { name: /attended|missed/i }).count()) > 0,
+    'SEMESTER: today’s classes offer no way to record attendance',
+  );
+
+  const marks = await surface('/results');
+  expect(/SGPA|CGPA/i.test(marks), 'SEMESTER: Results shows no calculated figures');
+
+  const analytics = await surface('/analytics');
+  expect(
+    !/NaN|undefined|error/i.test(analytics),
+    'SEMESTER: Analytics is broken after a full semester import',
+  );
+
+  const degree = await surface('/semesters');
+  expect(/Semester 1\b/.test(degree), 'SEMESTER: the degree page has no imported semester');
+
+  const stored = await page.evaluate(
+    () =>
+      new Promise((ok) => {
+        const open = globalThis.indexedDB.open('keyval-store', 1);
+        open.onsuccess = () => {
+          const store = open.result.transaction('keyval', 'readonly').objectStore('keyval');
+          const out = {};
+          let pending = 4;
+          for (const key of ['results', 'calendars', 'timetable', 'timetableImports']) {
+            const request = store.get(`gradtools:v1:anon:${key}`);
+            request.onsuccess = () => {
+              out[key] = (request.result ?? []).length;
+              if (--pending === 0) ok(out);
+            };
+            request.onerror = () => {
+              out[key] = -1;
+              if (--pending === 0) ok(out);
+            };
+          }
+        };
+        open.onerror = () => ok({});
+      }),
+  );
+
+  /* No duplicates: one calendar, one active week, two results (§43). */
+  expect(stored.calendars === 1, `SEMESTER: ${String(stored.calendars)} calendars stored, expected 1`);
+  expect(stored.results === 2, `SEMESTER: ${String(stored.results)} results stored, expected 2`);
+  expect(stored.timetable > 0, 'SEMESTER: no timetable slots stored');
+  report.semester = stored;
+  await page.screenshot({ path: join(OUT, 'semester-dashboard.png'), fullPage: true });
 
   /* -------------------------------------------------------------------- */
   /* 12. THE RAW FILE IS NOT KEPT                                         */
