@@ -8,6 +8,7 @@
 import type {
   AttendanceRecord,
   BacklogRecord,
+  ClassMark,
   SemesterRecord,
   SemesterResult,
   SemesterSubject,
@@ -121,6 +122,7 @@ export function createLocalRepositories(scope: AccountScope): RepositoryBundle {
     backlogs: createListRepository<BacklogRecord>(scope, 'backlogs'),
     calendars: createListRepository<SavedCalendar>(scope, 'calendars'),
     timetableImports: createListRepository<SavedTimetable>(scope, 'timetableImports'),
+    classMarks: createListRepository<ClassMark>(scope, 'classMarks'),
     notifications,
   };
 }

@@ -61,6 +61,47 @@ export interface AttendanceRecord {
 }
 
 /**
+ * What the student said happened to ONE scheduled class on ONE day.
+ *
+ * Authority: M10A.11 §11, §12, §13, §28, §44
+ *
+ * ---------------------------------------------------------------------------
+ * THIS IS NOT A SECOND ATTENDANCE SYSTEM
+ * ---------------------------------------------------------------------------
+ *
+ * `AttendanceRecord` stays the only source of every attendance number. Nothing
+ * here is summed, averaged or shown as a percentage, and deleting the whole
+ * collection would change no figure the product displays.
+ *
+ * It exists because the counts genuinely cannot answer two questions the daily
+ * loop asks. "Have I already marked this class?" - without which a second tap,
+ * a re-render or a walk to another screen and back silently counts the same
+ * class twice. And "what did I just do?" - without which a mis-tap is
+ * permanent.
+ *
+ * It is deliberately NOT class history (M10A.11 §11, §12). Marks are pruned to
+ * a rolling fortnight, so this cannot accumulate into a per-class record the
+ * product then has to keep true. Per-class history remains unavailable, and
+ * that limitation is intended.
+ *
+ * The id is `${date}:${slotId}` rather than random: one scheduled class on one
+ * day is one document by construction, so a repeated write REPLACES rather than
+ * appends, whatever the caller does.
+ */
+export interface ClassMark {
+  readonly id: string;
+  readonly profileId: StudentProfileId;
+  /** The calendar day, 'YYYY-MM-DD', in the device's own timezone. */
+  readonly date: string;
+  /** The `TimetableSlot` this mark is about. */
+  readonly slotId: string;
+  /** Denormalised so a mark stays readable if the slot is edited or removed. */
+  readonly subjectCode: string;
+  readonly outcome: 'attended' | 'missed';
+  readonly markedAt: string;
+}
+
+/**
  * What a result card prints in its status column.
  *
  * OBSERVED, NOT DEFINED (OQ-049 §12). These six are the nomenclature block a

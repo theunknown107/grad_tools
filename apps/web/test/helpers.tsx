@@ -13,6 +13,7 @@ import type { ReactElement } from 'react';
 import type {
   AttendanceRecord,
   BacklogRecord,
+  ClassMark,
   SemesterRecord,
   SemesterResult,
   SemesterSubject,
@@ -34,6 +35,7 @@ export interface MemorySeed {
   semesterSubjects?: SemesterSubject[];
   backlogs?: BacklogRecord[];
   calendars?: SavedCalendar[];
+  classMarks?: ClassMark[];
   timetableImports?: SavedTimetable[];
   notificationState?: NotificationRecord[];
   notificationPreferences?: NotificationPreferences | null;
@@ -65,6 +67,7 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
   const semesterSubjects = listRepo<SemesterSubject>(seed.semesterSubjects ?? []);
   const backlogs = listRepo<BacklogRecord>(seed.backlogs ?? []);
   const calendars = listRepo<SavedCalendar>(seed.calendars ?? []);
+  const classMarks = listRepo<ClassMark>(seed.classMarks ?? []);
   const timetableImports = listRepo<SavedTimetable>(seed.timetableImports ?? []);
   let notificationState: NotificationRecord[] = [...(seed.notificationState ?? [])];
   let notificationPreferences: NotificationPreferences | null =
@@ -90,6 +93,7 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
     backlogs,
     calendars,
     timetableImports,
+    classMarks,
     notifications: {
       async listStates() {
         return notificationState;
@@ -118,6 +122,7 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
       backlogs: backlogs.peek,
       calendars: calendars.peek,
       timetableImports: timetableImports.peek,
+      classMarks: classMarks.peek,
       notificationState: () => notificationState,
       notificationPreferences: () => notificationPreferences,
     },

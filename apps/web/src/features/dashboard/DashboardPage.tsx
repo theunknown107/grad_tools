@@ -43,19 +43,22 @@ import {
   WEEKDAYS,
   type AttendanceRecord,
   type BacklogRecord,
+  type ClassMark,
   type SemesterResult,
   type SemesterSubject,
   type TimetableSlot,
   type Weekday,
 } from '../../domain/types.js';
+import { markFor } from '../../domain/attendance.js';
 import { Bar, Empty, MetricStrip, Row, Rows, Skeleton } from '../../components/ui/layout.js';
 import { Panel } from '../../components/ui/index.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
-import { formatGpa, formatPercent, formatTime } from '../../lib/format.js';
+import { formatGpa, formatPercent, formatTime, localDay } from '../../lib/format.js';
 import {
   useAttendance,
   useBacklogs,
   useCalendars,
+  useClassMarks,
   useProfile,
   useResults,
   useSemesters,
@@ -94,6 +97,7 @@ export function DashboardPage() {
   const { items: attendance, loading: attendanceLoading } = useAttendance();
   const { items: results, loading: resultsLoading } = useResults();
   const { items: timetable, loading: timetableLoading } = useTimetable();
+  const { items: marks } = useClassMarks();
   const { items: semesters } = useSemesters();
   const { items: semesterSubjects } = useSemesterSubjects();
   const { items: backlogs } = useBacklogs();
@@ -118,7 +122,7 @@ export function DashboardPage() {
    * disagree about which calendars are in force.
    */
   const inForce = activeCalendars(calendars);
-  const holiday = holidayOn(inForce, new Date().toISOString().slice(0, 10));
+  const holiday = holidayOn(inForce, localDay());
   const conflicts = calendarConflicts(calendars);
 
   return (
@@ -179,7 +183,12 @@ export function DashboardPage() {
           </section>
 
           <div className={styles.quietStack}>
-            <Today timetable={timetable} subjects={semesterSubjects} holiday={holiday} />
+            <Today
+              timetable={timetable}
+              subjects={semesterSubjects}
+              holiday={holiday}
+              marks={marks}
+            />
             <NextDate calendars={inForce} conflicts={conflicts} />
             <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
             <LatestAnnouncements />
@@ -340,11 +349,14 @@ function Today({
   timetable,
   subjects,
   holiday,
+  marks,
 }: {
   readonly timetable: readonly TimetableSlot[];
   readonly subjects: readonly SemesterSubject[];
   /** The calendar's own holiday covering today, where it printed one (§18). */
   readonly holiday: CalendarEvent | null;
+  /** What the student has already answered for today's classes (M10A.11 §35). */
+  readonly marks: readonly ClassMark[];
 }) {
   const day = todayWeekday();
   const slots = timetable
@@ -382,7 +394,7 @@ function Today({
          * between events (§18). The week's classes are unchanged; today simply
          * is not one of the days they happen.
          */
-        <Empty>{holiday.title} — no classes today.</Empty>
+        <Empty>{holiday.title} — no classes today. From your academic calendar.</Empty>
       ) : slots.length === 0 ? (
         <Empty action={<Link to="/timetable">Add your timetable</Link>}>
           Nothing scheduled today.
@@ -391,13 +403,23 @@ function Today({
         <Rows>
           {slots.map((slot) => {
             const title = nameFor(slot.subjectCode, subjects);
+            /*
+             * WHAT DID I MARK? (§35). Read-only here: the actions live on the
+             * timetable's Today, and answering the same question twice in two
+             * places is how the two come to disagree.
+             */
+            const marked = markFor(marks, localDay(), slot.id);
             return (
               <Row
                 key={slot.id}
                 lead={formatTime(slot.startTime)}
                 title={title ?? slot.subjectCode}
                 meta={title === null ? undefined : slot.subjectCode}
-                trailing={slot.room ?? undefined}
+                trailing={
+                  [slot.room, marked === null ? null : marked.outcome]
+                    .filter(Boolean)
+                    .join(' · ') || undefined
+                }
                 current={slot.id === nextSlot?.id}
               />
             );

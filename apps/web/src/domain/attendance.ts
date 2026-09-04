@@ -26,7 +26,7 @@
  * "what the student tapped".
  */
 
-import type { AttendanceRecord } from './types.js';
+import type { AttendanceRecord, ClassMark } from './types.js';
 
 /** What happened to one class. There is no third answer worth storing. */
 export type ClassOutcome = 'attended' | 'missed';
@@ -100,4 +100,91 @@ export function isCountable(record: AttendanceRecord): boolean {
     record.conducted >= 0 &&
     record.attended <= record.conducted
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The daily loop: one scheduled class, one decision                          */
+/* -------------------------------------------------------------------------- */
+
+/** One scheduled class on one day is one mark, whatever the caller does (§13). */
+export function markId(date: string, slotId: string): string {
+  return `${date}:${slotId}`;
+}
+
+/** The mark for a class on a day, or null where the student has not said. */
+export function markFor(
+  marks: readonly ClassMark[],
+  date: string,
+  slotId: string,
+): ClassMark | null {
+  const id = markId(date, slotId);
+  return marks.find((mark) => mark.id === id) ?? null;
+}
+
+/**
+ * What moving one class from `before` to `after` does to the two counters.
+ *
+ * `null` means "the student has not said". Every transition falls out of two
+ * facts — a class that was marked at all was CONDUCTED, and a class marked
+ * attended was ATTENDED — so this is subtraction rather than six cases:
+ *
+ *   unmarked → attended     +1 attended   +1 conducted
+ *   unmarked → missed        0            +1 conducted
+ *   attended → missed       -1 attended    0
+ *   missed   → attended     +1 attended    0
+ *   attended → unmarked     -1 attended   -1 conducted   (undo)
+ *   missed   → unmarked      0            -1 conducted   (undo)
+ *
+ * Undo is the same arithmetic backwards, which is why nothing needs to store a
+ * copy of the record it replaced.
+ */
+export function countDelta(
+  before: ClassOutcome | null,
+  after: ClassOutcome | null,
+): { readonly attended: number; readonly conducted: number } {
+  const attendedOf = (outcome: ClassOutcome | null) => (outcome === 'attended' ? 1 : 0);
+  const conductedOf = (outcome: ClassOutcome | null) => (outcome === null ? 0 : 1);
+  return {
+    attended: attendedOf(after) - attendedOf(before),
+    conducted: conductedOf(after) - conductedOf(before),
+  };
+}
+
+/**
+ * The record, moved by a delta.
+ *
+ * CLAMPED, because the counts are also editable by hand: a student who marks a
+ * class attended, then opens the attendance screen and types the totals down to
+ * zero, would otherwise undo their way to a negative record. Clamping keeps
+ * every result countable (`isCountable`) rather than trusting the arithmetic to
+ * be the only writer.
+ */
+export function applyDelta(
+  record: AttendanceRecord,
+  delta: { readonly attended: number; readonly conducted: number },
+): AttendanceRecord {
+  const conducted = Math.max(0, record.conducted + delta.conducted);
+  return {
+    ...record,
+    attended: Math.min(conducted, Math.max(0, record.attended + delta.attended)),
+    conducted,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** How long a mark is worth keeping. Long enough to look back over a week. */
+export const MARK_RETENTION_DAYS = 14;
+
+/**
+ * Marks that have outgrown their purpose (§44).
+ *
+ * A mark answers "have I already marked this?" for a class the student is
+ * looking at. A fortnight later nothing asks, and keeping it would turn a
+ * duplicate guard into the per-class history this deliberately is not.
+ */
+export function staleMarks(marks: readonly ClassMark[], today: string): ClassMark[] {
+  const cutoff = new Date(`${today}T00:00:00Z`);
+  cutoff.setUTCDate(cutoff.getUTCDate() - MARK_RETENTION_DAYS);
+  const oldest = cutoff.toISOString().slice(0, 10);
+  return marks.filter((mark) => mark.date < oldest);
 }

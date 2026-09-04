@@ -33,3 +33,25 @@ export function formatTime(value: string): string {
   const display = hour % 12 === 0 ? 12 : hour % 12;
   return `${String(display)}:${minute} ${suffix}`;
 }
+
+/**
+ * The calendar day a moment falls on WHERE THE STUDENT IS, as 'YYYY-MM-DD'.
+ *
+ * `toISOString().slice(0, 10)` is the obvious version and is wrong east of
+ * Greenwich for part of every day: at 00:30 in Belagavi it returns yesterday,
+ * so a holiday check reads the wrong date and today's classes would be marked
+ * against yesterday's key. The device's own year, month and day are what a
+ * student means by "today" (M10A.11 §13, §19).
+ */
+export function localDay(when: Date = new Date()): string {
+  const month = String(when.getMonth() + 1).padStart(2, '0');
+  const day = String(when.getDate()).padStart(2, '0');
+  return `${String(when.getFullYear())}-${month}-${day}`;
+}
+
+/** "2026-07-15" -> "15 Jul 2026". Returns the input where it is not a date. */
+export function formatDay(value: string): string {
+  const when = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(when.getTime())) return value;
+  return when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}

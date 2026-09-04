@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type {
   AttendanceRecord,
   BacklogRecord,
+  ClassMark,
   SemesterRecord,
   SemesterResult,
   SemesterSubject,
@@ -110,6 +111,16 @@ export function useCalendars(): CollectionState<SavedCalendar> {
 /** Which import produced the active timetable, and its revision (M10A.8). */
 export function useTimetableImports(): CollectionState<SavedTimetable> {
   return useCollection(useRepositories().timetableImports);
+}
+
+/**
+ * What the student said happened to a scheduled class (M10A.11).
+ *
+ * Not an attendance source. Every number still comes from `useAttendance`;
+ * this only says which classes have already been answered for.
+ */
+export function useClassMarks(): CollectionState<ClassMark> {
+  return useCollection(useRepositories().classMarks);
 }
 
 export interface ProfileState {
