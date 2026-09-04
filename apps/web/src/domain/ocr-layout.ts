@@ -102,6 +102,8 @@ export function wordsToPositioned(words: readonly OcrWord[], pageHeight: number)
 
 export interface OcrPageResult {
   readonly lines: readonly ImportLine[];
+  /** The same words, still positioned, for documents that are grids (M10A.8). */
+  readonly placed: readonly PositionedText[];
   /** Mean per-word confidence, 0-100. Null when the page produced no words. */
   readonly meanConfidence: number | null;
   readonly wordCount: number;
@@ -122,12 +124,14 @@ export function ocrPageToLines(
   page = 1,
 ): OcrPageResult {
   const usable = words.filter((word) => word.text.trim() !== '');
-  const lines = itemsToLines(wordsToPositioned(usable, pageHeight), page);
+  const positioned = wordsToPositioned(usable, pageHeight);
+  const lines = itemsToLines(positioned, page);
 
   const total = usable.reduce((sum, word) => sum + word.confidence, 0);
 
   return {
     lines,
+    placed: positioned,
     meanConfidence: usable.length === 0 ? null : total / usable.length,
     wordCount: usable.length,
     lowConfidenceWords: usable.filter((word) => word.confidence < LOW_CONFIDENCE).length,

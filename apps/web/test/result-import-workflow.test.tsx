@@ -44,6 +44,7 @@ vi.mock('../src/lib/pdf-text.js', () => ({
     const next = [...extractions.values()][0];
     return Promise.resolve({
       lines: next?.lines ?? [],
+      placed: [],
       pageCount: 1,
       hasTextLayer: next?.hasTextLayer ?? true,
     });
@@ -93,6 +94,8 @@ vi.mock('../src/lib/ocr.js', () => ({
         ocrCalls.recognised += 1;
         return Promise.resolve({
           lines: ocrLines.map((line) => ({ ...line, page })),
+          /* Boxes are what a grid needs; these tests are about lists. */
+          placed: [],
           meanConfidence: 91,
           wordCount: 60,
           lowConfidenceWords: 2,

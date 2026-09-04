@@ -51,6 +51,8 @@ export type StorageKey =
   | 'notificationPreferences'
   /** Academic calendars a student imported, as structured events (M10A.7). */
   | 'calendars'
+  /** Which import produced the active timetable, and its revision (M10A.8). */
+  | 'timetableImports'
   /** Sync bookkeeping: the cursor and the pending queue (M9 §40). */
   | 'syncState';
 

@@ -16,6 +16,7 @@ import type {
 } from '../../domain/types.js';
 import type { NotificationPreferences, NotificationRecord } from '../../domain/notifications.js';
 import type { SavedCalendar } from '../../domain/calendar-import.js';
+import type { SavedTimetable } from '../../domain/timetable-import.js';
 import { normalizeResult } from '../../domain/results.js';
 import type {
   NotificationRepository,
@@ -119,6 +120,7 @@ export function createLocalRepositories(scope: AccountScope): RepositoryBundle {
     semesterSubjects: createListRepository<SemesterSubject>(scope, 'semesterSubjects'),
     backlogs: createListRepository<BacklogRecord>(scope, 'backlogs'),
     calendars: createListRepository<SavedCalendar>(scope, 'calendars'),
+    timetableImports: createListRepository<SavedTimetable>(scope, 'timetableImports'),
     notifications,
   };
 }
