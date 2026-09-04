@@ -19,8 +19,8 @@ directory is part of `pnpm verify`.
 
 ```bash
 pnpm build                              # dist/ must be current — the harness serves it
-pnpm qa:visual:seeded                   # dark theme  → .qa-screenshots/
-SCHEME=light OUT=.qa-light pnpm qa:visual:seeded   # light theme → .qa-light/
+pnpm qa:visual:seeded                   # dark theme  → .qa/screenshots/
+SCHEME=light OUT=.qa/light pnpm qa:visual:seeded   # light theme → .qa/light/
 ```
 
 Both output directories are gitignored. Run it **twice, once per theme**: a palette can

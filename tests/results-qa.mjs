@@ -28,7 +28,7 @@
  * 390px to read the SEE row.
  *
  *   node tests/results-qa.mjs                 # dark
- *   SCHEME=light OUT=.qa-results-light node tests/results-qa.mjs
+ *   SCHEME=light OUT=.qa/results-light node tests/results-qa.mjs
  *
  * EVERY MARK BELOW IS INVENTED. The shapes come from real result cards; the
  * values do not, and no real academic record is used for QA.
@@ -41,7 +41,7 @@ import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve(process.env.OUT ?? '.qa-results');
+const OUT = resolve(process.env.OUT ?? '.qa/results');
 /*
  * 4322, the same port the other seeded harness uses — because it is the origin
  * the API's CORS allowlist carries. Two harnesses on one port is fine: they are

@@ -16,7 +16,7 @@
  *
  * So this harness runs the shipped pipeline against a document on disk and
  * scores it field by field. The document and the expected values live OUTSIDE
- * the repository, in a gitignored `.qa-real/truth.json` that the person running
+ * the repository, in a gitignored `.qa/real/truth.json` that the person running
  * this writes for their own card. Without that file the harness SKIPS and says
  * so — it never invents a document, and a green run on a machine that has none
  * is reported as "not verified" rather than as a pass.
@@ -38,8 +38,8 @@ import { existsSync } from 'node:fs';
 import { extname, join, resolve, basename } from 'node:path';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve(process.env.OUT ?? '.qa-real');
-const TRUTH = resolve(process.env.TRUTH ?? '.qa-real/truth.json');
+const OUT = resolve(process.env.OUT ?? '.qa/real');
+const TRUTH = resolve(process.env.TRUTH ?? '.qa/real/truth.json');
 const PORT = 4322;
 const ORIGIN = `http://localhost:${PORT}`;
 const REVEAL = process.env.REVEAL === '1';

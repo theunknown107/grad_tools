@@ -1456,7 +1456,7 @@ Each context sets Playwright's `colorScheme` to the **opposite** of the
 appearance under test, so a bug where `data-theme` is ignored cannot hide
 behind a matching system preference.
 
-Screenshots land in `.qa-theme/`, **gitignored** — regenerate them.
+Screenshots land in `.qa/theme/`, **gitignored** — regenerate them.
 
 ### The port trap, again
 

@@ -22,7 +22,7 @@
  *   3. That the review screen says the figures came from a picture.
  *
  *   node tests/ocr-qa.mjs
- *   SCHEME=light OUT=.qa-ocr-light node tests/ocr-qa.mjs
+ *   SCHEME=light OUT=.qa/ocr-light node tests/ocr-qa.mjs
  *
  * Requires a built app with its OCR assets vendored:
  *   pnpm --filter @gradtools/web build
@@ -40,7 +40,7 @@ import { Buffer } from 'node:buffer';
 import { scannedPdf } from './lib/documents.mjs';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve(process.env.OUT ?? '.qa-ocr');
+const OUT = resolve(process.env.OUT ?? '.qa/ocr');
 const PORT = 4322;
 const ORIGIN = `http://localhost:${PORT}`;
 
