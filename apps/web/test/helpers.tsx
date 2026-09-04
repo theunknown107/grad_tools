@@ -20,6 +20,7 @@ import type {
   TimetableSlot,
 } from '../src/domain/types.js';
 import type { SavedCalendar } from '../src/domain/calendar-import.js';
+import type { SavedTimetable } from '../src/domain/timetable-import.js';
 import type { NotificationPreferences, NotificationRecord } from '../src/domain/notifications.js';
 import type { RepositoryBundle } from '../src/repositories/types.js';
 import { RepositoryProvider } from '../src/repositories/context.js';
@@ -33,6 +34,7 @@ export interface MemorySeed {
   semesterSubjects?: SemesterSubject[];
   backlogs?: BacklogRecord[];
   calendars?: SavedCalendar[];
+  timetableImports?: SavedTimetable[];
   notificationState?: NotificationRecord[];
   notificationPreferences?: NotificationPreferences | null;
 }
@@ -63,6 +65,7 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
   const semesterSubjects = listRepo<SemesterSubject>(seed.semesterSubjects ?? []);
   const backlogs = listRepo<BacklogRecord>(seed.backlogs ?? []);
   const calendars = listRepo<SavedCalendar>(seed.calendars ?? []);
+  const timetableImports = listRepo<SavedTimetable>(seed.timetableImports ?? []);
   let notificationState: NotificationRecord[] = [...(seed.notificationState ?? [])];
   let notificationPreferences: NotificationPreferences | null =
     seed.notificationPreferences ?? null;
@@ -86,6 +89,7 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
     semesterSubjects,
     backlogs,
     calendars,
+    timetableImports,
     notifications: {
       async listStates() {
         return notificationState;
@@ -113,6 +117,7 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
       semesterSubjects: semesterSubjects.peek,
       backlogs: backlogs.peek,
       calendars: calendars.peek,
+      timetableImports: timetableImports.peek,
       notificationState: () => notificationState,
       notificationPreferences: () => notificationPreferences,
     },

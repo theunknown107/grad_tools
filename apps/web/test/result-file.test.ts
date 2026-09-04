@@ -50,6 +50,7 @@ vi.mock('../src/lib/pdf-text.js', () => ({
   extractPdfLines: vi.fn(() =>
     Promise.resolve({
       lines: state.lines,
+      placed: [],
       pageCount: state.pageCount,
       hasTextLayer: state.hasTextLayer,
     }),
@@ -85,6 +86,7 @@ function page(
 ): OcrPageResult {
   return {
     lines: lines.map((text) => ({ text, page: 1 })),
+    placed: [],
     meanConfidence: confidence,
     wordCount: words,
     lowConfidenceWords: doubtful,
@@ -264,6 +266,7 @@ describe('choosing between two readings of the same page', () => {
    */
   const reading = (lines: readonly string[], words: number, confidence: number): OcrPageResult => ({
     lines: lines.map((text) => ({ text, page: 1 })),
+    placed: [],
     meanConfidence: confidence,
     wordCount: words,
     lowConfidenceWords: 0,

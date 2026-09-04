@@ -29,13 +29,21 @@
 import { isWorthReviewing, type OcrPageResult } from '../domain/ocr-layout.js';
 import { parseResultCard, type ImportLine } from '../domain/result-import.js';
 import { decodeImage, normalizeContrast, OcrError } from './ocr.js';
-import { extractPdfLines, renderPdfPage, PdfReadError } from './pdf-text.js';
+import { extractPdfLines, renderPdfPage, PdfReadError, type PlacedText } from './pdf-text.js';
 
 /** How the lines were obtained. Shown to the student, not just logged. */
 export type ReadSource = 'text' | 'ocr';
 
 export interface FileReading {
   readonly lines: readonly ImportLine[];
+  /**
+   * The same text, still positioned.
+   *
+   * Lines answer "what does this row say"; a timetable needs "which column is
+   * this in" as well, and joining words into lines has already discarded that
+   * (M10A.8 §8).
+   */
+  readonly placed: readonly PlacedText[];
   readonly source: ReadSource;
   readonly pageCount: number;
   /** OCR only, and null when nothing was recognised. Never shown as accuracy. */
@@ -132,6 +140,9 @@ function summarise(
 
   return {
     lines: pages.flatMap((page) => page.lines),
+    placed: pages.flatMap((page, index) =>
+      page.placed.map((item) => ({ ...item, page: index + 1 })),
+    ),
     source: 'ocr',
     pageCount,
     // Weighted by word count: a page with three words must not drag the mean
@@ -243,6 +254,7 @@ export async function readPdfFile(
   if (extraction.hasTextLayer) {
     return {
       lines: extraction.lines,
+      placed: extraction.placed,
       source: 'text',
       pageCount: extraction.pageCount,
       meanConfidence: null,

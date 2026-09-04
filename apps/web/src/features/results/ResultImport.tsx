@@ -29,7 +29,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import type { Subject } from '@gradtools/shared-types';
-import type { ResultSubject, SemesterResult } from '../../domain/types.js';
+import type { ResultSubject, SemesterResult, TimetableSlot } from '../../domain/types.js';
 import { RESULT_STATUSES } from '../../domain/types.js';
 import { parseResultCard, rowToSubject, type ParsedRow } from '../../domain/result-import.js';
 import { classifyDocument } from '../../domain/document-type.js';
@@ -40,6 +40,8 @@ import {
   type SavedCalendar,
 } from '../../domain/calendar-import.js';
 import { CalendarReview } from './CalendarReview.js';
+import { parseTimetable, type ParsedTimetable, type SavedTimetable } from '../../domain/timetable-import.js';
+import { TimetableReview } from './TimetableReview.js';
 import {
   blockingReason,
   groupBySemester,
@@ -97,6 +99,8 @@ interface FileState {
   readonly file: ImportedFile | null;
   /** Set instead of `file` when the document turned out to be a calendar. */
   readonly calendar: ParsedCalendar | null;
+  /** Set instead of `file` when the document turned out to be a timetable. */
+  readonly timetable: ParsedTimetable | null;
   readonly fingerprint: string | null;
   /** How this file was read. Carried to the review, not just logged. */
   readonly reading: FileReading | null;
@@ -179,16 +183,23 @@ export function ResultImport({
   schemeId,
   savedSemesters,
   savedCalendars,
+  savedTimetables,
   onSave,
   onSaveCalendar,
+  onSaveTimetable,
   onCancel,
 }: {
   readonly profileId: ReturnType<typeof asStudentProfileId>;
   readonly schemeId: string;
   readonly savedSemesters: readonly number[];
   readonly savedCalendars: readonly SavedCalendar[];
+  readonly savedTimetables: readonly SavedTimetable[];
   readonly onSave: (result: SemesterResult) => void;
   readonly onSaveCalendar: (calendar: SavedCalendar) => void;
+  readonly onSaveTimetable: (
+    slots: readonly TimetableSlot[],
+    record: SavedTimetable,
+  ) => void;
   readonly onCancel: () => void;
 }) {
   /*
@@ -260,6 +271,7 @@ export function ResultImport({
       error: null,
       file: null,
       calendar: null,
+      timetable: null,
       fingerprint: null,
       reading: null,
     }));
@@ -280,6 +292,16 @@ export function ResultImport({
           status: 'read',
           reading,
           calendar: parseAcademicCalendar(reading.lines, newId),
+          fingerprint: fingerprintOf(reading.lines),
+        });
+        return;
+      }
+
+      if (seen.type === 'college_timetable') {
+        patch(id, {
+          status: 'read',
+          reading,
+          timetable: parseTimetable(reading.placed),
           fingerprint: fingerprintOf(reading.lines),
         });
         return;
@@ -492,6 +514,20 @@ export function ResultImport({
         surface handles whatever the student dropped into it, and each document
         gets the review its own kind needs (§23, §24).
       */}
+      {files.map((entry) =>
+        entry.timetable === null || entry.fingerprint === null ? null : (
+          <TimetableReview
+            key={entry.id}
+            fileName={entry.fileName}
+            parsed={entry.timetable}
+            fingerprint={entry.fingerprint}
+            profileId={profileId}
+            saved={savedTimetables}
+            onSave={onSaveTimetable}
+          />
+        ),
+      )}
+
       {files.map((entry) =>
         entry.calendar === null || entry.fingerprint === null ? null : (
           <CalendarReview
