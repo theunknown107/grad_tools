@@ -544,7 +544,20 @@ function Resources() {
        this page stay meaningful (M9.6C §7). */
     <Panel title="Go to" flush material="quiet">
       <nav className={styles.resources} aria-label="Other areas">
-        <Link to="/papers">Question papers</Link>
+        {/*
+          IMPORT LEADS, because giving GradTools a document is the primary way
+          to get information in and typing it is the fallback (M10A.9 §1, §15).
+          It is a row in a quiet list rather than a banner: the dashboard
+          answers "where am I", and an upload portal would answer a question
+          nobody opened it to ask (§12).
+        */}
+        <Link to="/import">Add academic document</Link>
+        {/*
+          Question papers is no longer a product feature and is no longer
+          offered here. It was the FIRST link on this list, which made the one
+          scrapped area the most prominent thing a student was pointed at. The
+          route still exists; nothing advertises it.
+        */}
         <Link to="/results">Results</Link>
         <Link to="/academics">SGPA &amp; CGPA</Link>
         <Link to="/attendance">Attendance</Link>

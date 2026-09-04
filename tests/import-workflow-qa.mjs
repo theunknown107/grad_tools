@@ -138,10 +138,18 @@ const run = async () => {
   /* Helpers                                                              */
   /* -------------------------------------------------------------------- */
 
+  /*
+   * `/import` is where the product points a student who simply has documents.
+   * Reached directly rather than through Results, because that is the whole
+   * point of it existing (M10A.9 §6, §11).
+   */
   const openImport = async (target = page) => {
+    await target.goto(`${ORIGIN}/import`);
+    await target.waitForTimeout(600);
+    if ((await target.locator('input[type="file"]').count()) > 0) return;
     await target.goto(`${ORIGIN}/results`);
     await target.waitForTimeout(500);
-    const opener = target.getByRole('button', { name: /import a result card/i });
+    const opener = target.getByRole('button', { name: /add academic document/i });
     if (await opener.count()) await opener.first().click();
     await target.waitForTimeout(300);
   };
@@ -923,6 +931,35 @@ const run = async () => {
     'DASHBOARD: more than one calendar date was shown',
   );
   await page.screenshot({ path: join(OUT, 'dashboard-calendar-1280.png'), fullPage: true });
+
+  /* -------------------------------------------------------------------- */
+  /* 11b. THE HUB IS REACHABLE, AND MANUAL ENTRY IS STILL OFFERED         */
+  /* -------------------------------------------------------------------- */
+
+  await page.goto(`${ORIGIN}/`);
+  await page.waitForTimeout(700);
+  const home = await mainText();
+  expect(/Add academic document/i.test(home), 'HUB: the dashboard offers no way to add a document');
+  /* The scrapped feature is no longer advertised anywhere on the dashboard. */
+  expect(
+    !/Question papers/i.test(home),
+    'HUB: the dashboard still points students at question papers',
+  );
+
+  await page.goto(`${ORIGIN}/import`);
+  await page.waitForTimeout(700);
+  const hub = await mainText();
+  expect(
+    (await page.locator('input[type="file"]').count()) > 0,
+    'HUB: /import has no file input',
+  );
+  expect(
+    /result card|academic calendar|class timetable/i.test(hub),
+    'HUB: /import does not say which documents it takes',
+  );
+  /* Manual entry remains available, and visibly second (§15). */
+  expect(/by hand|manually/i.test(hub), 'HUB: no manual fallback is offered');
+  await page.screenshot({ path: join(OUT, 'import-hub-1280.png'), fullPage: true });
 
   /* -------------------------------------------------------------------- */
   /* 12. THE RAW FILE IS NOT KEPT                                         */

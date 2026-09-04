@@ -82,10 +82,24 @@
  *
  * Violet is the default and is repeated on :root so a document with no
  * data-accent renders identically to M9.5.
+ *
+ * ---------------------------------------------------------------------------
+ * THESE ARE NOT SCOPED TO :root, AND THAT IS THE POINT
+ * ---------------------------------------------------------------------------
+ *
+ * They used to be. `data-accent` on anything other than <html> then matched
+ * nothing, so the accent picker's five swatches — each of which sets the
+ * attribute on ITSELF to paint its own hue — all inherited the root's fill and
+ * rendered as five circles of the same colour. The picker looked broken
+ * because it was: it offered five identical choices (M10A.9 §23).
+ *
+ * An unqualified attribute selector still applies to :root, which carries the
+ * attribute, and now also lets any element declare the palette it wants to
+ * paint in.
  */
 
 :root,
-:root[data-accent='violet'] {
+[data-accent='violet'] {
   --a-on-dark: #a48bff;
   --a-on-light: #5b34d4;
   --a-fill: #6d4de0;
@@ -97,7 +111,7 @@
   --a-glow-rgb: 109 77 224;
 }
 
-:root[data-accent='cyan'] {
+[data-accent='cyan'] {
   --a-on-dark: #55d6e8;
   --a-on-light: #0b6f86;
   --a-fill: #0e7490;
@@ -109,7 +123,7 @@
   --a-glow-rgb: 14 116 144;
 }
 
-:root[data-accent='amber'] {
+[data-accent='amber'] {
   --a-on-dark: #f0b445;
   --a-on-light: #8a5206;
   --a-fill: #a3620a;
@@ -121,7 +135,7 @@
   --a-glow-rgb: 163 98 10;
 }
 
-:root[data-accent='rose'] {
+[data-accent='rose'] {
   --a-on-dark: #ff8fa3;
   --a-on-light: #b3164a;
   --a-fill: #be123c;
@@ -133,7 +147,7 @@
   --a-glow-rgb: 190 18 60;
 }
 
-:root[data-accent='green'] {
+[data-accent='green'] {
   --a-on-dark: #4fd9a0;
   --a-on-light: #0f6b42;
   --a-fill: #15803d;
@@ -472,8 +486,8 @@
      * it — lighter than the ground rather than darker — which is what keeps the
      * material reading as glass in both appearances.
      */
-    --bg: #f4f6fb;
-    --bg-sunken: #e9edf5;
+    --bg: #e7ebf5;
+    --bg-sunken: #dbe1ef;
 
     --surface: rgb(255 255 255 / 62%);
     --surface-raised: rgb(255 255 255 / 82%);
@@ -521,8 +535,9 @@
     --danger-weak: rgb(178 32 44 / 10%);
 
     --ambient:
-      radial-gradient(90% 50% at 72% -8%, rgb(var(--a-glow-rgb) / 9%) 0%, transparent 62%),
-      radial-gradient(120% 70% at 20% -20%, rgb(56 94 168 / 10%) 0%, transparent 70%);
+      radial-gradient(85% 45% at 78% -10%, rgb(var(--a-glow-rgb) / 16%) 0%, transparent 64%),
+      radial-gradient(110% 60% at 12% -14%, rgb(56 94 168 / 18%) 0%, transparent 70%),
+      linear-gradient(to bottom, rgb(255 255 255 / 55%) 0%, transparent 34%);
 
     --vignette: radial-gradient(120% 100% at 50% 40%, transparent 62%, rgb(19 26 43 / 7%) 100%);
 
@@ -544,8 +559,8 @@
    * it — lighter than the ground rather than darker — which is what keeps the
    * material reading as glass in both appearances.
    */
-  --bg: #f4f6fb;
-  --bg-sunken: #e9edf5;
+  --bg: #e7ebf5;
+  --bg-sunken: #dbe1ef;
 
   --surface: rgb(255 255 255 / 62%);
   --surface-raised: rgb(255 255 255 / 82%);
@@ -588,8 +603,9 @@
   --danger-weak: rgb(178 32 44 / 10%);
 
   --ambient:
-    radial-gradient(90% 50% at 72% -8%, rgb(var(--a-glow-rgb) / 9%) 0%, transparent 62%),
-    radial-gradient(120% 70% at 20% -20%, rgb(56 94 168 / 10%) 0%, transparent 70%);
+    radial-gradient(85% 45% at 78% -10%, rgb(var(--a-glow-rgb) / 16%) 0%, transparent 64%),
+    radial-gradient(110% 60% at 12% -14%, rgb(56 94 168 / 18%) 0%, transparent 70%),
+    linear-gradient(to bottom, rgb(255 255 255 / 55%) 0%, transparent 34%);
 
   --vignette: radial-gradient(120% 100% at 50% 40%, transparent 62%, rgb(19 26 43 / 7%) 100%);
 

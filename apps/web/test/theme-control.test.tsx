@@ -39,9 +39,13 @@ describe('the theme control', () => {
 
     const trigger = screen.getByRole('button', { name: /change appearance and accent/i });
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
-    // The label names the CHOICE, so "System" must be visible in it rather
-    // than whatever the device happens to resolve to.
-    expect(trigger.getAttribute('aria-label')).toMatch(/System/);
+    /*
+     * The label names the CHOICE, not whatever the device resolved to. The
+     * default choice is now Light (M10A.9 §26), so that is what it says; the
+     * property under test is that the label follows the preference, which the
+     * System case below still proves.
+     */
+    expect(trigger.getAttribute('aria-label')).toMatch(/Light/);
 
     await user.click(trigger);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');

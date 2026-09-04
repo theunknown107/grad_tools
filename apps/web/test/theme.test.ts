@@ -41,9 +41,16 @@ function memoryStorage(initial?: string): Pick<Storage, 'getItem' | 'setItem'> {
 }
 
 describe('reading a stored preference', () => {
-  it('defaults to system and violet when nothing is stored', () => {
+  it('defaults to LIGHT and violet when nothing is stored', () => {
+    /*
+     * Light, not system (M10A.9 §26). GradTools is used in daylight, in
+     * lecture halls and on library desks, and light is the interface the
+     * product is designed around. System remains available; an explicit
+     * choice always wins. This is only the answer for someone who has not
+     * given one.
+     */
     expect(readStoredTheme(memoryStorage())).toEqual(DEFAULT_THEME);
-    expect(DEFAULT_THEME.appearance).toBe('system');
+    expect(DEFAULT_THEME.appearance).toBe('light');
   });
 
   it('round-trips a written preference', () => {
@@ -225,7 +232,12 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
   it('reads the grounds it is about to test against', () => {
     // M9.6C: a blue-black environment, not the M9.4 violet-black.
     expect(darkBg).toBe('#05070d');
-    expect(lightBg).toBe('#f4f6fb');
+    /*
+     * M10A.9: deepened from #f4f6fb. Translucent white surfaces over a ground
+     * that close to white read as the same material — the light interface had
+     * no visible hierarchy because there was nothing for glass to sit on.
+     */
+    expect(lightBg).toBe('#e7ebf5');
   });
 
   it('composites surfaces rather than assuming a flat fill', () => {
@@ -237,9 +249,13 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
   });
 
   it.each([...ACCENTS])('%s clears 4.5:1 everywhere it is used', (accent) => {
-    // Violet is also the bare-`:root` default, but it carries its own
-    // data-accent block too, so one selector shape reads every accent.
-    const selector = `:root[data-accent='${accent}']`;
+    /*
+     * Unqualified, because the accent blocks are. They used to be scoped to
+     * `:root`, which meant `data-accent` on anything else matched nothing —
+     * and the accent picker's five swatches, each of which sets the attribute
+     * on itself, all painted the root's colour. Five identical circles.
+     */
+    const selector = `[data-accent='${accent}']`;
     const onDark = tokenIn(selector, 'a-on-dark');
     const onLight = tokenIn(selector, 'a-on-light');
     const fill = tokenIn(selector, 'a-fill');
