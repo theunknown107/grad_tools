@@ -1425,3 +1425,77 @@ half-read. The M10A.6A text-PDF harness still clean in both themes.
 
 **Cost.** +7.6kB raw (+2.8kB gzip) on first load; a 15.9kB lazy chunk and
 ~6.65MB of engine fetched only on first picture import, then browser-cached.
+
+## 31.33 M10A.6C — Real result validation and import hardening · ✅ **DELIVERED**
+
+**The question:** can a student safely import real-world result files, see what
+GradTools read, correct it, confirm it, and trust the calculations that follow?
+
+### What a real card did to a pipeline that passed every synthetic test
+
+Run against two genuine VTU result cards, the pipeline read **one row of nine,
+then none.** Everything below came from that.
+
+**The contrast stretch was not a setting to choose in advance.** A dim phone
+screenshot of a print preview went from 53 words raw to 187 stretched, and from
+one readable row to seven — without the stretch it is unusable. A sharper
+screenshot carrying the university's diagonal watermark went the *other* way:
+raw, all nine rows with their marks; stretched, the marks gone from six, because
+darkening the mid-tones brings the watermark up to compete with thin digits. No
+statistic of the image separates them — the card that *needs* the stretch has
+the wider dynamic range of the pair. A picture is now read both ways and the
+reading yielding more importable rows wins. Confidence is deliberately not the
+criterion: the stretched watermarked pass was the *more confident* one and its
+digits had vanished.
+
+**The table's own borders cost rows.** A ruled table read from a picture brings
+its rules along as pipes, landing inside the row — `38 | 18 56 P` — and one
+border character between two columns cost the whole row.
+
+**Requiring the status letter threw away the marks.** Recognition dropped the
+pass/fail letter on three rows of nine while reading all three marks perfectly.
+The letter is now optional; punctuation is stripped, a letter is never corrected.
+
+**A stray digit produced marks that were wrong rather than missing.**
+`27 39 66 3` read from the right shifted every column. Where a row carries more
+numbers than columns, the card's own arithmetic says which three *are* the
+columns. That picks an alignment, never a value, and the row is flagged either
+way.
+
+**A row that could not be read is now counted and shown.** A nine-subject card
+arriving as eight correct rows is the worst outcome available: the card does not
+print how many subjects it has, so nothing told the student one was gone.
+
+### Where the two real cards stand now
+
+| | Rows read | Marks correct | Marks **wrong** | Told what was lost |
+|---|---|---|---|---|
+| Digital screenshot, watermarked | 8 of 9 | 8 of 8 | **0** | yes |
+| Phone screenshot of a print preview | 4 of 8 | 4 of 4 | **0** | yes |
+
+**Zero incorrect marks on either card.** Every mark is either right or visibly
+absent, and both cards tell the student a row could not be read and that the
+figures came from a picture. That is the safety property; the coverage is not
+yet good enough to call the phone-screenshot case solved.
+
+### The rest of the milestone
+
+55 browser checks across both themes and four widths cover multi-select of four
+formats in one action, partial failure, multi-page cards, duplicate and revision,
+cancel safety, edit-after-import, the full calculation chain, security, and
+retention read off the device. See §22.55 and §22.56.
+
+**The announcements QA failure was not environment noise**, as the previous
+report called it. The assertion looked for the word "synthetic" while the
+product labels demo content "Demo data" — it could not have passed with a full
+database either. The harness now supplies its own feed and needs no database.
+
+### NOT VERIFIED
+
+- **Camera photographs.** Both real documents are screenshots. Perspective,
+  glare, shadow and skew are untested against a real phone camera.
+- **Real devices.** No phone was used; all timings are desktop Chromium.
+- **Kannada.** English model only; the Kannada header is read as noise.
+- **Wrapped subject titles.** A title that wraps to a second line is read as its
+  first line only. The mark columns are unaffected and the code — which is the
+  subject's identity — is read correctly.
