@@ -2365,3 +2365,70 @@ content. Against the five real documents on this machine:
 failure: that photograph does not recognise well enough for the classifier to
 say more than "not identifiable", and the timetable parser does not exist yet
 in any case.
+
+## 22.60 Reading a timetable, which is a grid (M10A.8)
+
+`apps/web/test/timetable-import.test.ts` (30). Every other importer here reads
+LINES: one printed row is one record. A timetable is two-dimensional — `MAT`
+means nothing until you know which column it sits in, and the column is a time
+printed once in a header far above it. **So the fixtures are coordinates**,
+because positions are the only thing the parser can read.
+
+Pinned:
+
+- **Time slots come from the document.** Colons and full stops both appear in
+  one real header; a range's end tells its start which half of the day it is in,
+  but does not lend it its own marker — `11:50-12.10pm` is late morning, while
+  `1:05-02:00pm` really is the afternoon. What separates them is that a printed
+  range runs forwards.
+- **Initials mean what THIS document says.** They resolve through the subject
+  table at the foot of the same page and through nothing else; an initial the
+  document never defines keeps no code and is reported.
+- **A cell is not always one class.** `PHYE1/POPE2` becomes two classes, one per
+  batch. A lab across columns stays one class from the first column's start to
+  the last one's end.
+- **Breaks are not classes**; **two classes at one hour are reported, never
+  resolved**; **two batches at one hour are not a conflict**.
+- **Effective date decides which revision is active, never upload order.**
+
+## 22.61 Timetable import in a browser (M10A.8)
+
+Added to `tests/import-workflow-qa.mjs` — now **83 checks**, both themes, four
+widths, 0 axe / 0 overflow / 0 console errors. A timetable arrives with three
+other documents in one action; saving is refused until the batch question is
+answered; no break reaches the stored week; the split cell gives this student
+their own class and not the other batch's; the lab spans its columns; the same
+file again is a duplicate; an older revision is flagged as older; and the week
+view shows the imported classes with no manual entry.
+
+Measured: **25 classes across six days**, lab ending 17:00, 4.5kB of slots and
+267 bytes of provenance.
+
+### Two bugs it found
+
+**The class name swallowed the revision label.** `CLASS: …` and `TIME-TABLE
+(R2)` sit side by side on the real document and land on one reconstructed row,
+so two revisions of one class looked like two different classes — and the older
+one stopped being recognised as older, which is the check that stops a stale
+upload replacing a student's week.
+
+**The fixture was off the page.** Eight time columns do not fit across a
+portrait MediaBox, and text placed past it is not in the document at all. Half
+the grid, the room and the effective date were silently absent and the parser
+was reading exactly what it had been given. Timetables are landscape.
+
+### The real timetable (private)
+
+`.qa/real/classify.mjs`. Of the five real documents on this machine, both
+timetable photographs behave as follows:
+
+| Document | Outcome |
+|---|---|
+| Timetable, clearer scan | routed to the timetable parser, **0 classes** |
+| Timetable, poorer photo | refused as unidentifiable |
+
+The clearer one is precise about where it stops: the **time header reads, the
+subject table does not**. Without that table the grid's initials have nothing to
+resolve against, so every class is dropped for want of a subject code. Detection
+is real-document verified; extraction from a photographed timetable is **NOT
+VERIFIED** and is the honest limit of this milestone.
