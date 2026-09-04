@@ -154,8 +154,23 @@ export async function renderPdfPage(
   }
 }
 
+/** One extracted word or run, with the page it came from. */
+export interface PlacedText extends PositionedText {
+  readonly page: number;
+}
+
 export interface PdfExtraction {
   readonly lines: readonly ImportLine[];
+  /**
+   * The same text, still positioned.
+   *
+   * A result card and a calendar are read as LINES: one printed row is one
+   * record. A timetable is a GRID, and a grid needs columns as well as rows —
+   * which line-joining has already thrown away. The boxes are computed either
+   * way, so carrying them costs nothing and saves building a second extraction
+   * for the one document that needs two dimensions (M10A.8 §8).
+   */
+  readonly placed: readonly PlacedText[];
   readonly pageCount: number;
   /**
    * False when the document carried no text at all.
@@ -251,6 +266,7 @@ export async function extractPdfLines(
     }
 
     const lines: ImportLine[] = [];
+    const placed: PlacedText[] = [];
     let items = 0;
 
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
@@ -267,11 +283,13 @@ export async function extractPdfLines(
         .map(toPositioned)
         .filter((item): item is PositionedText => item !== null);
       lines.push(...itemsToLines(positioned, pageNumber));
+      placed.push(...positioned.map((item) => ({ ...item, page: pageNumber })));
       page.cleanup();
     }
 
     return {
       lines,
+      placed,
       pageCount: pdf.numPages,
       hasTextLayer: lines.some((line) => line.text.trim() !== ''),
     };

@@ -17,6 +17,7 @@ import type {
   TimetableSlot,
 } from '../domain/types.js';
 import type { SavedCalendar } from '../domain/calendar-import.js';
+import type { SavedTimetable } from '../domain/timetable-import.js';
 import { useRepositories } from '../repositories/context.js';
 
 interface ListLike<T> {
@@ -104,6 +105,11 @@ export function useBacklogs(): CollectionState<BacklogRecord> {
 /** Academic calendars a student imported, as structured events (M10A.7). */
 export function useCalendars(): CollectionState<SavedCalendar> {
   return useCollection(useRepositories().calendars);
+}
+
+/** Which import produced the active timetable, and its revision (M10A.8). */
+export function useTimetableImports(): CollectionState<SavedTimetable> {
+  return useCollection(useRepositories().timetableImports);
 }
 
 export interface ProfileState {

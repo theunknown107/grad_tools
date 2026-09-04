@@ -32,6 +32,7 @@
  */
 
 import type { SavedCalendar } from '../domain/calendar-import.js';
+import type { SavedTimetable } from '../domain/timetable-import.js';
 import type { NotificationPreferences, NotificationRecord } from '../domain/notifications.js';
 import type {
   AttendanceRecord,
@@ -126,6 +127,20 @@ export interface CalendarRepository {
   remove(id: string): Promise<void>;
 }
 
+/**
+ * Timetable imports, kept for provenance and revision (M10A.8).
+ *
+ * The CLASSES themselves stay in `timetable`, as ordinary slots, so the day
+ * view, the week view and attendance need to know nothing about documents.
+ * This holds only what says which import produced them: the revision label, the
+ * printed effective date, and a fingerprint so the same document is recognised.
+ */
+export interface TimetableImportRepository {
+  list(): Promise<SavedTimetable[]>;
+  upsert(record: SavedTimetable): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
 export interface RepositoryBundle {
   readonly profile: StudentProfileRepository;
   readonly attendance: AttendanceRepository;
@@ -136,4 +151,5 @@ export interface RepositoryBundle {
   readonly backlogs: BacklogRepository;
   readonly notifications: NotificationRepository;
   readonly calendars: CalendarRepository;
+  readonly timetableImports: TimetableImportRepository;
 }
