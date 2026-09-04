@@ -1570,3 +1570,67 @@ re-run clean.
 - **No dedicated import entry point.** Calendar import is reached through the
   same panel as result import. A discoverable "add academic document" action
   belongs with the light-theme pass rather than bolted on before it.
+
+## 31.35 M10A.8 — Automatic college timetable import · ✅ **DELIVERED**
+
+**A timetable is a grid, and every other importer here reads lists.** `MAT` means
+nothing until you know which column it is in, and the column is a time printed
+once in a header far above it. Joining words into lines — which is what the
+shared extraction does for results and calendars — discards exactly the
+dimension this document needs.
+
+The boxes were already being computed on the way to those lines, so they are
+carried through the same pipeline rather than a second one built beside it. One
+extraction, one classifier, three parsers.
+
+### What the parser refuses to assume
+
+- **The document defines its own vocabulary.** Initials resolve through the
+  subject table on the same page and through nothing else. There is no global
+  truth that `MAT` is any particular course.
+- **A cell is not always one class.** `PHYE1/POPE2` is two classes for two
+  halves of the group; a lab across columns is one class, not three sessions.
+- **Breaks are not classes.** A stored break would reach attendance.
+- **Two classes at one hour are reported, never resolved** — but two *batches*
+  at one hour are the schedule working, not a clash.
+- **Effective date decides which revision is active, never upload order.**
+
+### No second timetable model
+
+Batch is resolved once, during review, and what gets stored is the existing
+`TimetableSlot`. The day view, the week view and attendance work unchanged and
+know nothing about documents. Confirming **replaces** the stored week rather than
+merging into it — a merged revision leaves a week that is partly last month's,
+which is how a student turns up to a class that moved.
+
+### What running it changed
+
+Reading the times took two goes: copying a range's `pm` onto its start turns
+`11:50-12.10pm` into ten to midnight. A printed range runs forwards, and that —
+not the marker — is what settles an unmarked start.
+
+The class name swallowed the revision label, because `CLASS: …` and `TIME-TABLE
+(R2)` share a row on the real document. Two revisions of one class then looked
+like two classes and the older one stopped being recognised as older.
+
+### Verification
+
+1367 unit tests (31 new). 83 browser checks in both themes at four widths.
+Result, OCR, calendar, results, identity, interaction and visual harnesses all
+re-run clean; no cross-routing between the three document types.
+
+### NOT VERIFIED
+
+- **Extraction from a photographed timetable.** The real photograph routes
+  correctly and then produces **zero classes**: the time header reads, the small
+  dense subject table at the foot does not, so the grid's initials have nothing
+  to resolve against. Detection is real-document verified; extraction is not.
+  This is the honest limit of the milestone and the obvious next thing to work
+  on.
+- **Real device.** No phone was used.
+- **Faculty contact numbers are deliberately not stored**, though the real
+  document prints them. The product has no use for them.
+- **Timetables do not sync**, like calendars: the sync collection list is an
+  allowlist and neither is on it.
+- **Light theme** remains as recorded — the next dedicated frontend milestone,
+  untouched here.
