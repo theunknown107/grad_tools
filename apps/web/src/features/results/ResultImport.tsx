@@ -181,6 +181,7 @@ function fileMeta(entry: FileState): string {
 export function ResultImport({
   profileId,
   schemeId,
+  title = 'Add academic document',
   savedSemesters,
   savedCalendars,
   savedTimetables,
@@ -191,6 +192,14 @@ export function ResultImport({
 }: {
   readonly profileId: ReturnType<typeof asStudentProfileId>;
   readonly schemeId: string;
+  /**
+   * The panel's own heading, or `undefined` where the page already carries it.
+   *
+   * On Results the panel needs to name itself, because it sits among other
+   * things. On `/import` the page heading says the same words directly above
+   * it, and printing them twice is a heading a screen reader reads twice.
+   */
+  readonly title?: string | undefined;
   readonly savedSemesters: readonly number[];
   readonly savedCalendars: readonly SavedCalendar[];
   readonly savedTimetables: readonly SavedTimetable[];
@@ -439,11 +448,11 @@ export function ResultImport({
     );
 
   return (
-    <Panel title="Import a result" flush>
+    <Panel title={title} flush>
       <div className={styles.importIntro}>
         <Notice>
           Your file is read on this device. It is never uploaded, and GradTools does not keep it —
-          only the result you confirm is saved.
+          only the information you confirm is saved.
         </Notice>
       </div>
 
@@ -468,7 +477,7 @@ export function ResultImport({
         }}
       >
         <Icon name="results" size="nav" />
-        <span>Drop a result PDF or photo here, or</span>
+        <span>Drop a result card, academic calendar or class timetable here, or</span>
         <label className={styles.browse}>
           <span>browse</span>
           <input

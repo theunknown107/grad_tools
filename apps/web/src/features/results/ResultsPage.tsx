@@ -159,6 +159,7 @@ export function ResultsPage() {
         {importing && (
           /* The same panel `/import` shows. One wiring, so the two cannot drift. */
           <DocumentImportPanel
+            title="Add academic document"
             onDone={() => {
               setImporting(false);
             }}
