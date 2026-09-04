@@ -2283,3 +2283,85 @@ than admitted by a size threshold, and anything unrecognised fails.
 Measured after four files and three saved semesters: **3,091 bytes under one
 GradTools key**, no binary values, no PDF or data-URL signatures, nothing in
 local or session storage.
+
+## 22.57 Which parser a document goes to (M10A.7)
+
+`apps/web/test/document-type.test.ts` (12). Every VTU document says
+"Visvesvaraya Technological University" and most of them say "semester". A
+classifier built on either would route a question paper into the result importer
+and an exam schedule into the calendar.
+
+**The exam schedule is the case that matters, and it is not hypothetical.** The
+university issues a *Draft Time Table for … Examinations* that is a table of
+dates, names semesters and carries the university's identity — everything a
+naive calendar rule accepts. Reading it as a calendar would fill a student's
+term with exam sittings labelled as semester milestones.
+
+Pinned: a lone signal can never carry a document (the floor is above the largest
+single weight); a document whose two best readings are within a margin is
+refused rather than guessed at; and a **more specific signature outranks a more
+general one** — the regression below.
+
+### The message a real document proved wrong
+
+Run against five real documents, an exam schedule scored **nine** on the
+class-timetable signals and **seven** on its own: its "Date, Day" column lists
+weekday names in sequence and its heading carries sitting times. The generic
+reading won, and the product told the student it was a class timetable. Both
+answers refuse the document — nothing unsafe happened — but the sentence was
+untrue. The exam signature is now decisive once it clears the floor, because no
+weekly class timetable says "Draft Time Table", "Date, Day" or "Registrar
+(Evaluation)".
+
+## 22.58 Reading an academic calendar (M10A.7)
+
+`apps/web/test/calendar-import.test.ts` (27). A real academic calendar is mostly
+*not* events: it carries a notification number, a circular reference, a
+signature block and a distribution list, and every one of those has a date on
+it. A parser that turned each date into an entry would hand a student a term
+full of rows like "05/12/2026 — Ref No. …".
+
+**The rule under test: a date is necessary and never sufficient.** A row becomes
+an event only when it also carries a description that survives the note filter.
+
+Also pinned: dates in the formats these documents print, day-first; an
+impossible day refused rather than stored; the year for a bare "11 Sep" taken
+from the document's own academic year **or not at all**; a range kept as a range
+rather than expanded into twenty rows; `OTHER_ACADEMIC` returned rather than a
+false category; semester and academic year read from the document, with the
+review asking when they are absent; a fingerprint of the text so the same
+calendar under a different filename is one document; and the dashboard given
+exactly one upcoming date with the countdown computed, never stored.
+
+## 22.59 Document routing in a browser (M10A.7)
+
+Added to `tests/import-workflow-qa.mjs` rather than to a new harness — **73
+checks**, both themes, four widths, 0 axe / 0 overflow / 0 console errors.
+
+Four documents go in as one action, none of them announced: a calendar is
+detected, read, saved, and refused on a second upload; a reissued calendar is
+shown as a revision naming the date that moved; an exam schedule, a class
+timetable and an invoice are each refused with their own sentence. A scanned
+calendar takes the same OCR route the result cards use. The dashboard shows one
+upcoming date.
+
+The harness also asserts what must **not** appear: the fixture's notification
+number, reference line and distribution list all carry dates, and none may
+become an event.
+
+### Real documents (private)
+
+`.qa/real/classify.mjs`, gitignored, prints a verdict per document and no
+content. Against the five real documents on this machine:
+
+| Document | Routed |
+|---|---|
+| Result card ×2 | result importer |
+| Exam schedule | refused, *as an exam schedule* |
+| Class timetable (clearer scan) | recognised as a timetable, refused |
+| Class timetable (poorer photo) | refused as unidentifiable |
+
+**None was routed to the wrong parser.** The last row is a limitation, not a
+failure: that photograph does not recognise well enough for the classifier to
+say more than "not identifiable", and the timetable parser does not exist yet
+in any case.
