@@ -1742,3 +1742,51 @@ and the real result cards remain at baseline with zero incorrect marks.
 - **Photographed-timetable extraction** is unchanged and still partial (§31.36).
 - Question-paper code remains in the tree, unadvertised. Removing it is a
   separate cleanup.
+
+## 31.38 M10A.10 — Semester automation and dead-feature cleanup · ✅ **DELIVERED**
+
+Documents were being read correctly and then not being *used*. This milestone
+closes that gap and removes a feature the product had already abandoned.
+
+### The dashboard ignored which calendar was current
+
+It read every saved calendar. Import a revised calendar and the old one did not
+retire — it competed, and the next date shown was whichever the sort reached
+first. A calendar is now in force per term (`semester|academicYear`, latest
+import wins), and the dashboard resolves that once and passes the answer down.
+
+Two things follow from having an answer. The day card now says
+*"Ganesh Chaturthi — no classes today"* rather than printing a timetable for a
+day the college is closed. And where two calendars **in force** disagree about
+the same dated event, the disagreement is shown rather than silently resolved —
+uncategorised events excluded, since two of those on one day prove nothing.
+
+### Question papers are gone from the product
+
+Not deprecated, not hidden — removed. The pages, routes, hooks, domain module,
+search entry and the landing-page section selling a paper library the
+application does not have. A landing page advertising a missing feature is the
+worst copy there is: a promise nobody can keep. The section now describes
+document import, which is what the last five milestones actually built and what
+the page said nothing about.
+
+**Deliberately left alone:** the API endpoints, the database schema and the
+extraction pipeline behind them. Dropping tables needs a forward migration and
+those modules touch shared ingestion code, so it is its own careful piece of
+work. The `papers` icon stays — the import destination uses it.
+
+### Verification
+
+**1284 unit tests** (1378 minus the 94 that tested the removed feature; nothing
+covering the active product was touched). **103 workflow checks**, including a
+new end-to-end semester: four documents in one sitting, then assertions on
+stored state — 2 results, 1 calendar, 25 classes, 1 import record, none having
+overwritten another. **305 theme checks** clean. Main bundle 815 kB → 802 kB.
+
+### NOT VERIFIED
+
+- **No human has used this.** Every browser claim is Playwright.
+- **Real device**: not tested.
+- The semester scenario uses synthetic documents. Real-document verification is
+  unchanged from §31.35–31.36 and remains partial for photographed timetables.
+- The API-side question-paper code and schema are still in the tree.
