@@ -12,7 +12,7 @@
  *
  *   node tests/empty-qa.mjs
  *
- * Screenshots land in .qa-empty/, gitignored.
+ * Screenshots land in .qa/empty/, gitignored.
  */
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -22,7 +22,7 @@ import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve(process.env.OUT ?? '.qa-empty');
+const OUT = resolve(process.env.OUT ?? '.qa/empty');
 /* 4322 is the origin the API allows — see tests/README. */
 const PORT = 4322;
 

@@ -15,7 +15,7 @@
  * a dark-theme-only failure that a single-theme sweep would have shipped.
  *
  *   node tests/visual-qa-seeded.mjs
- *   SCHEME=light OUT=.qa-light node tests/visual-qa-seeded.mjs
+ *   SCHEME=light OUT=.qa/light node tests/visual-qa-seeded.mjs
  *
  * The data is invented — made-up subject codes and grades against invented
  * attendance counts. No real academic record is ever used for QA.
@@ -28,7 +28,7 @@ import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve(process.env.OUT ?? '.qa-screenshots');
+const OUT = resolve(process.env.OUT ?? '.qa/screenshots');
 const PORT = 4322;
 
 /*

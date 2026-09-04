@@ -18,7 +18,7 @@
  * which looks entirely normal on any single screen.
  *
  *   node tests/subject-identity-qa.mjs
- *   SCHEME=light OUT=.qa-identity-light node tests/subject-identity-qa.mjs
+ *   SCHEME=light OUT=.qa/identity-light node tests/subject-identity-qa.mjs
  *
  * Codes and marks are invented. The SHAPE is a real card's and a real
  * timetable's; no real academic record is used for QA.
@@ -31,7 +31,7 @@ import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve(process.env.OUT ?? '.qa-identity');
+const OUT = resolve(process.env.OUT ?? '.qa/identity');
 /* The origin the API's CORS allowlist carries; see tests/results-qa.mjs. */
 const PORT = 4322;
 

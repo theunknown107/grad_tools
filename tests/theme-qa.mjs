@@ -17,7 +17,7 @@
  *
  *   node tests/theme-qa.mjs
  *
- * Screenshots land in .qa-theme/, which is gitignored. Regenerate it; do not
+ * Screenshots land in .qa/theme/, which is gitignored. Regenerate it; do not
  * expect it in a clone.
  */
 import { chromium } from '@playwright/test';
@@ -28,7 +28,7 @@ import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve(process.env.OUT ?? '.qa-theme');
+const OUT = resolve(process.env.OUT ?? '.qa/theme');
 const PORT = 4322; // the origin the API allows (tests/README) — an ad-hoc port fails CORS
 
 const APPEARANCES = ['light', 'dark'];
