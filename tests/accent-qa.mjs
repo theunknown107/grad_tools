@@ -23,7 +23,7 @@ import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve('.qa-accent');
+const OUT = resolve('.qa/accent');
 const PORT = 4322;
 
 const ACCENTS = ['violet', 'cyan', 'amber', 'rose', 'green'];

@@ -51,6 +51,10 @@ GradTools_M9.4_Reference_Images/
 # that would have ignored it was skipped by a failed && chain, and two PNGs
 # reached a commit that forbids them.
 .qa-*/
+# Generated QA output, consolidated under one tree. Screenshots, reports and
+# any private ground-truth a person wrote for their own documents live here and
+# none of it belongs in the repository.
+.qa/
 
 # Supplied academic reference images. REAL student/institutional PII —
 # inspected locally, never committed (see docs/12, docs/30).

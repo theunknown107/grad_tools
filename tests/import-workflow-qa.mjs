@@ -30,7 +30,7 @@
  *   model wearing the first one's clothes.
  *
  *   node tests/import-workflow-qa.mjs
- *   SCHEME=light OUT=.qa-workflow-light node tests/import-workflow-qa.mjs
+ *   SCHEME=light OUT=.qa/workflow-light node tests/import-workflow-qa.mjs
  *
  * Requires a built app with its OCR assets vendored:
  *   pnpm --filter @gradtools/web build
@@ -54,7 +54,7 @@ import {
 } from './lib/documents.mjs';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve(process.env.OUT ?? '.qa-workflow');
+const OUT = resolve(process.env.OUT ?? '.qa/workflow');
 const PORT = 4322;
 const ORIGIN = `http://localhost:${PORT}`;
 
@@ -637,7 +637,123 @@ const run = async () => {
   );
 
   /* -------------------------------------------------------------------- */
-  /* 10. NOTHING LEFT THE ORIGIN                                          */
+  /* 10. THE RAW FILE IS NOT KEPT                                         */
+  /* -------------------------------------------------------------------- */
+
+  /*
+   * Read out of storage rather than off the code. "We do not persist the file"
+   * is a claim about what is on the device afterwards, and the only honest way
+   * to check it is to look at what is on the device afterwards: every key in
+   * the local store, inspected for the bytes of a document.
+   */
+  const stores = await page.evaluate(
+    () =>
+      new Promise((ok) => {
+        const open = globalThis.indexedDB.open('keyval-store', 1);
+        open.onsuccess = () => {
+          const store = open.result.transaction('keyval', 'readonly').objectStore('keyval');
+          const keys = store.getAllKeys();
+          const values = store.getAll();
+          keys.onsuccess = () => {
+            values.onsuccess = () => {
+              ok(
+                keys.result.map((key, index) => {
+                  const value = values.result[index];
+                  const json = (() => {
+                    try {
+                      return JSON.stringify(value) ?? '';
+                    } catch {
+                      return '';
+                    }
+                  })();
+                  return {
+                    key: String(key),
+                    bytes: json.length,
+                    binary:
+                      value instanceof ArrayBuffer ||
+                      ArrayBuffer.isView(value) ||
+                      value instanceof Blob,
+                    pdfHeader: json.includes('%PDF') || json.includes('JVBERi'),
+                    dataUrl: json.includes('data:image') || json.includes('base64,'),
+                  };
+                }),
+              );
+            };
+          };
+        };
+        open.onerror = () => ok([]);
+      }),
+  );
+
+  /*
+   * TWO KINDS OF THING LIVE IN THIS STORE, AND ONLY ONE OF THEM IS OURS.
+   *
+   * tesseract.js caches its language model in IndexedDB, under the same
+   * `keyval-store` database idb-keyval uses — it appears as `./eng.traineddata`
+   * and is large. That is the ENGINE keeping its own model so a student does
+   * not re-download six megabytes on every import, and it is desirable: it is
+   * what makes the feature work offline.
+   *
+   * What must not be there is a DOCUMENT. So the assertions are made against
+   * GradTools' own keys, and the engine's cache is identified explicitly rather
+   * than waved through by a size threshold that would also wave through a
+   * stored PDF.
+   */
+  const ours = stores.filter((entry) => entry.key.startsWith('gradtools:'));
+  const engine = stores.filter((entry) => /traineddata|tesseract/i.test(entry.key));
+  const unaccounted = stores.filter(
+    (entry) => !ours.includes(entry) && !engine.includes(entry),
+  );
+
+  expect(ours.length > 0, 'RETENTION: no GradTools data was stored at all — did the save work?');
+  expect(
+    ours.every((entry) => !entry.binary),
+    `RETENTION: a binary value was stored under ${ours.find((e) => e.binary)?.key ?? '?'}`,
+  );
+  expect(
+    ours.every((entry) => !entry.pdfHeader && !entry.dataUrl),
+    `RETENTION: document bytes were persisted under ${
+      ours.find((e) => e.pdfHeader || e.dataUrl)?.key ?? '?'
+    }`,
+  );
+  /*
+   * A size ceiling on OUR keys. A stored semester is a few kilobytes of
+   * numbers; anything approaching the size of a card would mean a document had
+   * been kept, whatever form it took.
+   */
+  const largest = ours.reduce((max, entry) => Math.max(max, entry.bytes), 0);
+  expect(
+    largest < 200_000,
+    `RETENTION: the largest GradTools value is ${String(largest)} bytes, too big to be results alone`,
+  );
+  expect(
+    unaccounted.length === 0,
+    `RETENTION: something unrecognised is in local storage: ${unaccounted.map((e) => e.key).join(', ')}`,
+  );
+  report.storage = {
+    gradtools: ours.map(({ key, bytes }) => ({ key, bytes })),
+    engineCache: engine.map(({ key, bytes }) => ({ key, bytes })),
+  };
+
+  /* Nothing in sessionStorage or localStorage either. */
+  const webStorage = await page.evaluate(() =>
+    ['localStorage', 'sessionStorage'].flatMap((name) => {
+      const store = globalThis[name];
+      return Object.keys(store).map((key) => ({
+        store: name,
+        key,
+        bytes: (store.getItem(key) ?? '').length,
+        suspicious: /%PDF|JVBERi|data:image|base64,/.test(store.getItem(key) ?? ''),
+      }));
+    }),
+  );
+  expect(
+    webStorage.every((entry) => !entry.suspicious),
+    'RETENTION: document bytes were left in local or session storage',
+  );
+
+  /* -------------------------------------------------------------------- */
+  /* 11. NOTHING LEFT THE ORIGIN                                          */
   /* -------------------------------------------------------------------- */
 
   const OWN = [ORIGIN, 'http://localhost:3001', 'data:', 'blob:'];
@@ -658,7 +774,7 @@ const run = async () => {
   await context.close();
 
   /* -------------------------------------------------------------------- */
-  /* 11. THE SWEEP: every width, the chosen theme                         */
+  /* 12. THE SWEEP: every width, the chosen theme                         */
   /* -------------------------------------------------------------------- */
 
   for (const vp of VIEWPORTS) {

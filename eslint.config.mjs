@@ -143,6 +143,12 @@ export default tseslint.config(
         document: 'readonly',
         getComputedStyle: 'readonly',
         window: 'readonly',
+        /* Used inside page.evaluate callbacks, which run in Chromium. */
+        globalThis: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        ArrayBuffer: 'readonly',
+        Blob: 'readonly',
       },
     },
     rules: {

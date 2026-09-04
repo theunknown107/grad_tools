@@ -9,7 +9,7 @@
  *
  *   node tests/m96b-qa.mjs
  *
- * Screenshots land in .qa-m96b/, gitignored.
+ * Screenshots land in .qa/m96b/, gitignored.
  */
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -19,7 +19,7 @@ import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve(process.env.OUT ?? '.qa-m96b');
+const OUT = resolve(process.env.OUT ?? '.qa/m96b');
 /* 4322 is the origin the API allows — see tests/README. */
 const PORT = 4322;
 

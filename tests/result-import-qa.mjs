@@ -14,7 +14,7 @@
  * record by the ordinary academic engine.
  *
  *   node tests/result-import-qa.mjs
- *   SCHEME=light OUT=.qa-import-light node tests/result-import-qa.mjs
+ *   SCHEME=light OUT=.qa/import-light node tests/result-import-qa.mjs
  *
  * Every value in the generated documents is synthetic.
  */
@@ -28,7 +28,7 @@ import { Buffer } from 'node:buffer';
 import { graded, makePdf, resultPdf } from './lib/documents.mjs';
 
 const DIST = resolve('apps/web/dist');
-const OUT = resolve(process.env.OUT ?? '.qa-import');
+const OUT = resolve(process.env.OUT ?? '.qa/import');
 /* The origin the API's CORS allowlist carries; see tests/results-qa.mjs. */
 const PORT = 4322;
 
