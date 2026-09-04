@@ -14,8 +14,6 @@
     "seed:demo": "tsx src/db/seed-demo.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc --noEmit -p tsconfig.build.json",
-    "seed:demo-papers": "tsx src/db/seed-demo-papers.ts",
-    "corpus:profile": "tsx scripts/corpus-profile.ts",
     "reference:coverage": "tsx scripts/reference-coverage.ts",
     "source:inventory": "tsx scripts/source-inventory.ts"
   },
