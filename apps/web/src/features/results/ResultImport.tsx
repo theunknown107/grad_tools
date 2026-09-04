@@ -257,7 +257,7 @@ export function ResultImport({
       session.current = await startOcr();
     }
     const live = session.current;
-    return (canvas, page) => live.recognize(canvas, page);
+    return (canvas, page, options) => live.recognize(canvas, page, options);
   };
 
   const read = async (chosen: readonly File[]) => {

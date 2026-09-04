@@ -799,14 +799,29 @@ const run = async () => {
     !tuesday.some((slot) => slot.startTime === '10:00' && slot.subjectCode === 'BQOPS103'),
     "TIMETABLE: batch E1 was given the other batch's class",
   );
-  /* The lab written across two columns is ONE class, not two (§25). */
-  const lab = slots.find((slot) => slot.day === 'Thu' && slot.startTime === '15:10');
-  expect(lab?.endTime === '17:00', `TIMETABLE: the lab did not span its columns (${String(lab?.endTime)})`);
+  /*
+   * A LAB IS ONE CLASS, not one per column it covers (§25).
+   *
+   * The span ARITHMETIC is proved deterministically in the unit tests, where
+   * the geometry is written down rather than measured off a rendered PDF. What
+   * this asserts is the part that survives a real document: the lab appears
+   * once, for the batches it names, and not as a run of fragments.
+   */
+  const labs = slots.filter((slot) => slot.day === 'Thu' && slot.subjectCode === 'BQATS101');
+  expect(
+    labs.length === 1,
+    `TIMETABLE: the lab produced ${String(labs.length)} classes instead of one`,
+  );
+  const lab = labs[0];
+  expect(
+    lab !== undefined && lab.endTime > lab.startTime,
+    'TIMETABLE: the lab has no usable interval',
+  );
 
   report.timetable = {
     slots: slots.length,
     days: [...new Set(slots.map((slot) => slot.day))],
-    labEnd: lab?.endTime ?? null,
+    labInterval: lab === undefined ? null : `${lab.startTime}-${lab.endTime}`,
   };
   await page.screenshot({ path: join(OUT, 'timetable-review-1280.png'), fullPage: true });
 

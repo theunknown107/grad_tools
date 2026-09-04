@@ -121,6 +121,11 @@ const run = async () => {
   let problems = 0;
 
   for (const document of documents) {
+    await page.goto(`${ORIGIN}/`);
+    await page.evaluate((v) => {
+      if (v === '') localStorage.removeItem('ttPsm');
+      else localStorage.setItem('ttPsm', v);
+    }, process.env.TTPSM ?? '');
     await page.goto(`${ORIGIN}/results`);
     await page.waitForTimeout(600);
     const opener = page.getByRole('button', { name: /import a result card/i });

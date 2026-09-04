@@ -147,6 +147,24 @@ export function TimetableReview({
         </div>
       )}
 
+      {!parsed.coverage.looksComplete && parsed.coverage.cellsFound > 0 && (
+        <div className={styles.editorNotice}>
+          {/*
+            A PARTLY-READ TIMETABLE MUST NOT LOOK LIKE A WHOLE ONE.
+            A photograph can give up a handful of perfectly correct classes and
+            lose most of its columns. Six right classes presented as "your week"
+            is worse than an honest partial: it looks complete, and a student
+            would plan around the ones that are missing (§26).
+          */}
+          <Notice tone="warning">
+            This is only part of the timetable. {parsed.coverage.cellsResolved} of{' '}
+            {parsed.coverage.cellsFound} classes could be identified, across{' '}
+            {parsed.coverage.slotsFound} of its time columns. Save what was read and add the rest by
+            hand, or enter the whole timetable manually.
+          </Notice>
+        </div>
+      )}
+
       {parsed.warnings.map((warning) => (
         <div className={styles.editorNotice} key={warning}>
           <Notice tone="warning">{warning}</Notice>

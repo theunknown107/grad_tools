@@ -257,8 +257,25 @@ function toWord(raw: TesseractWord): OcrWord | null {
 }
 
 export interface OcrSession {
-  /** Recognises one canvas. Sequential: calls queue behind one another. */
-  recognize(canvas: HTMLCanvasElement, page?: number): Promise<OcrPageResult>;
+  /**
+   * Recognises one canvas. Sequential: calls queue behind one another.
+   *
+   * `sparse` switches the engine from its default page segmentation to
+   * SPARSE_TEXT. Measured on a real college timetable: the default finds a
+   * dense ruled table's rows to be nothing at all, and the subject dictionary
+   * — the only place the grid's initials are defined — came back EMPTY. In
+   * sparse mode it came back with seven of its eight rows.
+   *
+   * It is not the default because it is worse where the default is right: on
+   * the same real result cards, sparse mode dropped a nine-row card to four and
+   * produced one INCORRECT mark. So the caller asks for it, and only for the
+   * document that needs it (M10A.8.1 §7, §11).
+   */
+  recognize(
+    canvas: HTMLCanvasElement,
+    page?: number,
+    options?: { readonly sparse?: boolean },
+  ): Promise<OcrPageResult>;
   /** Always call this. A worker left running holds the engine in memory. */
   close(): Promise<void>;
 }
@@ -300,11 +317,42 @@ export async function startOcr(): Promise<OcrSession> {
   let queue: Promise<unknown> = Promise.resolve();
 
   return {
-    async recognize(canvas, page = 1) {
+    async recognize(canvas, page = 1, options = {}) {
       if (closed) throw new OcrError('This import was cancelled.');
 
       const turn = queue.then(async () => {
         if (closed) throw new OcrError('This import was cancelled.');
+        /*
+         * Set per call rather than per worker, and set BOTH ways round: the
+         * engine keeps whatever it was last told, so a sparse pass would leak
+         * into the next document in the same batch.
+         */
+        /*
+         * Set per call, and set BOTH ways round: the engine keeps whatever it
+         * was last told, so a sparse pass would otherwise leak into the next
+         * document in the same batch.
+         *
+         * THE DPI HINT IS ONLY FOR THE SPARSE PASS. It was added to silence
+         * "Estimating resolution as 185", which sparse mode prints to the
+         * console on every page — and it turned out to change what the engine
+         * READS: on a real result card it gained a row and produced one
+         * incorrect total. Silencing a log must not alter a student's marks, so
+         * the hint goes only where the noise is, on the path result cards never
+         * take.
+         */
+        await worker.setParameters(
+          options.sparse === true
+            ? ({ tessedit_pageseg_mode: '11', user_defined_dpi: '300' } as never)
+            : /*
+               * SIX, not three. tesseract.js never sets this, so what applies
+               * otherwise is Tesseract's own default of SINGLE_BLOCK — and
+               * setting AUTO instead, which looked like the harmless choice,
+               * changed what the engine read on a real result card. Restoring
+               * the mode after a sparse pass has to restore the mode that was
+               * actually there.
+               */
+              ({ tessedit_pageseg_mode: '6' } as never),
+        );
         const { data } = await worker.recognize(canvas, {}, { blocks: true });
 
         /*
