@@ -21,16 +21,17 @@
  * also why it needs no confirmation states.
  *
  * ---------------------------------------------------------------------------
- * WHY QUESTION RESULTS ARE DEBOUNCED AND DESTINATIONS ARE NOT
+ * EVERYTHING HERE IS LOCAL (M10A.11 §4)
  * ---------------------------------------------------------------------------
  *
- * Destinations are a fixed local list of eleven, so they filter on every
- * keystroke with no cost. Questions cross the network, so they wait 220ms after
- * typing stops. Mixing the two would make the whole list feel laggy for the
- * common case, which is someone typing "att" to reach Attendance.
+ * This used to search question papers over the network as well, debounced
+ * behind the destinations. Question papers are not part of the product, and
+ * M10A.10 removed the pages the results navigated to - so the search was still
+ * calling the API, still rendering hits, and sending anyone who clicked one to
+ * a route that no longer exists.
  *
- * A stale response must never overwrite a fresh one, so each request carries a
- * sequence number and a late arrival is dropped.
+ * Destinations are a fixed local list, so they filter on every keystroke with
+ * no cost, and the palette now makes no request at all.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -138,17 +139,8 @@ const DESTINATIONS: readonly Destination[] = [
   },
 ];
 
-interface QuestionHit {
-  readonly id: string;
-  readonly subjectCode: string;
-  readonly questionNumber: string;
-  readonly text: string;
-}
-
 /** A flat row in the rendered list, so one index walks every group. */
-type Row =
-  | { readonly kind: 'destination'; readonly item: Destination }
-  | { readonly kind: 'question'; readonly item: QuestionHit };
+type Row = { readonly kind: 'destination'; readonly item: Destination };
 
 function matches(destination: Destination, query: string): boolean {
   const haystack =
@@ -170,10 +162,8 @@ export function GlobalSearch({
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
-  const [questions, setQuestions] = useState<readonly QuestionHit[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const sequence = useRef(0);
 
   useDismissable({ open, onDismiss: onClose, surfaceRef: panelRef });
   useFocusTrap(open, panelRef);
@@ -182,7 +172,6 @@ export function GlobalSearch({
   useEffect(() => {
     if (!open) return;
     setQuery('');
-    setQuestions([]);
     setActive(0);
     inputRef.current?.focus();
   }, [open]);
@@ -194,40 +183,9 @@ export function GlobalSearch({
     [trimmed],
   );
 
-  useEffect(() => {
-    // Two characters is the shortest query worth a round trip.
-    if (!open || trimmed.length < 2) {
-      setQuestions([]);
-      return;
-    }
-    const ticket = (sequence.current += 1);
-    const timer = setTimeout(() => {
-      void (async () => {
-        try {
-          const response = await fetch(
-            `/api/v1/questions/search?q=${encodeURIComponent(trimmed)}&limit=5`,
-          );
-          if (!response.ok) return;
-          const body: unknown = await response.json();
-          // A response that arrived after a newer one must be discarded.
-          if (ticket !== sequence.current) return;
-          const items = (body as { items?: readonly QuestionHit[] }).items ?? [];
-          setQuestions(items.slice(0, 5));
-        } catch {
-          // Search across the network is a bonus; local destinations still work.
-          if (ticket === sequence.current) setQuestions([]);
-        }
-      })();
-    }, 220);
-    return () => clearTimeout(timer);
-  }, [open, trimmed]);
-
   const rows = useMemo<readonly Row[]>(
-    () => [
-      ...destinations.map((item): Row => ({ kind: 'destination', item })),
-      ...questions.map((item): Row => ({ kind: 'question', item })),
-    ],
-    [destinations, questions],
+    () => destinations.map((item): Row => ({ kind: 'destination', item })),
+    [destinations],
   );
 
   useEffect(() => setActive(0), [rows.length]);
@@ -235,8 +193,7 @@ export function GlobalSearch({
   const go = useCallback(
     (row: Row) => {
       onClose();
-      if (row.kind === 'destination') navigate(row.item.to);
-      else navigate(`/papers?q=${encodeURIComponent(row.item.questionNumber)}`);
+      navigate(row.item.to);
     },
     [navigate, onClose],
   );
@@ -259,7 +216,6 @@ export function GlobalSearch({
   if (!open) return null;
 
   let index = -1;
-  let lastGroup = '';
 
   return (
     <div className={`${styles.scrim ?? ''} glassOverlay`}>
@@ -276,7 +232,7 @@ export function GlobalSearch({
             ref={inputRef}
             type="search"
             className={styles.input}
-            placeholder="Search pages and question papers…"
+            placeholder="Search pages…"
             value={query}
             role="combobox"
             aria-expanded="true"
@@ -326,39 +282,6 @@ export function GlobalSearch({
             );
           })}
 
-          {questions.length > 0 ? <p className={styles.group}>Questions</p> : null}
-          {questions.map((item) => {
-            index += 1;
-            const rowIndex = index;
-            lastGroup = item.subjectCode;
-            return (
-              <div
-                key={item.id}
-                id={`search-row-${String(rowIndex)}`}
-                role="option"
-                aria-selected={rowIndex === active}
-                data-active={rowIndex === active}
-                className={styles.row}
-                onPointerEnter={() => setActive(rowIndex)}
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  go({ kind: 'question', item });
-                }}
-              >
-                <span className={styles.rowIcon}>
-                  <Icon name="papers" size="nav" />
-                </span>
-                <span className={styles.rowText}>
-                  {/* Plain text, never dangerouslySetInnerHTML: this string is
-                      OCR output from an uploaded document (docs/13 T-22). */}
-                  <span className={styles.rowTitle}>{item.text}</span>
-                  <span className={styles.rowHint}>
-                    {lastGroup} · Q{item.questionNumber}
-                  </span>
-                </span>
-              </div>
-            );
-          })}
         </div>
 
         <div className={styles.foot}>
