@@ -2758,3 +2758,34 @@ and a real HTTP status, and nothing about it says "your build moved underneath
 you". **A harness reads `apps/web/dist`; do not build into it while one is
 running.** No guard was added — the answer is not to do it, and a run that
 overlaps a build announces itself by failing rules that cannot fail.
+
+## 22.74 Two photographs of the same timetable, R1 and R2 (M10A.12)
+
+The pilot accepts a list of files for one kind, imported in order, so the real
+R1 and R2 photographs of the same class timetable could be run as the revision
+pair they are:
+
+```
+R1  206 kB   REFUSED — not recognised as a timetable, 0 classes stored
+R2  236 kB   recognised — 12 classes at review, revision and W.E.F. read,
+             batch asked (2 offered) -> 14 classes stored, 1 import record
+```
+
+**R1 being refused is the honest failure, not a regression.** M10A.8.1 already
+established that a photographed grid is at the edge of what local OCR gives up;
+the product declined the document rather than inventing a week from whatever it
+could read, which is the rule §22.60 sets. A student sees a refusal they can act
+on, not a confident half-timetable.
+
+R2 stored **14** classes from **12** shown at review, because choosing a batch
+*adds* your batch's own cells to the ones that belong to everybody. One import
+record, no duplication, no merge with R1 — the revision replaced nothing because
+R1 never saved.
+
+### The log line that nearly became a false report
+
+The storage probe printed *before* its own document's heading, so every "after
+saving" line appeared under the previous document — making a refused R1 look as
+though it had stored fourteen classes. Nothing was wrong except the order, and
+the order alone was enough to put a fabricated number in a report. Fixed by
+printing the heading first.

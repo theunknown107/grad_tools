@@ -323,9 +323,19 @@ const run = async () => {
    * whether "07 Sep" is right, and says so rather than implying it does.
    */
   const pilot = truth.pilot ?? {};
-  const pilotDocs = ['calendar', 'timetable']
-    .map((kind) => ({ kind, ...(pilot[kind] ?? {}) }))
-    .filter((entry) => typeof entry.file === 'string' && existsSync(entry.file));
+  /*
+   * `file` may be one path or several. Several means REVISIONS, imported in the
+   * order given — the real R1 and R2 of the same class timetable, which is the
+   * only way to prove on real documents that the second REPLACES the first
+   * rather than joining it (§20, §29).
+   */
+  const pilotDocs = ['calendar', 'timetable'].flatMap((kind) => {
+    const entry = pilot[kind] ?? {};
+    const files = Array.isArray(entry.file) ? entry.file : [entry.file];
+    return files
+      .filter((file) => typeof file === 'string' && existsSync(file))
+      .map((file, index) => ({ kind, file, revisionIndex: index }));
+  });
 
   report.pilot = { attempted: pilotDocs.length, documents: [], chain: null };
 
@@ -461,9 +471,55 @@ const run = async () => {
         await page.waitForTimeout(1500);
       }
 
+      /*
+       * THE HEADER FIRST. This used to print after the storage probe below, so
+       * every "after saving" line appeared under the PREVIOUS document's
+       * heading — which read as a refused import having saved fourteen classes.
+       * Nothing was wrong but the order, and the order was enough to misreport.
+       */
+      console.log(
+        `
+  real ${entry.kind}${entry.revisionIndex > 0 ? ` (revision ${String(entry.revisionIndex + 1)})` : ''}` +
+          ` — ${String(buffer.length)} bytes, ${String(readMs)}ms`,
+      );
+
+      /*
+       * After a second timetable, the stored week must be the new one ENTIRELY.
+       * A revision that merges leaves a student with a Monday that is partly
+       * last term's, and the classes that moved are exactly the ones they would
+       * turn up for.
+       */
+      if (entry.kind === 'timetable') {
+        found.afterSave = await page.evaluate(
+          () =>
+            new Promise((ok) => {
+              const open = globalThis.indexedDB.open('keyval-store', 1);
+              open.onsuccess = () => {
+                const store = open.result.transaction('keyval', 'readonly').objectStore('keyval');
+                const slots = store.get('gradtools:v1:anon:timetable');
+                const records = store.get('gradtools:v1:anon:timetableImports');
+                slots.onsuccess = () => {
+                  records.onsuccess = () =>
+                    ok({
+                      slots: (slots.result ?? []).length,
+                      imports: (records.result ?? []).length,
+                    });
+                  records.onerror = () => ok({ slots: -1, imports: -1 });
+                };
+                slots.onerror = () => ok({ slots: -1, imports: -1 });
+              };
+              open.onerror = () => ok({ slots: -1, imports: -1 });
+            }),
+        );
+        console.log(
+          `    after saving: ${String(found.afterSave.slots)} classes stored, ` +
+            `${String(found.afterSave.imports)} import record(s) kept`,
+        );
+      }
+
       report.pilot.documents.push(found);
 
-      console.log(`\n  real ${entry.kind} — ${String(buffer.length)} bytes, ${String(readMs)}ms`);
+
       console.log(
         `    routed to ${found.routedTo}${found.routedCorrectly ? '' : '  <-- WRONG PARSER'}`,
       );
