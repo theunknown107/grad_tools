@@ -286,7 +286,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         unreachable — the arrangement changed, not the map.
       */}
       <aside className={styles.sidebar} aria-label="Sections">
-        <NavLink to="/" className={styles.brand ?? ''}>
+        {/* Named explicitly: the wordmark is hidden in the icon rail, and
+            without this the brand link announces nothing there. */}
+        <NavLink to="/" className={styles.brand ?? ''} aria-label="GradTools home">
           <span className={styles.brandMark} aria-hidden="true">
             G
           </span>
