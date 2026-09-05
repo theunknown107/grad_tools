@@ -94,9 +94,13 @@ const run = async () => {
   }
 
   const truth = JSON.parse(await readFile(TRUTH, 'utf8'));
-  const documents = truth.documents.filter((document) => existsSync(document.file));
+  const documents = (truth.documents ?? []).filter((document) => existsSync(document.file));
+  const hasPilot = ['calendar', 'timetable'].some((kind) => {
+    const file = truth.pilot?.[kind]?.file;
+    return typeof file === 'string' && existsSync(file);
+  });
 
-  if (documents.length === 0) {
+  if (documents.length === 0 && !hasPilot) {
     console.log(`\n  REAL-DOCUMENT VERIFIED = NOT VERIFIED`);
     console.log(`  ${TRUTH} names no document that exists on this machine.\n`);
     process.exit(0);
@@ -286,6 +290,298 @@ const run = async () => {
       }
     }
     if (totals.incorrect > 0 || totals.missing > 0) problems += 1;
+  }
+
+
+  /* ---------------------------------------------------------------------- */
+  /* THE REAL SEMESTER PILOT                                                 */
+  /* ---------------------------------------------------------------------- */
+
+  /*
+   * A calendar and a timetable the student actually holds, put through the
+   * shipped import, and then the whole daily loop on top of what came out.
+   *
+   * ---------------------------------------------------------------------
+   * WHY THIS SECTION SCORES STRUCTURE AND NOT VALUES
+   * ---------------------------------------------------------------------
+   *
+   * The result cards above are scored field by field against a ground truth
+   * somebody typed. That is worth doing for marks, where one wrong digit is
+   * the whole failure. It is the wrong instrument for a calendar of sixty
+   * dates and a timetable of thirty cells: transcribing them by hand to check
+   * them would take longer than reading the documents, and it would put a
+   * college's dates and a faculty list into a file for no gain.
+   *
+   * So this asks the questions a ground truth cannot answer anyway. Was the
+   * document RECOGNISED? How much of it came out? Did the fields that decide
+   * behaviour — semester, year, revision, effective date — arrive at all? And
+   * then, the only question that really matters: does the product WORK on what
+   * was extracted, end to end, without anybody typing a class or a date?
+   *
+   * What was extracted is written to `.qa/real/` so the person who owns the
+   * documents can check the values against them. The harness does not know
+   * whether "07 Sep" is right, and says so rather than implying it does.
+   */
+  const pilot = truth.pilot ?? {};
+  const pilotDocs = ['calendar', 'timetable']
+    .map((kind) => ({ kind, ...(pilot[kind] ?? {}) }))
+    .filter((entry) => typeof entry.file === 'string' && existsSync(entry.file));
+
+  report.pilot = { attempted: pilotDocs.length, documents: [], chain: null };
+
+  if (pilotDocs.length === 0) {
+    console.log(`\n  SEMESTER PILOT = NOT RUN — truth.pilot names no document on this machine.`);
+  } else {
+    /* A clean device: the pilot must build the semester, not inherit it. */
+    await page.goto(`${ORIGIN}/`);
+    await page.evaluate(
+      () =>
+        new Promise((ok) => {
+          const open = globalThis.indexedDB.open('keyval-store', 1);
+          open.onsuccess = () => {
+            const store = open.result.transaction('keyval', 'readwrite').objectStore('keyval');
+            for (const key of [
+              'results',
+              'calendars',
+              'timetable',
+              'timetableImports',
+              'attendance',
+              'classMarks',
+            ]) {
+              store.delete(`gradtools:v1:anon:${key}`);
+            }
+            ok(true);
+          };
+          open.onerror = () => ok(false);
+        }),
+    );
+
+    for (const entry of pilotDocs) {
+      await page.goto(`${ORIGIN}/import`);
+      await page.waitForTimeout(600);
+
+      const buffer = await readFile(entry.file);
+      const started = Date.now();
+      await page
+        .locator('input[type="file"]')
+        .first()
+        .setInputFiles({
+          name: basename(entry.file),
+          mimeType: UPLOAD_MIME[extname(entry.file).toLowerCase()] ?? 'application/octet-stream',
+          buffer,
+        });
+
+      /* OCR on a photographed timetable is minutes, not seconds. */
+      await page
+        .locator('text=/dates · from|classes · from|could not|Failed|does not appear/i')
+        .first()
+        .waitFor({ timeout: 300_000 })
+        .catch(() => undefined);
+      const readMs = Date.now() - started;
+
+      const main = await page.locator('#main').innerText();
+
+      /*
+       * ROUTING FIRST. Everything below is meaningless if the document was
+       * handed to the wrong parser, and a calendar read as a result card would
+       * still produce confident-looking numbers.
+       */
+      const routedTo = /dates · from/.test(main)
+        ? 'academic_calendar'
+        : /classes · from/.test(main)
+          ? 'college_timetable'
+          : /rows read/.test(main)
+            ? 'result_card'
+            : 'refused';
+      const expectedRoute = entry.kind === 'calendar' ? 'academic_calendar' : 'college_timetable';
+
+      const countOf = (pattern) => {
+        const found = pattern.exec(main);
+        return found === null ? null : Number(found[1]);
+      };
+
+      const found = {
+        kind: entry.kind,
+        bytes: buffer.length,
+        readMs,
+        routedTo,
+        routedCorrectly: routedTo === expectedRoute,
+        /* Present-or-absent only. The VALUES belong to the student. */
+        extracted:
+          entry.kind === 'calendar'
+            ? {
+                dates: countOf(/(\d+) dates · from/),
+                semesterNamed: !/could not tell which semester/i.test(main),
+                academicYearNamed: /Academic calendar \d/.test(main),
+              }
+            : {
+                classes: countOf(/(\d+) classes · from/),
+                classNameNamed: !/^Class timetable$/m.test(main),
+                revisionNamed: /\bR\d\b/.test(main),
+                effectiveFromNamed: /W\.?E\.?F|takes effect|from \d/i.test(main),
+                batchAsked: /which of them are yours/i.test(main),
+                partialCoverage: /could be identified, across/i.test(main),
+              },
+      };
+
+      /*
+       * ANSWER THE BATCH QUESTION, BECAUSE A STUDENT WOULD.
+       *
+       * A timetable whose cells are split between batches will not save until
+       * somebody says which batch is theirs — the product refuses to guess
+       * (§27), and the first run of this harness silently stored NOTHING
+       * because it walked past the question and then found Save disabled.
+       * Choosing the first offered batch is what a student does; leaving it
+       * unanswered measures nothing.
+       */
+      const batch = page.getByLabel(/your batch/i);
+      if ((await batch.count()) > 0) {
+        const options = await batch.first().locator('option').all();
+        const values = (await Promise.all(options.map((o) => o.getAttribute('value')))).filter(
+          (value) => value !== null && value !== '',
+        );
+        found.batchOptions = values.length;
+        if (values.length > 0) {
+          await batch.first().selectOption(values[0]);
+          await page.waitForTimeout(400);
+        }
+      }
+
+      /*
+       * SAVE IT. An import that reviews correctly and then fails to commit is
+       * not an import, and only the stored state proves it happened.
+       */
+      const save = page.getByRole('button', {
+        name: /Confirm and save (calendar|timetable)|Replace my timetable/i,
+      });
+      found.offeredSave = (await save.count()) > 0;
+      found.saveEnabled = found.offeredSave && (await save.first().isEnabled());
+      if (found.saveEnabled) {
+        await save.first().click();
+        await page.waitForTimeout(1500);
+      }
+
+      report.pilot.documents.push(found);
+
+      console.log(`\n  real ${entry.kind} — ${String(buffer.length)} bytes, ${String(readMs)}ms`);
+      console.log(
+        `    routed to ${found.routedTo}${found.routedCorrectly ? '' : '  <-- WRONG PARSER'}`,
+      );
+      console.log(`    extracted: ${JSON.stringify(found.extracted)}`);
+      console.log(
+        `    save offered: ${found.offeredSave ? 'yes' : 'NO'}` +
+          ` · enabled: ${found.saveEnabled ? 'yes' : 'NO'}` +
+          (found.batchOptions === undefined ? '' : ` · batches offered: ${String(found.batchOptions)}`),
+      );
+      if (!found.saveEnabled) problems += 1;
+      if (!found.routedCorrectly) problems += 1;
+    }
+
+    /* -------------------------------------------------------------------- */
+    /* THE CHAIN: does the product work on what came out?                   */
+    /* -------------------------------------------------------------------- */
+
+    const storedList = (key) =>
+      page.evaluate(
+        (name) =>
+          new Promise((ok) => {
+            const open = globalThis.indexedDB.open('keyval-store', 1);
+            open.onsuccess = () => {
+              const request = open.result
+                .transaction('keyval', 'readonly')
+                .objectStore('keyval')
+                .get(`gradtools:v1:anon:${name}`);
+              request.onsuccess = () => ok(request.result ?? []);
+              request.onerror = () => ok([]);
+            };
+            open.onerror = () => ok([]);
+          }),
+        key,
+      );
+
+    const calendars = await storedList('calendars');
+    const slots = await storedList('timetable');
+    const imports = await storedList('timetableImports');
+
+    await page.goto(`${ORIGIN}/`);
+    await page.waitForTimeout(900);
+    const dashboard = await page.locator('#main').innerText();
+
+    await page.goto(`${ORIGIN}/timetable`);
+    await page.waitForTimeout(900);
+    const timetableScreen = await page.locator('#main').innerText();
+
+    /*
+     * Mark a class from whatever the real timetable produced for today. There
+     * may be none — a real Saturday, or a day the real calendar calls a
+     * holiday — and that is a legitimate outcome rather than a failure, so it
+     * is recorded rather than asserted.
+     */
+    const attendButton = page.getByRole('button', { name: /attended$/i }).first();
+    const offeredToday = (await page.getByRole('button', { name: /attended$/i }).count()) > 0;
+    let marked = null;
+    let undone = null;
+    if (offeredToday) {
+      await attendButton.click();
+      await page.waitForTimeout(600);
+      const after = await storedList('attendance');
+      const marks = await storedList('classMarks');
+      marked = { attendanceRecords: after.length, marks: marks.length };
+
+      await page.getByRole('button', { name: /^undo$/i }).click();
+      await page.waitForTimeout(600);
+      undone = { marks: (await storedList('classMarks')).length };
+    }
+
+    report.pilot.chain = {
+      calendarsStored: calendars.length,
+      slotsStored: slots.length,
+      timetableImportsStored: imports.length,
+      dashboardShowsNextDate: /Next on the calendar/i.test(dashboard),
+      dashboardShowsToday: /Today/i.test(dashboard),
+      todayIsHoliday: /no classes today/i.test(timetableScreen),
+      timetableShowsProvenance: /·/.test(timetableScreen) && imports.length > 0,
+      offeredAttendanceToday: offeredToday,
+      marked,
+      undone,
+      /* Bytes of stored structured facts — no document is kept (§6, §51). */
+      storageBytes: {
+        calendars: JSON.stringify(calendars).length,
+        timetable: JSON.stringify(slots).length,
+        timetableImports: JSON.stringify(imports).length,
+      },
+    };
+
+    const chain = report.pilot.chain;
+    console.log(`\n  THE CHAIN, on real documents`);
+    console.log(
+      `    stored: ${String(chain.calendarsStored)} calendar(s), ` +
+        `${String(chain.slotsStored)} classes, ${String(chain.timetableImportsStored)} import record(s)`,
+    );
+    console.log(
+      `    dashboard: next date ${chain.dashboardShowsNextDate ? 'yes' : 'NO'}` +
+        ` · today ${chain.dashboardShowsToday ? 'yes' : 'NO'}`,
+    );
+    console.log(
+      `    today: ${chain.todayIsHoliday ? 'calendar says non-working' : 'teaching day'}` +
+        ` · attendance offered ${chain.offeredAttendanceToday ? 'yes' : 'no'}`,
+    );
+    if (marked !== null)
+      console.log(
+        `    marked: ${String(marked.marks)} mark, ${String(marked.attendanceRecords)} record` +
+          ` · after undo: ${String(undone.marks)} mark`,
+      );
+    console.log(
+      `    storage: ${JSON.stringify(chain.storageBytes)} bytes of structured facts`,
+    );
+
+    /* What came out, for the owner of the documents to check against them. */
+    await writeFile(
+      join(OUT, 'pilot-extraction.json'),
+      `${JSON.stringify({ calendars, slots, imports }, null, 2)}\n`,
+      'utf8',
+    );
+    console.log(`    Extracted values: ${join(OUT, 'pilot-extraction.json')}  (private, gitignored)`);
   }
 
   /* A real card must not reach a third party any more than a synthetic one. */
