@@ -595,8 +595,7 @@ describe('navigation', () => {
    * changed: every built destination is reachable from the shell, and nothing
    * unbuilt appears as a dead link (docs/04 §4.3).
    */
-  it('reaches every built destination and omits unbuilt ones', async () => {
-    const user = userEvent.setup();
+  it('reaches every built destination and omits unbuilt ones', () => {
     renderWith(<App />);
 
     const shellLabels = () =>
@@ -696,7 +695,14 @@ describe('local persistence', () => {
 
     // A fresh mount reads from the same repository, exactly as a page reload would.
     renderWith(<AttendancePage />, { repositories: bundle });
-    expect(await screen.findByText('BCS404')).toBeTruthy();
+    /*
+     * findAllByText, not findBy: the reference rebuild put a per-course card
+     * above the list, so a saved course now legitimately appears twice — once
+     * on its card and once in the row. The assertion is unchanged in substance
+     * — the course came back out of storage — and only stops requiring that it
+     * be rendered exactly once.
+     */
+    expect((await screen.findAllByText('BCS404')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('100.0%').length).toBeGreaterThan(0);
   });
 });

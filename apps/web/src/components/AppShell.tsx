@@ -31,7 +31,7 @@
  */
 
 import { Icon, type IconName } from './icons.js';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   Fragment,
   useCallback,
@@ -423,17 +423,35 @@ export function PageHeader({
   title,
   subtitle,
   action,
+  back,
+  pills,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
+  /** Where the back control goes. Present only on pages you arrive INTO. */
+  back?: string | undefined;
+  /**
+   * The reference's outlined metadata pills, sitting opposite the title:
+   * "10 lessons", "4,5 hours", "Due Jul 15". Facts about the page, never
+   * actions — the action slot is separate and stays separate.
+   */
+  pills?: ReactNode;
 }) {
   return (
     <div className={styles.pageHeader}>
       <div className={styles.pageHeading}>
-        <h1 className={styles.pageTitle}>{title}</h1>
+        <div className={styles.titleRow}>
+          {back !== undefined && (
+            <Link to={back} className={styles.backButton ?? ''} aria-label="Go back">
+              <Icon name="arrowLeft" size="nav" />
+            </Link>
+          )}
+          <h1 className={styles.pageTitle}>{title}</h1>
+        </div>
         {subtitle !== undefined && <p className={styles.pageSubtitle}>{subtitle}</p>}
       </div>
+      {pills !== undefined && <div className={styles.headerPills}>{pills}</div>}
       {action}
     </div>
   );

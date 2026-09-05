@@ -810,3 +810,117 @@ a.pastelCard:hover {
   font-size: var(--text-caption);
   white-space: nowrap;
 }
+
+/*
+ * The reference's pastel accordion.
+ *
+ * Its lesson list is a stack of pastel blocks — numbered title, duration on
+ * the right, chevron — whose fill cycles through the four tones. Expanding
+ * reveals sub-items on the same fill, so the group reads as one object rather
+ * than as a header with a detached panel underneath.
+ */
+.toneAccordion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.toneItem {
+  border-radius: 14px;
+  background: var(--tone-fill);
+  color: var(--tone-ink);
+  overflow: hidden;
+}
+
+.toneItem[data-tone='sky'] {
+  --tone-fill: var(--tone-sky);
+  --tone-ink: var(--tone-sky-ink);
+}
+
+.toneItem[data-tone='lime'] {
+  --tone-fill: var(--tone-lime);
+  --tone-ink: var(--tone-lime-ink);
+}
+
+.toneItem[data-tone='lilac'] {
+  --tone-fill: var(--tone-lilac);
+  --tone-ink: var(--tone-lilac-ink);
+}
+
+.toneItem[data-tone='peach'] {
+  --tone-fill: var(--tone-peach);
+  --tone-ink: var(--tone-peach-ink);
+}
+
+.toneSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  padding: var(--space-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  text-align: start;
+  cursor: pointer;
+}
+
+.toneSummary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
+.toneSummaryText {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.toneMeta {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-regular);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.toneChevron {
+  flex: none;
+  transition: transform var(--motion-base) var(--ease-glide);
+}
+
+.toneItem[data-open='true'] .toneChevron {
+  transform: rotate(180deg);
+}
+
+.toneBody {
+  padding: 0 var(--space-4) var(--space-4);
+  animation: toneOpen var(--motion-base) var(--ease-enter);
+}
+
+@keyframes toneOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toneBody {
+    animation: none;
+  }
+
+  .toneChevron {
+    transition: none;
+  }
+}
+
+/* The rail is focusable so it can be scrolled from the keyboard; give that
+   focus somewhere visible to land. */
+.rail:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 4px;
+  border-radius: 18px;
+}

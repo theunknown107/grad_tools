@@ -19,6 +19,7 @@ import {
 } from '../../domain/types.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
+import { MetaPill, ToneAccordion } from '../../components/ui/tone.js';
 import { IslandTabs, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { Icon } from '../../components/icons.js';
 import {
@@ -29,7 +30,7 @@ import {
   SelectField,
   TextField,
 } from '../../components/ui/index.js';
-import { formatDay, formatTime, localDay } from '../../lib/format.js';
+import { formatCount, formatDay, formatTime, localDay } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
 import {
   useAttendance,
@@ -275,7 +276,23 @@ export function TimetablePage() {
 
   return (
     <>
-      <PageHeader title="Timetable" subtitle="Your weekly schedule, stored on this device." />
+      <PageHeader
+        title="Timetable"
+        subtitle="Your weekly schedule, stored on this device."
+        pills={
+          items.length === 0 ? undefined : (
+            <>
+              <MetaPill>{formatCount(items.length, 'class')}</MetaPill>
+              {source !== null && source.active.revision !== null && (
+                <MetaPill>{source.active.revision}</MetaPill>
+              )}
+              {source !== null && source.active.effectiveFrom !== null && (
+                <MetaPill>from {formatDay(source.active.effectiveFrom)}</MetaPill>
+              )}
+            </>
+          )
+        }
+      />
 
       <div className={styles.stack}>
         {/*
@@ -463,33 +480,50 @@ export function TimetablePage() {
         {loading ? null : items.length === 0 ? (
           <Panel title="Your week" flush>
             <EmptyState>
-              No classes added yet. Add your weekly classes above and they appear here as a grid on
-              a wide screen and a day-by-day agenda on a phone.
+              No classes added yet. Add your weekly classes above, or import a timetable, and your
+              week appears here day by day.
             </EmptyState>
           </Panel>
         ) : (
           <div hidden={view !== 'week'}>
-            {/* Desktop: week grid */}
-            <div className={styles.weekGrid}>
-              {WEEKDAYS.map((weekday) => (
-                <section className={styles.dayColumn} key={weekday}>
-                  <h2 className={styles.dayHeading}>{weekday}</h2>
-                  {(byDay.get(weekday) ?? []).length === 0 ? (
-                    <p className={styles.dayEmpty}>No classes</p>
-                  ) : (
-                    <ul className={styles.slotList}>
-                      {(byDay.get(weekday) ?? []).map((slot) => (
-                        <SlotItem
-                          key={slot.id}
-                          slot={slot}
-                          title={displayTitle(resolveSubject(index, slot.subjectCode), 'timetable')}
-                          onRemove={() => void remove(slot.id)}
-                        />
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              ))}
+            {/*
+              THE REFERENCE'S LESSON LIST, and a week is the same shape: a
+              small number of named groups, each holding a handful of timed
+              items. A six-column grid said "spreadsheet"; six pastel sections
+              that open say "your week", and the day you want is one click
+              rather than a column to find.
+            */}
+            <div className={styles.weekStack}>
+              <ToneAccordion
+                label="Week"
+                items={WEEKDAYS.map((weekday) => {
+                  const slots = byDay.get(weekday) ?? [];
+                  return {
+                    id: weekday,
+                    title: weekday,
+                    meta:
+                      slots.length === 0 ? 'No classes' : formatCount(slots.length, 'class', 'classes'),
+                    body:
+                      slots.length === 0 ? (
+                        <p className={styles.dayEmpty}>Nothing scheduled.</p>
+                      ) : (
+                        <ul className={styles.slotList}>
+                          {slots.map((slot) => (
+                            <SlotItem
+                              key={slot.id}
+                              slot={slot}
+                              title={displayTitle(
+                                resolveSubject(index, slot.subjectCode),
+                                'timetable',
+                              )}
+                              onRemove={() => void remove(slot.id)}
+                            />
+                          ))}
+                        </ul>
+                      ),
+                  };
+                })}
+              />
             </div>
 
             {/* Mobile: day agenda with explicit prev/next buttons */}

@@ -23,6 +23,7 @@ import {
   type SemesterSummary,
 } from '@gradtools/academic-rules';
 import { PageHeader } from '../../components/AppShell.js';
+import { MetaPill } from '../../components/ui/tone.js';
 import { IslandTabs, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { MetricStrip } from '../../components/ui/layout.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
@@ -71,6 +72,9 @@ export function AcademicsPage() {
       <PageHeader
         title="SGPA & CGPA"
         subtitle="Every figure is computed by the shared rules engine against the VTU 2022 regulation, and every one can show its working."
+        /* The regulation is a fact about the page; the figures belong to the
+           panels below, which own the data. No count is invented here. */
+        pills={<MetaPill>VTU 2022 regulation</MetaPill>}
       />
       {/*
         -------------------------------------------------------------------
