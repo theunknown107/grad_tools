@@ -247,24 +247,33 @@ export function classifyDocument(lines: readonly ImportLine[]): Classification {
     };
   }
 
-  if (best.type === 'college_timetable') {
-    return {
-      type: 'college_timetable',
-      reason:
-        'This looks like a class timetable. GradTools cannot read timetables yet — you can add your classes by hand for now.',
-      signals: best.names,
-    };
-  }
-
+  /*
+   * All three supported kinds say the same kind of thing: what the document
+   * looked like. This branch used to add "GradTools cannot read timetables
+   * yet", which was true when it was written and stopped being true in M10A.8
+   * — the sentence simply outlived the limitation it described. It was not
+   * shown anywhere, because a recognised timetable goes to its parser rather
+   * than to the failure path, and a false sentence nobody displays is a false
+   * sentence waiting for a caller.
+   */
   return {
     type: best.type,
     reason:
       best.type === 'result'
         ? 'This looks like a result card.'
-        : 'This looks like an academic calendar.',
+        : best.type === 'college_timetable'
+          ? 'This looks like a class timetable.'
+          : 'This looks like an academic calendar.',
     signals: best.names,
   };
 }
 
+/*
+ * NAMES ALL THREE. This listed a result card and an academic calendar, and
+ * went on listing two after timetables became the third (M10A.8) — so a
+ * student whose timetable photo was too poor to read was told the product does
+ * not do timetables, which is both wrong and discouraging in the one moment
+ * they needed the opposite.
+ */
 const NOT_ACADEMIC =
-  'GradTools could not identify this as a result card or an academic calendar. If it is one, a clearer scan may work — or you can enter the details by hand.';
+  'GradTools could not identify this as a result card, an academic calendar or a class timetable. If it is one, a clearer scan may work — or you can enter the details by hand.';

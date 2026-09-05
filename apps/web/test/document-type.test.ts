@@ -66,15 +66,17 @@ describe('the three documents GradTools reads', () => {
     expect(seen.signals).toContain('academic calendar heading');
   });
 
-  it('recognises a class timetable and says it cannot read one yet', () => {
+  it('sends a class timetable to the timetable importer', () => {
     /*
-     * Recognised rather than refused as unknown, so the message can be true.
-     * "GradTools cannot read timetables yet" is a different statement from
-     * "this is not an academic document", and only one of them is accurate.
+     * This used to assert the message "GradTools cannot read timetables yet",
+     * which was accurate when it was written and wrong from M10A.8 onwards.
+     * The test kept it true by pinning it — a test can hold a stale promise in
+     * place as easily as it can protect a real one.
      */
     const seen = classifyDocument(TIMETABLE);
     expect(seen.type).toBe('college_timetable');
-    expect(seen.reason).toMatch(/cannot read timetables yet/i);
+    expect(seen.reason).toMatch(/looks like a class timetable/i);
+    expect(seen.reason).not.toMatch(/cannot read/i);
   });
 });
 
