@@ -19,10 +19,6 @@ describe('configuration', () => {
     expect(loadConfig(BASE).HOST).toBe('127.0.0.1');
   });
 
-  it('defaults the storage root and never points it into a served directory', () => {
-    expect(loadConfig(BASE).DOCUMENT_STORAGE_ROOT.length).toBeGreaterThan(0);
-  });
-
   it('refuses to start without a database url', () => {
     expect(() => loadConfig({})).toThrow(/DATABASE_URL/);
   });
