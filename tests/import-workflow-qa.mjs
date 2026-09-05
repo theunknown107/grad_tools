@@ -698,7 +698,9 @@ const run = async () => {
     'ROUTER: a class timetable was not detected and read',
   );
   expect(
-    /could not identify this as a result card or an academic calendar/i.test(text),
+    /could not identify this as a result card, an academic calendar or a class timetable/i.test(
+      text,
+    ),
     'ROUTER: an invoice was not refused with a usable message',
   );
   /*
