@@ -245,7 +245,7 @@
      vibrates, and a trace of blue keeps it in the same air as the ground. */
   --text: #f4f4f6;
   --text-muted: #a6a6b2;
-  --text-subtle: #84848f;
+  --text-subtle: #8e8e9a;
 
   /* --- Accent ------------------------------------------------------------ */
   /*
@@ -556,13 +556,13 @@
     --border-strong: #d3d3d9;
 
     --text: #101014;
-    --text-muted: #5b5b66;
+    --text-muted: #4e4e59;
     /*
      * Darkened from #6b7590 (M9.6F). At 12px on the light ground it measured
      * 4.24:1 — under AA. Only visible once Announcements had real data at
      * 320px, which is precisely the case an empty sweep cannot reach.
      */
-    --text-subtle: #83838f;
+    --text-subtle: #6b6b77;
 
     --accent: var(--a-on-light);
     /* The reference's selected-state material, resolved for this appearance. */
@@ -651,8 +651,8 @@
   --border-strong: #d3d3d9;
 
   --text: #101014;
-  --text-muted: #5b5b66;
-  --text-subtle: #83838f;
+  --text-muted: #4e4e59;
+  --text-subtle: #6b6b77;
 
   --accent: var(--a-on-light);
   /* The reference's selected-state material, resolved for this appearance. */
