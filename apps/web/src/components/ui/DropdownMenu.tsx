@@ -128,7 +128,7 @@ export function DropdownMenu({ label, items, align = 'end' }: DropdownMenuProps)
           role="menu"
           aria-label={label}
           data-align={align}
-          className={`${styles.menu ?? ''} glassPanel`}
+          className={`${styles.menu ?? ''} surfacePanel`}
           onKeyDown={onKeyDown}
         >
           {items.map((item, index) => {

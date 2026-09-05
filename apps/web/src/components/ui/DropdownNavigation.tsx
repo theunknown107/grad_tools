@@ -127,7 +127,7 @@ export function DropdownNavigation({
       {active?.groups !== undefined ? (
         <div
           ref={panelRef}
-          className={`${styles.panel ?? ''} glassPanel`}
+          className={`${styles.panel ?? ''} surfacePanel`}
           style={
             size === null
               ? undefined

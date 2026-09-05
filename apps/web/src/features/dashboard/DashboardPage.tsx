@@ -159,7 +159,7 @@ export function DashboardPage() {
           they are not, and on a phone the split did not exist anyway.
         */
         <>
-          <section className={`${styles.brief ?? ''} glassSurface`} aria-labelledby="brief-title">
+          <section className={`${styles.brief ?? ''} surfaceCard`} aria-labelledby="brief-title">
             <header className={styles.briefHead}>
               <div>
                 <p className={styles.eyebrow}>

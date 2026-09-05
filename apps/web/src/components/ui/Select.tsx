@@ -174,7 +174,7 @@ export function Select({
         ref={triggerRef}
         type="button"
         id={`${id}-trigger`}
-        className={`${styles.trigger ?? ''} glassInput`}
+        className={`${styles.trigger ?? ''} surfaceField`}
         role="combobox"
         aria-controls={`${id}-list`}
         aria-expanded={open}
@@ -200,7 +200,7 @@ export function Select({
           id={`${id}-list`}
           role="listbox"
           aria-labelledby={`${id}-label`}
-          className={`${styles.list ?? ''} glassPanel`}
+          className={`${styles.list ?? ''} surfacePanel`}
         >
           {options.map((option, index) => (
             <div

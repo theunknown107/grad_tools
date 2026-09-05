@@ -105,13 +105,13 @@ export function Sheet({
 
   return createPortal(
     <div className={styles.root} data-side={side} data-open={mounted}>
-      <div className={`${styles.overlay ?? ''} glassOverlay`} aria-hidden="true" />
+      <div className={`${styles.overlay ?? ''} surfaceScrim`} aria-hidden="true" />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${styles.panel ?? ''} glassPanel`}
+        className={`${styles.panel ?? ''} surfacePanel`}
       >
         <div className={styles.head}>
           <div className={styles.heading}>

@@ -218,13 +218,13 @@ export function GlobalSearch({
   let index = -1;
 
   return (
-    <div className={`${styles.scrim ?? ''} glassOverlay`}>
+    <div className={`${styles.scrim ?? ''} surfaceScrim`}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Search GradTools"
-        className={`${styles.panel ?? ''} glassPanel`}
+        className={`${styles.panel ?? ''} surfacePanel`}
       >
         <div className={styles.inputRow}>
           <Icon name="search" size="medium" className={styles.inputIcon ?? ''} />
