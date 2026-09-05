@@ -2654,3 +2654,82 @@ only importer was its own test.
 **This is the failure mode of deleting a feature in one pass.** The product
 surface went; the things watching it did not, and a green-looking sweep was
 partly measuring pages that no longer exist.
+
+## 22.70 One real-document harness, and what a real semester did to it (M10A.12)
+
+`tests/real-result-qa.mjs` became `tests/real-document-qa.mjs`. A second script
+for calendars and a third for timetables is how five nearly-identical harnesses
+get born, and §54 of the milestone is right that one with sections beats five
+with copies.
+
+It scores the two kinds of document **differently, on purpose**:
+
+- **Result cards** keep the field-by-field ground truth from M10A.6C. One wrong
+  digit is the whole failure there, so a typed truth file earns its cost.
+- **Calendars and timetables** are scored **structurally**. Transcribing sixty
+  dates and thirty cells to check them would take longer than reading the
+  documents and would put a college's calendar and a faculty list into a file
+  for no gain. So the harness asks what a ground truth cannot answer anyway:
+  was the document routed to the right parser, how much came out, did the
+  fields that drive behaviour arrive — and then does the product actually
+  **work** on what was extracted.
+
+What was extracted is written to `.qa/real/pilot-extraction.json`, gitignored,
+so the owner of the documents can check the values. The harness does not claim
+to know them.
+
+### The first run stored nothing, and that was the product being right
+
+The chain came back `1 calendar, 0 classes, 0 import records`. Not a bug: the
+real timetable splits cells between batches, the product refuses to guess which
+are yours (M10A.11 §27), and Save stays disabled until somebody answers. **The
+harness had walked past the question** and then reported an empty week.
+
+It now answers it the way a student does, and a disabled Save counts as a
+problem rather than passing in silence. Choosing a batch also *adds* classes —
+12 shown before, 14 stored after — because your batch's own cells join the ones
+that belong to everybody.
+
+## 22.71 What the real academic calendar turned out to be (M10A.12)
+
+The pilot extracted **4 dates from a 2.3 MB, 3-page calendar**, all from page 1.
+That looks exactly like a parser dropping most of a table, so it was measured
+rather than guessed, with a private script that reports counts and never
+content:
+
+```
+source: ocr (the PDF has NO text layer on any page)
+mean confidence 87.8%          152 lines        6 708 characters
+page 1   59 lines   2 670 chars    5 with a readable date   -> 4 events
+page 2   50 lines   3 290 chars    0 with a readable date   -> 0
+page 3   43 lines     748 chars    0 with a readable date   -> 0
+```
+
+OCR worked. The pages were all read. To find out what pages 2–3 actually
+contain without reproducing them, every line was reduced to a **shape** —
+digits to `9`, letters to `A`:
+
+```
+9. A+ A+ A+ A+ A+ A+ A+ A+ A+ A+ A+
+9. A+ A+ A+ A+, A+ A+, A+ A+
+```
+
+Numbered prose. Pages 2 and 3 are instructions and a distribution list; page 1
+is a letterhead circular carrying a handful of dates. **This document is not a
+semester date table**, and the parser declining to turn numbered paragraphs into
+academic events is exactly the rule docs/22 §22.58 set: the source establishes
+event meaning, not the presence of a number.
+
+**No code changed as a result.** Building a "this looks partial" heuristic on
+this evidence would be inventing a defect to fix.
+
+## 22.72 The database suite still cannot run here (M10A.12)
+
+345 tests skip, as they have every milestone. Docker's daemon is not running,
+and the machine's own PostgreSQL 18.6 requires a password that is the owner's to
+supply, not one to go looking for. Every API, RLS, migration, extraction and
+job test is behind `TEST_DATABASE_URL`.
+
+This is why the question-paper backend removal is still not done — see
+docs/31 §31.40. It is not caution for its own sake: the tests that would catch a
+mistake in it are precisely the ones that do not execute.
