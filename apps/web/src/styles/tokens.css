@@ -586,21 +586,6 @@
   --tab-selected-fg: #ffffff;
     --tab-selected-bg: #131316;
     --tab-selected-fg: #ffffff;
-  /* --- Reference tones ---------------------------------------------------
-   * The four pastels the reference cycles through. They are SEMANTIC, not
-   * decorative: sky for schedule, lilac for performance, lime for progress,
-   * peach for anything asking for attention. Each carries its own ink so text
-   * on it never has to be guessed at.
-   */
-  --tone-sky: #cbe6f8;
-  --tone-sky-ink: #0c3a52;
-  --tone-lime: #d8f56d;
-  --tone-lime-ink: #2c3b06;
-  --tone-lilac: #e6d6fb;
-  --tone-lilac-ink: #35176b;
-  --tone-peach: #fbd9a5;
-  --tone-peach-ink: #4a2c05;
-  --tone-pill-bg: rgb(255 255 255 / 72%);
     /* --- Reference tones ---------------------------------------------------
      * The four pastels the reference cycles through. They are SEMANTIC, not
      * decorative: sky for schedule, lilac for performance, lime for progress,
@@ -709,6 +694,21 @@
   --accent: var(--a-on-light);
   /* The reference's selected-state material, resolved for this appearance. */
   --accent-pastel: var(--a-pastel-light);
+  /* --- Reference tones ---------------------------------------------------
+   * The four pastels the reference cycles through. They are SEMANTIC, not
+   * decorative: sky for schedule, lilac for performance, lime for progress,
+   * peach for anything asking for attention. Each carries its own ink so text
+   * on it never has to be guessed at.
+   */
+  --tone-sky: #cbe6f8;
+  --tone-sky-ink: #0c3a52;
+  --tone-lime: #d8f56d;
+  --tone-lime-ink: #2c3b06;
+  --tone-lilac: #e6d6fb;
+  --tone-lilac-ink: #35176b;
+  --tone-peach: #fbd9a5;
+  --tone-peach-ink: #4a2c05;
+  --tone-pill-bg: rgb(255 255 255 / 72%);
   --accent-pastel-ink: var(--a-pastel-ink-light);
   --accent-weak: rgb(var(--a-glow-rgb) / 10%);
   --accent-border: rgb(var(--a-glow-rgb) / 32%);
