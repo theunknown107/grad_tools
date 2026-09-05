@@ -2851,3 +2851,46 @@ RLS is the one worth naming: the policies applied are the same files applied to
 Supabase, and the roles are created by `0000_local_substrate.sql` with
 `NOBYPASSRLS`, which a test asserts. A policy that failed to isolate a student
 would fail here rather than being waved through.
+
+## 22.77 Why the light theme was flat, measured (light-theme reset)
+
+The complaint was that light mode looked washed out and generic. The tokens
+did not obviously say so, so the rendered pixels were read instead — a probe
+that decodes the screenshot and samples points, because a material built from
+alpha, gradients and `backdrop-filter` appears in none of the computed styles.
+
+```
+                ground     panel      ground->panel   border vs ground
+dark (accepted) #05070d    #161921    1.15:1          1.41:1
+light (rejected)#e7ebf5    #f9fbfe    1.15:1          1.08:1
+```
+
+**The same surface ratio, and only one of them reads as layers.** Vision
+compresses luminance differences near white and not near black, so matching the
+dark theme's ratio — which is what the light theme had been built to do — buys
+almost no perceived depth at the light end. The border was the other half:
+nearly three times weaker than dark's.
+
+The environment made it worse. Sampled down the left gutter every 130px:
+
+```
+before   #f6f9fe  #e8ebf5  #e7ebf5  #e7ebf5  #e7ebf5  #e7ebf5
+after    #f2f6fe  #dee4f2  #dbe2f0  #d8dfee  #d5dceb  #cfd6e6
+```
+
+A bright band at the top and then nothing, because the two ambient radials
+covered only the upper third of the viewport and a white wash sat over the
+busiest part of the screen.
+
+### The test that could not have caught it
+
+`theme.test.ts` asserted `lightSurface !== lightBg` — and a surface can differ
+from its ground by an amount nobody can see. It now asserts **how much**, with
+a higher floor for light (1.20) than dark (1.05), because that is what the
+perceptual difference costs. The dark floor records what the accepted reference
+measures rather than imposing light's requirement on a design nobody has
+complained about.
+
+The one contrast casualty was cyan: the darker ground pushed `--a-on-light` to
+4.37:1 and it moved to `#0a6a80`. Every other accent had headroom, and the
+existing per-accent AA loop is what found it.
