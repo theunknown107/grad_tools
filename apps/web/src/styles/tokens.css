@@ -113,7 +113,10 @@
 
 [data-accent='cyan'] {
   --a-on-dark: #55d6e8;
-  --a-on-light: #0b6f86;
+  /* Darkened in the light-theme reset: the ground moved from #e7ebf5 to
+     #dae0ec and cyan fell to 4.37:1. Every other accent was already dark
+     enough to survive the change; this one was the only one riding the line. */
+  --a-on-light: #0a6a80;
   --a-fill: #0e7490;
   --a-fill-hover: #1189a8;
   --a-weak-dark: #0d2a30;
@@ -481,32 +484,46 @@
      * M9.6C: a premium macOS-style light interface, not an inverted dark one
      * and not a white SaaS dashboard (§17).
      *
-     * The ground is a cool near-white with a trace of blue so it sits in the
-     * same family as the dark environment. Surfaces are translucent WHITE over
-     * it — lighter than the ground rather than darker — which is what keeps the
-     * material reading as glass in both appearances.
+     * The ground is a cool blue-grey with real tone, and that is the whole
+     * correction. The previous #e7ebf5 left barely eighteen points of headroom
+     * to white, so a translucent white surface over it composited to #f9fbfe —
+     * measured at 1.15:1 against the ground, the SAME ratio the dark theme
+     * gets between #05070d and #161921.
+     *
+     * The ratio matching is exactly why it failed. Near white, human vision
+     * compresses luminance differences; near black it does not. Equal ratios
+     * are not equal steps, so the light theme was built to a number that reads
+     * as one flat sheet while the dark theme reads as layers.
+     *
+     * Depth here is carried the way a desktop window system carries it: a
+     * ground with tone, a surface that is genuinely lighter, an edge you can
+     * see, and a shadow underneath. Not by making cards whiter.
      */
-    --bg: #e7ebf5;
-    --bg-sunken: #dbe1ef;
+    --bg: #dae0ec;
+    --bg-sunken: #c3cbdd;
 
-    --surface: rgb(255 255 255 / 62%);
+    --surface: rgb(255 255 255 / 67%);
     --surface-raised: rgb(255 255 255 / 82%);
-    --surface-active: rgb(255 255 255 / 96%);
-    --surface-translucent: rgb(255 255 255 / 70%);
+    --surface-active: rgb(255 255 255 / 97%);
+    --surface-translucent: rgb(255 255 255 / 76%);
 
-    /* On a light ground the edge is a shadow, not a highlight, so borders are
-       INK at low alpha rather than white. */
-    --border: rgb(16 24 44 / 10%);
-    --border-strong: rgb(16 24 44 / 20%);
+    /*
+     * On a light ground the edge is a shadow, not a highlight, so borders are
+     * INK at low alpha rather than white. At 10% the edge measured 1.08:1
+     * against the ground — the dark theme's edge measures 1.41:1, so the light
+     * border was nearly three times weaker and panels had no outline at all.
+     */
+    --border: rgb(16 24 44 / 21%);
+    --border-strong: rgb(16 24 44 / 34%);
 
-    --text: #131a2b;
-    --text-muted: #4d5772;
+    --text: #111726;
+    --text-muted: #454e68;
     /*
      * Darkened from #6b7590 (M9.6F). At 12px on the light ground it measured
      * 4.24:1 — under AA. Only visible once Announcements had real data at
      * 320px, which is precisely the case an empty sweep cannot reach.
      */
-    --text-subtle: #5f6880;
+    --text-subtle: #565f79;
 
     --accent: var(--a-on-light);
     --accent-weak: rgb(var(--a-glow-rgb) / 10%);
@@ -534,18 +551,39 @@
     --danger: #b2202c;
     --danger-weak: rgb(178 32 44 / 10%);
 
+    /*
+     * THE ENVIRONMENT HAS TO REACH THE BOTTOM OF THE PAGE.
+     *
+     * The old ambient put two radials at the top and a white wash over the
+     * first third. Sampled down the gutter it went #f6f9fe, #e8ebf5, and then
+     * #e7ebf5 for the entire rest of the page: a bright band at the top and a
+     * flat slab everywhere else, which is the "generic dashboard" complaint
+     * almost exactly. The white wash also pushed the busiest part of the
+     * screen closest to white.
+     *
+     * The wash is gone and the vertical gradient now runs the full height,
+     * lit at the top and faintly inked at the foot, so glass has something
+     * different to sit against wherever it lands.
+     */
     --ambient:
-      radial-gradient(85% 45% at 78% -10%, rgb(var(--a-glow-rgb) / 16%) 0%, transparent 64%),
-      radial-gradient(110% 60% at 12% -14%, rgb(56 94 168 / 18%) 0%, transparent 70%),
-      linear-gradient(to bottom, rgb(255 255 255 / 55%) 0%, transparent 34%);
+      radial-gradient(58% 34% at 86% -10%, rgb(var(--a-glow-rgb) / 11%) 0%, transparent 60%),
+      radial-gradient(84% 50% at 4% -12%, rgb(64 96 156 / 16%) 0%, transparent 64%),
+      linear-gradient(
+        to bottom,
+        rgb(255 255 255 / 30%) 0%,
+        rgb(255 255 255 / 8%) 38%,
+        rgb(16 24 44 / 5%) 100%
+      );
 
-    --vignette: radial-gradient(120% 100% at 50% 40%, transparent 62%, rgb(19 26 43 / 7%) 100%);
+    --vignette: radial-gradient(125% 105% at 50% 36%, transparent 54%, rgb(19 26 43 / 13%) 100%);
 
     --glow-accent: 0 1px 0 rgb(255 255 255 / 70%) inset, 0 10px 26px -16px rgb(19 26 43 / 40%);
     --glow-accent-soft: 0 4px 16px -12px rgb(19 26 43 / 26%);
 
-    --shadow-sm: 0 1px 2px rgb(16 24 44 / 6%), 0 1px 3px rgb(16 24 44 / 7%);
-    --shadow-md: 0 10px 30px -14px rgb(16 24 44 / 18%);
+    /* A panel sits ON the ground, not in it. The old shadow was 6-7% ink and
+       did no work at all once the border had failed as well. */
+    --shadow-sm: 0 1px 2px rgb(16 24 44 / 8%), 0 2px 6px -2px rgb(16 24 44 / 11%);
+    --shadow-md: 0 12px 32px -16px rgb(16 24 44 / 26%);
   }
 }
 
@@ -559,22 +597,22 @@
    * it — lighter than the ground rather than darker — which is what keeps the
    * material reading as glass in both appearances.
    */
-  --bg: #e7ebf5;
-  --bg-sunken: #dbe1ef;
+  --bg: #dae0ec;
+  --bg-sunken: #c3cbdd;
 
-  --surface: rgb(255 255 255 / 62%);
+  --surface: rgb(255 255 255 / 67%);
   --surface-raised: rgb(255 255 255 / 82%);
-  --surface-active: rgb(255 255 255 / 96%);
-  --surface-translucent: rgb(255 255 255 / 70%);
+  --surface-active: rgb(255 255 255 / 97%);
+  --surface-translucent: rgb(255 255 255 / 76%);
 
   /* On a light ground the edge is a shadow, not a highlight, so borders are
      INK at low alpha rather than white. */
-  --border: rgb(16 24 44 / 10%);
-  --border-strong: rgb(16 24 44 / 20%);
+  --border: rgb(16 24 44 / 21%);
+  --border-strong: rgb(16 24 44 / 34%);
 
-  --text: #131a2b;
-  --text-muted: #4d5772;
-  --text-subtle: #5f6880;
+  --text: #111726;
+  --text-muted: #454e68;
+  --text-subtle: #565f79;
 
   --accent: var(--a-on-light);
   --accent-weak: rgb(var(--a-glow-rgb) / 10%);
@@ -603,17 +641,22 @@
   --danger-weak: rgb(178 32 44 / 10%);
 
   --ambient:
-    radial-gradient(85% 45% at 78% -10%, rgb(var(--a-glow-rgb) / 16%) 0%, transparent 64%),
-    radial-gradient(110% 60% at 12% -14%, rgb(56 94 168 / 18%) 0%, transparent 70%),
-    linear-gradient(to bottom, rgb(255 255 255 / 55%) 0%, transparent 34%);
+    radial-gradient(58% 34% at 86% -10%, rgb(var(--a-glow-rgb) / 11%) 0%, transparent 60%),
+    radial-gradient(84% 50% at 4% -12%, rgb(64 96 156 / 16%) 0%, transparent 64%),
+    linear-gradient(
+      to bottom,
+      rgb(255 255 255 / 30%) 0%,
+      rgb(255 255 255 / 8%) 38%,
+      rgb(16 24 44 / 5%) 100%
+    );
 
-  --vignette: radial-gradient(120% 100% at 50% 40%, transparent 62%, rgb(19 26 43 / 7%) 100%);
+  --vignette: radial-gradient(125% 105% at 50% 36%, transparent 54%, rgb(19 26 43 / 13%) 100%);
 
   --glow-accent: 0 1px 0 rgb(255 255 255 / 70%) inset, 0 10px 26px -16px rgb(19 26 43 / 40%);
   --glow-accent-soft: 0 4px 16px -12px rgb(19 26 43 / 26%);
 
-  --shadow-sm: 0 1px 2px rgb(16 24 44 / 6%), 0 1px 3px rgb(16 24 44 / 7%);
-  --shadow-md: 0 10px 30px -14px rgb(16 24 44 / 18%);
+  --shadow-sm: 0 1px 2px rgb(16 24 44 / 8%), 0 2px 6px -2px rgb(16 24 44 / 11%);
+  --shadow-md: 0 12px 32px -16px rgb(16 24 44 / 26%);
 }
 
 /* ========================================================================== */
@@ -706,20 +749,27 @@
       rgb(255 255 255 / 82%) 0%,
       rgb(255 255 255 / 70%) 100%
     );
-    --glass-nav-border: rgb(16 24 44 / 9%);
+    --glass-nav-border: rgb(16 24 44 / 18%);
     /* On a light ground the bevel is white on near-white, so it has to be
        nearly opaque to register at all. */
-    --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 88%);
-    --glass-panel-bg: rgb(255 255 255 / 86%);
-    --glass-panel-border: rgb(16 24 44 / 11%);
+    --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 95%);
+    /*
+     * LESS opaque than before, not more. At 86% over a near-white ground the
+     * panel was effectively a white rectangle — the thing the brief called a
+     * flat card. Over a ground with tone, 78% lets the environment through and
+     * still lands clearly above it, and the edge and the shadow below do the
+     * separating that opacity was failing to do.
+     */
+    --glass-panel-bg: rgb(255 255 255 / 70%);
+    --glass-panel-border: rgb(16 24 44 / 20%);
     --glass-surface-bg: linear-gradient(
       to bottom,
-      rgb(255 255 255 / 78%) 0%,
-      rgb(255 255 255 / 62%) 100%
+      rgb(255 255 255 / 74%) 0%,
+      rgb(255 255 255 / 56%) 100%
     );
-    --glass-overlay-bg: rgb(19 26 43 / 30%);
-    --glass-input-bg: rgb(255 255 255 / 76%);
-    --shadow-glass: 0 22px 50px -26px rgb(16 24 44 / 26%);
+    --glass-overlay-bg: rgb(19 26 43 / 34%);
+    --glass-input-bg: rgb(255 255 255 / 70%);
+    --shadow-glass: 0 18px 40px -22px rgb(16 24 44 / 34%);
   }
 }
 
@@ -729,18 +779,18 @@
     rgb(255 255 255 / 82%) 0%,
     rgb(255 255 255 / 70%) 100%
   );
-  --glass-nav-border: rgb(16 24 44 / 9%);
-  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 88%);
-  --glass-panel-bg: rgb(255 255 255 / 86%);
-  --glass-panel-border: rgb(16 24 44 / 11%);
+  --glass-nav-border: rgb(16 24 44 / 18%);
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 95%);
+  --glass-panel-bg: rgb(255 255 255 / 70%);
+  --glass-panel-border: rgb(16 24 44 / 20%);
   --glass-surface-bg: linear-gradient(
     to bottom,
-    rgb(255 255 255 / 78%) 0%,
-    rgb(255 255 255 / 62%) 100%
+    rgb(255 255 255 / 74%) 0%,
+    rgb(255 255 255 / 56%) 100%
   );
-  --glass-overlay-bg: rgb(19 26 43 / 30%);
-  --glass-input-bg: rgb(255 255 255 / 76%);
-  --shadow-glass: 0 22px 50px -26px rgb(16 24 44 / 26%);
+  --glass-overlay-bg: rgb(19 26 43 / 34%);
+  --glass-input-bg: rgb(255 255 255 / 70%);
+  --shadow-glass: 0 18px 40px -22px rgb(16 24 44 / 34%);
 }
 
 /* ========================================================================== */

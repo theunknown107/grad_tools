@@ -223,7 +223,9 @@ export function SemestersPage() {
         are there so the shape of four numbers is visible at a glance, and the
         numbers themselves are always beside them. No chart library (OQ-040).
       */}
-      <Panel title="Semester history">
+      {/* Quiet: the trend is context for the figures above, not a peer of
+          them. Glass on every region marks no hierarchy at all (ui §7). */}
+      <Panel title="Semester history" material="quiet">
         {!history.available ? (
           <p className={styles.note}>{history.reason}</p>
         ) : (
@@ -283,7 +285,9 @@ export function SemestersPage() {
       </Panel>
 
       {/* ---- The eight semesters --------------------------------------- */}
-      <Panel title="Semesters">
+      {/* Quiet, because each semester inside it is already its own raised
+          surface — glass here put cards inside cards. */}
+      <Panel title="Semesters" material="quiet">
         <p className={styles.note}>
           Set where you are. A semester with a saved result counts as completed.
         </p>

@@ -233,11 +233,20 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
     // M9.6C: a blue-black environment, not the M9.4 violet-black.
     expect(darkBg).toBe('#05070d');
     /*
-     * M10A.9: deepened from #f4f6fb. Translucent white surfaces over a ground
-     * that close to white read as the same material — the light interface had
-     * no visible hierarchy because there was nothing for glass to sit on.
+     * Deepened twice for the same reason, and the second time with a
+     * measurement rather than a judgement.
+     *
+     * M10A.9 moved it from #f4f6fb to #e7ebf5. That was still not enough: a
+     * white translucent surface over #e7ebf5 composited to #f9fbfe, which is
+     * 1.15:1 against the ground — the SAME ratio the dark theme gets between
+     * #05070d and #161921. Equal ratios are not equal steps, because vision
+     * compresses luminance differences near white and not near black, so the
+     * light theme read as one flat sheet while the dark theme read as layers.
+     *
+     * #dae0ec has tone of its own, which is what a translucent surface needs
+     * in order to look lighter than something.
      */
-    expect(lightBg).toBe('#e7ebf5');
+    expect(lightBg).toBe('#dae0ec');
   });
 
   it('composites surfaces rather than assuming a flat fill', () => {
@@ -246,6 +255,31 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
     // than silently checking the wrong colour.
     expect(darkSurface).not.toBe(darkBg);
     expect(lightSurface).not.toBe(lightBg);
+  });
+
+  it('keeps a surface visibly above the ground it sits on', () => {
+    /*
+     * THE DEFECT THIS FILE DID NOT CATCH BEFORE.
+     *
+     * "Not equal" was the whole test, and a surface can differ from its ground
+     * by an amount nobody can see. The light theme shipped at 1.15:1 — the same
+     * ratio the dark theme has — and looked like one flat sheet, because near
+     * white a given luminance ratio is a much smaller perceived step than the
+     * same ratio near black.
+     *
+     * So light is held to a HIGHER number than dark on purpose. This is not a
+     * contrast requirement in the WCAG sense — nothing here is text — it is a
+     * floor for how much a layer must separate to read as a layer, and near
+     * white that costs more ratio to buy.
+     *
+     * The dark floor is deliberately the looser one. Dark is the appearance
+     * that was never in question, so its number records what the accepted
+     * reference actually measures rather than imposing the light theme's
+     * requirement on it — which would fail a design nobody has complained
+     * about, and would be the same mistake as before with the sign flipped.
+     */
+    expect(contrast(lightSurface, lightBg)).toBeGreaterThanOrEqual(1.2);
+    expect(contrast(darkSurface, darkBg)).toBeGreaterThanOrEqual(1.05);
   });
 
   it.each([...ACCENTS])('%s clears 4.5:1 everywhere it is used', (accent) => {
