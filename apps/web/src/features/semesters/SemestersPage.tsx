@@ -33,9 +33,10 @@ import type { SemesterComparison } from '../../domain/academics.js';
 import type { SemesterRecord, SemesterStatus } from '../../domain/types.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
+import { MetaPill } from '../../components/ui/tone.js';
 import { EmptyState, Notice, Panel, SelectField, StatusPill } from '../../components/ui/index.js';
 import { Bar } from '../../components/ui/layout.js';
-import { formatGpa, formatPercent } from '../../lib/format.js';
+import { formatCount, formatGpa, formatPercent } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useBacklogs, useProfile, useResults, useSemesters } from '../../hooks/useCollection.js';
 import { BacklogPanel } from './BacklogPanel.js';
@@ -150,6 +151,15 @@ export function SemestersPage() {
       <PageHeader
         title="My degree"
         subtitle="Eight semesters, from the ones behind you to the ones ahead. Everything here stays on this device."
+        pills={
+          <>
+            <MetaPill>{`${String(standing.semestersCompleted)} of 8 done`}</MetaPill>
+            {standing.cgpa !== null && <MetaPill>CGPA {formatGpa(standing.cgpa)}</MetaPill>}
+            {standing.creditsCompleted > 0 && (
+              <MetaPill>{formatCount(standing.creditsCompleted, 'credit')}</MetaPill>
+            )}
+          </>
+        }
       />
 
       {/* ---- Standing ------------------------------------------------- */}

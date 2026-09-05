@@ -358,3 +358,9 @@
   line-height: var(--text-caption-lh);
   color: var(--text-muted);
 }
+
+/* The week as pastel sections. The old six-column grid is gone; each day now
+   opens in place, so the same list works from 320px to a wide desktop. */
+.weekStack {
+  display: block;
+}

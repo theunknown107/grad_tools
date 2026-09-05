@@ -61,9 +61,10 @@ import {
   numericClass,
   tableClass,
 } from '../../components/ui/index.js';
-import { formatGpa } from '../../lib/format.js';
+import { formatCount, formatGpa } from '../../lib/format.js';
 import { IslandTabs, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { MetricStrip } from '../../components/ui/layout.js';
+import { MetaPill, PastelCard, Rail, toneFor } from '../../components/ui/tone.js';
 import { DropdownMenu } from '../../components/ui/DropdownMenu.js';
 import { Sheet } from '../../components/ui/Sheet.js';
 import { newId, nowIso } from '../../lib/id.js';
@@ -117,6 +118,20 @@ export function ResultsPage() {
       <PageHeader
         title="Results"
         subtitle="Enter a result card as it is printed. SGPA, CGPA and backlogs follow from it."
+        pills={
+          items.length === 0 ? undefined : (
+            <>
+              <MetaPill>{formatCount(items.length, 'semester')}</MetaPill>
+              <MetaPill>
+                {formatCount(
+                  items.reduce((sum, item) => sum + item.subjects.length, 0),
+                  'subject',
+                )}
+              </MetaPill>
+              {profile?.schemeId === 'vtu-2022' && <MetaPill>2022 scheme</MetaPill>}
+            </>
+          )
+        }
         action={
           <>
             <Button
@@ -212,7 +227,32 @@ export function ResultsPage() {
           </EmptyState>
         ) : (
           <>
-            <IslandTabs
+            {/*
+        The reference's feature rail, carrying saved semesters. Each shows the
+        SGPA it actually has; the bar is that SGPA against 10, which is a real
+        proportion rather than a decorative fill.
+      */}
+      {items.length > 0 && (
+        <Rail label="Saved semesters">
+          {[...items]
+            .sort((a, b) => a.semester - b.semester)
+            .map((item, index) => {
+              const { sgpa } = semesterSgpa(item, ruleSetForResult(item).ruleSet);
+              return (
+                <PastelCard
+                  key={item.id}
+                  tone={toneFor(index)}
+                  pill={`Semester ${String(item.semester)}`}
+                  title={sgpa === null ? 'SGPA not available' : `SGPA ${formatGpa(sgpa)}`}
+                  body={formatCount(item.subjects.length, 'subject')}
+                  {...(sgpa === null ? {} : { progress: (sgpa / 10) * 100 })}
+                />
+              );
+            })}
+        </Rail>
+      )}
+
+      <IslandTabs
               label="Results view"
               value={view}
               onChange={setView}

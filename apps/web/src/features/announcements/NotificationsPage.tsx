@@ -15,6 +15,8 @@
 import { useState } from 'react';
 import type { AnnouncementCategory } from '@gradtools/shared-types';
 import { PageHeader } from '../../components/AppShell.js';
+import { MetaPill } from '../../components/ui/tone.js';
+import { formatCount } from '../../lib/format.js';
 import { IslandTabs } from '../../components/ui/IslandTabs.js';
 import { Skeleton as ShapedSkeleton } from '../../components/ui/Skeleton.js';
 import { Button, EmptyState, Notice, Panel, StatusPill } from '../../components/ui/index.js';
@@ -79,6 +81,7 @@ export function NotificationsPage() {
       <PageHeader
         title="Notifications"
         subtitle="What is new since you last looked. Read state stays on this device."
+        pills={unread > 0 ? <MetaPill>{formatCount(unread, 'unread')}</MetaPill> : undefined}
       />
 
       {/*
