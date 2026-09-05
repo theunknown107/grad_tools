@@ -1871,3 +1871,88 @@ pairing the next-class rail already uses.
   aggregate. That is the documented limit of the count-based model.
 - The API's document ingestion pipeline and every question-paper table remain
   in the tree.
+
+## 31.40 M10A.12 — The real semester, and a decision about the backend · ✅ **DELIVERED**
+
+No new features. The question this milestone answers is whether the product
+works on documents a student actually holds.
+
+### The pilot, on real documents
+
+A real academic calendar and a real college timetable went through the shipped
+import, and then the whole daily loop ran on what came out:
+
+```
+routed              calendar -> academic_calendar    timetable -> college_timetable
+stored              1 calendar · 14 classes · 1 import record
+dashboard           next academic date: yes    today: yes
+today               teaching day, attendance offered
+marked              1 mark, 1 attendance record    after undo: 0
+storage             3 951 bytes of structured facts, no document bytes
+network             0 requests off-origin, 0 console lines carrying identity
+```
+
+Nobody typed a class or a date. That is the product demonstration this
+milestone existed to attempt, and it passes.
+
+### The first attempt stored an empty week
+
+The chain came back with the calendar saved and **no classes at all**. The cause
+was the product being right: the real timetable splits cells between batches, it
+refuses to guess which are yours, and Save stays disabled until somebody
+answers. The harness had walked past the question. That is a QA defect, not a
+product one, and the fix was to answer it the way a student does.
+
+### The calendar's four dates were not a bug
+
+Four events from a 2.3 MB three-page calendar looked like a parser losing a
+table. Measured instead of assumed: the PDF has no text layer at all, OCR read
+all three pages at 87.8% confidence and 152 lines, and pages 2–3 are **numbered
+prose** — instructions and a distribution list. The document is a covering
+circular, not a semester date table. The parser declining to make events out of
+numbered paragraphs is the rule working.
+
+**No code changed.** The remaining real-document gap is that a proper Semester 5
+date table has not been supplied yet, and that is a document to obtain, not a
+defect to fix.
+
+### Result cards held their baseline
+
+8 of 9 and 4 of 8 rows, **zero incorrect marks** on code, internal, external and
+total — unchanged since M10A.6C. Subject titles remain the weak field, and
+status is often unread. Both are visible in review before anything is saved.
+
+### The question-paper backend: MUST REMAIN, and exactly why
+
+Audited to the end. Nothing in the active product imports the ingestion
+pipeline, and no active client calls any of its routes — the only live thread is
+`http/app.ts` constructing an object store to hand the document router, which
+would go with it.
+
+It stays anyway, and the blocker is specific: **removing ~8 000 lines across the
+router, the pipeline, the jobs deployable, `queries.ts` and `createApp`'s
+signature can only be verified by the API, RLS, migration, extraction and job
+suites — all 345 of which are skipped here for want of a database.** Docker's
+daemon is down and the machine's PostgreSQL needs a password that belongs to its
+owner. Deleting that much code, and dropping seven tables, while the tests that
+would catch a mistake do not run, is precisely the blind drop §5 forbids.
+
+The order it should be done in, once a database is reachable:
+
+1. `TEST_DATABASE_URL` set, full suite green **before** touching anything.
+2. Remove `routes/documents.ts` and its registration; drop the object store from
+   `createApp`, updating `announcements.test.ts` which uses `MemoryObjectStore`.
+3. Remove `documents/`, `jobs/`, and the 23 `extracted_*` functions in
+   `queries.ts`; remove `documents`, `extraction`, `gates`, `jobs`, `workflow`
+   and `geometry` tests.
+4. Only then a forward migration dropping `documents`, `document_sections`,
+   `extracted_papers`, `extracted_questions`, `extracted_sub_questions`,
+   `extracted_mcq_items` and `jobs`, with 0010's columns and indexes. `sources`
+   **stays** — announcements reference it.
+
+### NOT VERIFIED
+
+- **No human has used this**, and no real device has run it. Playwright only.
+- **The API suite did not execute.** 345 tests skipped.
+- The real calendar tested is a circular, not a semester date table.
+- Photographed-timetable extraction is unchanged and still partial.
