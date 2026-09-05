@@ -1185,7 +1185,14 @@ const run = async () => {
    * prevent, and it is invisible without counting: nothing on screen looks
    * wrong when a lecture is recorded twice.
    */
+  const markStart = Date.now();
   await attendedButton.click();
+  await daily
+    .getByRole('button', { name: /attended$/i })
+    .first()
+    .and(daily.locator('[aria-pressed="true"]'))
+    .waitFor({ timeout: 5000 });
+  report.timings.markClassMs = Date.now() - markStart;
   await attendedButton.click();
   await daily.waitForTimeout(400);
 
@@ -1211,7 +1218,10 @@ const run = async () => {
   );
 
   /* And the whole thing can be taken back, counts and all (§14, §30). */
+  const undoStart = Date.now();
   await daily.getByRole('button', { name: /^undo$/i }).click();
+  await daily.getByRole('button', { name: /^undo$/i }).waitFor({ state: 'detached', timeout: 5000 });
+  report.timings.undoMs = Date.now() - undoStart;
   await daily.waitForTimeout(400);
   dayCounts = await storedList('attendance');
   dayMarks = await storedList('classMarks');
@@ -1517,6 +1527,9 @@ const run = async () => {
   console.log(`  Save (three semesters): ${saveMs.map((ms) => `${String(ms)}ms`).join(', ')}`);
   console.log(`  Requests off-origin: ${String(report.requests.offOrigin)}`);
   console.log(`  API-unavailable console messages: ${String(apiDownCount)} (not frontend defects)`);
+  console.log(
+    `  Mark a class: ${String(report.timings.markClassMs)}ms · undo: ${String(report.timings.undoMs)}ms`,
+  );
   console.log(`  Report: ${join(OUT, 'workflow-report.json')}`);
   console.log(`\n  ${String(checks)} checks, ${String(problems.length)} problems`);
   for (const problem of problems) console.log(`  - ${problem}`);
