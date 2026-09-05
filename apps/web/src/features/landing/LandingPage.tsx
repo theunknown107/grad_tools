@@ -63,7 +63,7 @@ function MiniNavbar(): ReactNode {
   return (
     <header className={styles.navWrap}>
       <nav
-        className={`${styles.nav ?? ''} ${scrolled ? (styles.navScrolled ?? '') : ''} ${scrolled ? 'glassNav' : ''}`}
+        className={`${styles.nav ?? ''} ${scrolled ? (styles.navScrolled ?? '') : ''} ${scrolled ? 'surfaceNav' : ''}`}
         aria-label="Site"
       >
         <Link to="/welcome" className={styles.navBrand ?? ''}>
@@ -172,7 +172,7 @@ function MiniNavbar(): ReactNode {
       </nav>
 
       {menuOpen ? (
-        <div id="site-menu" className={`${styles.navMenu ?? ''} glassPanel`}>
+        <div id="site-menu" className={`${styles.navMenu ?? ''} surfacePanel`}>
           {links.map((link) => (
             <a
               key={link.href}
@@ -269,7 +269,7 @@ function ProductPreview(): ReactNode {
 
   return (
     <div className={styles.previewWrap} aria-hidden="true">
-      <div className={`${styles.preview ?? ''} glassPanel`}>
+      <div className={`${styles.preview ?? ''} surfacePanel`}>
         <div className={styles.previewBar}>
           <span className={styles.previewDots}>
             <i />
@@ -358,7 +358,7 @@ function Capabilities(): ReactNode {
       />
       <ul className={styles.cards}>
         {CAPABILITIES.map((capability) => (
-          <li key={capability.title} className={`${styles.card ?? ''} glassSurface`}>
+          <li key={capability.title} className={`${styles.card ?? ''} surfaceCard`}>
             <span className={styles.cardIcon}>
               <Icon name={capability.icon} size="medium" />
             </span>
@@ -397,7 +397,7 @@ function ResultsStory(): ReactNode {
           </p>
         </div>
 
-        <div className={`${styles.storyDemo ?? ''} glassSurface`} aria-hidden="true">
+        <div className={`${styles.storyDemo ?? ''} surfaceCard`} aria-hidden="true">
           <div className={styles.markRow}>
             <span className={styles.markCode}>BXXX401</span>
             <span className={styles.markCell}>
@@ -441,7 +441,7 @@ function AttendanceStory(): ReactNode {
 
   return (
     <section className={styles.section}>
-      <div className={`${styles.storyWide ?? ''} glassSurface`}>
+      <div className={`${styles.storyWide ?? ''} surfaceCard`}>
         <div className={styles.storyWideHead}>
           <p className={styles.eyebrow}>Attendance</p>
           <h2 className={styles.splitTitle}>&ldquo;Can I miss this one?&rdquo;</h2>
@@ -490,7 +490,7 @@ function AnnouncementsStory(): ReactNode {
             { title: 'Semester 4 results announced', meta: 'Results · checked 2h ago' },
             { title: 'Revised examination timetable', meta: 'Exams · checked today' },
           ].map((notice) => (
-            <div key={notice.title} className={`${styles.notice ?? ''} glassSurface`}>
+            <div key={notice.title} className={`${styles.notice ?? ''} surfaceCard`}>
               <span className={styles.noticeTitle}>{notice.title}</span>
               <span className={styles.noticeMeta}>{notice.meta}</span>
             </div>
@@ -552,7 +552,7 @@ function DegreeStory(): ReactNode {
 function ImportStory(): ReactNode {
   return (
     <section className={styles.section} id="import">
-      <div className={`${styles.split ?? ''} glassSurface`}>
+      <div className={`${styles.split ?? ''} surfaceCard`}>
         <div className={styles.splitText}>
           <p className={styles.eyebrow}>Academic documents</p>
           <h2 className={styles.splitTitle}>Give it the documents you already have</h2>
@@ -605,7 +605,7 @@ function SectionHead({
 
 function ClosingCta(): ReactNode {
   return (
-    <section className={`${styles.closing ?? ''} glassSurface`}>
+    <section className={`${styles.closing ?? ''} surfaceCard`}>
       <h2 className={styles.closingTitle}>Start with one semester</h2>
       <p className={styles.closingLead}>
         No account, no setup. Add a result and GradTools will do the rest of the arithmetic — and

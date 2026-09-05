@@ -202,78 +202,46 @@ input[type='number'] {
  * both slow and illegible.
  */
 
-.glassNav,
-.glassPanel,
-.glassSurface,
-.glassOverlay,
-.glassInput {
-  /* Safari still needs the prefix; without it these render fully transparent. */
-  -webkit-backdrop-filter: var(--glass-blur, blur(16px));
-  backdrop-filter: var(--glass-blur, blur(16px));
+/*
+ * ---------------------------------------------------------------------------
+ * SOLID MATERIALS — the glass is gone
+ * ---------------------------------------------------------------------------
+ *
+ * The reference has no translucency anywhere. Its depth comes from a flat
+ * neutral ground, opaque white cards, one hairline border and almost no
+ * shadow. Blur behind an opaque card is cost with nothing to show for it, so
+ * `backdrop-filter` is no longer applied to anything.
+ *
+ * The class names are kept because twenty-five call sites use them as material
+ * hooks and renaming them is churn without a visual result. What changed is
+ * what they paint.
+ */
+
+.surfaceNav {
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--border);
 }
 
-.glassNav {
-  background: var(--glass-nav-bg);
-  border-bottom: 1px solid var(--glass-nav-border);
-  --glass-blur: blur(var(--glass-nav-blur)) saturate(180%);
-  box-shadow: var(--glass-highlight);
-}
-
-.glassPanel {
-  background: var(--glass-panel-bg);
-  border: 1px solid var(--glass-panel-border);
-  border-radius: var(--radius-lg);
-  --glass-blur: blur(var(--glass-panel-blur)) saturate(180%);
-  box-shadow: var(--glass-highlight), var(--shadow-glass);
-}
-
-.glassSurface {
-  background: var(--glass-surface-bg);
+.surfacePanel {
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  --glass-blur: blur(var(--glass-surface-blur));
-  box-shadow: var(--glass-highlight);
+  box-shadow: var(--shadow-sm);
 }
 
-.glassOverlay {
-  background: var(--glass-overlay-bg);
-  --glass-blur: blur(var(--glass-overlay-blur));
-}
-
-.glassInput {
-  background: var(--glass-input-bg);
+.surfaceCard {
+  background: var(--surface);
   border: 1px solid var(--border);
-  --glass-blur: blur(8px);
+  border-radius: var(--radius-lg);
 }
 
-/*
- * Where backdrop-filter is unsupported the tints above are translucent enough
- * that text over busy content would be unreadable, so the fallback is opacity
- * rather than a different design.
- */
-/*
- * Without backdrop-filter these tints are far too transparent to read against
- * scrolling content, so the fallback supplies an OPAQUE ground of its own.
- * `color-mix` keeps one source of truth for the hue: it is the environment
- * lightened, not a second palette.
- */
-@supports not (backdrop-filter: blur(1px)) {
-  .glassNav,
-  .glassSurface {
-    background: color-mix(in srgb, var(--bg) 86%, white);
-  }
+.surfaceScrim {
+  background: var(--scrim);
+}
 
-  .glassPanel {
-    background: color-mix(in srgb, var(--bg) 80%, white);
-  }
-
-  .glassOverlay {
-    background: color-mix(in srgb, var(--bg) 88%, black);
-  }
-
-  .glassInput {
-    background: color-mix(in srgb, var(--bg) 94%, black);
-  }
+.surfaceField {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
 }
 
 /* ========================================================================== */

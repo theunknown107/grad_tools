@@ -272,8 +272,6 @@
   border: 0;
   padding: 0;
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 .standingNote {

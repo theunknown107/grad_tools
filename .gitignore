@@ -70,3 +70,7 @@ GradTools_Academic_Calendar_and_Timetable_References/
 # already holds canonically — committing them would put binaries in the history
 # to no purpose.
 apps/web/public/ocr/
+
+# Supplied UI reference material — third-party design work, licensing unknown,
+# same rule as the other reference folders. Read locally, never committed.
+UI clone reference/

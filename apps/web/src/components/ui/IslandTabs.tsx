@@ -119,7 +119,7 @@ export function IslandTabs({
       ref={listRef}
       role="tablist"
       aria-label={label}
-      className={`${styles.island ?? ''} glassSurface`}
+      className={`${styles.island ?? ''} surfaceCard`}
       onKeyDown={onKeyDown}
     >
       {pill !== null ? (

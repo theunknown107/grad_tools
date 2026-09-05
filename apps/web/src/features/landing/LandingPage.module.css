@@ -377,8 +377,6 @@
   font-size: var(--text-small);
   font-weight: var(--weight-medium);
   box-shadow: var(--glow-accent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
   transition:
     transform var(--motion-fast) var(--ease-enter),
     background var(--motion-fast) var(--ease-enter),
