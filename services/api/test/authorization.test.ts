@@ -33,7 +33,6 @@ import type { Sql } from '../src/db/client.js';
 import { createApp } from '../src/http/app.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { createLogger } from '../src/observability/logger.js';
-import { MemoryObjectStore } from '../src/documents/storage.js';
 import { assertCloudRoleIsSafe, withUser } from '../src/db/cloud.js';
 import type { Session } from '../src/auth/session.js';
 
@@ -111,7 +110,6 @@ describeDb('the authorization matrix', () => {
       loadConfig({ DATABASE_URL, NODE_ENV: 'test', APP_ENV: 'test' }),
       sql,
       createLogger('silent', false),
-      new MemoryObjectStore(),
       { sql: cloud, verify: fakeVerifier() },
     );
   }, 60_000);

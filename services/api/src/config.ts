@@ -83,14 +83,6 @@ const configSchema = z.object({
    * environment (docs/25 §25.4). No ingestion exists in M5a; the variable is
    * validated here so the default cannot drift.
    */
-  /**
-   * Object-storage root for document bytes.
-   *
-   * MUST be outside the repository and outside any served directory: the web
-   * server never maps a URL onto this path, and files are read back through the
-   * application (docs/25 §25.6.3). No cloud provider is chosen yet (`OQ-027`).
-   */
-  DOCUMENT_STORAGE_ROOT: z.string().min(1).default('./.local-storage'),
 
   INGESTION_ENABLED: z
     .string()

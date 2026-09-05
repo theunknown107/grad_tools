@@ -16,12 +16,10 @@ import { randomUUID } from 'node:crypto';
 import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
-import { LocalObjectStore, type ObjectStore } from '../documents/storage.js';
 import { createStudentRouter } from '../routes/me.js';
 import { createAccountDeleter, createCloudClient } from '../db/cloud.js';
 import { authConfigFor, createVerifier } from '../auth/session.js';
 import { createAnnouncementRouter } from '../routes/announcements.js';
-import { createDocumentRouter } from '../routes/documents.js';
 import { createReferenceRouter } from '../routes/reference.js';
 import { errorHandler, notFoundHandler } from './errors.js';
 
@@ -42,12 +40,6 @@ export function createApp(
   config: Config,
   sql: Sql,
   logger: Logger,
-  /*
-   * Injected so tests can use an in-memory store. The default is the local
-   * filesystem driver rooted at the configured path, which lives outside the
-   * repository and outside any served directory (docs/25 §25.6.3).
-   */
-  store: ObjectStore = new LocalObjectStore(config.DOCUMENT_STORAGE_ROOT),
   /*
    * The student cloud, when this deployment has one (M9).
    *
@@ -221,7 +213,6 @@ export function createApp(
     );
   }
 
-  app.use(createDocumentRouter(sql, store));
   app.use(createReferenceRouter(sql));
 
   app.use(notFoundHandler);
