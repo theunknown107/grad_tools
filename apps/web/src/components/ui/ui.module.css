@@ -665,3 +665,148 @@
   color: var(--text);
   margin-block-end: var(--space-1);
 }
+
+/* ========================================================================== */
+/* REFERENCE COMPONENTS                                                       */
+/* ========================================================================== */
+
+/*
+ * The pastel feature card.
+ *
+ * The reference's signature object: a soft filled block carrying a white
+ * status pill, a title, a line of description and a progress bar. The fill
+ * cycles through four hues so a row of them reads as a set rather than as four
+ * copies. The hue is a data attribute, not a class per page, so the same card
+ * serves semesters, subjects and documents without any page inventing colours.
+ */
+.pastelCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-inline-size: 240px;
+  padding: var(--space-4);
+  border-radius: 18px;
+  background: var(--tone-fill);
+  color: var(--tone-ink);
+  text-decoration: none;
+  transition:
+    transform var(--motion-fast) var(--ease-glide),
+    filter var(--motion-fast) var(--ease-glide);
+}
+
+a.pastelCard:hover {
+  transform: translateY(-2px);
+  filter: brightness(0.985);
+}
+
+.pastelCard[data-tone='sky'] {
+  --tone-fill: var(--tone-sky);
+  --tone-ink: var(--tone-sky-ink);
+}
+
+.pastelCard[data-tone='lime'] {
+  --tone-fill: var(--tone-lime);
+  --tone-ink: var(--tone-lime-ink);
+}
+
+.pastelCard[data-tone='lilac'] {
+  --tone-fill: var(--tone-lilac);
+  --tone-ink: var(--tone-lilac-ink);
+}
+
+.pastelCard[data-tone='peach'] {
+  --tone-fill: var(--tone-peach);
+  --tone-ink: var(--tone-peach-ink);
+}
+
+/* The white status pill the reference puts at the top of every feature card. */
+.tonePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--tone-pill-bg);
+  color: var(--tone-ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+}
+
+.pastelTitle {
+  display: block;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.pastelBody {
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: 1.45;
+  opacity: 0.82;
+}
+
+.pastelFoot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-start: auto;
+  padding-block-start: var(--space-2);
+}
+
+.toneTrack {
+  flex: 1;
+  block-size: 8px;
+  border-radius: 999px;
+  background: var(--tone-pill-bg);
+  overflow: hidden;
+}
+
+.toneFill {
+  display: block;
+  block-size: 100%;
+  border-radius: 999px;
+  background: var(--tone-ink);
+  opacity: 0.55;
+  transition: inline-size var(--motion-slow) var(--ease-glide);
+}
+
+.toneValue {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+}
+
+/*
+ * A horizontal rail. The reference deliberately lets the fourth card fall off
+ * the edge — it is how it says "there are more of these" without a control.
+ */
+.rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 1fr);
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-block-end: var(--space-2);
+  scroll-snap-type: x proximity;
+}
+
+.rail > * {
+  scroll-snap-align: start;
+}
+
+/* The outlined metadata pill from the detail header. */
+.metaPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  white-space: nowrap;
+}

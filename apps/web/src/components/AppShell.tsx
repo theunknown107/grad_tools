@@ -32,7 +32,15 @@
 
 import { Icon, type IconName } from './icons.js';
 import { NavLink, useLocation } from 'react-router-dom';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { ThemeControl } from './ThemeControl.js';
 import { GlobalSearch, useSearchHotkey } from './GlobalSearch.js';
 import { NotificationInbox } from './NotificationInbox.js';
@@ -171,11 +179,18 @@ export function groupForPath(pathname: string): string {
  * Returns null until the first measurement, so the indicator never animates in
  * from x=0 on the first paint.
  */
+interface Box {
+  readonly left: number;
+  readonly width: number;
+  readonly top: number;
+  readonly height: number;
+}
+
 function useLimelight(
   containerRef: React.RefObject<HTMLElement | null>,
   activeKey: string,
-): { left: number; width: number } | null {
-  const [box, setBox] = useState<{ left: number; width: number } | null>(null);
+): Box | null {
+  const [box, setBox] = useState<Box | null>(null);
 
   const measure = useCallback(() => {
     const container = containerRef.current;
@@ -185,7 +200,18 @@ function useLimelight(
       setBox(null);
       return;
     }
-    setBox({ left: active.offsetLeft, width: active.offsetWidth });
+    /*
+     * Both axes, because the same indicator now travels DOWN a sidebar as well
+     * as across the mobile bar. Measuring both costs nothing and means the
+     * reference rebuild kept the travelling-marker behaviour instead of
+     * replacing it with five markers that switch on.
+     */
+    setBox({
+      left: active.offsetLeft,
+      width: active.offsetWidth,
+      top: active.offsetTop,
+      height: active.offsetHeight,
+    });
   }, [containerRef]);
 
   useLayoutEffect(measure, [measure, activeKey]);
@@ -208,7 +234,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isFirstRender = useRef(true);
 
   const activeGroup = groupForPath(location.pathname);
-  const inGroup = DESTINATIONS.filter((destination) => destination.group === activeGroup);
 
   /*
    * Route changes move focus to the main region.
@@ -249,71 +274,81 @@ export function AppShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
 
-      <header className={`${styles.topbar ?? ''} surfaceNav`}>
-        <div className={styles.topbarInner}>
-          <NavLink to="/" className={styles.brand ?? ''}>
-            <span className={styles.brandMark} aria-hidden="true">
-              G
-            </span>
-            <span className={styles.brandWord}>GradTools</span>
-          </NavLink>
+      {/*
+        ------------------------------------------------------------------
+        THE SIDEBAR IS THE NAVIGATION (reference rebuild)
+        ------------------------------------------------------------------
 
-          {/* TIER 1. Three words, so it fits on a top bar at any width worth
-              putting one on. */}
-          {/*
-            TIER 1 carries the glow (Reference 02). One travelling capsule with
-            an accent-tinted halo behind the open area — the reference's
-            per-item coloured glow, reduced to a single light, because five
-            differently-coloured glows would be five brand colours.
-          */}
-          <nav className={styles.groupNav} aria-label="Areas" ref={groupNavRef}>
-            {groupLight !== null ? (
-              <span
-                className={styles.glow}
-                aria-hidden="true"
-                style={{
-                  transform: `translateX(${String(groupLight.left)}px)`,
-                  width: `${String(groupLight.width)}px`,
-                }}
-              />
-            ) : null}
-            {GROUPS.map((group) => {
-              const first = DESTINATIONS.find((destination) => destination.group === group);
-              if (first === undefined) return null;
-              const isActive = group === activeGroup;
-              return (
-                <NavLink
-                  key={group}
-                  to={first.to}
-                  end={first.to === '/'}
-                  aria-current={isActive ? 'true' : undefined}
-                  data-active={isActive}
-                  className={`${styles.groupLink ?? ''} ${isActive ? (styles.groupLinkActive ?? '') : ''}`}
-                >
-                  {group}
-                </NavLink>
-              );
-            })}
-          </nav>
+        The old shell put three areas on a top bar and their destinations on a
+        second row beneath it. The reference is sidebar-first: one vertical
+        list, the brand above it, and the workspace beside it. Every route the
+        two rows carried is here, in the same order, so nothing became
+        unreachable — the arrangement changed, not the map.
+      */}
+      <aside className={styles.sidebar} aria-label="Sections">
+        <NavLink to="/" className={styles.brand ?? ''}>
+          <span className={styles.brandMark} aria-hidden="true">
+            G
+          </span>
+          <span className={styles.brandWord}>GradTools</span>
+        </NavLink>
+
+        <nav className={styles.sideNav} aria-label="Destinations" ref={groupNavRef}>
+          {/* The travelling marker, now moving down instead of across. */}
+          {groupLight !== null ? (
+            <span
+              className={styles.sideLight}
+              aria-hidden="true"
+              style={{
+                transform: `translateY(${String(groupLight.top)}px)`,
+                height: `${String(groupLight.height)}px`,
+              }}
+            />
+          ) : null}
+          {GROUPS.map((group) => (
+            <Fragment key={group}>
+              {group !== 'Overview' ? <span className={styles.sideRule} aria-hidden="true" /> : null}
+              {DESTINATIONS.filter((destination) => destination.group === group).map((item) => {
+                const isActive =
+                  item.to === '/'
+                    ? location.pathname === '/'
+                    : location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/'}
+                    data-active={isActive}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`${styles.sideLink ?? ''} ${isActive ? (styles.sideLinkActive ?? '') : ''}`}
+                  >
+                    <Icon name={item.icon} size="nav" />
+                    <span className={styles.sideLabel}>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </Fragment>
+          ))}
+        </nav>
+
+        <p className={styles.sideFoot}>Independent student project. Not affiliated with VTU.</p>
+      </aside>
+
+      <div className={styles.workspace}>
+        <header className={styles.topbar}>
+          <button
+            type="button"
+            className={styles.searchTrigger ?? ''}
+            onClick={openSearch}
+            aria-label="Search GradTools"
+            aria-keyshortcuts="Control+K"
+          >
+            <Icon name="search" size="nav" />
+            <span className={styles.searchLabel}>Search</span>
+            <kbd className={styles.searchKbd}>Ctrl K</kbd>
+          </button>
 
           <div className={styles.topActions}>
-            {/*
-              Search is a button, not a link: it opens a surface over the page
-              rather than going anywhere. On a wide screen it shows its shortcut,
-              on a phone it collapses to the glyph.
-            */}
-            <button
-              type="button"
-              className={`${styles.searchTrigger ?? ''} surfaceField`}
-              onClick={openSearch}
-              aria-label="Search GradTools"
-              aria-keyshortcuts="Control+K"
-            >
-              <Icon name="search" size="nav" />
-              <span className={styles.searchLabel}>Search</span>
-              <kbd className={styles.searchKbd}>Ctrl K</kbd>
-            </button>
-
             <NotificationInbox
               notifications={notifications}
               unread={unread}
@@ -321,39 +356,20 @@ export function AppShell({ children }: { children: ReactNode }) {
               onReadAll={() => void readAll()}
             />
 
-            {/* Theme is a device setting, not a destination. */}
+            {/* On every page, not only Settings — a device setting, not a
+                destination. Settings > Appearance remains its home. */}
             <ThemeControl />
 
             <NavLink to="/account" className={styles.topAction ?? ''} aria-label="Account">
               <Icon name="account" size="medium" />
             </NavLink>
           </div>
-        </div>
+        </header>
 
-        {/* TIER 2. The destinations inside the open area. Scrolls sideways on a
-            phone rather than wrapping into a block of chrome. */}
-        <nav className={styles.subNav} aria-label={activeGroup}>
-          <div className={styles.subNavInner}>
-            {inGroup.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                className={({ isActive }) =>
-                  `${styles.subLink ?? ''} ${isActive ? (styles.subLinkActive ?? '') : ''}`
-                }
-              >
-                <Icon name={item.icon} size="nav" />
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
-        </nav>
-      </header>
-
-      <main className={styles.main} id="main" ref={mainRef} tabIndex={-1}>
-        {children}
-      </main>
+        <main className={styles.main} id="main" ref={mainRef} tabIndex={-1}>
+          {children}
+        </main>
+      </div>
 
       <nav className={`${styles.bottomNav ?? ''} surfaceNav`} aria-label="Main" ref={bottomNavRef}>
         {/* The limelight itself: a beam above the active tab plus the lit pill
@@ -388,9 +404,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <GlobalSearch open={searchOpen} onClose={closeSearch} />
 
-      <p className={styles.footer}>
-        Independent student project. Not affiliated with or endorsed by VTU.
-      </p>
     </div>
   );
 }
