@@ -61,15 +61,35 @@ credentials are committed: the URL is supplied per machine.
 
 ## Running the tests
 
+**Three URLs, not one.** `TEST_DATABASE_URL` alone leaves 47 tests still
+skipping: the authorization and result-sync suites run against the *student
+cloud*, which is a separate database from the reference one exactly as it is in
+production (docs/09 §9.18). Setting only the first is the mistake that made the
+suite look complete while row-level security went unexercised.
+
 ```bash
+# One-time: the cloud database and the role RLS is actually tested through.
+createdb -h 127.0.0.1 -p 55432 -U gradtools gradtools_cloud_test
+psql -h 127.0.0.1 -p 55432 -U gradtools -d gradtools_cloud_test -v ON_ERROR_STOP=1   -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticator')
+      THEN CREATE ROLE authenticator LOGIN NOINHERIT NOBYPASSRLS PASSWORD 'authenticator'; END IF; END \$\$;"
+
 export TEST_DATABASE_URL="postgres://gradtools@127.0.0.1:55432/gradtools_test"
+export TEST_CLOUD_ADMIN_DATABASE_URL="postgres://gradtools@127.0.0.1:55432/gradtools_cloud_test"
+export TEST_CLOUD_DATABASE_URL="postgres://authenticator:authenticator@127.0.0.1:55432/gradtools_cloud_test"
 pnpm test
 ```
 
-Without `TEST_DATABASE_URL` the API suite **skips** with a loud warning rather
-than failing, so a contributor with no database still gets a usable run — but a
-skipped suite is not a passing one. The milestone gate requires it to actually
-execute.
+`authenticator` is the point of the third URL: it can log in, does **not**
+inherit, and has **no** BYPASSRLS, so a policy that fails to isolate a student
+fails the test rather than being waved through by a superuser connection. The
+password is local to a throwaway cluster and is not a secret — it is written
+here rather than in a secret store precisely so that is obvious.
+
+With all three set, the suite runs **1616 tests and skips none**. With none of
+them the API suite **skips** with a loud warning rather than failing, so a
+contributor with no database still gets a usable run — but a skipped suite is
+not a passing one, and M10A.13 found a test that had been asserting a deleted
+endpoint returned 200 for two milestones because nobody could see it.
 
 The suite drops and recreates the `public` schema on every run, so it always
 proves migrations work from a genuinely clean database rather than from whatever
