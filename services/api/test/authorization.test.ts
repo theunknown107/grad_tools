@@ -396,9 +396,22 @@ describeDb('the authorization matrix', () => {
      * Introducing authentication must not accidentally make a public thing
      * private, nor a private thing public (M9 §43).
      */
-    it('leaves reference data and the paper library public', async () => {
-      await request(app).get('/api/v1/question-papers').expect(200);
+    it('leaves genuinely public data public', async () => {
+      /*
+       * This asked for `/api/v1/question-papers` until M10A.13. That route was
+       * removed with the rest of the question-paper surface in M10A.11, and
+       * NOTHING NOTICED — the whole API suite was skipping for want of a
+       * database, so a test asserting a deleted endpoint returns 200 sat green
+       * for two milestones. It is the exact failure the M10A.12 report warned
+       * about when it declined to remove more API code while these tests could
+       * not run.
+       *
+       * The route is not coming back (M10A.13 §28). What this checks is what it
+       * always meant to: introducing authentication must not have made a public
+       * thing private, nor a private thing public.
+       */
       await request(app).get('/api/v1/announcements').expect(200);
+      await request(app).get('/api/v1/schemes').expect(200);
     });
 
     it('never lets student data be cached', async () => {
