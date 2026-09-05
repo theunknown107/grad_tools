@@ -27,8 +27,9 @@
  * repeating it.
  */
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { Icon } from '../icons.js';
 import styles from './ui.module.css';
 
 export const TONES = ['sky', 'lime', 'lilac', 'peach'] as const;
@@ -58,7 +59,13 @@ export function MetaPill({ children }: { readonly children: ReactNode }) {
  */
 export function Rail({ children, label }: { readonly children: ReactNode; readonly label: string }) {
   return (
-    <div className={styles.rail} role="group" aria-label={label}>
+    /*
+     * FOCUSABLE, because it scrolls. A horizontally scrolling container that
+     * cannot be reached by keyboard hides everything past its right edge from
+     * anyone not using a mouse — which is exactly the card the reference lets
+     * run off the edge. axe caught it at 320px.
+     */
+    <div className={styles.rail} role="group" aria-label={label} tabIndex={0}>
       {children}
     </div>
   );
@@ -116,6 +123,61 @@ export function PastelCard({
   return (
     <div className={styles.pastelCard} data-tone={tone}>
       {inner}
+    </div>
+  );
+}
+
+/**
+ * A pastel accordion, cycling the same four tones.
+ *
+ * The reference's lesson list: a numbered title, a duration on the right, a
+ * chevron, and sub-items revealed on the same fill so the group stays one
+ * object. GradTools uses it for anything genuinely hierarchical — a semester
+ * and its subjects, a day and its classes.
+ *
+ * Uncontrolled on purpose: which section is open is view state and belongs to
+ * the component, not to a page that has real work to do.
+ */
+export function ToneAccordion({
+  items,
+  label,
+}: {
+  readonly label: string;
+  readonly items: readonly {
+    readonly id: string;
+    readonly title: string;
+    /** The right-hand fact: a count, a duration, an SGPA. */
+    readonly meta?: string | undefined;
+    readonly body: ReactNode;
+  }[];
+}) {
+  const [open, setOpen] = useState<string | null>(items[0]?.id ?? null);
+
+  return (
+    <div className={styles.toneAccordion} role="group" aria-label={label}>
+      {items.map((item, index) => {
+        const isOpen = open === item.id;
+        return (
+          <div
+            key={item.id}
+            className={styles.toneItem}
+            data-tone={toneFor(index)}
+            data-open={isOpen}
+          >
+            <button
+              type="button"
+              className={styles.toneSummary ?? ''}
+              aria-expanded={isOpen}
+              onClick={() => setOpen(isOpen ? null : item.id)}
+            >
+              <span className={styles.toneSummaryText}>{item.title}</span>
+              {item.meta !== undefined && <span className={styles.toneMeta}>{item.meta}</span>}
+              <Icon name="chevronRight" size="nav" className={styles.toneChevron} />
+            </button>
+            {isOpen && <div className={styles.toneBody}>{item.body}</div>}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -27,6 +27,7 @@ import {
 import type { AttendanceRecord, SemesterSubject } from '../../domain/types.js';
 import { markClass, type ClassOutcome } from '../../domain/attendance.js';
 import { PageHeader } from '../../components/AppShell.js';
+import { MetaPill, PastelCard, Rail } from '../../components/ui/tone.js';
 import { Icon } from '../../components/icons.js';
 import {
   Button,
@@ -193,7 +194,41 @@ export function AttendancePage() {
       <PageHeader
         title="Attendance"
         subtitle={`The requirement is ${String(ruleSet.attendanceRequiredPct)}% per course (clause 22OB 3.7). Below ${String(ruleSet.attendanceDxFloorPct)}% a course is marked DX and you cannot sit its exam.`}
+        pills={
+          items.length === 0 ? undefined : (
+            <>
+              <MetaPill>{formatCount(items.length, 'course')}</MetaPill>
+              <MetaPill>{String(ruleSet.attendanceRequiredPct)}% required</MetaPill>
+            </>
+          )
+        }
       />
+
+      {/*
+        Per-course attendance as the reference's feature cards. The tone is the
+        VERDICT, not a rotation: a course that is safe takes the progress tone
+        and one that is not takes the attention tone, which is the semantic
+        mapping the tones were defined for. The bar is the real percentage.
+      */}
+      {items.length > 0 && (
+        <Rail label="Attendance by course">
+          {items.map((record) => {
+            const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
+            const pct = verdict.ok ? verdict.value.percentage : null;
+            const safe = verdict.ok && verdict.value.status === 'safe';
+            return (
+              <PastelCard
+                key={record.id}
+                tone={safe ? 'lime' : 'peach'}
+                pill={record.subjectCode}
+                title={pct === null ? 'Not countable' : formatPercent(pct)}
+                body={`${String(record.attended)} of ${String(record.conducted)} classes attended.`}
+                {...(pct === null ? {} : { progress: pct })}
+              />
+            );
+          })}
+        </Rail>
+      )}
 
       <div className={styles.stack}>
         {/*
