@@ -2733,3 +2733,28 @@ job test is behind `TEST_DATABASE_URL`.
 This is why the question-paper backend removal is still not done — see
 docs/31 §31.40. It is not caution for its own sake: the tests that would catch a
 mistake in it are precisely the ones that do not execute.
+
+## 22.73 A build during a sweep is not a finding (M10A.12)
+
+A theme run reported four problems that could not be true:
+
+```
+AXE timetable@320/light/green: html-has-lang — <html> must have a lang attribute
+CONSOLE light/green: 404 (x3)
+```
+
+`apps/web/index.html` and `apps/web/dist/index.html` both carry `lang="en"`,
+and an attribute cannot be absent in one of 305 combinations and present in the
+other 304. The 404s name asset paths that no longer existed.
+
+The cause was **a rebuild started while the sweep was in flight**. Vite empties
+`dist/assets` and rewrites it with new content hashes, so a page that had
+already loaded `index.html` asked for asset names that had just been deleted,
+and a page loading during the rewrite got a torn document with no `<html>` tag
+for axe to inspect.
+
+Recorded because the failure is convincing: it names a real accessibility rule
+and a real HTTP status, and nothing about it says "your build moved underneath
+you". **A harness reads `apps/web/dist`; do not build into it while one is
+running.** No guard was added — the answer is not to do it, and a run that
+overlaps a build announces itself by failing rules that cannot fail.
