@@ -466,26 +466,6 @@ const run = async () => {
     expect(nav > 0, 'week view had no day navigation');
   });
 
-  await check('Papers: mode tabs switch between papers and questions', async () => {
-    await page.goto(`${base}/papers`);
-    await page.waitForTimeout(1200);
-    await page.click('[role="tab"]:has-text("Questions")');
-    await page.waitForTimeout(500);
-    const selected = await page.getAttribute('[role="tab"]:has-text("Questions")', 'aria-selected');
-    expect(selected === 'true', 'Questions tab did not become selected');
-  });
-
-  await check('Papers: the Subject select opens as a listbox', async () => {
-    await page.click('[role="tab"]:has-text("Papers")');
-    await page.waitForTimeout(600);
-    const combo = page.locator('[role="combobox"]').first();
-    await combo.click();
-    await page.waitForTimeout(300);
-    const options = await page.locator('[role="option"]').count();
-    expect(options > 1, `expected several options, found ${String(options)}`);
-    await page.keyboard.press('Escape');
-  });
-
   await check('Notifications: marking all read empties the unread tab', async () => {
     await page.goto(`${base}/notifications`);
     await page.waitForTimeout(900);
@@ -567,21 +547,6 @@ const run = async () => {
     await page.waitForTimeout(400);
     const control = await page.locator('button[aria-label*="Change appearance"]').count();
     expect(control > 0, 'no theme control in the Appearance section');
-  });
-
-  await check('Documents: the upload modal opens, validates and cancels', async () => {
-    await page.goto(`${base}/documents`);
-    await page.waitForTimeout(900);
-    const trigger = page.locator('button:has-text("Choose a PDF")');
-    if ((await trigger.count()) === 0) throw new Error('no upload trigger on the page');
-    await trigger.click();
-    await page.waitForTimeout(400);
-    const dialog = await page.locator('[role="dialog"]').count();
-    expect(dialog > 0, 'upload modal did not open');
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
-    const after = await page.locator('[role="dialog"]').count();
-    expect(after === 0, 'upload modal did not close on Escape');
   });
 
   await check('Public: the dropdown navigation opens and lists grouped links', async () => {

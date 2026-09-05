@@ -2581,3 +2581,76 @@ Tests removed in this milestone (`papers.test.ts`, `papers-ui.test.tsx`,
 `documents.test.tsx`) covered a feature that no longer exists. **Unit count
 1378 → 1284; coverage of the active product is unchanged.** The route-integrity
 test earned its keep here, failing on two dangling links into removed pages.
+
+## 22.67 The daily loop, counted (M10A.11)
+
+`apps/web/test/class-marks.test.ts` — 12 tests over the arithmetic, and 13 more
+in `attendance-workflow.test.tsx` driving it through the page.
+
+The defect they exist for is **invisible on screen**. Two taps on Attended — a
+double click, an impatient press, a button that did not appear to respond —
+used to be two classes. Nothing looked wrong; the percentage was simply
+untrue. So the assertions are on the stored counts, never on the rendering:
+
+```
+two taps          1 mark, attended 31 / conducted 41
+attended→missed   attended 30 / conducted 41   (the class happened either way)
+undo              attended 30 / conducted 40   (exactly where it started)
+```
+
+`countDelta` is subtraction rather than six cases, which is why undo needs no
+copy of the record it replaced: every transition is its own inverse.
+
+### The suite now runs on a fixed Monday
+
+Every assertion in `attendance-workflow.test.tsx` is about *today* — today's
+classes, today's marks, the class happening now — and it read the machine's
+clock. That made it correct six days a week and **broken on the seventh**:
+`WEEKDAYS` is Mon–Sat, so on a Sunday today's agenda is empty for reasons that
+have nothing to do with the code under test. The clock is pinned to
+2026-09-07 10:30 with `toFake: ['Date']` only, so timers still run and
+`userEvent` still works.
+
+## 22.68 The morning after the import (M10A.11)
+
+`tests/import-workflow-qa.mjs` — **121 checks**, up from 103. Section 11d picks
+up where the semester import leaves off: a second page in the same browser
+context, clock pinned to the same Monday, driving the loop with real clicks.
+
+Marked, corrected, undone and marked again from the keyboard alone — each step
+asserted against IndexedDB rather than the screen. Then the same row at 320,
+390, 768 and 1280, because a row carrying a time, a subject, two attendance
+buttons and a delete is exactly the kind of thing that overflows a phone or
+renders underneath the bottom navigation, and jsdom can see neither.
+
+A holiday is seeded into the calendar and the page re-opened: the classes and
+their actions must both be gone, and the screen must say which document said
+so.
+
+### A flake, classified rather than tolerated
+
+The harness serves the built bundle and no API, so the reference and
+announcement fetches to `localhost:3001` are refused — and whether that is
+logged before the console assertion is a race, which made the run pass twice
+and then fail. `Failed to fetch | ERR_CONNECTION | ERR_NETWORK_CHANGED | CORS`
+is now counted as API-unavailable and reported separately, exactly as
+`tests/empty-qa.mjs` already did. Real console errors still fail the run.
+
+## 22.69 Harnesses that were testing removed pages (M10A.11)
+
+M10A.10 deleted the question-paper and document pages. Six QA harnesses were
+still driving them:
+
+- `interaction-qa.mjs` — three scenarios (papers mode tabs, papers Subject
+  select, the documents upload modal) failing on a **timeout**, because the
+  routes no longer resolve.
+- `empty-qa.mjs`, `m96b-qa.mjs`, `subject-identity-qa.mjs`, `visual-qa.mjs`,
+  `visual-qa-seeded.mjs` — sweeping `/papers` and `/documents` as if they were
+  product surface, and reporting the fall-through page as a clean route.
+
+All removed. `UploadModal` went with them: after the pages were deleted its
+only importer was its own test.
+
+**This is the failure mode of deleting a feature in one pass.** The product
+surface went; the things watching it did not, and a green-looking sweep was
+partly measuring pages that no longer exist.

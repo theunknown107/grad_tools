@@ -22,6 +22,7 @@
  */
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { isApiDown } from './lib/console.mjs';
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -87,6 +88,7 @@ const run = async () => {
   const server = await serve();
   const browser = await chromium.launch();
   const problems = [];
+  let apiDown = 0;
   let checks = 0;
 
   for (const vp of VIEWPORTS) {
@@ -167,7 +169,18 @@ const run = async () => {
           }
         }
 
-        for (const e of errors) problems.push(`CONSOLE ${appearance}/${accent}: ${e}`);
+        /*
+         * The API is not running during this sweep and is not meant to be: the
+         * harness serves the built bundle and nothing else, so the reference
+         * and announcement fetches to localhost:3001 are refused. Whether that
+         * is logged before this line is a race, which made the sweep pass and
+         * then fail with no code change between. Counted, not tolerated —
+         * anything else in the console still fails the run (docs/22 §22.68).
+         */
+        for (const e of errors) {
+          if (isApiDown(e)) apiDown += 1;
+          else problems.push(`CONSOLE ${appearance}/${accent}: ${e}`);
+        }
         await context.close();
       }
     }
@@ -303,6 +316,8 @@ const run = async () => {
   server.close();
 
   console.log(`\n${checks} page checks across ${APPEARANCES.length * ACCENTS.length} palettes`);
+  if (apiDown > 0)
+    console.log(`${String(apiDown)} API-unavailable console messages (not frontend defects)`);
   if (problems.length === 0) {
     console.log('CLEAN — no axe violations, no overflow, no console errors, all palettes applied');
   } else {
