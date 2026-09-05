@@ -9,6 +9,11 @@
     "pnpm": ">=10.0.0"
   },
   "packageManager": "pnpm@10.26.1",
+  "pnpm": {
+    "overrides": {
+      "qs": "^6.16.0"
+    }
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json && pnpm -r typecheck",
     "lint": "eslint .",
