@@ -511,8 +511,12 @@ function BunkPlanner({ records }: { records: readonly AttendanceRecord[] }) {
   );
 
   if (records.length === 0) {
+    /*
+     * Quiet: the planner answers a question about the courses above it, so it
+     * is subordinate to them rather than their equal (ui §7).
+     */
     return (
-      <Panel title="Bunk planner" flush>
+      <Panel title="Bunk planner" material="quiet" flush>
         <EmptyState>
           Add a course above and you can plan against it here. It shows how many of the remaining
           classes you could miss, and what your attendance would be afterwards.
@@ -545,7 +549,7 @@ function BunkPlanner({ records }: { records: readonly AttendanceRecord[] }) {
       : null;
 
   return (
-    <Panel title="Bunk planner" flush>
+    <Panel title="Bunk planner" material="quiet" flush>
       <div className={styles.plannerControls}>
         <div className={styles.plannerField}>
           <label className={styles.plannerLabel} htmlFor="planner-subject">
