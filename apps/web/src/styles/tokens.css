@@ -574,7 +574,10 @@
      * 4.24:1 — under AA. Only visible once Announcements had real data at
      * 320px, which is precisely the case an empty sweep cannot reach.
      */
-    --text-subtle: #6b6b77;
+    /* Dark enough to clear 4.5:1 on the ACCENT TINT, not only on a white
+       card — the selected timetable row is a tinted surface and 12px
+       metadata sits on it. */
+    --text-subtle: #5f5f6b;
 
     --accent: var(--a-on-light);
     /* The reference's selected-state material, resolved for this appearance. */
@@ -698,7 +701,10 @@
 
   --text: #101014;
   --text-muted: #4e4e59;
-  --text-subtle: #6b6b77;
+  /* Dark enough to clear 4.5:1 on the ACCENT TINT, not only on a white
+     card — the selected timetable row is a tinted surface and 12px
+     metadata sits on it. */
+  --text-subtle: #5f5f6b;
 
   --accent: var(--a-on-light);
   /* The reference's selected-state material, resolved for this appearance. */
