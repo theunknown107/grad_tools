@@ -22,6 +22,7 @@
  */
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { splitConsole } from './lib/console.mjs';
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -58,7 +59,6 @@ const ROUTES = [
   ['/timetable', 'timetable'],
   ['/announcements', 'announcements'],
   ['/notifications', 'notifications'],
-  ['/papers', 'papers'],
   ['/profile', 'profile'],
   ['/account', 'account'],
   ['/sign-in', 'signin'],
@@ -238,6 +238,7 @@ const run = async () => {
   const browser = await chromium.launch();
   const data = seedData();
   const problems = [];
+  let apiDownTotal = 0;
 
   for (const vp of VIEWPORTS) {
     const context = await browser.newContext({
@@ -281,13 +282,18 @@ const run = async () => {
       if (process.env.HEIGHTS) console.log(`  ${name}@${vp.name} height=${height}`);
     }
 
-    if (errors.length) problems.push(`CONSOLE @${vp.name}: ${errors.slice(0, 3).join(' | ')}`);
+    const sweep = splitConsole(errors);
+    apiDownTotal += sweep.apiDown;
+    if (sweep.real.length)
+      problems.push(`CONSOLE @${vp.name}: ${sweep.real.slice(0, 3).join(' | ')}`);
     await context.close();
   }
 
   await browser.close();
   server.close();
 
+  if (apiDownTotal > 0)
+    console.log(`${String(apiDownTotal)} API-unavailable console messages (not frontend defects)`);
   console.log(
     problems.length === 0 ? 'CLEAN: 0 axe, 0 overflow, 0 console errors' : problems.join('\n'),
   );

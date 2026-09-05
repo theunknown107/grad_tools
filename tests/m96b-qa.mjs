@@ -13,6 +13,7 @@
  */
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { isApiDown } from './lib/console.mjs';
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -40,13 +41,11 @@ const ROUTES = [
   ['/academics', 'gpa'],
   ['/attendance', 'attendance'],
   ['/timetable', 'timetable'],
-  ['/papers', 'papers'],
   ['/announcements', 'announcements'],
   ['/notifications', 'notifications'],
   ['/profile', 'profile'],
   ['/account', 'account'],
   ['/sign-in', 'sign-in'],
-  ['/documents', 'documents'],
 ];
 
 const TYPES = {
@@ -277,7 +276,7 @@ const run = async () => {
          * blip is not a frontend defect either. Both are counted separately
          * so they cannot mask a real console error.
          */
-        const tag = /Failed to fetch|ERR_CONNECTION|ERR_NETWORK_CHANGED|CORS/.test(e)
+        const tag = isApiDown(e)
           ? 'API-DOWN'
           : 'CONSOLE';
         problems.push(`${tag} ${appearance}@${vp.name}: ${e.slice(0, 120)}`);

@@ -25,6 +25,7 @@
  */
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { splitConsole } from './lib/console.mjs';
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -47,7 +48,6 @@ const ROUTES = [
   ['/attendance', 'attendance'],
   ['/timetable', 'timetable'],
   ['/semesters', 'degree'],
-  ['/papers', 'papers'],
 ];
 
 const MIME = {
@@ -217,6 +217,7 @@ const run = async () => {
   const browser = await chromium.launch();
   const data = seedData();
   const problems = [];
+  let apiDownTotal = 0;
   const scheme = process.env.SCHEME === 'light' ? 'light' : 'dark';
   let checks = 0;
 
@@ -270,7 +271,10 @@ const run = async () => {
       });
     }
 
-    if (errors.length) fail(`CONSOLE @${vp.name}: ${errors.slice(0, 3).join(' | ')}`);
+    const console320 = splitConsole(errors);
+    apiDownTotal += console320.apiDown;
+    if (console320.real.length)
+      fail(`CONSOLE @${vp.name}: ${console320.real.slice(0, 3).join(' | ')}`);
     await context.close();
   }
 
@@ -372,6 +376,8 @@ const run = async () => {
   await browser.close();
   server.close();
 
+  if (apiDownTotal > 0)
+    console.log(`${String(apiDownTotal)} API-unavailable console messages (not frontend defects)`);
   console.log(
     problems.length === 0
       ? `CLEAN (${scheme}): ${checks} identity checks, 0 axe, 0 overflow, 0 console errors`

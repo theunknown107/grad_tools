@@ -1790,3 +1790,84 @@ overwritten another. **305 theme checks** clean. Main bundle 815 kB → 802 kB.
 - The semester scenario uses synthetic documents. Real-document verification is
   unchanged from §31.35–31.36 and remains partial for photographed timetables.
 - The API-side question-paper code and schema are still in the tree.
+
+## 31.39 M10A.11 — The daily loop, and the rest of the cleanup · ✅ **DELIVERED**
+
+M10A.10 organised the semester. This is the morning after: the student opens
+GradTools, sees today, and answers for it.
+
+### A class could be recorded twice, and nothing looked wrong
+
+Today's agenda already had Attended and Missed. What it had no memory of was
+having been pressed. A second tap, a re-render, or a walk to the dashboard and
+back counted the same lecture again — and attendance is a ratio, so the number
+was simply untrue with nothing on screen to show it.
+
+A mark is now stored per scheduled class per day, keyed `date:slotId` so a
+repeated write replaces rather than appends. The button already pressed is a
+no-op, `aria-pressed` says which one it is, and one step of undo reverses
+exactly the arithmetic it applied.
+
+**It is not a second attendance system.** The counts remain the only source of
+every number; deleting every mark would change no figure the product shows.
+Marks are pruned to a fortnight, so it cannot become the per-class history this
+milestone explicitly did not want — and per-class history remains unavailable,
+as intended.
+
+**Nothing is automatic.** A timetable says a class was scheduled, not that it
+happened. A class the student never touches produces no mark and moves no
+count.
+
+### Three things the loop needed to be true
+
+**The calendar outranks the timetable on a day the college is shut.** The
+timetable's Today now suppresses the classes *and* their actions on a printed
+holiday, and says which document said so.
+
+**"What day is it" was computed in UTC.** `toISOString().slice(0, 10)` is wrong
+east of Greenwich for part of every day: at 00:30 in Belagavi it returns
+yesterday. It was reading the holiday for the wrong date, and would have filed
+today's marks under yesterday. `localDay()` replaced it at both callers.
+
+**The revision and effective date had been read and stored since M10A.8 and
+shown nowhere.** One muted line now answers "am I looking at R1 or R2", and a
+stored revision with a later effective date is surfaced rather than settled
+quietly.
+
+### The rest of the question-paper cleanup
+
+The command palette was still calling `/api/v1/questions/search` and sending
+anyone who clicked a hit to `/papers` — a route M10A.10 had deleted. That went
+first, along with the API's question-paper router, the intelligence modules
+whose only importer was that router, the demo seed, two scripts and four test
+files.
+
+Six QA harnesses were still driving the removed pages — three interaction
+scenarios timing out, five sweeps reporting a fall-through page as a clean
+route. `UploadModal` went too: its only importer was its own test.
+
+**The ingestion pipeline stays**, and that is a decision rather than an
+oversight. `routes/documents.ts`, `documents/*` and `jobs/*` are
+question-paper-only in practice, but removing them takes the jobs deployable
+and the object store with them, and the tables need a forward migration with
+foreign keys, RLS and triggers checked first. No migration is included: nothing
+in this milestone can drop a table.
+
+### Verification
+
+**1271 unit tests.** **121 workflow checks** in both appearances, including the
+daily loop driven with real clicks at four widths. **144 page checks** across
+six widths and both themes, **305 theme checks**, and the interaction harness
+back to a full pass. Axe caught one real defect — the new "Now" tag was 2.72:1,
+white on a light violet at 11px — and it was fixed to the accent-on-accent-weak
+pairing the next-class rail already uses.
+
+### NOT VERIFIED
+
+- **No human has used this.** Every browser claim is Playwright.
+- **Real device**: not tested.
+- **Real documents**: not re-tested this milestone; §31.35–31.36 stand.
+- Attendance still has no per-class history, and the summary is still an
+  aggregate. That is the documented limit of the count-based model.
+- The API's document ingestion pipeline and every question-paper table remain
+  in the tree.
