@@ -260,6 +260,18 @@
   --accent: var(--a-on-dark);
   /* The reference's selected-state material, resolved for this appearance. */
   --accent-pastel: var(--a-pastel-dark);
+  --tab-selected-bg: #f4f4f6;
+  --tab-selected-fg: #101014;
+  /* --- Reference tones --------------------------------------------------- */
+  --tone-sky: #16323f;
+  --tone-sky-ink: #bfe4f2;
+  --tone-lime: #2f3f0d;
+  --tone-lime-ink: #d8f56d;
+  --tone-lilac: #2c1c52;
+  --tone-lilac-ink: #ddd0f7;
+  --tone-peach: #402d0c;
+  --tone-peach-ink: #f7d9a4;
+  --tone-pill-bg: rgb(255 255 255 / 12%);
   --nav-bg: var(--surface);
   --scrim: rgb(0 0 0 / 62%);
   --field-bg: var(--surface-raised);
@@ -567,6 +579,40 @@
     --accent: var(--a-on-light);
     /* The reference's selected-state material, resolved for this appearance. */
     --accent-pastel: var(--a-pastel-light);
+  --tab-selected-bg: #131316;
+  --tab-selected-fg: #ffffff;
+    --tab-selected-bg: #131316;
+    --tab-selected-fg: #ffffff;
+  /* --- Reference tones ---------------------------------------------------
+   * The four pastels the reference cycles through. They are SEMANTIC, not
+   * decorative: sky for schedule, lilac for performance, lime for progress,
+   * peach for anything asking for attention. Each carries its own ink so text
+   * on it never has to be guessed at.
+   */
+  --tone-sky: #cbe6f8;
+  --tone-sky-ink: #0c3a52;
+  --tone-lime: #d8f56d;
+  --tone-lime-ink: #2c3b06;
+  --tone-lilac: #e6d6fb;
+  --tone-lilac-ink: #35176b;
+  --tone-peach: #fbd9a5;
+  --tone-peach-ink: #4a2c05;
+  --tone-pill-bg: rgb(255 255 255 / 72%);
+    /* --- Reference tones ---------------------------------------------------
+     * The four pastels the reference cycles through. They are SEMANTIC, not
+     * decorative: sky for schedule, lilac for performance, lime for progress,
+     * peach for anything asking for attention. Each carries its own ink so text
+     * on it never has to be guessed at.
+     */
+    --tone-sky: #cbe6f8;
+    --tone-sky-ink: #0c3a52;
+    --tone-lime: #d8f56d;
+    --tone-lime-ink: #2c3b06;
+    --tone-lilac: #e6d6fb;
+    --tone-lilac-ink: #35176b;
+    --tone-peach: #fbd9a5;
+    --tone-peach-ink: #4a2c05;
+    --tone-pill-bg: rgb(255 255 255 / 72%);
   --nav-bg: #ffffff;
   --scrim: rgb(16 16 20 / 45%);
   --field-bg: #ffffff;

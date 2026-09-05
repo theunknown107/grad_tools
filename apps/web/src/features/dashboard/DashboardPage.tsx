@@ -51,9 +51,10 @@ import {
 } from '../../domain/types.js';
 import { markFor } from '../../domain/attendance.js';
 import { Bar, Empty, MetricStrip, Row, Rows, Skeleton } from '../../components/ui/layout.js';
+import { PastelCard, Rail, toneFor } from '../../components/ui/tone.js';
 import { Panel } from '../../components/ui/index.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
-import { formatGpa, formatPercent, formatTime, localDay } from '../../lib/format.js';
+import { formatCount, formatGpa, formatPercent, formatTime, localDay } from '../../lib/format.js';
 import {
   useAttendance,
   useBacklogs,
@@ -65,7 +66,12 @@ import {
   useSemesterSubjects,
   useTimetable,
 } from '../../hooks/useCollection.js';
-import { buildSemesterViews, currentSemester, summariseBacklogs } from '../../domain/academics.js';
+import {
+  buildSemesterViews,
+  currentSemester,
+  summariseBacklogs,
+  type SemesterView,
+} from '../../domain/academics.js';
 import {
   activeCalendars,
   calendarConflicts,
@@ -181,6 +187,15 @@ export function DashboardPage() {
               outstanding={outstanding}
             />
           </section>
+
+          {/*
+            THE REFERENCE'S SIGNATURE ROW, carrying GradTools' own content.
+            Its dashboard leads with a horizontal rail of pastel course cards;
+            ours leads with the semesters of the degree, which is the same
+            shape of information — a set of things in progress, each with a
+            status and a proportion done.
+          */}
+          <SemesterRail views={buildSemesterViews(semesters, results)} />
 
           <div className={styles.quietStack}>
             <Today
@@ -331,6 +346,46 @@ function Snapshot({
         </Panel>
       )}
     </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The semester rail                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Eight semesters as the reference's pastel cards.
+ *
+ * REAL DATA ONLY. A semester shows the SGPA it actually has and the progress
+ * its own record reports; one with nothing saved says so rather than being
+ * given an invented percentage to make the row look fuller.
+ */
+function SemesterRail({ views }: { readonly views: readonly SemesterView[] }) {
+  if (views.length === 0) return null;
+
+  return (
+    <Rail label="Semesters">
+      {views.map((view, index) => {
+        const done = view.status === 'completed';
+        return (
+          <PastelCard
+            key={view.number}
+            tone={toneFor(index)}
+            to="/semesters"
+            pill={done ? 'Completed' : view.status === 'in_progress' ? 'In progress' : 'Planned'}
+            title={`Semester ${String(view.number)}`}
+            body={
+              view.sgpaComputed === null
+                ? view.subjectCount > 0
+                  ? `${formatCount(view.subjectCount, 'subject')}, no SGPA yet.`
+                  : 'No result saved yet.'
+                : `SGPA ${formatGpa(view.sgpaComputed)} from ${formatCount(view.subjectCount, 'subject')}.`
+            }
+            {...(done ? { progress: 100 } : {})}
+          />
+        );
+      })}
+    </Rail>
   );
 }
 

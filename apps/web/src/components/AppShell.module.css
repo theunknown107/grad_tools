@@ -11,307 +11,234 @@
  * decorative: the bars float over the ambient illumination.
  */
 
+/*
+ * ==========================================================================
+ * THE REFERENCE SHELL: sidebar + workspace
+ * ==========================================================================
+ *
+ * Proportions taken from the supplied reference: a 250px sidebar, a ~72px
+ * utility bar, and a workspace inset from it. The sidebar is a rail at tablet
+ * widths and gives way to the existing bottom bar on a phone, which is the
+ * adaptation the reference's own collapsed rail implies.
+ */
+
 .shell {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  /* No background: the ambient radial is painted on <body> and must show
-     through the whole shell (global.css). */
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-block-size: 100dvh;
+  background: var(--bg);
 }
 
+/*
+ * Out of the grid entirely. It was a grid child before this rebuild and took
+ * the sidebar's column, which pushed the sidebar into the workspace's slot and
+ * the workspace off the end of the grid.
+ */
 .skipLink {
   position: absolute;
-  left: var(--space-2);
-  top: -100px;
-  z-index: var(--z-toast);
-  background: var(--action-bg);
-  color: var(--action-fg);
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-pill);
-  font-size: var(--text-small);
-  font-weight: var(--weight-medium);
-  text-decoration: none;
-  transition: top var(--motion-fast) var(--ease-enter);
+  inset-block-start: var(--space-3);
+  inset-inline-start: var(--space-3);
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  transform: translateY(-200%);
+  transition: transform var(--motion-fast) var(--ease-glide);
 }
 
-.skipLink:focus {
-  top: var(--space-2);
+.skipLink:focus-visible {
+  transform: translateY(0);
 }
 
-/* --- The bar -------------------------------------------------------------- */
-
-/*
- * Translucent, not opaque. Content scrolling beneath a sticky bar should be
- * visible as movement behind it — that is what tells you the page is long. The
- * blur is what keeps the text on top of it readable while it does.
- */
-/*
- * The material comes from `.glassNav` (global.css). What is left here is
- * position and layout — M9.6B §27: a component asks for a material by name and
- * never assembles one, so the nav, the popovers and the modals cannot drift
- * apart.
- */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-sticky);
+.shell {
+  position: relative;
 }
 
-@media (prefers-reduced-transparency: reduce) {
-  .topbar {
-    background: var(--bg);
-  }
-}
-
-.topbarInner {
+.sidebar {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  height: var(--header-height);
-  max-width: var(--content-max);
-  margin: 0 auto;
-  padding: 0 var(--gutter);
-}
-
-@media (min-width: 1024px) {
-  .topbarInner {
-    gap: var(--space-6);
-  }
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  background: var(--surface);
+  border-inline-end: 1px solid var(--border);
+  position: sticky;
+  inset-block-start: 0;
+  block-size: 100dvh;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  /* Meets the 44px touch minimum without changing the visual mark size. */
-  min-height: var(--control-height);
-  flex: 0 0 auto;
   gap: var(--space-3);
-  font-size: var(--text-small);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text);
+  padding-inline: var(--space-2);
   text-decoration: none;
+  color: var(--text);
 }
 
-/*
- * The one mark that carries the accent at rest. It glows because it is the
- * product's identity, and because there is exactly one of it per screen.
- */
 .brandMark {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-sm);
-  background: var(--action-bg);
-  color: var(--action-fg);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: 10px;
+  background: var(--accent-pastel);
+  color: var(--accent-pastel-ink);
   font-weight: var(--weight-semibold);
-  box-shadow: var(--glow-accent-soft);
 }
 
-/*
- * The wordmark is the first thing to go when the bar runs out of room. The mark
- * alone still identifies the product; a truncated wordmark does not.
- *
- * HIDDEN VISUALLY, NOT REMOVED. `display: none` takes it out of the
- * accessibility tree too, and since the mark itself is `aria-hidden` that left
- * the brand link with no accessible name at all — an axe `link-name` failure on
- * every route below 480px, found by the seeded sweep.
- */
 .brandWord {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  font-size: 18px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
 }
 
-@media (min-width: 480px) {
-  .brandWord {
-    position: static;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    clip-path: none;
-  }
+.sideNav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-block-size: 0;
+  overflow-y: auto;
 }
 
-/* --- Tier 1: the three areas ---------------------------------------------- */
-
-/*
- * Scrolls sideways on a narrow screen, like the row beneath it. At 390px the
- * three areas plus the brand plus the actions come to a few pixels more than
- * the bar, and the difference showed up as "Accou" — a clipped word, which is
- * worse than a row that can be pushed.
- */
-/*
- * SPACED, NOT PACKED. The marketing reference sets its four destinations about
- * 50px apart in a 76px-tall bar; the first version of this had them 4px apart
- * in a 56px one, which is why it read as a converted sidebar rather than as
- * product navigation.
- */
-/*
- * The travelling glow behind the open area (Reference 02).
- *
- * The reference gives every item its own coloured halo — blue, orange, green,
- * red. Five hues would be five brand colours, so this is ONE light in the
- * current accent that MOVES, which keeps the reference's sense of illuminated
- * navigation without turning the header into a paint chart.
- *
- * Sits behind the links (z-index 0 against their 1) and is pointer-transparent,
- * so it can never intercept a click.
- */
-/*
- * M9.6C: ONE SMALL LIGHT SOURCE, not a violet capsule (§11).
- *
- * It was a filled `--accent-weak` pill with an accent ring — a coloured block
- * behind the open area, which is exactly the "purple capsule around every
- * selected item" the reset is against.
- *
- * Now: a neutral glass lozenge that reads as the surface being LIT, with the
- * accent present only as a thin lower edge — a light catching the bottom of
- * the object. The colour is a hint at the boundary rather than a fill.
- */
-.glow {
+/* The travelling marker, preserved from the top bar and turned on its side. */
+.sideLight {
   position: absolute;
-  inset-block: 4px;
-  inset-inline-start: 0;
-  z-index: 0;
-  border-radius: var(--radius-pill);
-  background: var(--surface-active);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 12%),
-    inset 0 -1px 0 var(--accent-border),
-    var(--glow-accent-soft);
+  inset-inline: 0;
+  inset-block-start: 0;
+  border-radius: 12px;
+  background: var(--accent-pastel);
   transition:
-    transform var(--motion-base) var(--ease-glide),
-    width var(--motion-base) var(--ease-glide);
+    transform var(--motion-slow) var(--ease-glide),
+    height var(--motion-slow) var(--ease-glide);
   pointer-events: none;
 }
 
-.groupNav {
+.sideLink {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-right: auto;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.groupNav::-webkit-scrollbar {
-  display: none;
-}
-
-/*
- * A word cut flat at the edge of a scrolling row reads as a bug. Fading the
- * last few pixels says "there is more this way", which is what the mobile
- * reference does with every row wider than the screen.
- *
- * A mask, not an overlay: it cannot cover a focus ring and it costs no element.
- * Removed once the row fits, so a desktop never shows a fade over nothing.
- */
-.groupNav,
-.subNavInner {
-  mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
-}
-
-@media (min-width: 1024px) {
-  .groupNav {
-    gap: var(--space-2);
-    mask-image: none;
-  }
-}
-
-.groupLink {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  min-height: 38px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-pill);
+  gap: var(--space-3);
+  padding: 9px var(--space-3);
+  border-radius: 12px;
   color: var(--text-muted);
   text-decoration: none;
-  font-size: var(--text-small);
-  white-space: nowrap;
-  transition:
-    color var(--motion-fast) var(--ease-enter),
-    background-color var(--motion-fast) var(--ease-enter);
+  font-size: var(--text-body);
+  transition: color var(--motion-fast) var(--ease-glide);
 }
 
-.groupLink:hover {
+.sideLink:hover {
   color: var(--text);
+  background: var(--surface-hover, var(--bg));
+}
+
+.sideLinkActive,
+.sideLinkActive:hover {
+  color: var(--accent-pastel-ink);
+  font-weight: var(--weight-medium);
+  background: none;
+}
+
+.sideLabel {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sideRule {
+  block-size: 1px;
+  margin: var(--space-3) var(--space-3);
+  background: var(--border);
+}
+
+.sideFoot {
+  margin: 0;
+  padding-inline: var(--space-3);
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.topbar {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  background: var(--surface);
+  border-block-end: 1px solid var(--border);
+}
+
+.searchTrigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: min(420px, 100%);
+  padding: 9px var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-subtle);
+  font: inherit;
+  font-size: var(--text-body);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-glide),
+    background var(--motion-fast) var(--ease-glide);
+}
+
+.searchTrigger:hover {
+  border-color: var(--border-strong);
   background: var(--surface);
 }
 
-/*
- * The open area. Filled rather than underlined, because the second bar
- * underneath it is already a horizontal line and an underline would read as
- * part of it.
- */
-.groupLinkActive,
-.groupLinkActive:hover {
-  color: var(--text);
-  font-weight: var(--weight-medium);
-  /* No background here: `.glow` is the active surface now, and painting a
-     second one behind the label would double the edge. */
-  background: transparent;
-  box-shadow: none;
+.searchLabel {
+  flex: 1;
+  text-align: start;
 }
 
-/*
- * ONE BUTTON ON A PHONE, TWO ON A DESKTOP.
- *
- * Account already has a tab in the bottom bar, so a second way to reach it in
- * the top bar buys nothing and costs 46px of a 390px-wide row — which is what
- * was clipping the area tabs beside it.
- */
+.searchKbd {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+}
+
 .topActions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex: 0 0 auto;
+  margin-inline-start: auto;
 }
 
-.topActions > .topAction:last-child {
-  display: none;
-}
-
-@media (min-width: 1024px) {
-  .topActions > .topAction:last-child {
-    display: grid;
-  }
-}
-
-/*
- * Circular icon button, from both references. Round because it holds a glyph
- * and no words — the shape is what says "this is a control, not a label".
- */
 .topAction {
   display: grid;
   place-items: center;
-  flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-pill);
-  color: var(--text-muted);
-  background: var(--surface);
+  inline-size: 38px;
+  block-size: 38px;
   border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
   text-decoration: none;
   transition:
-    color var(--motion-fast) var(--ease-enter),
-    border-color var(--motion-fast) var(--ease-enter);
+    color var(--motion-fast) var(--ease-glide),
+    border-color var(--motion-fast) var(--ease-glide);
 }
 
 .topAction:hover {
@@ -319,91 +246,59 @@
   border-color: var(--border-strong);
 }
 
-/* --- Tier 2: destinations inside the open area ----------------------------- */
-
-.subNav {
-  border-top: 1px solid var(--border);
-}
-
-/*
- * Scrolls sideways rather than wrapping. A navigation bar that grows to two
- * rows on a narrow screen pushes the page down and changes height as you move
- * between areas; one that scrolls stays exactly as tall as it was.
- *
- * `scrollbar-width: none` hides the bar, not the scrolling: the row is still
- * reachable by keyboard, by wheel and by touch.
- */
-.subNavInner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  max-width: var(--content-max);
-  margin: 0 auto;
-  padding: var(--space-2) var(--gutter) var(--space-3);
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.subNavInner::-webkit-scrollbar {
-  display: none;
-}
-
-.subLink {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: 0 0 auto;
-  min-height: 38px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-pill);
-  color: var(--text-muted);
-  text-decoration: none;
-  font-size: var(--text-small);
-  white-space: nowrap;
-  transition:
-    color var(--motion-fast) var(--ease-enter),
-    background-color var(--motion-fast) var(--ease-enter);
-}
-
-.subLink svg {
-  opacity: 0.75;
-}
-
-.subLink:hover {
-  color: var(--text);
-  background: var(--surface);
-}
-
-/*
- * The current destination. Tinted fill and an accent hairline — the selected
- * row from the application reference. Not a glow: there is one of these on
- * every screen, and something always lit is not emphasis.
- */
-.subLinkActive,
-.subLinkActive:hover {
-  color: var(--accent);
-  background: var(--accent-weak);
-  font-weight: var(--weight-medium);
-  box-shadow: inset 0 0 0 1px var(--accent-border);
-}
-
-.subLinkActive svg {
-  opacity: 1;
-}
-
-/* --- Content -------------------------------------------------------------- */
-
 .main {
   flex: 1;
-  min-width: 0;
-  width: 100%;
-  max-width: var(--content-max);
-  margin: 0 auto;
-  padding: var(--space-6) var(--gutter);
-  /* Clears the fixed bottom nav so content is never hidden behind it. */
-  padding-bottom: calc(var(--bottom-nav-height) + var(--space-8));
+  inline-size: 100%;
+  max-inline-size: 1180px;
+  margin-inline: auto;
+  padding: var(--space-6);
 }
+
+/* Tablet: the sidebar becomes the reference's icon rail. */
+@media (max-width: 1100px) {
+  .shell {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    align-items: center;
+    padding-inline: var(--space-2);
+  }
+
+  .brandWord,
+  .sideLabel,
+  .sideFoot {
+    display: none;
+  }
+
+  .sideLink {
+    justify-content: center;
+    inline-size: 48px;
+    padding-inline: 0;
+  }
+}
+
+/* Phone: the existing bottom bar takes over and the sidebar leaves. */
+@media (max-width: 767px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .main {
+    padding: var(--space-4);
+    padding-block-end: calc(var(--space-8) + 56px);
+  }
+
+  .topbar {
+    padding-inline: var(--space-4);
+  }
+}
+
+
 
 .footer {
   max-width: var(--content-max);
@@ -561,11 +456,19 @@
  * the screen; it does not need to shout, and at this size it is already the
  * largest thing on the page.
  */
+/*
+ * THE REFERENCE'S ONE LARGE THING.
+ *
+ * Its page titles are ~40px and heavy, and everything under them stays small
+ * — that contrast is what makes the pages read as designed rather than as a
+ * uniform wall of 14px. Only this grows; body, metadata and controls keep the
+ * compact scale they already had.
+ */
 .pageTitle {
-  font-size: var(--text-h1);
-  line-height: var(--text-h1-lh);
-  font-weight: var(--weight-light);
-  letter-spacing: var(--tracking-display);
+  font-size: clamp(28px, 3.2vw, 40px);
+  line-height: 1.1;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.03em;
 }
 
 .pageSubtitle {
