@@ -279,26 +279,30 @@
   margin-block-end: var(--space-5);
 }
 
+/* The same mark the sidebar carries, so the first screen and every screen
+   after it are recognisably one product. */
 .authMark {
   display: grid;
   place-items: center;
   inline-size: 34px;
   block-size: 34px;
   border-radius: 11px;
-  background: var(--action-bg);
-  border: 1px solid var(--action-border);
-  color: var(--action-fg);
+  background: var(--accent-pastel);
+  border: 0;
+  color: var(--accent-pastel-ink);
   font-size: var(--text-small);
   font-weight: var(--weight-semibold);
   box-shadow: var(--glow-accent-soft);
 }
 
+/* The reference's title scale, matching PageHeader. Sign-in is a page, and
+   its heading should carry the same weight as any other page's. */
 .authTitle {
   margin: 0;
-  font-size: var(--text-h1);
-  line-height: var(--text-h1-lh);
-  font-weight: var(--weight-light);
-  letter-spacing: var(--tracking-display);
+  font-size: clamp(26px, 2.6vw, 34px);
+  line-height: 1.12;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.03em;
 }
 
 .authLead {

@@ -19,6 +19,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
 import { PageHeader } from '../../components/AppShell.js';
+import { MetaPill } from '../../components/ui/tone.js';
+import { formatCount } from '../../lib/format.js';
 import { IslandTabs } from '../../components/ui/IslandTabs.js';
 import { Select } from '../../components/ui/Select.js';
 /* Aliased: layout.js already exports a row-count Skeleton used further down. */
@@ -64,6 +66,22 @@ export function AnnouncementsPage() {
       <PageHeader
         title="Announcements"
         subtitle="Academic notices. GradTools shows them; it does not issue them."
+        /* Counts that already exist on the page — the feed's size and how much
+           of it applies to this student. Nothing is invented to fill the row. */
+        pills={
+          sorted.length === 0 ? undefined : (
+            <>
+              <MetaPill>{formatCount(sorted.length, 'notice')}</MetaPill>
+              <MetaPill>
+                {formatCount(
+                  sorted.filter((item) => isRelevant(item, context)).length,
+                  'for you',
+                  'for you',
+                )}
+              </MetaPill>
+            </>
+          )
+        }
       />
 
       {/*

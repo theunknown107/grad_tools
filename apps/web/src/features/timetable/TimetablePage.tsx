@@ -282,7 +282,7 @@ export function TimetablePage() {
         pills={
           items.length === 0 ? undefined : (
             <>
-              <MetaPill>{formatCount(items.length, 'class')}</MetaPill>
+              <MetaPill>{formatCount(items.length, 'class', 'classes')}</MetaPill>
               {source !== null && source.active.revision !== null && (
                 <MetaPill>{source.active.revision}</MetaPill>
               )}
@@ -496,6 +496,7 @@ export function TimetablePage() {
             <div className={styles.weekStack}>
               <ToneAccordion
                 label="Week"
+                expanded
                 items={WEEKDAYS.map((weekday) => {
                   const slots = byDay.get(weekday) ?? [];
                   return {

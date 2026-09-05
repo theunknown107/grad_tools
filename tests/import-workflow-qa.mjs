@@ -129,6 +129,15 @@ const run = async () => {
 
   const page = await context.newPage();
   /*
+   * A FIXED MONDAY, for the same reason the unit suite has one.
+   *
+   * Several sections assert on "today's classes", and WEEKDAYS is Mon-Sat. On
+   * a Sunday the timetable's Today tab is legitimately empty and those
+   * assertions fail for a reason that has nothing to do with the code — which
+   * is exactly what happened on the first Sunday after they were written.
+   */
+  await page.clock.setFixedTime(new Date('2026-09-07T10:30:00'));
+  /*
    * The API is not running during this sweep and is not meant to be: the
    * harness serves the built bundle and nothing else, so the reference and
    * announcement fetches to localhost:3001 are refused. That is an environment
