@@ -1956,3 +1956,71 @@ The order it should be done in, once a database is reachable:
 - **The API suite did not execute.** 345 tests skipped.
 - The real calendar tested is a circular, not a semester date table.
 - Photographed-timetable extraction is unchanged and still partial.
+
+## 31.41 M10A.13 — The backend suite runs, and takes the pipeline with it · ✅ **DELIVERED**
+
+No new feature. One gap closed, and a decision that had been waiting on it.
+
+### 345 tests were never running here
+
+Every API, RLS, migration, sync and job test was gated on a database this
+machine never had. A throwaway PostgreSQL cluster — `initdb`, loopback, trust
+auth, port 55432, scratch directory, discarded afterwards — needs no Docker and
+no credential anyone owns.
+
+```
+before   1271 passed   345 skipped
+after    1616 passed     0 skipped
+```
+
+**It found a real break within seconds.** A test asserting that
+`GET /api/v1/question-papers` returns 200 — for a route deleted in M10A.11 —
+had been green for two milestones because nothing executed it. M10A.12 declined
+to remove more API code precisely because of that risk. The prediction was
+correct, and this is its evidence.
+
+The README was documenting one of the three database URLs the suite needs. With
+only that one, 47 tests still skip: the student cloud is a separate database and
+RLS is only tested honestly through a role that cannot bypass it.
+
+### And so the pipeline could finally go
+
+M10A.12 classified the question-paper ingestion pipeline as removable but
+refused to touch it, because its safety net did not run. With the net up:
+
+removed — `routes/documents.ts`, all of `documents/`, all of `jobs/`, seventeen
+dead query functions with their schemas and SQL fragments, the object-store
+parameter threaded through `createApp`, and `DOCUMENT_STORAGE_ROOT`, a path for
+storing uploaded document bytes that nothing had written to since the router
+went. **8 400 lines.**
+
+Migration 0013 drops the six tables with no reader: four `extracted_*`,
+`document_sections`, and the OCR `jobs` queue. Children first, in foreign-key
+order, **without CASCADE** — a dependency that exists and is not listed should
+raise rather than vanish quietly.
+
+**`documents` and `sources` stay, and are not dead.** The reference router
+serves both as a public registry, `announcements.source_id` has a foreign key
+into `sources`, and `gates.test.ts` proves the CHECK constraints on both.
+Removing a table's readers is what makes it droppable; these still have readers.
+
+```
+api tests    574 -> 341    all passing, none skipped
+full suite  1616 -> 1384   all passing, none skipped
+```
+
+The 232 that went tested the removed pipeline. No test of the active product was
+touched. The count is lower because the product is smaller.
+
+### Also
+
+Two moderate `qs` advisories, reached through express. The patched 6.16.0 sits
+inside the `^6.14.0` range express itself declares, so an override takes it
+without straining any constraint. Audit clean, prod and dev.
+
+### NOT VERIFIED
+
+- **No human has used this**, and no real device has run it.
+- The disposable cluster is plain PostgreSQL 18. It is not Supabase; the RLS
+  policies are byte-identical but the platform is not.
+- Real-document findings are unchanged from §31.40.
