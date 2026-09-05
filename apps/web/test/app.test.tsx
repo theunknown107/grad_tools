@@ -605,14 +605,15 @@ describe('navigation', () => {
         .flatMap((nav) => within(nav).queryAllByRole('link'))
         .map((link) => link.textContent ?? '');
 
-    // Overview is the open area on the dashboard, so its destinations are in
-    // the second tier straight away.
+    /*
+     * EVERY destination, with no navigation first. The two-tier shell showed
+     * one area's destinations at a time and this test had to open Academics to
+     * see the rest; the sidebar lists them all, so the assertion got stronger
+     * rather than weaker — nothing is behind a click any more.
+     */
     expect(shellLabels().some((l) => /dashboard/i.test(l))).toBe(true);
     expect(shellLabels().some((l) => /announcements/i.test(l))).toBe(true);
     expect(shellLabels().some((l) => /notifications/i.test(l))).toBe(true);
-
-    // Academics is one tap away, and opening it reveals the rest.
-    await user.click(screen.getByRole('link', { name: 'Academics' }));
     expect(shellLabels().some((l) => /attendance/i.test(l))).toBe(true);
     /*
      * Adding a document replaced question papers here. Handing GradTools a
@@ -630,14 +631,22 @@ describe('navigation', () => {
 
   it('marks the open area and the current destination', () => {
     renderWith(<App />);
-    // Two tiers, two current markers: which area is open, and which page it is.
+    /*
+     * ONE TIER NOW. The reference rebuild replaced the area row plus its
+     * destination row with a single sidebar list, so there is no longer an
+     * "open area" to mark — asserting one would be asserting a tier the
+     * product does not have. What still has to be true, and is what this test
+     * was really for, is that the destination you are on says so.
+     */
     const current = screen
       .getAllByRole('navigation')
       .flatMap((nav) => within(nav).queryAllByRole('link'))
       .filter((link) => link.getAttribute('aria-current') !== null);
     const labels = current.map((link) => link.textContent ?? '');
-    expect(labels.some((l) => /overview/i.test(l))).toBe(true);
-    expect(labels.some((l) => /dashboard/i.test(l))).toBe(true);
+    expect(labels.length).toBeGreaterThan(0);
+    expect(labels.some((l) => /dashboard|home/i.test(l))).toBe(true);
+    // And no marker for an area, because areas are no longer a tier.
+    expect(labels.some((l) => /^overview$|^academics$|^account$/i.test(l.trim()))).toBe(false);
   });
 
   it('provides a skip link as the first focusable element', () => {

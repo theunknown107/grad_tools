@@ -26,10 +26,15 @@
   position: absolute;
   inset-block: 4px;
   inset-inline-start: 0;
+  /*
+   * The reference's selected tab is a SOLID DARK PILL with light text — the
+   * one place it spends full contrast. The travelling behaviour is unchanged;
+   * only what travels looks different.
+   */
   border-radius: var(--radius-pill);
-  background: var(--accent-weak);
-  border: 1px solid var(--accent-border);
-  box-shadow: var(--glow-accent-soft);
+  background: var(--tab-selected-bg);
+  border: 0;
+  box-shadow: none;
   transition:
     transform var(--motion-base) var(--ease-glide),
     width var(--motion-base) var(--ease-glide);
@@ -62,7 +67,7 @@
 }
 
 .tab[aria-selected='true'] {
-  color: var(--accent);
+  color: var(--tab-selected-fg);
 }
 
 .tab:focus-visible {
@@ -81,8 +86,8 @@
 }
 
 .tab[aria-selected='true'] .count {
-  background: var(--accent-border);
-  color: var(--text);
+  background: rgb(255 255 255 / 20%);
+  color: var(--tab-selected-fg);
 }
 
 .panel {
