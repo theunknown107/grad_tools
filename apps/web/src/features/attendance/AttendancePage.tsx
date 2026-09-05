@@ -625,6 +625,29 @@ function BunkPlanner({ records }: { records: readonly AttendanceRecord[] }) {
         />
       </div>
 
+      {/*
+        THE ANSWER FIRST.
+        
+        The planner had its verdict as a pill beside a percentage, which made
+        the reader assemble "can I miss this?" out of three smaller facts. The
+        card says it, in the tone that already means it — lime for a projection
+        that stays safe, peach for one that does not. The arithmetic below is
+        unchanged and still shows its working.
+      */}
+      {projection?.ok === true && (
+        <PastelCard
+          tone={projection.value.status === 'safe' ? 'lime' : 'peach'}
+          pill={selected.subjectCode}
+          title={
+            projection.value.status === 'safe'
+              ? `Yes — missing ${formatCount(missed, 'class', 'classes')} is safe`
+              : `No — missing ${formatCount(missed, 'class', 'classes')} drops you below ${String(projection.value.requiredPct)}%`
+          }
+          body={`Attendance would become ${formatPercent(projection.value.percentage)}.`}
+          progress={projection.value.percentage}
+        />
+      )}
+
       {projection?.ok === true && (
         <div className={styles.plannerResult}>
           <div className={styles.plannerOutcome}>

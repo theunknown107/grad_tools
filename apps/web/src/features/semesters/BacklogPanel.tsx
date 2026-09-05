@@ -28,6 +28,8 @@ import {
   TableScroll,
 } from '../../components/ui/index.js';
 import { newId, nowIso } from '../../lib/id.js';
+import { PastelCard, Rail } from '../../components/ui/tone.js';
+import { formatCount } from '../../lib/format.js';
 import { useBacklogs } from '../../hooks/useCollection.js';
 import styles from './semesters.module.css';
 
@@ -86,6 +88,36 @@ export function BacklogPanel({ profileId }: { readonly profileId: StudentProfile
         Subjects you still have to clear. GradTools does not know when the exams are — those come
         from official notices, not from here.
       </p>
+
+      {/*
+        THE TONE IS THE STATUS, not a rotation. A backlog still open takes the
+        attention tone and a cleared one takes the progress tone, so the state
+        of the degree is legible before a single row is read. Nothing here is
+        alarming red: the reference's palette says "deal with this", not
+        "something has gone wrong".
+      */}
+      {items.length > 0 && (
+        <Rail label="Backlogs">
+          {items.map((record) => {
+            const cleared = record.status === 'cleared';
+            return (
+              <PastelCard
+                key={record.id}
+                tone={cleared ? 'lime' : 'peach'}
+                pill={cleared ? 'Cleared' : 'Open'}
+                title={record.subjectCode}
+                body={
+                  cleared
+                    ? `Cleared${record.clearedInSemester === null ? '' : ` in semester ${String(record.clearedInSemester)}`}.`
+                    : `Carried from semester ${String(record.originSemester)}${
+                        record.attempts > 0 ? `, ${formatCount(record.attempts, 'attempt')}` : ''
+                      }.`
+                }
+              />
+            );
+          })}
+        </Rail>
+      )}
 
       <form className={styles.backlogForm} onSubmit={(event) => void add(event)}>
         <TextField

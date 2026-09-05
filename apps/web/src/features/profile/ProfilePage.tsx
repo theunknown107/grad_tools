@@ -33,6 +33,7 @@ import { asStudentProfileId } from '../../domain/identity.js';
 import type { StudentProfile } from '../../domain/types.js';
 import { AsyncSection } from '../../components/AsyncSection.js';
 import { PageHeader } from '../../components/AppShell.js';
+import { MetaPill } from '../../components/ui/tone.js';
 import { SectionedForm } from '../../components/ui/SectionedForm.js';
 import { ThemeControl } from '../../components/ThemeControl.js';
 import {
@@ -109,6 +110,21 @@ export function ProfilePage() {
       <PageHeader
         title="Profile"
         subtitle="Optional, and stored only in this browser. Every field can be left blank."
+        /* Only what the student actually filled in. A blank profile shows no
+           pills rather than a row of placeholders. */
+        pills={
+          <>
+            {profile?.usn !== undefined && profile.usn !== null && profile.usn !== '' && (
+              <MetaPill>{profile.usn}</MetaPill>
+            )}
+            {profile?.branch !== undefined && profile.branch !== null && profile.branch !== '' && (
+              <MetaPill>{profile.branch}</MetaPill>
+            )}
+            {profile?.currentSemester !== undefined && profile.currentSemester !== null && (
+              <MetaPill>Semester {String(profile.currentSemester)}</MetaPill>
+            )}
+          </>
+        }
       />
 
       <div className={styles.stack}>

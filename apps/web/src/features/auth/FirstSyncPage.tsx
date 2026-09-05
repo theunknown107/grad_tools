@@ -23,6 +23,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/AppShell.js';
+import { MetaPill } from '../../components/ui/tone.js';
+import { formatCount } from '../../lib/format.js';
 import { Notice, Panel } from '../../components/ui/index.js';
 import { useAuth } from './AuthContext.js';
 import { useSync } from './useSync.js';
@@ -133,6 +135,14 @@ export function FirstSyncPage() {
       <PageHeader
         title="Your records"
         subtitle="You are signed in. Choose what happens to the records already on this device."
+        /* The two real counts, stated before the choice that depends on them.
+           No progress bar: there is no progress here, only a decision. */
+        pills={
+          <>
+            <MetaPill>{formatCount(localCount, 'record')} on this device</MetaPill>
+            <MetaPill>{formatCount(cloudCount, 'record')} in your account</MetaPill>
+          </>
+        }
       />
 
       <Panel>

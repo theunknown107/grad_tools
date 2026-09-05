@@ -21,6 +21,7 @@
 
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/AppShell.js';
+import { MetaPill } from '../../components/ui/tone.js';
 import { DocumentImportPanel } from './DocumentImportPanel.js';
 import styles from './import.module.css';
 
@@ -30,6 +31,18 @@ export function ImportPage() {
       <PageHeader
         title="Add academic document"
         subtitle="Drop a result card, an academic calendar or a class timetable. GradTools works out which is which."
+        /*
+         * The three documents this page accepts, stated as facts before the
+         * file picker rather than as a sentence inside it. A student who
+         * arrives holding a timetable can see it is welcome without reading.
+         */
+        pills={
+          <>
+            <MetaPill>Result card</MetaPill>
+            <MetaPill>Academic calendar</MetaPill>
+            <MetaPill>Class timetable</MetaPill>
+          </>
+        }
       />
 
       <div className={styles.stack}>
