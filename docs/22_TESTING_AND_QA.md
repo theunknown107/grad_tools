@@ -2789,3 +2789,65 @@ saving" line appeared under the previous document — making a refused R1 look a
 though it had stored fourteen classes. Nothing was wrong except the order, and
 the order alone was enough to put a fabricated number in a report. Fixed by
 printing the heading first.
+
+## 22.75 The backend suite, actually running (M10A.13)
+
+345 tests had been skipping on the development machine every milestone since
+M9. Not disabled, not broken — gated on `TEST_DATABASE_URL`, which nothing on
+that machine supplied. Docker's daemon was down and the system PostgreSQL wanted
+a password belonging to its owner.
+
+Neither was needed. PostgreSQL's own binaries make a throwaway cluster:
+
+```
+initdb -D <scratch>/pgdata -U postgres --auth-local=trust --auth-host=trust
+pg_ctl -D <scratch>/pgdata -o "-p 55432 -c listen_addresses=127.0.0.1" start
+createdb gradtools_test ; createdb gradtools_cloud_test
+```
+
+Loopback only, trust auth, on a port clear of anything system-wide, in a
+scratch directory, thrown away afterwards. It touches nothing the developer
+owns and needs no credential anybody has to hand over.
+
+```
+before   1271 passed   345 skipped
+after    1616 passed     0 skipped
+```
+
+### It caught a real break in its first run
+
+`authorization.test.ts` asserted `GET /api/v1/question-papers` returns **200**.
+That route was deleted in M10A.11. The test had been green for two milestones
+because it never ran.
+
+This is the exact failure the M10A.12 report predicted when it refused to remove
+more API code while these suites were dark. **A skipped test is not a neutral
+absence — it is a claim nobody is checking**, and this one was actively false.
+
+### Three URLs, not one
+
+`TEST_DATABASE_URL` alone still leaves 47 tests skipping. The student cloud is a
+separate database, as in production, and RLS is only meaningfully tested through
+`authenticator` — a role that can log in, does not inherit, and cannot bypass
+row-level security. Connect as a superuser and every isolation test passes for
+the wrong reason. `services/api/README.md` now documents all three.
+
+## 22.76 What the running suite proves (M10A.13)
+
+Executed against real PostgreSQL, from a schema dropped and recreated on every
+run:
+
+```
+api.test.ts            76   REST surface, 5.9 ms per request end to end
+gates.test.ts          67   CHECK constraints on sources and documents
+authorization.test.ts  22   RLS: A sees A, B sees nothing of A's
+result-sync.test.ts    25   cloud sync of results and subjects
+announcements.test.ts  40   ingestion, publication, filters
+scheme-ingestion        9   the VTU 2022 scheme, migrated and seeded
+reference-knowledge     6   universities, schemes, branches, subjects
+```
+
+RLS is the one worth naming: the policies applied are the same files applied to
+Supabase, and the roles are created by `0000_local_substrate.sql` with
+`NOBYPASSRLS`, which a test asserts. A policy that failed to isolate a student
+would fail here rather than being waved through.
