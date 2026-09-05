@@ -298,8 +298,14 @@
   align-self: flex-start;
   padding: 0 var(--space-1);
   border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--accent-contrast);
+  /*
+   * ACCENT AS TEXT, NOT AS FILL. A solid accent chip with white on it is
+   * 2.72:1 in dark — the accent is a light violet, and 11px counts as small
+   * text needing 4.5:1. The same pairing the NEXT rail already uses passes in
+   * both appearances, and axe was the one that noticed.
+   */
+  background: var(--accent-weak);
+  color: var(--accent);
   font-size: var(--text-micro);
   line-height: 1.6;
   font-weight: var(--weight-semibold);

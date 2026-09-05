@@ -40,6 +40,7 @@
  */
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { isApiDown } from './lib/console.mjs';
 import { createServer } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -127,11 +128,26 @@ const run = async () => {
   context.on('request', (request) => requests.push(request.url()));
 
   const page = await context.newPage();
+  /*
+   * The API is not running during this sweep and is not meant to be: the
+   * harness serves the built bundle and nothing else, so the reference and
+   * announcement fetches to localhost:3001 are refused. That is an environment
+   * fact, not a frontend defect, and whether it is logged before an assertion
+   * is a race — which made this harness flake. Classified the same way
+   * tests/empty-qa.mjs already classifies it, and counted so it cannot hide a
+   * real console error.
+   */
+  let apiDownCount = 0;
+  const noteConsole = (sink) => (line) => {
+    if (isApiDown(line)) apiDownCount += 1;
+    else sink.push(line);
+  };
+
   const consoleLines = [];
   page.on('console', (message) => {
-    if (message.type() === 'error') consoleLines.push(message.text());
+    if (message.type() === 'error') noteConsole(consoleLines)(message.text());
   });
-  page.on('pageerror', (error) => consoleLines.push(String(error)));
+  page.on('pageerror', (error) => noteConsole(consoleLines)(String(error)));
 
   const report = { generatedAt: new Date().toISOString(), scheme, timings: {} };
 
@@ -1094,6 +1110,221 @@ const run = async () => {
   await page.screenshot({ path: join(OUT, 'semester-dashboard.png'), fullPage: true });
 
   /* -------------------------------------------------------------------- */
+  /* 11d. THE DAILY LOOP: TODAY, ONE TAP, AND NEVER TWICE                 */
+  /* -------------------------------------------------------------------- */
+
+  /*
+   * THE MORNING AFTER THE IMPORT (M10A.11 §7, §9, §13, §19, §23).
+   *
+   * The semester is already in storage. This is the student opening the app on
+   * an ordinary Monday: the week is there, today's classes are there, and the
+   * question is whether one class can be answered for — once, correctly, and
+   * reversibly.
+   *
+   * The clock is PINNED to a Monday at 10:30 rather than read from the machine.
+   * Every assertion below is about "today", and a harness that reads the real
+   * date is correct six days a week and broken on the seventh — Sunday is not a
+   * teaching day, so today's agenda would be empty for reasons that have
+   * nothing to do with the code under test.
+   */
+  const daily = await context.newPage();
+  daily.on('console', (message) => {
+    if (message.type() === 'error') noteConsole(consoleLines)(message.text());
+  });
+  daily.on('pageerror', (error) => noteConsole(consoleLines)(String(error)));
+  await daily.clock.setFixedTime(new Date('2026-09-07T10:30:00'));
+
+  /** One collection, as the browser actually stored it. */
+  const storedList = (key) =>
+    daily.evaluate(
+      (name) =>
+        new Promise((ok) => {
+          const open = globalThis.indexedDB.open('keyval-store', 1);
+          open.onsuccess = () => {
+            const request = open.result
+              .transaction('keyval', 'readonly')
+              .objectStore('keyval')
+              .get(`gradtools:v1:anon:${name}`);
+            request.onsuccess = () => ok(request.result ?? []);
+            request.onerror = () => ok([]);
+          };
+          open.onerror = () => ok([]);
+        }),
+      key,
+    );
+
+  const openToday = async () => {
+    await daily.goto(`${ORIGIN}/timetable`);
+    await daily.waitForTimeout(800);
+  };
+
+  await openToday();
+
+  /* Which timetable is this? Read at import since M10A.8, shown since now. */
+  const todayScreen = await daily.locator('main').innerText();
+  expect(/R2/.test(todayScreen), 'DAILY: the timetable does not say which revision it is');
+  expect(/Nov 2026/.test(todayScreen), 'DAILY: the timetable does not show its effective date');
+  /*
+   * The fixture's W.E.F. is in November and the pinned day is September, so
+   * this timetable is active but not yet in effect — a fact the student is
+   * entitled to rather than one the screen settles quietly (§24).
+   */
+  expect(
+    /take effect on/i.test(todayScreen),
+    'DAILY: a not-yet-effective timetable says nothing',
+  );
+
+  const attendedButton = daily.getByRole('button', { name: /attended$/i }).first();
+  expect(
+    (await daily.getByRole('button', { name: /attended$/i }).count()) > 0,
+    'DAILY: today offers no way to record a class',
+  );
+
+  /*
+   * TWO TAPS ARE ONE CLASS (§13). This is the defect the stored mark exists to
+   * prevent, and it is invisible without counting: nothing on screen looks
+   * wrong when a lecture is recorded twice.
+   */
+  await attendedButton.click();
+  await attendedButton.click();
+  await daily.waitForTimeout(400);
+
+  let dayCounts = await storedList('attendance');
+  let dayMarks = await storedList('classMarks');
+  expect(dayMarks.length === 1, `DAILY: ${String(dayMarks.length)} marks after two taps, expected 1`);
+  expect(
+    dayCounts.length === 1 && dayCounts[0].conducted === 1 && dayCounts[0].attended === 1,
+    `DAILY: two taps produced ${JSON.stringify(dayCounts.map((r) => [r.attended, r.conducted]))}`,
+  );
+  expect(
+    (await attendedButton.getAttribute('aria-pressed')) === 'true',
+    'DAILY: a marked class does not say it is marked',
+  );
+
+  /* A correction moves one counter. The class happened either way (§29). */
+  await daily.getByRole('button', { name: /missed$/i }).first().click();
+  await daily.waitForTimeout(400);
+  dayCounts = await storedList('attendance');
+  expect(
+    dayCounts[0].attended === 0 && dayCounts[0].conducted === 1,
+    `DAILY: correcting to missed gave ${String(dayCounts[0].attended)}/${String(dayCounts[0].conducted)}`,
+  );
+
+  /* And the whole thing can be taken back, counts and all (§14, §30). */
+  await daily.getByRole('button', { name: /^undo$/i }).click();
+  await daily.waitForTimeout(400);
+  dayCounts = await storedList('attendance');
+  dayMarks = await storedList('classMarks');
+  expect(dayMarks.length === 0, 'DAILY: undo left the mark behind');
+  expect(
+    dayCounts[0].attended === 0 && dayCounts[0].conducted === 0,
+    'DAILY: undo did not return the counts to where they started',
+  );
+
+  /* The same action from the keyboard alone (§49). */
+  await attendedButton.focus();
+  await daily.keyboard.press('Enter');
+  await daily.waitForTimeout(400);
+  dayMarks = await storedList('classMarks');
+  expect(dayMarks.length === 1, 'DAILY: a class cannot be marked from the keyboard');
+  await daily.getByRole('button', { name: /^undo$/i }).click();
+  await daily.waitForTimeout(300);
+
+  const dailyAxe = await new AxeBuilder({ page: daily })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  for (const violation of dailyAxe.violations) {
+    fail(`AXE today: ${violation.id} (${violation.nodes.length}) ${violation.help}`);
+  }
+  await daily.screenshot({ path: join(OUT, 'daily-today.png'), fullPage: true });
+
+  /*
+   * THE ACTIONS MUST BE REACHABLE ON A PHONE (§48).
+   *
+   * Today's row carries a time, a subject, two attendance buttons and a delete
+   * — five things across 320px, above a fixed bottom navigation. jsdom has no
+   * layout and cannot see either failure: a row that overflows the viewport, or
+   * a button that renders underneath the nav bar and cannot be tapped at all.
+   */
+  for (const vp of VIEWPORTS) {
+    await daily.setViewportSize({ width: vp.width, height: vp.height });
+    await daily.waitForTimeout(300);
+
+    const overflow = await daily.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    if (overflow > 0) fail(`OVERFLOW today@${vp.name}: ${String(overflow)}px`);
+
+    const reachable = await daily
+      .getByRole('button', { name: /attended$/i })
+      .first()
+      .isVisible();
+    expect(reachable, `DAILY: the attendance action is not visible at ${vp.name}px`);
+  }
+  await daily.setViewportSize({ width: 1280, height: 900 });
+  await daily.waitForTimeout(300);
+
+  /*
+   * A DAY THE COLLEGE IS SHUT (§19, §20). The calendar is seeded directly here
+   * rather than imported: the import path for a revised calendar is already
+   * covered above, and what needs proving is that a printed holiday removes
+   * today's classes AND the actions on them.
+   */
+  await daily.evaluate(
+    (day) =>
+      new Promise((ok) => {
+        const open = globalThis.indexedDB.open('keyval-store', 1);
+        open.onsuccess = () => {
+          const store = open.result.transaction('keyval', 'readwrite').objectStore('keyval');
+          const read = store.get('gradtools:v1:anon:calendars');
+          read.onsuccess = () => {
+            const calendars = read.result ?? [];
+            const first = calendars[0] ?? {};
+            store.put(
+              [
+                {
+                  ...first,
+                  id: 'holiday-check',
+                  fingerprint: 'holiday-check',
+                  importedAt: new Date().toISOString(),
+                  events: [
+                    {
+                      id: 'h1',
+                      startDate: day,
+                      endDate: null,
+                      title: 'Institution holiday',
+                      category: 'HOLIDAY',
+                      sourceLine: `${day} Institution holiday`,
+                      page: 1,
+                    },
+                  ],
+                },
+              ],
+              'gradtools:v1:anon:calendars',
+            );
+            ok(true);
+          };
+          read.onerror = () => ok(false);
+        };
+        open.onerror = () => ok(false);
+      }),
+    '2026-09-07',
+  );
+
+  await openToday();
+  const shut = await daily.locator('main').innerText();
+  expect(/Institution holiday/.test(shut), 'DAILY: a printed holiday is not shown');
+  expect(/academic calendar/i.test(shut), 'DAILY: the holiday does not say where it came from');
+  expect(
+    (await daily.getByRole('button', { name: /attended$/i }).count()) === 0,
+    'DAILY: a holiday still offers dayCounts for classes that could not have happened',
+  );
+  await daily.screenshot({ path: join(OUT, 'daily-holiday.png'), fullPage: true });
+
+  report.daily = { marksAfterUndo: dayMarks.length, attendance: dayCounts.length };
+  await daily.close();
+
+  /* -------------------------------------------------------------------- */
   /* 12. THE RAW FILE IS NOT KEPT                                         */
   /* -------------------------------------------------------------------- */
 
@@ -1243,9 +1474,9 @@ const run = async () => {
     const sizedPage = await sized.newPage();
     const sizedErrors = [];
     sizedPage.on('console', (m) => {
-      if (m.type() === 'error') sizedErrors.push(m.text());
+      if (m.type() === 'error') noteConsole(sizedErrors)(m.text());
     });
-    sizedPage.on('pageerror', (e) => sizedErrors.push(String(e)));
+    sizedPage.on('pageerror', (e) => noteConsole(sizedErrors)(String(e)));
 
     await openImport(sizedPage);
     const card = await drawCard(sizedPage, 2, rowsFor(2));
@@ -1285,6 +1516,7 @@ const run = async () => {
   console.log(`\n  Multi-select of four files: ${String(multiMs)}ms`);
   console.log(`  Save (three semesters): ${saveMs.map((ms) => `${String(ms)}ms`).join(', ')}`);
   console.log(`  Requests off-origin: ${String(report.requests.offOrigin)}`);
+  console.log(`  API-unavailable console messages: ${String(apiDownCount)} (not frontend defects)`);
   console.log(`  Report: ${join(OUT, 'workflow-report.json')}`);
   console.log(`\n  ${String(checks)} checks, ${String(problems.length)} problems`);
   for (const problem of problems) console.log(`  - ${problem}`);
