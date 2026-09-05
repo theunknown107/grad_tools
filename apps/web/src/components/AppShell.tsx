@@ -249,7 +249,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
 
-      <header className={`${styles.topbar ?? ''} glassNav`}>
+      <header className={`${styles.topbar ?? ''} surfaceNav`}>
         <div className={styles.topbarInner}>
           <NavLink to="/" className={styles.brand ?? ''}>
             <span className={styles.brandMark} aria-hidden="true">
@@ -304,7 +304,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             */}
             <button
               type="button"
-              className={`${styles.searchTrigger ?? ''} glassInput`}
+              className={`${styles.searchTrigger ?? ''} surfaceField`}
               onClick={openSearch}
               aria-label="Search GradTools"
               aria-keyshortcuts="Control+K"
@@ -355,7 +355,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <nav className={`${styles.bottomNav ?? ''} glassNav`} aria-label="Main" ref={bottomNavRef}>
+      <nav className={`${styles.bottomNav ?? ''} surfaceNav`} aria-label="Main" ref={bottomNavRef}>
         {/* The limelight itself: a beam above the active tab plus the lit pill
             behind it, travelling as one object (Reference 03). */}
         {bottomLight !== null ? (

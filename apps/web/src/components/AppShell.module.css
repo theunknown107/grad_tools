@@ -63,7 +63,6 @@
 @media (prefers-reduced-transparency: reduce) {
   .topbar {
     background: var(--bg);
-    backdrop-filter: none;
   }
 }
 
@@ -440,7 +439,6 @@
 @media (prefers-reduced-transparency: reduce) {
   .bottomNav {
     background: var(--bg);
-    backdrop-filter: none;
   }
 }
 

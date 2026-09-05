@@ -108,6 +108,12 @@
   --a-weak-light: #ede8fc;
   --a-border-dark: #3d2f77;
   --a-border-light: #d3c7f7;
+  /* The reference's selected-state material: a pastel FILL with dark ink on
+     it, not a saturated block. One per accent, so the picker still works. */
+  --a-pastel-light: #e6d6fb;
+  --a-pastel-ink-light: #35176b;
+  --a-pastel-dark: #2c1c52;
+  --a-pastel-ink-dark: #ddd0f7;
   --a-glow-rgb: 109 77 224;
 }
 
@@ -123,6 +129,12 @@
   --a-weak-light: #e0f4f8;
   --a-border-dark: #17505c;
   --a-border-light: #b6dfe9;
+  /* The reference's selected-state material: a pastel FILL with dark ink on
+     it, not a saturated block. One per accent, so the picker still works. */
+  --a-pastel-light: #cbe6f8;
+  --a-pastel-ink-light: #0c3a52;
+  --a-pastel-dark: #12313f;
+  --a-pastel-ink-dark: #bfe4f2;
   --a-glow-rgb: 14 116 144;
 }
 
@@ -135,6 +147,12 @@
   --a-weak-light: #fbf0dd;
   --a-border-dark: #6a4a12;
   --a-border-light: #ecd5a8;
+  /* The reference's selected-state material: a pastel FILL with dark ink on
+     it, not a saturated block. One per accent, so the picker still works. */
+  --a-pastel-light: #fbd9a5;
+  --a-pastel-ink-light: #4a2c05;
+  --a-pastel-dark: #402d0c;
+  --a-pastel-ink-dark: #f7d9a4;
   --a-glow-rgb: 163 98 10;
 }
 
@@ -147,6 +165,12 @@
   --a-weak-light: #fdeaef;
   --a-border-dark: #6d2338;
   --a-border-light: #f4c2d1;
+  /* The reference's selected-state material: a pastel FILL with dark ink on
+     it, not a saturated block. One per accent, so the picker still works. */
+  --a-pastel-light: #fbd0dd;
+  --a-pastel-ink-light: #6b0f30;
+  --a-pastel-dark: #3c1220;
+  --a-pastel-ink-dark: #f8c6d6;
   --a-glow-rgb: 190 18 60;
 }
 
@@ -159,6 +183,12 @@
   --a-weak-light: #e4f5ec;
   --a-border-dark: #1e5c3e;
   --a-border-light: #b7e0c8;
+  /* The reference's selected-state material: a pastel FILL with dark ink on
+     it, not a saturated block. One per accent, so the picker still works. */
+  --a-pastel-light: #d8f56d;
+  --a-pastel-ink-light: #2c3b06;
+  --a-pastel-dark: #2f3f0d;
+  --a-pastel-ink-dark: #d8f56d;
   --a-glow-rgb: 21 128 61;
 }
 
@@ -189,33 +219,33 @@
    * light up. That is what makes the material behave like glass instead of
    * looking like a photograph of glass.
    */
-  --bg: #05070d;
+  --bg: #111114;
   /* A second ground for insets — recessed wells, input tracks, the strip
      behind a segmented control. Darker than the page, never lighter. */
-  --bg-sunken: #03050a;
+  --bg-sunken: #0b0b0e;
 
   /* Level 1: an ordinary content surface. Barely there on purpose. */
-  --surface: rgb(255 255 255 / 4.5%);
+  --surface: #1a1a1f;
   /* Level 2: an elevated group — a panel that owns its content. */
-  --surface-raised: rgb(255 255 255 / 7%);
+  --surface-raised: #212127;
   /* Level 3: a control or row that is being pointed at or is selected. */
-  --surface-active: rgb(255 255 255 / 11%);
-  --surface-translucent: rgb(255 255 255 / 5.5%);
+  --surface-active: #2a2a31;
+  --surface-translucent: #1a1a1f;
 
   /*
    * Borders are light, not paint. A hairline on glass is the edge catching
    * illumination, so it is white at low alpha — a coloured border would tint
    * the whole outline of every object on the screen.
    */
-  --border: rgb(255 255 255 / 9%);
-  --border-strong: rgb(255 255 255 / 16%);
+  --border: #2b2b33;
+  --border-strong: #3d3d47;
 
   /* --- Text -------------------------------------------------------------- */
   /* Cool near-white, never pure #fff: pure white on a near-black ground
      vibrates, and a trace of blue keeps it in the same air as the ground. */
-  --text: #e9edf6;
-  --text-muted: #a2adc2;
-  --text-subtle: #7b8599;
+  --text: #f4f4f6;
+  --text-muted: #a6a6b2;
+  --text-subtle: #84848f;
 
   /* --- Accent ------------------------------------------------------------ */
   /*
@@ -228,6 +258,12 @@
    * so a selected row reads as lit rather than as coloured in.
    */
   --accent: var(--a-on-dark);
+  /* The reference's selected-state material, resolved for this appearance. */
+  --accent-pastel: var(--a-pastel-dark);
+  --nav-bg: var(--surface);
+  --scrim: rgb(0 0 0 / 62%);
+  --field-bg: var(--surface-raised);
+  --accent-pastel-ink: var(--a-pastel-ink-dark);
   --accent-weak: rgb(var(--a-glow-rgb) / 14%);
   --accent-border: rgb(var(--a-glow-rgb) / 42%);
   --accent-contrast: #ffffff;
@@ -265,13 +301,16 @@
    * paint; the accent is a hint of colour in the room, at 10% rather than the
    * 22% violet flood this replaces.
    */
-  --ambient:
-    radial-gradient(70% 45% at 78% 8%, rgb(var(--a-glow-rgb) / 13%) 0%, transparent 66%),
-    radial-gradient(90% 60% at 12% 0%, rgb(56 110 200 / 15%) 0%, transparent 68%),
-    radial-gradient(100% 55% at 50% 105%, rgb(56 110 200 / 8%) 0%, transparent 70%);
+  /*
+   * NONE, in both appearances. The reference has no atmosphere at all: a flat
+   * neutral ground with solid cards on it, and every bit of depth carried by
+   * the card itself. An ambient wash under this system reads as a smudge
+   * behind opaque surfaces that never let it through.
+   */
+  --ambient: none;
 
   /* A faint vignette, so the corners fall away and the centre reads forward. */
-  --vignette: radial-gradient(120% 100% at 50% 40%, transparent 55%, rgb(0 0 0 / 42%) 100%);
+  --vignette: none;
 
   /* --- Glow -------------------------------------------------------------- */
   /*
@@ -499,13 +538,13 @@
      * ground with tone, a surface that is genuinely lighter, an edge you can
      * see, and a shadow underneath. Not by making cards whiter.
      */
-    --bg: #dae0ec;
-    --bg-sunken: #c3cbdd;
+    --bg: #f3f3f5;
+    --bg-sunken: #e9e9ed;
 
-    --surface: rgb(255 255 255 / 67%);
-    --surface-raised: rgb(255 255 255 / 82%);
-    --surface-active: rgb(255 255 255 / 97%);
-    --surface-translucent: rgb(255 255 255 / 76%);
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --surface-active: #ebebef;
+    --surface-translucent: #ffffff;
 
     /*
      * On a light ground the edge is a shadow, not a highlight, so borders are
@@ -513,19 +552,28 @@
      * against the ground — the dark theme's edge measures 1.41:1, so the light
      * border was nearly three times weaker and panels had no outline at all.
      */
-    --border: rgb(16 24 44 / 21%);
-    --border-strong: rgb(16 24 44 / 34%);
+    --border: #e6e6ea;
+    --border-strong: #d3d3d9;
 
-    --text: #111726;
-    --text-muted: #454e68;
+    --text: #101014;
+    --text-muted: #5b5b66;
     /*
      * Darkened from #6b7590 (M9.6F). At 12px on the light ground it measured
      * 4.24:1 — under AA. Only visible once Announcements had real data at
      * 320px, which is precisely the case an empty sweep cannot reach.
      */
-    --text-subtle: #565f79;
+    --text-subtle: #83838f;
 
     --accent: var(--a-on-light);
+    /* The reference's selected-state material, resolved for this appearance. */
+    --accent-pastel: var(--a-pastel-light);
+  --nav-bg: #ffffff;
+  --scrim: rgb(16 16 20 / 45%);
+  --field-bg: #ffffff;
+    --nav-bg: #ffffff;
+    --scrim: rgb(16 16 20 / 45%);
+    --field-bg: #ffffff;
+    --accent-pastel-ink: var(--a-pastel-ink-light);
     --accent-weak: rgb(var(--a-glow-rgb) / 10%);
     --accent-border: rgb(var(--a-glow-rgb) / 32%);
     --accent-contrast: #ffffff;
@@ -565,17 +613,9 @@
      * lit at the top and faintly inked at the foot, so glass has something
      * different to sit against wherever it lands.
      */
-    --ambient:
-      radial-gradient(58% 34% at 86% -10%, rgb(var(--a-glow-rgb) / 11%) 0%, transparent 60%),
-      radial-gradient(84% 50% at 4% -12%, rgb(64 96 156 / 16%) 0%, transparent 64%),
-      linear-gradient(
-        to bottom,
-        rgb(255 255 255 / 30%) 0%,
-        rgb(255 255 255 / 8%) 38%,
-        rgb(16 24 44 / 5%) 100%
-      );
+    --ambient: none;
 
-    --vignette: radial-gradient(125% 105% at 50% 36%, transparent 54%, rgb(19 26 43 / 13%) 100%);
+    --vignette: none;
 
     --glow-accent: 0 1px 0 rgb(255 255 255 / 70%) inset, 0 10px 26px -16px rgb(19 26 43 / 40%);
     --glow-accent-soft: 0 4px 16px -12px rgb(19 26 43 / 26%);
@@ -597,24 +637,27 @@
    * it — lighter than the ground rather than darker — which is what keeps the
    * material reading as glass in both appearances.
    */
-  --bg: #dae0ec;
-  --bg-sunken: #c3cbdd;
+  --bg: #f3f3f5;
+  --bg-sunken: #e9e9ed;
 
-  --surface: rgb(255 255 255 / 67%);
-  --surface-raised: rgb(255 255 255 / 82%);
-  --surface-active: rgb(255 255 255 / 97%);
-  --surface-translucent: rgb(255 255 255 / 76%);
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-active: #ebebef;
+  --surface-translucent: #ffffff;
 
   /* On a light ground the edge is a shadow, not a highlight, so borders are
      INK at low alpha rather than white. */
-  --border: rgb(16 24 44 / 21%);
-  --border-strong: rgb(16 24 44 / 34%);
+  --border: #e6e6ea;
+  --border-strong: #d3d3d9;
 
-  --text: #111726;
-  --text-muted: #454e68;
-  --text-subtle: #565f79;
+  --text: #101014;
+  --text-muted: #5b5b66;
+  --text-subtle: #83838f;
 
   --accent: var(--a-on-light);
+  /* The reference's selected-state material, resolved for this appearance. */
+  --accent-pastel: var(--a-pastel-light);
+  --accent-pastel-ink: var(--a-pastel-ink-light);
   --accent-weak: rgb(var(--a-glow-rgb) / 10%);
   --accent-border: rgb(var(--a-glow-rgb) / 32%);
   --accent-contrast: #ffffff;
@@ -640,17 +683,9 @@
   --danger: #b2202c;
   --danger-weak: rgb(178 32 44 / 10%);
 
-  --ambient:
-    radial-gradient(58% 34% at 86% -10%, rgb(var(--a-glow-rgb) / 11%) 0%, transparent 60%),
-    radial-gradient(84% 50% at 4% -12%, rgb(64 96 156 / 16%) 0%, transparent 64%),
-    linear-gradient(
-      to bottom,
-      rgb(255 255 255 / 30%) 0%,
-      rgb(255 255 255 / 8%) 38%,
-      rgb(16 24 44 / 5%) 100%
-    );
+  --ambient: none;
 
-  --vignette: radial-gradient(125% 105% at 50% 36%, transparent 54%, rgb(19 26 43 / 13%) 100%);
+  --vignette: none;
 
   --glow-accent: 0 1px 0 rgb(255 255 255 / 70%) inset, 0 10px 26px -16px rgb(19 26 43 / 40%);
   --glow-accent-soft: 0 4px 16px -12px rgb(19 26 43 / 26%);
@@ -701,17 +736,17 @@
 :root {
   /* Navigation — floats over content, so it needs the most blur and the least
      tint. Kept dense enough for 11px labels (docs/05 §5.22). */
-  --glass-nav-bg: linear-gradient(to bottom, rgb(255 255 255 / 8%) 0%, rgb(255 255 255 / 5%) 100%);
+  --glass-nav-bg: var(--surface);
   --glass-nav-blur: 22px;
-  --glass-nav-border: rgb(255 255 255 / 10%);
-  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 10%);
+  --glass-nav-border: var(--border);
+  --glass-highlight: none;
 
   /* Popovers and menus. Text sits directly on these, so they carry a dark
      backing UNDER the white tint rather than more white — a menu has to be
      readable over whatever it covers. */
-  --glass-panel-bg: rgb(13 17 28 / 72%);
+  --glass-panel-bg: var(--surface);
   --glass-panel-blur: 28px;
-  --glass-panel-border: rgb(255 255 255 / 12%);
+  --glass-panel-border: var(--border);
 
   /*
    * Content surfaces. The lightest material in the system.
@@ -722,37 +757,28 @@
    * 3.5% at the bottom is a small difference in absolute terms and a large one
    * in whether the surface looks like a material.
    */
-  --glass-surface-bg: linear-gradient(
-    to bottom,
-    rgb(255 255 255 / 8%) 0%,
-    rgb(255 255 255 / 4.5%) 38%,
-    rgb(255 255 255 / 3.5%) 100%
-  );
+  --glass-surface-bg: var(--surface);
   --glass-surface-blur: 18px;
 
   /* The scrim behind a modal — darkens rather than tints. */
-  --glass-overlay-bg: rgb(3 5 10 / 64%);
+  --glass-overlay-bg: rgb(0 0 0 / 62%);
   --glass-overlay-blur: 8px;
 
   /* Inputs read RECESSED: darker than their container, not lighter. */
-  --glass-input-bg: rgb(0 0 0 / 22%);
+  --glass-input-bg: var(--surface-raised);
 
   /* Depth. Long, soft and nearly black — a glass object casts a diffuse
      shadow, not a hard one. */
-  --shadow-glass: 0 24px 60px -28px rgb(0 0 0 / 80%);
+  --shadow-glass: var(--shadow-sm);
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
-    --glass-nav-bg: linear-gradient(
-      to bottom,
-      rgb(255 255 255 / 82%) 0%,
-      rgb(255 255 255 / 70%) 100%
-    );
-    --glass-nav-border: rgb(16 24 44 / 18%);
+    --glass-nav-bg: #ffffff;
+    --glass-nav-border: var(--border);
     /* On a light ground the bevel is white on near-white, so it has to be
        nearly opaque to register at all. */
-    --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 95%);
+    --glass-highlight: none;
     /*
      * LESS opaque than before, not more. At 86% over a near-white ground the
      * panel was effectively a white rectangle — the thing the brief called a
@@ -760,37 +786,25 @@
      * still lands clearly above it, and the edge and the shadow below do the
      * separating that opacity was failing to do.
      */
-    --glass-panel-bg: rgb(255 255 255 / 70%);
-    --glass-panel-border: rgb(16 24 44 / 20%);
-    --glass-surface-bg: linear-gradient(
-      to bottom,
-      rgb(255 255 255 / 74%) 0%,
-      rgb(255 255 255 / 56%) 100%
-    );
-    --glass-overlay-bg: rgb(19 26 43 / 34%);
-    --glass-input-bg: rgb(255 255 255 / 70%);
-    --shadow-glass: 0 18px 40px -22px rgb(16 24 44 / 34%);
+    --glass-panel-bg: var(--surface);
+    --glass-panel-border: var(--border);
+    --glass-surface-bg: var(--surface);
+    --glass-overlay-bg: rgb(16 16 20 / 45%);
+    --glass-input-bg: #ffffff;
+    --shadow-glass: var(--shadow-sm);
   }
 }
 
 :root[data-theme='light'] {
-  --glass-nav-bg: linear-gradient(
-    to bottom,
-    rgb(255 255 255 / 82%) 0%,
-    rgb(255 255 255 / 70%) 100%
-  );
-  --glass-nav-border: rgb(16 24 44 / 18%);
-  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 95%);
-  --glass-panel-bg: rgb(255 255 255 / 70%);
-  --glass-panel-border: rgb(16 24 44 / 20%);
-  --glass-surface-bg: linear-gradient(
-    to bottom,
-    rgb(255 255 255 / 74%) 0%,
-    rgb(255 255 255 / 56%) 100%
-  );
-  --glass-overlay-bg: rgb(19 26 43 / 34%);
-  --glass-input-bg: rgb(255 255 255 / 70%);
-  --shadow-glass: 0 18px 40px -22px rgb(16 24 44 / 34%);
+  --glass-nav-bg: #ffffff;
+  --glass-nav-border: var(--border);
+  --glass-highlight: none;
+  --glass-panel-bg: var(--surface);
+  --glass-panel-border: var(--border);
+  --glass-surface-bg: var(--surface);
+  --glass-overlay-bg: rgb(16 16 20 / 45%);
+  --glass-input-bg: #ffffff;
+  --shadow-glass: var(--shadow-sm);
 }
 
 /* ========================================================================== */

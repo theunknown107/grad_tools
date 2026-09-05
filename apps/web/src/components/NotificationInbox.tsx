@@ -114,7 +114,7 @@ export function NotificationInbox({
           ref={panelRef}
           role="dialog"
           aria-label="Notifications"
-          className={`${styles.panel ?? ''} glassPanel`}
+          className={`${styles.panel ?? ''} surfacePanel`}
         >
           <div className={styles.head}>
             <div className={styles.tabs} role="tablist" aria-label="Filter">

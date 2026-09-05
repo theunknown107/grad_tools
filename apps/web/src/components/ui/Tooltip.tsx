@@ -162,7 +162,7 @@ export function Tooltip({
               id={id}
               role="tooltip"
               data-side={box.side}
-              className={`${styles.bubble ?? ''} glassPanel`}
+              className={`${styles.bubble ?? ''} surfacePanel`}
               style={{ top: box.top, left: box.left }}
             >
               {content}

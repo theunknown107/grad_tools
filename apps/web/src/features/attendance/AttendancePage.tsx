@@ -93,7 +93,7 @@ function OverallStanding({ items }: { readonly items: readonly AttendanceRecord[
   }).length;
 
   return (
-    <section className={`${styles.standing ?? ''} glassSurface`} aria-label="Overall attendance">
+    <section className={`${styles.standing ?? ''} surfaceCard`} aria-label="Overall attendance">
       <MetricStrip
         metrics={[
           {

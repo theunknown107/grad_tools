@@ -169,21 +169,27 @@ function tokenIn(selector: string, name: string): string {
 }
 
 /**
- * The alpha of a `--surface` token, e.g. `rgb(255 255 255 / 4.5%)` -> 0.045.
+ * The colour a `--surface` actually paints, whichever way it is declared.
  *
- * M9.6C made every surface a TRANSLUCENT WHITE laid over the ground, so there
- * is no longer a surface hex to test against. Reading the alpha and
- * compositing is not a workaround — it is what a browser actually paints, and
- * testing the old flat hex would now be testing a colour the product never
- * shows.
+ * This used to demand a TRANSLUCENT white and composite it, because every
+ * surface was glass over the ground. The reference rebuild made surfaces
+ * opaque and the helper threw rather than adapting: it had been pinned to one
+ * implementation of a material rather than to the question being asked, which
+ * is only ever "what colour does text land on".
+ *
+ * Both forms resolve here, so every assertion below keeps testing the colour a
+ * browser paints without caring how the token was written.
  */
-function surfaceAlphaIn(selector: string): number {
+function surfaceIn(selector: string, ground: string): string {
   const literal = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const block = new RegExp(`${literal}\\s*\\{([^}]*)\\}`).exec(CSS);
   if (block === null) throw new Error(`no block for ${selector}`);
-  const found = /--surface:\s*rgb\(255 255 255 \/ ([\d.]+)%\)/.exec(block[1] ?? '');
-  if (found === null) throw new Error(`no translucent --surface in ${selector}`);
-  return Number(found[1]) / 100;
+  const body = block[1] ?? '';
+  const translucent = /--surface:\s*rgb\(255 255 255 \/ ([\d.]+)%\)/.exec(body);
+  if (translucent !== null) return overlayWhite(ground, Number(translucent[1]) / 100);
+  const opaque = /--surface:\s*(#[0-9a-fA-F]{6})/.exec(body);
+  if (opaque !== null) return opaque[1] as string;
+  throw new Error(`no readable --surface in ${selector}`);
 }
 
 function channel(component: number): number {
@@ -226,12 +232,13 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
    * darkest in light mode, so testing the composite covers the worst case in
    * both appearances.
    */
-  const darkSurface = overlayWhite(darkBg, surfaceAlphaIn(':root'));
-  const lightSurface = overlayWhite(lightBg, surfaceAlphaIn(":root[data-theme='light']"));
+  const darkSurface = surfaceIn(':root', darkBg);
+  const lightSurface = surfaceIn(":root[data-theme='light']", lightBg);
 
   it('reads the grounds it is about to test against', () => {
     // M9.6C: a blue-black environment, not the M9.4 violet-black.
-    expect(darkBg).toBe('#05070d');
+    // Rebuilt to the reference: a neutral near-black, not the blue-black.
+    expect(darkBg).toBe('#111114');
     /*
      * Deepened twice for the same reason, and the second time with a
      * measurement rather than a judgement.
@@ -246,7 +253,7 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
      * #dae0ec has tone of its own, which is what a translucent surface needs
      * in order to look lighter than something.
      */
-    expect(lightBg).toBe('#dae0ec');
+    expect(lightBg).toBe('#f3f3f5');
   });
 
   it('composites surfaces rather than assuming a flat fill', () => {
@@ -257,7 +264,7 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
     expect(lightSurface).not.toBe(lightBg);
   });
 
-  it('keeps a surface visibly above the ground it sits on', () => {
+  it('keeps a card distinguishable from the ground it sits on', () => {
     /*
      * THE DEFECT THIS FILE DID NOT CATCH BEFORE.
      *
@@ -267,19 +274,25 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
      * white a given luminance ratio is a much smaller perceived step than the
      * same ratio near black.
      *
-     * So light is held to a HIGHER number than dark on purpose. This is not a
-     * contrast requirement in the WCAG sense — nothing here is text — it is a
-     * floor for how much a layer must separate to read as a layer, and near
-     * white that costs more ratio to buy.
+     * WHAT CHANGED WITH THE REFERENCE REBUILD: a card is no longer defined by
+     * its fill alone. The old glass panels had no real outline, so luminance
+     * was the only thing separating them and the floor had to be high. The
+     * reference draws an explicit hairline around an opaque card, and its
+     * surfaces sit much closer to the ground than glass ever did.
      *
-     * The dark floor is deliberately the looser one. Dark is the appearance
-     * that was never in question, so its number records what the accepted
-     * reference actually measures rather than imposing the light theme's
-     * requirement on it — which would fail a design nobody has complained
-     * about, and would be the same mistake as before with the sign flipped.
+     * So this checks the mechanism the design actually uses: a surface step
+     * that is real but small, AND a border that stands off the surface it
+     * outlines. Keeping the old luminance-only floor would fail a card that is
+     * perfectly visible, which is measuring the wrong thing rather than
+     * measuring nothing.
      */
-    expect(contrast(lightSurface, lightBg)).toBeGreaterThanOrEqual(1.2);
+    expect(contrast(lightSurface, lightBg)).toBeGreaterThanOrEqual(1.08);
     expect(contrast(darkSurface, darkBg)).toBeGreaterThanOrEqual(1.05);
+
+    const lightBorder = tokenIn(":root[data-theme='light']", 'border');
+    const darkBorder = tokenIn(':root', 'border');
+    expect(contrast(lightBorder, lightSurface)).toBeGreaterThanOrEqual(1.15);
+    expect(contrast(darkBorder, darkSurface)).toBeGreaterThanOrEqual(1.15);
   });
 
   it.each([...ACCENTS])('%s clears 4.5:1 everywhere it is used', (accent) => {
