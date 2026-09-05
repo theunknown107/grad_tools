@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/AppShell.js';
+import { MetaPill } from '../../components/ui/tone.js';
 import { SectionedForm } from '../../components/ui/SectionedForm.js';
 import { ThemeControl } from '../../components/ThemeControl.js';
 import { Icon } from '../../components/icons.js';
@@ -79,7 +80,18 @@ export function AccountPage() {
 
   return (
     <div className={`${styles.page ?? ''} ${styles.settingsPage ?? ''}`}>
-      <PageHeader title="Account" subtitle="Who you are signed in as, and what you can do." />
+      <PageHeader
+        title="Account"
+        subtitle="Who you are signed in as, and what you can do."
+        /* The one fact this page is about: which account, if any. */
+        pills={
+          identity?.email !== undefined && identity.email !== null && identity.email !== '' ? (
+            <MetaPill>{identity.email}</MetaPill>
+          ) : (
+            <MetaPill>Signed in</MetaPill>
+          )
+        }
+      />
 
       {/*
         -------------------------------------------------------------------

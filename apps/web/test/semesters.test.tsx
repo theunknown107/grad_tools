@@ -416,7 +416,8 @@ describe('persistence', () => {
     first.unmount();
 
     renderWith(<SemestersPage />, { repositories: b.bundle });
-    expect(await screen.findByText('BCS999')).toBeTruthy();
+    // findAllByText: a backlog now appears on its card and in its row.
+    expect((await screen.findAllByText('BCS999')).length).toBeGreaterThan(0);
     expect(a.peek.backlogs().length).toBe(0);
   });
 });

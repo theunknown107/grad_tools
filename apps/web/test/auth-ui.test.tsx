@@ -174,7 +174,13 @@ describe('the account screen', () => {
     renderAuth(<AccountPage />, fakeAdapter(identity));
 
     expect(await screen.findByText('Google')).toBeTruthy();
-    expect(screen.getByText('a@example.test')).toBeTruthy();
+    /*
+     * getAllByText: the reference rebuild puts the signed-in address in the
+     * page header's metadata pill as well as in the body, so it appears twice
+     * on purpose. The assertion still says the same thing — the screen shows
+     * who is signed in — and no longer requires it be said exactly once.
+     */
+    expect(screen.getAllByText('a@example.test').length).toBeGreaterThan(0);
   });
 
   /*

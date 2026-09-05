@@ -141,6 +141,7 @@ export function PastelCard({
 export function ToneAccordion({
   items,
   label,
+  expanded = false,
 }: {
   readonly label: string;
   readonly items: readonly {
@@ -150,13 +151,36 @@ export function ToneAccordion({
     readonly meta?: string | undefined;
     readonly body: ReactNode;
   }[];
+  /**
+   * Start with every section open, and let them toggle independently.
+   *
+   * The reference collapses a LONG list, where hiding is the service. A week
+   * is six short groups and the question is "what is my week" — collapsing
+   * five-sixths of the answer is the opposite of helpful. Same pastel
+   * sections, different default.
+   */
+  readonly expanded?: boolean;
 }) {
-  const [open, setOpen] = useState<string | null>(items[0]?.id ?? null);
+  /*
+   * DERIVED UNTIL TOUCHED.
+   *
+   * A useState initializer runs once, on the first render — which for a page
+   * that loads its data afterwards is the render where `items` is still empty.
+   * The week opened nothing at all, because "all of them" was computed from a
+   * list that did not exist yet. So the default is derived from the CURRENT
+   * items, and only becomes state once somebody actually clicks something.
+   */
+  const [chosen, setChosen] = useState<readonly string[] | null>(null);
+  const open =
+    chosen ?? (expanded ? items.map((item) => item.id) : items[0] === undefined ? [] : [items[0].id]);
+  const setOpen = (next: (current: readonly string[]) => readonly string[]) => {
+    setChosen(next(open));
+  };
 
   return (
     <div className={styles.toneAccordion} role="group" aria-label={label}>
       {items.map((item, index) => {
-        const isOpen = open === item.id;
+        const isOpen = open.includes(item.id);
         return (
           <div
             key={item.id}
@@ -168,7 +192,13 @@ export function ToneAccordion({
               type="button"
               className={styles.toneSummary ?? ''}
               aria-expanded={isOpen}
-              onClick={() => setOpen(isOpen ? null : item.id)}
+              onClick={() =>
+                setOpen((current) =>
+                  current.includes(item.id)
+                    ? current.filter((id) => id !== item.id)
+                    : [...current, item.id],
+                )
+              }
             >
               <span className={styles.toneSummaryText}>{item.title}</span>
               {item.meta !== undefined && <span className={styles.toneMeta}>{item.meta}</span>}
