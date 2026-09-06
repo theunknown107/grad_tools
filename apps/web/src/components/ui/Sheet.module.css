@@ -1,76 +1,112 @@
-.root {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-toast);
-  display: flex;
-}
+/*
+ * The sheet.
+ *
+ * Rewritten for the Radix port: there is no longer a `.root` wrapper holding a
+ * `data-open` flag, because the overlay and the panel are portalled siblings
+ * and Radix stamps `data-state="open" | "closed"` on each of them itself. The
+ * side is a `data-side` attribute on the panel.
+ *
+ * The entrance is unchanged from the frozen design — a 2.5rem translate paired
+ * with opacity — and the EXIT now plays, which it could not before: Radix holds
+ * the element mounted until the animation ends.
+ */
 
 .overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  opacity: 0;
-  transition: opacity var(--motion-base) var(--ease-enter);
+  z-index: var(--z-overlay);
+  animation: sheetFadeIn var(--motion-base) var(--ease-enter);
 }
 
-.root[data-open='true'] .overlay {
-  opacity: 1;
+.overlay[data-state='closed'] {
+  animation: sheetFadeOut var(--motion-fast) var(--ease-exit);
 }
 
-/*
- * The panel. shadcn's enter/exit is a 2.5rem translate paired with opacity;
- * that offset and pairing are reproduced, expressed as a class transition
- * rather than Base UI's data-starting-style hooks.
- */
+@keyframes sheetFadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheetFadeOut {
+  to {
+    opacity: 0;
+  }
+}
+
 .panel {
-  position: relative;
+  position: fixed;
+  z-index: var(--z-overlay);
   display: flex;
   flex-direction: column;
   max-block-size: 100%;
   border-radius: 0;
-  opacity: 0;
-  transition:
-    opacity var(--motion-base) var(--ease-enter),
-    transform var(--motion-base) var(--ease-spring);
-}
-
-.root[data-open='true'] .panel {
-  opacity: 1;
-  transform: none;
 }
 
 /* --- Right: desktop detail, beside the table it came from ----------------- */
 
-.root[data-side='right'] {
-  justify-content: flex-end;
-}
-
-.root[data-side='right'] .panel {
+.panel[data-side='right'] {
+  inset-block: 0;
+  inset-inline-end: 0;
   inline-size: min(440px, 100%);
-  block-size: 100%;
-  transform: translateX(2.5rem);
   border-start-start-radius: var(--radius-lg);
   border-end-start-radius: var(--radius-lg);
+  animation: slideInRight var(--motion-base) var(--ease-spring);
+}
+
+.panel[data-side='right'][data-state='closed'] {
+  animation: slideOutRight var(--motion-fast) var(--ease-exit);
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(2.5rem);
+  }
+}
+
+@keyframes slideOutRight {
+  to {
+    opacity: 0;
+    transform: translateX(2.5rem);
+  }
 }
 
 /* --- Bottom: the phone pattern ------------------------------------------- */
 
-.root[data-side='bottom'] {
-  align-items: flex-end;
-}
-
-.root[data-side='bottom'] .panel {
+.panel[data-side='bottom'] {
+  inset-inline: 0;
+  inset-block-end: 0;
   inline-size: 100%;
   max-block-size: 86vh;
-  transform: translateY(2.5rem);
   border-start-start-radius: var(--radius-xl);
   border-start-end-radius: var(--radius-xl);
   /* Clear of the home indicator, so the footer action is reachable. */
   padding-block-end: env(safe-area-inset-bottom, 0px);
+  animation: slideInBottom var(--motion-base) var(--ease-spring);
+}
+
+.panel[data-side='bottom'][data-state='closed'] {
+  animation: slideOutBottom var(--motion-fast) var(--ease-exit);
+}
+
+@keyframes slideInBottom {
+  from {
+    opacity: 0;
+    transform: translateY(2.5rem);
+  }
+}
+
+@keyframes slideOutBottom {
+  to {
+    opacity: 0;
+    transform: translateY(2.5rem);
+  }
 }
 
 /* The grab handle. Bottom sheets only: it signals "drag to dismiss" on the
    edge a thumb reaches, and means nothing on a right-hand panel. */
-.root[data-side='bottom'] .panel::before {
+.panel[data-side='bottom']::before {
   content: '';
   position: absolute;
   inset-block-start: var(--space-2);
@@ -93,7 +129,7 @@
   border-block-end: 1px solid var(--border);
 }
 
-.root[data-side='bottom'] .head {
+.panel[data-side='bottom'] .head {
   padding-block-start: var(--space-6);
 }
 
@@ -122,8 +158,6 @@
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  /* The plus glyph rotated into a cross — one shape, two uses. */
-  rotate: 45deg;
 }
 
 .close:hover {
@@ -151,8 +185,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .panel {
-    transition: opacity var(--motion-fast) linear;
-    transform: none !important;
+  .panel,
+  .panel[data-state='closed'] {
+    animation: sheetFadeIn var(--motion-fast) linear;
   }
 }

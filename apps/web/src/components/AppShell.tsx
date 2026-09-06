@@ -44,6 +44,7 @@ import {
 import { ThemeControl } from './ThemeControl.js';
 import { GlobalSearch, useSearchHotkey } from './GlobalSearch.js';
 import { NotificationInbox } from './NotificationInbox.js';
+import { TooltipProvider } from './ui/Tooltip.js';
 import { useAnnouncements, useNotifications } from '../hooks/useAnnouncements.js';
 import styles from './AppShell.module.css';
 
@@ -269,12 +270,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const bottomLight = useLimelight(bottomNavRef, location.pathname);
 
   return (
-    <div className={styles.shell}>
-      <a className={styles.skipLink} href="#main">
-        Skip to content
-      </a>
+    /*
+     * ONE TOOLTIP CLOCK FOR THE WHOLE APP.
+     *
+     * Without a provider above them each tooltip runs its own delay timer, so
+     * moving down a column of eight attendance rows makes a person wait out the
+     * delay eight times. `Tooltip` still works with no provider — it stands one
+     * up for itself — but only this one can group them.
+     */
+    <TooltipProvider>
+      <div className={styles.shell}>
+        <a className={styles.skipLink} href="#main">
+          Skip to content
+        </a>
 
-      {/*
+        {/*
         ------------------------------------------------------------------
         THE SIDEBAR IS THE NAVIGATION (reference rebuild)
         ------------------------------------------------------------------
@@ -285,128 +295,135 @@ export function AppShell({ children }: { children: ReactNode }) {
         two rows carried is here, in the same order, so nothing became
         unreachable — the arrangement changed, not the map.
       */}
-      <aside className={styles.sidebar} aria-label="Sections">
-        {/* Named explicitly: the wordmark is hidden in the icon rail, and
+        <aside className={styles.sidebar} aria-label="Sections">
+          {/* Named explicitly: the wordmark is hidden in the icon rail, and
             without this the brand link announces nothing there. */}
-        <NavLink to="/" className={styles.brand ?? ''} aria-label="GradTools home">
-          <span className={styles.brandMark} aria-hidden="true">
-            G
-          </span>
-          <span className={styles.brandWord}>GradTools</span>
-        </NavLink>
+          <NavLink to="/" className={styles.brand ?? ''} aria-label="GradTools home">
+            <span className={styles.brandMark} aria-hidden="true">
+              G
+            </span>
+            <span className={styles.brandWord}>GradTools</span>
+          </NavLink>
 
-        <nav className={styles.sideNav} aria-label="Destinations" ref={sideNavRef}>
-          {/* The travelling marker, now moving down instead of across. */}
-          {navLight !== null ? (
+          <nav className={styles.sideNav} aria-label="Destinations" ref={sideNavRef}>
+            {/* The travelling marker, now moving down instead of across. */}
+            {navLight !== null ? (
+              <span
+                className={styles.sideLight}
+                aria-hidden="true"
+                style={{
+                  transform: `translateY(${String(navLight.top)}px)`,
+                  height: `${String(navLight.height)}px`,
+                }}
+              />
+            ) : null}
+            {GROUPS.map((group) => (
+              <Fragment key={group}>
+                {group !== 'Overview' ? (
+                  <span className={styles.sideRule} aria-hidden="true" />
+                ) : null}
+                {DESTINATIONS.filter((destination) => destination.group === group).map((item) => {
+                  const isActive =
+                    item.to === '/'
+                      ? location.pathname === '/'
+                      : location.pathname === item.to ||
+                        location.pathname.startsWith(`${item.to}/`);
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.to === '/'}
+                      data-active={isActive}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`${styles.sideLink ?? ''} ${isActive ? (styles.sideLinkActive ?? '') : ''}`}
+                    >
+                      <Icon name={item.icon} size="nav" />
+                      <span className={styles.sideLabel}>{item.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </Fragment>
+            ))}
+          </nav>
+
+          <p className={styles.sideFoot}>Independent student project. Not affiliated with VTU.</p>
+        </aside>
+
+        <div className={styles.workspace}>
+          <header className={styles.topbar}>
+            <button
+              type="button"
+              className={styles.searchTrigger ?? ''}
+              onClick={openSearch}
+              aria-label="Search GradTools"
+              aria-keyshortcuts="Control+K"
+            >
+              <Icon name="search" size="nav" />
+              <span className={styles.searchLabel}>Search</span>
+              <kbd className={styles.searchKbd}>Ctrl K</kbd>
+            </button>
+
+            <div className={styles.topActions}>
+              <NotificationInbox
+                notifications={notifications}
+                unread={unread}
+                onRead={(item) => void setState(item.announcement, 'read')}
+                onReadAll={() => void readAll()}
+              />
+
+              {/* On every page, not only Settings — a device setting, not a
+                destination. Settings > Appearance remains its home. */}
+              <ThemeControl />
+
+              <NavLink to="/account" className={styles.topAction ?? ''} aria-label="Account">
+                <Icon name="account" size="medium" />
+              </NavLink>
+            </div>
+          </header>
+
+          <main className={styles.main} id="main" ref={mainRef} tabIndex={-1}>
+            {children}
+          </main>
+        </div>
+
+        <nav
+          className={`${styles.bottomNav ?? ''} surfaceNav`}
+          aria-label="Main"
+          ref={bottomNavRef}
+        >
+          {/* The limelight itself: a beam above the active tab plus the lit pill
+            behind it, travelling as one object (Reference 03). */}
+          {bottomLight !== null ? (
             <span
-              className={styles.sideLight}
+              className={styles.limelight}
               aria-hidden="true"
               style={{
-                transform: `translateY(${String(navLight.top)}px)`,
-                height: `${String(navLight.height)}px`,
+                transform: `translateX(${String(bottomLight.left)}px)`,
+                width: `${String(bottomLight.width)}px`,
               }}
             />
           ) : null}
-          {GROUPS.map((group) => (
-            <Fragment key={group}>
-              {group !== 'Overview' ? <span className={styles.sideRule} aria-hidden="true" /> : null}
-              {DESTINATIONS.filter((destination) => destination.group === group).map((item) => {
-                const isActive =
-                  item.to === '/'
-                    ? location.pathname === '/'
-                    : location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.to === '/'}
-                    data-active={isActive}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={`${styles.sideLink ?? ''} ${isActive ? (styles.sideLinkActive ?? '') : ''}`}
-                  >
-                    <Icon name={item.icon} size="nav" />
-                    <span className={styles.sideLabel}>{item.label}</span>
-                  </NavLink>
-                );
-              })}
-            </Fragment>
+          {MOBILE_TABS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              data-active={
+                item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
+              }
+              className={({ isActive }) =>
+                `${styles.bottomLink ?? ''} ${isActive ? (styles.bottomLinkActive ?? '') : ''}`
+              }
+            >
+              <Icon name={item.icon} size="medium" />
+              {item.shortLabel}
+            </NavLink>
           ))}
         </nav>
 
-        <p className={styles.sideFoot}>Independent student project. Not affiliated with VTU.</p>
-      </aside>
-
-      <div className={styles.workspace}>
-        <header className={styles.topbar}>
-          <button
-            type="button"
-            className={styles.searchTrigger ?? ''}
-            onClick={openSearch}
-            aria-label="Search GradTools"
-            aria-keyshortcuts="Control+K"
-          >
-            <Icon name="search" size="nav" />
-            <span className={styles.searchLabel}>Search</span>
-            <kbd className={styles.searchKbd}>Ctrl K</kbd>
-          </button>
-
-          <div className={styles.topActions}>
-            <NotificationInbox
-              notifications={notifications}
-              unread={unread}
-              onRead={(item) => void setState(item.announcement, 'read')}
-              onReadAll={() => void readAll()}
-            />
-
-            {/* On every page, not only Settings — a device setting, not a
-                destination. Settings > Appearance remains its home. */}
-            <ThemeControl />
-
-            <NavLink to="/account" className={styles.topAction ?? ''} aria-label="Account">
-              <Icon name="account" size="medium" />
-            </NavLink>
-          </div>
-        </header>
-
-        <main className={styles.main} id="main" ref={mainRef} tabIndex={-1}>
-          {children}
-        </main>
+        <GlobalSearch open={searchOpen} onClose={closeSearch} />
       </div>
-
-      <nav className={`${styles.bottomNav ?? ''} surfaceNav`} aria-label="Main" ref={bottomNavRef}>
-        {/* The limelight itself: a beam above the active tab plus the lit pill
-            behind it, travelling as one object (Reference 03). */}
-        {bottomLight !== null ? (
-          <span
-            className={styles.limelight}
-            aria-hidden="true"
-            style={{
-              transform: `translateX(${String(bottomLight.left)}px)`,
-              width: `${String(bottomLight.width)}px`,
-            }}
-          />
-        ) : null}
-        {MOBILE_TABS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
-            data-active={
-              item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
-            }
-            className={({ isActive }) =>
-              `${styles.bottomLink ?? ''} ${isActive ? (styles.bottomLinkActive ?? '') : ''}`
-            }
-          >
-            <Icon name={item.icon} size="medium" />
-            {item.shortLabel}
-          </NavLink>
-        ))}
-      </nav>
-
-      <GlobalSearch open={searchOpen} onClose={closeSearch} />
-
-    </div>
+    </TooltipProvider>
   );
 }
 
