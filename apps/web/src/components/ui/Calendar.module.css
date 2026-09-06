@@ -1,0 +1,263 @@
+/*
+ * The calendar.
+ *
+ * react-day-picker's own stylesheet is NOT imported. Its classes are mapped to
+ * these in `Calendar.tsx`, so the grid carries GradTools tokens and nothing
+ * else — importing `react-day-picker/style.css` would put a second visual
+ * system into the bundle, which is the thing Phase 7B §14 forbids.
+ */
+
+.root {
+  --day-size: 34px;
+
+  padding: var(--space-3);
+  color: var(--text);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+}
+
+.months {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.month {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/*
+ * The caption and the nav share a row via grid, not float: the month name is
+ * centred on the GRID, so it does not shift when "September" is replaced by
+ * "May".
+ */
+.caption {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--control-height);
+}
+
+.captionLabel {
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+}
+
+.nav {
+  position: absolute;
+  inset-inline: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.navButton {
+  display: grid;
+  place-items: center;
+  inline-size: 30px;
+  block-size: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  /* The nav strip is click-through so it does not cover the caption; the
+     buttons themselves take their events back. */
+  pointer-events: auto;
+}
+
+.navButton:hover:not(:disabled) {
+  background: var(--surface-active);
+  color: var(--text);
+}
+
+.navButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.navButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.chevron {
+  flex: none;
+}
+
+.grid {
+  border-collapse: collapse;
+}
+
+.weekdays,
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, var(--day-size));
+}
+
+.weekday {
+  padding-block: var(--space-1);
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.day {
+  position: relative;
+  inline-size: var(--day-size);
+  block-size: var(--day-size);
+  text-align: center;
+}
+
+.dayButton {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.dayButton:hover:not(:disabled) {
+  background: var(--surface-active);
+}
+
+.dayButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+/*
+ * Today is marked with a RING, the selection with a FILL. Two different
+ * treatments, so a day that is both still reads as both — which one flat
+ * "accent background" for each could not do.
+ */
+.today .dayButton {
+  border-color: var(--a-fill);
+  font-weight: var(--weight-semibold);
+}
+
+.selected .dayButton {
+  background: var(--a-fill);
+  border-color: var(--a-fill);
+  color: var(--accent-contrast);
+}
+
+.outside .dayButton {
+  color: var(--text-subtle);
+  opacity: 0.6;
+}
+
+.disabled .dayButton {
+  color: var(--text-subtle);
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.hidden {
+  visibility: hidden;
+}
+
+/* --- Academic marks ------------------------------------------------------- */
+
+/*
+ * A DOT under the number, not a coloured background.
+ *
+ * A background would collide with the selection fill and with `today`'s ring,
+ * and colour alone is never a state here anyway (docs/27 §27.2) — the dot is a
+ * shape, and the day button's `aria-label` still carries the day itself. The
+ * legend that names each dot belongs to the page that renders the calendar,
+ * because only the page knows which marks it passed.
+ */
+.holiday::after,
+.exam::after {
+  content: '';
+  position: absolute;
+  inset-block-end: 3px;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  inline-size: 4px;
+  block-size: 4px;
+  border-radius: var(--radius-pill);
+}
+
+.holiday::after {
+  background: var(--warning);
+}
+
+.exam::after {
+  background: var(--danger);
+}
+
+.outsideTerm .dayButton {
+  color: var(--text-subtle);
+  opacity: 0.4;
+}
+
+/* --- Date picker trigger -------------------------------------------------- */
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: var(--control-height);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-body);
+  line-height: var(--text-body-lh);
+  font-variant-numeric: tabular-nums;
+  text-align: start;
+  cursor: pointer;
+}
+
+.trigger[data-placeholder] .triggerText {
+  color: var(--text-subtle);
+  font-variant-numeric: normal;
+}
+
+.trigger:hover {
+  border-color: var(--border-strong);
+}
+
+.trigger:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.trigger[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.triggerIcon {
+  flex: none;
+  color: var(--text-subtle);
+}
+
+.triggerText {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/* Coarse pointers get a bigger grid; 34px cells fail the 44px target. */
+@media (pointer: coarse) {
+  .root {
+    --day-size: 40px;
+  }
+}
