@@ -1,7 +1,8 @@
 # 35. Component coverage matrix, and the styling decision that gates it
 
-**Baseline:** `21eb890` · **Method:** official registry inspected over the
-network, not recalled.
+**Baseline:** `21eb890`, revised at `c25c688` · **Method:** official registry
+inspected over the network, not recalled; verdicts revised where BUILDING the
+component proved the verdict wrong.
 
 Phase 7B asks for thorough, faithful integration of the shadcn/ui component
 universe. Step 3 of its own plan is this matrix, and Step 4 is inspecting the
@@ -78,16 +79,18 @@ Where a component's substance is a non-Radix library — `recharts` for Chart,
 Carousel — that library is the real dependency and is judged on its own merits
 per component below.
 
-**This decision needs confirmation before implementation**, because it is the
-one thing that cannot be quietly reversed later.
+**This decision was confirmed before implementation** and is now in force. The
+Radix primitives are installed; Tailwind, `clsx`, `tailwind-merge`,
+`class-variance-authority` and `lucide-react` are not.
 
 ---
 
 ## 35.4 The matrix
 
 Verdicts: **BUILD** (applicable, implement) · **HAVE** (equivalent already
-exists and is used) · **NO** (no legitimate GradTools use) · **DEFER**
-(applicable only to a product area that is currently out of scope).
+exists and is used) · **HAVE→BUILD** (an equivalent exists and was ported onto
+the primitive) · **NO** (no legitimate GradTools use) · **DEFER** (applicable
+only to a product area that is currently out of scope).
 
 | Component | Verdict | GradTools use / reason |
 |---|---|---|
@@ -105,7 +108,7 @@ exists and is used) · **NO** (no legitimate GradTools use) · **DEFER**
 | Calendar | BUILD | Academic calendar dates, timetable effective-from |
 | Card | HAVE | `Panel` + `PastelCard` |
 | Carousel | NO | `Rail` already scrolls; a carousel adds controls the reference deliberately omits |
-| Chart | BUILD | SGPA trend, attendance trend — real data only (§23); today a hand-rolled `SgpaTrend` |
+| Chart | ~~BUILD~~ **NO** | Reclassified — see §35.6. One chart exists, its correctness depends on NOT connecting across gaps, and there is no second series to plot |
 | Checkbox | BUILD | Notification filters, bulk selection |
 | Collapsible | BUILD | "Add a class" disclosure, explanation disclosures |
 | Combobox | BUILD | Subject/college/branch/scheme selection from reference data — the strongest fit in the whole list |
@@ -155,8 +158,21 @@ exists and is used) · **NO** (no legitimate GradTools use) · **DEFER**
 | Tooltip | HAVE→BUILD | Exists; port for correct delay/dismiss |
 | Typography | HAVE | The frozen type scale is the contract |
 
-**Totals:** BUILD 26 · HAVE 18 (7 of them worth porting onto Radix) · NO 15 ·
-DEFER 5. Nothing is "skipped".
+**Totals — corrected.** The first draft of this document said "BUILD 26 · HAVE
+18 · NO 15 · DEFER 5", which is 64 and does not match its own table. Counting
+the rows:
+
+| Verdict | Rows | State |
+|---|---|---|
+| BUILD | 23 | 22 built · 1 reclassified to NO (Chart, §35.6) |
+| HAVE→BUILD | 8 | all 8 ported onto their primitive |
+| HAVE | 14 | audited, §35.7 |
+| NO | 13 (+1) | reasons in the table; Chart joins them |
+| DEFER | 5 | reasons in the table |
+| **Total** | **63** | |
+
+So **30 components were implemented**, not 26 — the corrected count is larger
+than the stated one, not smaller. Nothing is "skipped".
 
 ---
 
@@ -176,3 +192,84 @@ can proceed immediately:
 - **Verifying the grade bands and passing rules against the supplied
   regulations PDF** (§9, §10) rather than against the values quoted in the
   brief.
+
+---
+
+## 35.6 Chart: why it was built into a NO
+
+Phase 7B §11 says a component that proves inapplicable on deeper inspection
+should have its verdict changed and the reason recorded, and this is the one
+row where that happened. It is recorded here rather than quietly dropped.
+
+**The verdict was BUILD on the strength of "SGPA trend, attendance trend".**
+Inspecting the data model found only one of those two is real:
+
+- `AttendanceRecord` holds `attended` and `conducted` — RUNNING COUNTS, with a
+  single `updatedAt`. There is no dated series anywhere in the domain, so an
+  attendance trend could only be drawn by inventing the points between. docs/37
+  forbids exactly that.
+- The SGPA trend exists and is `SgpaTrend`, sixty lines of hand-written SVG.
+
+**And the one chart that exists has a correctness requirement a library
+weakens.** A semester with no result must appear as a GAP, and the line must
+break across it. Joining semester 3 to semester 6 would draw two SGPAs the
+student never earned. `SgpaTrend` cannot do that — it emits one polyline per
+unbroken run, so the gap is structural. Recharts can do it, and only refrains
+while a prop says so; `connectNulls` is one edit away from a fabricated figure.
+
+So adopting recharts would have meant ~90KB gzipped, a second styling model,
+and a correctness property demoted from "impossible" to "configured" — in
+exchange for hover tooltips on one chart. §32 forbids dependency bloat, and
+this would have been it. `recharts` was installed, evaluated and removed.
+
+**What would reverse this:** a second real time series. Dated attendance —
+`classMarks` already stores per-day outcomes and could be aggregated into one —
+would make a genuine trend, and at two charts the shared axis, tooltip and
+legend logic starts to earn a library. That is a data-model change first and a
+component decision second.
+
+## 35.7 The HAVE components, audited
+
+Phase 7B §3 asks that the 14 HAVE rows be checked against the same standard,
+not assumed. Each was read; the verdicts stand, with three notes.
+
+| Component | Stands as | Note |
+|---|---|---|
+| Badge | `StatusPill` | Icon + text, never colour alone. Meets §27.6 |
+| Button | `Button` + `buttonClassName` | Navigation renders an anchor, not a button wrapping one |
+| Card | `Panel`, `PastelCard` | — |
+| Empty | `EmptyState`, `Empty` | Two by design: a panel-sized absence and a one-line one |
+| Input | `TextField` | Visible `<label>`, hint and error both referenced |
+| Kbd | raw `<kbd>` in search | **Not formalised.** One use site; a component for one caller is the abstraction the ladder says to skip |
+| Label | inside the field components | Folded into `Field` for controls that are not labelable |
+| Native Select | `SelectField` | Deliberately native: the platform picker on a phone beats anything shipped here |
+| Progress | `Bar`, `Meter` | `Meter` carries a threshold marker, which shadcn's Progress has no notion of |
+| Select | `Select` | **Still hand-rolled.** See below |
+| Separator | CSS hairlines | A `<div role="separator">` for a border is markup for nothing |
+| Skeleton | `Skeleton`, `ShapedSkeleton` | Shaped like what replaces it, so the layout does not jump |
+| Table | `TableScroll` + `tableClass` | Focusable scroll container, per `scrollable-region-focusable` |
+| Typography | the frozen type scale | The contract, not a component |
+
+**`Select` was left hand-rolled, and that is a judgement call.** It is 235 lines
+implementing the listbox pattern, it has its own passing keyboard tests
+(`interaction-components.test.tsx`), and it opens on the current value rather
+than the top of the list. Porting it to `@radix-ui/react-select` would add a
+primitive whose behaviour those tests already demonstrate. The place it would
+genuinely pay is a long list — and a long list is a `Combobox`, which now
+exists. Recorded as a candidate, not a defect.
+
+## 35.8 Dependencies added
+
+| Package | For | Why it, specifically |
+|---|---|---|
+| 17 × `@radix-ui/react-*` | the behaviour of 20 components | The primitives shadcn itself ships |
+| `cmdk` | Command, Combobox | Scored matching and `aria-activedescendant` while focus stays in the input |
+| `@tanstack/react-table` (v8) | Data Table | Headless: no styling to fight |
+| `react-day-picker` + `date-fns` | Calendar, Date Picker | `modifiers`, which is the only reason not to use `<input type="date">` |
+| `vaul` | Drawer | Velocity-based drag-to-dismiss, built on Radix Dialog |
+
+**Not added:** `tailwindcss`, `clsx`, `tailwind-merge`,
+`class-variance-authority`, `lucide-react`, `sonner`, `recharts`,
+`embla-carousel-react`, `input-otp`, `react-resizable-panels`. Each is either a
+second styling system, a redundant icon set, or a component with no GradTools
+caller.
