@@ -177,3 +177,41 @@ Given the above, the useful order is:
 What Phase 7 should **not** do is rebuild the domain model, the calculation
 engine, the persistence layer, the validation layer or the test strategy. Those
 exist, they are tested, and the frozen UI at `1151bb0` already consumes them.
+
+---
+
+## 34.7 The VTU 2022 rule set, checked against the supplied regulations
+
+Phase 7B §9 and §10 say to confirm the rules against the source rather than
+against any summary. Checked field by field against the regulations pack:
+
+| Rule | Regulations | Shipped | |
+|---|---|---|---|
+| Grade bands | O 90–100/10 · A+ 80–89/9 · A 70–79/8 · B+ 60–69/7 · B 55–59/6 · C 50–54/5 · P 40–49/4 · F 0–39/0 | identical | ✅ |
+| Special grades | DX, AU, AB, PP, NP, IC, W | all seven present | ✅ |
+| Max CIE | 50 | `cieMax: 50` | ✅ |
+| Min CIE for SEE | 40% of CIE max | `cieMinPct: 40` | ✅ |
+| Min SEE | 35% of SEE max | `seeMinPct: 35` | ✅ |
+| Overall pass | 40% of CIE+SEE | `overallMinPct: 40` | ✅ |
+| Min passing grade | P / 4 | P = 4, lowest non-F band | ✅ |
+| SGPA / CGPA | Σ(C·G)/ΣC, Σ(C·S)/ΣC | `credit_weighted_gp`, `credit_weighted_sgpa` | ✅ |
+
+**`seeMax: 100` is not a discrepancy.** The handoff note gives SEE weightage as
+50; the rule set stores the scale the paper is *written* on (100) and derives
+the weightage as `courseMax - cieMax` = 50. `course-result.ts` computes the
+threshold from the derived weight, so the SEE minimum lands at 17.5 — 17 fails,
+18 passes, which is the behaviour DEC-037 recorded. Keeping the two scales apart
+is what lets `targets.ts` convert between a mark on the paper and a mark in the
+total; collapsing them to one number would lose that.
+
+**The three unverified special grades stay unverified.** `AB`, `IC` and `W`
+carry `points: null` rather than a guess, and `resolveGrade` returns a typed
+failure for them instead of a number. That is the "surface it, never fabricate
+certainty" rule (§15) already implemented, and it should not be tidied away by
+assigning them zero.
+
+**Not yet modelled:** SEE participation per course. The regulations state a
+course without an SEE takes its letter grade from CIE alone, so `hasSee` is
+reference data per DEC-037 and is never inferred from `external = 0`. The
+Exam/ExamSession entity that would carry this properly is still the gap
+identified in §34.4.5.
