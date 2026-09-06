@@ -1,0 +1,225 @@
+/*
+ * Dialog and Alert Dialog.
+ *
+ * The entrance is opacity plus ONE transform, per the house motion rule in
+ * global.css. Radix stamps `data-state="open" | "closed"` on both the overlay
+ * and the panel and holds the element mounted until the exit animation
+ * finishes, so the close is animated too — a modal that fades in and then
+ * vanishes on close reads as a bug.
+ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  animation: fadeIn var(--motion-base) var(--ease-enter);
+}
+
+.overlay[data-state='closed'] {
+  animation: fadeOut var(--motion-fast) var(--ease-exit);
+}
+
+.panel {
+  position: fixed;
+  z-index: var(--z-overlay);
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  display: flex;
+  flex-direction: column;
+  inline-size: min(560px, calc(100vw - var(--space-6)));
+  max-block-size: min(86vh, 760px);
+  border-radius: var(--radius-xl);
+  animation: dialogIn var(--motion-base) var(--ease-spring);
+}
+
+.panel[data-size='wide'] {
+  inline-size: min(880px, calc(100vw - var(--space-6)));
+}
+
+.panel[data-size='alert'] {
+  inline-size: min(440px, calc(100vw - var(--space-6)));
+}
+
+.panel[data-state='closed'] {
+  animation: dialogOut var(--motion-fast) var(--ease-exit);
+}
+
+@keyframes dialogIn {
+  from {
+    opacity: 0;
+    translate: -50% -50%;
+    scale: 0.96;
+  }
+}
+
+@keyframes dialogOut {
+  to {
+    opacity: 0;
+    translate: -50% -50%;
+    scale: 0.98;
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+  }
+}
+
+/* --- Chrome --------------------------------------------------------------- */
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border-block-end: 1px solid var(--border);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-h2);
+  line-height: var(--text-h2-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+}
+
+.description {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  inline-size: 30px;
+  block-size: 30px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-enter),
+    color var(--motion-fast) var(--ease-enter);
+}
+
+.close:hover {
+  background: var(--surface-active);
+  color: var(--text);
+}
+
+.close:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+/* The alert dialog has no head/body split: the question IS the content. */
+.alertBody {
+  padding: var(--space-5) var(--space-5) var(--space-4);
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-block-start: 1px solid var(--border);
+}
+
+/*
+ * The alert dialog's own actions.
+ *
+ * Not `Button`: `AlertDialog.Cancel` and `AlertDialog.Action` render their own
+ * <button> and carry the behaviour (close-on-select, initial focus). Wrapping
+ * a Button inside one would nest two buttons, which is invalid markup.
+ */
+.action {
+  min-block-size: 34px;
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-enter),
+    color var(--motion-fast) var(--ease-enter);
+}
+
+.action:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.cancel {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text);
+}
+
+.cancel:hover {
+  background: var(--surface-active);
+}
+
+/*
+ * The destructive action wears the house danger treatment — danger ink on the
+ * weak tint — not a filled red button.
+ *
+ * A solid `--danger` fill would need a contrasting ink, and `--danger` is a
+ * LIGHT red in the dark theme (#ff8b8b) and a dark one in the light theme, so
+ * no single foreground clears 4.5:1 against both. The tinted treatment is what
+ * the rest of the product already uses and passes in both.
+ */
+.destructive {
+  border-color: var(--danger);
+  background: var(--danger-weak);
+  color: var(--danger);
+}
+
+.destructive:hover {
+  background: var(--danger);
+  color: var(--surface);
+}
+
+.confirm {
+  background: var(--a-fill);
+  color: var(--accent-contrast);
+}
+
+.confirm:hover {
+  background: var(--a-fill-hover);
+}
+
+/*
+ * Reduced motion: the panel still needs its centring translate, so the
+ * animation is replaced rather than removed. `transform: none` here would drop
+ * the -50% and throw the dialog off-centre.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .panel[data-state='closed'] {
+    animation: fadeIn var(--motion-fast) linear;
+  }
+}
+
+@media (width <= 600px) {
+  .panel[data-size='default'],
+  .panel[data-size='wide'] {
+    inline-size: calc(100vw - var(--space-4));
+    max-block-size: 90vh;
+  }
+}

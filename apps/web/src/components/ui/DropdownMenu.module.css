@@ -1,9 +1,20 @@
-.wrap {
-  position: relative;
-  display: inline-flex;
-}
+/*
+ * The row-action menu.
+ *
+ * Adjusted for the Radix port. Three selector families changed and the reasons
+ * are worth keeping, because they are the ones that silently render a menu
+ * unstyled rather than broken:
+ *
+ *   - the menu is PORTALLED and positioned by Radix's own transform, so it must
+ *     not carry `position: absolute` or offsets of its own,
+ *   - the highlighted item is `[data-highlighted]`, which Radix sets for both
+ *     pointer and keyboard, replacing the hand-tracked `[data-active]`,
+ *   - a disabled item is `[data-disabled]`; Radix renders it as a non-focusable
+ *     div rather than a `<button disabled>`, so `:disabled` never matches.
+ */
 
 .trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -20,7 +31,7 @@
 }
 
 .trigger:hover,
-.trigger[aria-expanded='true'] {
+.trigger[data-state='open'] {
   background: var(--surface-raised);
   color: var(--text);
 }
@@ -41,23 +52,32 @@
 }
 
 .menu {
-  position: absolute;
-  inset-block-start: calc(100% + var(--space-1));
   z-index: var(--z-overlay);
   min-inline-size: 184px;
   padding: var(--space-1);
   /* The reference's springy scale-and-rise, as one keyframe. */
   animation: popIn var(--motion-fast) var(--ease-spring);
-  transform-origin: top right;
 }
 
-.menu[data-align='start'] {
-  inset-inline-start: 0;
-  transform-origin: top left;
+/*
+ * The origin follows where Radix actually put the menu, which is not always
+ * where it was asked to: a menu on the last row of a long table flips above its
+ * trigger, and an entrance that still grows from the top then reads backwards.
+ * Radix publishes the resolved corner as a complete transform-origin value.
+ */
+.menu {
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
 }
 
-.menu[data-align='end'] {
-  inset-inline-end: 0;
+.menu[data-state='closed'] {
+  animation: menuOut var(--motion-micro) var(--ease-exit);
+}
+
+@keyframes menuOut {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
 }
 
 .item {
@@ -76,9 +96,13 @@
   line-height: var(--text-small-lh);
   text-align: start;
   cursor: pointer;
+  /* Radix manages focus itself and paints the highlight; a ring on top of the
+     highlight would put two selection marks on one row. */
+  outline: none;
+  user-select: none;
 }
 
-.item[data-active='true'] {
+.item[data-highlighted] {
   background: var(--accent-weak);
   color: var(--text);
 }
@@ -87,7 +111,7 @@
   color: var(--danger);
 }
 
-.item[data-danger='true'][data-active='true'] {
+.item[data-danger='true'][data-highlighted] {
   background: var(--danger-weak);
   color: var(--danger);
 }
@@ -101,7 +125,7 @@
   padding-block-start: var(--space-3);
 }
 
-.item:disabled {
+.item[data-disabled] {
   opacity: 0.45;
   cursor: not-allowed;
 }

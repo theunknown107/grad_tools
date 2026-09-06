@@ -332,6 +332,24 @@ const SHAPES = {
     </>
   ),
   check: <path d="m4.8 12.4 4.6 4.6 9.8-9.8" />,
+  /* Drawn, not a rotated chevronRight: six components point one down and a
+     per-callsite transform class is six chances to forget one. */
+  chevronDown: <path d="M5.8 9.4 12 15.6l6.2-6.2" />,
+  close: <path d="M6.4 6.4 17.6 17.6M17.6 6.4 6.4 17.6" />,
+  /* The indeterminate checkbox, and nothing else. */
+  minus: <path d="M5.6 12h12.8" />,
+  file: (
+    <>
+      <path d="M13.6 3.6H7.2a1.6 1.6 0 0 0-1.6 1.6v13.6a1.6 1.6 0 0 0 1.6 1.6h9.6a1.6 1.6 0 0 0 1.6-1.6V8.4Z" />
+      <path d="M13.6 3.6v4.8h4.8" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M20.4 15.2v3.2a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6v-3.2" />
+      <path d="M16.4 8.4 12 4l-4.4 4.4M12 4v11.2" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof SHAPES;
