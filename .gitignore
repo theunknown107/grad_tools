@@ -74,3 +74,7 @@ apps/web/public/ocr/
 # Supplied UI reference material — third-party design work, licensing unknown,
 # same rule as the other reference folders. Read locally, never committed.
 UI clone reference/
+
+# Supplied real-student test pack: personal academic records (results, USN,
+# marks, a division timetable). Read locally for validation, never committed.
+GradTools_Real_Student_Test_Pack/
