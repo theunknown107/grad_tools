@@ -1,0 +1,34 @@
+/*
+ * The popover surface.
+ *
+ * Positioning belongs to Radix; this file owns the material and the entrance.
+ * `--radix-popover-content-available-height` is the space Radix measured
+ * between the trigger and the viewport edge — using it means a popover opened
+ * near the bottom of a phone screen scrolls its own content instead of running
+ * off the page, which is the failure the hand-rolled version had.
+ */
+
+.panel {
+  z-index: var(--z-overlay);
+  min-inline-size: 200px;
+  max-inline-size: min(320px, calc(100vw - var(--space-4)));
+  max-block-size: var(--radix-popover-content-available-height);
+  overflow-y: auto;
+  transform-origin: var(--radix-popover-content-transform-origin);
+  animation: riseIn var(--motion-base) var(--ease-spring);
+}
+
+.panel[data-padded='true'] {
+  padding: var(--space-4);
+}
+
+.panel[data-state='closed'] {
+  animation: popoverOut var(--motion-fast) var(--ease-exit);
+}
+
+@keyframes popoverOut {
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}

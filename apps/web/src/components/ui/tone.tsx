@@ -57,7 +57,13 @@ export function MetaPill({ children }: { readonly children: ReactNode }) {
  * paginating, which is how it says "there are more of these" without spending
  * a control on saying it.
  */
-export function Rail({ children, label }: { readonly children: ReactNode; readonly label: string }) {
+export function Rail({
+  children,
+  label,
+}: {
+  readonly children: ReactNode;
+  readonly label: string;
+}) {
   return (
     /*
      * FOCUSABLE, because it scrolls. A horizontally scrolling container that
@@ -172,7 +178,8 @@ export function ToneAccordion({
    */
   const [chosen, setChosen] = useState<readonly string[] | null>(null);
   const open =
-    chosen ?? (expanded ? items.map((item) => item.id) : items[0] === undefined ? [] : [items[0].id]);
+    chosen ??
+    (expanded ? items.map((item) => item.id) : items[0] === undefined ? [] : [items[0].id]);
   const setOpen = (next: (current: readonly string[]) => readonly string[]) => {
     setChosen(next(open));
   };

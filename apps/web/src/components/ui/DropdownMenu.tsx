@@ -1,15 +1,30 @@
 /**
  * A context/row-action menu.
  *
- * Authority: docs/05 §5.22 (M9.6B) · docs/27 §27.4
- * Reference: 21st.dev @chetanverma16/dropdown-menu — RECREATED. Accessible
- * evidence was the preview, the `{label, onClick, Icon}[]` option shape and the
- * dependency list (framer-motion + lucide-react); the source was not
- * retrievable.
+ * Authority: docs/05 §5.22 (M9.6B) · docs/27 §27.4 · Phase 7B §2, §12
+ * Provenance: behaviourally faithful shadcn/Radix implementation adapted to the
+ * GradTools styling architecture. The behaviour is
+ * `@radix-ui/react-dropdown-menu`. The springy scale-and-rise entrance from the
+ * 21st.dev reference is kept, expressed in CSS keyed on Radix's `data-state`.
  *
- * The reference's springy scale-and-rise entrance is reproduced in CSS. Its two
- * dependencies are not: a 96%-to-100% scale with a slight overshoot is one
- * keyframe, and it does not need an animation runtime.
+ * ---------------------------------------------------------------------------
+ * WHAT THE PORT ONTO RADIX BOUGHT
+ * ---------------------------------------------------------------------------
+ *
+ * The previous implementation was a hand-written state machine over `active`
+ * index plus a `step()` wrap-around. It handled ArrowUp/ArrowDown/Enter/Space
+ * and Tab. It did not handle — and each of these is in the WAI-ARIA menu
+ * pattern that Radix implements:
+ *
+ *   - TYPEAHEAD. Pressing "d" should jump to "Delete this semester". On a menu
+ *     of two that is a nicety; on the subject and filter menus this component
+ *     is now used for, it is the difference between a menu and a list.
+ *   - Home / End.
+ *   - Collision-aware placement, so a menu on the last row of a long table
+ *     opens upward instead of off the bottom of the viewport.
+ *   - Focus returned to the trigger on Escape as well as on select.
+ *   - Pointer-vs-keyboard `data-highlighted` distinction, so moving the mouse
+ *     does not fight the arrow keys.
  *
  * MENUS HIDE THINGS, so this is used only where an action is genuinely
  * secondary — edit and delete on a row that already shows its primary action.
@@ -17,9 +32,9 @@
  * separator, because the muscle-memory click lands at the top.
  */
 
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import * as MenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Icon, type IconName } from '../icons.js';
-import { useDismissable } from '../../hooks/useDismissable.js';
 import styles from './DropdownMenu.module.css';
 
 export interface MenuItem {
@@ -39,122 +54,55 @@ export interface DropdownMenuProps {
 }
 
 export function DropdownMenu({ label, items, align = 'end' }: DropdownMenuProps): ReactNode {
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(-1);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const close = useCallback(() => {
-    setOpen(false);
-    setActive(-1);
-  }, []);
-  useDismissable({ open, onDismiss: close, surfaceRef: menuRef, triggerRef, closeOnScroll: true });
-
-  const step = useCallback(
-    (from: number, direction: 1 | -1) => {
-      const count = items.length;
-      for (let offset = 1; offset <= count; offset += 1) {
-        const next = (from + direction * offset + count * count) % count;
-        if (items[next]?.disabled !== true) return next;
-      }
-      return from;
-    },
-    [items],
-  );
-
-  const run = (item: MenuItem): void => {
-    if (item.disabled === true) return;
-    close();
-    triggerRef.current?.focus();
-    item.onSelect();
-  };
-
-  const onKeyDown = (event: React.KeyboardEvent): void => {
-    if (!open) {
-      if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
-        event.preventDefault();
-        setOpen(true);
-        setActive(step(-1, 1));
-      }
-      return;
-    }
-    switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault();
-        setActive((current) => step(current, 1));
-        break;
-      case 'ArrowUp':
-        event.preventDefault();
-        setActive((current) => step(current === -1 ? 0 : current, -1));
-        break;
-      case 'Enter':
-      case ' ': {
-        event.preventDefault();
-        const item = items[active];
-        if (item !== undefined) run(item);
-        break;
-      }
-      case 'Tab':
-        close();
-        break;
-      default:
-        break;
-    }
-  };
-
   return (
-    <div className={styles.wrap}>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={styles.trigger}
-        aria-label={label}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => (open ? close() : setOpen(true))}
-        onKeyDown={onKeyDown}
-      >
+    <MenuPrimitive.Root>
+      <MenuPrimitive.Trigger className={styles.trigger} aria-label={label}>
         {/* Three dots, drawn inline: a 2px dot trio is not worth an icon slot. */}
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
           <circle cx="12" cy="5" r="1.6" fill="currentColor" />
           <circle cx="12" cy="12" r="1.6" fill="currentColor" />
           <circle cx="12" cy="19" r="1.6" fill="currentColor" />
         </svg>
-      </button>
+      </MenuPrimitive.Trigger>
 
-      {open ? (
-        <div
-          ref={menuRef}
-          role="menu"
-          aria-label={label}
-          data-align={align}
+      <MenuPrimitive.Portal>
+        <MenuPrimitive.Content
           className={`${styles.menu ?? ''} surfacePanel`}
-          onKeyDown={onKeyDown}
+          align={align}
+          sideOffset={6}
+          /*
+           * The menu is the last row's only action on a long results page, so
+           * it must be allowed to flip above the trigger rather than open off
+           * the bottom of the viewport. `collisionPadding` keeps it clear of
+           * the sticky header at the top of the flip.
+           */
+          collisionPadding={8}
         >
           {items.map((item, index) => {
             const danger = item.tone === 'danger';
             const separated = danger && items[index - 1]?.tone !== 'danger';
             return (
-              <button
+              <MenuPrimitive.Item
                 key={item.label}
-                type="button"
-                role="menuitem"
-                tabIndex={-1}
+                className={styles.item}
                 disabled={item.disabled === true}
-                data-active={index === active}
                 data-danger={danger}
                 data-separated={separated}
-                className={styles.item}
-                onPointerEnter={() => setActive(index)}
-                onClick={() => run(item)}
+                /*
+                 * `textValue` is what Radix's typeahead matches against. Without
+                 * it the primitive falls back to the node's text content, which
+                 * here begins with an SVG and so matches nothing.
+                 */
+                textValue={item.label}
+                onSelect={item.onSelect}
               >
                 {item.icon !== undefined ? <Icon name={item.icon} size="small" /> : null}
                 <span>{item.label}</span>
-              </button>
+              </MenuPrimitive.Item>
             );
           })}
-        </div>
-      ) : null}
-    </div>
+        </MenuPrimitive.Content>
+      </MenuPrimitive.Portal>
+    </MenuPrimitive.Root>
   );
 }

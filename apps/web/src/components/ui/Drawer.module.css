@@ -1,0 +1,96 @@
+/*
+ * The drawer.
+ *
+ * vaul drives the open/close TRANSFORM itself while a drag is in progress, so
+ * this file must not animate `transform` on the panel — a CSS transition on the
+ * same property fights the gesture and makes the drag feel like it is sticking.
+ * The entrance is vaul's own (it sets `data-state` and animates translate); all
+ * that is added here is the material and the chrome.
+ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+}
+
+.panel {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  max-block-size: 92vh;
+  border-start-start-radius: var(--radius-xl);
+  border-start-end-radius: var(--radius-xl);
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+  /* Clear of the home indicator, so a footer action stays reachable. */
+  padding-block-end: env(safe-area-inset-bottom, 0px);
+  /* Never a horizontal scrollbar: the drag is vertical and a stray sideways
+     overflow turns it into a fight between two axes. */
+  overflow-x: hidden;
+}
+
+.handle {
+  flex: none;
+  inline-size: 40px;
+  block-size: 4px;
+  margin: var(--space-3) auto var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+.head {
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  border-block-end: 1px solid var(--border);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-h2);
+  line-height: var(--text-h2-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+}
+
+.description {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-block-start: 1px solid var(--border);
+}
+
+/*
+ * A drawer is a phone surface. On a wide viewport it is centred and capped so
+ * it does not become a 1440px-wide band across the bottom of the screen.
+ */
+@media (width >= 720px) {
+  .panel {
+    inset-inline: 50%;
+    inline-size: min(520px, 100%);
+    /*
+     * The `translate` PROPERTY, not `transform: translateX(-50%)`. vaul writes
+     * the drag offset into `transform`, and the individual transform properties
+     * are applied before it — so the two compose. Using `transform` here would
+     * be overwritten on the first frame of a drag and the drawer would jump to
+     * the right-hand half of the screen.
+     */
+    translate: -50% 0;
+  }
+}

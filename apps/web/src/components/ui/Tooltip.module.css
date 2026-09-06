@@ -1,15 +1,13 @@
-.wrap {
-  display: inline-flex;
-}
-
 /*
- * Fixed, not absolute: the bubble is portalled to <body> and positioned from
- * viewport coordinates, so it must not be affected by page scroll offset.
+ * The tooltip bubble.
  *
- * `translate` centres it on the trigger and lifts it clear on the top side.
+ * Radix positions the content itself, so the fixed-position + `translate`
+ * centring the hand-rolled version needed is gone. What is left is the surface
+ * and the entrance, now keyed on `data-state` so the exit plays too, and
+ * `data-side` so it rises from the trigger rather than always from below.
  */
+
 .bubble {
-  position: fixed;
   z-index: var(--z-toast);
   max-inline-size: 240px;
   padding: 6px var(--space-3);
@@ -18,14 +16,47 @@
   font-size: var(--text-caption);
   line-height: var(--text-caption-lh);
   text-align: center;
+  /* The bubble must never intercept a click meant for what it describes. */
   pointer-events: none;
+  transform-origin: var(--radix-tooltip-content-transform-origin);
   animation: popIn var(--motion-fast) var(--ease-spring);
 }
 
-.bubble[data-side='top'] {
-  translate: -50% -100%;
+.bubble[data-state='closed'] {
+  animation: tooltipOut var(--motion-micro) var(--ease-exit);
 }
 
-.bubble[data-side='bottom'] {
-  translate: -50% 0;
+@keyframes tooltipOut {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/*
+ * The arrow is filled with the panel surface and outlined by nothing: an SVG
+ * triangle cannot inherit a 1px border cleanly, and a mismatched stroke on a
+ * 10px shape is more visible than no stroke at all.
+ */
+.arrow {
+  fill: var(--surface);
+}
+
+/*
+ * The permanent, visually-hidden description.
+ *
+ * Not `display: none` and not `visibility: hidden` — both remove the node from
+ * the accessibility tree, which would make `aria-describedby` point at nothing
+ * and turn the guarantee above into decoration.
+ */
+.description {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

@@ -1,18 +1,12 @@
 /**
  * A sheet — a panel that slides in from an edge.
  *
- * Authority: docs/05 §5.26 (M9.6E) · docs/27 §27.4
- * Provenance: SHADCN STRUCTURE, CUSTOM BEHAVIOUR. Source of
- * `registry/bases/base/ui/sheet.tsx` retrieved via the shadcn skill.
- *
- * Taken from the source: the composition (overlay + portalled popup), the
- * `side` prop, and the entrance/exit model — shadcn animates a 2.5rem
- * translate against opacity via `data-starting-style` / `data-ending-style`,
- * and that offset and pairing are reproduced here.
- *
- * Not taken: `@base-ui/react/dialog` and the Tailwind class strings. docs/05
- * §5.25 records the reasoning — GradTools has no Tailwind, and every imported
- * component has to be restyled to GradTools tokens regardless.
+ * Authority: docs/05 §5.26 (M9.6E) · docs/27 §27.4 · Phase 7B §2, §12
+ * Provenance: behaviourally faithful shadcn/Radix implementation adapted to the
+ * GradTools styling architecture. shadcn's Sheet is its Dialog with a `side`
+ * prop, and so is this one: the behaviour is `@radix-ui/react-dialog`, the
+ * appearance is the GradTools module beside this file. The Tailwind classes are
+ * not reproduced.
  *
  * ---------------------------------------------------------------------------
  * WHY A SHEET AND NOT A DIALOG
@@ -26,11 +20,25 @@
  *
  * On a desktop the same component enters from the right, where it does not
  * cover the table it was opened from.
+ *
+ * ---------------------------------------------------------------------------
+ * WHAT THE PORT ONTO RADIX CHANGED
+ * ---------------------------------------------------------------------------
+ *
+ * The API is unchanged; the machinery underneath is gone. Deleted with it:
+ *
+ *   - a hand-written focus trap that queried `button, [href], input` and so
+ *     could not see a `<select>`, a `<textarea>` or a `[tabindex]` — and the
+ *     sheet's whole purpose is to hold the detail form,
+ *   - a two-frame `requestAnimationFrame` dance to get a transition to play,
+ *     replaced by Radix's `data-state` and its presence handling, which also
+ *     animates the EXIT the old version could not,
+ *   - manual `body.style.overflow` locking, which forgot the scrollbar-width
+ *     compensation and so shifted the page under the sheet on desktop.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { useDismissable, useFocusTrap } from '../../hooks/useDismissable.js';
+import type { ReactNode } from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Icon } from '../icons.js';
 import styles from './Sheet.module.css';
 
@@ -55,79 +63,37 @@ export function Sheet({
   children,
   footer,
 }: SheetProps): ReactNode {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const restoreTo = useRef<HTMLElement | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useDismissable({ open, onDismiss: onClose, surfaceRef: panelRef });
-  useFocusTrap(open, panelRef);
-
-  /*
-   * Two frames of lifecycle, because a CSS transition needs a FROM state that
-   * was actually painted. Mounting straight into the final position gives no
-   * transition at all; `mounted` flips on the next frame so the panel has a
-   * closed state to move away from.
-   */
-  useEffect(() => {
-    if (!open) {
-      setMounted(false);
-      return;
-    }
-    restoreTo.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const frame = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(frame);
-  }, [open]);
-
-  // Focus lands inside, and returns to whatever opened the sheet on close.
-  useEffect(() => {
-    if (!open) {
-      restoreTo.current?.focus();
-      return;
-    }
-    panelRef.current?.querySelector<HTMLElement>('button, [href], input')?.focus();
-  }, [open]);
-
-  /*
-   * The page behind must not scroll while a sheet is open: on a phone the
-   * list scrolls under the sheet and the person loses the row they opened.
-   */
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [open]);
-
-  if (!open) return null;
-
-  return createPortal(
-    <div className={styles.root} data-side={side} data-open={mounted}>
-      <div className={`${styles.overlay ?? ''} surfaceScrim`} aria-hidden="true" />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className={`${styles.panel ?? ''} surfacePanel`}
-      >
-        <div className={styles.head}>
-          <div className={styles.heading}>
-            <h2 className={styles.title}>{title}</h2>
-            {description !== undefined ? <p className={styles.description}>{description}</p> : null}
+  return (
+    <DialogPrimitive.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className={`${styles.overlay ?? ''} surfaceScrim`} />
+        <DialogPrimitive.Content className={`${styles.panel ?? ''} surfacePanel`} data-side={side}>
+          <div className={styles.head}>
+            <div className={styles.heading}>
+              <DialogPrimitive.Title className={styles.title}>{title}</DialogPrimitive.Title>
+              {description === undefined ? (
+                <DialogPrimitive.Description hidden />
+              ) : (
+                <DialogPrimitive.Description className={styles.description}>
+                  {description}
+                </DialogPrimitive.Description>
+              )}
+            </div>
+            <DialogPrimitive.Close className={styles.close} aria-label="Close">
+              <Icon name="close" size="nav" />
+            </DialogPrimitive.Close>
           </div>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="Close">
-            <Icon name="plus" size="nav" />
-          </button>
-        </div>
 
-        <div className={styles.body}>{children}</div>
+          <div className={styles.body}>{children}</div>
 
-        {footer !== undefined ? <div className={styles.foot}>{footer}</div> : null}
-      </div>
-    </div>,
-    document.body,
+          {footer !== undefined ? <div className={styles.foot}>{footer}</div> : null}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
