@@ -540,6 +540,18 @@ describe('timetable', () => {
 
     expect(peek.timetable()).toHaveLength(1);
     expect(peek.timetable()[0]?.subjectCode).toBe('BCS301');
+
+    /*
+     * The new class goes into the WEEK, so the week is where it is checked.
+     *
+     * This used to assert the text was somewhere in the document while the
+     * Today view was showing, which passed because the week block was rendered
+     * with `hidden` rather than not rendered at all — so the assertion was
+     * reading DOM the student could not see. The week is now a real tabpanel
+     * that Radix mounts on selection, and opening it is both what a person
+     * does and what makes the assertion mean something.
+     */
+    await user.click(await screen.findByRole('tab', { name: /week/i }));
     expect(await screen.findAllByText('BCS301')).toBeTruthy();
   });
 

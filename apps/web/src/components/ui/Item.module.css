@@ -1,0 +1,141 @@
+/*
+ * Item and Attachment.
+ *
+ * A list of Items is separated by hairlines, never boxed one by one. M9.3
+ * spent a milestone undoing 46 identical containers; this component is the
+ * shape most likely to reintroduce them.
+ */
+
+.group {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.groupRow + .groupRow {
+  border-block-start: 1px solid var(--border);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  min-inline-size: 0;
+}
+
+.media {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 34px;
+  block-size: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-subtle);
+}
+
+.item[data-tone='danger'] .media {
+  background: var(--danger-weak);
+  color: var(--danger);
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.title {
+  color: var(--text);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+  /* A filename is arbitrary text of arbitrary length and must not be allowed
+     to push the status pill off the row. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.description {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  /* The description may be an error sentence, which SHOULD wrap — truncating
+     the reason a file failed is the one place ellipsis costs information. */
+  overflow-wrap: anywhere;
+}
+
+.item[data-tone='danger'] .description {
+  color: var(--danger);
+}
+
+.trailing {
+  flex: none;
+}
+
+.actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.remove {
+  display: grid;
+  place-items: center;
+  inline-size: 28px;
+  block-size: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-subtle);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-enter),
+    color var(--motion-fast) var(--ease-enter);
+}
+
+.remove:hover {
+  background: var(--surface-active);
+  color: var(--text);
+}
+
+.remove:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (pointer: coarse) {
+  .remove {
+    inline-size: var(--touch-target-min);
+    block-size: var(--touch-target-min);
+  }
+}
+
+/*
+ * On a phone the status pill and the actions no longer fit beside the text, so
+ * the row becomes two lines rather than shrinking the filename to nothing.
+ */
+@media (width <= 560px) {
+  .item {
+    flex-wrap: wrap;
+  }
+
+  .content {
+    flex-basis: calc(100% - 34px - var(--space-3));
+  }
+
+  .trailing {
+    margin-inline-start: calc(34px + var(--space-3));
+  }
+
+  .actions {
+    margin-inline-start: auto;
+  }
+}

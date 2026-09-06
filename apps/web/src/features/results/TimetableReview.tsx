@@ -96,7 +96,9 @@ export function TimetableReview({
 
   const byDay = DAY_ORDER.map((day) => ({
     day,
-    slots: slots.filter((slot) => slot.day === day).sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    slots: slots
+      .filter((slot) => slot.day === day)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime)),
   })).filter((group) => group.slots.length > 0);
 
   return (
@@ -127,8 +129,7 @@ export function TimetableReview({
           <Notice tone="warning">
             This replaces the timetable you are using
             {relation.existing.revision === null ? '' : ` (${relation.existing.revision})`}. Saving
-            it changes your week from{' '}
-            {parsed.context.effectiveFrom ?? 'the date it takes effect'}.
+            it changes your week from {parsed.context.effectiveFrom ?? 'the date it takes effect'}.
           </Notice>
         </div>
       )}
@@ -213,9 +214,7 @@ export function TimetableReview({
             <div className={styles.editorSubject}>
               <strong>{group.day}</strong>
               <span className={styles.semesterMeta}>
-                {group.slots
-                  .map((slot) => `${slot.startTime} ${slot.subjectCode}`)
-                  .join(' · ')}
+                {group.slots.map((slot) => `${slot.startTime} ${slot.subjectCode}`).join(' · ')}
               </span>
             </div>
           </li>

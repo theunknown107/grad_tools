@@ -479,7 +479,9 @@ describe('a lab is one class', () => {
     });
     renderWith(<TimetablePage />, { repositories: bundle });
 
-    expect(await screen.findAllByRole('button', { name: /mark BCSL504 attended/i })).toHaveLength(1);
+    expect(await screen.findAllByRole('button', { name: /mark BCSL504 attended/i })).toHaveLength(
+      1,
+    );
   });
 });
 

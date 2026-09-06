@@ -24,7 +24,7 @@ import {
 } from '@gradtools/academic-rules';
 import { PageHeader } from '../../components/AppShell.js';
 import { MetaPill } from '../../components/ui/tone.js';
-import { IslandTabs, IslandTabPanel } from '../../components/ui/IslandTabs.js';
+import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { MetricStrip } from '../../components/ui/layout.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
 import {
@@ -92,28 +92,35 @@ export function AcademicsPage() {
         different and still-real question — "what would I get if…" — for a
         semester that has not happened yet.
       */}
-      <IslandTabs
-        label="Figures"
-        value={view}
-        onChange={setView}
-        tabs={[
-          { id: 'yours', label: 'Your figures' },
-          { id: 'calculator', label: 'Calculator' },
-        ]}
-      />
+      {/*
+        ONE RADIX ROOT OVER THE LIST AND ITS PANELS.
+        
+        The panels are no longer chosen by a ternary: `Tabs.Content` mounts only
+        the active one itself, and it is what generates the matching
+        `aria-controls` / `aria-labelledby` pair. Selecting by hand meant the
+        inactive panel's id was referenced by a tab pointing at nothing.
+      */}
+      <IslandTabGroup value={view} onChange={setView}>
+        <IslandTabs
+          label="Figures"
+          value={view}
+          onChange={setView}
+          tabs={[
+            { id: 'yours', label: 'Your figures' },
+            { id: 'calculator', label: 'Calculator' },
+          ]}
+        />
 
-      {view === 'yours' ? (
         <IslandTabPanel id="yours">
           <YourFigures />
         </IslandTabPanel>
-      ) : (
         <IslandTabPanel id="calculator">
           <div className={styles.stack}>
             <SgpaCalculator />
             <CgpaCalculator />
           </div>
         </IslandTabPanel>
-      )}
+      </IslandTabGroup>
     </>
   );
 }

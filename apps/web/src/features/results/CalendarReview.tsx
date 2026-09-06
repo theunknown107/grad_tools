@@ -70,9 +70,7 @@ export function CalendarReview({
   readonly saved: readonly SavedCalendar[];
   readonly onSave: (calendar: SavedCalendar) => void;
 }) {
-  const [semester, setSemester] = useState(
-    parsed.semester === null ? '' : String(parsed.semester),
-  );
+  const [semester, setSemester] = useState(parsed.semester === null ? '' : String(parsed.semester));
   const [done, setDone] = useState(false);
 
   const chosen = semester === '' ? null : Number(semester);
@@ -123,9 +121,7 @@ export function CalendarReview({
 
       {relation.kind === 'duplicate' && (
         <div className={styles.editorNotice}>
-          <Notice>
-            You have already imported this calendar. Nothing needs saving again.
-          </Notice>
+          <Notice>You have already imported this calendar. Nothing needs saving again.</Notice>
         </div>
       )}
 

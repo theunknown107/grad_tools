@@ -40,7 +40,11 @@ import {
   type SavedCalendar,
 } from '../../domain/calendar-import.js';
 import { CalendarReview } from './CalendarReview.js';
-import { parseTimetable, type ParsedTimetable, type SavedTimetable } from '../../domain/timetable-import.js';
+import {
+  parseTimetable,
+  type ParsedTimetable,
+  type SavedTimetable,
+} from '../../domain/timetable-import.js';
 import { TimetableReview } from './TimetableReview.js';
 import {
   blockingReason,
@@ -205,10 +209,7 @@ export function ResultImport({
   readonly savedTimetables: readonly SavedTimetable[];
   readonly onSave: (result: SemesterResult) => void;
   readonly onSaveCalendar: (calendar: SavedCalendar) => void;
-  readonly onSaveTimetable: (
-    slots: readonly TimetableSlot[],
-    record: SavedTimetable,
-  ) => void;
+  readonly onSaveTimetable: (slots: readonly TimetableSlot[], record: SavedTimetable) => void;
   readonly onCancel: () => void;
 }) {
   /*
@@ -442,9 +443,7 @@ export function ResultImport({
   const recognisedIn = (group: SemesterGroup) =>
     files.filter(
       (entry) =>
-        entry.reading?.source === 'ocr' &&
-        entry.file !== null &&
-        group.files.includes(entry.file),
+        entry.reading?.source === 'ocr' && entry.file !== null && group.files.includes(entry.file),
     );
 
   return (

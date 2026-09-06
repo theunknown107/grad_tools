@@ -891,24 +891,81 @@ a.pastelCard:hover {
   transition: transform var(--motion-base) var(--ease-glide);
 }
 
-.toneItem[data-open='true'] .toneChevron {
+/*
+ * `chevronDown` rotating to point UP when open.
+ *
+ * It used to be `chevronRight` rotated 180deg, which pointed the arrow LEFT on
+ * an open section — a disclosure marker indicating nothing. Corrected during
+ * the Radix port; the selector is `[data-state]`, which Radix sets on the item
+ * and the trigger, replacing the hand-tracked `[data-open]`.
+ */
+.toneItem[data-state='open'] .toneChevron {
   transform: rotate(180deg);
+}
+
+/*
+ * THE HEIGHT TRANSITION.
+ *
+ * Radix measures the panel and publishes it as
+ * `--radix-accordion-content-height`, which is the only way to animate to
+ * `auto` in CSS. `overflow: hidden` is what makes the clip read as a slide
+ * rather than a squash, and the closing keyframe is why a section now folds
+ * away instead of vanishing.
+ */
+.toneContent {
+  overflow: hidden;
+}
+
+.toneContent[data-state='open'] {
+  animation: toneSlideDown var(--motion-base) var(--ease-enter);
+}
+
+.toneContent[data-state='closed'] {
+  animation: toneSlideUp var(--motion-fast) var(--ease-exit);
+}
+
+@keyframes toneSlideDown {
+  from {
+    block-size: 0;
+    opacity: 0;
+  }
+  to {
+    block-size: var(--radix-accordion-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes toneSlideUp {
+  from {
+    block-size: var(--radix-accordion-content-height);
+    opacity: 1;
+  }
+  to {
+    block-size: 0;
+    opacity: 0;
+  }
+}
+
+/* Radix renders the trigger inside an <h3>; it carries no type of its own. */
+.toneHeader {
+  margin: 0;
+  font: inherit;
+  display: flex;
 }
 
 .toneBody {
   padding: 0 var(--space-4) var(--space-4);
-  animation: toneOpen var(--motion-base) var(--ease-enter);
 }
 
-@keyframes toneOpen {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-}
-
+/*
+ * Reduced motion: the height animation is dropped entirely rather than
+ * shortened. A 0.01ms run of `toneSlideDown` would leave the panel at whatever
+ * `block-size` the last measured frame had, which on a section that has not
+ * been opened yet is zero — the content would be invisible.
+ */
 @media (prefers-reduced-motion: reduce) {
-  .toneBody {
+  .toneContent[data-state='open'],
+  .toneContent[data-state='closed'] {
     animation: none;
   }
 

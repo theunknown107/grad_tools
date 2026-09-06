@@ -17,7 +17,7 @@ import type { AnnouncementCategory } from '@gradtools/shared-types';
 import { PageHeader } from '../../components/AppShell.js';
 import { MetaPill } from '../../components/ui/tone.js';
 import { formatCount } from '../../lib/format.js';
-import { IslandTabs } from '../../components/ui/IslandTabs.js';
+import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { Skeleton as ShapedSkeleton } from '../../components/ui/Skeleton.js';
 import { Button, EmptyState, Notice, Panel, StatusPill } from '../../components/ui/index.js';
 import { useAnnouncements, useNotifications } from '../../hooks/useAnnouncements.js';
@@ -76,6 +76,84 @@ export function NotificationsPage() {
     await savePreferences({ ...preferences, browserNotifications: result === 'granted' });
   }
 
+  /*
+   * THE INBOX, HOISTED so it can be the content of BOTH tab panels.
+   *
+   * Only the selected panel is mounted by Radix, and `visible` is already
+   * derived from the selected filter, so exactly one correctly-filtered list
+   * is ever in the document. Declaring both is what gives each tab a real
+   * tabpanel for `aria-controls` to point at — which is what was missing when
+   * these were tabs with no panel anywhere on the page.
+   */
+  const inbox =
+    error !== null ? (
+      <Notice tone="warning">{error}</Notice>
+    ) : feedLoading ? (
+      <ShapedSkeleton lines={4} height="60px" radius="md" label="Loading notifications" />
+    ) : visible.length === 0 ? (
+      <EmptyState
+        title={unreadOnly ? 'You are up to date' : 'No notifications yet'}
+        icons={['notifications', 'announcements', 'empty']}
+      >
+        {unreadOnly
+          ? 'Switch to All to see everything you have already read.'
+          : 'Announcements that apply to you appear here.'}
+      </EmptyState>
+    ) : (
+      <ul className={styles.list}>
+        {visible.map((notification) => {
+          const { announcement, state } = notification;
+          return (
+            <li key={announcement.id}>
+              <article className={styles.notification} data-state={state}>
+                <div className={styles.rowHead}>
+                  {/*
+                      UNREAD IS NOT CONVEYED BY COLOUR ALONE (M7 §29). The pill
+                      says the word; the dot is decoration.
+                    */}
+                  {state === 'unread' ? (
+                    <StatusPill tone="accent">Unread</StatusPill>
+                  ) : (
+                    <StatusPill tone="neutral">Read</StatusPill>
+                  )}
+                  {announcement.origin === 'demo_fixture' && (
+                    <span className={styles.demo}>Demo data</span>
+                  )}
+                  <span className={styles.category}>{CATEGORY_LABEL[announcement.category]}</span>
+                </div>
+
+                <h3 className={styles.title}>{announcement.title}</h3>
+                <p className={styles.meta}>{announcement.publisher}</p>
+
+                <div className={styles.notificationActions}>
+                  {state === 'unread' && (
+                    <Button
+                      variant="secondary"
+                      small
+                      onClick={() => {
+                        void setState(announcement, 'read');
+                      }}
+                    >
+                      Mark as read
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    small
+                    onClick={() => {
+                      void setState(announcement, 'dismissed');
+                    }}
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </article>
+            </li>
+          );
+        })}
+      </ul>
+    );
+
   return (
     <div className={`${styles.page ?? ''} ${styles.settingsPage ?? ''}`}>
       <PageHeader
@@ -98,99 +176,40 @@ export function NotificationsPage() {
         All/Unread as tabs rather than a checkbox: it is a VIEW of the list,
         and the counts belong on the tabs where they say what each view holds.
       */}
-      <div className={styles.toolbar}>
-        <IslandTabs
-          label="Which notifications"
-          controlsPanel={false}
-          value={unreadOnly ? 'unread' : 'all'}
-          onChange={(id) => {
-            setUnreadOnly(id === 'unread');
-          }}
-          tabs={[
-            { id: 'all', label: 'All', count: notifications.length },
-            { id: 'unread', label: 'Unread', count: unread },
-          ]}
-        />
+      <IslandTabGroup
+        value={unreadOnly ? 'unread' : 'all'}
+        onChange={(id) => {
+          setUnreadOnly(id === 'unread');
+        }}
+      >
+        <div className={styles.toolbar}>
+          <IslandTabs
+            label="Which notifications"
+            value={unreadOnly ? 'unread' : 'all'}
+            onChange={(id) => {
+              setUnreadOnly(id === 'unread');
+            }}
+            tabs={[
+              { id: 'all', label: 'All', count: notifications.length },
+              { id: 'unread', label: 'Unread', count: unread },
+            ]}
+          />
 
-        <Button
-          variant="secondary"
-          small
-          disabled={unread === 0}
-          onClick={() => {
-            void readAll();
-          }}
-        >
-          Mark all as read
-        </Button>
-      </div>
+          <Button
+            variant="secondary"
+            small
+            disabled={unread === 0}
+            onClick={() => {
+              void readAll();
+            }}
+          >
+            Mark all as read
+          </Button>
+        </div>
 
-      {error !== null ? (
-        <Notice tone="warning">{error}</Notice>
-      ) : feedLoading ? (
-        <ShapedSkeleton lines={4} height="60px" radius="md" label="Loading notifications" />
-      ) : visible.length === 0 ? (
-        <EmptyState
-          title={unreadOnly ? 'You are up to date' : 'No notifications yet'}
-          icons={['notifications', 'announcements', 'empty']}
-        >
-          {unreadOnly
-            ? 'Switch to All to see everything you have already read.'
-            : 'Announcements that apply to you appear here.'}
-        </EmptyState>
-      ) : (
-        <ul className={styles.list}>
-          {visible.map((notification) => {
-            const { announcement, state } = notification;
-            return (
-              <li key={announcement.id}>
-                <article className={styles.notification} data-state={state}>
-                  <div className={styles.rowHead}>
-                    {/*
-                      UNREAD IS NOT CONVEYED BY COLOUR ALONE (M7 §29). The pill
-                      says the word; the dot is decoration.
-                    */}
-                    {state === 'unread' ? (
-                      <StatusPill tone="accent">Unread</StatusPill>
-                    ) : (
-                      <StatusPill tone="neutral">Read</StatusPill>
-                    )}
-                    {announcement.origin === 'demo_fixture' && (
-                      <span className={styles.demo}>Demo data</span>
-                    )}
-                    <span className={styles.category}>{CATEGORY_LABEL[announcement.category]}</span>
-                  </div>
-
-                  <h3 className={styles.title}>{announcement.title}</h3>
-                  <p className={styles.meta}>{announcement.publisher}</p>
-
-                  <div className={styles.notificationActions}>
-                    {state === 'unread' && (
-                      <Button
-                        variant="secondary"
-                        small
-                        onClick={() => {
-                          void setState(announcement, 'read');
-                        }}
-                      >
-                        Mark as read
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      small
-                      onClick={() => {
-                        void setState(announcement, 'dismissed');
-                      }}
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
-                </article>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+        <IslandTabPanel id="all">{inbox}</IslandTabPanel>
+        <IslandTabPanel id="unread">{inbox}</IslandTabPanel>
+      </IslandTabGroup>
 
       <Panel title="What interrupts you">
         <p className={styles.note}>
