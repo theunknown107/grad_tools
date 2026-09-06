@@ -60,8 +60,9 @@ can show the clause a figure came from instead of asserting it.
 weighting, the attendance threshold and the percentage formula, so a second
 regulation is a row rather than a branch. `rule_sets` is a real table.
 
-Nothing here needs building. What Phase 7D would add is **more rules**, not a
-layer: target-CGPA and required-marks calculators do not exist yet.
+Nothing here needs building. `targets.ts` already adds `calculateRequiredMarks`
+and `calculateRequiredSGPA` to the list above, tested — what is missing is a
+caller, not a calculation (§34.4.4).
 
 ---
 
