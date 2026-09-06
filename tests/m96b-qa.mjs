@@ -265,7 +265,13 @@ const run = async () => {
         }
 
         checks += 1;
-        if (vp.name === '1280' || vp.name === '390') {
+        /*
+         * 1440 joins the captured widths. It was being CHECKED at every width
+         * — axe, overflow, console — but only 1280 and 390 were ever written
+         * to disk, so the widest common desktop had never actually been
+         * looked at. A rule can pass on a layout nobody has seen.
+         */
+        if (vp.name === '1280' || vp.name === '1440' || vp.name === '390') {
           await page.screenshot({ path: join(OUT, `${name}-${vp.name}-${appearance}.png`) });
         }
       }

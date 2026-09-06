@@ -341,8 +341,8 @@
   grid-template-columns: repeat(5, 1fr);
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  /* Material from `.glassNav`; the border flips to the top edge here. */
-  border-block-start: 1px solid var(--glass-nav-border);
+  /* Material from `.surfaceNav`; the border flips to the top edge here. */
+  border-block-start: 1px solid var(--border);
   border-block-end: 0;
 }
 
@@ -613,4 +613,12 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* Pills and actions travel together at the end of the header row. */
+.headerTrailing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
 }
