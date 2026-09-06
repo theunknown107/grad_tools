@@ -1,0 +1,106 @@
+/*
+ * The disclosure.
+ *
+ * Same height-animation mechanism as the accordion: Radix measures the panel
+ * and publishes `--radix-collapsible-content-height`, which is the only way to
+ * transition to `auto`.
+ */
+
+.root {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-block-size: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+  text-align: start;
+  cursor: pointer;
+}
+
+.trigger:hover {
+  background: var(--surface-active);
+}
+
+.trigger:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.summary {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.chevron {
+  flex: none;
+  color: var(--text-subtle);
+  transition: transform var(--motion-base) var(--ease-glide);
+}
+
+.trigger[data-state='open'] .chevron {
+  transform: rotate(180deg);
+}
+
+.content {
+  overflow: hidden;
+}
+
+.content[data-state='open'] {
+  animation: collapsibleDown var(--motion-base) var(--ease-enter);
+}
+
+.content[data-state='closed'] {
+  animation: collapsibleUp var(--motion-fast) var(--ease-exit);
+}
+
+@keyframes collapsibleDown {
+  from {
+    block-size: 0;
+  }
+  to {
+    block-size: var(--radix-collapsible-content-height);
+  }
+}
+
+@keyframes collapsibleUp {
+  from {
+    block-size: var(--radix-collapsible-content-height);
+  }
+  to {
+    block-size: 0;
+  }
+}
+
+.body {
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+/*
+ * Reduced motion drops the animation entirely rather than shortening it: a
+ * 0.01ms run would leave the panel at the last measured block-size, which for
+ * a section that has never opened is zero.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .content[data-state='open'],
+  .content[data-state='closed'] {
+    animation: none;
+  }
+
+  .chevron {
+    transition: none;
+  }
+}

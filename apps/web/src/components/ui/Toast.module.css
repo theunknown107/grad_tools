@@ -1,0 +1,176 @@
+/*
+ * Toasts.
+ *
+ * The viewport is a fixed list in the corner. It stays mounted and empty when
+ * there is nothing to say — see the note in Toast.tsx about why an empty live
+ * region has to exist before the message does.
+ */
+
+.viewport {
+  position: fixed;
+  z-index: var(--z-toast);
+  inset-block-end: var(--space-5);
+  inset-inline-end: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  inline-size: min(380px, calc(100vw - var(--space-4) * 2));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* The list must never block the page it floats over; the toasts take their
+     own events back. */
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+  pointer-events: auto;
+  animation: toastIn var(--motion-base) var(--ease-spring);
+}
+
+.toast[data-tone='success'] {
+  border-color: var(--success);
+}
+
+.toast[data-tone='danger'] {
+  border-color: var(--danger);
+}
+
+/*
+ * Three states, three treatments. Radix drives the swipe by writing
+ * `--radix-toast-swipe-move-x` while the finger is down, so the toast follows
+ * it; `swipe-end` completes the throw, and `closed` is the timeout exit.
+ */
+.toast[data-state='closed'] {
+  animation: toastOut var(--motion-fast) var(--ease-exit);
+}
+
+.toast[data-swipe='move'] {
+  transform: translateX(var(--radix-toast-swipe-move-x));
+}
+
+.toast[data-swipe='cancel'] {
+  transform: translateX(0);
+  transition: transform var(--motion-fast) var(--ease-enter);
+}
+
+.toast[data-swipe='end'] {
+  animation: toastSwipeOut var(--motion-fast) var(--ease-exit);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@keyframes toastOut {
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@keyframes toastSwipeOut {
+  from {
+    transform: translateX(var(--radix-toast-swipe-end-x));
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.body {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+}
+
+.description {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+}
+
+.action {
+  flex: none;
+  min-block-size: 30px;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.action:hover {
+  background: var(--surface-active);
+}
+
+.action:focus-visible,
+.close:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 26px;
+  block-size: 26px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-subtle);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--surface-active);
+  color: var(--text);
+}
+
+/*
+ * On a phone the toasts sit ABOVE the bottom navigation, not over it — a
+ * confirmation that covers the tab bar blocks the way out of the screen it is
+ * confirming.
+ */
+@media (width <= 720px) {
+  .viewport {
+    inset-inline: var(--space-3);
+    inset-block-end: calc(
+      var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + var(--space-3)
+    );
+    inline-size: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast[data-state='closed'],
+  .toast[data-swipe='end'] {
+    animation: none;
+  }
+}

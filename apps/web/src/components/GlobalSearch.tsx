@@ -281,7 +281,6 @@ export function GlobalSearch({
               </div>
             );
           })}
-
         </div>
 
         <div className={styles.foot}>
