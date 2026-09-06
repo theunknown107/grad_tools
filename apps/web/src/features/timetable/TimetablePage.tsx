@@ -20,7 +20,7 @@ import {
 import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
 import { MetaPill, ToneAccordion } from '../../components/ui/tone.js';
-import { IslandTabs, IslandTabPanel } from '../../components/ui/IslandTabs.js';
+import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { Icon } from '../../components/icons.js';
 import {
   Button,
@@ -50,11 +50,7 @@ import {
   startRecord,
   type ClassOutcome,
 } from '../../domain/attendance.js';
-import {
-  activeCalendars,
-  holidayOn,
-  type CalendarEvent,
-} from '../../domain/calendar-import.js';
+import { activeCalendars, holidayOn, type CalendarEvent } from '../../domain/calendar-import.js';
 import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
 import { displayTitle, resolveSubject } from '../../domain/subjects.js';
 import styles from './timetable.module.css';
@@ -294,8 +290,19 @@ export function TimetablePage() {
         }
       />
 
-      <div className={styles.stack}>
-        {/*
+      {/*
+        ONE RADIX ROOT over the tab list and BOTH its panels.
+        
+        Today and Week were previously a ternary and a `hidden` div two hundred
+        lines apart, so the tab that claimed to control the week panel was
+        pointing at an element that did not exist whenever Today was showing.
+        `Tabs.Content` mounts the active one itself and generates the matching
+        `aria-controls` / `aria-labelledby` pair, which is what makes the tab
+        list navigable rather than merely tab-shaped.
+      */}
+      <IslandTabGroup value={view} onChange={setView}>
+        <div className={styles.stack}>
+          {/*
           -------------------------------------------------------------------
           M9.6F: TODAY IS THE PAGE; THE WEEK IS THE SECOND TAB
           -------------------------------------------------------------------
@@ -309,55 +316,54 @@ export function TimetablePage() {
           disclosure at the end. Entry happens once a semester; consultation
           happens every morning.
         */}
-        {/*
+          {/*
           COMPACT, AND NOT THE POINT OF THE SCREEN (§23). The student mainly
           needs to know which timetable this is; one line answers it.
         */}
-        {source !== null && items.length > 0 && (
-          <p className={styles.provenance}>
-            {[
-              source.active.className,
-              source.active.revision,
-              source.active.effectiveFrom !== null
-                ? `from ${formatDay(source.active.effectiveFrom)}`
-                : null,
-            ]
-              .filter((part): part is string => part !== null && part !== '')
-              .join(' · ')}
-          </p>
-        )}
+          {source !== null && items.length > 0 && (
+            <p className={styles.provenance}>
+              {[
+                source.active.className,
+                source.active.revision,
+                source.active.effectiveFrom !== null
+                  ? `from ${formatDay(source.active.effectiveFrom)}`
+                  : null,
+              ]
+                .filter((part): part is string => part !== null && part !== '')
+                .join(' · ')}
+            </p>
+          )}
 
-        {/* A timetable that is active but not yet in effect is not a mistake -
+          {/* A timetable that is active but not yet in effect is not a mistake -
             it is a fact the student is entitled to (§24). */}
-        {source?.active.effectiveFrom !== null &&
-          source !== null &&
-          source.active.effectiveFrom > today && (
-            <Notice tone="info">
-              These classes take effect on {formatDay(source.active.effectiveFrom)}.
+          {source?.active.effectiveFrom !== null &&
+            source !== null &&
+            source.active.effectiveFrom > today && (
+              <Notice tone="info">
+                These classes take effect on {formatDay(source.active.effectiveFrom)}.
+              </Notice>
+            )}
+
+          {source !== null && source.later !== null && (
+            <Notice tone="warning">
+              A timetable effective {formatDay(source.later.effectiveFrom as string)} was also
+              imported. These classes came from the one imported most recently
+              {source.active.revision !== null ? ` (${source.active.revision})` : ''}.
             </Notice>
           )}
 
-        {source !== null && source.later !== null && (
-          <Notice tone="warning">
-            A timetable effective {formatDay(source.later.effectiveFrom as string)} was also
-            imported. These classes came from the one imported most recently
-            {source.active.revision !== null ? ` (${source.active.revision})` : ''}.
-          </Notice>
-        )}
+          {items.length > 0 ? (
+            <>
+              <IslandTabs
+                label="Timetable view"
+                value={view}
+                onChange={setView}
+                tabs={[
+                  { id: 'today', label: 'Today', count: (byDay.get(todayName) ?? []).length },
+                  { id: 'week', label: 'Week', count: items.length },
+                ]}
+              />
 
-        {items.length > 0 ? (
-          <>
-            <IslandTabs
-              label="Timetable view"
-              value={view}
-              onChange={setView}
-              tabs={[
-                { id: 'today', label: 'Today', count: (byDay.get(todayName) ?? []).length },
-                { id: 'week', label: 'Week', count: items.length },
-              ]}
-            />
-
-            {view === 'today' ? (
               <IslandTabPanel id="today">
                 <TodayAgenda
                   slots={byDay.get(todayName) ?? []}
@@ -388,188 +394,192 @@ export function TimetablePage() {
                   </div>
                 )}
               </IslandTabPanel>
-            ) : null}
-          </>
-        ) : null}
+            </>
+          ) : null}
 
-        <details className={styles.addClass} data-hidden={view === 'today' && items.length > 0}>
-          <summary className={styles.addSummary}>
-            <Icon name="plus" size="nav" />
-            Add a class
-          </summary>
-          <div className={styles.addGrid}>
-            <SelectField
-              label="Day"
-              value={day}
-              onChange={(event) => {
-                setDay(event.target.value as Weekday);
-              }}
-            >
-              {WEEKDAYS.map((weekday) => (
-                <option key={weekday} value={weekday}>
-                  {weekday}
-                </option>
-              ))}
-            </SelectField>
-            <TextField
-              label="Starts"
-              type="time"
-              value={startTime}
-              onChange={(event) => {
-                setStartTime(event.target.value);
-              }}
-            />
-            <TextField
-              label="Ends"
-              type="time"
-              value={endTime}
-              onChange={(event) => {
-                setEndTime(event.target.value);
-              }}
-            />
-            {/* Suggested from the semester's subject list (M6 §16). */}
-            <TextField
-              label="Subject code"
-              placeholder="BCS304"
-              mono
-              list="semester-subject-codes"
-              value={subjectCode}
-              onChange={(event) => {
-                setSubjectCode(event.target.value);
-              }}
-            />
-            <datalist id="semester-subject-codes">
-              {semesterSubjects.map((subject) => (
-                <option key={subject.id} value={subject.code}>
-                  {subject.title}
-                </option>
-              ))}
-            </datalist>
-            <TextField
-              label="Room"
-              hint="Optional"
-              placeholder="A-204"
-              value={room}
-              onChange={(event) => {
-                setRoom(event.target.value);
-              }}
-            />
-            <TextField
-              label="Faculty"
-              hint="Optional"
-              placeholder="Prof. Kulkarni"
-              value={faculty}
-              onChange={(event) => {
-                setFaculty(event.target.value);
-              }}
-            />
-          </div>
-          <div className={styles.addActions}>
-            {error !== undefined && (
-              <div role="alert" className={styles.addError}>
-                <Notice tone="danger">{error}</Notice>
-              </div>
-            )}
-            <Button variant="primary" onClick={addSlot}>
+          <details className={styles.addClass} data-hidden={view === 'today' && items.length > 0}>
+            <summary className={styles.addSummary}>
               <Icon name="plus" size="nav" />
-              Add class
-            </Button>
-          </div>
-        </details>
+              Add a class
+            </summary>
+            <div className={styles.addGrid}>
+              <SelectField
+                label="Day"
+                value={day}
+                onChange={(event) => {
+                  setDay(event.target.value as Weekday);
+                }}
+              >
+                {WEEKDAYS.map((weekday) => (
+                  <option key={weekday} value={weekday}>
+                    {weekday}
+                  </option>
+                ))}
+              </SelectField>
+              <TextField
+                label="Starts"
+                type="time"
+                value={startTime}
+                onChange={(event) => {
+                  setStartTime(event.target.value);
+                }}
+              />
+              <TextField
+                label="Ends"
+                type="time"
+                value={endTime}
+                onChange={(event) => {
+                  setEndTime(event.target.value);
+                }}
+              />
+              {/* Suggested from the semester's subject list (M6 §16). */}
+              <TextField
+                label="Subject code"
+                placeholder="BCS304"
+                mono
+                list="semester-subject-codes"
+                value={subjectCode}
+                onChange={(event) => {
+                  setSubjectCode(event.target.value);
+                }}
+              />
+              <datalist id="semester-subject-codes">
+                {semesterSubjects.map((subject) => (
+                  <option key={subject.id} value={subject.code}>
+                    {subject.title}
+                  </option>
+                ))}
+              </datalist>
+              <TextField
+                label="Room"
+                hint="Optional"
+                placeholder="A-204"
+                value={room}
+                onChange={(event) => {
+                  setRoom(event.target.value);
+                }}
+              />
+              <TextField
+                label="Faculty"
+                hint="Optional"
+                placeholder="Prof. Kulkarni"
+                value={faculty}
+                onChange={(event) => {
+                  setFaculty(event.target.value);
+                }}
+              />
+            </div>
+            <div className={styles.addActions}>
+              {error !== undefined && (
+                <div role="alert" className={styles.addError}>
+                  <Notice tone="danger">{error}</Notice>
+                </div>
+              )}
+              <Button variant="primary" onClick={addSlot}>
+                <Icon name="plus" size="nav" />
+                Add class
+              </Button>
+            </div>
+          </details>
 
-        {loading ? null : items.length === 0 ? (
-          <Panel title="Your week" flush>
-            <EmptyState>
-              No classes added yet. Add your weekly classes above, or import a timetable, and your
-              week appears here day by day.
-            </EmptyState>
-          </Panel>
-        ) : (
-          <div hidden={view !== 'week'}>
-            {/*
+          {loading ? null : items.length === 0 ? (
+            <Panel title="Your week" flush>
+              <EmptyState>
+                No classes added yet. Add your weekly classes above, or import a timetable, and your
+                week appears here day by day.
+              </EmptyState>
+            </Panel>
+          ) : (
+            <IslandTabPanel id="week">
+              {/*
               THE REFERENCE'S LESSON LIST, and a week is the same shape: a
               small number of named groups, each holding a handful of timed
               items. A six-column grid said "spreadsheet"; six pastel sections
               that open say "your week", and the day you want is one click
               rather than a column to find.
             */}
-            <div className={styles.weekStack}>
-              <ToneAccordion
-                label="Week"
-                expanded
-                items={WEEKDAYS.map((weekday) => {
-                  const slots = byDay.get(weekday) ?? [];
-                  return {
-                    id: weekday,
-                    title: weekday,
-                    meta:
-                      slots.length === 0 ? 'No classes' : formatCount(slots.length, 'class', 'classes'),
-                    body:
-                      slots.length === 0 ? (
-                        <p className={styles.dayEmpty}>Nothing scheduled.</p>
-                      ) : (
-                        <ul className={styles.slotList}>
-                          {slots.map((slot) => (
-                            <SlotItem
-                              key={slot.id}
-                              slot={slot}
-                              title={displayTitle(
-                                resolveSubject(index, slot.subjectCode),
-                                'timetable',
-                              )}
-                              onRemove={() => void remove(slot.id)}
-                            />
-                          ))}
-                        </ul>
-                      ),
-                  };
-                })}
-              />
-            </div>
-
-            {/* Mobile: day agenda with explicit prev/next buttons */}
-            <section className={styles.agenda}>
-              <div className={styles.agendaNav}>
-                <Button
-                  iconOnly
-                  aria-label="Previous day"
-                  disabled={activeIndex === 0}
-                  onClick={() => {
-                    setActiveDay(WEEKDAYS[Math.max(0, activeIndex - 1)] ?? 'Mon');
-                  }}
-                >
-                  <Icon name="chevronRight" size="nav" className={styles.flip} />
-                </Button>
-                <h2 className={styles.agendaTitle}>{activeDay}</h2>
-                <Button
-                  iconOnly
-                  aria-label="Next day"
-                  disabled={activeIndex === WEEKDAYS.length - 1}
-                  onClick={() => {
-                    setActiveDay(WEEKDAYS[Math.min(WEEKDAYS.length - 1, activeIndex + 1)] ?? 'Sat');
-                  }}
-                >
-                  <Icon name="chevronRight" size="nav" />
-                </Button>
+              <div className={styles.weekStack}>
+                <ToneAccordion
+                  label="Week"
+                  expanded
+                  items={WEEKDAYS.map((weekday) => {
+                    const slots = byDay.get(weekday) ?? [];
+                    return {
+                      id: weekday,
+                      title: weekday,
+                      meta:
+                        slots.length === 0
+                          ? 'No classes'
+                          : formatCount(slots.length, 'class', 'classes'),
+                      body:
+                        slots.length === 0 ? (
+                          <p className={styles.dayEmpty}>Nothing scheduled.</p>
+                        ) : (
+                          <ul className={styles.slotList}>
+                            {slots.map((slot) => (
+                              <SlotItem
+                                key={slot.id}
+                                slot={slot}
+                                title={displayTitle(
+                                  resolveSubject(index, slot.subjectCode),
+                                  'timetable',
+                                )}
+                                onRemove={() => void remove(slot.id)}
+                              />
+                            ))}
+                          </ul>
+                        ),
+                    };
+                  })}
+                />
               </div>
-              {(byDay.get(activeDay) ?? []).length === 0 ? (
-                <p className={styles.dayEmpty}>No classes on {activeDay}.</p>
-              ) : (
-                <ul className={styles.slotList}>
-                  {(byDay.get(activeDay) ?? []).map((slot) => (
-                    <SlotItem
-                      key={slot.id}
-                      slot={slot}
-                      title={displayTitle(resolveSubject(index, slot.subjectCode), 'timetable')}
-                      onRemove={() => void remove(slot.id)}
-                    />
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
-        )}
-      </div>
+
+              {/* Mobile: day agenda with explicit prev/next buttons */}
+              <section className={styles.agenda}>
+                <div className={styles.agendaNav}>
+                  <Button
+                    iconOnly
+                    aria-label="Previous day"
+                    disabled={activeIndex === 0}
+                    onClick={() => {
+                      setActiveDay(WEEKDAYS[Math.max(0, activeIndex - 1)] ?? 'Mon');
+                    }}
+                  >
+                    <Icon name="chevronRight" size="nav" className={styles.flip} />
+                  </Button>
+                  <h2 className={styles.agendaTitle}>{activeDay}</h2>
+                  <Button
+                    iconOnly
+                    aria-label="Next day"
+                    disabled={activeIndex === WEEKDAYS.length - 1}
+                    onClick={() => {
+                      setActiveDay(
+                        WEEKDAYS[Math.min(WEEKDAYS.length - 1, activeIndex + 1)] ?? 'Sat',
+                      );
+                    }}
+                  >
+                    <Icon name="chevronRight" size="nav" />
+                  </Button>
+                </div>
+                {(byDay.get(activeDay) ?? []).length === 0 ? (
+                  <p className={styles.dayEmpty}>No classes on {activeDay}.</p>
+                ) : (
+                  <ul className={styles.slotList}>
+                    {(byDay.get(activeDay) ?? []).map((slot) => (
+                      <SlotItem
+                        key={slot.id}
+                        slot={slot}
+                        title={displayTitle(resolveSubject(index, slot.subjectCode), 'timetable')}
+                        onRemove={() => void remove(slot.id)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </IslandTabPanel>
+          )}
+        </div>
+      </IslandTabGroup>
     </>
   );
 }
@@ -675,7 +685,12 @@ function SlotItem({
    */
   const named = title !== '' && title !== slot.subjectCode;
   return (
-    <li className={styles.slot} data-next={isNext} data-now={isNow} data-marked={outcome ?? undefined}>
+    <li
+      className={styles.slot}
+      data-next={isNext}
+      data-now={isNow}
+      data-marked={outcome ?? undefined}
+    >
       <div className={styles.slotTime}>
         <span>{formatTime(slot.startTime)}</span>
         <span className={styles.slotTimeEnd}>{formatTime(slot.endTime)}</span>

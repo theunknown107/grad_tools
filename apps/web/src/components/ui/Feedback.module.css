@@ -1,0 +1,227 @@
+/*
+ * Alert, Spinner, Scroll Area.
+ */
+
+/* --- Alert ---------------------------------------------------------------- */
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.alertIcon {
+  flex: none;
+  margin-block-start: 1px;
+}
+
+.alert[data-tone='info'] {
+  border-color: var(--info);
+  background: var(--info-weak);
+}
+
+.alert[data-tone='info'] .alertIcon {
+  color: var(--info);
+}
+
+.alert[data-tone='success'] {
+  border-color: var(--success);
+  background: var(--success-weak);
+}
+
+.alert[data-tone='success'] .alertIcon {
+  color: var(--success);
+}
+
+.alert[data-tone='warning'] {
+  border-color: var(--warning);
+  background: var(--warning-weak);
+}
+
+.alert[data-tone='warning'] .alertIcon {
+  color: var(--warning);
+}
+
+.alert[data-tone='danger'] {
+  border-color: var(--danger);
+  background: var(--danger-weak);
+}
+
+.alert[data-tone='danger'] .alertIcon {
+  color: var(--danger);
+}
+
+.alertBody {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.alertTitle {
+  margin: 0 0 2px;
+  color: var(--text);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-semibold);
+}
+
+/*
+ * Body text stays `--text-muted` rather than taking the tone's colour. Tinted
+ * body text on a tinted background is where these fail contrast, and the tone
+ * is already carried by the icon, the border and the fill.
+ */
+.alertText {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+}
+
+.alertText > :first-child {
+  margin-block-start: 0;
+}
+
+.alertText > :last-child {
+  margin-block-end: 0;
+}
+
+.alertAction {
+  flex: none;
+  align-self: center;
+}
+
+@media (width <= 520px) {
+  .alert {
+    flex-wrap: wrap;
+  }
+
+  .alertAction {
+    inline-size: 100%;
+    margin-inline-start: calc(24px + var(--space-3));
+  }
+}
+
+/* --- Spinner -------------------------------------------------------------- */
+
+.spinnerWrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+/*
+ * A ring with one quarter in the accent, rotating. Border-based rather than an
+ * SVG so it inherits `currentColor` for the track and costs no markup.
+ */
+.spinner {
+  display: block;
+  inline-size: 18px;
+  block-size: 18px;
+  border: 2px solid var(--border-strong);
+  border-block-start-color: var(--a-fill);
+  border-radius: var(--radius-pill);
+  animation: spin 700ms linear infinite;
+}
+
+.spinnerWrap[data-size='small'] .spinner {
+  inline-size: 13px;
+  block-size: 13px;
+  border-width: 1.5px;
+}
+
+@keyframes spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/*
+ * Reduced motion: the ring STOPS but does not disappear, and the contrast
+ * between the accent quarter and the track is what still says "waiting".
+ * Removing the indicator entirely would leave a person with no signal at all,
+ * which is worse than a static one.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-block-start-color: var(--a-fill);
+    border-inline-end-color: var(--a-fill);
+  }
+}
+
+.spinnerLabel {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Scroll area ---------------------------------------------------------- */
+
+.scrollRoot {
+  position: relative;
+  overflow: hidden;
+}
+
+.scrollViewport {
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: inherit;
+}
+
+.scrollViewport:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.scrollbar {
+  display: flex;
+  padding: 2px;
+  background: transparent;
+  touch-action: none;
+  user-select: none;
+  transition: background var(--motion-fast) var(--ease-enter);
+}
+
+.scrollbar:hover {
+  background: var(--surface-active);
+}
+
+.scrollbar[data-orientation='vertical'] {
+  inline-size: 10px;
+}
+
+.scrollbar[data-orientation='horizontal'] {
+  flex-direction: column;
+  block-size: 10px;
+}
+
+.scrollThumb {
+  position: relative;
+  flex: 1;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+/*
+ * The thumb's own hit area is 6px wide, which is under the 44px minimum. It is
+ * extended with a pseudo-element rather than by widening the painted bar,
+ * because a 44px scrollbar would take a column of the table beside it.
+ */
+.scrollThumb::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  inline-size: 100%;
+  block-size: 100%;
+  min-inline-size: var(--touch-target-min);
+  min-block-size: var(--touch-target-min);
+}

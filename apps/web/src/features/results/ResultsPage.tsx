@@ -62,7 +62,7 @@ import {
   tableClass,
 } from '../../components/ui/index.js';
 import { formatCount, formatGpa } from '../../lib/format.js';
-import { IslandTabs, IslandTabPanel } from '../../components/ui/IslandTabs.js';
+import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { MetricStrip } from '../../components/ui/layout.js';
 import { MetaPill, PastelCard, Rail, toneFor } from '../../components/ui/tone.js';
 import { DropdownMenu } from '../../components/ui/DropdownMenu.js';
@@ -232,41 +232,40 @@ export function ResultsPage() {
         SGPA it actually has; the bar is that SGPA against 10, which is a real
         proportion rather than a decorative fill.
       */}
-      {items.length > 0 && (
-        <Rail label="Saved semesters">
-          {[...items]
-            .sort((a, b) => a.semester - b.semester)
-            .map((item, index) => {
-              const { sgpa } = semesterSgpa(item, ruleSetForResult(item).ruleSet);
-              return (
-                <PastelCard
-                  key={item.id}
-                  tone={toneFor(index)}
-                  pill={`Semester ${String(item.semester)}`}
-                  title={sgpa === null ? 'SGPA not available' : `SGPA ${formatGpa(sgpa)}`}
-                  body={formatCount(item.subjects.length, 'subject')}
-                  {...(sgpa === null ? {} : { progress: (sgpa / 10) * 100 })}
-                />
-              );
-            })}
-        </Rail>
-      )}
+            {items.length > 0 && (
+              <Rail label="Saved semesters">
+                {[...items]
+                  .sort((a, b) => a.semester - b.semester)
+                  .map((item, index) => {
+                    const { sgpa } = semesterSgpa(item, ruleSetForResult(item).ruleSet);
+                    return (
+                      <PastelCard
+                        key={item.id}
+                        tone={toneFor(index)}
+                        pill={`Semester ${String(item.semester)}`}
+                        title={sgpa === null ? 'SGPA not available' : `SGPA ${formatGpa(sgpa)}`}
+                        body={formatCount(item.subjects.length, 'subject')}
+                        {...(sgpa === null ? {} : { progress: (sgpa / 10) * 100 })}
+                      />
+                    );
+                  })}
+              </Rail>
+            )}
 
-      <IslandTabs
-              label="Results view"
-              value={view}
-              onChange={setView}
-              tabs={[
-                { id: 'overview', label: 'Overview' },
-                { id: 'semesters', label: 'Semesters', count: items.length },
-              ]}
-            />
+            <IslandTabGroup value={view} onChange={setView}>
+              <IslandTabs
+                label="Results view"
+                value={view}
+                onChange={setView}
+                tabs={[
+                  { id: 'overview', label: 'Overview' },
+                  { id: 'semesters', label: 'Semesters', count: items.length },
+                ]}
+              />
 
-            {view === 'overview' ? (
               <IslandTabPanel id="overview">
                 <ResultsOverview items={items} />
               </IslandTabPanel>
-            ) : (
               <IslandTabPanel id="semesters">
                 <div className={styles.stack}>
                   {[...items]
@@ -284,7 +283,7 @@ export function ResultsPage() {
                     ))}
                 </div>
               </IslandTabPanel>
-            )}
+            </IslandTabGroup>
           </>
         )}
       </div>

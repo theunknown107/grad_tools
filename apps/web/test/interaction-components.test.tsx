@@ -191,13 +191,29 @@ function TabsHarness() {
 
 describe('IslandTabs', () => {
   it('follows the WAI-ARIA tabs pattern', async () => {
+    const user = userEvent.setup();
     render(<TabsHarness />);
     const list = screen.getByRole('tablist', { name: 'Results view' });
     const tabs = within(list).getAllByRole('tab');
 
     expect(tabs[0]?.getAttribute('aria-selected')).toBe('true');
-    // Only the selected tab is tabbable; the rest are reached with arrows.
-    expect(tabs[0]?.getAttribute('tabindex')).toBe('0');
+
+    /*
+     * ONE TAB STOP FOR THE WHOLE SET, AND IT LANDS ON THE SELECTED TAB.
+     *
+     * That is the guarantee the pattern actually makes, and it is what this
+     * asserts. It used to assert the narrower `tabs[0]` carries tabindex="0",
+     * which was how the hand-rolled version happened to express it; the Radix
+     * roving-focus group puts the stop on the TABLIST until focus enters and
+     * then forwards it to the selected tab. Same single stop, same landing
+     * place, expressed on a different element — so the test now checks the
+     * behaviour rather than the mechanism.
+     */
+    expect(tabs.filter((tab) => tab.getAttribute('tabindex') === '0')).toHaveLength(0);
+    expect(list.getAttribute('tabindex')).toBe('0');
+
+    await user.tab();
+    expect(document.activeElement).toBe(tabs[0]);
     expect(tabs[1]?.getAttribute('tabindex')).toBe('-1');
   });
 

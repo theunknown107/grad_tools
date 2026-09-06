@@ -46,7 +46,6 @@
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
   min-block-size: 34px;
   padding-inline: var(--space-4);
   border: 0;
@@ -62,11 +61,26 @@
   transition: color var(--motion-fast) var(--ease-enter);
 }
 
+/* The label and its count. A span inside the button rather than direct
+   children, so one selector positions them under either primitive. */
+.tabInner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .tab:hover {
   color: var(--text);
 }
 
-.tab[aria-selected='true'] {
+/*
+ * `[data-state]`, which covers both primitives: Radix Tabs marks the selected
+ * trigger `active` and Toggle Group marks the pressed item `on`. The old
+ * `[aria-selected]` selector matched only the tabs half, so the filter sets
+ * would have lost their selected ink.
+ */
+.tab[data-state='active'],
+.tab[data-state='on'] {
   color: var(--tab-selected-fg);
 }
 
@@ -85,7 +99,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.tab[aria-selected='true'] .count {
+.tab[data-state='active'] .count,
+.tab[data-state='on'] .count {
   background: rgb(255 255 255 / 20%);
   color: var(--tab-selected-fg);
 }

@@ -29,6 +29,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { Icon } from '../icons.js';
 import styles from './ui.module.css';
 
@@ -143,6 +144,27 @@ export function PastelCard({
  *
  * Uncontrolled on purpose: which section is open is view state and belongs to
  * the component, not to a page that has real work to do.
+ *
+ * ---------------------------------------------------------------------------
+ * PORTED ONTO @radix-ui/react-accordion (Phase 7B §2)
+ * ---------------------------------------------------------------------------
+ *
+ * Provenance: behaviourally faithful shadcn/Radix implementation adapted to the
+ * GradTools styling architecture. The pastel fills, the four-tone cycle and the
+ * "open by default" rule are unchanged; what the primitive supplies is the part
+ * the hand-rolled version did not have:
+ *
+ *   - `aria-controls` pointing at a region that is `aria-labelledby` its own
+ *     trigger, so a screen reader can say which section it is inside,
+ *   - Up/Down arrows, Home and End between headers,
+ *   - a real HEIGHT transition on open and close via
+ *     `--radix-accordion-content-height`, replacing a fade that appeared
+ *     instantly at full height and did not animate closing at all.
+ *
+ * One visual correction came with it. The chevron was `chevronRight` rotated
+ * 180°, so an open section pointed the arrow LEFT — a disclosure marker that
+ * indicates nothing. It is now `chevronDown` rotating to point up, which is
+ * both the shadcn behaviour and what the glyph was trying to be.
  */
 export function ToneAccordion({
   items,
@@ -180,41 +202,40 @@ export function ToneAccordion({
   const open =
     chosen ??
     (expanded ? items.map((item) => item.id) : items[0] === undefined ? [] : [items[0].id]);
-  const setOpen = (next: (current: readonly string[]) => readonly string[]) => {
-    setChosen(next(open));
-  };
 
   return (
-    <div className={styles.toneAccordion} role="group" aria-label={label}>
-      {items.map((item, index) => {
-        const isOpen = open.includes(item.id);
-        return (
-          <div
-            key={item.id}
-            className={styles.toneItem}
-            data-tone={toneFor(index)}
-            data-open={isOpen}
-          >
-            <button
-              type="button"
-              className={styles.toneSummary ?? ''}
-              aria-expanded={isOpen}
-              onClick={() =>
-                setOpen((current) =>
-                  current.includes(item.id)
-                    ? current.filter((id) => id !== item.id)
-                    : [...current, item.id],
-                )
-              }
-            >
+    <AccordionPrimitive.Root
+      type="multiple"
+      className={styles.toneAccordion}
+      aria-label={label}
+      value={[...open]}
+      onValueChange={setChosen}
+    >
+      {items.map((item, index) => (
+        <AccordionPrimitive.Item
+          key={item.id}
+          value={item.id}
+          className={styles.toneItem ?? ''}
+          data-tone={toneFor(index)}
+        >
+          {/*
+            The trigger must be inside a HEADER. Radix renders `Header` as an
+            <h3> so the sections appear in the document outline as siblings —
+            a bare button gives a screen-reader user no way to jump between
+            them, which is most of the point of an accordion.
+          */}
+          <AccordionPrimitive.Header className={styles.toneHeader}>
+            <AccordionPrimitive.Trigger className={styles.toneSummary ?? ''}>
               <span className={styles.toneSummaryText}>{item.title}</span>
               {item.meta !== undefined && <span className={styles.toneMeta}>{item.meta}</span>}
-              <Icon name="chevronRight" size="nav" className={styles.toneChevron} />
-            </button>
-            {isOpen && <div className={styles.toneBody}>{item.body}</div>}
-          </div>
-        );
-      })}
-    </div>
+              <Icon name="chevronDown" size="nav" className={styles.toneChevron} />
+            </AccordionPrimitive.Trigger>
+          </AccordionPrimitive.Header>
+          <AccordionPrimitive.Content className={styles.toneContent}>
+            <div className={styles.toneBody}>{item.body}</div>
+          </AccordionPrimitive.Content>
+        </AccordionPrimitive.Item>
+      ))}
+    </AccordionPrimitive.Root>
   );
 }
