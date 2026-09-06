@@ -21,7 +21,7 @@ import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types
 import { PageHeader } from '../../components/AppShell.js';
 import { MetaPill } from '../../components/ui/tone.js';
 import { formatCount } from '../../lib/format.js';
-import { IslandTabs } from '../../components/ui/IslandTabs.js';
+import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { Select } from '../../components/ui/Select.js';
 /* Aliased: layout.js already exports a row-count Skeleton used further down. */
 import { Skeleton as ShapedSkeleton } from '../../components/ui/Skeleton.js';
@@ -61,6 +61,47 @@ export function AnnouncementsPage() {
 
   const shown = onlyRelevant ? sorted.filter((item) => isRelevant(item, context)) : sorted;
 
+  /*
+   * THE FEED, HOISTED so it can be the content of BOTH tab panels.
+   *
+   * Radix mounts only the selected panel and `shown` is already derived from
+   * the selected filter, so exactly one correctly-filtered feed is ever in the
+   * document. Declaring both is what gives each tab a real tabpanel for
+   * `aria-controls` to point at.
+   */
+  const feed =
+    error !== null ? (
+      <Notice tone="warning">
+        {error}{' '}
+        <button type="button" className={styles.linkButton} onClick={reload}>
+          Try again
+        </button>
+      </Notice>
+    ) : loading ? (
+      <ShapedSkeleton lines={5} height="56px" radius="md" label="Loading announcements" />
+    ) : shown.length === 0 ? (
+      <EmptyState
+        title={onlyRelevant ? 'Nothing applies to you right now' : 'No announcements yet'}
+        icons={['announcements', 'notifications', 'empty']}
+      >
+        {onlyRelevant
+          ? 'Switch to All to see every notice GradTools holds.'
+          : 'Notices appear here once a source is connected or an operator adds one.'}
+      </EmptyState>
+    ) : (
+      <ul className={styles.list}>
+        {shown.map((announcement) => (
+          <li key={announcement.id}>
+            <AnnouncementRow
+              announcement={announcement}
+              relevant={isRelevant(announcement, context)}
+              targeted={isTargeted(announcement)}
+            />
+          </li>
+        ))}
+      </ul>
+    );
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -96,77 +137,54 @@ export function AnnouncementsPage() {
         the glass Select, and the count on the right so the feed says how much
         of itself is showing.
       */}
-      <div className={styles.toolbar}>
-        <IslandTabs
-          label="Which announcements"
-          controlsPanel={false}
-          value={onlyRelevant ? 'mine' : 'all'}
-          onChange={(id) => {
-            setOnlyRelevant(id === 'mine');
-          }}
-          tabs={[
-            { id: 'all', label: 'All', count: sorted.length },
-            {
-              id: 'mine',
-              label: 'Applies to me',
-              count: sorted.filter((item) => isRelevant(item, context)).length,
-            },
-          ]}
-        />
-
-        <div className={styles.toolbarEnd}>
-          <Select
-            label="Category"
-            hideLabel
-            icon="announcements"
-            value={category}
-            onChange={setCategory}
-            options={CATEGORY_OPTIONS.map((option) => ({
-              value: option,
-              label: option === 'all' ? 'All categories' : CATEGORY_LABEL[option],
-            }))}
+      <IslandTabGroup
+        value={onlyRelevant ? 'mine' : 'all'}
+        onChange={(id) => {
+          setOnlyRelevant(id === 'mine');
+        }}
+      >
+        <div className={styles.toolbar}>
+          <IslandTabs
+            label="Which announcements"
+            value={onlyRelevant ? 'mine' : 'all'}
+            onChange={(id) => {
+              setOnlyRelevant(id === 'mine');
+            }}
+            tabs={[
+              { id: 'all', label: 'All', count: sorted.length },
+              {
+                id: 'mine',
+                label: 'Applies to me',
+                count: sorted.filter((item) => isRelevant(item, context)).length,
+              },
+            ]}
           />
-        </div>
-      </div>
 
-      {/*
+          <div className={styles.toolbarEnd}>
+            <Select
+              label="Category"
+              hideLabel
+              icon="announcements"
+              value={category}
+              onChange={setCategory}
+              options={CATEGORY_OPTIONS.map((option) => ({
+                value: option,
+                label: option === 'all' ? 'All categories' : CATEGORY_LABEL[option],
+              }))}
+            />
+          </div>
+        </div>
+
+        {/*
         Relevance is a VIEW, never a default (M7 §14). Hiding notices a student
         has not been targeted by would make the feed silently incomplete, and
         they would have no way to know what they were not seeing — so the "All"
         tab is first and the counts on both tabs say what each one holds.
       */}
 
-      {error !== null ? (
-        <Notice tone="warning">
-          {error}{' '}
-          <button type="button" className={styles.linkButton} onClick={reload}>
-            Try again
-          </button>
-        </Notice>
-      ) : loading ? (
-        <ShapedSkeleton lines={5} height="56px" radius="md" label="Loading announcements" />
-      ) : shown.length === 0 ? (
-        <EmptyState
-          title={onlyRelevant ? 'Nothing applies to you right now' : 'No announcements yet'}
-          icons={['announcements', 'notifications', 'empty']}
-        >
-          {onlyRelevant
-            ? 'Switch to All to see every notice GradTools holds.'
-            : 'Notices appear here once a source is connected or an operator adds one.'}
-        </EmptyState>
-      ) : (
-        <ul className={styles.list}>
-          {shown.map((announcement) => (
-            <li key={announcement.id}>
-              <AnnouncementRow
-                announcement={announcement}
-                relevant={isRelevant(announcement, context)}
-                targeted={isTargeted(announcement)}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+        <IslandTabPanel id="all">{feed}</IslandTabPanel>
+        <IslandTabPanel id="mine">{feed}</IslandTabPanel>
+      </IslandTabGroup>
     </div>
   );
 }

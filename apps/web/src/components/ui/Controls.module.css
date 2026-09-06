@@ -1,0 +1,436 @@
+/*
+ * Form controls.
+ *
+ * Every state here is drawn with a SHAPE as well as a colour: a tick, a dash, a
+ * dot, a thumb that moved. docs/27 §27.2 — colour is never the only carrier of
+ * a state, and these are the components where that is easiest to forget.
+ *
+ * Touch targets: the painted box is small (18–20px) because a 44px tick-box in
+ * a dense list is absurd, so the target is extended with a pseudo-element
+ * instead. The row itself is comfortably tall enough on touch.
+ */
+
+.checkRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-block: var(--space-1);
+}
+
+.checkText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.checkLabel {
+  color: var(--text);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+}
+
+/* --- Checkbox ------------------------------------------------------------- */
+
+.checkbox {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 18px;
+  block-size: 18px;
+  margin-block-start: 2px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--field-bg);
+  color: var(--accent-contrast);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-enter),
+    border-color var(--motion-fast) var(--ease-enter);
+}
+
+.checkbox[data-state='checked'],
+.checkbox[data-state='indeterminate'] {
+  background: var(--a-fill);
+  border-color: var(--a-fill);
+}
+
+.checkbox:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.checkbox[data-disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.checkMark {
+  display: grid;
+  place-items: center;
+  /* The tick is drawn on the accent fill, so it needs the fill's contrast ink,
+     not the page's. */
+  color: var(--accent-contrast);
+  animation: checkIn var(--motion-micro) var(--ease-spring);
+}
+
+@keyframes checkIn {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+
+/* --- Radio ---------------------------------------------------------------- */
+
+.fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  margin-block-end: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.radioGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.radioGroup[data-orientation='horizontal'] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.radio {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 18px;
+  block-size: 18px;
+  margin-block-start: 2px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--field-bg);
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-enter);
+}
+
+.radio[data-state='checked'] {
+  border-color: var(--a-fill);
+  border-width: 2px;
+}
+
+.radio:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.radio[data-disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/*
+ * The dot is a filled disc INSIDE the ring rather than a solid fill of the
+ * whole control: the ring stays visible, so "selected" reads as a shape change
+ * and not only as a colour change.
+ */
+.radioDot {
+  display: block;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--a-fill);
+  animation: checkIn var(--motion-micro) var(--ease-spring);
+}
+
+/* --- Touch targets -------------------------------------------------------- */
+
+@media (pointer: coarse) {
+  .checkbox::after,
+  .radio::after {
+    content: '';
+    position: absolute;
+    inset: calc((var(--touch-target-min) - 18px) / -2);
+  }
+}
+
+/* --- Switch --------------------------------------------------------------- */
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-block: var(--space-2);
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  inline-size: 40px;
+  block-size: 24px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--field-bg);
+  cursor: pointer;
+  transition:
+    background var(--motion-base) var(--ease-enter),
+    border-color var(--motion-base) var(--ease-enter);
+}
+
+.switch[data-state='checked'] {
+  background: var(--a-fill);
+  border-color: var(--a-fill);
+}
+
+.switch:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.switch[data-disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/*
+ * The thumb's TRAVEL is the state. Even with no colour at all, the control
+ * reads: the disc is on the left or it is on the right.
+ */
+.switchThumb {
+  display: block;
+  inline-size: 18px;
+  block-size: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  translate: 2px 0;
+  transition: translate var(--motion-base) var(--ease-glide);
+}
+
+.switchThumb[data-state='checked'] {
+  translate: 18px 0;
+  background: var(--accent-contrast);
+}
+
+@media (pointer: coarse) {
+  .switch::after {
+    content: '';
+    position: absolute;
+    inset-block: calc((var(--touch-target-min) - 24px) / -2);
+    inset-inline: 0;
+  }
+}
+
+/* --- Slider --------------------------------------------------------------- */
+
+.sliderField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sliderHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sliderValue {
+  color: var(--text);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.slider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  inline-size: 100%;
+  /* Tall enough to grab; the painted track stays thin. */
+  block-size: 20px;
+  touch-action: none;
+  user-select: none;
+}
+
+.slider[data-disabled] {
+  opacity: 0.45;
+}
+
+.sliderTrack {
+  position: relative;
+  flex: 1;
+  block-size: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+}
+
+.sliderRange {
+  position: absolute;
+  block-size: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--a-fill);
+}
+
+.sliderThumb {
+  display: block;
+  inline-size: 18px;
+  block-size: 18px;
+  border: 2px solid var(--a-fill);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  cursor: grab;
+}
+
+.sliderThumb:active {
+  cursor: grabbing;
+}
+
+.sliderThumb:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* --- Toggle and toggle group ---------------------------------------------- */
+
+.toggle,
+.toggleItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: 34px;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-enter),
+    color var(--motion-fast) var(--ease-enter);
+}
+
+.toggle:hover,
+.toggleItem:hover {
+  color: var(--text);
+  background: var(--surface-active);
+}
+
+/*
+ * Pressed wears the reference's solid dark pill — the same treatment the
+ * selected tab gets, because they are the same idea in the design language.
+ */
+.toggle[data-state='on'],
+.toggleItem[data-state='on'] {
+  background: var(--tab-selected-bg);
+  border-color: var(--tab-selected-bg);
+  color: var(--tab-selected-fg);
+}
+
+.toggle:focus-visible,
+.toggleItem:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.toggle[data-disabled],
+.toggleItem[data-disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/*
+ * The group is one object: the items sit in a padded rail and lose their
+ * individual borders, so the set reads as a single control.
+ */
+.toggleGroup {
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  max-inline-size: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.toggleGroup::-webkit-scrollbar {
+  display: none;
+}
+
+.toggleGroup .toggleItem {
+  border-color: transparent;
+}
+
+/* --- Button group --------------------------------------------------------- */
+
+/*
+ * Joined, not spaced. The shared edge is collapsed so the pair reads as one
+ * object; the divider between them is the neighbour's own border.
+ */
+.buttonGroup {
+  display: inline-flex;
+}
+
+.buttonGroup > :not(:first-child) {
+  margin-inline-start: -1px;
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+.buttonGroup > :not(:last-child) {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+/* The focused or hovered member must sit above its neighbour, or half its
+   ring is painted over by the next button's border. */
+.buttonGroup > :hover,
+.buttonGroup > :focus-visible {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switchThumb,
+  .checkMark,
+  .radioDot {
+    transition: none;
+    animation: none;
+  }
+}

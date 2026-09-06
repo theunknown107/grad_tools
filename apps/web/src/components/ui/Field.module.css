@@ -1,0 +1,118 @@
+/*
+ * Field and Input Group.
+ *
+ * The group draws the border that a bare `<input>` would otherwise draw, and
+ * the input inside it is stripped back to nothing — one border around the whole
+ * assembly, not one around the input and another around the group.
+ */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+.label {
+  color: var(--text);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-medium);
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--danger);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+}
+
+/* --- Input group ---------------------------------------------------------- */
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* The token already grows to the 44px touch target on coarse pointers, so
+     there is nothing extra to do here for touch. */
+  min-block-size: var(--control-height);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field-bg);
+  transition:
+    border-color var(--motion-fast) var(--ease-enter),
+    box-shadow var(--motion-fast) var(--ease-enter);
+}
+
+/*
+ * `:focus-within`, not `:focus`. The ring belongs to the assembly, because the
+ * assembly is what a person sees as the control — a ring on the bare input
+ * inside would draw a rectangle floating within a larger box.
+ */
+.group:focus-within {
+  border-color: var(--focus-ring);
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.field[data-invalid] .group {
+  border-color: var(--danger);
+}
+
+/*
+ * The input surrenders its own chrome to the group. Descendant selector rather
+ * than a class, because the caller passes the element and should not have to
+ * remember to label it.
+ */
+.group input,
+.group select {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-body);
+  line-height: var(--text-body-lh);
+}
+
+.group input:focus,
+.group select:focus {
+  outline: none;
+}
+
+.addon {
+  flex: none;
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  font-variant-numeric: tabular-nums;
+  /* Never shrinks and never wraps: a unit that reflows onto a second line
+     turns a 38px control into a 60px one as you type. */
+  white-space: nowrap;
+  user-select: none;
+}
+
+.groupIcon {
+  flex: none;
+  color: var(--text-subtle);
+}
+
+.groupAction {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  /* Pulled into the field's padding so the control's own edge is the target
+     edge, rather than leaving a dead 12px strip beside it. */
+  margin-inline-end: calc(var(--space-3) * -1 + var(--space-1));
+}
