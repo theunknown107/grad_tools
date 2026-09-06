@@ -192,14 +192,8 @@ input[type='number'] {
 
 /*
  * Five classes, one per material. A component asks for a material by name and
- * never assembles one from tint + blur + border itself; that is what keeps the
+ * never assembles one from tint + border itself; that is what keeps the
  * product looking like one material system instead of fifteen approximations.
- *
- * `backdrop-filter` is the expensive property here. It is applied only to
- * these five classes, all of which are small or transient — a nav bar, a
- * popover, a modal scrim. It is never applied to a scrolling list or to a
- * surface that repeats down a page, because a blurred surface that repeats is
- * both slow and illegible.
  */
 
 /*
@@ -212,9 +206,8 @@ input[type='number'] {
  * shadow. Blur behind an opaque card is cost with nothing to show for it, so
  * `backdrop-filter` is no longer applied to anything.
  *
- * The class names are kept because twenty-five call sites use them as material
- * hooks and renaming them is churn without a visual result. What changed is
- * what they paint.
+ * The classes were renamed at all twenty-five call sites: a class called
+ * `glassPanel` that renders solid is an invitation to put the blur back.
  */
 
 .surfaceNav {

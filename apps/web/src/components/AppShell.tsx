@@ -263,9 +263,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { items: announcements } = useAnnouncements();
   const { notifications, unread, setState, readAll } = useNotifications(announcements);
 
-  const groupNavRef = useRef<HTMLElement>(null);
+  const sideNavRef = useRef<HTMLElement>(null);
   const bottomNavRef = useRef<HTMLElement>(null);
-  const groupLight = useLimelight(groupNavRef, activeGroup);
+  const navLight = useLimelight(sideNavRef, activeGroup);
   const bottomLight = useLimelight(bottomNavRef, location.pathname);
 
   return (
@@ -295,15 +295,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className={styles.brandWord}>GradTools</span>
         </NavLink>
 
-        <nav className={styles.sideNav} aria-label="Destinations" ref={groupNavRef}>
+        <nav className={styles.sideNav} aria-label="Destinations" ref={sideNavRef}>
           {/* The travelling marker, now moving down instead of across. */}
-          {groupLight !== null ? (
+          {navLight !== null ? (
             <span
               className={styles.sideLight}
               aria-hidden="true"
               style={{
-                transform: `translateY(${String(groupLight.top)}px)`,
-                height: `${String(groupLight.height)}px`,
+                transform: `translateY(${String(navLight.top)}px)`,
+                height: `${String(navLight.height)}px`,
               }}
             />
           ) : null}
@@ -451,8 +451,22 @@ export function PageHeader({
         </div>
         {subtitle !== undefined && <p className={styles.pageSubtitle}>{subtitle}</p>}
       </div>
-      {pills !== undefined && <div className={styles.headerPills}>{pills}</div>}
-      {action}
+      {/*
+        ONE TRAILING CLUSTER.
+        
+        Pills and actions were siblings of the heading under
+        `justify-content: space-between`, so at 1280 and 1440 the pills took
+        the right-hand slot and pushed the primary button onto its own line —
+        leaving "Add a semester" orphaned below the subtitle while "Add
+        academic document" sat top-right. They belong together at the end of
+        the row, and wrap together when there is no room.
+      */}
+      {(pills !== undefined || action !== undefined) && (
+        <div className={styles.headerTrailing}>
+          {pills !== undefined && <div className={styles.headerPills}>{pills}</div>}
+          {action}
+        </div>
+      )}
     </div>
   );
 }
