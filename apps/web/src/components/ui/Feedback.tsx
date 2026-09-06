@@ -102,12 +102,15 @@ export function Spinner({
   readonly size?: 'small' | 'default';
 }): ReactNode {
   return (
-    <span className={styles.spinnerWrap} role="status" data-size={size}>
+    <span className={styles.spinnerWrap} role="status" aria-label={label} data-size={size}>
       <span className={styles.spinner} aria-hidden="true" />
       {/*
-        The label is visually hidden rather than absent: it is the accessible
-        name, and callers put their own visible text beside the spinner when
-        they want one. Rendering both would say it twice.
+        The label appears TWICE on purpose, and they do different jobs.
+        `aria-label` is the region's NAME, which is what a screen reader reads
+        when a person navigates onto it; the hidden text is the region's
+        CONTENT, which is what a live region announces when it appears. A
+        `role="status"` with a name and no content announces nothing at the
+        moment that matters most.
       */}
       <span className={styles.spinnerLabel}>{label}</span>
     </span>

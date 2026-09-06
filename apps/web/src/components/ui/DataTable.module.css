@@ -1,0 +1,72 @@
+/*
+ * Data table.
+ *
+ * The base table styling comes from `ui.module.css` (`tableClass`) so a sorted
+ * table and a plain one look the same; this file adds only the sort affordance
+ * and the caption.
+ */
+
+.table {
+  inline-size: 100%;
+}
+
+/*
+ * The caption is VISIBLE, not hidden.
+ *
+ * It is the table's accessible name and it is also the thing a sighted person
+ * needs when a page carries three tables. Hiding it would keep the screen
+ * reader happy and leave everyone else guessing.
+ */
+.caption {
+  padding-block-end: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  text-align: start;
+  caption-side: top;
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  /* The whole header cell is the target, not just the words. */
+  inline-size: 100%;
+  min-block-size: 28px;
+  text-align: inherit;
+}
+
+.sortButton:hover {
+  color: var(--text);
+}
+
+.sortButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.sortDown {
+  flex: none;
+  /* `--accent` and not `--a-on-light`: the latter is defined in BOTH themes,
+     so the fallback would never fire and the arrow would be dark-on-dark. */
+  color: var(--accent);
+}
+
+.sortUp {
+  flex: none;
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+.empty {
+  padding-block: var(--space-6);
+  color: var(--text-muted);
+  text-align: center;
+}
