@@ -13,7 +13,11 @@ export default tseslint.config(
       'apps/web/public/ocr/**',
       // QA output and private validation scratch. Gitignored, never shipped.
       '.qa-*/**',
-      '.qa/**',
+      // Anywhere, not only at the root: the harnesses that need a workspace's
+      // own dependencies live under that workspace (apps/web/.qa), and only
+      // the root pattern was ignored — so every scratch probe left behind a
+      // handful of no-console errors in a directory git never sees.
+      '**/.qa/**',
     ],
   },
 

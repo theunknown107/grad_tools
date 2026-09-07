@@ -40,6 +40,7 @@ import type {
   ClassMark,
   SemesterRecord,
   SemesterResult,
+  SchemeCourse,
   SemesterSubject,
   StudentProfile,
   TimetableSlot,
@@ -80,6 +81,18 @@ export interface SemesterRepository {
 export interface SemesterSubjectRepository {
   list(): Promise<SemesterSubject[]>;
   upsert(subject: SemesterSubject): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
+/**
+ * The university's own course table, as read from a Scheme of Teaching.
+ *
+ * Reference data (Phase 7C §10). Nothing the student types may be written
+ * here — see `SchemeCourse`.
+ */
+export interface SchemeCourseRepository {
+  list(): Promise<SchemeCourse[]>;
+  upsert(course: SchemeCourse): Promise<void>;
   remove(id: string): Promise<void>;
 }
 
@@ -168,4 +181,5 @@ export interface RepositoryBundle {
   readonly calendars: CalendarRepository;
   readonly timetableImports: TimetableImportRepository;
   readonly classMarks: ClassMarkRepository;
+  readonly schemeCourses: SchemeCourseRepository;
 }

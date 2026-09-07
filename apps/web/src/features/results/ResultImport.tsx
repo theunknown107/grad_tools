@@ -28,10 +28,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
-import type { Subject } from '@gradtools/shared-types';
 import type {
   ResultSubject,
   SemesterResult,
+  SchemeCourse,
   SemesterSubject,
   TimetableSlot,
 } from '../../domain/types.js';
@@ -47,6 +47,8 @@ import {
   type SavedCalendar,
 } from '../../domain/calendar-import.js';
 import { CalendarReview } from './CalendarReview.js';
+import { SchemeReview } from './SchemeReview.js';
+import { parseScheme, schemePages, type ParsedScheme } from '../../domain/scheme-import.js';
 import {
   parseTimetable,
   type ParsedTimetable,
@@ -74,6 +76,7 @@ import {
   creditsFor,
   resolveSubject,
   subjectKey,
+  type CatalogueSubject,
   type SubjectIdentity,
 } from '../../domain/subjects.js';
 import type { asStudentProfileId } from '../../domain/identity.js';
@@ -93,6 +96,7 @@ import { FileDropzone } from '../../components/ui/FileDropzone.js';
 import { Attachment, ItemGroup, ItemRow } from '../../components/ui/Item.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useSubjects } from '../../hooks/useReference.js';
+import { useSchemeCourses } from '../../hooks/useCollection.js';
 import styles from './results.module.css';
 
 const ruleSet = vtu2022RuleSet;
@@ -123,6 +127,8 @@ interface FileState {
   readonly calendar: ParsedCalendar | null;
   /** Set instead of `file` when the document turned out to be a timetable. */
   readonly timetable: ParsedTimetable | null;
+  /** Set instead of `file` when the document turned out to be a scheme. */
+  readonly scheme: ParsedScheme | null;
   readonly fingerprint: string | null;
   /** How this file was read. Carried to the review, not just logged. */
   readonly reading: FileReading | null;
@@ -347,6 +353,7 @@ export function ResultImport({
   onSave,
   onSaveCalendar,
   onSaveTimetable,
+  onSaveScheme,
   onCancel,
 }: {
   readonly profileId: ReturnType<typeof asStudentProfileId>;
@@ -374,6 +381,15 @@ export function ResultImport({
   readonly onSave: (result: SemesterResult) => void | Promise<void>;
   readonly onSaveCalendar: (calendar: SavedCalendar) => void;
   readonly onSaveTimetable: (slots: readonly TimetableSlot[], record: SavedTimetable) => void;
+  /**
+   * Records a scheme's courses as reference data.
+   *
+   * Given the whole scheme at once rather than a row at a time, because a
+   * scheme REPLACES what it covers: the caller drops the codes it supersedes
+   * and writes the new figures together, and a half-applied replacement would
+   * leave two credit figures for one code with nothing to choose between them.
+   */
+  readonly onSaveScheme: (courses: readonly SchemeCourse[]) => void | Promise<void>;
   readonly onCancel: () => void;
 }) {
   /*
@@ -396,9 +412,38 @@ export function ResultImport({
    * that array is a dependency of the subject index below — without this the
    * index is rebuilt on every keystroke in the review form.
    */
-  const catalogue: readonly Subject[] = useMemo(
-    () => (reference.state.status === 'ready' ? reference.state.data : []),
-    [reference.state],
+  /*
+   * TWO CATALOGUE SOURCES, ONE TIER.
+   *
+   * The reference API is one; a Scheme of Teaching the student imported is the
+   * other, and on a device that has never reached the network it is the ONLY
+   * one. Both are the university's own published figures, so both belong to
+   * the `catalogue` tier — and a credit from either is labelled "VTU
+   * catalogue" honestly, which a figure the student typed never is (§14).
+   *
+   * The API's rows go in second so that where both cover a code, the reference
+   * database — which is versioned and corrigible — settles it.
+   */
+  const schemeCourses = useSchemeCourses();
+  const catalogue: readonly CatalogueSubject[] = useMemo(
+    () => [
+      ...schemeCourses.items.map((course) => ({
+        code: course.code,
+        title: course.title,
+        semester: course.semester,
+        credits: course.credits,
+        /*
+         * The scheme prints CIE and SEE columns, and this reader does not take
+         * them: a `---` in the SEE column and a `50` are distinguished by
+         * position in a table whose row shapes vary, and DEC-037 forbids
+         * guessing SEE applicability from anything less than reference data.
+         * Null keeps the question open rather than answering it wrongly.
+         */
+        hasSee: null,
+      })),
+      ...(reference.state.status === 'ready' ? reference.state.data : []),
+    ],
+    [schemeCourses.items, reference.state],
   );
 
   /*
@@ -466,6 +511,7 @@ export function ResultImport({
       file: null,
       calendar: null,
       timetable: null,
+      scheme: null,
       fingerprint: null,
       reading: null,
     }));
@@ -496,6 +542,16 @@ export function ResultImport({
           status: 'read',
           reading,
           timetable: parseTimetable(reading.placed),
+          fingerprint: fingerprintOf(reading.lines),
+        });
+        return;
+      }
+
+      if (seen.type === 'course_scheme') {
+        patch(id, {
+          status: 'read',
+          reading,
+          scheme: parseScheme(schemePages(reading.placed)),
           fingerprint: fingerprintOf(reading.lines),
         });
         return;
@@ -729,6 +785,19 @@ export function ResultImport({
       )}
 
       {files.map((entry) =>
+        entry.scheme === null ? null : (
+          <SchemeReview
+            key={entry.id}
+            fileName={entry.fileName}
+            parsed={entry.scheme}
+            profileId={profileId}
+            saved={schemeCourses.items}
+            onSave={onSaveScheme}
+          />
+        ),
+      )}
+
+      {files.map((entry) =>
         entry.calendar === null || entry.fingerprint === null ? null : (
           <CalendarReview
             key={entry.id}
@@ -802,7 +871,7 @@ function ImportGroup({
   readonly group: SemesterGroup;
   /** True when any file behind this semester was read off a picture. */
   readonly recognised: boolean;
-  readonly catalogue: readonly Subject[];
+  readonly catalogue: readonly CatalogueSubject[];
   readonly subjectIndex: Map<string, SubjectIdentity>;
   readonly profileId: ReturnType<typeof asStudentProfileId>;
   readonly onSave: (result: SemesterResult) => void | Promise<void>;

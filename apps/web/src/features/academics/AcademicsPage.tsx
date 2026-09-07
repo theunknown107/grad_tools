@@ -197,7 +197,8 @@ function YourFigures() {
           },
           {
             label: 'Percentage',
-            value: standing.percentage === null ? 'Unavailable' : formatPercent(standing.percentage),
+            value:
+              standing.percentage === null ? 'Unavailable' : formatPercent(standing.percentage),
             ...(standing.percentage === null && standing.cgpa !== null
               ? { note: 'This rule set defines no percentage conversion.' }
               : {}),
