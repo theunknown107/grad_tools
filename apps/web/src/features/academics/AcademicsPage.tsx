@@ -160,7 +160,19 @@ function YourFigures() {
 
   const graded = points.filter((point) => point.sgpa !== null);
 
-  if (graded.length === 0) {
+  /*
+   * EMPTY AND UNGRADEABLE ARE DIFFERENT (Phase 7C §13).
+   *
+   * This page used to show "No figures yet — save a semester result" whenever
+   * nothing was graded. A student who HAD saved four semesters, none of which
+   * could be graded because their subjects carried no credits, was told to do
+   * the thing they had already done, and never learnt what was actually
+   * missing. Only a genuinely empty record gets the invitation; a record that
+   * exists and cannot be graded gets the reason.
+   */
+  const hasResults = views.some((view) => view.result !== null);
+
+  if (graded.length === 0 && !hasResults) {
     return (
       <EmptyState title="No figures yet" icons={['gpa', 'results', 'degree']}>
         Save a semester result and your SGPA, CGPA and trend appear here. The calculator tab works
@@ -173,10 +185,22 @@ function YourFigures() {
     <div className={styles.stack}>
       <MetricStrip
         metrics={[
-          { label: 'CGPA', value: standing.cgpa === null ? '—' : formatGpa(standing.cgpa) },
+          /*
+            A metric with no figure says why it has none. The dash alone reads
+            as "not entered yet", which is a different — and usually wrong —
+            explanation (Phase 7C §13).
+          */
+          {
+            label: 'CGPA',
+            value: standing.cgpa === null ? 'Unavailable' : formatGpa(standing.cgpa),
+            ...(standing.reason === null ? {} : { note: standing.reason }),
+          },
           {
             label: 'Percentage',
-            value: standing.percentage === null ? '—' : formatPercent(standing.percentage),
+            value: standing.percentage === null ? 'Unavailable' : formatPercent(standing.percentage),
+            ...(standing.percentage === null && standing.cgpa !== null
+              ? { note: 'This rule set defines no percentage conversion.' }
+              : {}),
           },
           { label: 'Credits', value: String(standing.creditsCompleted) },
           { label: 'Semesters', value: String(standing.semestersCompleted) },

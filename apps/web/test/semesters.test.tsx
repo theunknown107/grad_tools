@@ -520,7 +520,28 @@ describe('a semester whose rules this build does not have', () => {
     renderWith(<SemestersPage />, { repositories: bundle });
 
     expect(await screen.findByText(/rules this version of GradTools does not have/)).toBeTruthy();
-    expect(screen.getByText(/vtu-2029-imaginary/)).toBeTruthy();
+    // Named beside the semester's own missing SGPA as well as in the notice,
+    // so a student reading either one learns the same thing.
+    expect(screen.getAllByText(/vtu-2029-imaginary/).length).toBeGreaterThan(0);
+  });
+
+  /*
+   * E. AND WHEN THE RULES ARE FINE BUT THE ROWS ARE NOT. The reported bug:
+   * four imported semesters, every subject without credits, and eight em
+   * dashes that read as "you have not entered this" — which the student had.
+   */
+  it('names the subjects that stopped an SGPA rather than only dashing it', async () => {
+    const noCredits: SemesterResult = {
+      ...result(2, [['BMATS201', 4, 'O']]),
+      subjects: result(2, [['BMATS201', 4, 'O']]).subjects.map((subject) => ({
+        ...subject,
+        credits: null,
+      })),
+    };
+    const { bundle } = createMemoryRepositories({ results: [noCredits] });
+    renderWith(<SemestersPage />, { repositories: bundle });
+
+    expect(await screen.findByText(/BMATS201 has no credits/)).toBeTruthy();
   });
 
   it('does not show an SGPA worked out under the current rules', async () => {

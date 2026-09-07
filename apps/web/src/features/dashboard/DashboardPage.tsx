@@ -70,6 +70,7 @@ import {
   buildSemesterViews,
   currentSemester,
   summariseBacklogs,
+  sgpaReading,
   type SemesterView,
 } from '../../domain/academics.js';
 import {
@@ -367,6 +368,12 @@ function SemesterRail({ views }: { readonly views: readonly SemesterView[] }) {
     <Rail label="Semesters">
       {views.map((view, index) => {
         const done = view.status === 'completed';
+        /*
+          "No SGPA yet" reads as "you have not finished entering this", which
+          for a semester whose subjects carry no credits is the wrong story.
+          The reading says which it is (Phase 7C §13).
+        */
+        const reading = sgpaReading(view);
         return (
           <PastelCard
             key={view.number}
@@ -377,7 +384,7 @@ function SemesterRail({ views }: { readonly views: readonly SemesterView[] }) {
             body={
               view.sgpaComputed === null
                 ? view.subjectCount > 0
-                  ? `${formatCount(view.subjectCount, 'subject')}, no SGPA yet.`
+                  ? `${formatCount(view.subjectCount, 'subject')}. ${reading.reason ?? 'No SGPA.'}`
                   : 'No result saved yet.'
                 : `SGPA ${formatGpa(view.sgpaComputed)} from ${formatCount(view.subjectCount, 'subject')}.`
             }
