@@ -587,7 +587,7 @@ describe('SGPA from a semester', () => {
     /*
      * A course failing a HEAD is not graded on its percentage, and the supplied
      * regulations do not say what letter it carries. Banding it anyway would
-     * put a P on a course the student has to sit again. OQ-052.
+     * put a P on a course the student has to sit again. OQ-054.
      */
     const failed = subject({
       id: 'a',
