@@ -445,3 +445,79 @@
   display: grid;
   gap: 2px;
 }
+
+/* -------------------------------------------------------------------------- */
+/* What is known about a reviewed row                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A quiet strip under the row's inputs, not a card. The row is already a dense
+ * form; giving its derived values their own surface would make each subject
+ * look like two objects, which is the thing M9.3 spent a milestone undoing.
+ */
+.resolved {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--space-2) 0 0;
+  padding-block-start: var(--space-2);
+  border-block-start: 1px solid var(--border);
+}
+
+.resolvedItem {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+.resolvedItem dt {
+  color: var(--text-subtle);
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.resolvedItem dd {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.resolvedValue {
+  color: var(--text);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * UNRESOLVED IS NOT AN ERROR, and is not painted as one. It is a fact about
+ * what the document could tell us, and a student reading a warning colour on
+ * six rows would learn to ignore it.
+ */
+.resolvedMissing {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+  font-style: italic;
+}
+
+.resolvedWhy {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The reason earns a whole line to itself; the source is a short aside. */
+.resolvedItem[data-unresolved='true'] {
+  flex-basis: 100%;
+}
