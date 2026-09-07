@@ -72,8 +72,19 @@ export interface DictionaryEntry {
   readonly subjectCode: string;
   /** The timetable's own wording. Source, never used to match (§22). */
   readonly title: string;
-  /** `MAT`. What the grid actually contains. */
-  readonly initials: string;
+  /**
+   * `MAT`. What the grid actually contains — when the table PRINTS it.
+   *
+   * Null is the common case on a real document. The Semester 5 table's own
+   * header reads "Subject code – Initials – Name" and then not one row fills
+   * the initials column in, so the grid's abbreviations appear nowhere in the
+   * table. Where that happens the abbreviation is derived from the TITLE
+   * instead — see `initialismsFor` — and this stays null rather than being
+   * filled with the first all-caps word of the title, which is what the
+   * previous heuristic did: it read `IPR` out of "Research Methodology and IPR"
+   * and declared it that subject's abbreviation.
+   */
+  readonly initials: string | null;
   readonly faculty: string | null;
   /** As the college teaches it, e.g. `3+0+2`. */
   readonly collegeHours: string | null;
@@ -88,6 +99,16 @@ export interface GridClass {
   readonly end: string;
   /** Resolved through the document's dictionary. Null when it could not be. */
   readonly subjectCode: string | null;
+  /**
+   * HOW it was resolved, or why it was not.
+   *
+   * Carried on every class so the review can distinguish "this is BCS502"
+   * from "this could be either of two subjects" from "this timetable never
+   * says what CN is". All three used to look identical — a null code.
+   */
+  readonly resolution: SubjectResolution;
+  /** Null exactly when `subjectCode` is not. Shown to the student verbatim. */
+  readonly unresolvedReason: string | null;
   /** What the cell actually said, always. */
   readonly initials: string;
   /**
@@ -306,8 +327,25 @@ const DAY_NAMES: Record<string, Weekday> = {
 /** A cell that marks time passing rather than a class (§19). */
 const BREAK_CELL = /^(lunch|break|recess|lunch\s*break|interval)$/i;
 
-/** `PHYE1/POPE2` — two classes, one per half of the class group (§23). */
-const SPLIT_CELL = /^([A-Z]{2,6})\s*(E\d|B\d)\s*\/\s*([A-Z]{2,6})\s*(E\d|B\d)$/i;
+/**
+ * `PHYE1/POPE2`, `CNL-B2/CSL-B1` — two classes, one per half of the group (§23).
+ *
+ * The batch may be joined to the initials or hyphenated to them. Both occur on
+ * real timetables, and the hyphenated form is the one the Semester 5 document
+ * uses for its lab rotation — with only `\s*` it matched neither of that
+ * document's two lab cells, and the rotation that puts half the class in one
+ * lab and half in the other was read as an unidentified blob.
+ */
+const SPLIT_CELL = /^([A-Z]{2,6})[\s-]*(E\d|B\d)[\s-]*\/[\s-]*([A-Z]{2,6})[\s-]*(E\d|B\d)$/i;
+
+/**
+ * `TOC-T` — an abbreviation with a component marker after it.
+ *
+ * A closed set: theory, practical, lab. Deliberately NOT "anything after a
+ * hyphen", which would strip the batch off `CNL-B2` and put a whole class in
+ * the wrong half of the group.
+ */
+const COMPONENT_SUFFIX = /^([A-Z]{2,6})-(T|P|L|TH|PR)$/i;
 
 /** `MAT LAB(E1+E2)` — one lab, for the batches named. */
 const LAB_CELL = /^([A-Z]{2,6})\s*LAB\s*\(([^)]*)\)$/i;
@@ -320,6 +358,10 @@ const LAB_CELL = /^([A-Z]{2,6})\s*LAB\s*\(([^)]*)\)$/i;
 const COURSE_CODE = /\b(1?B[A-Z]{2,6}\d{3}[A-Z]?)\b/;
 /** `2+2+2`, `3 +0+ 2`. */
 const HOURS = /\b(\d)\s*\+\s*(\d)\s*\+\s*(\d)\b/g;
+/** `Prof. A B`, `Dr. C`. Where a subject table's title column stops. */
+const FACULTY = /\b(?:prof|dr|adv|mr|ms|mrs)\s*\.?\s+[A-Za-z][A-Za-z. ]{1,40}/i;
+/** The same, global, for stripping every occurrence from a row. */
+const FACULTY_ALL = /\b(?:prof|dr|adv|mr|ms|mrs)\s*\.?\s+[A-Za-z][A-Za-z. ]{1,40}/gi;
 
 /**
  * The subject table at the foot of the page.
@@ -330,37 +372,117 @@ const HOURS = /\b(\d)\s*\+\s*(\d)\s*\+\s*(\d)\b/g;
 export function readDictionary(rows: readonly string[]): DictionaryEntry[] {
   const entries: DictionaryEntry[] = [];
 
+  /*
+   * A ROW OF THE TABLE IS NOT A LINE OF THE PAGE.
+   *
+   * A subject whose title is too long for the column wraps, and the wrapped
+   * halves come back as separate lines with the faculty and hours interleaved
+   * between them:
+   *
+   *     BXX515A Marketing Research & Marketing
+   *     Prof. A B 3+0+0 3 +0+0
+   *     Management
+   *
+   * Reading line by line took the title as "Marketing Research & Marketing" and
+   * lost the word that makes its abbreviation MRMM rather than MRM. So a row
+   * begins at a course code and continues until the next one.
+   */
+  const blocks: string[][] = [];
   for (const row of rows) {
-    const code = COURSE_CODE.exec(row)?.[1];
+    if (COURSE_CODE.test(row)) blocks.push([row]);
+    else blocks[blocks.length - 1]?.push(row);
+  }
+
+  for (const block of blocks) {
+    const head = block[0] as string;
+    const code = COURSE_CODE.exec(head)?.[1];
     if (code === undefined) continue;
 
-    const after = row.slice(row.indexOf(code) + code.length);
+    const after = head.slice(head.indexOf(code) + code.length);
 
     /*
-     * The initials are the only ALL-CAPS short token on the row that is not the
-     * code and not a number. Anchoring on shape rather than on column position
-     * survives a row whose columns the reader merged.
+     * The initials column, WHEN THE DOCUMENT FILLS IT IN.
+     *
+     * The first short all-caps token after the code that is not the code and
+     * not a department name. That is the original rule and it is kept, because
+     * it reads the reference document's layout — `code title INITIALS faculty
+     * hours` — correctly.
+     *
+     * What changed is that a row WITHOUT one is no longer discarded. The
+     * Semester 5 table's header names an "Initials" column and then not one row
+     * fills it in, so every subject was skipped and the dictionary came back
+     * holding a single entry — and that entry was a false positive, `IPR` read
+     * out of the middle of "Research Methodology and IPR".
      */
-    const initials = (after.match(/\b[A-Z]{2,6}\b/g) ?? []).find(
-      (token) => !COURSE_CODE.test(token) && !/^(LAB|VTU|CSE|ECE|ISE|AIML|CSBS)$/i.test(token),
-    );
-    if (initials === undefined) continue;
+    const declared =
+      (after.match(/\b[A-Z]{2,6}\b/g) ?? []).find(
+        (token) => !COURSE_CODE.test(token) && !/^(LAB|VTU|CSE|ECE|ISE|AIML|CSBS)$/i.test(token),
+      ) ?? null;
 
-    const title = after.slice(0, after.indexOf(initials)).replace(/\s+/g, ' ').trim();
+    /*
+     * THE TITLE IS WHAT IS LEFT WHEN THE ADMINISTRATION IS TAKEN OUT.
+     *
+     * Where a declared column exists the title ends at it, exactly as before.
+     * Where none does, the faculty and the workload have to be removed
+     * instead — and NOT by cutting at the faculty, which is wrong whenever a
+     * wrapped title resumes after it:
+     *
+     *     Marketing Research & Marketing  Prof. A B  3+0+0 3+0+0  Management
+     *
+     * Cutting there gives "Marketing Research & Marketing" and loses the word
+     * that makes the abbreviation MRMM rather than MRM. So the span from the
+     * faculty to the LAST workload group is removed and both sides kept, then
+     * any remaining name — the technical staff, printed after the hours — is
+     * stripped too.
+     */
+    const stripAdmin = (text: string) => {
+      let out = text;
+      const facultyAt = FACULTY.exec(out)?.index;
+      if (facultyAt !== undefined) {
+        const groups = [...out.matchAll(HOURS)];
+        const last = groups[groups.length - 1];
+        const lastEnd = last === undefined ? -1 : (last.index ?? 0) + last[0].length;
+        out =
+          lastEnd > facultyAt
+            ? `${out.slice(0, facultyAt)} ${out.slice(lastEnd)}`
+            : out.slice(0, facultyAt);
+      }
+      return (
+        out
+          .replace(FACULTY_ALL, ' ')
+          .replace(HOURS, ' ')
+          /* A contact number printed in the same cell is not part of a title. */
+          .replace(/\b\d{5,}\b/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      );
+    };
+
+    const titleParts =
+      declared === null ? [stripAdmin(after)] : [after.slice(0, after.indexOf(declared))];
+    for (const line of block.slice(1)) titleParts.push(stripAdmin(line));
+
+    const title = titleParts
+      .filter((part) => part !== '')
+      .join(' ')
+      .replace(/^[\s\-–—:]+/, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const joined = block.join(' ');
 
     /*
      * TWO WORKLOADS, KEPT APART (§27). A row prints what the college teaches
      * and what the scheme prescribes, and they differ — 3+0+2 against 2+0+2.
      * Collapsing them would lose the fact that they disagree.
      */
-    const hours = [...after.matchAll(HOURS)].map((match) => match[0].replace(/\s+/g, ''));
-
-    const faculty = /\b(?:prof|dr|adv|mr|ms|mrs)\.?\s+[A-Za-z][A-Za-z. ]{1,40}/i.exec(after)?.[0];
+    const hours = [...joined.matchAll(HOURS)].map((match) => match[0].replace(/\s+/g, ''));
+    const faculty = FACULTY.exec(joined)?.[0];
 
     entries.push({
       subjectCode: subjectKey(code),
       title,
-      initials: initials.toUpperCase(),
+      initials: declared?.toUpperCase() ?? null,
       faculty: faculty?.replace(/\s+/g, ' ').trim() ?? null,
       collegeHours: hours[0] ?? null,
       schemeHours: hours[1] ?? null,
@@ -368,6 +490,169 @@ export function readDictionary(rows: readonly string[]): DictionaryEntry[] {
   }
 
   return entries;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Abbreviations the table does not print                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Words a title's initialism may skip.
+ *
+ * Both readings are produced, because colleges write both: "Theory of
+ * Computation" is TOC on this timetable and TC on another.
+ */
+const SKIPPABLE = new Set(['of', 'and', 'the', 'for', 'in', 'to', 'with', 'a', 'an', '&']);
+
+/**
+ * Every abbreviation a title could reasonably have been shortened to.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY THIS EXISTS
+ * ---------------------------------------------------------------------------
+ *
+ * The grid says `CN`, `TOC`, `FM`, `CNL`, `RMIPR`. The subject table on the
+ * same page prints a code and a title and — on the real Semester 5 document —
+ * leaves its own "Initials" column entirely empty, despite the table's header
+ * naming it. So the only relationship between the grid and the table is that
+ * the abbreviation was built from the title, and reading it is the difference
+ * between one subject resolved and most of them.
+ *
+ * ---------------------------------------------------------------------------
+ * THIS IS NOT FUZZY MATCHING
+ * ---------------------------------------------------------------------------
+ *
+ * It generates a small, closed set of candidates by a stated rule and then
+ * demands an EXACT hit against one of them. There is no edit distance, no
+ * prefix matching, no scoring, no "closest". `CNL` matches "Computer Networks
+ * Lab" and nothing else; it does not nearly-match "Computer Networks", which
+ * produces `CN`.
+ *
+ * The rules, all of them:
+ *
+ *   - a word contributes its first letter,
+ *   - a word ALREADY IN CAPS in the title is an acronym and contributes whole,
+ *     so "Research Methodology and IPR" can reach RMIPR,
+ *   - a hyphenated word contributes each part, so "E-waste" gives E and W,
+ *   - the joining words above are included in one candidate and skipped in
+ *     another, because both spellings occur.
+ *
+ * At most two candidates per title, and a caller that accepts a match only when
+ * exactly one subject in the document produces it.
+ */
+export function initialismsFor(title: string): readonly string[] {
+  /*
+   * A PARENTHETICAL IS A QUALIFIER, NOT PART OF THE NAME.
+   *
+   * "Computer Networks(T/L)" is abbreviated CN on the grid, not CNTL — the
+   * bracket says the course has a theory and a lab component, which is a fact
+   * about the course rather than a word in its title. Both readings are
+   * produced, because a college that writes the bracket may also abbreviate it.
+   */
+  const bare = title.replace(/\([^)]*\)/g, ' ');
+  return [...new Set([...candidatesFrom(title), ...candidatesFrom(bare)])];
+}
+
+function candidatesFrom(title: string): readonly string[] {
+  const words = title
+    .split(/[^A-Za-z0-9&-]+/)
+    .flatMap((word) => word.split('-'))
+    .filter((word) => word !== '');
+  if (words.length === 0) return [];
+
+  const build = (skipJoiners: boolean) => {
+    let out = '';
+    for (const word of words) {
+      if (skipJoiners && SKIPPABLE.has(word.toLowerCase())) continue;
+      /* An acronym already in the title is carried whole, not initialised. */
+      out += word.length > 1 && word === word.toUpperCase() ? word : (word[0] as string);
+    }
+    return out.toUpperCase();
+  };
+
+  return [...new Set([build(true), build(false)])].filter((value) => value.length >= 2);
+}
+
+/** How a grid cell's subject came to be pinned to a code, or why it was not. */
+export type SubjectResolution = 'declared' | 'initialism' | 'ambiguous' | 'unknown';
+
+export interface ResolvedSubject {
+  readonly subjectCode: string | null;
+  readonly resolution: SubjectResolution;
+  /** Shown to the student verbatim when nothing was resolved. Null when it was. */
+  readonly reason: string | null;
+}
+
+/**
+ * The subject a grid abbreviation names, or an honest account of why not.
+ *
+ * Order, and it is not negotiable:
+ *
+ *   1. THE DOCUMENT'S OWN DECLARATION. If the subject table printed an initials
+ *      column, that is the answer and nothing else is consulted.
+ *   2. A UNIQUE TITLE INITIALISM. Derived by `initialismsFor`, accepted only
+ *      when exactly ONE subject in this document produces it.
+ *   3. NOTHING. Two subjects producing the same abbreviation is `ambiguous` and
+ *      says which two; none producing it is `unknown`. Neither invents a code,
+ *      and the class is kept either way so a person can identify it themselves.
+ */
+export function resolveGridSubject(
+  dictionary: readonly DictionaryEntry[],
+  initials: string,
+): ResolvedSubject {
+  const wanted = initials.trim().toUpperCase();
+  if (wanted === '') {
+    return { subjectCode: null, resolution: 'unknown', reason: 'The cell is empty.' };
+  }
+
+  const declared = dictionary.filter((entry) => entry.initials === wanted);
+  if (declared.length === 1) {
+    return {
+      subjectCode: (declared[0] as DictionaryEntry).subjectCode,
+      resolution: 'declared',
+      reason: null,
+    };
+  }
+
+  /*
+   * The declared token is ALSO tried as part of the title.
+   *
+   * "Research Methodology and IPR" has no initials column; `IPR` is a word of
+   * the title that the column-detector cannot tell apart from an abbreviation,
+   * so it is read as one and the title becomes "Research Methodology and". The
+   * grid says RMIPR. Putting the token back gives the true title and the
+   * candidate that matches it — without which the detector's ambiguity would
+   * silently cost a subject.
+   */
+  const candidates = (entry: DictionaryEntry) => [
+    ...initialismsFor(entry.title),
+    ...(entry.initials === null ? [] : initialismsFor(`${entry.title} ${entry.initials}`)),
+  ];
+
+  const derived = dictionary.filter((entry) => candidates(entry).includes(wanted));
+  if (derived.length === 1) {
+    return {
+      subjectCode: (derived[0] as DictionaryEntry).subjectCode,
+      resolution: 'initialism',
+      reason: null,
+    };
+  }
+  if (derived.length > 1) {
+    return {
+      subjectCode: null,
+      resolution: 'ambiguous',
+      reason:
+        `"${wanted}" could be ` +
+        `${derived.map((entry) => entry.subjectCode).join(' or ')} — ` +
+        'this timetable does not say which.',
+    };
+  }
+
+  return {
+    subjectCode: null,
+    resolution: 'unknown',
+    reason: `"${wanted}" is not defined anywhere on this timetable.`,
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -831,6 +1116,19 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
         .trim();
       if (text === '' || /^[-–—.]+$/.test(text)) continue;
 
+      /*
+       * A SINGLE LETTER IS NEVER A SUBJECT.
+       *
+       * A timetable sets "SHORT BREAK" and "LUNCH" vertically down its narrow
+       * columns, and the extractor returns that as one letter per printed line
+       * — S, H, O, R, T, B, R, E, A, K. Each landed in the break column as its
+       * own cell and became its own "class", so a real document produced
+       * seventeen distinct subject abbreviations of which eight were single
+       * letters. Dropping them costs nothing: every abbreviation the grid
+       * actually uses is at least two characters.
+       */
+      if (text.replace(/[^A-Za-z0-9]/g, '').length < 2) continue;
+
       if (BREAK_CELL.test(text)) {
         breakColumns.add(column);
         continue;
@@ -850,13 +1148,21 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
       const end = (bounded[Math.min(lastColumn, bounded.length - 1)] ?? slot).end;
 
       const push = (initials: string, batch: string | null, room: string | null) => {
-        const entry = dictionary.find((candidate) => candidate.initials === initials.toUpperCase());
+        /*
+         * Through `resolveGridSubject`, which consults the document's declared
+         * initials column first and falls back to a UNIQUE title initialism.
+         * This used to be a direct lookup on the declared column alone, which
+         * on a table that leaves that column empty resolved nothing at all.
+         */
+        const resolved = resolveGridSubject(dictionary, initials);
         if (batch !== null) batches.add(batch.toUpperCase());
         classes.push({
           day,
           start: slot.start,
           end,
-          subjectCode: entry?.subjectCode ?? null,
+          subjectCode: resolved.subjectCode,
+          resolution: resolved.resolution,
+          unresolvedReason: resolved.reason,
           initials: initials.toUpperCase(),
           batch: batch?.toUpperCase() ?? null,
           room,
@@ -890,6 +1196,13 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
         continue;
       }
 
+      /* `TOC-T`: the same subject, marked as its theory hour. */
+      const component = COMPONENT_SUFFIX.exec(text);
+      if (component !== null) {
+        push(component[1] as string, null, null);
+        continue;
+      }
+
       /*
        * `RMIPR LH-302` — the subject and the room in one cell.
        *
@@ -918,6 +1231,9 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
         start: slot.start,
         end,
         subjectCode: null,
+        resolution: 'unknown',
+        unresolvedReason:
+          'This cell is not a subject abbreviation this timetable defines. Check it against the printed timetable.',
         initials: text.slice(0, 20),
         batch: null,
         room: null,
