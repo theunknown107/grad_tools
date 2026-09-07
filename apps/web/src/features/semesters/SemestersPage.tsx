@@ -22,6 +22,7 @@ import {
   analyseStrengths,
   buildSemesterViews,
   cumulativeStanding,
+  sgpaReading,
   graduationProgress,
   subjectPerformance,
   summariseBacklogs,
@@ -358,6 +359,7 @@ export function SemestersPage() {
         <ul className={styles.semesterList}>
           {views.map((view) => {
             const sgpa = view.sgpaComputed;
+            const reading = sgpaReading(view);
             const isOpen = openSemester === view.number;
             return (
               <li key={view.number}>
@@ -384,7 +386,7 @@ export function SemestersPage() {
                       role="img"
                       aria-label={
                         sgpa === null
-                          ? `Semester ${String(view.number)}: no SGPA yet`
+                          ? `Semester ${String(view.number)}: no SGPA. ${reading.reason ?? ''}`
                           : `Semester ${String(view.number)}: SGPA ${formatGpa(sgpa)} of 10`
                       }
                     >
@@ -399,6 +401,16 @@ export function SemestersPage() {
                         : 'No result entered'}
                     </span>
                   </div>
+
+                  {/*
+                    NEVER A BARE DASH. The em dash above says a figure is
+                    absent; this says which subjects stopped it and what they
+                    are missing, which is the only version a student can act
+                    on (Phase 7C §13).
+                  */}
+                  {sgpa === null && reading.reason !== null && view.result !== null && (
+                    <p className={styles.note}>{reading.reason}</p>
+                  )}
 
                   {view.sgpaDisagrees && (
                     <p className={styles.disagree}>

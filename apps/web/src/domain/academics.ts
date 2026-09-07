@@ -183,6 +183,88 @@ export function buildSemesterViews(
   });
 }
 
+/* -------------------------------------------------------------------------- */
+/* Saying why a figure is missing                                             */
+/* -------------------------------------------------------------------------- */
+
+export interface SgpaReading {
+  /** The figure, when there is one. */
+  readonly value: number | null;
+  /** Why there is none. Null exactly when `value` is a number. */
+  readonly reason: string | null;
+  /** The subject codes holding it back, for a screen that can list them. */
+  readonly blocking: readonly string[];
+}
+
+/**
+ * One semester's SGPA and, failing that, the sentence explaining its absence.
+ *
+ * Every screen used to render a bare em dash for a null SGPA. An em dash is
+ * indistinguishable from "you have not entered this yet", so a student whose
+ * four imported semesters all lacked credits saw four dashes and no way to
+ * learn that credits were the reason — the product knew, and did not say.
+ *
+ * The reasons come from what `buildSemesterViews` already recorded; nothing new
+ * is decided here. It exists so that the degree page, the analytics page and
+ * the dashboard cannot each phrase the same absence differently.
+ */
+export function sgpaReading(view: SemesterView): SgpaReading {
+  if (view.sgpaComputed !== null) {
+    return { value: view.sgpaComputed, reason: null, blocking: [] };
+  }
+
+  if (view.result === null) {
+    return {
+      value: null,
+      reason:
+        view.status === 'in_progress'
+          ? 'This semester is still in progress.'
+          : 'No result has been entered for this semester.',
+      blocking: [],
+    };
+  }
+
+  if (view.ruleSetResolution === 'unavailable') {
+    return {
+      value: null,
+      reason: `This semester was graded under rule set ${view.missingRuleSetId ?? 'unknown'}, which this version does not have.`,
+      blocking: [],
+    };
+  }
+
+  /*
+   * The useful case, and the one behind the reported bug. SGPA is
+   * credit-weighted across the WHOLE semester, so one subject without credits
+   * or without a resolvable grade stops the average for all of them — and the
+   * student can act on that only if the subjects are named.
+   */
+  if (view.sgpaMissing.length > 0) {
+    const blocking = view.sgpaMissing.map((entry) => entry.subjectCode);
+    const reasons = [...new Set(view.sgpaMissing.map((entry) => entry.reason))];
+    return {
+      value: null,
+      reason: `SGPA needs every subject in the semester. ${
+        blocking.length === 1
+          ? `${blocking[0] ?? ''} has`
+          : `${String(blocking.length)} subjects have`
+      } ${joinReasons(reasons)}.`,
+      blocking,
+    };
+  }
+
+  /* A semester with no course that counts towards the average at all. */
+  return {
+    value: null,
+    reason: 'No subject in this semester carries credits that count towards an SGPA.',
+    blocking: [],
+  };
+}
+
+function joinReasons(reasons: readonly string[]): string {
+  if (reasons.length <= 1) return reasons[0] ?? 'no grade or credits';
+  return `${reasons.slice(0, -1).join(', ')} or ${reasons[reasons.length - 1] ?? ''}`;
+}
+
 /** The semester the student is in, if they have said. */
 export function currentSemester(views: readonly SemesterView[]): SemesterView | null {
   return views.find((view) => view.status === 'in_progress') ?? null;
