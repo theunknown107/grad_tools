@@ -23,11 +23,13 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  initialismsFor,
   needsBatch,
   parseTimetable,
   readDictionary,
   readSlot,
   relateTimetable,
+  resolveGridSubject,
   slotsForBatch,
   type PlacedLike,
   type SavedTimetable,
@@ -604,5 +606,204 @@ describe('a day whose label sits on its own printed line', () => {
     // have changed.
     const parsed = parseTimetable(page(MONDAY));
     expect(parsed.classes.filter((entry) => entry.day === 'Mon').length).toBe(5);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Abbreviations a subject table does not print                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The Semester 5 table's own header names an "Initials" column, and then not
+ * one row fills it in. Its grid still says CN, TOC, FM, CNL, CSL — built from
+ * the TITLES. Reading that is the difference between one subject resolved and
+ * most of them, and it is done by a stated rule with a uniqueness requirement,
+ * not by similarity scoring.
+ */
+describe('an abbreviation built from a title', () => {
+  it('takes a first letter from each word', () => {
+    expect(initialismsFor('Computer Networks Lab')).toContain('CNL');
+    expect(initialismsFor('Computational Statistics Lab')).toContain('CSL');
+  });
+
+  it('offers the reading with and without the joining words', () => {
+    // A college writes both: TOC on this timetable, TC on another.
+    const candidates = initialismsFor('Theory of Computation');
+    expect(candidates).toContain('TOC');
+    expect(candidates).toContain('TC');
+  });
+
+  it('carries an acronym already in the title whole', () => {
+    // "Research Methodology and IPR" is RMIPR, not RMI.
+    expect(initialismsFor('Research Methodology and IPR')).toContain('RMIPR');
+  });
+
+  it('treats a parenthetical as a qualifier rather than a word', () => {
+    // "(T/L)" says the course has theory and lab parts; the grid still says CN.
+    const candidates = initialismsFor('Computer Networks(T/L)');
+    expect(candidates).toContain('CN');
+    expect(candidates).toContain('CNTL');
+  });
+
+  it('splits a hyphenated word into its parts', () => {
+    expect(initialismsFor('Environmental Studies and E-waste Management')).toContain('ESEWM');
+  });
+
+  it('produces nothing from nothing', () => {
+    expect(initialismsFor('')).toEqual([]);
+    expect(initialismsFor('X')).toEqual([]);
+  });
+});
+
+describe('resolving a grid abbreviation to a subject', () => {
+  const table = [
+    'BQAS501 Fundamentals of Management Prof. A One 3+0+0 3+0+0',
+    'BQAS502 Computer Networks(T/L) Prof. B Two 3+0+0 3+0+2',
+    'BQASL502-Computer Networks Lab Prof. C Three 0+2+0 0+2+0 Mr. D Four',
+  ];
+
+  it('resolves through a unique title initialism when no column declares one', () => {
+    const dictionary = readDictionary(table);
+    expect(resolveGridSubject(dictionary, 'FM')).toMatchObject({
+      subjectCode: 'BQAS501',
+      resolution: 'initialism',
+      reason: null,
+    });
+    // CNL is "Computer Networks Lab" and nothing else. It does not
+    // nearly-match "Computer Networks", which produces CN.
+    expect(resolveGridSubject(dictionary, 'CNL').subjectCode).toBe('BQASL502');
+    expect(resolveGridSubject(dictionary, 'CN').subjectCode).toBe('BQAS502');
+  });
+
+  it('prefers a column the document actually printed', () => {
+    const dictionary = readDictionary([
+      'BQAS501 Mathematics-I for CSE Stream MAT Prof. A One 2+2+2 2+2+2',
+    ]);
+    expect(resolveGridSubject(dictionary, 'MAT')).toMatchObject({
+      subjectCode: 'BQAS501',
+      resolution: 'declared',
+    });
+  });
+
+  it('refuses to choose when two subjects would produce the same abbreviation', () => {
+    /*
+     * THE ASSERTION THAT MATTERS MOST. A rule that resolves an ambiguous
+     * abbreviation is worse than one that resolves nothing: it puts a student
+     * in the wrong class and says nothing about it.
+     */
+    const dictionary = readDictionary([
+      'BQAS501 Computer Networks Prof. A One 3+0+0 3+0+0',
+      'BQAS502 Compiler Notes Prof. B Two 3+0+0 3+0+0',
+    ]);
+    const resolved = resolveGridSubject(dictionary, 'CN');
+    expect(resolved.subjectCode).toBeNull();
+    expect(resolved.resolution).toBe('ambiguous');
+    // And it says which two, so a person can settle it.
+    expect(resolved.reason).toContain('BQAS501');
+    expect(resolved.reason).toContain('BQAS502');
+  });
+
+  it('says so, by name, when the document never defines the abbreviation', () => {
+    const dictionary = readDictionary(table);
+    const resolved = resolveGridSubject(dictionary, 'ZZZ');
+    expect(resolved.subjectCode).toBeNull();
+    expect(resolved.resolution).toBe('unknown');
+    expect(resolved.reason).toContain('ZZZ');
+  });
+});
+
+describe('a subject table that wraps its titles', () => {
+  it('joins a title split across printed lines', () => {
+    /*
+     * A narrow column wraps the title and the faculty and hours land BETWEEN
+     * the halves. Reading line by line took the title as "Marketing Research &
+     * Marketing" and lost the word that makes the abbreviation MRMM.
+     */
+    const dictionary = readDictionary([
+      'BQAS515A Marketing Research & Marketing',
+      'Prof. A One 3+0+0 3+0+0',
+      'Management',
+    ]);
+    expect(dictionary[0]?.title).toBe('Marketing Research & Marketing Management');
+    expect(resolveGridSubject(dictionary, 'MRMM').subjectCode).toBe('BQAS515A');
+  });
+
+  it('keeps the technical staff out of the title', () => {
+    const dictionary = readDictionary([
+      'BQASL502-Computer Networks Lab Prof. C Three 0+2+0 0+2+0 Mr. D Four',
+    ]);
+    expect(dictionary[0]?.title).toBe('Computer Networks Lab');
+  });
+
+  it('reads a faculty name whose full stop is spaced away from it', () => {
+    // `Prof . A One` is what a PDF converted from a word processor produces,
+    // and it used to leave the whole name inside the title.
+    const dictionary = readDictionary(['BQAS501 Theory of Computation Prof . A One 3+2+0 3+2+0']);
+    expect(dictionary[0]?.title).toBe('Theory of Computation');
+  });
+});
+
+describe('cell shapes a word-processed grid produces', () => {
+  it('splits a hyphenated batch cell into one class per batch', () => {
+    /*
+     * `CNL-B2/CSL-B1` is the lab rotation: half the group in one lab, half in
+     * the other. With only `\s*` between the initials and the batch it matched
+     * neither of the real document's two lab cells, and the rotation was read
+     * as one unidentified blob.
+     */
+    const dictionary = readDictionary([
+      'BQASL502 Computer Networks Lab Prof. A One 0+2+0 0+2+0',
+      'BQASL504 Computational Statistics Lab Prof. B Two 0+0+2 0+0+2',
+    ]);
+    expect(resolveGridSubject(dictionary, 'CNL').subjectCode).toBe('BQASL502');
+    expect(resolveGridSubject(dictionary, 'CSL').subjectCode).toBe('BQASL504');
+
+    const parsed = parseTimetable(page(dayRow('MONDAY', 660, ['CNL-B2/CSL-B1'])));
+    const monday = parsed.classes.filter((entry) => entry.day === 'Mon');
+    expect(monday.map((entry) => [entry.initials, entry.batch])).toEqual([
+      ['CNL', 'B2'],
+      ['CSL', 'B1'],
+    ]);
+  });
+
+  it('reads a component marker as the same subject', () => {
+    // `TOC-T` is Theory of Computation, marked as its theory hour.
+    const parsed = parseTimetable(page(dayRow('MONDAY', 660, ['ETC-T'])));
+    expect(parsed.classes[0]?.initials).toBe('ETC');
+  });
+
+  it('does not strip a batch as though it were a component marker', () => {
+    // The component set is closed — T, P, L, TH, PR — precisely so that `-B2`
+    // is never mistaken for one and a whole class put in the wrong half.
+    const parsed = parseTimetable(page(dayRow('MONDAY', 660, ['ETC-B2'])));
+    expect(parsed.classes[0]?.initials).not.toBe('ETC');
+  });
+
+  it('drops a single letter, which is never a subject', () => {
+    /*
+     * A timetable sets "SHORT BREAK" vertically down its narrow column, and the
+     * extractor returns one letter per printed line. Each became its own class,
+     * so a real document produced seventeen abbreviations of which eight were
+     * single letters.
+     */
+    const parsed = parseTimetable(page(dayRow('MONDAY', 660, ['MAT', 'S', 'H', 'O', 'PHY'])));
+    expect(parsed.classes.map((entry) => entry.initials)).toEqual(['MAT', 'PHY']);
+  });
+});
+
+describe('what a class says about its own subject', () => {
+  it('carries how it was resolved, so all three outcomes are distinguishable', () => {
+    const parsed = parseTimetable(page(dayRow('MONDAY', 660, ['MAT', 'ZZZ'])));
+    const resolved = parsed.classes.find((entry) => entry.initials === 'MAT');
+    const missing = parsed.classes.find((entry) => entry.initials === 'ZZZ');
+
+    expect(resolved?.resolution).toBe('declared');
+    expect(resolved?.unresolvedReason).toBeNull();
+
+    // A null code used to be the only signal, and it meant three different
+    // things. It now says which.
+    expect(missing?.subjectCode).toBeNull();
+    expect(missing?.resolution).toBe('unknown');
+    expect(missing?.unresolvedReason).toContain('ZZZ');
   });
 });
