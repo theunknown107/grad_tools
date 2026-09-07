@@ -28,7 +28,9 @@ import {
   type ParsedCalendar,
   type SavedCalendar,
 } from '../../domain/calendar-import.js';
-import { Button, Notice, SelectField, StatusPill } from '../../components/ui/index.js';
+import { Button, Notice, SelectField } from '../../components/ui/index.js';
+import { Alert } from '../../components/ui/Feedback.js';
+import { useToast } from '../../components/ui/Toast.js';
 import { newId, nowIso } from '../../lib/id.js';
 import styles from './results.module.css';
 
@@ -68,10 +70,18 @@ export function CalendarReview({
   readonly fingerprint: string;
   readonly sourceKind: 'text' | 'ocr';
   readonly saved: readonly SavedCalendar[];
-  readonly onSave: (calendar: SavedCalendar) => void;
+  readonly onSave: (calendar: SavedCalendar) => void | Promise<void>;
 }) {
   const [semester, setSemester] = useState(parsed.semester === null ? '' : String(parsed.semester));
-  const [done, setDone] = useState(false);
+  const toast = useToast();
+  /*
+   * FOUR STATES, NOT A BOOLEAN. `done` was flipped synchronously, before the
+   * write, while the panel above called `void save(...)` — so this said
+   * "Saved" whether or not anything reached storage, and a rejected write was
+   * swallowed by that `void`.
+   */
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const chosen = semester === '' ? null : Number(semester);
   const relation = relateCalendar(
@@ -91,18 +101,48 @@ export function CalendarReview({
   const blocked = relation.kind === 'duplicate';
   const ready = !blocked && parsed.events.length > 0 && chosen !== null;
 
-  const confirm = () => {
-    onSave({
-      id: newId(),
-      semester: chosen,
-      academicYear: parsed.academicYear,
-      events: parsed.events,
-      fingerprint,
-      importedAt: nowIso(),
-      sourceKind,
-    });
-    setDone(true);
+  const confirm = async () => {
+    /* Idempotent against a second press: the disable lands a render too late. */
+    if (saveState === 'saving' || saveState === 'saved') return;
+    setSaveState('saving');
+    setSaveError(null);
+    try {
+      await onSave({
+        id: newId(),
+        semester: chosen,
+        academicYear: parsed.academicYear,
+        events: parsed.events,
+        fingerprint,
+        importedAt: nowIso(),
+        sourceKind,
+      });
+      setSaveState('saved');
+      toast({
+        title: 'Data confirmed and recorded.',
+        description: `${String(parsed.events.length)} dates are saved on this device.`,
+        tone: 'success',
+      });
+    } catch (cause) {
+      setSaveState('failed');
+      setSaveError(
+        cause instanceof Error && cause.message !== ''
+          ? `Your calendar could not be recorded: ${cause.message}`
+          : 'Your calendar could not be recorded. Please try again.',
+      );
+    }
   };
+
+  /* A saved calendar leaves the review rather than sitting there looking frozen. */
+  if (saveState === 'saved') {
+    return (
+      <section className={styles.importGroup} aria-label="Calendar recorded">
+        <Alert tone="success" live title="Data confirmed and recorded.">
+          {parsed.events.length} dates are saved on this device. Your dashboard already shows what
+          is next.
+        </Alert>
+      </section>
+    );
+  }
 
   return (
     <section className={styles.importGroup}>
@@ -198,14 +238,22 @@ export function CalendarReview({
         ))}
       </ul>
 
+      {saveError !== null && (
+        <div className={styles.editorNotice}>
+          <Alert tone="danger" live="assertive" title="Not recorded">
+            {saveError} Nothing you reviewed has been lost — press the button again to retry.
+          </Alert>
+        </div>
+      )}
+
       <div className={styles.editorActions}>
-        {done ? (
-          <StatusPill tone="success">Saved</StatusPill>
-        ) : (
-          <Button variant="primary" disabled={!ready} onClick={confirm}>
-            Confirm and save calendar
-          </Button>
-        )}
+        <Button
+          variant="primary"
+          disabled={!ready || saveState === 'saving'}
+          onClick={() => void confirm()}
+        >
+          {saveState === 'saving' ? 'Recording…' : 'Confirm and save calendar'}
+        </Button>
       </div>
     </section>
   );
