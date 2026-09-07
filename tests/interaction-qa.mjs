@@ -500,7 +500,10 @@ const run = async () => {
     await page.click('[role="tab"]:has-text("Applies to me")');
     await page.waitForTimeout(500);
     const mine = await page.locator('article').count();
-    expect(mine < all, `"Applies to me" did not narrow the feed: ${String(mine)} of ${String(all)}`);
+    expect(
+      mine < all,
+      `"Applies to me" did not narrow the feed: ${String(mine)} of ${String(all)}`,
+    );
     expect(mine > 0, 'the untargeted notices should still apply to this student');
   });
 
@@ -608,7 +611,8 @@ const run = async () => {
 
     const behindHidden = await phone.evaluate(() =>
       [...document.body.children].some(
-        (node) => node.getAttribute('aria-hidden') === 'true' && node.querySelector('#main') !== null,
+        (node) =>
+          node.getAttribute('aria-hidden') === 'true' && node.querySelector('#main') !== null,
       ),
     );
     expect(behindHidden, 'the page behind the sheet was not hidden from assistive technology');
