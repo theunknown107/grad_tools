@@ -55,3 +55,36 @@ export function formatDay(value: string): string {
   if (Number.isNaN(when.getTime())) return value;
   return when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+/* -------------------------------------------------------------------------- */
+/* Metrics                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A derived figure, as a metric strip reads it.
+ *
+ * ONE PLACE DECIDES WHAT AN ABSENT FIGURE LOOKS LIKE. Screens used to write
+ * `value === null ? '—' : format(value)` inline, and an em dash cannot
+ * distinguish "you have not entered this" from "one of your courses needs
+ * review" — the two absences a student would act on differently (Phase 7C §1).
+ *
+ * So an unresolved metric reads "Unavailable" and carries its own reason into
+ * the note beneath, and a PARTIAL one shows the figure it does have with the
+ * caveat attached rather than hiding it (§4).
+ */
+export function metricDisplay(
+  metric: {
+    readonly value: number | null;
+    readonly status: string;
+    readonly reason: string | null;
+  },
+  format: (value: number) => string = String,
+): { readonly value: string; readonly note: string | undefined } {
+  if (metric.value === null) {
+    return { value: 'Unavailable', note: metric.reason ?? undefined };
+  }
+  return {
+    value: format(metric.value),
+    note: metric.status === 'resolved' ? undefined : (metric.reason ?? undefined),
+  };
+}
