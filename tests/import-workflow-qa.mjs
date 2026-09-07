@@ -224,8 +224,7 @@ const run = async () => {
   const mainText = async (target = page) => target.locator('#main').innerText();
 
   /** How many semesters are on offer for review right now. */
-  const groupCount = async (target = page) =>
-    target.locator('h3:has-text("Semester")').count();
+  const groupCount = async (target = page) => target.locator('h3:has-text("Semester")').count();
 
   const storedResults = async (target = page) =>
     target.evaluate(
@@ -305,10 +304,7 @@ const run = async () => {
     (await groupCount()) === 4,
     `PARTIAL: one bad file left ${String(await groupCount())} semesters instead of 4`,
   );
-  expect(
-    /could not be|Failed/i.test(text),
-    'PARTIAL: the file that failed did not say so',
-  );
+  expect(/could not be|Failed/i.test(text), 'PARTIAL: the file that failed did not say so');
   expect(text.includes('broken.pdf'), 'PARTIAL: the failed file left the list');
   await page.screenshot({ path: join(OUT, 'partial-failure-1280.png'), fullPage: true });
 
@@ -361,10 +357,7 @@ const run = async () => {
     /describe the same semester differently/i.test(text),
     'REVISION: the two files disagreed and the screen did not say so',
   );
-  expect(
-    /external: 70 → 84|external/i.test(text),
-    'REVISION: the differing field was not named',
-  );
+  expect(/external: 70 → 84|external/i.test(text), 'REVISION: the differing field was not named');
   /*
    * NEITHER IS CHOSEN. A revaluation and the wrong file both have plausible
    * rows and arithmetic that adds up; only a person can tell them apart.
@@ -382,7 +375,10 @@ const run = async () => {
   /* -------------------------------------------------------------------- */
 
   const beforeCancel = await storedResults();
-  await page.getByRole('button', { name: /^(cancel|done)$/i }).first().click();
+  await page
+    .getByRole('button', { name: /^(cancel|done)$/i })
+    .first()
+    .click();
   await page.waitForTimeout(400);
   const afterCancel = await storedResults();
   expect(
@@ -446,12 +442,18 @@ const run = async () => {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     if (overflow > 0) fail(`OVERFLOW ${label} after import: ${String(overflow)}px`);
-    await page.screenshot({ path: join(OUT, `after-import-${label.toLowerCase()}.png`), fullPage: true });
+    await page.screenshot({
+      path: join(OUT, `after-import-${label.toLowerCase()}.png`),
+      fullPage: true,
+    });
   }
 
   expect(/SGPA/i.test(seen.Results), 'CHAIN: no SGPA on Results after importing graded semesters');
   expect(/CGPA/i.test(seen.Dashboard), 'CHAIN: no CGPA on the dashboard');
-  expect(/Semester 1\b/.test(seen.Degree), 'CHAIN: the imported semester is not on the degree page');
+  expect(
+    /Semester 1\b/.test(seen.Degree),
+    'CHAIN: the imported semester is not on the degree page',
+  );
   expect(
     /%|percentage/i.test(seen.Results) || /%|percentage/i.test(seen.Dashboard),
     'CHAIN: no percentage anywhere after import',
@@ -521,7 +523,10 @@ const run = async () => {
   await actions.scrollIntoViewIfNeeded();
   await actions.click();
   await page.waitForTimeout(300);
-  await page.getByRole('menuitem', { name: /edit this semester/i }).first().click();
+  await page
+    .getByRole('menuitem', { name: /edit this semester/i })
+    .first()
+    .click();
   await page.waitForTimeout(600);
 
   const field = page.getByLabel(/^Internal 1$/i).first();
@@ -572,9 +577,7 @@ const run = async () => {
     `EDIT: editing a result left ${String(afterEdit.length)} results instead of 3`,
   );
   expect(
-    afterEdit.some((result) =>
-      (result.subjects ?? []).some((subject) => subject.internal === 47),
-    ),
+    afterEdit.some((result) => (result.subjects ?? []).some((subject) => subject.internal === 47)),
     'EDIT: the corrected mark was not stored',
   );
 
@@ -670,10 +673,7 @@ const run = async () => {
   await feed(page, [{ name: 'huge.png', mimeType: 'image/png', buffer: huge }], {
     timeout: 60_000,
   });
-  expect(
-    /larger than|could not/i.test(await mainText()),
-    'SECURITY: a 21MB image was not refused',
-  );
+  expect(/larger than|could not/i.test(await mainText()), 'SECURITY: a 21MB image was not refused');
 
   /* -------------------------------------------------------------------- */
   /* 10. THE DOCUMENT DECIDES WHERE IT GOES                               */
@@ -720,10 +720,7 @@ const run = async () => {
     !/Notification No|Copy to|Ref No/i.test(text),
     'ROUTER: a circular reference or distribution line became a calendar event',
   );
-  expect(
-    !/2026-27\/4718/.test(text),
-    'ROUTER: a notification number was read as a date row',
-  );
+  expect(!/2026-27\/4718/.test(text), 'ROUTER: a notification number was read as a date row');
   await page.screenshot({ path: join(OUT, 'router-1280.png'), fullPage: true });
 
   /* ---- saving a calendar, and refusing the same one twice ------------- */
@@ -748,7 +745,10 @@ const run = async () => {
         open.onerror = () => ok([]);
       }),
   );
-  expect(storedCalendars.length === 1, `CALENDAR: expected 1 saved calendar, found ${String(storedCalendars.length)}`);
+  expect(
+    storedCalendars.length === 1,
+    `CALENDAR: expected 1 saved calendar, found ${String(storedCalendars.length)}`,
+  );
   expect(
     (storedCalendars[0]?.events ?? []).length === 4,
     `CALENDAR: expected 4 dates, stored ${String((storedCalendars[0]?.events ?? []).length)}`,
@@ -794,7 +794,10 @@ const run = async () => {
     'TIMETABLE: a timetable with split batches offered to save before a batch was chosen',
   );
 
-  await page.getByLabel(/your batch/i).first().selectOption('E1');
+  await page
+    .getByLabel(/your batch/i)
+    .first()
+    .selectOption('E1');
   await page.waitForTimeout(300);
   await saveTimetable.scrollIntoViewIfNeeded();
   await saveTimetable.click();
@@ -887,7 +890,10 @@ const run = async () => {
   await page.goto(`${ORIGIN}/timetable`);
   await page.waitForTimeout(800);
   const week = await mainText();
-  expect(/BQATS101|BQHYS102|BQSCK104B/.test(week), 'TIMETABLE: the week view shows no imported classes');
+  expect(
+    /BQATS101|BQHYS102|BQSCK104B/.test(week),
+    'TIMETABLE: the week view shows no imported classes',
+  );
   await page.screenshot({ path: join(OUT, 'timetable-week-1280.png'), fullPage: true });
 
   /* ---- the same calendar as a PICTURE goes down the same route ------- */
@@ -977,10 +983,7 @@ const run = async () => {
   await page.goto(`${ORIGIN}/import`);
   await page.waitForTimeout(700);
   const hub = await mainText();
-  expect(
-    (await page.locator('input[type="file"]').count()) > 0,
-    'HUB: /import has no file input',
-  );
+  expect((await page.locator('input[type="file"]').count()) > 0, 'HUB: /import has no file input');
   expect(
     /result card|academic calendar|class timetable/i.test(hub),
     'HUB: /import does not say which documents it takes',
@@ -1005,7 +1008,13 @@ const run = async () => {
         const open = globalThis.indexedDB.open('keyval-store', 1);
         open.onsuccess = () => {
           const store = open.result.transaction('keyval', 'readwrite').objectStore('keyval');
-          for (const key of ['results', 'calendars', 'timetable', 'timetableImports', 'attendance']) {
+          for (const key of [
+            'results',
+            'calendars',
+            'timetable',
+            'timetableImports',
+            'attendance',
+          ]) {
             store.delete(`gradtools:v1:anon:${key}`);
           }
           ok(true);
@@ -1033,11 +1042,20 @@ const run = async () => {
   );
 
   /* Confirm all four, in the order a student would meet them. */
-  await page.getByRole('button', { name: /confirm and save calendar/i }).first().click();
+  await page
+    .getByRole('button', { name: /confirm and save calendar/i })
+    .first()
+    .click();
   await page.waitForTimeout(400);
-  await page.getByLabel(/your batch/i).first().selectOption('E1');
+  await page
+    .getByLabel(/your batch/i)
+    .first()
+    .selectOption('E1');
   await page.waitForTimeout(200);
-  await page.getByRole('button', { name: /confirm and save timetable/i }).first().click();
+  await page
+    .getByRole('button', { name: /confirm and save timetable/i })
+    .first()
+    .click();
   await page.waitForTimeout(400);
 
   /*
@@ -1114,7 +1132,10 @@ const run = async () => {
   );
 
   /* No duplicates: one calendar, one active week, two results (§43). */
-  expect(stored.calendars === 1, `SEMESTER: ${String(stored.calendars)} calendars stored, expected 1`);
+  expect(
+    stored.calendars === 1,
+    `SEMESTER: ${String(stored.calendars)} calendars stored, expected 1`,
+  );
   expect(stored.results === 2, `SEMESTER: ${String(stored.results)} results stored, expected 2`);
   expect(stored.timetable > 0, 'SEMESTER: no timetable slots stored');
   report.semester = stored;
@@ -1180,10 +1201,7 @@ const run = async () => {
    * this timetable is active but not yet in effect — a fact the student is
    * entitled to rather than one the screen settles quietly (§24).
    */
-  expect(
-    /take effect on/i.test(todayScreen),
-    'DAILY: a not-yet-effective timetable says nothing',
-  );
+  expect(/take effect on/i.test(todayScreen), 'DAILY: a not-yet-effective timetable says nothing');
 
   const attendedButton = daily.getByRole('button', { name: /attended$/i }).first();
   expect(
@@ -1209,7 +1227,10 @@ const run = async () => {
 
   let dayCounts = await storedList('attendance');
   let dayMarks = await storedList('classMarks');
-  expect(dayMarks.length === 1, `DAILY: ${String(dayMarks.length)} marks after two taps, expected 1`);
+  expect(
+    dayMarks.length === 1,
+    `DAILY: ${String(dayMarks.length)} marks after two taps, expected 1`,
+  );
   expect(
     dayCounts.length === 1 && dayCounts[0].conducted === 1 && dayCounts[0].attended === 1,
     `DAILY: two taps produced ${JSON.stringify(dayCounts.map((r) => [r.attended, r.conducted]))}`,
@@ -1220,7 +1241,10 @@ const run = async () => {
   );
 
   /* A correction moves one counter. The class happened either way (§29). */
-  await daily.getByRole('button', { name: /missed$/i }).first().click();
+  await daily
+    .getByRole('button', { name: /missed$/i })
+    .first()
+    .click();
   await daily.waitForTimeout(400);
   dayCounts = await storedList('attendance');
   expect(
@@ -1231,7 +1255,9 @@ const run = async () => {
   /* And the whole thing can be taken back, counts and all (§14, §30). */
   const undoStart = Date.now();
   await daily.getByRole('button', { name: /^undo$/i }).click();
-  await daily.getByRole('button', { name: /^undo$/i }).waitFor({ state: 'detached', timeout: 5000 });
+  await daily
+    .getByRole('button', { name: /^undo$/i })
+    .waitFor({ state: 'detached', timeout: 5000 });
   report.timings.undoMs = Date.now() - undoStart;
   await daily.waitForTimeout(400);
   dayCounts = await storedList('attendance');
@@ -1410,9 +1436,7 @@ const run = async () => {
    */
   const ours = stores.filter((entry) => entry.key.startsWith('gradtools:'));
   const engine = stores.filter((entry) => /traineddata|tesseract/i.test(entry.key));
-  const unaccounted = stores.filter(
-    (entry) => !ours.includes(entry) && !engine.includes(entry),
-  );
+  const unaccounted = stores.filter((entry) => !ours.includes(entry) && !engine.includes(entry));
 
   expect(ours.length > 0, 'RETENTION: no GradTools data was stored at all — did the save work?');
   expect(
@@ -1476,7 +1500,9 @@ const run = async () => {
   report.requests = {
     total: requests.length,
     offOrigin: offOrigin.length,
-    ocrAssets: [...new Set(requests.filter((u) => u.includes('/ocr/')).map((u) => u.slice(ORIGIN.length)))],
+    ocrAssets: [
+      ...new Set(requests.filter((u) => u.includes('/ocr/')).map((u) => u.slice(ORIGIN.length))),
+    ],
   };
 
   if (consoleLines.length > 0) fail(`CONSOLE: ${consoleLines.slice(0, 3).join(' | ')}`);
@@ -1516,14 +1542,17 @@ const run = async () => {
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze();
     for (const violation of axe.violations) {
-      fail(`AXE workflow@${vp.name}: ${violation.id} (${violation.nodes.length}) ${violation.help}`);
+      fail(
+        `AXE workflow@${vp.name}: ${violation.id} (${violation.nodes.length}) ${violation.help}`,
+      );
     }
 
     await sizedPage.screenshot({
       path: join(OUT, `workflow-${vp.name}.png`),
       fullPage: vp.name === '1280' || vp.name === '390',
     });
-    if (sizedErrors.length) fail(`CONSOLE workflow@${vp.name}: ${sizedErrors.slice(0, 3).join(' | ')}`);
+    if (sizedErrors.length)
+      fail(`CONSOLE workflow@${vp.name}: ${sizedErrors.slice(0, 3).join(' | ')}`);
     await sized.close();
   }
 
@@ -1532,7 +1561,11 @@ const run = async () => {
 
   report.checks = checks;
   report.problems = problems;
-  await writeFile(join(OUT, 'workflow-report.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  await writeFile(
+    join(OUT, 'workflow-report.json'),
+    `${JSON.stringify(report, null, 2)}\n`,
+    'utf8',
+  );
 
   console.log(`\n  Multi-select of four files: ${String(multiMs)}ms`);
   console.log(`  Save (three semesters): ${saveMs.map((ms) => `${String(ms)}ms`).join(', ')}`);

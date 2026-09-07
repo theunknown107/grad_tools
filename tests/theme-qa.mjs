@@ -215,7 +215,9 @@ const run = async () => {
     }));
     checks += 1;
     if (applied.theme !== 'light') {
-      problems.push(`DEFAULT: a device with no preference rendered "${String(applied.theme)}", not light`);
+      problems.push(
+        `DEFAULT: a device with no preference rendered "${String(applied.theme)}", not light`,
+      );
     }
 
     const toggle = page.getByRole('button', { name: /appearance|theme/i }).first();
@@ -238,7 +240,9 @@ const run = async () => {
 
       checks += 1;
       if (colours.length !== ACCENTS.length) {
-        problems.push(`ACCENTS: found ${String(colours.length)} swatches, expected ${String(ACCENTS.length)}`);
+        problems.push(
+          `ACCENTS: found ${String(colours.length)} swatches, expected ${String(ACCENTS.length)}`,
+        );
       }
       const distinct = new Set(colours.map((entry) => entry.fill));
       if (distinct.size !== colours.length) {
