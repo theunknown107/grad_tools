@@ -38,6 +38,7 @@ import type {
 import { RESULT_STATUSES } from '../../domain/types.js';
 import { parseResultCard, rowToSubject, type ParsedRow } from '../../domain/result-import.js';
 import { classifyDocument } from '../../domain/document-type.js';
+import { COURSE_KIND_LABEL, enrichRow, type RowEnrichment } from '../../domain/enrichment.js';
 import { resolveCourseKind } from '../../domain/exams.js';
 import {
   fingerprintOf,
@@ -209,6 +210,104 @@ function needsSeeAnswer(row: DraftRow, referenceHasSee: boolean | null): boolean
       provenance: 'manual',
       id: row.id,
     }).kind === null
+  );
+}
+
+/**
+ * What the product actually knows about one reviewed row.
+ *
+ * Authority: Phase 7C §13, §14, §33
+ *
+ * Every value carries where it came from, and every absence carries why. A
+ * student-provided figure is labelled "Your own record" and NEVER "catalogue"
+ * (§14) — that mislabelling is what let a typed credit be trusted as reference
+ * data elsewhere, and the words are what stop it returning.
+ */
+function ResolvedRow({
+  row,
+  enrichment,
+}: {
+  readonly row: DraftRow;
+  readonly enrichment: RowEnrichment;
+}) {
+  const { credits, grade, gradePoint, courseKind } = enrichment;
+
+  return (
+    <dl className={styles.resolved} aria-label={`What is known about ${row.subjectCode}`}>
+      <div className={styles.resolvedItem} data-unresolved={credits.value === null}>
+        <dt>Credits</dt>
+        <dd>
+          {credits.value === null ? (
+            <>
+              <span className={styles.resolvedMissing}>Unavailable</span>
+              <span className={styles.resolvedWhy}>{credits.reason}</span>
+            </>
+          ) : (
+            <>
+              {/* Zero is a real answer for a non-credit course, and is shown as
+                  one rather than as an absence (§33). */}
+              <span className={styles.resolvedValue}>{credits.value}</span>
+              {credits.source !== null && (
+                <span className={styles.resolvedWhy}>{credits.source}</span>
+              )}
+            </>
+          )}
+        </dd>
+      </div>
+
+      <div className={styles.resolvedItem} data-unresolved={courseKind.kind === null}>
+        <dt>Assessment</dt>
+        <dd>
+          {courseKind.kind === null ? (
+            <>
+              <span className={styles.resolvedMissing}>Not known</span>
+              <span className={styles.resolvedWhy}>
+                Answer the final-exam question above to settle it.
+              </span>
+            </>
+          ) : (
+            <>
+              <span className={styles.resolvedValue}>{COURSE_KIND_LABEL[courseKind.kind]}</span>
+              <span className={styles.resolvedWhy}>
+                {courseKind.from === 'catalogue'
+                  ? 'VTU catalogue'
+                  : courseKind.from === 'grade'
+                    ? 'From the printed grade'
+                    : 'From the marks'}
+              </span>
+            </>
+          )}
+        </dd>
+      </div>
+
+      <div className={styles.resolvedItem} data-unresolved={grade.value === null}>
+        <dt>Grade</dt>
+        <dd>
+          {grade.value === null ? (
+            <>
+              <span className={styles.resolvedMissing}>Requires review</span>
+              <span className={styles.resolvedWhy}>{grade.reason}</span>
+            </>
+          ) : (
+            <>
+              <span className={styles.resolvedValue}>{grade.value}</span>
+              <span className={styles.resolvedWhy}>{grade.source}</span>
+            </>
+          )}
+        </dd>
+      </div>
+
+      <div className={styles.resolvedItem} data-unresolved={gradePoint.value === null}>
+        <dt>Grade point</dt>
+        <dd>
+          {gradePoint.value === null ? (
+            <span className={styles.resolvedMissing}>—</span>
+          ) : (
+            <span className={styles.resolvedValue}>{gradePoint.value}</span>
+          )}
+        </dd>
+      </div>
+    </dl>
   );
 }
 
@@ -732,6 +831,47 @@ function ImportGroup({
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
   };
 
+  /**
+   * What is known about a row AS IT STANDS IN THE FORM.
+   *
+   * Built from the draft rather than from the saved record, so the summary
+   * updates the moment a credit is typed or the final-exam question answered —
+   * which is the point: a student should see the effect of what they just told
+   * the product, not after saving it.
+   */
+  const enrichmentFor = (row: DraftRow): RowEnrichment => {
+    const reference = catalogueFor(row.subjectCode);
+    const asSubject = rowToSubject(
+      {
+        subjectCode: row.subjectCode,
+        subjectTitle: row.subjectTitle,
+        internal: row.internal === '' ? null : Number(row.internal),
+        external: row.external === '' ? null : Number(row.external),
+        total: row.total === '' ? null : Number(row.total),
+        resultStatus: row.resultStatus === '' ? null : row.resultStatus,
+        announcedOn: row.announcedOn === '' ? null : row.announcedOn,
+        page: 1,
+        sourceLine: row.sourceLine,
+        warnings: [],
+      },
+      row.id,
+      reference,
+    );
+    return enrichRow(
+      {
+        ...asSubject,
+        gradeLetter: row.gradeLetter === '' ? asSubject.gradeLetter : row.gradeLetter,
+        credits:
+          row.credits === ''
+            ? (asSubject.credits ?? rememberedCredits(row.subjectCode))
+            : Number(row.credits),
+        hasSee: row.hasSee === '' ? asSubject.hasSee : row.hasSee === 'yes',
+      },
+      resolveSubject(subjectIndex, row.subjectCode),
+      ruleSet,
+    );
+  };
+
   const blocked = blockingReason(group);
   const ready = isReadyToImport(group) || (group.semester === null && semester !== '');
 
@@ -1123,6 +1263,20 @@ function ImportGroup({
             >
               <Icon name="trash" size="nav" />
             </Button>
+
+            {/*
+              WHAT IS ACTUALLY KNOWN ABOUT THIS ROW (§13).
+              
+              The card prints marks and nothing else — no credits, no grade, no
+              grade point — so all three are DERIVED, and each derivation can
+              fail on its own. Without this the review showed the raw fields and
+              two empty inputs, and a student could not tell "4 credits" from
+              "nobody knows how many credits this has".
+              
+              Uncertainty is shown, never hidden: an unresolved field says so
+              and says why.
+            */}
+            <ResolvedRow row={row} enrichment={enrichmentFor(row)} />
 
             {/*
               WHAT THE PARSER SAW, beside what it made of it. When a reading is
