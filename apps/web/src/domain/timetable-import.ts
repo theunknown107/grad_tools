@@ -250,7 +250,10 @@ function rowsOf(items: readonly PlacedLike[], tolerance: number): PlacedLike[][]
 }
 
 function medianHeight(items: readonly PlacedLike[]): number {
-  const heights = items.map((item) => item.height).filter((h) => h > 0).sort((a, b) => a - b);
+  const heights = items
+    .map((item) => item.height)
+    .filter((h) => h > 0)
+    .sort((a, b) => a - b);
   return heights.length === 0 ? 10 : (heights[Math.floor(heights.length / 2)] as number);
 }
 
@@ -351,9 +354,8 @@ export function readDictionary(rows: readonly string[]): DictionaryEntry[] {
 
 /** `W.E.F: 07/11/2024`, `W.E.F 7-11-2024`. Never the upload date (§14). */
 function readEffectiveFrom(text: string): string | null {
-  const match = /w\.?\s*e\.?\s*f\.?\s*[:\s]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{4})/i.exec(
-    text,
-  );
+  const match =
+    /w\.?\s*e\.?\s*f\.?\s*[:\s]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{4})/i.exec(text);
   if (match === null) return null;
   const [, day, month, year] = match as unknown as [string, string, string, string];
   const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
@@ -385,7 +387,16 @@ function readContext(text: string): TimetableContext {
   const semesterMatch =
     /\bsemester\s*[:\-–]?\s*([1-8])\b/i.exec(text) ??
     /\bsemester\s*[:\-–]?\s*([IVX]{1,4})\b/i.exec(text);
-  const roman: Record<string, number> = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8 };
+  const roman: Record<string, number> = {
+    i: 1,
+    ii: 2,
+    iii: 3,
+    iv: 4,
+    v: 5,
+    vi: 6,
+    vii: 7,
+    viii: 8,
+  };
   const rawSemester = semesterMatch?.[1] ?? '';
   const semester = /^\d$/.test(rawSemester)
     ? Number(rawSemester)
@@ -474,7 +485,13 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
 
   const tolerance = medianHeight(placed) * 0.6;
   const rows = rowsOf(placed, tolerance);
-  const rowText = rows.map((row) => row.map((item) => item.text).join(' ').replace(/\s+/g, ' ').trim());
+  const rowText = rows.map((row) =>
+    row
+      .map((item) => item.text)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  );
   const joined = rowText.join('\n');
 
   const context = readContext(joined);
@@ -683,9 +700,7 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
       const end = (bounded[Math.min(lastColumn, bounded.length - 1)] ?? slot).end;
 
       const push = (initials: string, batch: string | null, room: string | null) => {
-        const entry = dictionary.find(
-          (candidate) => candidate.initials === initials.toUpperCase(),
-        );
+        const entry = dictionary.find((candidate) => candidate.initials === initials.toUpperCase());
         if (batch !== null) batches.add(batch.toUpperCase());
         classes.push({
           day,
@@ -710,7 +725,10 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
 
       const lab = LAB_CELL.exec(text);
       if (lab !== null) {
-        const named = (lab[2] ?? '').split(/[+,/]/).map((part) => part.trim()).filter(Boolean);
+        const named = (lab[2] ?? '')
+          .split(/[+,/]/)
+          .map((part) => part.trim())
+          .filter(Boolean);
         if (named.length === 0) push(lab[1] as string, null, null);
         else for (const batch of named) push(lab[1] as string, batch, null);
         continue;
@@ -772,7 +790,9 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
   }
 
   if (dictionary.length === 0) {
-    warnings.push('The subject table on this timetable could not be read, so the initials in the grid cannot be matched to subject codes.');
+    warnings.push(
+      'The subject table on this timetable could not be read, so the initials in the grid cannot be matched to subject codes.',
+    );
   }
   const unresolved = teaching.filter((entry) => entry.subjectCode === null);
   if (unresolved.length > 0 && dictionary.length > 0) {

@@ -92,9 +92,17 @@ const RESULT_SIGNALS: readonly Signal[] = [
 const CALENDAR_SIGNALS: readonly Signal[] = [
   { name: 'academic calendar heading', pattern: /academic\s+calendar/i, weight: 4 },
   { name: 'calendar of events', pattern: /calendar\s+of\s+events/i, weight: 4 },
-  { name: 'commencement of the term', pattern: /commencement\s+of\s+(the\s+)?(class|semester|term)/i, weight: 3 },
+  {
+    name: 'commencement of the term',
+    pattern: /commencement\s+of\s+(the\s+)?(class|semester|term)/i,
+    weight: 3,
+  },
   { name: 'last working day', pattern: /last\s+working\s+day/i, weight: 3 },
-  { name: 'registration window', pattern: /(registration|enrol?ment)\s+(of|for|last|closes|deadline|date)/i, weight: 2 },
+  {
+    name: 'registration window',
+    pattern: /(registration|enrol?ment)\s+(of|for|last|closes|deadline|date)/i,
+    weight: 2,
+  },
   { name: 'odd/even semester naming', pattern: /\b(odd|even)\s+semester\b/i, weight: 2 },
   { name: 'an academic year', pattern: /\b20\d{2}\s*[-–—/]\s*(20)?\d{2}\b/, weight: 1 },
 ];
@@ -109,7 +117,11 @@ const CALENDAR_SIGNALS: readonly Signal[] = [
 const TIMETABLE_SIGNALS: readonly Signal[] = [
   { name: 'weekday columns', pattern: /monday.*tuesday|tuesday.*wednesday/is, weight: 4 },
   { name: 'with effect from', pattern: /\bw\.?\s*e\.?\s*f\.?\b/i, weight: 2 },
-  { name: 'a time-of-day grid', pattern: /\b\d{1,2}[:.]\d{2}\s*(am|pm)?\s*[-–—to]+\s*\d{1,2}[:.]\d{2}/i, weight: 3 },
+  {
+    name: 'a time-of-day grid',
+    pattern: /\b\d{1,2}[:.]\d{2}\s*(am|pm)?\s*[-–—to]+\s*\d{1,2}[:.]\d{2}/i,
+    weight: 3,
+  },
   { name: 'time table heading', pattern: /time\s*table/i, weight: 2 },
   { name: 'a lunch or break row', pattern: /\b(lunch|break|recess)\b/i, weight: 1 },
 ];
@@ -123,7 +135,11 @@ const TIMETABLE_SIGNALS: readonly Signal[] = [
  * Recognising it lets the product say what it actually is.
  */
 const EXAM_SCHEDULE_SIGNALS: readonly Signal[] = [
-  { name: 'examination time table', pattern: /time\s*table\s+for\s+.*examination|examination.*time\s*table/is, weight: 4 },
+  {
+    name: 'examination time table',
+    pattern: /time\s*table\s+for\s+.*examination|examination.*time\s*table/is,
+    weight: 4,
+  },
   { name: 'draft schedule', pattern: /\bdraft\s+time\s*table\b/i, weight: 3 },
   { name: 'a date/day column', pattern: /\bdate\s*,\s*day\b/i, weight: 3 },
   { name: 'registrar (evaluation)', pattern: /registrar\s*\(\s*evaluation\s*\)/i, weight: 3 },
@@ -131,7 +147,11 @@ const EXAM_SCHEDULE_SIGNALS: readonly Signal[] = [
 
 /** A question paper. Recognised only so it can be refused (§39). */
 const QUESTION_PAPER_SIGNALS: readonly Signal[] = [
-  { name: 'marks-per-question column', pattern: /\bmarks\b.*\bmodule\b|\bmodule\s*-?\s*[1-5]\b/is, weight: 3 },
+  {
+    name: 'marks-per-question column',
+    pattern: /\bmarks\b.*\bmodule\b|\bmodule\s*-?\s*[1-5]\b/is,
+    weight: 3,
+  },
   { name: 'answer instructions', pattern: /answer\s+any\s+(one|two|five|full)/i, weight: 4 },
   { name: 'USN grid', pattern: /\bUSN\b/, weight: 1 },
   { name: 'maximum marks', pattern: /max\.?\s*marks/i, weight: 3 },
