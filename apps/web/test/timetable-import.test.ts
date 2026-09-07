@@ -205,7 +205,14 @@ describe('initials mean what THIS document says they mean', () => {
     );
     const unknown = parsed.classes.find((entry) => entry.initials === 'XYZ');
     expect(unknown?.subjectCode).toBeNull();
-    expect(parsed.warnings.join(' ')).toMatch(/never defines/i);
+
+    /*
+     * The warning NAMES the abbreviation. It used to be a count — "1 class uses
+     * initials this timetable never defines" — and a count is not something a
+     * person can act on when the grid holds forty cells.
+     */
+    expect(parsed.warnings.join(' ')).toMatch(/XYZ/);
+    expect(parsed.warnings.join(' ')).toMatch(/never says what/i);
   });
 
   it('keeps the college’s hours and the scheme’s hours apart', () => {

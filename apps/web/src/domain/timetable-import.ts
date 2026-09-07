@@ -1278,11 +1278,43 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
       'The subject table on this timetable could not be read, so the initials in the grid cannot be matched to subject codes.',
     );
   }
+  /*
+   * NAME THE ABBREVIATIONS, AND SAY WHICH KIND OF UNRESOLVED THEY ARE.
+   *
+   * "3 classes use initials this timetable never defines" is a count, and a
+   * count is not something a person can act on. Which three, and whether the
+   * document is silent about them or merely ambiguous, is — and both facts now
+   * exist on the class itself.
+   */
   const unresolved = teaching.filter((entry) => entry.subjectCode === null);
   if (unresolved.length > 0 && dictionary.length > 0) {
-    warnings.push(
-      `${String(unresolved.length)} ${unresolved.length === 1 ? 'class uses initials this' : 'classes use initials this'} timetable never defines. Check them before saving.`,
-    );
+    const ambiguous = [
+      ...new Set(
+        unresolved
+          .filter((entry) => entry.resolution === 'ambiguous')
+          .map((entry) => entry.initials),
+      ),
+    ];
+    const unknown = [
+      ...new Set(
+        unresolved
+          .filter((entry) => entry.resolution !== 'ambiguous')
+          .map((entry) => entry.initials),
+      ),
+    ];
+
+    if (unknown.length > 0) {
+      warnings.push(
+        `This timetable never says what ${unknown.join(', ')} ${unknown.length === 1 ? 'is' : 'are'}. ` +
+          'Those classes are kept, without a subject — check them before saving.',
+      );
+    }
+    if (ambiguous.length > 0) {
+      warnings.push(
+        `${ambiguous.join(', ')} could each be more than one of this timetable's subjects, ` +
+          'so no code was chosen. Check them before saving.',
+      );
+    }
   }
   if (context.effectiveFrom === null) {
     warnings.push('This timetable does not print an effective date (W.E.F.).');
