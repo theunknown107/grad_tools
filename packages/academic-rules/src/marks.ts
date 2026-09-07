@@ -29,11 +29,30 @@ import type { RuleResult, RuleSet } from './types.js';
 /**
  * Subject-code shape observed on real VTU 2022-scheme documents.
  *
- * Three or four letters, three digits, and an optional trailing letter that
- * marks an elective choice within a group (`BXX405B`, `BXXX456D`). Anchored, so
- * a code with trailing text is rejected rather than partially matched.
+ * Three to seven letters, three digits, and an optional trailing letter that
+ * marks an elective choice within a group (`BXX405B`, `BXXXX104B`). Anchored,
+ * so a code with trailing text is rejected rather than partially matched.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY THE LETTER RANGE IS SEVEN AND NOT FOUR
+ * ---------------------------------------------------------------------------
+ *
+ * It was `{3,4}`, which covers the codes this package was first written
+ * against — the third- and fourth-year shapes, `BXX401` and `BXXX404`. It does
+ * NOT cover first-year 2022-scheme codes, which carry five letters. Every
+ * subject on a real semester 1 and semester 2 card was therefore rejected as
+ * "not a valid VTU subject code", and because that failure comes back as a
+ * validation error the whole row went unevaluated: no pass state, no grade, no
+ * SGPA. Two entire semesters of a real student's record were unreadable for
+ * want of one character in a character class.
+ *
+ * The range is now aligned with the PARSER's own recogniser
+ * (`domain/result-import.ts`), which has always accepted `B` plus two to six
+ * letters. That divergence was the bug: the parser produced codes the engine
+ * then refused, and nothing compared the two patterns. This must stay at least
+ * as permissive as the parser, or the same class of failure returns.
  */
-const SUBJECT_CODE = /^[A-Z]{3,4}\d{3}[A-Z]?$/;
+const SUBJECT_CODE = /^[A-Z]{3,7}\d{3}[A-Z]?$/;
 
 /** One printed row of a grade card, in the scale the document uses. */
 export interface CourseMarks {
