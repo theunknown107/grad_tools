@@ -31,7 +31,9 @@
  */
 
 import { useMemo, useState } from 'react';
-import { calculateCGPA, vtu2022RuleSet } from '@gradtools/academic-rules';
+import { useAcademicState } from '../../hooks/useAcademicState.js';
+import { metricStripEntry } from '../../lib/format.js';
+import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import type { Subject } from '@gradtools/shared-types';
 import type { ResultSubject, SemesterResult } from '../../domain/types.js';
 import { RESULT_STATUSES } from '../../domain/types.js';
@@ -755,40 +757,62 @@ function ResultEditor({
  * where a figure would mislead.
  */
 function ResultsOverview({ items }: { readonly items: readonly SemesterResult[] }) {
+  /*
+   * THE SHARED READING (18). This built its own `semesterSgpa` loop and its
+   * own `calculateCGPA` call, which is a third answer to a question the
+   * dashboard and the degree page were already answering separately.
+   */
+  const { statistics } = useAcademicState();
+
   const perSemester = [...items]
     .sort((a, b) => a.semester - b.semester)
     .map((result) => {
       const { ruleSet: resolved } = ruleSetForResult(result);
-      const graded = semesterSgpa(result, resolved);
-      return { result, ...graded, ...semesterBacklogs(result, resolved) };
+      return {
+        result,
+        stats: statistics.semesters.find((entry) => entry.number === result.semester) ?? null,
+        ...semesterBacklogs(result, resolved),
+      };
     });
 
-  const gradable = perSemester.filter((entry) => entry.sgpa !== null && entry.credits > 0);
-  const cgpa = calculateCGPA(
-    gradable.map((entry) => ({
-      credits: entry.credits,
-      sgpa: entry.sgpa as number,
-      semester: entry.result.semester,
-    })),
-    ruleSet,
-  );
-  const totalCredits = gradable.reduce((total, entry) => total + entry.credits, 0);
-  const subjects = perSemester.reduce((total, entry) => total + entry.result.subjects.length, 0);
-  const backlogs = perSemester.reduce((total, entry) => total + entry.backlogs, 0);
   const undetermined = perSemester.reduce((total, entry) => total + entry.undetermined, 0);
+  const backlogs = perSemester.reduce((total, entry) => total + entry.backlogs, 0);
 
   return (
     <div className={styles.overview}>
+      {/*
+        EVERY FIGURE FROM THE ONE DERIVED STATE, and each one saying what it
+        knows rather than dashing (1, 4). "Passed" and "Credits earned" are
+        here because neither needs an SGPA — they survive a semester that
+        cannot be graded, which is the whole point of 4.
+      */}
       <MetricStrip
         metrics={[
-          { label: 'CGPA', value: cgpa.ok ? formatGpa(cgpa.value) : '—' },
+          metricStripEntry('CGPA', statistics.cgpa, formatGpa),
           { label: 'Semesters', value: String(perSemester.length) },
-          { label: 'Subjects', value: String(subjects) },
+          { label: 'Subjects', value: String(statistics.grades.total) },
           {
-            label: 'Backlogs',
-            value: undetermined > 0 ? `${String(backlogs)}+` : String(backlogs),
+            label: 'Passed',
+            value: String(statistics.outcomes.passed),
+            ...(statistics.outcomes.unresolved > 0
+              ? { note: `${String(statistics.outcomes.unresolved)} still to review` }
+              : {}),
           },
-          { label: 'Credits', value: String(totalCredits) },
+          {
+            /*
+              A "+" IS NOT DECORATION. It says the count is a floor, because a
+              row whose SEE applicability is unknown cannot be checked at all.
+            */
+            label: 'Backlogs',
+            value:
+              statistics.backlogsUndetermined > 0
+                ? `${String(statistics.backlogsFromResults.value ?? 0)}+`
+                : String(statistics.backlogsFromResults.value ?? 0),
+            ...(statistics.backlogsFromResults.reason === null
+              ? {}
+              : { note: statistics.backlogsFromResults.reason }),
+          },
+          metricStripEntry('Credits earned', statistics.creditsEarned),
         ]}
       />
 
@@ -807,35 +831,44 @@ function ResultsOverview({ items }: { readonly items: readonly SemesterResult[] 
       )}
 
       <ol className={styles.ledger}>
-        {perSemester.map((entry) => (
-          <li key={entry.result.id} className={styles.ledgerRow}>
-            <span className={styles.ledgerSemester}>S{entry.result.semester}</span>
-            <span className={styles.ledgerMeta}>
-              {entry.result.subjects.length} subjects
-              {entry.credits > 0 ? ` · ${String(entry.credits)} credits` : ''}
-              {entry.backlogs > 0 ? ` · ${String(entry.backlogs)} backlog` : ''}
-            </span>
-            {/*
+        {perSemester.map((entry) => {
+          const sgpaValue = entry.stats?.sgpa.value ?? null;
+          return (
+            <li key={entry.result.id} className={styles.ledgerRow}>
+              <span className={styles.ledgerSemester}>S{entry.result.semester}</span>
+              <span className={styles.ledgerMeta}>
+                {entry.result.subjects.length} subjects
+                {(entry.stats?.creditsAttempted.value ?? 0) > 0
+                  ? ` · ${String(entry.stats?.creditsAttempted.value ?? 0)} credits`
+                  : ''}
+                {entry.backlogs > 0 ? ` · ${String(entry.backlogs)} backlog` : ''}
+              </span>
+              {/*
               The bar is scaled across the PASSING range (4-10), not 0-10:
               below 4 a course is failed, so the lower 40% of a 0-10 bar is a
               region no SGPA can occupy and every real reading would sit in the
               top half looking identical.
             */}
-            <span className={styles.ledgerBar} aria-hidden="true">
-              <span
-                style={{
-                  inlineSize:
-                    entry.sgpa === null
-                      ? '0%'
-                      : `${String(Math.max(0, Math.min(100, ((entry.sgpa - 4) / 6) * 100)))}%`,
-                }}
-              />
-            </span>
-            <span className={styles.ledgerSgpa}>
-              {entry.sgpa === null ? '—' : formatGpa(entry.sgpa)}
-            </span>
-          </li>
-        ))}
+              <span className={styles.ledgerBar} aria-hidden="true">
+                <span
+                  style={{
+                    inlineSize:
+                      sgpaValue === null
+                        ? '0%'
+                        : `${String(Math.max(0, Math.min(100, ((sgpaValue - 4) / 6) * 100)))}%`,
+                  }}
+                />
+              </span>
+              {/*
+              A semester with no SGPA says so in words rather than with a dash,
+              and its reason follows the row (1).
+            */}
+              <span className={styles.ledgerSgpa} title={entry.stats?.sgpa.reason ?? undefined}>
+                {sgpaValue === null ? 'Unavailable' : formatGpa(sgpaValue)}
+              </span>
+            </li>
+          );
+        })}
       </ol>
     </div>
   );

@@ -53,7 +53,7 @@ import {
   summariseBacklogs,
   type SemesterView,
 } from './academics.js';
-import { evaluateResultSubject, resolveSubjectGrade } from './results.js';
+import { evaluateResultSubject, resolveSubjectGrade, semesterBacklogs } from './results.js';
 import { resolveCourseKind } from './exams.js';
 import type { BacklogRecord, ResultSubject, SemesterRecord, SemesterResult } from './types.js';
 
@@ -491,7 +491,25 @@ export interface AcademicStatistics {
 
   readonly grades: GradeDistribution;
   readonly outcomes: OutcomeCounts;
+  /**
+   * Backlogs the student has RECORDED, from the backlog panel.
+   *
+   * Their own list of what they are carrying. Kept apart from the figure below
+   * because the two answer different questions and a student may well have one
+   * without the other.
+   */
   readonly backlogs: Metric<number>;
+  /**
+   * Backlogs DERIVED from the imported result rows.
+   *
+   * `partial` when a row's SEE applicability is unknown, because its pass
+   * state cannot then be worked out and the count is a FLOOR rather than a
+   * total. The screens render that as "1+", and the distinction is the one a
+   * student most needs the product to be honest about.
+   */
+  readonly backlogsFromResults: Metric<number>;
+  /** How many rows could not be checked at all. Feeds the "+" above. */
+  readonly backlogsUndetermined: number;
   readonly averagePercentage: Metric<number>;
 
   readonly trend: readonly TrendPoint[];
@@ -579,6 +597,20 @@ export function academicStatistics(input: {
     .filter((metric) => metric.value !== null);
 
   const backlogSummary = summariseBacklogs(input.backlogs);
+  const derivedBacklogs = views.reduce(
+    (running, view) => {
+      if (view.result === null) return running;
+      const { backlogs, undetermined } = semesterBacklogs(
+        view.result,
+        ruleSetForResult(view.result).ruleSet,
+      );
+      return {
+        backlogs: running.backlogs + backlogs,
+        undetermined: running.undetermined + undetermined,
+      };
+    },
+    { backlogs: 0, undetermined: 0 },
+  );
   const required = input.totalCreditsRequired ?? null;
 
   return {
@@ -641,19 +673,27 @@ export function academicStatistics(input: {
     outcomes,
 
     /*
-     * A BACKLOG COUNT THAT COULD NOT BE DETERMINED IS NOT ZERO (§1). Zero
-     * backlogs is the best news the page carries; an undetermined count
-     * rendered as zero is the worst thing it could get wrong.
+     * TWO FIGURES, BECAUSE THERE ARE TWO QUESTIONS. What the student has
+     * recorded as carried, and what their imported results imply. Blending
+     * them would produce a number neither source supports.
      */
-    backlogs:
-      backlogSummary.outstanding === 0 && outcomes.unresolved > 0
-        ? {
-            value: backlogSummary.outstanding,
+    backlogs: resolved(backlogSummary.outstanding, SOURCE.backlogRecords),
+    /*
+     * A BACKLOG COUNT THAT COULD NOT BE DETERMINED IS NOT ZERO (§1). Where a
+     * row's SEE applicability is unknown its pass state cannot be worked out,
+     * so the count is a floor — and the number a student most needs to be
+     * right about must not quietly read as complete.
+     */
+    backlogsFromResults:
+      derivedBacklogs.undetermined === 0
+        ? resolved(derivedBacklogs.backlogs, SOURCE.resultsAndRules)
+        : {
+            value: derivedBacklogs.backlogs,
             status: 'partial',
-            source: SOURCE.backlogRecords,
-            reason: `${String(outcomes.unresolved)} course${outcomes.unresolved === 1 ? '' : 's'} could not be read as passed or failed, so there may be more.`,
-          }
-        : resolved(backlogSummary.outstanding, SOURCE.backlogRecords),
+            source: SOURCE.resultsAndRules,
+            reason: `${String(derivedBacklogs.undetermined)} course${derivedBacklogs.undetermined === 1 ? '' : 's'} could not be checked, because whether the course has a semester-end exam is not recorded. The count is at least ${String(derivedBacklogs.backlogs)}.`,
+          },
+    backlogsUndetermined: derivedBacklogs.undetermined,
 
     averagePercentage:
       percentageOfCourses.length === 0

@@ -88,3 +88,27 @@ export function metricDisplay(
     note: metric.status === 'resolved' ? undefined : (metric.reason ?? undefined),
   };
 }
+
+/**
+ * A derived figure as one entry in a metric strip.
+ *
+ * The same shape three screens were each about to build inline. A strip entry
+ * omits `note` rather than passing undefined, because the component checks for
+ * the key's presence — hence the spread rather than a plain field.
+ */
+export function metricStripEntry(
+  label: string,
+  metric: {
+    readonly value: number | null;
+    readonly status: string;
+    readonly reason: string | null;
+  },
+  format: (value: number) => string = String,
+): { label: string; value: string; note?: string } {
+  const display = metricDisplay(metric, format);
+  return {
+    label,
+    value: display.value,
+    ...(display.note === undefined ? {} : { note: display.note }),
+  };
+}
