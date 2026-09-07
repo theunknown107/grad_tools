@@ -23,8 +23,10 @@ import {
   graduationProgress,
   MIN_SUBJECTS_FOR_STRENGTH,
   ruleSetForResult,
+  sgpaReading,
   subjectPerformance,
   summariseBacklogs,
+  type SemesterView,
   STRENGTH_THRESHOLD,
 } from '../src/domain/academics.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
@@ -557,5 +559,81 @@ describe('graduation progress', () => {
     const progress = graduationProgress(buildSemesterViews([], []), null);
     expect(progress.creditsCompleted).toBe(0);
     expect(progress.semestersCompleted).toBe(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Why a figure is missing                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The reported bug in one line: four imported semesters, and four em dashes.
+ *
+ * An em dash cannot distinguish "you have not entered this" from "you entered
+ * it and the subjects carry no credits". The student had already done the
+ * thing the screen was implicitly asking for, so the screen was, in effect,
+ * lying to them. Every assertion here is about the SENTENCE, not the number.
+ */
+describe('what a missing SGPA is allowed to say', () => {
+  const uncredited = (semesterNumber: number): SemesterResult => {
+    const base = result(semesterNumber, [
+      ['BCS401', 4, 'A'],
+      ['BCS402', 4, 'O'],
+    ]);
+    return {
+      ...base,
+      subjects: base.subjects.map((subject) => ({ ...subject, credits: null })),
+    };
+  };
+
+  it('names the subjects that held it back, and what they are missing', () => {
+    const view = buildSemesterViews([], [uncredited(4)]).find((v) => v.number === 4);
+    const reading = sgpaReading(view as SemesterView);
+
+    expect(reading.value).toBeNull();
+    expect(reading.blocking).toEqual(['BCS401', 'BCS402']);
+    expect(reading.reason).toMatch(/2 subjects have no credits/);
+  });
+
+  it('says "has" for one subject and "have" for several', () => {
+    const one = result(4, [
+      ['BCS401', 4, 'A'],
+      ['BCS402', 4, 'O'],
+    ]);
+    const partial: SemesterResult = {
+      ...one,
+      subjects: one.subjects.map((subject, index) =>
+        index === 0 ? { ...subject, credits: null } : subject,
+      ),
+    };
+    const view = buildSemesterViews([], [partial]).find((v) => v.number === 4);
+    expect(sgpaReading(view as SemesterView).reason).toMatch(/BCS401 has no credits/);
+  });
+
+  it('distinguishes a semester never entered from one still being sat', () => {
+    const views = buildSemesterViews([semester(5, 'in_progress'), semester(2, 'completed')], []);
+    const sitting = views.find((v) => v.number === 5) as SemesterView;
+    const empty = views.find((v) => v.number === 2) as SemesterView;
+
+    expect(sgpaReading(sitting).reason).toMatch(/still in progress/i);
+    expect(sgpaReading(empty).reason).toMatch(/no result has been entered/i);
+  });
+
+  it('names the rule set it does not have, rather than blaming the entry', () => {
+    const pinned = result(3, [['BCS301', 4, 'A']], { ruleSetId: 'vtu-2029-imaginary' });
+    const view = buildSemesterViews([], [pinned]).find((v) => v.number === 3) as SemesterView;
+
+    expect(sgpaReading(view).reason).toMatch(/vtu-2029-imaginary/);
+    // Not the student's rows — nothing is wrong with them.
+    expect(sgpaReading(view).blocking).toEqual([]);
+  });
+
+  it('carries no reason at all when there is a figure', () => {
+    const view = buildSemesterViews([], [result(4, [['BCS401', 4, 'A']])]).find(
+      (v) => v.number === 4,
+    ) as SemesterView;
+
+    expect(sgpaReading(view).value).toBeCloseTo(8, 5);
+    expect(sgpaReading(view).reason).toBeNull();
   });
 });
