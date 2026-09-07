@@ -255,10 +255,7 @@ describe('a cell is not always one class', () => {
      * to the last one's end. Three disconnected classes would be three
      * attendance rows for one session (§25).
      */
-    const lab = [
-      at('MONDAY', 40, 660, 70),
-      at('MAT LAB(E1+E2)', COLUMNS[6] as number, 660, 180),
-    ];
+    const lab = [at('MONDAY', 40, 660, 70), at('MAT LAB(E1+E2)', COLUMNS[6] as number, 660, 180)];
     const parsed = parseTimetable(page(lab));
     const classes = parsed.classes.filter((entry) => entry.initials === 'MAT');
     expect(classes).toHaveLength(2);
@@ -279,7 +276,10 @@ describe('a cell is not always one class', () => {
 describe('what the student’s week becomes', () => {
   const parsed = () =>
     parseTimetable(
-      page(MONDAY, dayRow('TUESDAY', 640, ['PHYE1/POPE2', null, null, null, null, null, null, null])),
+      page(
+        MONDAY,
+        dayRow('TUESDAY', 640, ['PHYE1/POPE2', null, null, null, null, null, null, null]),
+      ),
     );
 
   let counter = 0;
@@ -500,5 +500,109 @@ describe('a document that is not a grid', () => {
 
   it('says nothing could be read from an empty document', () => {
     expect(parseTimetable([]).warnings.join(' ')).toMatch(/nothing could be read/i);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The shapes a Word-authored timetable prints                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A timetable written in Word and exported to PDF does not look like the
+ * reference document, and the differences are structural rather than cosmetic.
+ * These three cases were each found by running the shipped parser against a
+ * real one, which produced ZERO classes and, for two of the three, no error a
+ * person could act on.
+ */
+describe('a header written the way a word processor writes one', () => {
+  it('reads a range joined by the word "to"', () => {
+    /*
+     * The header is three stacked rows — start times, a row of the word "to",
+     * and end times — so a column reads "10:00 am to 10:55 am" and contains no
+     * dash at all. Requiring a dash found no slot in any column and failed the
+     * whole document.
+     */
+    expect(readSlot('10:00 am to 10:55 am')).toEqual({ start: '10:00', end: '10:55' });
+    expect(readSlot('1:05 pm to 2:00 pm')).toEqual({ start: '13:05', end: '14:00' });
+  });
+
+  it('reads a punctuated meridiem', () => {
+    // `4:05 p.m` and `5:00p.m`, with and without the space.
+    expect(readSlot('4:05 p.m to 5:00p.m')).toEqual({ start: '16:05', end: '17:00' });
+    expect(readSlot('10:00 a.m. - 10:55 a.m.')).toEqual({ start: '10:00', end: '10:55' });
+  });
+
+  it('still refuses a range that is not one', () => {
+    // The widened separator must not turn any two clocks into a slot.
+    expect(readSlot('10:00 am')).toBeNull();
+    expect(readSlot('Mini project')).toBeNull();
+  });
+});
+
+describe('a day whose label sits on its own printed line', () => {
+  /**
+   * The label is vertically centred in a tall table row, so it lands on a line
+   * of its own with the subjects above it and the rooms below. The parser
+   * required the day name to be the FIRST run of a row carrying its cells, so
+   * every day matched nothing — and the document reported no error, just no
+   * classes.
+   */
+  const SPLIT_DAY = [
+    /* Subjects, on the line above the label. */
+    [
+      at('ESC', COLUMNS[0] as number, 664),
+      at('MAT', COLUMNS[1] as number, 664),
+      at('BREAK', COLUMNS[2] as number, 664),
+      at('PHY', COLUMNS[3] as number, 664),
+    ],
+    /* The label, alone. */
+    [at('MONDAY', 40, 656, 70)],
+    /* Rooms, on the line below. */
+    [at('LH-302', COLUMNS[0] as number, 648), at('LH-302', COLUMNS[1] as number, 648)],
+  ];
+
+  it('reads the cells above and below the label as that day', () => {
+    const parsed = parseTimetable(page(...SPLIT_DAY));
+    const monday = parsed.classes.filter((entry) => entry.day === 'Mon');
+    expect(monday.length).toBeGreaterThan(0);
+    expect(monday.map((entry) => entry.initials)).toContain('PHY');
+  });
+
+  it('separates a subject from the room printed under it', () => {
+    /*
+     * The subject and the room share a column, so the band reads them as one
+     * cell — `ESC LH-302`. Without splitting it the cell matches nothing and
+     * the class is kept with a null code and no room, which on a real document
+     * was 42 classes found and none identified.
+     */
+    const parsed = parseTimetable(page(...SPLIT_DAY));
+    const esc = parsed.classes.find((entry) => entry.initials === 'ESC');
+    expect(esc?.room).toBe('LH-302');
+    expect(esc?.subjectCode).toBe('BQSCK104B');
+  });
+
+  it('does not let the page footer become a class', () => {
+    /*
+     * The last band has no day label beneath it to stop at, so it is bounded by
+     * the median height of the others. Without that, a signature block at the
+     * bottom of the page is read as the last day's classes.
+     */
+    const withFooter = [
+      ...SPLIT_DAY,
+      [at('TUESDAY', 40, 630, 70), at('POP', COLUMNS[0] as number, 630)],
+      /* Far below, where a footer lives. */
+      [at('Dept. Academic Coordinator', COLUMNS[0] as number, 40, 200)],
+      [at('HoD', COLUMNS[1] as number, 40, 60)],
+    ];
+    const parsed = parseTimetable(page(...withFooter));
+    const text = parsed.classes.map((entry) => entry.sourceText).join(' | ');
+    expect(text).not.toMatch(/Coordinator|HoD/i);
+  });
+
+  it('still reads a timetable whose days each fit on one line', () => {
+    // A band of one row is the previous behaviour exactly, and it must not
+    // have changed.
+    const parsed = parseTimetable(page(MONDAY));
+    expect(parsed.classes.filter((entry) => entry.day === 'Mon').length).toBe(5);
   });
 });
