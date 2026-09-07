@@ -371,6 +371,59 @@ export interface SgpaInputs {
 }
 
 /**
+ * The grade a subject brings to its SGPA — printed, or worked out.
+ *
+ * ---------------------------------------------------------------------------
+ * THE BUG THIS EXISTS TO FIX
+ * ---------------------------------------------------------------------------
+ *
+ * `sgpaInputs` used to read `subject.gradeLetter` — the letter the CARD
+ * printed — and nothing else. A VTU provisional result prints no letter, which
+ * is stated three times in this file and in the type itself. So for every
+ * imported result, every subject reported "no grade", `complete` was false, and
+ * the SGPA was unavailable — even with credits present, `hasSee` known, and
+ * `evaluateResultSubject` already returning a correct computed grade a few
+ * lines away. The engine worked; nothing asked it.
+ *
+ * ---------------------------------------------------------------------------
+ * PRINTED BEATS COMPUTED, AND NEITHER IS INVENTED
+ * ---------------------------------------------------------------------------
+ *
+ * A card that prints a letter is stating the university's own decision, so that
+ * wins. Where it prints none, the letter is banded from the total by the rule
+ * set — which is 22OB 6.1 exactly: "total CIE + SEE marks are expressed as a
+ * percentage to determine the letter grade". That is a derivation from the
+ * published regulation, carrying an explanation, not a guess.
+ *
+ * `from` is kept so the UI can say which it is showing. A student comparing
+ * GradTools against their grade card needs to know whether the letter came off
+ * the card or out of the rules engine.
+ *
+ * WHAT IS STILL REFUSED: a grade for a course that did not pass. `gradeFromMarks`
+ * bands a percentage, and a course that failed a HEAD — CIE below 40%, SEE below
+ * 35% — is not graded on its percentage. The supplied regulations give the
+ * bands and the passing standards but do not state what letter a failed course
+ * carries, and the handoff index is explicit: "Do not invent credits or grades…
+ * If authoritative metadata cannot be resolved, surface the unresolved state."
+ * So it stays unresolved, and the reason says so rather than an F appearing
+ * from nowhere. Recorded as OQ-052.
+ */
+export interface ResolvedGrade {
+  readonly letter: string;
+  readonly from: 'card' | 'computed';
+}
+
+export function resolveSubjectGrade(
+  subject: ResultSubject,
+  ruleSet: RuleSet | undefined,
+): ResolvedGrade | null {
+  if (subject.gradeLetter !== null) return { letter: subject.gradeLetter, from: 'card' };
+  if (ruleSet === undefined) return null;
+  const computed = evaluateResultSubject(subject, ruleSet).computedGrade;
+  return computed === null ? null : { letter: computed.letter, from: 'computed' };
+}
+
+/**
  * The courses an SGPA may be computed from — all of them, or none.
  *
  * A PARTIAL SGPA IS A WRONG SGPA (OQ-049 §16). SGPA is credit-weighted across
@@ -382,15 +435,15 @@ export interface SgpaInputs {
  * it back are named — so the student sees what to fill in rather than being
  * told the figure is simply unavailable.
  */
-export function sgpaInputs(result: SemesterResult): SgpaInputs {
+export function sgpaInputs(result: SemesterResult, ruleSet: RuleSet | undefined): SgpaInputs {
   const courses: { credits: number; gradeLetter: string; subjectCode: string }[] = [];
   const missing: { subjectCode: string; reason: string }[] = [];
 
   for (const subject of result.subjects) {
-    const grade = subject.gradeLetter;
+    const grade = resolveSubjectGrade(subject, ruleSet);
     const credits = subject.credits;
     if (grade !== null && credits !== null) {
-      courses.push({ credits, gradeLetter: grade, subjectCode: subject.subjectCode });
+      courses.push({ credits, gradeLetter: grade.letter, subjectCode: subject.subjectCode });
       continue;
     }
     missing.push({
@@ -445,7 +498,7 @@ export function semesterSgpa(
   readonly credits: number;
   readonly inputs: SgpaInputs;
 } {
-  const inputs = sgpaInputs(result);
+  const inputs = sgpaInputs(result, ruleSet);
   const credits = result.subjects.reduce((total, subject) => total + (subject.credits ?? 0), 0);
 
   if (ruleSet === undefined || !inputs.complete) return { sgpa: null, credits, inputs };

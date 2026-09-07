@@ -26,10 +26,15 @@
  * In each case a person can tell what happened and a rule cannot.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import type { Subject } from '@gradtools/shared-types';
-import type { ResultSubject, SemesterResult, TimetableSlot } from '../../domain/types.js';
+import type {
+  ResultSubject,
+  SemesterResult,
+  SemesterSubject,
+  TimetableSlot,
+} from '../../domain/types.js';
 import { RESULT_STATUSES } from '../../domain/types.js';
 import { parseResultCard, rowToSubject, type ParsedRow } from '../../domain/result-import.js';
 import { classifyDocument } from '../../domain/document-type.js';
@@ -62,7 +67,13 @@ import {
   type FileReading,
   type Recognize,
 } from '../../lib/result-file.js';
-import { subjectKey } from '../../domain/subjects.js';
+import {
+  buildSubjectIndex,
+  creditsFor,
+  resolveSubject,
+  subjectKey,
+  type SubjectIdentity,
+} from '../../domain/subjects.js';
 import type { asStudentProfileId } from '../../domain/identity.js';
 import { Icon } from '../../components/icons.js';
 import {
@@ -181,6 +192,8 @@ export function ResultImport({
   schemeId,
   title = 'Add academic document',
   savedSemesters,
+  savedResults,
+  semesterSubjects,
   savedCalendars,
   savedTimetables,
   onSave,
@@ -199,6 +212,15 @@ export function ResultImport({
    */
   readonly title?: string | undefined;
   readonly savedSemesters: readonly number[];
+  /**
+   * The student's own saved results and semester plan.
+   *
+   * Read ONLY to resolve credits for a code they have already described, so the
+   * same figure is never asked for twice. Nothing here is treated as reference
+   * data — see `creditsFor`, which keeps the two tiers apart.
+   */
+  readonly savedResults: readonly SemesterResult[];
+  readonly semesterSubjects: readonly SemesterSubject[];
   readonly savedCalendars: readonly SavedCalendar[];
   readonly savedTimetables: readonly SavedTimetable[];
   readonly onSave: (result: SemesterResult) => void;
@@ -221,8 +243,29 @@ export function ResultImport({
    * validates.
    */
   const reference = useSubjects(schemeId);
-  const catalogue: readonly Subject[] =
-    reference.state.status === 'ready' ? reference.state.data : [];
+  /*
+   * Memoised because the not-ready branch is a fresh `[]` on every render, and
+   * that array is a dependency of the subject index below — without this the
+   * index is rebuilt on every keystroke in the review form.
+   */
+  const catalogue: readonly Subject[] = useMemo(
+    () => (reference.state.status === 'ready' ? reference.state.data : []),
+    [reference.state],
+  );
+
+  /*
+   * ONE INDEX OVER THE CATALOGUE AND THE STUDENT'S OWN RECORDS.
+   *
+   * The importer used to look credits up in the catalogue alone, so with no
+   * network — or with a scheme the reference database does not cover — every
+   * subject imported with `credits: null`, and a null credit is one of the two
+   * things that makes an SGPA unavailable. The index adds the tier that was
+   * missing: what this student has already said about this code.
+   */
+  const subjectIndex = useMemo(
+    () => buildSubjectIndex({ catalogue, results: savedResults, semesterSubjects }),
+    [catalogue, savedResults, semesterSubjects],
+  );
 
   const [files, setFiles] = useState<readonly FileState[]>([]);
   const [saved, setSaved] = useState<readonly number[]>([]);
@@ -535,6 +578,7 @@ export function ResultImport({
           group={group}
           recognised={recognisedIn(group).length > 0}
           catalogue={catalogue}
+          subjectIndex={subjectIndex}
           profileId={profileId}
           onSave={(result) => {
             onSave(result);
@@ -573,6 +617,7 @@ function ImportGroup({
   group,
   recognised,
   catalogue,
+  subjectIndex,
   profileId,
   onSave,
 }: {
@@ -580,6 +625,7 @@ function ImportGroup({
   /** True when any file behind this semester was read off a picture. */
   readonly recognised: boolean;
   readonly catalogue: readonly Subject[];
+  readonly subjectIndex: Map<string, SubjectIdentity>;
   readonly profileId: ReturnType<typeof asStudentProfileId>;
   readonly onSave: (result: SemesterResult) => void;
 }) {
@@ -597,10 +643,22 @@ function ImportGroup({
   const blocked = blockingReason(group);
   const ready = isReadyToImport(group) || (group.semester === null && semester !== '');
 
-  /** Reference credits and SEE applicability, where the catalogue covers the code. */
+  /**
+   * Credits and SEE applicability for a code, from the catalogue or from what
+   * the student has already recorded.
+   *
+   * `provenance` still turns on the CATALOGUE alone: a credit the student
+   * supplied is good enough to compute their own SGPA with and is not the
+   * scheme's answer, and `rowToSubject` marks the row `manual` accordingly.
+   * `hasSee` is never taken from a student record here — DEC-037 keeps it
+   * reference data, and an unknown one stays unknown.
+   */
   const referenceFor = (code: string) => {
     const match = catalogue.find((subject) => subjectKey(subject.code) === subjectKey(code));
-    return match === undefined ? null : { credits: match.credits, hasSee: match.hasSee };
+    if (match !== undefined) return { credits: match.credits, hasSee: match.hasSee };
+
+    const resolved = creditsFor(resolveSubject(subjectIndex, code));
+    return resolved.credits === null ? null : { credits: resolved.credits, hasSee: null };
   };
 
   const confirm = () => {
