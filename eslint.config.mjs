@@ -150,6 +150,13 @@ export default tseslint.config(
         sessionStorage: 'readonly',
         ArrayBuffer: 'readonly',
         Blob: 'readonly',
+        /* Node side: a harness reads real files to feed the page. */
+        Buffer: 'readonly',
+        /* Drag-and-drop, built inside page.evaluate — Playwright cannot drag a
+           file from the desktop, so the transfer is assembled in Chromium. */
+        DataTransfer: 'readonly',
+        DragEvent: 'readonly',
+        File: 'readonly',
       },
     },
     rules: {

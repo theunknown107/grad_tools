@@ -259,19 +259,24 @@ describe('RadioGroup', () => {
   });
 
   /*
-   * SELECTION-FOLLOWS-FOCUS IS NOT ASSERTED HERE, DELIBERATELY.
+   * SELECTION-FOLLOWS-FOCUS IS NOT ASSERTED HERE, AND THE REASON IS NOW KNOWN.
    *
-   * Radix implements it with a `keydown` listener on `document` that sets a
-   * ref which the item's `onFocus` then reads. React delegates its own handlers
-   * to the root container, which is INSIDE document, so React's roving-focus
+   * Radix implements it with a `keydown` listener on `document` that sets a ref
+   * which the item's `onFocus` then reads. React delegates its own handlers to
+   * the root container, which is INSIDE document, so React's roving-focus
    * handler moves focus — and the focus handler runs — before the document
    * listener has set the ref. Under jsdom the selection therefore does not
    * follow the arrow keys.
    *
-   * Whether that is a jsdom event-ordering artifact or the real behaviour is a
-   * question about a browser, and it is answered in the browser harness rather
-   * than guessed at here. What is asserted above is what a keyboard user needs
-   * either way: one tab stop, arrows that move and wrap, and Space that selects.
+   * ANSWERED IN A REAL BROWSER (Phase 7B.1 §3). `tests/import-route-qa.mjs`
+   * mounts this component in Chromium, presses ArrowDown, and the focused
+   * option comes back `aria-checked="true"`. The jsdom result is an artefact of
+   * an environment with no real event loop between the two listeners, not a
+   * defect in the component — so nothing here is "fixed" to make a test pass,
+   * and the assertion simply lives where it can be made honestly.
+   *
+   * What is asserted above is what a keyboard user needs either way: one tab
+   * stop, arrows that move and wrap, and Space that selects.
    */
 });
 
