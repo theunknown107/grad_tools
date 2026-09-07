@@ -10,6 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import { examSessionOf, resolveCourseKind, hasSeeFor } from '../src/domain/exams.js';
 import { normalizeResultSubject } from '../src/domain/results.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
@@ -105,6 +106,42 @@ describe('resolving what kind of course a row describes', () => {
 
   it('resolves nothing from a missing external either', () => {
     expect(resolveCourseKind(subject({ hasSee: null, external: null })).kind).toBeNull();
+  });
+
+  it('resolves CIE-only from an internal that cannot fit the CIE scale', () => {
+    /*
+     * THE MIRROR OF THE POSITIVE-EXTERNAL RULE.
+     *
+     * A SEE-bearing course is marked out of `cieMax` — 50 under VTU 2022 — so
+     * an internal of 96 is not a mark out of 50 and the course cannot be
+     * SEE-bearing. Arithmetic about the scale, not a guess about the
+     * curriculum. Three rows across two real semesters have exactly this shape,
+     * and every one of them was being put to a person as a question the marks
+     * had already answered.
+     */
+    const resolved = resolveCourseKind(
+      subject({ hasSee: null, internal: 96, external: 0, total: 96 }),
+      null,
+      vtu2022RuleSet,
+    );
+    expect(resolved).toMatchObject({ kind: 'cie_only', from: 'marks', hasSee: false });
+  });
+
+  it('reads nothing into an internal that DOES fit the CIE scale', () => {
+    // One-directional, like its mirror: a CIE-only course can score low too.
+    const resolved = resolveCourseKind(
+      subject({ hasSee: null, internal: 40, external: 0, total: 40 }),
+      null,
+      vtu2022RuleSet,
+    );
+    expect(resolved.kind).toBeNull();
+  });
+
+  it('needs the rule set to know what the CIE scale even is', () => {
+    // Without one there is no maximum to compare against, so nothing is read.
+    expect(
+      resolveCourseKind(subject({ hasSee: null, internal: 96, external: 0, total: 96 })).kind,
+    ).toBeNull();
   });
 
   it('prefers the reference answer over the marks when they disagree', () => {

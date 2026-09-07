@@ -251,17 +251,17 @@ describe('backlog and SEE applicability', () => {
      * A semester's backlog count must never quietly read as complete when a row
      * could not be checked.
      *
-     * Row `b` is the genuinely ambiguous one: `hasSee` unknown AND an external
-     * of 0, which reads identically as "no SEE" and "sat it and scored nothing"
-     * (DEC-037). It used to be enough to leave `hasSee` null with any external
-     * at all — a POSITIVE external now resolves, because marks in an exam are
-     * proof the exam happened, so the fixture uses the case that actually
-     * cannot be answered.
+     * Row `b` is the genuinely ambiguous one: `hasSee` unknown, an external of
+     * 0, AND an internal that fits the CIE scale. All three matter now. A
+     * positive external resolves (marks prove the exam happened) and an
+     * internal ABOVE `cieMax` resolves the other way (96 is not a mark out of
+     * 50), so the only shape left unanswerable is this one — which is exactly
+     * the case DEC-037 describes.
      */
     const summary = semesterBacklogs(
       result([
         subject({ id: 'a', hasSee: true, internal: 40, external: 17, total: 57 }),
-        subject({ id: 'b', hasSee: null, internal: 60, external: 0, total: 60 }),
+        subject({ id: 'b', hasSee: null, internal: 40, external: 0, total: 40 }),
         subject({ id: 'c', hasSee: true, internal: 40, external: 30, total: 70 }),
       ]),
       ruleSet,
@@ -287,7 +287,7 @@ describe('backlog and SEE applicability', () => {
     expect(sat.backlog).toBe(false);
 
     const ambiguous = evaluateResultSubject(
-      subject({ hasSee: null, internal: 60, external: 0, total: 60 }),
+      subject({ hasSee: null, internal: 40, external: 0, total: 40 }),
       ruleSet,
     );
     expect(ambiguous.courseKind.hasSee).toBeNull();
@@ -304,7 +304,7 @@ describe('backlog and SEE applicability', () => {
       ['AU', 'audit'],
     ] as const) {
       const evaluated = evaluateResultSubject(
-        subject({ hasSee: null, gradeLetter: letter, internal: 60, external: 0, total: 60 }),
+        subject({ hasSee: null, gradeLetter: letter, internal: 40, external: 0, total: 40 }),
         ruleSet,
       );
       expect(evaluated.courseKind).toMatchObject({ kind, from: 'grade', countsTowardGpa: false });

@@ -314,7 +314,11 @@ describe('which calendar is actually in force', () => {
     /* Two useful documents, not a conflict: this term's and next term's. */
     const odd = held({ id: 'odd', semester: 5 });
     const even = held({ id: 'even', semester: 6, fingerprint: 'z' });
-    expect(activeCalendars([odd, even]).map((entry) => entry.id).sort()).toEqual(['even', 'odd']);
+    expect(
+      activeCalendars([odd, even])
+        .map((entry) => entry.id)
+        .sort(),
+    ).toEqual(['even', 'odd']);
   });
 
   it('reports two calendars for one term that disagree', () => {
@@ -433,7 +437,10 @@ describe('what the dashboard is given', () => {
   it('offers the next event and nothing else', () => {
     // One, not ten. The student already has a calendar; the useful thing is
     // the next thing (§32, §54).
-    const next = nextEvent([event('2026-12-04'), event('2026-09-07'), event('2026-09-11')], '2026-09-08');
+    const next = nextEvent(
+      [event('2026-12-04'), event('2026-09-07'), event('2026-09-11')],
+      '2026-09-08',
+    );
     expect(next?.startDate).toBe('2026-09-11');
   });
 

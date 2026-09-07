@@ -174,9 +174,9 @@ describe('rows from OCR words', () => {
 
     // And the row still parses as a subject, which is the point of the row.
     const card = parseResultCard([{ text: 'Semester : 4', page: 1 }, ...lines]);
-    expect(card.rows.map((row) => [row.subjectCode, row.internal, row.external, row.total])).toEqual(
-      [['BQAS401', 44, 36, 80]],
-    );
+    expect(
+      card.rows.map((row) => [row.subjectCode, row.internal, row.external, row.total]),
+    ).toEqual([['BQAS401', 44, 36, 80]]);
   });
 
   it('carries the page number through', () => {

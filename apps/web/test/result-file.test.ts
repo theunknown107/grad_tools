@@ -75,9 +75,8 @@ vi.mock('../src/lib/ocr.js', () => ({
   normalizeContrast: vi.fn(),
 }));
 
-const { betterReading, fileKind, readImageFile, readPdfFile, MAX_OCR_PAGES } = await import(
-  '../src/lib/result-file.js'
-);
+const { betterReading, fileKind, readImageFile, readPdfFile, MAX_OCR_PAGES } =
+  await import('../src/lib/result-file.js');
 
 /** An OCR page result, as the engine would report one. */
 function page(
