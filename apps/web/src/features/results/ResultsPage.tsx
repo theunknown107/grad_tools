@@ -92,6 +92,8 @@ function markText(value: number | null): string {
 
 export function ResultsPage() {
   const { items, loading, save, remove } = useResults();
+  /* The one derived reading, shared with the overview below and every other page. */
+  const { statistics } = useAcademicState();
   /*
    * The import wiring moved to `DocumentImportPanel`, which `/import` also
    * renders. Results keeps the panel because a student looking at their marks
@@ -109,11 +111,7 @@ export function ResultsPage() {
    * REASON a disagreement matters is worth one sentence and is said ONCE here
    * (M9.3 §24); each semester that disagrees then needs only its two figures.
    */
-  const anyMismatch = items.some((item) => {
-    if (item.sgpaAsserted === null) return false;
-    const { sgpa } = semesterSgpa(item, ruleSetForResult(item).ruleSet);
-    return sgpa !== null && Math.abs(sgpa - item.sgpaAsserted) >= 0.005;
-  });
+  const anyMismatch = statistics.views.some((view) => view.sgpaDisagrees);
 
   return (
     <>
@@ -239,7 +237,14 @@ export function ResultsPage() {
                 {[...items]
                   .sort((a, b) => a.semester - b.semester)
                   .map((item, index) => {
-                    const { sgpa } = semesterSgpa(item, ruleSetForResult(item).ruleSet);
+                    /*
+                      From the shared reading, not a fifth computation of it.
+                      This ran `semesterSgpa` per card on every render of the
+                      page (§18, §30).
+                    */
+                    const sgpa =
+                      statistics.semesters.find((entry) => entry.number === item.semester)?.sgpa
+                        .value ?? null;
                     return (
                       <PastelCard
                         key={item.id}
