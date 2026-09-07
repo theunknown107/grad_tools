@@ -102,10 +102,38 @@ function serve() {
 const TRUTH = {
   semester: '4',
   rows: [
-    { code: 'BQAS401', title: 'ALGORITHMS', internal: '44', external: '36', total: '80', status: 'P' },
-    { code: 'BQAS402', title: 'OPERATING SYSTEMS', internal: '40', external: '18', total: '58', status: 'P' },
-    { code: 'BQAS403', title: 'DATABASE SYSTEMS', internal: '38', external: '68', total: '106', status: 'P' },
-    { code: 'BQAS404', title: 'COMPUTER NETWORKS', internal: '45', external: '17', total: '62', status: 'F' },
+    {
+      code: 'BQAS401',
+      title: 'ALGORITHMS',
+      internal: '44',
+      external: '36',
+      total: '80',
+      status: 'P',
+    },
+    {
+      code: 'BQAS402',
+      title: 'OPERATING SYSTEMS',
+      internal: '40',
+      external: '18',
+      total: '58',
+      status: 'P',
+    },
+    {
+      code: 'BQAS403',
+      title: 'DATABASE SYSTEMS',
+      internal: '38',
+      external: '68',
+      total: '106',
+      status: 'P',
+    },
+    {
+      code: 'BQAS404',
+      title: 'COMPUTER NETWORKS',
+      internal: '45',
+      external: '17',
+      total: '62',
+      status: 'F',
+    },
   ],
 };
 
@@ -346,10 +374,7 @@ const run = async () => {
     `OCR PRIVACY: ${String(offOrigin.length)} request(s) left the origin: ${offOrigin.slice(0, 5).join(', ')}`,
   );
   for (const host of ['jsdelivr', 'unpkg', 'cdn.', 'googleapis', 'openai', 'anthropic', 'gemini']) {
-    expect(
-      !requests.some((url) => url.includes(host)),
-      `OCR PRIVACY: a request mentioned ${host}`,
-    );
+    expect(!requests.some((url) => url.includes(host)), `OCR PRIVACY: a request mentioned ${host}`);
   }
   expect(
     requests.some((url) => url.includes('/ocr/') && url.includes('traineddata')),
@@ -358,7 +383,9 @@ const run = async () => {
   report.requests = {
     total: requests.length,
     offOrigin: offOrigin.length,
-    ocrAssets: requests.filter((url) => url.includes('/ocr/')).map((url) => url.slice(ORIGIN.length)),
+    ocrAssets: requests
+      .filter((url) => url.includes('/ocr/'))
+      .map((url) => url.slice(ORIGIN.length)),
   };
 
   /* -------------------------------------------------------------------- */

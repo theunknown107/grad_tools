@@ -331,7 +331,7 @@ export function evaluateResultSubject(
    * of course it is, and a POSITIVE external proves an SEE was sat. A zero
    * external still resolves to nothing, which is DEC-037 intact.
    */
-  const kind = resolveCourseKind(subject);
+  const kind = resolveCourseKind(subject, null, ruleSet);
   if (kind.hasSee === null) {
     return {
       ...base,
@@ -482,7 +482,7 @@ export function sgpaInputs(result: SemesterResult, ruleSet: RuleSet | undefined)
      * Excluded is not hidden. The course stays on the page with its own grade;
      * completion is mandatory for the degree.
      */
-    if (resolveCourseKind(subject).countsTowardGpa === false) continue;
+    if (resolveCourseKind(subject, null, ruleSet).countsTowardGpa === false) continue;
 
     const grade = resolveSubjectGrade(subject, ruleSet);
     const credits = subject.credits;

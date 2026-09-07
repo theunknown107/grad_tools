@@ -47,6 +47,7 @@
  * cannot.
  */
 
+import type { RuleSet } from '@gradtools/academic-rules';
 import type { ResultSubject, SemesterResult } from './types.js';
 import type { SubjectIdentity } from './subjects.js';
 
@@ -154,6 +155,7 @@ function shaped(kind: CourseKind, from: CourseKindFrom): ResolvedCourseKind {
 export function resolveCourseKind(
   subject: ResultSubject,
   identity: SubjectIdentity | null = null,
+  ruleSet?: RuleSet,
 ): ResolvedCourseKind {
   const reference = subject.hasSee ?? identity?.hasSee ?? null;
   if (reference !== null) {
@@ -175,6 +177,32 @@ export function resolveCourseKind(
     return shaped('see_bearing', 'marks');
   }
 
+  /*
+   * AND THE MIRROR OF IT: A CIE THAT DOES NOT FIT THE CIE SCALE.
+   *
+   * A SEE-bearing course is marked out of `cieMax` internally — 50 under VTU
+   * 2022. An internal of 96 cannot be a mark out of 50, so a row carrying one
+   * is not a SEE-bearing course; it is a course assessed entirely by CIE, out
+   * of `courseMax`. That is arithmetic about the scale, not a guess about the
+   * curriculum, and it is as one-directional as the rule above: an internal
+   * that DOES fit the CIE scale says nothing either way, because a CIE-only
+   * course can score low too.
+   *
+   * Found on real cards: three rows across two semesters printed an internal
+   * far above the CIE maximum with an external of zero, and asking a person
+   * about them was asking a question the marks had already answered. Every one
+   * of them stayed unresolved when answered wrongly — the honest outcome, and
+   * not a useful one.
+   */
+  if (
+    ruleSet !== undefined &&
+    subject.internal !== null &&
+    subject.internal > ruleSet.cieMax &&
+    (subject.external === null || subject.external === 0)
+  ) {
+    return shaped('cie_only', 'marks');
+  }
+
   return UNKNOWN;
 }
 
@@ -188,8 +216,9 @@ export function resolveCourseKind(
 export function hasSeeFor(
   subject: ResultSubject,
   identity: SubjectIdentity | null = null,
+  ruleSet?: RuleSet,
 ): boolean | null {
-  return resolveCourseKind(subject, identity).hasSee;
+  return resolveCourseKind(subject, identity, ruleSet).hasSee;
 }
 
 /* -------------------------------------------------------------------------- */

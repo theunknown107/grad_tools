@@ -196,7 +196,11 @@ const run = async () => {
       semester === null ? 'missing' : semester === document.semester ? 'correct' : 'incorrect',
     );
     if (semester !== document.semester) {
-      detail.push({ row: '-', field: 'semester', outcome: semester === null ? 'missing' : 'incorrect' });
+      detail.push({
+        row: '-',
+        field: 'semester',
+        outcome: semester === null ? 'missing' : 'incorrect',
+      });
     }
 
     for (const [index, expected] of document.rows.entries()) {
@@ -221,7 +225,9 @@ const run = async () => {
       }
     }
 
-    const extra = rows.filter((row) => !document.rows.some((r) => normalise(r.code) === normalise(row.code)));
+    const extra = rows.filter(
+      (row) => !document.rows.some((r) => normalise(r.code) === normalise(row.code)),
+    );
 
     /*
      * THE QUESTION THAT MATTERS MORE THAN THE SCORE.
@@ -291,7 +297,6 @@ const run = async () => {
     }
     if (totals.incorrect > 0 || totals.missing > 0) problems += 1;
   }
-
 
   /* ---------------------------------------------------------------------- */
   /* THE REAL SEMESTER PILOT                                                 */
@@ -519,7 +524,6 @@ const run = async () => {
 
       report.pilot.documents.push(found);
 
-
       console.log(
         `    routed to ${found.routedTo}${found.routedCorrectly ? '' : '  <-- WRONG PARSER'}`,
       );
@@ -527,7 +531,9 @@ const run = async () => {
       console.log(
         `    save offered: ${found.offeredSave ? 'yes' : 'NO'}` +
           ` · enabled: ${found.saveEnabled ? 'yes' : 'NO'}` +
-          (found.batchOptions === undefined ? '' : ` · batches offered: ${String(found.batchOptions)}`),
+          (found.batchOptions === undefined
+            ? ''
+            : ` · batches offered: ${String(found.batchOptions)}`),
       );
       if (!found.saveEnabled) problems += 1;
       if (!found.routedCorrectly) problems += 1;
@@ -627,9 +633,7 @@ const run = async () => {
         `    marked: ${String(marked.marks)} mark, ${String(marked.attendanceRecords)} record` +
           ` · after undo: ${String(undone.marks)} mark`,
       );
-    console.log(
-      `    storage: ${JSON.stringify(chain.storageBytes)} bytes of structured facts`,
-    );
+    console.log(`    storage: ${JSON.stringify(chain.storageBytes)} bytes of structured facts`);
 
     /* What came out, for the owner of the documents to check against them. */
     await writeFile(
@@ -637,7 +641,9 @@ const run = async () => {
       `${JSON.stringify({ calendars, slots, imports }, null, 2)}\n`,
       'utf8',
     );
-    console.log(`    Extracted values: ${join(OUT, 'pilot-extraction.json')}  (private, gitignored)`);
+    console.log(
+      `    Extracted values: ${join(OUT, 'pilot-extraction.json')}  (private, gitignored)`,
+    );
   }
 
   /* A real card must not reach a third party any more than a synthetic one. */
@@ -646,7 +652,9 @@ const run = async () => {
   report.requests = {
     total: requests.length,
     offOrigin: offOrigin.length,
-    ocrAssets: requests.filter((url) => url.includes('/ocr/')).map((url) => url.slice(ORIGIN.length)),
+    ocrAssets: requests
+      .filter((url) => url.includes('/ocr/'))
+      .map((url) => url.slice(ORIGIN.length)),
   };
 
   /*
@@ -657,7 +665,11 @@ const run = async () => {
   const leaked = consoleLines.filter((line) =>
     /\b\d[A-Z]{2}\d{2}[A-Z]{2}\d{3}\b|Seat Number|Student Name/i.test(line),
   );
-  report.console = { lines: consoleLines.length, errors: consoleLines.filter((l) => l.startsWith('error')).length, leaked: leaked.length };
+  report.console = {
+    lines: consoleLines.length,
+    errors: consoleLines.filter((l) => l.startsWith('error')).length,
+    leaked: leaked.length,
+  };
 
   await browser.close();
   server.close();
@@ -665,7 +677,9 @@ const run = async () => {
 
   console.log(`\n  Requests off-origin: ${String(offOrigin.length)}`);
   console.log(`  OCR assets: ${report.requests.ocrAssets.join(', ') || '(none)'}`);
-  console.log(`  Console: ${String(report.console.lines)} lines, ${String(report.console.errors)} errors, ${String(leaked.length)} leaking identity`);
+  console.log(
+    `  Console: ${String(report.console.lines)} lines, ${String(report.console.errors)} errors, ${String(leaked.length)} leaking identity`,
+  );
   console.log(`  Report: ${join(OUT, 'real-report.json')}  (structural only)`);
   console.log(
     `\n  REAL-DOCUMENT VERIFIED = ATTEMPTED on ${String(documents.length)} document(s); ` +

@@ -134,9 +134,7 @@ const run = async () => {
          * blip is not a frontend defect either. Both are counted separately
          * so they cannot mask a real console error.
          */
-        const tag = isApiDown(e)
-          ? 'API-DOWN'
-          : 'CONSOLE';
+        const tag = isApiDown(e) ? 'API-DOWN' : 'CONSOLE';
         problems.push(`${tag} ${appearance}@${vp.name}: ${e.slice(0, 120)}`);
       }
       await context.close();

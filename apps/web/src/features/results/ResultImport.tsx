@@ -712,22 +712,32 @@ function ImportGroup({
   const ready = isReadyToImport(group) || (group.semester === null && semester !== '');
 
   /**
-   * Credits and SEE applicability for a code, from the catalogue or from what
-   * the student has already recorded.
+   * THE CATALOGUE, AND ONLY THE CATALOGUE.
    *
-   * `provenance` still turns on the CATALOGUE alone: a credit the student
-   * supplied is good enough to compute their own SGPA with and is not the
-   * scheme's answer, and `rowToSubject` marks the row `manual` accordingly.
-   * `hasSee` is never taken from a student record here — DEC-037 keeps it
-   * reference data, and an unknown one stays unknown.
+   * This is what `rowToSubject` is given, and it is what decides `provenance`.
+   * A first version of this folded the student's own recorded credits in here
+   * too, which was wrong in a way that quietly corrupted the reference tier:
+   * `rowToSubject` marks a row `catalogue` whenever it is handed anything at
+   * all, so a credit the STUDENT typed came back labelled as the scheme's
+   * answer — and `buildSubjectIndex` then trusted it as reference data on every
+   * other screen. The comment there even claimed the opposite.
+   *
+   * The student tier is applied separately, below, as an override on a row that
+   * is still `manual`.
    */
-  const referenceFor = (code: string) => {
+  const catalogueFor = (code: string) => {
     const match = catalogue.find((subject) => subjectKey(subject.code) === subjectKey(code));
-    if (match !== undefined) return { credits: match.credits, hasSee: match.hasSee };
-
-    const resolved = creditsFor(resolveSubject(subjectIndex, code));
-    return resolved.credits === null ? null : { credits: resolved.credits, hasSee: null };
+    return match === undefined ? null : { credits: match.credits, hasSee: match.hasSee };
   };
+
+  /**
+   * Credits this student has already recorded for the same code.
+   *
+   * Never `hasSee`: DEC-037 keeps that reference data, and an unknown one stays
+   * unknown until somebody answers for it.
+   */
+  const rememberedCredits = (code: string) =>
+    creditsFor(resolveSubject(subjectIndex, code)).credits;
 
   const confirm = () => {
     const subjects: ResultSubject[] = rows.map((row) => {
@@ -745,7 +755,7 @@ function ImportGroup({
           warnings: [],
         },
         row.id,
-        referenceFor(row.subjectCode),
+        catalogueFor(row.subjectCode),
       );
       /*
        * A grade or a credit the STUDENT typed during review is theirs, and
@@ -754,7 +764,16 @@ function ImportGroup({
       return {
         ...base,
         gradeLetter: row.gradeLetter === '' ? base.gradeLetter : row.gradeLetter,
-        credits: row.credits === '' ? base.credits : Number(row.credits),
+        /*
+         * Typed at review, else the catalogue's, else what this student already
+         * recorded for the same code. The last of those keeps `provenance:
+         * 'manual'`, which is exactly right — it is their figure, not the
+         * scheme's.
+         */
+        credits:
+          row.credits === ''
+            ? (base.credits ?? rememberedCredits(row.subjectCode))
+            : Number(row.credits),
         /*
          * An answer the student gave is better than no answer, and it is still
          * not reference data — `provenance` stays whatever `rowToSubject`
@@ -992,7 +1011,7 @@ function ImportGroup({
               1 and 2 — which is the point. It is a question about the rows
               that need one, not a field on every row.
             */}
-            {needsSeeAnswer(row, referenceFor(row.subjectCode)?.hasSee ?? null) && (
+            {needsSeeAnswer(row, catalogueFor(row.subjectCode)?.hasSee ?? null) && (
               <SelectField
                 label={`Final exam ${String(index + 1)}`}
                 hint="This card does not say, and it changes the result."
