@@ -11,6 +11,7 @@ import type {
   ClassMark,
   SemesterRecord,
   SemesterResult,
+  SchemeCourse,
   SemesterSubject,
   StudentProfile,
   TimetableSlot,
@@ -123,6 +124,7 @@ export function createLocalRepositories(scope: AccountScope): RepositoryBundle {
     calendars: createListRepository<SavedCalendar>(scope, 'calendars'),
     timetableImports: createListRepository<SavedTimetable>(scope, 'timetableImports'),
     classMarks: createListRepository<ClassMark>(scope, 'classMarks'),
+    schemeCourses: createListRepository<SchemeCourse>(scope, 'schemeCourses'),
     notifications,
   };
 }

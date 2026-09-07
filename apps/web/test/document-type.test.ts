@@ -209,3 +209,39 @@ describe('one signal is never enough', () => {
     expect(seen.reason).toMatch(/more than one kind/i);
   });
 });
+
+describe('the scheme of teaching, which carries the credits', () => {
+  const SCHEME = lines(
+    'VISVESVARAYA TECHNOLOGICAL UNIVERSITY, BELAGAVI',
+    'Scheme of Teaching and Examinations 2022',
+    'Outcome Based Education (OBE) and Choice Based Credit System (CBCS)',
+    'IV SEMESTER',
+    'Sl. No Course Code Course Title Teaching Hours /Week Credits',
+  );
+
+  it('is recognised, because nothing else prints credits against course codes', () => {
+    expect(classifyDocument(SCHEME).type).toBe('course_scheme');
+  });
+
+  /*
+   * THE CASE THIS GATE EXISTS FOR. A syllabus for ONE course names a course
+   * code, prints that course's credits and quotes the scheme's teaching hours
+   * — three signals summing to exactly the floor. On the real pack that routed
+   * four single-course syllabi to the scheme reader, which would have found no
+   * programme table in any of them.
+   */
+  it('is not confused with a syllabus for a single course', () => {
+    const syllabus = lines(
+      'VISVESVARAYA TECHNOLOGICAL UNIVERSITY, BELAGAVI',
+      'Course Code: BQQ401  Credits: 04',
+      'Teaching Hours/Week (L:T:P): 3:0:2',
+      'Course Learning Objectives',
+      'Module-1',
+    );
+    expect(classifyDocument(syllabus).type).not.toBe('course_scheme');
+  });
+
+  it('does not read a result card as a scheme', () => {
+    expect(classifyDocument(RESULT).type).toBe('result');
+  });
+});

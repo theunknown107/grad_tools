@@ -38,7 +38,8 @@
 
 import type { ImportLine } from './result-import.js';
 
-export type DocumentType = 'result' | 'academic_calendar' | 'college_timetable' | 'unsupported';
+export type DocumentType =
+  'result' | 'academic_calendar' | 'college_timetable' | 'course_scheme' | 'unsupported';
 
 export interface Classification {
   readonly type: DocumentType;
@@ -127,6 +128,31 @@ const TIMETABLE_SIGNALS: readonly Signal[] = [
 ];
 
 /**
+ * A Scheme of Teaching and Examinations names the SHAPE of a programme.
+ *
+ * It is the only VTU document that prints a credits column against course
+ * codes, which is why it is worth reading: a result card has no credits, and
+ * without them no SGPA can be calculated at all.
+ *
+ * The heading is the strong signal and is close to unique — no other document
+ * calls itself a scheme of teaching. The column headings back it up, because a
+ * syllabus for a single course names the same programme and the same year
+ * without ever printing a teaching-hours table.
+ */
+const SCHEME_SIGNALS: readonly Signal[] = [
+  {
+    name: 'scheme of teaching heading',
+    pattern: /scheme\s+of\s+teaching(\s+and\s+examinations?)?/i,
+    weight: 4,
+  },
+  { name: 'teaching hours per week', pattern: /teaching\s+hours?\s*\/?\s*week/i, weight: 3 },
+  { name: 'a course code column', pattern: /course\s+code/i, weight: 2 },
+  { name: 'a credits column', pattern: /\bcredits?\b/i, weight: 1 },
+  { name: 'choice based credit system', pattern: /choice\s+based\s+credit\s+system/i, weight: 2 },
+  { name: 'outcome based education', pattern: /outcome\s+based\s+education/i, weight: 2 },
+];
+
+/**
  * Documents that are academic, dated, and still not one of the three.
  *
  * An exam schedule is the case that matters. It is issued by the university,
@@ -156,6 +182,13 @@ const QUESTION_PAPER_SIGNALS: readonly Signal[] = [
   { name: 'USN grid', pattern: /\bUSN\b/, weight: 1 },
   { name: 'maximum marks', pattern: /max\.?\s*marks/i, weight: 3 },
 ];
+
+/** The name of the signal a scheme cannot be recognised without. */
+const SCHEME_GATE = 'scheme of teaching heading';
+
+function gated(scored: { total: number; names: string[] }) {
+  return scored.names.includes(SCHEME_GATE) ? scored : { total: 0, names: scored.names };
+}
 
 function score(lines: readonly ImportLine[], signals: readonly Signal[]) {
   const text = lines.map((line) => line.text).join('\n');
@@ -206,6 +239,19 @@ export function classifyDocument(lines: readonly ImportLine[]): Classification {
     { type: 'result' as const, ...score(lines, RESULT_SIGNALS) },
     { type: 'academic_calendar' as const, ...score(lines, CALENDAR_SIGNALS) },
     { type: 'college_timetable' as const, ...score(lines, TIMETABLE_SIGNALS) },
+    /*
+     * THE SCHEME'S HEADING IS REQUIRED, NOT MERELY WEIGHTED.
+     *
+     * Its other signals are all things a SYLLABUS prints too: a syllabus names
+     * a course code, a credit box and the scheme's teaching hours for the one
+     * course it describes. On the real pack those three summed to exactly the
+     * floor and four single-course syllabi were routed to the scheme reader,
+     * which would have found no programme table in any of them.
+     *
+     * No document but a scheme calls itself a scheme of teaching, so it stands
+     * as the gate and the rest corroborate.
+     */
+    { type: 'course_scheme' as const, ...gated(score(lines, SCHEME_SIGNALS)) },
   ];
 
   /*

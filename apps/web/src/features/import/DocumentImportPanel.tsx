@@ -21,11 +21,12 @@
 
 import { asStudentProfileId } from '../../domain/identity.js';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
-import type { TimetableSlot } from '../../domain/types.js';
+import type { SchemeCourse, TimetableSlot } from '../../domain/types.js';
 import {
   useCalendars,
   useProfile,
   useResults,
+  useSchemeCourses,
   useSemesterSubjects,
   useTimetable,
   useTimetableImports,
@@ -51,6 +52,32 @@ export function DocumentImportPanel({
   const { items: calendars, save: saveCalendar } = useCalendars();
   const { items: timetable, save: saveSlot, remove: removeSlot } = useTimetable();
   const { items: timetableImports, save: saveImport } = useTimetableImports();
+  const {
+    items: schemeCourses,
+    save: saveSchemeCourse,
+    remove: removeSchemeCourse,
+  } = useSchemeCourses();
+
+  /*
+   * A RE-IMPORTED SCHEME REPLACES THE CODES IT COVERS.
+   *
+   * Two catalogue credit figures for one course code is a state nothing can
+   * resolve — both would carry the same "VTU catalogue" label and neither
+   * would be more recent than the other from the reading's point of view. A
+   * corrected or reissued scheme is the usual reason to import one twice, so
+   * the codes it names are dropped first and written fresh.
+   *
+   * Codes it does NOT name are left alone: a student may hold the first-year
+   * scheme and the third-to-eighth one, and importing the second must not
+   * erase the first.
+   */
+  const replaceScheme = async (courses: readonly SchemeCourse[]) => {
+    const incoming = new Set(courses.map((course) => course.code));
+    for (const existing of schemeCourses) {
+      if (incoming.has(existing.code)) await removeSchemeCourse(existing.id);
+    }
+    for (const course of courses) await saveSchemeCourse(course);
+  };
 
   /*
    * ONE ACTIVE TIMETABLE. A confirmed import REPLACES the stored classes rather
@@ -89,6 +116,7 @@ export function DocumentImportPanel({
       onSave={saveResult}
       onSaveCalendar={saveCalendar}
       onSaveTimetable={replaceTimetable}
+      onSaveScheme={replaceScheme}
       onCancel={onDone}
     />
   );
