@@ -661,15 +661,26 @@ export function resolveGridSubject(
 
 /** `W.E.F: 07/11/2024`, `W.E.F 7-11-2024`. Never the upload date (§14). */
 function readEffectiveFrom(text: string): string | null {
+  /*
+   * `W.E.F: 07/11/2026`, and `With effective from: 09.09.2026`.
+   *
+   * The abbreviation is what the reference document prints; the sentence is
+   * what a timetable written in a word processor prints, and only matching the
+   * abbreviation left a real document with no effective date at all — which
+   * matters, because the effective date is how a revision is known to supersede
+   * the timetable a student is already following.
+   */
   const match =
-    /w\.?\s*e\.?\s*f\.?\s*[:\s]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{4})/i.exec(text);
+    /w\.?\s*e\.?\s*f\.?\s*[:\s]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{4})/i.exec(text) ??
+    /\bwith\s+effect(?:ive)?\s+from\s*[:\s]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{4})/i.exec(
+      text,
+    );
   if (match === null) return null;
   const [, day, month, year] = match as unknown as [string, string, string, string];
   const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
   if (date.getUTCMonth() !== Number(month) - 1 || date.getUTCDate() !== Number(day)) return null;
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
-
 /**
  * The class this timetable is for, without whatever was printed beside it.
  *
@@ -682,7 +693,21 @@ function readEffectiveFrom(text: string): string | null {
  */
 function readClassName(text: string): string | null {
   const raw = /\bclass\s*[:\-–]\s*([^\n]{1,60})/i.exec(text)?.[1];
-  if (raw === undefined) return null;
+  if (raw === undefined) {
+    /*
+     * NO "CLASS:" LABEL AT ALL.
+     *
+     * A timetable headed `V (B) - Timetable for the Academic year 2026-27`
+     * names its class and never uses the word. The shape - a roman numeral for
+     * the semester, a parenthesised division letter - is the ordinary VTU
+     * convention, and it is anchored to the word "timetable" so an unrelated
+     * `V (B)` elsewhere on the page cannot be read as one.
+     */
+    const heading = /\b([IVX]{1,4}\s*\(\s*[A-Z]\s*\))\s*[-–—:]?\s*Time\s*-?\s*table\b/i.exec(
+      text,
+    )?.[1];
+    return heading === undefined ? null : heading.replace(/\s+/g, ' ').trim();
+  }
   const cut = raw.split(
     /\bTIME\s*-?\s*TABLE\b|\bROOM\b|\bW\.?\s*E\.?\s*F\b|\bACADEMIC\s+YEAR\b/i,
   )[0];
@@ -705,9 +730,19 @@ function readContext(text: string): TimetableContext {
     viii: 8,
   };
   const rawSemester = semesterMatch?.[1] ?? '';
+  const className = readClassName(text);
+  /*
+   * The class name carries the semester when nothing else states it.
+   * `V (B)` is the fifth semester, division B — the roman numeral IS the
+   * semester, and this document never writes the word "semester" at all. Read
+   * from the class name rather than from anywhere on the page, so a roman
+   * numeral in a subject title cannot be mistaken for one.
+   */
+  const fromClassName = /^([IVX]{1,4})\b/i.exec(className ?? '')?.[1];
   const semester = /^\d$/.test(rawSemester)
     ? Number(rawSemester)
-    : (roman[rawSemester.toLowerCase()] ?? null);
+    : (roman[rawSemester.toLowerCase()] ??
+      (fromClassName === undefined ? null : (roman[fromClassName.toLowerCase()] ?? null)));
 
   const year = /\b(20\d{2})\s*[-–—/]\s*((?:20)?\d{2})\b/.exec(text);
   const academicYear =
@@ -721,11 +756,15 @@ function readContext(text: string): TimetableContext {
         })();
 
   return {
-    className: readClassName(text),
+    className,
     semester,
     academicYear,
     /* `TIME-TABLE (R2)`. The label the document gave its own revision (§13). */
-    revision: /time\s*-?\s*table\s*\(\s*(R\d)\s*\)/i.exec(text)?.[1]?.toUpperCase() ?? null,
+    revision:
+      (
+        /time\s*-?\s*table\s*\(\s*(R\d)\s*\)/i.exec(text)?.[1] ??
+        /^.*\btime\s*-?\s*table\b.*?\(\s*(R\d)\s*\).*$/im.exec(text)?.[1]
+      )?.toUpperCase() ?? null,
     effectiveFrom: readEffectiveFrom(text),
     room: /\broom\s*(?:no\.?)?\s*[:\-–]?\s*([A-Z]?\d{2,4}[A-Z]?)\b/i.exec(text)?.[1] ?? null,
   };
@@ -1241,6 +1280,42 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
         sourceText: text,
       });
     }
+  }
+
+  /*
+   * BREAK AND LUNCH, SET VERTICALLY.
+   *
+   * A narrow column cannot fit "SHORT BREAK" across it, so a timetable sets it
+   * down the column instead — and the extractor returns one letter per printed
+   * line, spread through every day's rows. No single letter is a class and none
+   * belongs to a day, so the grid reader drops them; but the COLUMN they spell
+   * is a break, and without reading them a break column on such a document is
+   * never identified at all and reads as an ordinary free period.
+   *
+   * A standalone pass, over every row under the header rather than over the
+   * day bands, because these letters sit between the bands and belong to none
+   * of them. Read top to bottom, which is how they were printed, and matched on
+   * letters alone so spacing and case cannot matter.
+   */
+  const vertical = new Map<number, { y: number; text: string }[]>();
+  for (let index = headerIndex + 1; index < rows.length; index += 1) {
+    for (const item of rows[index] as PlacedLike[]) {
+      const letters = item.text.replace(/[^A-Za-z0-9]/g, '');
+      if (letters.length !== 1) continue;
+      const column = slotAt(bounded, item.x, item.x + item.width);
+      if (column < 0) continue;
+      const stack = vertical.get(column) ?? [];
+      stack.push({ y: item.y, text: letters });
+      vertical.set(column, stack);
+    }
+  }
+  for (const [column, stack] of vertical) {
+    const spelled = [...stack]
+      .sort((a, b) => b.y - a.y)
+      .map((entry) => entry.text)
+      .join('')
+      .toUpperCase();
+    if (/BREAK|LUNCH|RECESS|INTERVAL/.test(spelled)) breakColumns.add(column);
   }
 
   const withBreaks = bounded.map((slot, index) => ({ ...slot, isBreak: breakColumns.has(index) }));
