@@ -142,9 +142,20 @@ export function subjectKey(code: string): string {
 /* Building the index                                                         */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A catalogue row, structurally: only the five fields identity reads.
+ *
+ * Widened from the reference API's own `Subject` so a scheme the STUDENT
+ * imported can supply the same tier without inventing the fields it does not
+ * print — a scheme's table states a code, a title, a semester and credits, and
+ * says nothing about module counts or maximum marks. `Subject` still satisfies
+ * it, so the reference API keeps working unchanged.
+ */
+export type CatalogueSubject = Pick<Subject, 'code' | 'title' | 'semester' | 'credits' | 'hasSee'>;
+
 export interface SubjectIndexInput {
   /** Verified reference rows, when the catalogue could be reached. May be empty. */
-  readonly catalogue?: readonly Subject[];
+  readonly catalogue?: readonly CatalogueSubject[];
   readonly results?: readonly SemesterResult[];
   readonly semesterSubjects?: readonly SemesterSubject[];
   readonly attendance?: readonly AttendanceRecord[];

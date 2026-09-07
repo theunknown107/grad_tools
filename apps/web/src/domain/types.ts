@@ -262,6 +262,37 @@ export interface SemesterSubject {
 }
 
 /**
+ * One course as the Scheme of Teaching states it.
+ *
+ * REFERENCE DATA, NOT THE STUDENT'S (Phase 7C §10, §14). This is the top tier:
+ * a credit here came off the university's own published table, so it is
+ * labelled `VTU catalogue` on screen and may be trusted as the answer for a
+ * code wherever that code appears. A figure the student typed must NEVER be
+ * written into this store — the two tiers exist precisely so they can be told
+ * apart, and folding them together is the bug §14 was written about.
+ *
+ * Kept apart from `SemesterSubject`, which is what a student PLANS to take. The
+ * same code can be in both and they answer different questions: this one says
+ * what the course is worth, that one says the student is taking it.
+ */
+export interface SchemeCourse {
+  readonly id: string;
+  readonly profileId: StudentProfileId;
+  /** The programme's scheme year, as the document heads itself: "2022". */
+  readonly schemeYear: string | null;
+  /** The programme the scheme is for, as printed. Null when it prints none. */
+  readonly programme: string | null;
+  readonly semester: number;
+  readonly code: string;
+  readonly title: string;
+  /** The scheme's own figure. Never null: a row without one is not saved. */
+  readonly credits: number;
+  /** The page of the scheme this row was read from. */
+  readonly sourcePage: number;
+  readonly updatedAt: string;
+}
+
+/**
  * A subject not yet cleared.
  *
  *   active     carried, not attempted since

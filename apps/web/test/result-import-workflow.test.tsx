@@ -18,13 +18,17 @@ import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/dom';
 import { cleanup } from '@testing-library/react';
 import type { ImportLine } from '../src/domain/result-import.js';
+import type { PlacedText } from '../src/lib/pdf-text.js';
 import { createMemoryRepositories, renderWith } from './helpers.js';
 
 /* ---------------------------------------------------------------------- */
 /* The PDF read, stubbed at the module boundary                            */
 /* ---------------------------------------------------------------------- */
 
-const extractions = new Map<string, { lines: ImportLine[]; hasTextLayer: boolean }>();
+const extractions = new Map<
+  string,
+  { lines: ImportLine[]; hasTextLayer: boolean; placed?: PlacedText[] }
+>();
 let failWith: string | null = null;
 
 /*
@@ -44,7 +48,12 @@ vi.mock('../src/lib/pdf-text.js', () => ({
     const next = [...extractions.values()][0];
     return Promise.resolve({
       lines: next?.lines ?? [],
-      placed: [],
+      /*
+       * A scheme is read from POSITIONS, not lines — its credits column is
+       * identified by where it sits — so the stub has to be able to hand back
+       * placed text as well.
+       */
+      placed: next?.placed ?? [],
       pageCount: 1,
       hasTextLayer: next?.hasTextLayer ?? true,
     });
@@ -577,5 +586,112 @@ describe('confirming an import', () => {
 
     expect(peek.results()).toHaveLength(1);
     expect(peek.results().filter((entry) => entry.semester === 4)).toHaveLength(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The scheme of teaching, which carries the credits                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * THE DOCUMENT THAT UNBLOCKS EVERY OTHER FIGURE.
+ *
+ * A result card prints no credits and SGPA is credit-weighted, so on a device
+ * that has never reached the reference API a card can never be graded. That
+ * was the reported bug in one line: four imported semesters, no SGPA, no
+ * CGPA, and an analytics page that said "no figures yet".
+ *
+ * The fixture reproduces the LAYOUT of a scheme — the credits set on their own
+ * baseline in the rightmost column — with invented codes. The real document is
+ * not in the repository (Phase 7C §7).
+ */
+describe('importing a scheme of teaching', () => {
+  const place = (text: string, x: number, y: number): PlacedText => ({
+    text,
+    x,
+    y,
+    width: text.length * 5,
+    height: 11,
+    page: 1,
+  });
+
+  const SCHEME_LINES: ImportLine[] = [
+    { text: 'VISVESVARAYA TECHNOLOGICAL UNIVERSITY, BELAGAVI', page: 1 },
+    { text: 'Scheme of Teaching and Examinations 2022', page: 1 },
+    { text: 'Outcome Based Education (OBE) and Choice Based Credit System (CBCS)', page: 1 },
+    { text: 'Sl. No Course Code Course Title Teaching Hours /Week Credits', page: 1 },
+    { text: 'IV SEMESTER', page: 1 },
+  ];
+
+  const schemeRow = (y: number, code: string, title: string, credits: number): PlacedText[] => [
+    place(code, 140, y),
+    place(title, 195, y),
+    place('TD:CB', 423, y + 7),
+    place('100', 750, y + 6),
+    place(String(credits), 789, y + 6),
+    place('3', 493, y),
+    place('0', 526, y),
+    place('0', 559, y),
+    place('03', 632, y),
+    place('50', 670, y),
+    place('50', 711, y),
+  ];
+
+  beforeEach(() => {
+    extractions.clear();
+    extractions.set('a', {
+      lines: SCHEME_LINES,
+      hasTextLayer: true,
+      placed: [
+        place('B.E. in Invented Studies', 313, 491),
+        place('Scheme of Teaching and Examinations 2022', 319, 477),
+        place('IV SEMESTER', 56, 435),
+        ...schemeRow(322, 'BQQ401', 'Invented Course One', 4),
+        ...schemeRow(298, 'BQQ402', 'Invented Course Two', 3),
+      ],
+    });
+  });
+
+  it('routes to the scheme review rather than to the result parser', async () => {
+    const user = userEvent.setup();
+    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+
+    await choose(user, 'scheme.pdf');
+
+    expect(await screen.findByText(/Scheme of teaching/i)).toBeTruthy();
+    expect(screen.getByText('Invented Course One')).toBeTruthy();
+    expect(screen.getByText(/4 credits/)).toBeTruthy();
+    // Nothing is saved before the confirm, here as everywhere.
+    expect(screen.getByRole('button', { name: /confirm and save these credits/i })).toBeTruthy();
+  });
+
+  it('records the credits as the catalogue’s, and says so unmistakably', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ResultsPage />, { repositories: bundle });
+
+    await choose(user, 'scheme.pdf');
+    await screen.findByText(/Scheme of teaching/i);
+    await user.click(screen.getByRole('button', { name: /confirm and save these credits/i }));
+
+    expect(await screen.findByText(/Data confirmed and recorded/i)).toBeTruthy();
+    await waitFor(() => expect(peek.schemeCourses()).toHaveLength(2));
+    expect(peek.schemeCourses().map((course) => [course.code, course.credits])).toEqual([
+      ['BQQ401', 4],
+      ['BQQ402', 3],
+    ]);
+  });
+
+  it('does not save the same scheme twice when Confirm is pressed twice', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ResultsPage />, { repositories: bundle });
+
+    await choose(user, 'scheme.pdf');
+    await screen.findByText(/Scheme of teaching/i);
+    await user.dblClick(screen.getByRole('button', { name: /confirm and save these credits/i }));
+    await screen.findByText(/Data confirmed and recorded/i);
+
+    await waitFor(() => expect(peek.schemeCourses()).toHaveLength(2));
   });
 });

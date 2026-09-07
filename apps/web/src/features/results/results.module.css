@@ -521,3 +521,84 @@
 .resolvedItem[data-unresolved='true'] {
   flex-basis: 100%;
 }
+
+/* -------------------------------------------------------------------------- */
+/* A scheme of teaching, under review                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Forty-five courses read as a list, not as forty-five cards. The student is
+ * checking one column — the credits — against a document they have open, so
+ * the rows are tight and the figure is the thing that lines up.
+ */
+.schemeList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.schemeRow {
+  display: grid;
+  grid-template-columns: 2.5rem 6rem 1fr auto;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding-block: var(--space-2);
+  border-block-end: 1px solid var(--border-subtle);
+  font-size: var(--text-body);
+  line-height: var(--text-body-lh);
+}
+
+.schemeSemester {
+  font-size: var(--text-micro);
+  line-height: var(--text-micro-lh);
+  letter-spacing: var(--tracking-label);
+  color: var(--text-subtle);
+}
+
+.schemeCode {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-strong);
+}
+
+.schemeTitle {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.schemeCredits {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+/* The refused rows are folded away: they are context, not a task. */
+.schemeRejected {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-subtle);
+}
+
+.schemeRejected summary {
+  cursor: pointer;
+}
+
+.schemeRejected ul {
+  margin: var(--space-2) 0 0;
+  padding-inline-start: var(--space-4);
+  display: grid;
+  gap: var(--space-1);
+}
+
+@media (max-width: 30rem) {
+  /* At 390px the four columns cannot hold; the title takes its own line. */
+  .schemeRow {
+    grid-template-columns: 2.5rem 1fr auto;
+  }
+
+  .schemeTitle {
+    grid-column: 2 / -1;
+  }
+}

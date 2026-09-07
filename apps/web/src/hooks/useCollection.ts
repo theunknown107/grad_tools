@@ -13,6 +13,7 @@ import type {
   ClassMark,
   SemesterRecord,
   SemesterResult,
+  SchemeCourse,
   SemesterSubject,
   StudentProfile,
   TimetableSlot,
@@ -121,6 +122,18 @@ export function useTimetableImports(): CollectionState<SavedTimetable> {
  */
 export function useClassMarks(): CollectionState<ClassMark> {
   return useCollection(useRepositories().classMarks);
+}
+
+/**
+ * The university's own course table, from a Scheme of Teaching the student
+ * imported.
+ *
+ * The credits tier that works offline (Phase 7C §10). The cloud reference API
+ * is the other one, and on a device that has never reached it this is the only
+ * one — which is why a result card imported without it could never be graded.
+ */
+export function useSchemeCourses(): CollectionState<SchemeCourse> {
+  return useCollection(useRepositories().schemeCourses);
 }
 
 export interface ProfileState {
