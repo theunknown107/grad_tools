@@ -34,6 +34,15 @@ import {
   type RuleSet,
 } from '@gradtools/academic-rules';
 import type { ResultSubject, SemesterResult, SubjectProvenance } from './types.js';
+import { resolveCourseKind, type ResolvedCourseKind } from './exams.js';
+
+/** The `courseKind` on an evaluation that never got as far as resolving one. */
+const UNRESOLVED_KIND: ResolvedCourseKind = {
+  kind: null,
+  from: null,
+  hasSee: null,
+  countsTowardGpa: null,
+};
 
 /* -------------------------------------------------------------------------- */
 /* Reading what is already stored                                             */
@@ -217,6 +226,14 @@ export interface GradeReading {
 }
 
 export interface SubjectEvaluation {
+  /**
+   * How this course is assessed, and where that was established.
+   *
+   * Carried on every evaluation, including the ones that could not go further,
+   * so a screen can say WHY a row is unresolved — "we do not know whether this
+   * course had a final exam" is actionable; a blank cell is not.
+   */
+  readonly courseKind: ResolvedCourseKind;
   /** `internal + external`, when both are present. Never written to the record. */
   readonly computedTotal: number | null;
   /** True when a printed total and the computed one disagree. Both stay visible. */
@@ -290,6 +307,7 @@ export function evaluateResultSubject(
 
   const sourceGrade = sourceGradeOf(subject, ruleSet);
   const base = {
+    courseKind: UNRESOLVED_KIND,
     computedTotal,
     totalDisagrees:
       computedTotal !== null && subject.total !== null && subject.total !== computedTotal,
@@ -307,9 +325,17 @@ export function evaluateResultSubject(
     };
   }
 
-  if (subject.hasSee === null) {
+  /*
+   * `hasSee` comes through `resolveCourseKind` rather than straight off the
+   * row: the catalogue answers where it can, a printed PP/NP/AU says what kind
+   * of course it is, and a POSITIVE external proves an SEE was sat. A zero
+   * external still resolves to nothing, which is DEC-037 intact.
+   */
+  const kind = resolveCourseKind(subject);
+  if (kind.hasSee === null) {
     return {
       ...base,
+      courseKind: kind,
       unavailableReason:
         'Whether this course has a semester-end exam is not known, so its pass or backlog state cannot be worked out. An external of 0 means both "no SEE" and "sat the SEE and scored nothing".',
     };
@@ -319,6 +345,7 @@ export function evaluateResultSubject(
   if (subject.internal === null || subject.external === null || total === null) {
     return {
       ...base,
+      courseKind: kind,
       unavailableReason: 'Internal and external marks are needed to work this out.',
     };
   }
@@ -331,10 +358,10 @@ export function evaluateResultSubject(
       total,
     },
     ruleSet,
-    { hasSee: subject.hasSee },
+    { hasSee: kind.hasSee },
   );
 
-  if (!isOk(outcome)) return { ...base, unavailableReason: outcome.detail };
+  if (!isOk(outcome)) return { ...base, courseKind: kind, unavailableReason: outcome.detail };
 
   let computedGrade: GradeReading | null = null;
   if (outcome.value.passed) {
@@ -344,6 +371,7 @@ export function evaluateResultSubject(
 
   return {
     ...base,
+    courseKind: kind,
     outcome: outcome.value,
     backlog: outcome.value.backlog,
     unavailableReason: null,
@@ -440,6 +468,22 @@ export function sgpaInputs(result: SemesterResult, ruleSet: RuleSet | undefined)
   const missing: { subjectCode: string; reason: string }[] = [];
 
   for (const subject of result.subjects) {
+    /*
+     * NON-CREDIT AND AUDIT COURSES ARE NOT IN THE AVERAGE.
+     *
+     * The regulations are explicit for CGPA — "Non-Credit Mandatory Courses are
+     * not included in CGPA calculation" — and the same follows for SGPA
+     * arithmetically: both are credit-weighted, so a course carrying no credits
+     * contributes nothing either way. What matters is that it is EXCLUDED
+     * rather than counted as missing: a semester containing an NCMC used to
+     * report "no credits" against it and refuse to grade the whole semester,
+     * which is the opposite of what the regulation says should happen.
+     *
+     * Excluded is not hidden. The course stays on the page with its own grade;
+     * completion is mandatory for the degree.
+     */
+    if (resolveCourseKind(subject).countsTowardGpa === false) continue;
+
     const grade = resolveSubjectGrade(subject, ruleSet);
     const credits = subject.credits;
     if (grade !== null && credits !== null) {

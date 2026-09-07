@@ -247,13 +247,21 @@ describe('a saved result', () => {
   });
 
   it('reports a backlog count that admits what it could not check', async () => {
-    // A row whose SEE applicability is unknown makes the count a FLOOR. The
-    // number a student most needs to be right about must not read as complete.
+    /*
+     * A row whose SEE applicability is unknown makes the count a FLOOR. The
+     * number a student most needs to be right about must not read as complete.
+     *
+     * BCS402 carries the genuinely unanswerable shape: no `hasSee` AND an
+     * external of 0, which reads identically as "no SEE" and "sat it and scored
+     * nothing" (DEC-037). It used to be enough to omit `hasSee` with any
+     * external; a positive external now resolves on its own, so the fixture
+     * uses the case that really cannot be checked.
+     */
     const { bundle } = createMemoryRepositories({
       results: [
         saved(4, [
           { subjectCode: 'BCS401', internal: 40, external: 17, total: 57, hasSee: true },
-          { subjectCode: 'BCS402', internal: 40, external: 20, total: 60 },
+          { subjectCode: 'BCS402', internal: 60, external: 0, total: 60 },
         ]),
       ],
     });

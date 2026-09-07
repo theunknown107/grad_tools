@@ -247,17 +247,88 @@ describe('backlog and SEE applicability', () => {
   });
 
   it('reports an undetermined row separately from a passing one', () => {
-    // A semester's backlog count must never quietly read as complete when a row
-    // could not be checked.
+    /*
+     * A semester's backlog count must never quietly read as complete when a row
+     * could not be checked.
+     *
+     * Row `b` is the genuinely ambiguous one: `hasSee` unknown AND an external
+     * of 0, which reads identically as "no SEE" and "sat it and scored nothing"
+     * (DEC-037). It used to be enough to leave `hasSee` null with any external
+     * at all — a POSITIVE external now resolves, because marks in an exam are
+     * proof the exam happened, so the fixture uses the case that actually
+     * cannot be answered.
+     */
     const summary = semesterBacklogs(
       result([
         subject({ id: 'a', hasSee: true, internal: 40, external: 17, total: 57 }),
-        subject({ id: 'b', hasSee: null, internal: 40, external: 20, total: 60 }),
+        subject({ id: 'b', hasSee: null, internal: 60, external: 0, total: 60 }),
         subject({ id: 'c', hasSee: true, internal: 40, external: 30, total: 70 }),
       ]),
       ruleSet,
     );
     expect(summary).toEqual({ backlogs: 1, undetermined: 1 });
+  });
+
+  it('resolves SEE applicability from a positive external, and only from a positive one', () => {
+    /*
+     * THE ASYMMETRY DEC-037 LEAVES OPEN.
+     *
+     * A student cannot score marks in an examination that does not exist, so
+     * `external > 0` establishes that the course has an SEE. `external === 0`
+     * establishes nothing, and stays unknown. Before this, an unknown `hasSee`
+     * blocked the backlog state, which blocked the grade, which blocked the
+     * SGPA — one missing reference row emptied the whole page.
+     */
+    const sat = evaluateResultSubject(
+      subject({ hasSee: null, internal: 40, external: 30, total: 70 }),
+      ruleSet,
+    );
+    expect(sat.courseKind).toMatchObject({ kind: 'see_bearing', from: 'marks', hasSee: true });
+    expect(sat.backlog).toBe(false);
+
+    const ambiguous = evaluateResultSubject(
+      subject({ hasSee: null, internal: 60, external: 0, total: 60 }),
+      ruleSet,
+    );
+    expect(ambiguous.courseKind.hasSee).toBeNull();
+    expect(ambiguous.backlog).toBeNull();
+    expect(ambiguous.unavailableReason).toMatch(/not known/i);
+  });
+
+  it('reads a printed PP, NP or AU as what kind of course it is', () => {
+    // The regulations define these as the grades of non-credit and audited
+    // courses, so a card printing one has stated the kind. That is reading.
+    for (const [letter, kind] of [
+      ['PP', 'non_credit'],
+      ['NP', 'non_credit'],
+      ['AU', 'audit'],
+    ] as const) {
+      const evaluated = evaluateResultSubject(
+        subject({ hasSee: null, gradeLetter: letter, internal: 60, external: 0, total: 60 }),
+        ruleSet,
+      );
+      expect(evaluated.courseKind).toMatchObject({ kind, from: 'grade', countsTowardGpa: false });
+    }
+  });
+
+  it('leaves a non-credit course out of the SGPA without calling it incomplete', () => {
+    /*
+     * "Non-Credit Mandatory Courses are not included in CGPA calculation" — and
+     * the same follows for SGPA, which is credit-weighted too. What matters is
+     * that the course is EXCLUDED rather than counted as missing: it used to
+     * report "no credits" and refuse to grade the entire semester, which is the
+     * opposite of what the regulation asks for.
+     */
+    const semester = result([
+      subject({ id: 'a', hasSee: true, internal: 44, external: 36, total: 80, credits: 4 }),
+      subject({ id: 'ncmc', subjectCode: 'BNSK459', gradeLetter: 'PP', hasSee: null, credits: 0 }),
+    ]);
+
+    const { sgpa, inputs } = semesterSgpa(semester, ruleSet);
+    expect(inputs.complete).toBe(true);
+    expect(inputs.missing).toEqual([]);
+    expect(inputs.courses.map((course) => course.subjectCode)).toEqual(['BCS301']);
+    expect(sgpa).toBeCloseTo(9, 5);
   });
 });
 

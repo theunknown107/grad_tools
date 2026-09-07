@@ -74,8 +74,18 @@ export interface ParsedCalendar {
 /* -------------------------------------------------------------------------- */
 
 const MONTHS: Record<string, number> = {
-  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
-  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+  jan: 1,
+  feb: 2,
+  mar: 3,
+  apr: 4,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  oct: 10,
+  nov: 11,
+  dec: 12,
 };
 
 /** `07 Sep 2026`, `07-Sep-2026`, `7 September 2026`. */
@@ -110,8 +120,7 @@ export function readDate(
   const named = NAMED.exec(text);
   if (named) {
     const month = MONTHS[(named[2] ?? '').slice(0, 3).toLowerCase()];
-    const date =
-      month === undefined ? null : iso(Number(named[3]), month, Number(named[1]));
+    const date = month === undefined ? null : iso(Number(named[3]), month, Number(named[1]));
     if (date !== null) return { date, rest: text.replace(named[0], ' ') };
   }
 
@@ -201,7 +210,14 @@ const EMPTY_TITLE = /^[\s\-–—:.|0-9]*$/;
 /* -------------------------------------------------------------------------- */
 
 const SEMESTER_WORDS: Record<string, number> = {
-  i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8,
+  i: 1,
+  ii: 2,
+  iii: 3,
+  iv: 4,
+  v: 5,
+  vi: 6,
+  vii: 7,
+  viii: 8,
 };
 
 /** `2026-27`, `2026-2027`, `2026 – 27`. Kept exactly as a normalised pair. */
@@ -289,7 +305,9 @@ export function parseAcademicCalendar(
 
   const warnings: string[] = [];
   if (events.length > 0 && semester === null) {
-    warnings.push('This calendar does not print which semester it is for. Choose it before saving.');
+    warnings.push(
+      'This calendar does not print which semester it is for. Choose it before saving.',
+    );
   }
   if (events.length > 0 && academicYear === null) {
     warnings.push('This calendar does not print an academic year.');
@@ -330,7 +348,11 @@ export interface SavedCalendar {
 export type CalendarRelation =
   | { readonly kind: 'new' }
   | { readonly kind: 'duplicate'; readonly existing: SavedCalendar }
-  | { readonly kind: 'revision'; readonly existing: SavedCalendar; readonly differences: readonly string[] };
+  | {
+      readonly kind: 'revision';
+      readonly existing: SavedCalendar;
+      readonly differences: readonly string[];
+    };
 
 /**
  * How a freshly-read calendar relates to what is already saved.
@@ -342,7 +364,12 @@ export type CalendarRelation =
  * which they meant (§27, §28, §29).
  */
 export function relateCalendar(
-  incoming: { fingerprint: string; semester: number | null; academicYear: string | null; events: readonly CalendarEvent[] },
+  incoming: {
+    fingerprint: string;
+    semester: number | null;
+    academicYear: string | null;
+    events: readonly CalendarEvent[];
+  },
   saved: readonly SavedCalendar[],
 ): CalendarRelation {
   const same = saved.find((candidate) => candidate.fingerprint === incoming.fingerprint);
@@ -364,7 +391,8 @@ export function relateCalendar(
   const differences: string[] = [];
   for (const event of incoming.events) {
     const previous = term.events.find(
-      (candidate) => candidate.category === event.category && candidate.category !== 'OTHER_ACADEMIC',
+      (candidate) =>
+        candidate.category === event.category && candidate.category !== 'OTHER_ACADEMIC',
     );
     if (previous !== undefined && previous.startDate !== event.startDate) {
       differences.push(`${event.title}: ${previous.startDate} → ${event.startDate}`);
@@ -499,10 +527,7 @@ export function calendarConflicts(saved: readonly SavedCalendar[]): CalendarConf
  * is a holiday, or that a gap between events means the college is shut. A
  * calendar with no holiday rows produces no holidays.
  */
-export function holidayOn(
-  calendars: readonly SavedCalendar[],
-  date: string,
-): CalendarEvent | null {
+export function holidayOn(calendars: readonly SavedCalendar[], date: string): CalendarEvent | null {
   for (const calendar of calendars) {
     for (const event of calendar.events) {
       if (event.category !== 'HOLIDAY') continue;
@@ -527,10 +552,7 @@ export function holidayOn(
  * `today` is passed in rather than read, so what the dashboard shows is a
  * function of its inputs and can be tested at any date.
  */
-export function nextEvent(
-  events: readonly CalendarEvent[],
-  today: string,
-): CalendarEvent | null {
+export function nextEvent(events: readonly CalendarEvent[], today: string): CalendarEvent | null {
   const upcoming = events
     .filter((event) => (event.endDate ?? event.startDate) >= today)
     .sort((a, b) => a.startDate.localeCompare(b.startDate));

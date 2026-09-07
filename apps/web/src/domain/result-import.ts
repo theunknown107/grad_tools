@@ -160,8 +160,7 @@ const COURSE_CODE = /^(1?B[A-Z]{2,6}\d{3}[A-Z]?)\b/;
  * next to the letter is routinely read as one. That is stripping punctuation,
  * never correcting a letter: `F` is never turned into `P` (M10A.6C §6).
  */
-const TRAILING =
-  /\s(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})(?:\s+([A-Za-z]{1,2})[.,]?)?(?:\s+(\S+))?\s*$/;
+const TRAILING = /\s(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})(?:\s+([A-Za-z]{1,2})[.,]?)?(?:\s+(\S+))?\s*$/;
 
 /** `Semester : 4`, however it is spaced or punctuated. */
 const SEMESTER_LINE = /semester\s*[:-]?\s*(\d)\b/i;
@@ -237,7 +236,11 @@ function stripRules(text: string): string {
  * parse can be COUNTED rather than dropped.
  */
 function looksLikeSubjectRow(text: string): boolean {
-  return COURSE_CODE.test(stripRules(text).trimStart().replace(/^[^A-Za-z0-9]+/, ''));
+  return COURSE_CODE.test(
+    stripRules(text)
+      .trimStart()
+      .replace(/^[^A-Za-z0-9]+/, ''),
+  );
 }
 
 /**
@@ -268,7 +271,15 @@ function rightmostConsistentTriple(values: readonly string[]): [string, string, 
     const triple = values.slice(i, i + 3) as [string, string, string];
     const numbers = triple.map((value) => wholeNumber(value));
     const [a, b, c] = numbers;
-    if (a !== null && a !== undefined && b !== null && b !== undefined && c !== null && c !== undefined && a + b === c) {
+    if (
+      a !== null &&
+      a !== undefined &&
+      b !== null &&
+      b !== undefined &&
+      c !== null &&
+      c !== undefined &&
+      a + b === c
+    ) {
       return triple;
     }
   }
