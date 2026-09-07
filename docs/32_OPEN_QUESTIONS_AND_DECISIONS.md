@@ -2139,3 +2139,54 @@ One real seat number was committed in a code comment in `e2d07c2` and removed in
 `3bda2a0`. It is absent from the working tree and from HEAD, and present in that
 one commit's history. **A history rewrite has not been authorised and has not
 been performed.** The decision remains with the repository owner.
+
+---
+
+### OQ-054 — What letter a FAILED course carries · **opened by Phase 7B, unresolved**
+
+`resolveSubjectGrade` supplies a letter for a course that PASSED, banded from
+the total by the rule set. For a course that did not pass it supplies nothing,
+and this is why.
+
+**What the supplied regulations do settle.** 22OB 6.1 gives absolute grading:
+"total CIE + SEE marks are expressed as a percentage to determine the letter
+grade", with the eight bands O(10) down to F(0), F being 0–39. The passing
+standards are equally clear — CIE at least 40% of its maximum, SEE at least 35%
+of its maximum, overall at least 40%, minimum passing grade P/4.
+
+**What they do not settle.** A course can satisfy the percentage band and still
+not pass. A total of 45 out of 100 bands to **P** by 6.1, and if the SEE was
+below 35% of its maximum the course is **not passed** by the passing standards.
+The regulations, as supplied, do not state which of these the grade card shows:
+
+- **F**, on the reading that failing any head fails the course and a failed
+  course is graded F regardless of its percentage; or
+- **P**, on the reading that 6.1 determines the LETTER and the passing standards
+  separately determine whether the course is cleared.
+
+The two are not academically equivalent. They give different SGPAs for the same
+marks — a 4-credit course contributes 0 or 16 grade points — and the difference
+persists into CGPA.
+
+**What GradTools does.** Nothing. `resolveSubjectGrade` returns null for a
+course that did not pass, `sgpaInputs` reports it as `no grade`, and the
+semester's SGPA is unavailable rather than computed from a chosen reading. The
+pass/backlog state itself is NOT affected and is reported normally — that part
+the regulations do settle.
+
+**Why not just pick one.** Banding a failed course as P would print a passing
+grade on a course the student has to sit again. Assigning F would understate an
+SGPA for anyone whose university takes the other reading. The handoff index
+accompanying the regulations is explicit: *"Do not invent credits or grades when
+the imported result PDF does not contain them. Resolve them through the
+canonical scheme/subject/rules data. If authoritative metadata cannot be
+resolved, surface the unresolved state."*
+
+**What would close this.** The clause of the source PDF that states the grade
+awarded to a course failed on a head — or a consolidated grade card for a
+semester containing a backlog, which shows the answer directly. Either resolves
+it as reference data; neither is inferable from what is in hand.
+
+**Where it surfaces:** the semester shows no SGPA and names the subject holding
+it back, through `SgpaInputs.missing`. A student sees which course is
+unresolved, not a blank.

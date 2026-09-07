@@ -2894,3 +2894,49 @@ complained about.
 The one contrast casualty was cyan: the darker ground pushed `--a-on-light` to
 4.37:1 and it moved to `#0a6a80`. Every other accent had headroom, and the
 existing per-accent AA loop is what found it.
+
+---
+
+## 22.62 Phase 7B.1 — the API suite, actually executed
+
+The Phase 7B report closed with "5 API files skipped because
+`TEST_DATABASE_URL` is unavailable", and would not call the suite passing on
+that basis. The closeout resolved it by using the setup this repository already
+documents rather than by weakening anything.
+
+**The machine already had what was needed:** PostgreSQL 18 at
+`C:\Program Files\PostgreSQL8in`, and the throwaway cluster from M10A.13
+still on disk at `D:\gradtools-pgtest`. Starting it and creating the second
+database was the whole of the work.
+
+```bash
+export PATH="/c/Program Files/PostgreSQL/18/bin:$PATH"
+pg_ctl -D /d/gradtools-pgtest -l /d/gradtools-pgtest/server.log   -o "-p 55432 -c listen_addresses=127.0.0.1" start
+
+createdb -h 127.0.0.1 -p 55432 -U gradtools gradtools_cloud_test
+# plus the `authenticator` role — see services/api/README.md
+
+export TEST_DATABASE_URL="postgres://gradtools@127.0.0.1:55432/gradtools_test"
+export TEST_CLOUD_ADMIN_DATABASE_URL="postgres://gradtools@127.0.0.1:55432/gradtools_cloud_test"
+export TEST_CLOUD_DATABASE_URL="postgres://authenticator:authenticator@127.0.0.1:55432/gradtools_cloud_test"
+pnpm test
+```
+
+**Result:**
+
+| | Files | Tests | Skipped |
+|---|---|---|---|
+| API project alone | 10 | 341 | **0** |
+| Every project | 57 | **1482** | **0** |
+
+The three URLs matter and the README already says why: `TEST_DATABASE_URL`
+alone leaves the authorization and result-sync suites skipping, because RLS is
+tested through a separate student-cloud database and a non-`BYPASSRLS` role. A
+policy that fails to isolate a student has to actually fail a test.
+
+**What "skipped" means when it happens.** With no database the API project skips
+with a printed warning and the run still succeeds, so a contributor without
+PostgreSQL is not blocked. That is deliberate and it is not the same as passing:
+M10A.13 found a test that had asserted a deleted endpoint returned 200 for two
+milestones because nobody could see it. Any report that counts a skipped suite
+as green is wrong, and this document says so in §22.

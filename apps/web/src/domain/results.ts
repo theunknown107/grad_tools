@@ -434,7 +434,7 @@ export interface SgpaInputs {
  * carries, and the handoff index is explicit: "Do not invent credits or grades…
  * If authoritative metadata cannot be resolved, surface the unresolved state."
  * So it stays unresolved, and the reason says so rather than an F appearing
- * from nowhere. Recorded as OQ-052.
+ * from nowhere. Recorded as OQ-054.
  */
 export interface ResolvedGrade {
   readonly letter: string;
