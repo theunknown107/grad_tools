@@ -47,9 +47,8 @@ import {
   OUTCOME_LABEL,
   type CourseOutcome,
   type GradeDistribution,
-  type Metric,
 } from '../../domain/statistics.js';
-import { metricDisplay } from '../../lib/format.js';
+import { metricStripEntry } from '../../lib/format.js';
 import { useResults } from '../../hooks/useCollection.js';
 import styles from './academics.module.css';
 
@@ -152,25 +151,6 @@ const OUTCOME_ORDER: readonly CourseOutcome[] = [
   'non_credit_not_passed',
   'unresolved',
 ];
-
-/**
- * One derived figure as a metric strip reads it.
- *
- * A figure with no value says "Unavailable" and carries its reason; a PARTIAL
- * one shows what it has with the caveat attached rather than hiding it (1, 4).
- */
-function metric(
-  label: string,
-  value: Metric<number>,
-  format: (n: number) => string = String,
-): { label: string; value: string; note?: string } {
-  const display = metricDisplay(value, format);
-  return {
-    label,
-    value: display.value,
-    ...(display.note === undefined ? {} : { note: display.note }),
-  };
-}
 
 /**
  * How many courses took each grade.
@@ -298,10 +278,10 @@ function YourFigures() {
       */}
       <MetricStrip
         metrics={[
-          metric('CGPA', statistics.cgpa, formatGpa),
-          metric('Percentage', statistics.percentage, formatPercent),
-          metric('Credits earned', statistics.creditsEarned),
-          metric('Semesters graded', statistics.semestersGraded),
+          metricStripEntry('CGPA', statistics.cgpa, formatGpa),
+          metricStripEntry('Percentage', statistics.percentage, formatPercent),
+          metricStripEntry('Credits earned', statistics.creditsEarned),
+          metricStripEntry('Semesters graded', statistics.semestersGraded),
           {
             label: 'Passed',
             value: String(statistics.outcomes.passed),
@@ -309,7 +289,7 @@ function YourFigures() {
               ? { note: `${String(statistics.outcomes.unresolved)} still to review` }
               : {}),
           },
-          metric('Backlogs', statistics.backlogs),
+          metricStripEntry('Backlogs', statistics.backlogs),
         ]}
       />
 

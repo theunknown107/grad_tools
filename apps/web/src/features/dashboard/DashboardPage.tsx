@@ -325,7 +325,7 @@ function Snapshot({
             label: 'Backlogs',
             value: backlogs.value,
             ...(backlogs.note === undefined ? {} : { note: backlogs.note }),
-            ...((stats.backlogs.value ?? 0) > 0 || stats.backlogs.status === 'partial'
+            ...((stats.backlogs.value ?? 0) > 0 || stats.backlogsUndetermined > 0
               ? { tone: 'warning' as const }
               : {}),
           },

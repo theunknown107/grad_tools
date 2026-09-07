@@ -28,7 +28,7 @@ import {
   type SemesterSummary,
 } from '@gradtools/academic-rules';
 import type { BacklogRecord, SemesterRecord, SemesterResult, SemesterStatus } from './types.js';
-import { semesterSgpa, type SgpaInputs } from './results.js';
+import { resolveSubjectGrade, semesterSgpa, type SgpaInputs } from './results.js';
 
 /* -------------------------------------------------------------------------- */
 /* Rule-set resolution                                                        */
@@ -421,13 +421,22 @@ export function subjectPerformance(views: readonly SemesterView[]): SubjectPerfo
 
     for (const subject of view.result.subjects) {
       /*
-       * A SUBJECT WITH NO GRADE HAS NO PERFORMANCE (OQ-049). Since a
-       * provisional result stores marks and no grade letter, a row without one
-       * is a row that has not been graded yet — not a row that scored nothing.
+       * A SUBJECT WITH NO RESOLVABLE GRADE HAS NO PERFORMANCE (OQ-049). A row
+       * nobody can grade is a row that has not been graded yet — not a row
+       * that scored nothing.
+       *
+       * THROUGH `resolveSubjectGrade`, which is the fix. This read
+       * `subject.gradeLetter` directly, and a VTU provisional card prints NO
+       * grade letter on any row — so every subject of every imported result
+       * was skipped, and the strengths analysis on My Degree was permanently
+       * empty for exactly the students who had imported the most. It is the
+       * same defect `sgpaInputs` carried before 7bfe801, in the one other
+       * place that had its own idea of what a grade is.
        */
-      if (subject.gradeLetter === null) continue;
+      const resolvedGrade = resolveSubjectGrade(subject, ruleSet);
+      if (resolvedGrade === null) continue;
       const code = subject.subjectCode.toUpperCase();
-      const letter = subject.gradeLetter;
+      const letter = resolvedGrade.letter;
       const gradePoint = gradePointOf(letter, ruleSet);
       const attempt = { semester: view.number, gradeLetter: letter, gradePoint };
       const existing = byCode.get(code);

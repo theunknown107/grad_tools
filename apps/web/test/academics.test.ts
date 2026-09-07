@@ -637,3 +637,81 @@ describe('what a missing SGPA is allowed to say', () => {
     expect(sgpaReading(view).reason).toBeNull();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Subjects on a card that prints no grades                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * THE SAME BUG, IN THE ONE PLACE THAT STILL HAD ITS OWN IDEA OF A GRADE.
+ *
+ * `sgpaInputs` read `subject.gradeLetter` directly until 7bfe801, and a VTU
+ * provisional card prints no grade letter on any row — so every imported
+ * semester came back ungraded. `subjectPerformance` kept that reading, which
+ * meant the strengths analysis on My Degree was permanently empty for exactly
+ * the students who had imported the most.
+ */
+describe('subject performance on a provisional card', () => {
+  const uncarded = (semesterNumber: number, code: string, internal: number, external: number) => {
+    const base = result(semesterNumber, [[code, 4, 'A']]);
+    return {
+      ...base,
+      subjects: base.subjects.map((subject) => ({
+        ...subject,
+        gradeLetter: null,
+        internal,
+        external,
+        total: internal + external,
+        hasSee: true,
+      })),
+    };
+  };
+
+  it('grades a row from its marks when the card printed no letter', () => {
+    const views = buildSemesterViews([], [uncarded(4, 'BCS401', 44, 36)]);
+    const performances = subjectPerformance(views);
+
+    expect(performances).toHaveLength(1);
+    // 80 of 100 is A+ under 22OB 6.1's bands, worth 9.
+    expect(performances[0]).toMatchObject({
+      subjectCode: 'BCS401',
+      gradeLetter: 'A+',
+      gradePoint: 9,
+    });
+  });
+
+  it('feeds the strengths analysis, which was empty for every imported result', () => {
+    const views = buildSemesterViews(
+      [],
+      [
+        uncarded(3, 'BCS301', 45, 45),
+        uncarded(3, 'BCS302', 44, 36),
+        uncarded(3, 'BCS303', 40, 34),
+        uncarded(3, 'BCS304', 36, 30),
+        uncarded(3, 'BCS305', 20, 25),
+      ].map((entry, index) => ({ ...entry, id: `r${String(index)}`, semester: 3 + index })),
+    );
+
+    const analysis = analyseStrengths(subjectPerformance(views));
+    expect(analysis.available).toBe(true);
+    expect(analysis.subjects).toHaveLength(5);
+  });
+
+  it('still refuses a row nothing can grade', () => {
+    // An external of 0 with `hasSee` unknown settles nothing (DEC-037), so the
+    // subject has no performance rather than a guessed one.
+    const base = result(4, [['BCS406', 4, 'A']]);
+    const ambiguous = {
+      ...base,
+      subjects: base.subjects.map((subject) => ({
+        ...subject,
+        gradeLetter: null,
+        internal: 40,
+        external: 0,
+        total: 40,
+        hasSee: null,
+      })),
+    };
+    expect(subjectPerformance(buildSemesterViews([], [ambiguous]))).toHaveLength(0);
+  });
+});

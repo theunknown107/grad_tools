@@ -359,11 +359,24 @@ describe('a course that cannot be read either way', () => {
     /*
      * §1, and the most consequential instance of it. Zero backlogs is the best
      * news the page carries; an undetermined count shown as zero is the worst
-     * thing it could get wrong.
+     * thing it could get wrong. The screens render this as "0+".
      */
-    expect(state.backlogs.value).toBe(0);
-    expect(state.backlogs.status).toBe('partial');
-    expect(state.backlogs.reason).toMatch(/may be more/i);
+    expect(state.backlogsFromResults.value).toBe(0);
+    expect(state.backlogsFromResults.status).toBe('partial');
+    expect(state.backlogsUndetermined).toBe(1);
+    expect(state.backlogsFromResults.reason).toMatch(/at least/i);
+  });
+
+  it('keeps the recorded backlogs apart from the derived ones', () => {
+    /*
+     * TWO QUESTIONS, TWO FIGURES. What the student has written down as carried
+     * is not what their result rows imply, and a student may well have one
+     * without the other. Blending them produced a number neither source
+     * supports — and it was how the results page lost its "+" convention.
+     */
+    expect(state.backlogs).toMatchObject({ value: 0, status: 'resolved' });
+    expect(state.backlogs.source).toMatch(/backlog records/i);
+    expect(state.backlogsFromResults.source).toMatch(/rule set/i);
   });
 
   it('surfaces it as a course needing review', () => {
@@ -375,6 +388,17 @@ describe('a genuine zero is not an absence', () => {
   it('reports zero backlogs as resolved when nothing is ambiguous', () => {
     const state = stats({ results: [result(4, GOOD)] });
     expect(state.backlogs).toMatchObject({ value: 0, status: 'resolved' });
+    expect(state.backlogsFromResults).toMatchObject({ value: 0, status: 'resolved' });
+    expect(state.backlogsUndetermined).toBe(0);
+  });
+
+  it('counts a real failure as a derived backlog', () => {
+    const failed = [
+      course('BCS401', 4, { internal: 12, external: 30 }),
+      course('BCS402', 4, { internal: 44, external: 36 }),
+    ];
+    const state = stats({ results: [result(4, failed)] });
+    expect(state.backlogsFromResults).toMatchObject({ value: 1, status: 'resolved' });
   });
 
   it('reports zero credits earned as a real figure when every course failed', () => {
