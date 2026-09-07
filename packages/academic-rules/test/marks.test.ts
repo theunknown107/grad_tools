@@ -81,6 +81,17 @@ describe('validateCourseMarks — subject codes', () => {
     ['BXX405B', '3 letters + elective suffix'],
     ['BXXX456D', '4 letters + elective suffix'],
     ['BXXX459', '4 letters, no suffix'],
+    /*
+     * FIVE LETTERS, WHICH THIS USED TO REJECT AS "too many".
+     *
+     * First-year 2022-scheme codes carry five, and rejecting them made every
+     * subject on a real semester 1 and semester 2 card unevaluable — no pass
+     * state, no grade, no SGPA, for two whole semesters. The pattern now
+     * matches the parser's own recogniser, which has always accepted this.
+     */
+    ['BXXXX101', '5 letters + 3 digits'],
+    ['BXXXX104B', '5 letters + elective suffix'],
+    ['BXXXXXX101', '7 letters, the parser ceiling'],
   ])('accepts %s (%s)', (subjectCode) => {
     expect(isOk(validateCourseMarks({ ...ROW, subjectCode }, rs))).toBe(true);
   });
@@ -88,7 +99,7 @@ describe('validateCourseMarks — subject codes', () => {
   it.each([
     ['', 'empty'],
     ['BX401', 'too few letters'],
-    ['BXXXX401', 'too many letters'],
+    ['BXXXXXXXX401', 'more letters than any observed code'],
     ['BXX40', 'too few digits'],
     ['BXX4011', 'too many digits'],
     ['BXX401BB', 'two suffix letters'],
