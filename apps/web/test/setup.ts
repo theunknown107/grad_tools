@@ -87,9 +87,7 @@ if (!('DOMRect' in globalThis)) {
  * be made against a type that has not been narrowed.
  */
 const elementProto =
-  typeof Element === 'undefined'
-    ? null
-    : (Element.prototype as unknown as Record<string, unknown>);
+  typeof Element === 'undefined' ? null : (Element.prototype as unknown as Record<string, unknown>);
 
 if (elementProto !== null && !('scrollIntoView' in elementProto)) {
   elementProto['scrollIntoView'] = function scrollIntoView(): void {
