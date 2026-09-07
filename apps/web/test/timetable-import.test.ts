@@ -814,3 +814,95 @@ describe('what a class says about its own subject', () => {
     expect(missing?.unresolvedReason).toContain('ZZZ');
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* The heading a word-processed timetable prints                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A timetable written in Word heads itself differently from the reference
+ * document, and every one of these was read as `null` on a real one — leaving
+ * the saved import record with no class, no revision and no effective date,
+ * which is what tells a revision it supersedes the week a student is following.
+ */
+describe('a heading with no CLASS: label', () => {
+  const HEADING = [
+    at('V (B) – Timetable for the Academic year 2026 -27 (R0)', 60, 780, 500),
+    at('With effective from: 09.09.2026', 60, 760, 300),
+  ];
+
+  const headed = (...days: readonly PlacedLike[][]): PlacedLike[] => [
+    ...HEADING,
+    ...HEADER,
+    ...days.flat(),
+    ...DICTIONARY,
+  ];
+
+  it('reads the class from the heading itself', () => {
+    // `V (B)` names the class and the document never writes the word "class".
+    expect(parseTimetable(headed(MONDAY)).context.className).toBe('V (B)');
+  });
+
+  it('takes the semester from the class name when nothing states one', () => {
+    // The roman numeral IS the semester. This document never writes the word.
+    expect(parseTimetable(headed(MONDAY)).context.semester).toBe(5);
+  });
+
+  it('reads a revision label that is not adjacent to the word', () => {
+    // `(R0)` sits at the END of the heading, not beside "Timetable".
+    expect(parseTimetable(headed(MONDAY)).context.revision).toBe('R0');
+  });
+
+  it('reads an effective date written as a sentence', () => {
+    // `With effective from:` rather than `W.E.F:`.
+    expect(parseTimetable(headed(MONDAY)).context.effectiveFrom).toBe('2026-09-09');
+  });
+
+  it('still reads the abbreviation and the CLASS: label', () => {
+    // The reference document's own shapes must not have moved.
+    const parsed = parseTimetable(page(MONDAY));
+    /* Unchanged, including the trailing "SEMESTER I" the label carries. */
+    expect(parsed.context.className).toBe('I (E) CSBS SEMESTER I');
+    expect(parsed.context.revision).toBe('R2');
+    expect(parsed.context.effectiveFrom).toBe('2026-11-07');
+  });
+
+  it('does not read a bare parenthesised label as a revision', () => {
+    const parsed = parseTimetable([
+      at('Some notice (R9) about something', 60, 780, 400),
+      ...HEADER,
+      ...MONDAY,
+      ...DICTIONARY,
+    ]);
+    expect(parsed.context.revision).toBeNull();
+  });
+});
+
+describe('a break set vertically down its column', () => {
+  it('spells the column out and marks it as a break', () => {
+    /*
+     * A narrow column cannot fit "SHORT BREAK" across it, so a timetable sets
+     * it down the column and the extractor returns one letter per printed line,
+     * spread through every day's rows. None of them is a class and none belongs
+     * to a day — but the column they spell is a break, and without reading them
+     * it reads as an ordinary free period a student could be told to attend.
+     */
+    const letters = 'BREAK'.split('').map((letter, index) =>
+      /* Stacked down the third column, between the day rows. */
+      at(letter, COLUMNS[2] as number, 650 - index * 8, 10),
+    );
+    const parsed = parseTimetable([...CONTEXT, ...HEADER, ...MONDAY, ...letters, ...DICTIONARY]);
+
+    expect(parsed.slots[2]?.isBreak).toBe(true);
+    // And none of those letters became a class.
+    expect(parsed.classes.some((entry) => entry.initials.length === 1)).toBe(false);
+  });
+
+  it('leaves an ordinary column alone', () => {
+    const letters = 'XQZJ'
+      .split('')
+      .map((letter, index) => at(letter, COLUMNS[6] as number, 650 - index * 8, 10));
+    const parsed = parseTimetable([...CONTEXT, ...HEADER, ...MONDAY, ...letters, ...DICTIONARY]);
+    expect(parsed.slots[6]?.isBreak).toBe(false);
+  });
+});
