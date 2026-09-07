@@ -431,7 +431,16 @@ const run = async () => {
               }
             : {
                 classes: countOf(/(\d+) classes · from/),
-                classNameNamed: !/^Class timetable$/m.test(main),
+                /*
+                 * The REVIEW's own heading, not the whole page. `/import`
+                 * carries a "Class timetable" pill listing what the page
+                 * accepts, so testing the page text reported the fallback
+                 * whenever that pill was on screen — false on a document whose
+                 * class the parser had read perfectly well.
+                 */
+                classNameNamed: !/^Class timetable(\s·|$)/m.test(
+                  /(^.*classes · from.*$)/m.exec(main)?.[1] ?? main,
+                ),
                 revisionNamed: /\bR\d\b/.test(main),
                 effectiveFromNamed: /W\.?E\.?F|takes effect|from \d/i.test(main),
                 batchAsked: /which of them are yours/i.test(main),
