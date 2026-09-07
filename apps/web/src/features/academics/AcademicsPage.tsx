@@ -27,11 +27,7 @@ import { MetaPill } from '../../components/ui/tone.js';
 import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { MetricStrip } from '../../components/ui/layout.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
-import {
-  buildSemesterViews,
-  cumulativeStanding,
-  dataCompleteness,
-} from '../../domain/academics.js';
+import { dataCompleteness } from '../../domain/academics.js';
 import { Icon } from '../../components/icons.js';
 import {
   EmptyState,
@@ -46,7 +42,15 @@ import {
 import { formatGpa, formatPercent } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
 import { semesterSgpa } from '../../domain/results.js';
-import { useResults, useSemesters } from '../../hooks/useCollection.js';
+import { useAcademicState } from '../../hooks/useAcademicState.js';
+import {
+  OUTCOME_LABEL,
+  type CourseOutcome,
+  type GradeDistribution,
+  type Metric,
+} from '../../domain/statistics.js';
+import { metricDisplay } from '../../lib/format.js';
+import { useResults } from '../../hooks/useCollection.js';
 import styles from './academics.module.css';
 
 const ruleSet = vtu2022RuleSet;
@@ -125,6 +129,115 @@ export function AcademicsPage() {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Rendering a derived figure                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The outcomes worth a row, in the order a student would read them.
+ *
+ * `unresolved` comes last because it is a task rather than a result, and
+ * every one of the seven between "failed" and it is a state the regulation
+ * names that is neither a pass nor a failure (8).
+ */
+const OUTCOME_ORDER: readonly CourseOutcome[] = [
+  'passed',
+  'failed',
+  'absent',
+  'attendance_shortage',
+  'incomplete',
+  'withdrawn',
+  'audit',
+  'non_credit_passed',
+  'non_credit_not_passed',
+  'unresolved',
+];
+
+/**
+ * One derived figure as a metric strip reads it.
+ *
+ * A figure with no value says "Unavailable" and carries its reason; a PARTIAL
+ * one shows what it has with the caveat attached rather than hiding it (1, 4).
+ */
+function metric(
+  label: string,
+  value: Metric<number>,
+  format: (n: number) => string = String,
+): { label: string; value: string; note?: string } {
+  const display = metricDisplay(value, format);
+  return {
+    label,
+    value: display.value,
+    ...(display.note === undefined ? {} : { note: display.note }),
+  };
+}
+
+/**
+ * How many courses took each grade.
+ *
+ * Bars rather than a chart library: the only comparison worth making is
+ * between the student's own counts, and a row of bars shows it without a
+ * dependency (docs/05 5.12).
+ */
+function GradeDistributionRows({ grades }: { readonly grades: GradeDistribution }) {
+  const rows = [
+    ...grades.bands.map((band) => ({
+      key: band.letter,
+      label: band.letter,
+      count: band.count,
+      title: undefined as string | undefined,
+    })),
+    ...grades.specials
+      .filter((special) => special.count > 0)
+      .map((special) => ({
+        key: special.letter,
+        label: special.letter,
+        count: special.count,
+        title: special.meaning,
+      })),
+    ...(grades.unresolved > 0
+      ? [
+          {
+            key: 'unresolved',
+            label: 'Unresolved',
+            count: grades.unresolved,
+            /*
+              NEVER FOLDED INTO A LETTER (7). Counting these as F would invent
+              failures and counting them as P would invent passes; leaving them
+              out would make the rows not add up to the courses on screen.
+            */
+            title: 'These courses have no grade this build can resolve yet.' as string | undefined,
+          },
+        ]
+      : []),
+  ];
+
+  const peak = Math.max(1, ...rows.map((row) => row.count));
+
+  return (
+    <ul className={styles.gradeRows}>
+      {rows.map((row) => (
+        <li className={styles.gradeRow} key={row.key} data-zero={row.count === 0}>
+          <span className={styles.gradeLetter} title={row.title}>
+            {row.label}
+          </span>
+          <span
+            className={styles.gradeTrack}
+            role="img"
+            aria-label={`${row.label}: ${String(row.count)} of ${String(grades.total)} courses`}
+          >
+            <span
+              className={styles.gradeFill}
+              style={{ inlineSize: `${String((row.count / peak) * 100)}%` }}
+            />
+          </span>
+          <span className={styles.gradeCount}>{row.count}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /**
  * What GradTools already knows, from the results the student saved.
  *
@@ -133,46 +246,41 @@ export function AcademicsPage() {
  * the semester-view builder, so this page and My Degree cannot disagree.
  */
 function YourFigures() {
-  const { items: results } = useResults();
-  const { items: semesters } = useSemesters();
-
-  const views = useMemo(() => buildSemesterViews(semesters, results), [semesters, results]);
-  const standing = useMemo(() => cumulativeStanding(views), [views]);
+  /*
+   * THE SHARED READING (18). This component used to build its own semester
+   * views and its own standing, which is how the analytics page and the degree
+   * page came to be two answers to one question.
+   */
+  const { statistics } = useAcademicState();
+  const views = statistics.views;
   const completeness = useMemo(() => dataCompleteness(views), [views]);
 
   const points: readonly SemesterPoint[] = useMemo(
     () =>
-      Array.from({ length: 8 }, (_, index) => {
-        const view = views.find((candidate) => candidate.number === index + 1);
-        return {
-          semester: index + 1,
-          sgpa: view?.sgpaComputed ?? null,
-          state:
-            view?.status === 'in_progress'
+      statistics.trend.map((point) => ({
+        semester: point.semester,
+        sgpa: point.sgpa,
+        state:
+          point.sgpa !== null
+            ? ('graded' as const)
+            : views.find((view) => view.number === point.semester)?.status === 'in_progress'
               ? ('in_progress' as const)
-              : view?.sgpaComputed !== null && view?.sgpaComputed !== undefined
-                ? ('graded' as const)
-                : ('planned' as const),
-        };
-      }),
-    [views],
+              : ('planned' as const),
+      })),
+    [statistics.trend, views],
   );
 
-  const graded = points.filter((point) => point.sgpa !== null);
-
   /*
-   * EMPTY AND UNGRADEABLE ARE DIFFERENT (Phase 7C §13).
+   * EMPTY AND UNGRADEABLE ARE DIFFERENT (17).
    *
    * This page used to show "No figures yet — save a semester result" whenever
    * nothing was graded. A student who HAD saved four semesters, none of which
    * could be graded because their subjects carried no credits, was told to do
    * the thing they had already done, and never learnt what was actually
    * missing. Only a genuinely empty record gets the invitation; a record that
-   * exists and cannot be graded gets the reason.
+   * exists gets its figures and its reasons, however few of each there are.
    */
-  const hasResults = views.some((view) => view.result !== null);
-
-  if (graded.length === 0 && !hasResults) {
+  if (!statistics.hasAnyResult) {
     return (
       <EmptyState title="No figures yet" icons={['gpa', 'results', 'degree']}>
         Save a semester result and your SGPA, CGPA and trend appear here. The calculator tab works
@@ -183,33 +291,88 @@ function YourFigures() {
 
   return (
     <div className={styles.stack}>
+      {/*
+        EVERY FIGURE THE RECORDS SUPPORT, and each one on its own inputs (4).
+        An unresolved CGPA no longer takes the credits, the passes and the
+        grade distribution down with it — which is what emptied this page.
+      */}
       <MetricStrip
         metrics={[
-          /*
-            A metric with no figure says why it has none. The dash alone reads
-            as "not entered yet", which is a different — and usually wrong —
-            explanation (Phase 7C §13).
-          */
+          metric('CGPA', statistics.cgpa, formatGpa),
+          metric('Percentage', statistics.percentage, formatPercent),
+          metric('Credits earned', statistics.creditsEarned),
+          metric('Semesters graded', statistics.semestersGraded),
           {
-            label: 'CGPA',
-            value: standing.cgpa === null ? 'Unavailable' : formatGpa(standing.cgpa),
-            ...(standing.reason === null ? {} : { note: standing.reason }),
-          },
-          {
-            label: 'Percentage',
-            value:
-              standing.percentage === null ? 'Unavailable' : formatPercent(standing.percentage),
-            ...(standing.percentage === null && standing.cgpa !== null
-              ? { note: 'This rule set defines no percentage conversion.' }
+            label: 'Passed',
+            value: String(statistics.outcomes.passed),
+            ...(statistics.outcomes.unresolved > 0
+              ? { note: `${String(statistics.outcomes.unresolved)} still to review` }
               : {}),
           },
-          { label: 'Credits', value: String(standing.creditsCompleted) },
-          { label: 'Semesters', value: String(standing.semestersCompleted) },
+          metric('Backlogs', statistics.backlogs),
         ]}
       />
 
       <Panel title="SGPA across the degree" material="quiet">
         <SgpaTrend points={points} />
+      </Panel>
+
+      {/*
+        THE GRADE DISTRIBUTION (7). Unresolved courses are counted in their own
+        row and in no band: adding them to F would invent failures, and leaving
+        them out would make the columns not add up to the courses on screen.
+      */}
+      {statistics.grades.total > 0 && (
+        <Panel title="Grades" material="quiet">
+          <GradeDistributionRows grades={statistics.grades} />
+        </Panel>
+      )}
+
+      {/*
+        AND WHAT IS NOT A PASS OR A FAIL (8). An audited course and an absence
+        are neither, and reporting them as failures would tell a student to
+        re-sit something they did not fail.
+      */}
+      {OUTCOME_ORDER.some((key) => statistics.outcomes[key] > 0) && (
+        <Panel title="Course outcomes" material="quiet">
+          <dl className={styles.derived}>
+            {OUTCOME_ORDER.filter((key) => statistics.outcomes[key] > 0).map((key) => (
+              <div className={styles.derivedItem} key={key}>
+                <dt className={styles.derivedLabel}>{OUTCOME_LABEL[key]}</dt>
+                <dd>{statistics.outcomes[key]}</dd>
+              </div>
+            ))}
+          </dl>
+        </Panel>
+      )}
+
+      {/*
+        DATA QUALITY (29). Reassurance first: a student whose records are 34
+        courses good and one course short should not read a screen that looks
+        like a failure.
+      */}
+      <Panel title="Academic data" material="quiet">
+        <dl className={styles.derived}>
+          <div className={styles.derivedItem}>
+            <dt className={styles.derivedLabel}>Courses imported</dt>
+            <dd>{statistics.dataQuality.coursesImported}</dd>
+          </div>
+          <div className={styles.derivedItem}>
+            <dt className={styles.derivedLabel}>Credits resolved</dt>
+            <dd>
+              {statistics.dataQuality.creditsResolved} of {statistics.dataQuality.coursesImported}
+            </dd>
+          </div>
+          <div className={styles.derivedItem}>
+            <dt className={styles.derivedLabel}>Need review</dt>
+            <dd>{statistics.dataQuality.coursesNeedingReview}</dd>
+          </div>
+        </dl>
+        {statistics.dataQuality.notes.map((note) => (
+          <p className={styles.gap} key={note}>
+            {note}
+          </p>
+        ))}
       </Panel>
 
       {/*

@@ -18,14 +18,13 @@
  */
 
 import { useMemo, useState } from 'react';
+import { useAcademicState } from '../../hooks/useAcademicState.js';
+import { metricDisplay } from '../../lib/format.js';
 import {
   analyseStrengths,
-  buildSemesterViews,
-  cumulativeStanding,
   sgpaReading,
   graduationProgress,
   subjectPerformance,
-  summariseBacklogs,
   type SemesterView,
   dataCompleteness,
   semesterHistory,
@@ -39,7 +38,7 @@ import { EmptyState, Notice, Panel, SelectField, StatusPill } from '../../compon
 import { Bar } from '../../components/ui/layout.js';
 import { formatCount, formatGpa, formatPercent } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
-import { useBacklogs, useProfile, useResults, useSemesters } from '../../hooks/useCollection.js';
+import { useProfile, useResults, useSemesters } from '../../hooks/useCollection.js';
 import { BacklogPanel } from './BacklogPanel.js';
 import { SubjectInsights } from './SubjectInsights.js';
 import { SemesterSubjects } from './SemesterSubjects.js';
@@ -88,16 +87,20 @@ export function SemestersPage() {
   const { profile } = useProfile();
   const { items: results, loading: resultsLoading } = useResults();
   const { items: semesters, save: saveSemester } = useSemesters();
-  const { items: backlogs } = useBacklogs();
   const [openSemester, setOpenSemester] = useState<number | null>(null);
 
   const profileId = profile?.id ?? asStudentProfileId('00000000-0000-0000-0000-000000000000');
 
-  const views = useMemo(() => buildSemesterViews(semesters, results), [semesters, results]);
-  const standing = useMemo(() => cumulativeStanding(views), [views]);
+  /*
+   * THE SHARED READING (18). This page built its own views and its own
+   * standing; so did the dashboard, and so did the analytics page. Three
+   * derivations of one record set is three chances to disagree about the same
+   * student's CGPA, and no test catches a disagreement between two files.
+   */
+  const { statistics } = useAcademicState();
+  const views = statistics.views;
   const performances = useMemo(() => subjectPerformance(views), [views]);
   const strengths = useMemo(() => analyseStrengths(performances), [performances]);
-  const backlogSummary = useMemo(() => summariseBacklogs(backlogs), [backlogs]);
 
   /*
    * The credit requirement is NOT assumed. Nothing in this build establishes a
@@ -154,10 +157,12 @@ export function SemestersPage() {
         subtitle="Eight semesters, from the ones behind you to the ones ahead. Everything here stays on this device."
         pills={
           <>
-            <MetaPill>{`${String(standing.semestersCompleted)} of 8 done`}</MetaPill>
-            {standing.cgpa !== null && <MetaPill>CGPA {formatGpa(standing.cgpa)}</MetaPill>}
-            {standing.creditsCompleted > 0 && (
-              <MetaPill>{formatCount(standing.creditsCompleted, 'credit')}</MetaPill>
+            <MetaPill>{`${String(statistics.semestersCompleted.value ?? 0)} of 8 done`}</MetaPill>
+            {statistics.cgpa.value !== null && (
+              <MetaPill>CGPA {formatGpa(statistics.cgpa.value)}</MetaPill>
+            )}
+            {(statistics.creditsEarned.value ?? 0) > 0 && (
+              <MetaPill>{formatCount(statistics.creditsEarned.value ?? 0, 'credit')}</MetaPill>
             )}
           </>
         }
@@ -166,27 +171,32 @@ export function SemestersPage() {
       {/* ---- Standing ------------------------------------------------- */}
       <Panel title="Where you stand">
         <dl className={styles.standing}>
+          {/*
+            NO BARE EM DASHES (1). Each figure shows its value or "Unavailable",
+            and the reasons follow underneath the list — a dash cannot tell
+            "not entered" from "one course needs review".
+          */}
           <div>
             <dt>CGPA</dt>
-            <dd>{standing.cgpa === null ? '—' : formatGpa(standing.cgpa)}</dd>
+            <dd>{metricDisplay(statistics.cgpa, formatGpa).value}</dd>
           </div>
           <div>
             <dt>Percentage</dt>
-            <dd>{standing.percentage === null ? '—' : formatPercent(standing.percentage)}</dd>
+            <dd>{metricDisplay(statistics.percentage, formatPercent).value}</dd>
           </div>
           <div>
             <dt>Credits earned</dt>
-            <dd>{standing.creditsCompleted}</dd>
+            <dd>{metricDisplay(statistics.creditsEarned).value}</dd>
           </div>
           <div>
             <dt>Semesters done</dt>
             <dd>
-              {standing.semestersCompleted} of {progress.semestersTotal}
+              {statistics.semestersCompleted.value ?? 0} of {progress.semestersTotal}
             </dd>
           </div>
           <div>
             <dt>Backlogs</dt>
-            <dd>{backlogSummary.outstanding}</dd>
+            <dd>{metricDisplay(statistics.backlogs).value}</dd>
           </div>
         </dl>
 
@@ -203,13 +213,29 @@ export function SemestersPage() {
           </p>
         ))}
 
-        {standing.reason !== null && <p className={styles.note}>{standing.reason}</p>}
+        {/*
+          Every metric above that could not resolve says why, once, here. The
+          set is deduplicated because several figures share one cause — an
+          unresolved CGPA and an unresolved percentage are usually the same
+          sentence twice.
+        */}
+        {[
+          ...new Set(
+            [statistics.cgpa, statistics.percentage, statistics.creditsEarned, statistics.backlogs]
+              .map((figure) => figure.reason)
+              .filter((reason): reason is string => reason !== null),
+          ),
+        ].map((reason) => (
+          <p className={styles.note} key={reason}>
+            {reason}
+          </p>
+        ))}
 
         {/*
           Semesters graded under different regulations cannot honestly be
           averaged into one number without saying so (M6 §6).
         */}
-        {standing.mixedRuleSets && (
+        {statistics.mixedRuleSets && (
           <Notice tone="warning">
             These semesters were graded under more than one set of rules. The combined figures are a
             simplification.

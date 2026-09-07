@@ -33,18 +33,12 @@
  */
 
 import { Link } from 'react-router-dom';
-import {
-  calculateAttendance,
-  calculateCGPA,
-  calculatePercentage,
-  vtu2022RuleSet,
-} from '@gradtools/academic-rules';
+import { calculateAttendance, vtu2022RuleSet } from '@gradtools/academic-rules';
 import {
   WEEKDAYS,
   type AttendanceRecord,
   type BacklogRecord,
   type ClassMark,
-  type SemesterResult,
   type SemesterSubject,
   type TimetableSlot,
   type Weekday,
@@ -62,17 +56,13 @@ import {
   useClassMarks,
   useProfile,
   useResults,
-  useSemesters,
   useSemesterSubjects,
   useTimetable,
 } from '../../hooks/useCollection.js';
-import {
-  buildSemesterViews,
-  currentSemester,
-  summariseBacklogs,
-  sgpaReading,
-  type SemesterView,
-} from '../../domain/academics.js';
+import { currentSemester, sgpaReading, type SemesterView } from '../../domain/academics.js';
+import { useAcademicState } from '../../hooks/useAcademicState.js';
+import type { AcademicStatistics } from '../../domain/statistics.js';
+import { metricDisplay } from '../../lib/format.js';
 import {
   activeCalendars,
   calendarConflicts,
@@ -83,7 +73,6 @@ import {
   type CalendarEvent,
   type SavedCalendar,
 } from '../../domain/calendar-import.js';
-import { semesterSgpa } from '../../domain/results.js';
 import { LatestAnnouncements } from '../announcements/AnnouncementsPage.js';
 import styles from './dashboard.module.css';
 
@@ -102,16 +91,22 @@ function nameFor(code: string, subjects: readonly SemesterSubject[]): string | n
 export function DashboardPage() {
   const { profile } = useProfile();
   const { items: attendance, loading: attendanceLoading } = useAttendance();
-  const { items: results, loading: resultsLoading } = useResults();
+  const { loading: resultsLoading } = useResults();
   const { items: timetable, loading: timetableLoading } = useTimetable();
   const { items: marks } = useClassMarks();
-  const { items: semesters } = useSemesters();
   const { items: semesterSubjects } = useSemesterSubjects();
   const { items: backlogs } = useBacklogs();
   const { items: calendars } = useCalendars();
 
+  /*
+   * ONE READING FOR THE WHOLE PAGE (18, 30). `buildSemesterViews` was called
+   * twice in this component alone — once for the current semester and once for
+   * the rail — and neither call was memoised, so both re-ran on every render.
+   */
+  const { statistics } = useAcademicState();
+
   const loading = attendanceLoading || resultsLoading || timetableLoading;
-  const current = currentSemester(buildSemesterViews(semesters, results));
+  const current = currentSemester(statistics.views);
   const semesterNumber = current?.number ?? profile?.currentSemester ?? null;
   const name = profile?.displayName?.trim();
 
@@ -121,7 +116,6 @@ export function DashboardPage() {
   const subjectsNow = semesterSubjects.filter(
     (subject) => semesterNumber === null || subject.semester === semesterNumber,
   );
-  const outstanding = summariseBacklogs(backlogs).outstanding;
 
   /*
    * The calendar reaches the day view here rather than inside `Today`, so the
@@ -182,10 +176,9 @@ export function DashboardPage() {
             </header>
 
             <Snapshot
-              results={results}
+              stats={statistics}
               attendance={thisSemester}
               subjectCount={subjectsNow.length}
-              outstanding={outstanding}
             />
           </section>
 
@@ -196,7 +189,7 @@ export function DashboardPage() {
             shape of information — a set of things in progress, each with a
             status and a proportion done.
           */}
-          <SemesterRail views={buildSemesterViews(semesters, results)} />
+          <SemesterRail views={statistics.views} />
 
           <div className={styles.quietStack}>
             <Today
@@ -228,55 +221,41 @@ export function DashboardPage() {
  * `@gradtools/academic-rules` — nothing here re-implements a formula (M9.3 §44).
  */
 function Snapshot({
-  results,
+  stats,
   attendance,
   subjectCount,
-  outstanding,
 }: {
-  readonly results: readonly SemesterResult[];
+  /*
+   * THE SHARED READING, not a local one. Every figure below used to be
+   * recomputed here — a second `semesterSgpa` loop, a second `calculateCGPA`
+   * call — which is how the dashboard and the degree page came to disagree
+   * about what "completed" counted (Phase 7C 18).
+   */
+  readonly stats: AcademicStatistics;
   readonly attendance: readonly AttendanceRecord[];
   readonly subjectCount: number;
-  readonly outstanding: number;
 }) {
   /*
-   * `semesterSgpa` is the ONE place that decides whether a semester can be
-   * graded — including the OQ-049 condition that every subject carries both a
-   * grade and credits. A provisional result entered from a card shows its marks
-   * on the results page and takes no part in the CGPA, rather than contributing
-   * a partial average nobody could see the shape of.
+   * All eight semesters, always. A semester with no computable SGPA carries a
+   * null so the chart shows it as a GAP; dropping it would let the line join
+   * across a semester the student has no result for (13).
    */
-  const graded = results
-    .map((result) => {
-      const { sgpa, credits } = semesterSgpa(result, ruleSet);
-      return { semester: result.semester, credits, sgpa };
-    })
-    .filter((entry) => entry.sgpa !== null && entry.credits > 0);
+  const trendPoints: readonly SemesterPoint[] = stats.trend.map((point) => ({
+    semester: point.semester,
+    sgpa: point.sgpa,
+    state:
+      point.sgpa !== null
+        ? ('graded' as const)
+        : stats.views.find((view) => view.number === point.semester)?.status === 'in_progress'
+          ? ('in_progress' as const)
+          : ('planned' as const),
+  }));
 
-  const cgpa = calculateCGPA(
-    graded.map((entry) => ({
-      credits: entry.credits,
-      sgpa: entry.sgpa as number,
-      semester: entry.semester,
-    })),
-    ruleSet,
-  );
-  const percentage = cgpa.ok ? calculatePercentage(cgpa.value, ruleSet) : null;
-  const latest = [...graded].sort((a, b) => b.semester - a.semester)[0];
-
-  /*
-   * All eight semesters, always — a semester with no computable SGPA carries a
-   * null rather than being dropped, so the chart can show it as a GAP. Dropping
-   * it would let the line join across a semester the student has no result for.
-   */
-  const trendPoints: readonly SemesterPoint[] = Array.from({ length: 8 }, (_, index) => {
-    const semester = index + 1;
-    const entry = graded.find((candidate) => candidate.semester === semester);
-    return {
-      semester,
-      sgpa: entry?.sgpa ?? null,
-      state: entry === undefined ? 'planned' : 'graded',
-    };
-  });
+  const cgpa = metricDisplay(stats.cgpa, formatGpa);
+  const percentage = metricDisplay(stats.percentage, formatPercent);
+  const credits = metricDisplay(stats.creditsEarned);
+  const backlogs = metricDisplay(stats.backlogs);
+  const latest = stats.latestSgpa.value;
 
   const attended = attendance.reduce((total, record) => total + record.attended, 0);
   const conducted = attendance.reduce((total, record) => total + record.conducted, 0);
@@ -286,16 +265,41 @@ function Snapshot({
     <>
       <MetricStrip
         metrics={[
+          /*
+            NO BARE EM DASHES (1). A figure with no value says "Unavailable"
+            and carries its reason underneath, because a dash cannot tell "you
+            have not entered this" from "one of your courses needs review" —
+            and only one of those is the student's to fix.
+          */
           {
             label: 'CGPA',
-            value: cgpa.ok ? formatGpa(cgpa.value) : '—',
-            ...(percentage?.ok === true ? { note: formatPercent(percentage.value) } : {}),
+            value: cgpa.value,
+            ...(cgpa.note !== undefined
+              ? { note: cgpa.note }
+              : stats.percentage.value !== null
+                ? { note: percentage.value }
+                : {}),
           },
           {
             label: 'Last SGPA',
-            value:
-              latest?.sgpa === undefined || latest.sgpa === null ? '—' : formatGpa(latest.sgpa),
-            ...(latest === undefined ? {} : { note: `sem ${String(latest.semester)}` }),
+            value: latest === null ? 'Unavailable' : formatGpa(latest.sgpa),
+            ...(latest !== null
+              ? { note: `sem ${String(latest.semester)}` }
+              : stats.latestSgpa.reason === null
+                ? {}
+                : { note: stats.latestSgpa.reason }),
+          },
+          {
+            label: 'Credits earned',
+            value: credits.value,
+            ...(credits.note === undefined ? {} : { note: credits.note }),
+          },
+          {
+            label: 'Passed',
+            value: String(stats.outcomes.passed),
+            ...(stats.outcomes.unresolved > 0
+              ? { note: `${String(stats.outcomes.unresolved)} still to review` }
+              : {}),
           },
           {
             label: 'Attendance',
@@ -313,9 +317,17 @@ function Snapshot({
             value: subjectCount === 0 ? '—' : String(subjectCount),
           },
           {
+            /*
+              A backlog count that could not be determined is NOT zero, and the
+              two must not render alike — zero backlogs is the best news the
+              page carries (1).
+            */
             label: 'Backlogs',
-            value: String(outstanding),
-            ...(outstanding > 0 ? { tone: 'warning' as const } : {}),
+            value: backlogs.value,
+            ...(backlogs.note === undefined ? {} : { note: backlogs.note }),
+            ...((stats.backlogs.value ?? 0) > 0 || stats.backlogs.status === 'partial'
+              ? { tone: 'warning' as const }
+              : {}),
           },
         ]}
       />
@@ -324,15 +336,21 @@ function Snapshot({
         usable ones needs to know WHY the figures are blank rather than being
         left with four em dashes and no explanation.
       */}
-      {results.length > 0 && graded.length === 0 && (
+      {/*
+        THE REASON, NOT A GUESS AT IT. This used to say "a grade letter may not
+        be one the 2022 scheme uses", which was one possible cause stated as
+        though it were the finding. The derived state knows the actual reason
+        for each semester, so it says that instead (17).
+      */}
+      {stats.hasAnyResult && stats.semestersGraded.value === 0 && (
         <Empty action={<Link to="/results">Check your results</Link>}>
-          Your saved results could not be graded — a grade letter may not be one the 2022 scheme
-          uses.
+          {stats.dataQuality.notes[0] ??
+            'Your saved results could not be graded yet. Open Results to see what each one needs.'}
         </Empty>
       )}
-      {results.length === 0 && (
+      {!stats.hasAnyResult && (
         <Empty action={<Link to="/results">Add a result</Link>}>
-          No results yet, so there is no CGPA to show. {subjectCount > 0 ? '' : ''}
+          No results yet, so there is no CGPA to show.
         </Empty>
       )}
 
@@ -341,7 +359,7 @@ function Snapshot({
         A "trend" through a single point is a dot, and dressing one reading up
         as a direction is exactly the invented insight docs/37 forbids.
       */}
-      {graded.length >= 2 && (
+      {(stats.semestersGraded.value ?? 0) >= 2 && (
         <Panel title="SGPA by semester" material="quiet">
           <SgpaTrend points={trendPoints} />
         </Panel>

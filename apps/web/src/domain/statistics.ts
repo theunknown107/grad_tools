@@ -498,6 +498,14 @@ export interface AcademicStatistics {
   readonly strongestSemester: Metric<{ readonly semester: number; readonly sgpa: number }>;
   readonly weakestSemester: Metric<{ readonly semester: number; readonly sgpa: number }>;
 
+  /**
+   * True when the graded semesters were not all under one regulation.
+   *
+   * A single CGPA across two regulations is a simplification, and saying so is
+   * the honest alternative to resolving it silently (M6 6).
+   */
+  readonly mixedRuleSets: boolean;
+
   readonly dataQuality: DataQuality;
   /** True once anything at all has been imported — the empty-state test (§17). */
   readonly hasAnyResult: boolean;
@@ -677,6 +685,7 @@ export function academicStatistics(input: {
             SOURCE.resultsCreditsRules,
           ),
 
+    mixedRuleSets: standing.mixedRuleSets,
     dataQuality: dataQualityOf(stats, grades, creditsUnresolved),
     hasAnyResult: withResults.length > 0,
   };
