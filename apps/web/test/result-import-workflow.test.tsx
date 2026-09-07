@@ -397,6 +397,61 @@ describe('a scan, a photo, and a file that cannot be read', () => {
   });
 });
 
+describe('the one question a result card cannot answer', () => {
+  it('asks about a final exam only for the row that needs it', async () => {
+    /*
+     * "ASK ONLY WHEN NECESSARY", tested as a negative as much as a positive.
+     *
+     * A zero external reads identically as "this course has no final exam" and
+     * "sat it and scored nothing" (DEC-037), and those have opposite outcomes —
+     * so that row genuinely needs a person. A row with marks in the exam does
+     * not: the marks prove the exam happened. Asking about both would make the
+     * question noise, and noise is what gets clicked through.
+     */
+    const user = userEvent.setup();
+    setCard(4, [
+      'BQAS401  ALGORITHMS            44  36  80  P  2026-07-23',
+      'BQAS459  MANDATORY COURSE      96   0  96  P  2026-07-23',
+    ]);
+    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    await choose(user);
+
+    expect(await screen.findByText(/Semester 4/)).toBeTruthy();
+    const asked = screen.getAllByLabelText(/^final exam/i);
+    expect(asked).toHaveLength(1);
+  });
+
+  it('carries the answer into the saved record', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    setCard(4, ['BQAS459  MANDATORY COURSE  96  0  96  P  2026-07-23']);
+    renderWith(<ResultsPage />, { repositories: bundle });
+    await choose(user);
+
+    await screen.findByText(/Semester 4/);
+    await user.selectOptions(screen.getByLabelText(/^final exam/i), 'no');
+    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+
+    // Answered, so the row is no longer unknown and the semester can be graded.
+    expect(peek.results()[0]?.subjects[0]?.hasSee).toBe(false);
+  });
+
+  it('leaves the row unknown when the student does not know either', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    setCard(4, ['BQAS459  MANDATORY COURSE  96  0  96  P  2026-07-23']);
+    renderWith(<ResultsPage />, { repositories: bundle });
+    await choose(user);
+
+    await screen.findByText(/Semester 4/);
+    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+
+    // "Not sure" is a real answer and must stay null rather than defaulting to
+    // true, which would report a backlog the university never gave.
+    expect(peek.results()[0]?.subjects[0]?.hasSee).toBeNull();
+  });
+});
+
 describe('a semester that already has a result', () => {
   it('is blocked rather than silently replaced', async () => {
     /*

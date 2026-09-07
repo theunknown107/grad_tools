@@ -38,6 +38,7 @@ import type {
 import { RESULT_STATUSES } from '../../domain/types.js';
 import { parseResultCard, rowToSubject, type ParsedRow } from '../../domain/result-import.js';
 import { classifyDocument } from '../../domain/document-type.js';
+import { resolveCourseKind } from '../../domain/exams.js';
 import {
   fingerprintOf,
   parseAcademicCalendar,
@@ -134,6 +135,15 @@ interface DraftRow {
   readonly resultStatus: string;
   readonly gradeLetter: string;
   readonly credits: string;
+  /**
+   * The student's answer to "did this course have a final exam?", as `''`
+   * (not asked / not answered), `'yes'` or `'no'`.
+   *
+   * Asked ONLY where nothing else can resolve it — see the control below. The
+   * product rule is "ask only when necessary", and this is the one question a
+   * result card genuinely cannot answer for itself.
+   */
+  readonly hasSee: string;
   readonly announcedOn: string;
   readonly sourceLine: string;
   readonly warnings: ParsedRow['warnings'];
@@ -150,6 +160,7 @@ function toDraft(row: ParsedRow): DraftRow {
     resultStatus: row.resultStatus ?? '',
     gradeLetter: '',
     credits: '',
+    hasSee: '',
     announcedOn: row.announcedOn ?? '',
     sourceLine: row.sourceLine,
     warnings: row.warnings,
@@ -163,6 +174,41 @@ function toDraft(row: ParsedRow): DraftRow {
  * as it presents figures extracted from a PDF's own text would imply the two
  * are equally reliable, and they are not (§13, §42).
  */
+/**
+ * Whether this row still needs the student to say if the course had an SEE.
+ *
+ * Asked through `resolveCourseKind` — the SAME resolver the rules layer uses —
+ * rather than by re-deriving the condition here. Two copies of "when is this
+ * unknown" would drift, and the drift would show up as a question asked about a
+ * row that was already resolved, or worse, not asked about one that was not.
+ *
+ * A row the student has already answered keeps its control, so the answer can
+ * be changed; it simply no longer needs one.
+ */
+function needsSeeAnswer(row: DraftRow, referenceHasSee: boolean | null): boolean {
+  if (row.hasSee !== '') return true;
+  const external = row.external === '' ? null : Number(row.external);
+  return (
+    resolveCourseKind({
+      subjectCode: row.subjectCode,
+      subjectTitle: row.subjectTitle,
+      internal: null,
+      external: Number.isFinite(external) ? external : null,
+      total: null,
+      resultStatus: null,
+      announcedOn: null,
+      gradeLetter: row.gradeLetter === '' ? null : row.gradeLetter,
+      gradePoint: null,
+      credits: null,
+      /* The catalogue's answer, where there is one — so a subject the
+         reference data already covers is never asked about. */
+      hasSee: referenceHasSee,
+      provenance: 'manual',
+      id: row.id,
+    }).kind === null
+  );
+}
+
 function fileMeta(entry: FileState): string {
   if (entry.status === 'failed') return entry.error ?? 'Could not be read';
   if (entry.status === 'queued') return 'Waiting to be read…';
@@ -687,6 +733,13 @@ function ImportGroup({
         ...base,
         gradeLetter: row.gradeLetter === '' ? base.gradeLetter : row.gradeLetter,
         credits: row.credits === '' ? base.credits : Number(row.credits),
+        /*
+         * An answer the student gave is better than no answer, and it is still
+         * not reference data — `provenance` stays whatever `rowToSubject`
+         * decided, so nothing here can pass a student's answer off as the
+         * catalogue's.
+         */
+        hasSee: row.hasSee === '' ? base.hasSee : row.hasSee === 'yes',
       };
     });
 
@@ -901,6 +954,36 @@ function ImportGroup({
                 </option>
               ))}
             </SelectField>
+            {/*
+              ASK ONLY WHEN NECESSARY.
+              
+              This control appears for a row whose course kind nothing could
+              resolve — no catalogue entry, no PP/NP/AU on the card, and an
+              external of 0, which reads identically as "this course has no
+              final exam" and "sat it and scored nothing" (DEC-037). That is
+              the ONE fact a result card cannot state and no arithmetic can
+              recover, and without it the row has no pass state, no grade, and
+              keeps the whole semester's SGPA unavailable.
+              
+              On the four real cards this was checked against it appears twice
+              in semester 3 and once in semester 4, and not at all in semesters
+              1 and 2 — which is the point. It is a question about the rows
+              that need one, not a field on every row.
+            */}
+            {needsSeeAnswer(row, referenceFor(row.subjectCode)?.hasSee ?? null) && (
+              <SelectField
+                label={`Final exam ${String(index + 1)}`}
+                hint="This card does not say, and it changes the result."
+                value={row.hasSee}
+                onChange={(event) => {
+                  update(row.id, { hasSee: event.target.value });
+                }}
+              >
+                <option value="">Not sure</option>
+                <option value="yes">Had a final exam</option>
+                <option value="no">No final exam</option>
+              </SelectField>
+            )}
             <Button
               variant="danger"
               iconOnly
