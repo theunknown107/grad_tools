@@ -26,6 +26,7 @@ import {
   useCalendars,
   useProfile,
   useResults,
+  useSemesterSubjects,
   useTimetable,
   useTimetableImports,
 } from '../../hooks/useCollection.js';
@@ -41,6 +42,12 @@ export function DocumentImportPanel({
 }) {
   const { profile } = useProfile();
   const { items: results, save: saveResult } = useResults();
+  /*
+   * The student's own semester plan, read so the importer can reuse credits
+   * they have already given rather than asking for them a second time. See
+   * `creditsFor` in domain/subjects.
+   */
+  const { items: semesterSubjects } = useSemesterSubjects();
   const { items: calendars, save: saveCalendar } = useCalendars();
   const { items: timetable, save: saveSlot, remove: removeSlot } = useTimetable();
   const { items: timetableImports, save: saveImport } = useTimetableImports();
@@ -66,6 +73,8 @@ export function DocumentImportPanel({
       profileId={profile?.id ?? asStudentProfileId('local')}
       schemeId={profile?.schemeId ?? vtu2022RuleSet.schemeId}
       savedSemesters={results.map((result) => result.semester)}
+      savedResults={results}
+      semesterSubjects={semesterSubjects}
       savedCalendars={calendars}
       savedTimetables={timetableImports}
       onSave={(result) => {

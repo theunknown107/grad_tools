@@ -24,6 +24,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Subject } from '@gradtools/shared-types';
 import {
+  creditsFor,
   buildSubjectIndex,
   displayTitle,
   otherTitles,
@@ -36,6 +37,7 @@ import type {
   AttendanceRecord,
   BacklogRecord,
   SemesterResult,
+  SemesterSubject,
   TimetableSlot,
 } from '../src/domain/types.js';
 
@@ -427,5 +429,86 @@ describe('across the whole product', () => {
     expect(resolveSubject(built, 'BCS999')).toBeNull();
     expect(displayTitle(null, 'result')).toBe('');
     expect(otherTitles(null, 'anything')).toEqual([]);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Credit resolution                                                          */
+/* -------------------------------------------------------------------------- */
+
+function planned(code: string, credits: number): SemesterSubject {
+  return {
+    id: `plan-${code}`,
+    profileId,
+    semester: 4,
+    code,
+    title: code,
+    credits,
+    notes: null,
+    updatedAt: '',
+  };
+}
+
+describe('credits for a subject', () => {
+  it('takes the catalogue as the answer when it has one', () => {
+    const index = buildSubjectIndex({
+      catalogue: [catalogueSubject({ code: 'BCS401', credits: 4 })],
+      semesterSubjects: [planned('BCS401', 3)],
+    });
+
+    /*
+     * The student said 3 and the catalogue says 4, and the catalogue wins: a
+     * number typed before the reference data was reachable may well have been a
+     * guess, and the university's own answer outranks it.
+     */
+    expect(creditsFor(resolveSubject(index, 'BCS401'))).toEqual({ credits: 4, from: 'catalogue' });
+  });
+
+  it('falls back to what the student already recorded on their semester plan', () => {
+    const index = buildSubjectIndex({ semesterSubjects: [planned('BCS401', 3)] });
+
+    /*
+     * THE GAP THIS CLOSES. With no catalogue reachable, credits used to resolve
+     * to null even for a subject the student had already described — so the
+     * import asked for a number they had given once already, and the SGPA was
+     * unavailable until they typed it a second time.
+     */
+    expect(creditsFor(resolveSubject(index, 'BCS401'))).toEqual({ credits: 3, from: 'yours' });
+  });
+
+  it('reuses credits typed on an earlier result for the same code', () => {
+    const index = buildSubjectIndex({
+      results: [
+        result(3, [
+          { subjectCode: 'BCS301', subjectTitle: 'DSA', credits: 4, provenance: 'manual' },
+        ]),
+      ],
+    });
+    // A repeat attempt at a carried subject is the case that matters here.
+    expect(creditsFor(resolveSubject(index, 'BCS301'))).toEqual({ credits: 4, from: 'yours' });
+  });
+
+  it('keeps a hand-typed credit out of the reference tier', () => {
+    const index = buildSubjectIndex({ semesterSubjects: [planned('BCS401', 3)] });
+    const identity = resolveSubject(index, 'BCS401');
+
+    // `credits` is a claim about what the SCHEME says, and nothing here can
+    // make that claim. The figure lives in the student tier and is attributed.
+    expect(identity?.credits).toBeNull();
+    expect(identity?.studentCredits).toBe(3);
+  });
+
+  it('keeps a zero-credit course, rather than treating 0 as absent', () => {
+    // A non-credit mandatory course is worth 0 credits, which is a real answer
+    // and not a missing one.
+    const index = buildSubjectIndex({ semesterSubjects: [planned('BNSK459', 0)] });
+    expect(creditsFor(resolveSubject(index, 'BNSK459'))).toEqual({ credits: 0, from: 'yours' });
+  });
+
+  it('resolves to nothing, and says so, when no source knows', () => {
+    const index = buildSubjectIndex({});
+    // No default, no scheme-wide average, no "most courses are 3".
+    expect(creditsFor(resolveSubject(index, 'BCS999'))).toEqual({ credits: null, from: null });
+    expect(creditsFor(null)).toEqual({ credits: null, from: null });
   });
 });

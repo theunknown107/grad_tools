@@ -85,6 +85,33 @@ export interface SubjectIdentity {
   readonly titles: readonly SubjectTitle[];
   /** Reference credits. Null unless a catalogue-backed source supplied them. */
   readonly credits: number | null;
+  /**
+   * Credits the STUDENT recorded for this code, anywhere in their own records.
+   *
+   * ---------------------------------------------------------------------------
+   * WHY THIS IS A SEPARATE FIELD AND NOT A FALLBACK INSIDE `credits`
+   * ---------------------------------------------------------------------------
+   *
+   * `credits` is a claim about what the university says a course is worth, and
+   * only a verified catalogue row can make it. A number the student typed is a
+   * different kind of fact: good enough to compute their own SGPA with, not
+   * good enough to present as the scheme's answer.
+   *
+   * Keeping them apart is what lets the interface say WHERE a figure came from
+   * instead of flattening both into one unattributed number — and it is why
+   * this could be added without weakening the rule the catalogue tier enforces.
+   *
+   * ---------------------------------------------------------------------------
+   * AND WHY IT HAD TO EXIST
+   * ---------------------------------------------------------------------------
+   *
+   * Without it, credits the student had already entered — on their semester
+   * plan, on a result row they typed by hand — were read by nothing. Importing
+   * a card for a subject they had already described left the credits blank and
+   * the SGPA unavailable, and the only way out was to type the same number
+   * again. Automatic organisation means a fact is given once.
+   */
+  readonly studentCredits: number | null;
   /** Reference SEE applicability. Three-valued; null means unknown (DEC-037). */
   readonly hasSee: boolean | null;
   /** Every semester this code was seen in, ascending. Usually one. */
@@ -138,6 +165,7 @@ interface Draft {
   canonicalConflict: boolean;
   titles: SubjectTitle[];
   credits: number | null;
+  studentCredits: number | null;
   hasSee: boolean | null;
   semesters: Set<number>;
   sources: Set<SubjectSource>;
@@ -154,6 +182,7 @@ function draftFor(index: Map<string, Draft>, code: string): Draft | null {
     canonicalConflict: false,
     titles: [],
     credits: null,
+    studentCredits: null,
     hasSee: null,
     semesters: new Set(),
     sources: new Set(),
@@ -238,6 +267,13 @@ export function buildSubjectIndex(input: SubjectIndexInput): Map<string, Subject
       if (subject.provenance === 'catalogue') {
         draft.credits ??= subject.credits;
         draft.hasSee ??= subject.hasSee;
+      } else {
+        /*
+         * A credit the student typed on a result row is theirs. It is recorded
+         * so the same code never has to be described twice, and kept in the
+         * student tier so it can never be presented as the catalogue's answer.
+         */
+        draft.studentCredits ??= subject.credits;
       }
     }
   }
@@ -246,6 +282,17 @@ export function buildSubjectIndex(input: SubjectIndexInput): Map<string, Subject
     const draft = draftFor(drafts, subject.code);
     if (draft === null) continue;
     observe(draft, 'plan', subject.title, subject.semester);
+    /*
+     * The semester plan is where a student states what they are taking and what
+     * each course is worth. Those credits were previously read by nothing at
+     * all — the plan supplied a title and was ignored for everything else — so
+     * importing a card for a subject already on the plan asked for the credits
+     * again. Zero is a legitimate credit value for a non-credit mandatory
+     * course, so the guard is on null, not on falsiness.
+     */
+    if (draft.studentCredits === null && Number.isFinite(subject.credits)) {
+      draft.studentCredits = subject.credits;
+    }
   }
 
   for (const record of input.attendance ?? []) {
@@ -281,6 +328,7 @@ export function buildSubjectIndex(input: SubjectIndexInput): Map<string, Subject
       canonicalTitle: draft.canonicalTitle,
       titles: draft.titles,
       credits: draft.credits,
+      studentCredits: draft.studentCredits,
       hasSee: draft.hasSee,
       semesters: [...draft.semesters].sort((a, b) => a - b),
       sources: [...draft.sources],
@@ -342,4 +390,66 @@ export function displayTitle(identity: SubjectIdentity | null, source: SubjectSo
 export function otherTitles(identity: SubjectIdentity | null, shown: string): SubjectTitle[] {
   if (identity === null) return [];
   return identity.titles.filter((entry) => entry.title !== shown);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Credit resolution                                                          */
+/* -------------------------------------------------------------------------- */
+
+/** Where a credit figure came from. Never a ranking of correctness — a source. */
+export type CreditsFrom = 'catalogue' | 'yours';
+
+export interface ResolvedCredits {
+  readonly credits: number | null;
+  /** Null exactly when `credits` is null. */
+  readonly from: CreditsFrom | null;
+}
+
+/**
+ * The credits to use for a subject, and where they came from.
+ *
+ * ---------------------------------------------------------------------------
+ * THE PROBLEM THIS SOLVES
+ * ---------------------------------------------------------------------------
+ *
+ * A VTU result card prints no credits — the Scheme of Teaching and Evaluation
+ * carries them — so an imported result has none unless something supplies them.
+ * The only supplier used to be the reference catalogue over the network. With
+ * an empty or unreachable catalogue every subject came back with `credits:
+ * null`, and a null credit is one of the two things that makes an SGPA
+ * unavailable. That is most of what "credits were unresolved" meant.
+ *
+ * ---------------------------------------------------------------------------
+ * ORDER, AND WHY IT IS THIS ORDER
+ * ---------------------------------------------------------------------------
+ *
+ * 1. THE CATALOGUE. A verified reference row is the university's own answer and
+ *    outranks anything else, including a number the student typed earlier —
+ *    which may well have been a guess made before the catalogue was reachable.
+ *
+ * 2. THE STUDENT'S OWN RECORDS. Their semester plan, or a result row they filled
+ *    in by hand, for the SAME code. This is the "given once" rule: a student who
+ *    has already said BCS401 is worth 4 credits is not asked again when the card
+ *    for BCS401 arrives.
+ *
+ * 3. NOTHING. Null, and the screens say what is missing and which subject is
+ *    missing it. No default, no scheme-wide average, no "most courses are 3".
+ *    The handoff index for the supplied regulations is explicit about this:
+ *    "Do not invent credits or grades… If authoritative metadata cannot be
+ *    resolved, surface the unresolved state."
+ *
+ * The regulations DO state 20 credits per semester and 160 for the programme,
+ * and that is deliberately not used here. A semester total cannot be divided
+ * over its subjects without knowing each course's own weight, and splitting it
+ * evenly would produce credit figures for individual courses that the
+ * regulation never states. It is used for graduation progress, where a total is
+ * genuinely the quantity in question, and nowhere else.
+ */
+export function creditsFor(identity: SubjectIdentity | null): ResolvedCredits {
+  if (identity === null) return { credits: null, from: null };
+  if (identity.credits !== null) return { credits: identity.credits, from: 'catalogue' };
+  if (identity.studentCredits !== null) {
+    return { credits: identity.studentCredits, from: 'yours' };
+  }
+  return { credits: null, from: null };
 }

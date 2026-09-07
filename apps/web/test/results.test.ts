@@ -23,6 +23,7 @@ import {
   evaluateResultSubject,
   normalizeResultSubject,
   semesterBacklogs,
+  resolveSubjectGrade,
   semesterSgpa,
   sgpaInputs,
   validateResultSubject,
@@ -401,16 +402,22 @@ describe('SGPA from a semester', () => {
       subject({ id: 'a', subjectCode: 'BCS401', gradeLetter: 'A' }),
       subject({ id: 'b', subjectCode: 'BCS402' }),
     ];
-    expect(sgpaInputs(result(subjects)).missing).toEqual([
+    expect(sgpaInputs(result(subjects), ruleSet).missing).toEqual([
       { subjectCode: 'BCS401', reason: 'no credits' },
       { subjectCode: 'BCS402', reason: 'no grade or credits' },
     ]);
   });
 
-  it('grades nothing from a provisional result, and keeps its marks', () => {
+  it('grades nothing from a provisional result WITHOUT credits, and keeps its marks', () => {
     /*
      * The end-to-end shape of a card copied faithfully: marks present, grades
-     * absent, no SGPA — and the marks are still there to be read.
+     * absent, credits absent — so no SGPA, and the marks are still there to be
+     * read.
+     *
+     * What holds the SGPA back here is CREDITS, and only credits. It used to be
+     * held back by the missing grade letter as well, which no VTU provisional
+     * card prints — see `resolveSubjectGrade`. The companion test below is the
+     * same card with credits, and it now grades.
      */
     const provisional = result([
       subject({
@@ -434,7 +441,96 @@ describe('SGPA from a semester', () => {
     ]);
 
     expect(semesterSgpa(provisional, ruleSet).sgpa).toBeNull();
+    expect(semesterSgpa(provisional, ruleSet).inputs.missing).toEqual([
+      { subjectCode: 'BCS401', reason: 'no credits' },
+      { subjectCode: 'BPEK459', reason: 'no credits' },
+    ]);
     expect(semesterBacklogs(provisional, ruleSet)).toEqual({ backlogs: 0, undetermined: 0 });
     expect(provisional.subjects[1]?.internal).toBe(96);
+  });
+
+  it('grades a provisional result once credits are known, from the marks alone', () => {
+    /*
+     * THE REGRESSION THIS FILE MOST NEEDED.
+     *
+     * Every result imported from a VTU provisional card had no SGPA, because
+     * `sgpaInputs` asked for the letter the card printed and a provisional card
+     * prints none. The rules engine was already banding these totals correctly
+     * a few lines away in `evaluateResultSubject`; nothing passed the answer on.
+     *
+     * 80/100 is A+ (9) and 96/100 is O (10), both by 22OB 6.1's percentage
+     * bands. Credit-weighted over 4 and 2 credits: (9x4 + 10x2) / 6 = 9.33.
+     */
+    const provisional = result([
+      subject({
+        id: 'a',
+        subjectCode: 'BCS401',
+        internal: 44,
+        external: 36,
+        total: 80,
+        resultStatus: 'P',
+        hasSee: true,
+        credits: 4,
+      }),
+      subject({
+        id: 'b',
+        subjectCode: 'BPEK459',
+        internal: 96,
+        external: 0,
+        total: 96,
+        resultStatus: 'P',
+        hasSee: false,
+        credits: 2,
+      }),
+    ]);
+
+    const { sgpa, credits, inputs } = semesterSgpa(provisional, ruleSet);
+    expect(inputs.complete).toBe(true);
+    expect(credits).toBe(6);
+    expect(sgpa).toBeCloseTo(9.33, 2);
+  });
+
+  it('prefers the letter the card printed over the one it would work out', () => {
+    /*
+     * A consolidated card states the university's own decision. If the rule set
+     * would band the same marks differently, that disagreement is worth seeing
+     * (`gradeDisagrees`) — it is not worth silently overriding.
+     */
+    const carded = subject({
+      id: 'a',
+      subjectCode: 'BCS401',
+      internal: 44,
+      external: 36,
+      total: 80,
+      hasSee: true,
+      credits: 4,
+      gradeLetter: 'O',
+    });
+    expect(resolveSubjectGrade(carded, ruleSet)).toEqual({ letter: 'O', from: 'card' });
+
+    const provisional = subject({ ...carded, gradeLetter: null });
+    expect(resolveSubjectGrade(provisional, ruleSet)).toEqual({ letter: 'A+', from: 'computed' });
+  });
+
+  it('still refuses a grade for a course that did not pass', () => {
+    /*
+     * A course failing a HEAD is not graded on its percentage, and the supplied
+     * regulations do not say what letter it carries. Banding it anyway would
+     * put a P on a course the student has to sit again. OQ-052.
+     */
+    const failed = subject({
+      id: 'a',
+      subjectCode: 'BCS401',
+      /* CIE 12 is below the 40% of 50 needed to be eligible for the SEE. */
+      internal: 12,
+      external: 30,
+      total: 42,
+      hasSee: true,
+      credits: 4,
+    });
+    expect(resolveSubjectGrade(failed, ruleSet)).toBeNull();
+    expect(sgpaInputs(result([failed]), ruleSet).missing).toEqual([
+      { subjectCode: 'BCS401', reason: 'no grade' },
+    ]);
   });
 });
