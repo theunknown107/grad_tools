@@ -1,0 +1,242 @@
+/*
+ * The drop surface.
+ *
+ * Big on purpose. Automatic ingestion is the primary workflow, and a drop
+ * target has to be large enough that a person dragging a file at it does not
+ * miss — a miss drops the file onto the page, which navigates the browser away
+ * from the application.
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-7) var(--space-5);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  text-align: center;
+  transition:
+    border-color var(--motion-fast) var(--ease-enter),
+    background var(--motion-fast) var(--ease-enter);
+}
+
+.zone[data-dragging='true'] {
+  border-color: var(--a-fill);
+  border-style: solid;
+  background: var(--accent-weak);
+}
+
+.zone[data-disabled='true'] {
+  opacity: 0.7;
+}
+
+/* --- The document visualisation ------------------------------------------- */
+
+/*
+ * Three sheets, fanned — the same figure `EmptyState` uses for its icon
+ * cluster, so an empty list and an empty drop surface read as one idea rather
+ * than two unrelated illustrations.
+ */
+.sheets {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-block-end: var(--space-2);
+}
+
+.sheet {
+  display: grid;
+  place-items: center;
+  inline-size: 52px;
+  block-size: 62px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text-subtle);
+  transition:
+    rotate var(--motion-base) var(--ease-spring),
+    translate var(--motion-base) var(--ease-spring);
+}
+
+.sheet[data-position='-1'] {
+  rotate: -8deg;
+  translate: 12px 4px;
+  z-index: 0;
+}
+
+.sheet[data-position='0'] {
+  /* The middle sheet is upright, forward, and wears the accent — it is the
+     one the eye lands on and the one holding the upload glyph. */
+  z-index: 1;
+  border-color: var(--accent-border);
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.sheet[data-position='1'] {
+  rotate: 8deg;
+  translate: -12px 4px;
+  z-index: 0;
+}
+
+/* The fan opens a little as a file comes over the surface. */
+.zone[data-dragging='true'] .sheet[data-position='-1'] {
+  rotate: -14deg;
+  translate: 18px 2px;
+}
+
+.zone[data-dragging='true'] .sheet[data-position='1'] {
+  rotate: 14deg;
+  translate: -18px 2px;
+}
+
+/* The middle glyph turns while the pipeline reads. */
+.zone[data-busy='true'] .sheet[data-position='0'] svg {
+  animation: dropzoneSpin 900ms linear infinite;
+}
+
+@keyframes dropzoneSpin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* --- Words ---------------------------------------------------------------- */
+
+.title {
+  margin: 0;
+  color: var(--text);
+  /* `--text-h2`, the frozen scale's section heading. `--text-h3` is 14px —
+     the same size as body — and would not lead the surface. */
+  font-size: var(--text-h2);
+  line-height: var(--text-h2-lh);
+  font-weight: var(--weight-semibold);
+}
+
+.hint {
+  margin: 0;
+  max-inline-size: 42ch;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+}
+
+.choose {
+  margin-block-start: var(--space-3);
+  min-block-size: var(--control-height);
+  padding-inline: var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--a-fill);
+  color: var(--accent-contrast);
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-enter);
+}
+
+.choose:hover:not(:disabled) {
+  background: var(--a-fill-hover);
+}
+
+.choose:active:not(:disabled) {
+  /* A physical push, one pixel. */
+  translate: 0 1px;
+}
+
+.choose:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.choose:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.formats {
+  margin: var(--space-3) 0 0;
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  letter-spacing: 0.02em;
+}
+
+/*
+ * The input is present and clickable-by-proxy but never seen and never focused.
+ * `display: none` would stop `.click()` working in some browsers, so it is
+ * clipped instead.
+ */
+.input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dismiss {
+  min-block-size: 30px;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.dismiss:hover {
+  background: var(--surface-active);
+}
+
+.dismiss:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* --- Small screens -------------------------------------------------------- */
+
+@media (width <= 560px) {
+  .zone {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .sheet {
+    inline-size: 44px;
+    block-size: 52px;
+  }
+
+  .choose {
+    inline-size: 100%;
+  }
+}
+
+/*
+ * Reduced motion keeps the fan's RESTING shape — it is layout, not animation —
+ * and drops only the movement and the spin.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    transition: none;
+  }
+
+  .zone[data-busy='true'] .sheet[data-position='0'] svg {
+    animation: none;
+  }
+}
