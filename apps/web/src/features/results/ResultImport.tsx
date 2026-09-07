@@ -578,6 +578,28 @@ export function ResultImport({
                   {...(entry.status === 'failed'
                     ? { error: entry.error ?? 'Could not be read' }
                     : { detail: fileMeta(entry) })}
+                  /*
+                   * TAKING A FILE BACK.
+                   *
+                   * A person who drops the wrong card, or four when they meant
+                   * one, could add files and never remove them — the only way
+                   * out was to leave the page and lose the others too. The
+                   * review groups derive from `files`, so dropping the entry
+                   * takes its review with it and nothing else has to be undone.
+                   *
+                   * Not offered while the file is being READ: cancelling an
+                   * in-flight OCR page is a different piece of work, and a
+                   * button that silently does nothing is worse than none.
+                   */
+                  {...(entry.status === 'read' || entry.status === 'failed'
+                    ? {
+                        onRemove: () => {
+                          setFiles((current) =>
+                            current.filter((candidate) => candidate.id !== entry.id),
+                          );
+                        },
+                      }
+                    : {})}
                 />
               </ItemRow>
             ))}
