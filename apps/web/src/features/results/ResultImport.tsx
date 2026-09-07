@@ -76,15 +76,18 @@ import {
   type SubjectIdentity,
 } from '../../domain/subjects.js';
 import type { asStudentProfileId } from '../../domain/identity.js';
+import { Link } from 'react-router-dom';
 import { Icon } from '../../components/icons.js';
 import {
   Button,
+  buttonClassName,
   Notice,
   Panel,
   SelectField,
-  StatusPill,
   TextField,
 } from '../../components/ui/index.js';
+import { Alert } from '../../components/ui/Feedback.js';
+import { useToast } from '../../components/ui/Toast.js';
 import { FileDropzone } from '../../components/ui/FileDropzone.js';
 import { Attachment, ItemGroup, ItemRow } from '../../components/ui/Item.js';
 import { newId, nowIso } from '../../lib/id.js';
@@ -269,7 +272,7 @@ export function ResultImport({
   readonly semesterSubjects: readonly SemesterSubject[];
   readonly savedCalendars: readonly SavedCalendar[];
   readonly savedTimetables: readonly SavedTimetable[];
-  readonly onSave: (result: SemesterResult) => void;
+  readonly onSave: (result: SemesterResult) => void | Promise<void>;
   readonly onSaveCalendar: (calendar: SavedCalendar) => void;
   readonly onSaveTimetable: (slots: readonly TimetableSlot[], record: SavedTimetable) => void;
   readonly onCancel: () => void;
@@ -648,8 +651,16 @@ export function ResultImport({
           catalogue={catalogue}
           subjectIndex={subjectIndex}
           profileId={profileId}
-          onSave={(result) => {
-            onSave(result);
+          /*
+           * THE PROMISE IS RETURNED, and the semester is only marked saved
+           * once the write has actually resolved. This wrapper used to call
+           * `onSave(result)` and return undefined, so the group's `await`
+           * finished instantly, a rejection escaped as an unhandled error, and
+           * the semester joined `saved` whether or not it had been stored —
+           * which then blocked re-importing the one file that had failed.
+           */
+          onSave={async (result) => {
+            await onSave(result);
             setSaved((current) => [...current, result.semester]);
           }}
         />
@@ -695,14 +706,27 @@ function ImportGroup({
   readonly catalogue: readonly Subject[];
   readonly subjectIndex: Map<string, SubjectIdentity>;
   readonly profileId: ReturnType<typeof asStudentProfileId>;
-  readonly onSave: (result: SemesterResult) => void;
+  readonly onSave: (result: SemesterResult) => void | Promise<void>;
 }) {
   const first = group.files[0];
   const [semester, setSemester] = useState(String(group.semester ?? ''));
   const [rows, setRows] = useState<readonly DraftRow[]>(() =>
     (first?.card.rows ?? []).map(toDraft),
   );
-  const [done, setDone] = useState(false);
+  /*
+   * THE SAVE HAS FOUR STATES, NOT TWO.
+   *
+   * It used to be a boolean flipped SYNCHRONOUSLY, before the write had
+   * happened — `onSave(...)` then `setDone(true)`, with the panel above
+   * calling `void saveResult(result)`. So the screen said "Saved" whether or
+   * not anything reached storage, and a rejected write was swallowed entirely
+   * by that `void`: the row stayed in memory looking saved and was gone on the
+   * next reload.
+   */
+  const toast = useToast();
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const done = saveState === 'saved';
 
   const update = (id: string, patch: Partial<DraftRow>) => {
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
@@ -739,7 +763,15 @@ function ImportGroup({
   const rememberedCredits = (code: string) =>
     creditsFor(resolveSubject(subjectIndex, code)).credits;
 
-  const confirm = () => {
+  const confirm = async () => {
+    /*
+     * IDEMPOTENT AGAINST A SECOND PRESS. A double click, a held Enter or an
+     * impatient retry must not write the semester twice — and the button being
+     * disabled is not enough on its own, because the disable only lands after
+     * the render that follows the first click.
+     */
+    if (saveState === 'saving' || saveState === 'saved') return;
+
     const subjects: ResultSubject[] = rows.map((row) => {
       const base = rowToSubject(
         {
@@ -784,22 +816,78 @@ function ImportGroup({
       };
     });
 
-    onSave({
-      id: newId(),
-      profileId,
-      semester: Number(semester),
-      schemeId: ruleSet.schemeId,
-      // Pinned at entry, exactly as a hand-typed result is (M6 §6).
-      ruleSetId: ruleSet.id,
-      sgpaAsserted: null,
-      subjects,
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-    });
-    setDone(true);
+    setSaveState('saving');
+    setSaveError(null);
+    try {
+      await onSave({
+        id: newId(),
+        profileId,
+        semester: Number(semester),
+        schemeId: ruleSet.schemeId,
+        // Pinned at entry, exactly as a hand-typed result is (M6 §6).
+        ruleSetId: ruleSet.id,
+        sgpaAsserted: null,
+        subjects,
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      });
+      setSaveState('saved');
+      toast({
+        title: 'Data confirmed and recorded.',
+        description: `Semester ${semester} and its ${String(subjects.length)} subjects are saved on this device.`,
+        tone: 'success',
+      });
+    } catch (cause) {
+      /*
+       * THE REVIEW STAYS, AND SO DOES EVERYTHING TYPED INTO IT.
+       *
+       * A failed write must never cost the student the work of reviewing —
+       * that is the one thing they cannot get back by trying again. So the
+       * rows are untouched, the button returns, and the reason is shown.
+       */
+      setSaveState('failed');
+      setSaveError(
+        cause instanceof Error && cause.message !== ''
+          ? `Data could not be recorded: ${cause.message}`
+          : 'Data could not be recorded. Please try again.',
+      );
+    }
   };
 
   if (first === undefined) return null;
+
+  /*
+   * A SAVED SEMESTER LEAVES THE REVIEW.
+   *
+   * It used to stay, fully rendered, with the button swapped for a small
+   * "Saved" pill at the foot of a long form — so the screen after a successful
+   * import looked exactly like the screen before it, and read as frozen. There
+   * was nothing to say the work had finished and nothing to do next.
+   *
+   * The parsed rows are deliberately NOT kept behind a toggle here: they are in
+   * the record now, and Results is where a saved semester is read and
+   * corrected. Leaving an editable copy on the import screen would be a second
+   * place to change a result, and the two would disagree.
+   */
+  if (done) {
+    return (
+      <section className={styles.importGroup} aria-label={`Semester ${semester} recorded`}>
+        <Alert
+          tone="success"
+          live
+          title="Data confirmed and recorded."
+          action={
+            <Link className={buttonClassName('secondary')} to="/results">
+              View results
+            </Link>
+          }
+        >
+          Semester {semester} and its {rows.length} subject{rows.length === 1 ? '' : 's'} are saved
+          on this device. Your dashboard, results and degree progress are already up to date.
+        </Alert>
+      </section>
+    );
+  }
 
   return (
     <section className={styles.importGroup}>
@@ -1054,14 +1142,22 @@ function ImportGroup({
         ))}
       </ul>
 
+      {saveError !== null && (
+        <div className={styles.editorNotice}>
+          <Alert tone="danger" live="assertive" title="Not recorded">
+            {saveError} Nothing you reviewed has been lost — press the button again to retry.
+          </Alert>
+        </div>
+      )}
+
       <div className={styles.editorActions}>
-        {done ? (
-          <StatusPill tone="success">Saved</StatusPill>
-        ) : (
-          <Button variant="primary" disabled={!ready || rows.length === 0} onClick={confirm}>
-            Confirm and save result
-          </Button>
-        )}
+        <Button
+          variant="primary"
+          disabled={!ready || rows.length === 0 || saveState === 'saving'}
+          onClick={() => void confirm()}
+        >
+          {saveState === 'saving' ? 'Recording…' : 'Confirm and save result'}
+        </Button>
       </div>
     </section>
   );
