@@ -390,79 +390,23 @@
 }
 
 /*
- * A STRIP, NOT A DROPZONE. Choosing the file is the smallest step in this
- * workflow — the review below it is the feature — so the upload surface is one
- * row rather than the large dashed rectangle the pattern usually invites.
+ * THE DROP SURFACE AND THE FILES IT PRODUCED.
+ *
+ * What used to live here was a one-row strip, justified as "choosing the file
+ * is the smallest step in this workflow". That reasoning is now recorded as
+ * wrong in `FileDropzone.tsx`: automatic ingestion is the PRIMARY workflow, and
+ * a 40px-tall drop target is one a person dragging a PDF misses — which drops
+ * the file on the page and navigates the browser out of the application.
+ *
+ * The surface itself is `FileDropzone`; these two rules only place it inside
+ * the flush panel, which draws its own edges.
  */
-.dropzone {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin: var(--space-4);
+.importDrop {
   padding: var(--space-4);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-muted);
-  font-size: var(--text-small);
-  transition: border-color var(--motion-quick) var(--ease-glide);
 }
 
-.dropzone[data-dragging='true'] {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
-.browse {
-  position: relative;
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.browse input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  width: 100%;
-  cursor: pointer;
-}
-
-.browse:focus-within {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-.fileList {
-  list-style: none;
-  margin: 0;
-  padding: 0 var(--space-4);
-  display: grid;
-  gap: var(--space-2);
-}
-
-.fileList li {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding-block: var(--space-2);
-  border-block-start: 1px solid var(--border);
-}
-
-.fileName {
-  font-size: var(--text-small);
-  color: var(--text);
-  overflow-wrap: anywhere;
-}
-
-.fileMeta {
-  flex: 1;
-  min-inline-size: 0;
-  font-size: var(--text-caption);
-  color: var(--text-muted);
-  overflow-wrap: anywhere;
+.importFiles {
+  padding: 0 var(--space-4) var(--space-4);
 }
 
 .importGroup {

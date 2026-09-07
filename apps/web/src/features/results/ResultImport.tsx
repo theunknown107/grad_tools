@@ -73,6 +73,8 @@ import {
   StatusPill,
   TextField,
 } from '../../components/ui/index.js';
+import { FileDropzone } from '../../components/ui/FileDropzone.js';
+import { Attachment, ItemGroup, ItemRow } from '../../components/ui/Item.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useSubjects } from '../../hooks/useReference.js';
 import styles from './results.module.css';
@@ -142,14 +144,6 @@ function toDraft(row: ParsedRow): DraftRow {
     warnings: row.warnings,
   };
 }
-
-const STATUS_PILL: Record<FileState['status'], string> = {
-  reading: '…',
-  queued: 'Waiting',
-  recognising: 'Reading',
-  read: 'Read',
-  failed: 'Failed',
-};
 
 /**
  * What one file is doing, in a phrase.
@@ -231,7 +225,6 @@ export function ResultImport({
     reference.state.status === 'ready' ? reference.state.data : [];
 
   const [files, setFiles] = useState<readonly FileState[]>([]);
-  const [dragging, setDragging] = useState(false);
   const [saved, setSaved] = useState<readonly number[]>([]);
 
   /*
@@ -456,65 +449,51 @@ export function ResultImport({
       </div>
 
       {/*
-        A compact strip, not a full-width dropzone. The upload is the smallest
-        step in this workflow and should not be the largest thing on screen.
+        THE DROP SURFACE (Phase 7B §4, §15).
+
+        Replaces the one-line dashed strip that used to sit here. The strip was
+        deliberately small — "the upload is the smallest step in this workflow"
+        — and that reasoning was wrong twice over: automatic ingestion is the
+        PRIMARY workflow of the product, and a 40px drop target is one a person
+        dragging a PDF misses, which drops the file on the page and navigates
+        the browser away from the app.
+
+        The pipeline behind it is untouched. `read()` is the same function, and
+        the dropzone only adds the VALIDATION step in front of it.
       */}
-      <div
-        className={styles.dropzone}
-        data-dragging={dragging}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => {
-          setDragging(false);
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragging(false);
-          void read([...event.dataTransfer.files]);
-        }}
-      >
-        <Icon name="results" size="nav" />
-        <span>Drop a result card, academic calendar or class timetable here, or</span>
-        <label className={styles.browse}>
-          <span>browse</span>
-          <input
-            type="file"
-            accept="application/pdf,image/jpeg,image/png,image/webp"
-            multiple
-            onChange={(event) => {
-              void read([...(event.target.files ?? [])]);
-              event.target.value = '';
-            }}
-          />
-        </label>
+      <div className={styles.importDrop}>
+        <FileDropzone
+          busy={busy}
+          title="Drop a document here"
+          hint="A result card, an academic calendar or a class timetable. GradTools works out which is which."
+          onFiles={(chosen) => {
+            void read([...chosen]);
+          }}
+        />
       </div>
 
       {files.length > 0 && (
-        <ul className={styles.fileList}>
-          {files.map((entry) => (
-            <li key={entry.id}>
-              {/*
-                The filename is rendered as TEXT and used for nothing else — not
-                as evidence of a semester, not as a path, not as identity (§22).
-              */}
-              <span className={styles.fileName}>{entry.fileName}</span>
-              <span className={styles.fileMeta}>{fileMeta(entry)}</span>
-              <StatusPill
-                tone={
-                  entry.status === 'failed'
-                    ? 'danger'
-                    : entry.status === 'read'
-                      ? 'success'
-                      : 'neutral'
-                }
-              >
-                {STATUS_PILL[entry.status]}
-              </StatusPill>
-            </li>
-          ))}
-        </ul>
+        <div className={styles.importFiles}>
+          <ItemGroup label="Files you added">
+            {files.map((entry) => (
+              <ItemRow key={entry.id}>
+                {/*
+                  The filename is rendered as TEXT and used for nothing else —
+                  not as evidence of a semester, not as a path, not as identity
+                  (§22).
+                */}
+                <Attachment
+                  fileName={entry.fileName}
+                  bytes={entry.bytes}
+                  status={entry.status}
+                  {...(entry.status === 'failed'
+                    ? { error: entry.error ?? 'Could not be read' }
+                    : { detail: fileMeta(entry) })}
+                />
+              </ItemRow>
+            ))}
+          </ItemGroup>
+        </div>
       )}
 
       {/*

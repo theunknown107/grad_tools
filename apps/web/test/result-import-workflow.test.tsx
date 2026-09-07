@@ -365,12 +365,26 @@ describe('a scan, a photo, and a file that cannot be read', () => {
     expect(peek.results()).toHaveLength(0);
   });
 
-  it('refuses a file that is neither a PDF nor a picture', async () => {
+  it('refuses a file that is neither a PDF nor a picture, and names it', async () => {
     const user = userEvent.setup();
     renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, 'marks.docx', 'application/vnd.openxmlformats');
-    expect(await screen.findByText(/reads PDFs and photos/i)).toBeTruthy();
+
+    /*
+     * The refusal moved EARLIER and got more specific.
+     *
+     * It used to come out of `read()` after the file had been handed to the
+     * pipeline, and said "GradTools reads PDFs and photos" — true, and no help
+     * to somebody who dropped four files and cannot tell which one it means.
+     * `FileDropzone` now checks the kind before the pipeline sees it, which is
+     * the validation step the workflow always claimed to have, and names the
+     * offending file.
+     */
+    const message = await screen.findByText(/marks\.docx/i);
+    expect(message.textContent).toMatch(/PDF, JPEG, PNG, WebP/i);
+    // And it says what to do about the commonest case, rather than only "no".
+    expect(message.textContent).toMatch(/saved as a PDF/i);
   });
 
   it('reports a corrupt file with a message, not a stack', async () => {
