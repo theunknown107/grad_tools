@@ -164,13 +164,34 @@ export interface TimetableCoverage {
 /* -------------------------------------------------------------------------- */
 
 /**
- * `10:00-10:55am`, `11:50-12.10pm`, `03:10- 04:05pm`.
+ * `10:00-10:55am`, `11:50-12.10pm`, `03:10- 04:05pm`, `10:00 am to 10:55 am`.
  *
  * The separator may be a colon or a full stop — the reference document uses
  * both, sometimes in the same header — and the meridiem may appear once at the
  * end, on each half, or not at all.
+ *
+ * ---------------------------------------------------------------------------
+ * TWO SHAPES ADDED AFTER A REAL TIMETABLE FAILED ON BOTH
+ * ---------------------------------------------------------------------------
+ *
+ * `to` AS THE SEPARATOR. A timetable authored in Word routinely prints its
+ * header as three stacked rows — the start times, a row of the word "to", and
+ * the end times — so the column reads `10:00 am to 10:55 am` and never contains
+ * a dash at all. Requiring `[-–—]` found no slot in any of the eight columns,
+ * which failed the whole document with "the times could not be read". Both
+ * forms are now accepted; neither is preferred.
+ *
+ * `p.m` AND `a.m.`. The same documents punctuate the meridiem, and sometimes
+ * only on the last column of the row. An unmatched meridiem is not a small
+ * loss: without it `4:05` falls to the `h < 8` afternoon rule, which happens to
+ * be right, but `12:10 p.m` would be read with no marker at all.
+ *
+ * Neither is a concession to one file. A dash, the word "to", and a punctuated
+ * meridiem are the three ways every college timetable writes a time range, and
+ * the parser previously handled one of them.
  */
-const SLOT = /(\d{1,2})[:.](\d{2})\s*(am|pm)?\s*[-–—]\s*(\d{1,2})[:.](\d{2})\s*(am|pm)?/i;
+const SLOT =
+  /(\d{1,2})[:.](\d{2})\s*(a\.?m\.?|p\.?m\.?)?\s*(?:[-–—]|to)\s*(\d{1,2})[:.](\d{2})\s*(a\.?m\.?|p\.?m\.?)?/i;
 
 /**
  * A college timetable's hours, as a 24-hour clock.
@@ -184,7 +205,8 @@ const SLOT = /(\d{1,2})[:.](\d{2})\s*(am|pm)?\s*[-–—]\s*(\d{1,2})[:.](\d{2})
 function toClock(hour: number, minute: number, meridiem: string | undefined): string | null {
   if (minute > 59 || hour > 23) return null;
   let h = hour;
-  const marker = meridiem?.toLowerCase();
+  /* `p.m.`, `p.m` and `pm` are one marker written three ways. */
+  const marker = meridiem?.toLowerCase().replace(/\./g, '');
   if (marker === 'pm' && h < 12) h += 12;
   else if (marker === 'am' && h === 12) h = 0;
   else if (marker === undefined && h < 8) h += 12;
@@ -546,13 +568,44 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
     );
   };
 
+  /**
+   * A row that JOINS two clock rows without carrying a clock of its own.
+   *
+   * The header of a Word-authored timetable is three stacked rows: the start
+   * times, a row of the word "to", and the end times. The middle row has no
+   * digits in it, so `isHeaderRow` rejected it and the block stopped after the
+   * start times — every column then held a single time, no column parsed as a
+   * RANGE, and the whole document failed with "the times could not be read".
+   *
+   * Deliberately narrow, because this is the rule that could swallow the
+   * timetable itself: the row must carry a separator word, must carry no clock
+   * of its own, must carry no day name, and the row AFTER it must be a real
+   * clock row. A row of subject codes satisfies none of those.
+   */
+  const SEPARATOR_WORD = /^(?:to|till|until|[-–—])$/i;
+  const isBridgeRow = (index: number) => {
+    const row = rows[index];
+    if (row === undefined) return false;
+    if (!isHeaderRow(index + 1)) return false;
+
+    const words = row.map((item) => item.text.trim()).filter((text) => text !== '');
+    if (words.length === 0) return false;
+    if (words.some((word) => CLOCK.test(word))) return false;
+    if (
+      row.some((item) => DAY_NAMES[item.text.replace(/[^A-Za-z]/g, '').toLowerCase()] !== undefined)
+    ) {
+      return false;
+    }
+    return words.some((word) => SEPARATOR_WORD.test(word));
+  };
+
   let headerIndex = -1;
   let headerSlots: TimeSlot[] = [];
 
   for (let index = 0; index < rows.length; index += 1) {
     if (!isHeaderRow(index)) continue;
     let last = index;
-    while (last + 1 < rows.length && isHeaderRow(last + 1)) last += 1;
+    while (last + 1 < rows.length && (isHeaderRow(last + 1) || isBridgeRow(last + 1))) last += 1;
 
     /*
      * BLANK RUNS ARE NOT COLUMNS. A PDF is full of zero-content positioning
@@ -653,11 +706,108 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
   const classes: GridClass[] = [];
   const batches = new Set<string>();
 
+  /*
+   * A DAY IS A BAND OF ROWS, NOT A ROW.
+   *
+   * This used to require the day name to be the FIRST run of a row and read
+   * that one row's cells. That holds for a timetable whose cells each fit on
+   * one printed line, and it fails completely on a Word-authored one: there the
+   * day label is vertically centred in a tall table row, so it lands on a
+   * printed line of its OWN, with the subject codes on the line above it and
+   * the rooms on the line below. Every day matched nothing, and the document
+   * produced zero classes while reporting no error at all.
+   *
+   * A band therefore runs from one day label to the next, and its cells are
+   * every run in between grouped by column. A timetable whose days DO fit on
+   * one line each produces bands of one row, which is exactly the previous
+   * behaviour — this generalises the old rule rather than replacing it.
+   */
+  const dayNameIn = (row: readonly PlacedLike[]): Weekday | undefined => {
+    for (const item of row) {
+      const day = DAY_NAMES[item.text.replace(/[^A-Za-z]/g, '').toLowerCase()];
+      if (day !== undefined) return day;
+    }
+    return undefined;
+  };
+
+  interface Band {
+    readonly day: Weekday;
+    readonly items: PlacedLike[];
+  }
+
+  const labelRows: number[] = [];
   for (let index = headerIndex + 1; index < rows.length; index += 1) {
-    const row = rows[index] as PlacedLike[];
-    const firstText = (row[0]?.text ?? '').replace(/[^A-Za-z]/g, '').toLowerCase();
-    const day = DAY_NAMES[firstText];
+    if (dayNameIn(rows[index] as PlacedLike[]) !== undefined) labelRows.push(index);
+  }
+
+  /*
+   * A ROW BELONGS TO THE NEAREST DAY LABEL, ABOVE OR BELOW.
+   *
+   * The first attempt ran each band from its label to the next one. That is
+   * wrong in a way that produces plausible output: a Word-authored timetable
+   * centres the label vertically, so the SUBJECTS print on the line ABOVE it
+   * and the rooms below. Running label-to-label attached every day's subjects
+   * to the PREVIOUS day, and the first day's to nothing — 42 classes on a real
+   * document, every one of them on the wrong day, with nothing on screen to
+   * suggest it.
+   *
+   * Nearest-label is symmetric, so it reads a row on either side of its label,
+   * and it needs no rule about which side a document happens to use.
+   *
+   * The half-gap cap is what stops a page footer becoming Saturday's classes:
+   * a run further from every label than half the distance between labels is not
+   * in any day's band.
+   */
+  const gaps = labelRows.slice(1).map((value, index) => value - (labelRows[index] as number));
+  const sortedGaps = [...gaps].sort((a, b) => a - b);
+  const medianGap =
+    sortedGaps.length === 0 ? 2 : (sortedGaps[Math.floor(sortedGaps.length / 2)] as number);
+  const reach = Math.max(1, Math.floor(medianGap / 2));
+
+  const bands = new Map<number, Band>();
+  for (const labelRow of labelRows) {
+    const day = dayNameIn(rows[labelRow] as PlacedLike[]);
     if (day === undefined) continue;
+    /* The label itself is not a cell; everything else on its own row is. */
+    bands.set(labelRow, {
+      day,
+      items: (rows[labelRow] as PlacedLike[]).filter(
+        (item) => DAY_NAMES[item.text.replace(/[^A-Za-z]/g, '').toLowerCase()] === undefined,
+      ),
+    });
+  }
+
+  /*
+   * NEIGHBOURING ROWS ARE ONLY READ FOR A LABEL THAT HAS NOTHING OF ITS OWN.
+   *
+   * This is the condition that separates the two layouts, and it has to be
+   * exact — reaching for neighbours unconditionally pulled the SUBJECT
+   * DICTIONARY into Monday on a document whose days each fit on one line.
+   *
+   *   Reference layout: the label row carries its own cells, so the band is
+   *   that row alone. Byte for byte the previous behaviour.
+   *
+   *   Word layout: the label is alone on its printed line, so the cells are on
+   *   the neighbouring lines and there is no other way to read them.
+   */
+  const hasOwnCells = (band: Band) =>
+    band.items.some((item) => slotAt(bounded, item.x, item.x + item.width) >= 0);
+
+  for (const [labelRow, band] of bands) {
+    if (hasOwnCells(band)) continue;
+    for (let offset = 1; offset <= reach; offset += 1) {
+      for (const index of [labelRow - offset, labelRow + offset]) {
+        if (index <= headerIndex || index >= rows.length) continue;
+        if (bands.has(index)) continue;
+        /* Never past the midpoint to a neighbouring label. */
+        if (labelRows.some((other) => Math.abs(index - other) < offset)) continue;
+        band.items.push(...(rows[index] as PlacedLike[]));
+      }
+    }
+  }
+
+  for (const band of bands.values()) {
+    const { day } = band;
 
     /*
      * Cells are neighbouring runs inside one column. A cell like `MAT LAB(E1+E2)`
@@ -665,7 +815,7 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
      * the column their centre falls in.
      */
     const byColumn = new Map<number, PlacedLike[]>();
-    for (const item of row.slice(1)) {
+    for (const item of band.items) {
       const column = slotAt(bounded, item.x, item.x + item.width);
       if (column < 0) continue;
       const bucket = byColumn.get(column) ?? [];
@@ -737,6 +887,24 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
       const plain = /^([A-Z]{2,6})$/i.exec(text);
       if (plain !== null) {
         push(plain[1] as string, null, null);
+        continue;
+      }
+
+      /*
+       * `RMIPR LH-302` — the subject and the room in one cell.
+       *
+       * A timetable that prints the room under the subject puts both in the
+       * same column, so the band reads them as one cell. Without this the cell
+       * matches nothing, and the class is kept with a NULL code and no room —
+       * on a real document that was 42 classes found and none identified.
+       *
+       * The room half is anchored and shaped: letters, an optional hyphen, and
+       * digits. It is deliberately not "whatever follows the initials", which
+       * would swallow a second subject and invent a room out of it.
+       */
+      const withRoom = /^([A-Z]{2,6})\s+([A-Z]{1,4}-?\d{1,4}[A-Z]?)$/i.exec(text);
+      if (withRoom !== null) {
+        push(withRoom[1] as string, null, (withRoom[2] as string).toUpperCase());
         continue;
       }
 
