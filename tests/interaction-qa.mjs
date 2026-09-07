@@ -593,14 +593,31 @@ const run = async () => {
      */
     await phone.locator('#main button[aria-haspopup="dialog"]').first().click();
     await phone.waitForTimeout(600);
-    const sheet = await phone.locator('[role="dialog"][aria-modal="true"]').count();
+    /*
+     * `[role="dialog"]`, WITHOUT `aria-modal`.
+     *
+     * The sheet runs on @radix-ui/react-dialog since Phase 7B, and Radix
+     * deliberately does not set `aria-modal="true"` — it marks the rest of the
+     * tree `aria-hidden` instead, because `aria-modal` has known problems in
+     * some screen readers that leave the dialog's own content unreachable.
+     * That is the stronger technique, not a weaker one, so the modality is
+     * asserted the way it is now actually implemented.
+     */
+    const sheet = await phone.locator('[role="dialog"]').count();
     expect(sheet > 0, 'no detail sheet opened');
+
+    const behindHidden = await phone.evaluate(() =>
+      [...document.body.children].some(
+        (node) => node.getAttribute('aria-hidden') === 'true' && node.querySelector('#main') !== null,
+      ),
+    );
+    expect(behindHidden, 'the page behind the sheet was not hidden from assistive technology');
   });
 
   await check('Mobile: the sheet closes on Escape', async () => {
     await phone.keyboard.press('Escape');
     await phone.waitForTimeout(500);
-    const sheet = await phone.locator('[role="dialog"][aria-modal="true"]').count();
+    const sheet = await phone.locator('[role="dialog"]').count();
     expect(sheet === 0, 'sheet did not close');
   });
 
