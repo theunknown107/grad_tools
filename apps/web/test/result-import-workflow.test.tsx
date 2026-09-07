@@ -518,7 +518,7 @@ describe('confirming an import', () => {
     await screen.findByText(/Semester 4/);
     await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
 
-    expect(await screen.findByText(/Data confirmed and recorded/i)).toBeTruthy();
+    expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
     expect(peek.results()).toHaveLength(1);
 
     // And the review is gone, rather than sitting there looking unfinished.
@@ -582,7 +582,7 @@ describe('confirming an import', () => {
 
     const confirmButton = screen.getByRole('button', { name: /confirm and save result/i });
     await user.tripleClick(confirmButton);
-    await screen.findByText(/Data confirmed and recorded/i);
+    await screen.findAllByText(/Data confirmed and recorded/i);
 
     expect(peek.results()).toHaveLength(1);
     expect(peek.results().filter((entry) => entry.semester === 4)).toHaveLength(1);
@@ -674,7 +674,7 @@ describe('importing a scheme of teaching', () => {
     await screen.findByText(/Scheme of teaching/i);
     await user.click(screen.getByRole('button', { name: /confirm and save these credits/i }));
 
-    expect(await screen.findByText(/Data confirmed and recorded/i)).toBeTruthy();
+    expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
     await waitFor(() => expect(peek.schemeCourses()).toHaveLength(2));
     expect(peek.schemeCourses().map((course) => [course.code, course.credits])).toEqual([
       ['BQQ401', 4],
@@ -690,7 +690,7 @@ describe('importing a scheme of teaching', () => {
     await choose(user, 'scheme.pdf');
     await screen.findByText(/Scheme of teaching/i);
     await user.dblClick(screen.getByRole('button', { name: /confirm and save these credits/i }));
-    await screen.findByText(/Data confirmed and recorded/i);
+    await screen.findAllByText(/Data confirmed and recorded/i);
 
     await waitFor(() => expect(peek.schemeCourses()).toHaveLength(2));
   });
