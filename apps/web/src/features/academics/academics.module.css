@@ -148,3 +148,60 @@
 .percentageNote {
   padding: 0 var(--space-4) var(--space-4);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Grade distribution                                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The same bar idiom the degree page uses for SGPA, at row scale. A chart
+ * library for eight counts would be a dependency to render what a row of
+ * divs already renders (docs/05 §5.12).
+ */
+.gradeRows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.gradeRow {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr 2.5rem;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+/* A band nobody scored is kept, and quieted. Its absence is information. */
+.gradeRow[data-zero='true'] {
+  opacity: 0.45;
+}
+
+.gradeLetter {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gradeTrack {
+  display: block;
+  block-size: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.gradeFill {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.gradeCount {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
