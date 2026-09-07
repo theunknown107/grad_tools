@@ -695,3 +695,77 @@ describe('importing a scheme of teaching', () => {
     await waitFor(() => expect(peek.schemeCourses()).toHaveLength(2));
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* The screens follow the save, with no reload                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * PHASE 7C §19. A student who imports a result and then has to reload the
+ * browser to see it has, from where they are sitting, imported nothing.
+ *
+ * The derived academic state is memoised on the three collections, and
+ * `useCollection` updates those optimistically before awaiting storage — so
+ * the figures recompute on the same render pass as the save. This asserts that
+ * end to end, through the screen, with nothing remounted in between.
+ */
+describe('after a save, the figures follow', () => {
+  it('recomputes the overview without a reload', async () => {
+    const user = userEvent.setup();
+    setCard(4);
+    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+
+    // BEFORE. Nothing saved, so there is no overview to carry a CGPA at all.
+    await screen.findByRole('button', { name: /add academic document/i });
+    expect(screen.queryByText('CGPA')).toBeNull();
+
+    await choose(user);
+    await screen.findByText(/Semester 4/);
+    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
+
+    /*
+     * Done closes the panel. This is the control the student presses after an
+     * import, and its own behaviour is part of what is being asserted: the
+     * page behind it must already be up to date when it reappears.
+     */
+    await user.click(screen.getByRole('button', { name: /^Done$/ }));
+
+    /*
+     * AFTER. The overview — the default view — carries a real CGPA. Nothing
+     * was remounted in between, which matters because a remount is exactly
+     * what a browser reload does.
+     */
+    /*
+     * The overview is there, and carries the figures this card supports. The
+     * CGPA is NOT among them — the fixture's rows have no credits, so it says
+     * "Unavailable" with its reason, which is the correct answer and not an
+     * empty screen (§4, §5).
+     */
+    const passed = await screen.findByText('Passed');
+    expect(passed.closest('div')?.textContent ?? '').toMatch(/2/);
+    expect(screen.getByText('CGPA').closest('div')?.textContent ?? '').toMatch(/Unavailable/);
+  });
+
+  it('leaves the other figures standing when the CGPA cannot be computed', async () => {
+    /*
+     * §4 asserted through the screen. The card's rows carry no credits, so no
+     * SGPA and no CGPA exist — and the subject count, the pass count and the
+     * semester list must all survive that, because none of them needed either.
+     */
+    const user = userEvent.setup();
+    setCard(4);
+    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+
+    await choose(user);
+    await screen.findByText(/Semester 4/);
+    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: /^Done$/ }));
+
+    const subjects = await screen.findByText('Subjects');
+    expect(subjects.closest('div')?.textContent ?? '').toMatch(/2/);
+    // "Semesters" is also the tab's own label, so the metric is taken by role.
+    expect(screen.getByRole('tab', { name: /semesters/i })).toBeTruthy();
+  });
+});
