@@ -37,7 +37,10 @@ import {
 } from '../../domain/timetable-import.js';
 import type { TimetableSlot } from '../../domain/types.js';
 import type { asStudentProfileId } from '../../domain/identity.js';
-import { Button, Notice, SelectField, StatusPill } from '../../components/ui/index.js';
+import { Button, buttonClassName, Notice, SelectField } from '../../components/ui/index.js';
+import { Alert } from '../../components/ui/Feedback.js';
+import { useToast } from '../../components/ui/Toast.js';
+import { Link } from 'react-router-dom';
 import { newId, nowIso } from '../../lib/id.js';
 import styles from './results.module.css';
 
@@ -56,10 +59,21 @@ export function TimetableReview({
   readonly fingerprint: string;
   readonly profileId: ReturnType<typeof asStudentProfileId>;
   readonly saved: readonly SavedTimetable[];
-  readonly onSave: (slots: readonly TimetableSlot[], record: SavedTimetable) => void;
+  readonly onSave: (
+    slots: readonly TimetableSlot[],
+    record: SavedTimetable,
+  ) => void | Promise<void>;
 }) {
   const [batch, setBatch] = useState('');
-  const [done, setDone] = useState(false);
+  const toast = useToast();
+  /*
+   * FOUR STATES, NOT A BOOLEAN. `done` was flipped synchronously, before the
+   * write, while the panel above called `void save(...)` — so this said
+   * "Saved" whether or not anything reached storage, and a rejected write was
+   * swallowed by that `void`.
+   */
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const relation = relateTimetable(
     {
@@ -78,21 +92,66 @@ export function TimetableReview({
   const stale = relation.kind === 'revision' && !relation.supersedes;
   const ready = !duplicate && !batchNeeded && slots.length > 0;
 
-  const confirm = () => {
-    onSave(slots, {
-      id: newId(),
-      className: parsed.context.className,
-      semester: parsed.context.semester,
-      academicYear: parsed.context.academicYear,
-      revision: parsed.context.revision,
-      effectiveFrom: parsed.context.effectiveFrom,
-      batch: chosen,
-      fingerprint,
-      importedAt: nowIso(),
-      slotCount: slots.length,
-    });
-    setDone(true);
+  const confirm = async () => {
+    /* Idempotent against a second press: the disable lands a render too late. */
+    if (saveState === 'saving' || saveState === 'saved') return;
+    setSaveState('saving');
+    setSaveError(null);
+    try {
+      await onSave(slots, {
+        id: newId(),
+        className: parsed.context.className,
+        semester: parsed.context.semester,
+        academicYear: parsed.context.academicYear,
+        revision: parsed.context.revision,
+        effectiveFrom: parsed.context.effectiveFrom,
+        batch: chosen,
+        fingerprint,
+        importedAt: nowIso(),
+        slotCount: slots.length,
+      });
+      setSaveState('saved');
+      toast({
+        title: 'Data confirmed and recorded.',
+        description: `${String(slots.length)} classes are saved on this device.`,
+        tone: 'success',
+      });
+    } catch (cause) {
+      setSaveState('failed');
+      setSaveError(
+        cause instanceof Error && cause.message !== ''
+          ? `Your timetable could not be recorded: ${cause.message}`
+          : 'Your timetable could not be recorded. Please try again.',
+      );
+    }
   };
+
+  /*
+   * A SAVED TIMETABLE LEAVES THE REVIEW.
+   *
+   * It used to stay on screen with the button swapped for a small "Saved"
+   * pill, so the screen after a successful import looked like the screen
+   * before it — which reads as frozen rather than finished.
+   */
+  if (saveState === 'saved') {
+    return (
+      <section className={styles.importGroup} aria-label="Timetable recorded">
+        <Alert
+          tone="success"
+          live
+          title="Data confirmed and recorded."
+          action={
+            <Link className={buttonClassName('secondary')} to="/timetable">
+              View timetable
+            </Link>
+          }
+        >
+          {slots.length} classes are saved on this device. Your week and today&apos;s classes are
+          already up to date.
+        </Alert>
+      </section>
+    );
+  }
 
   const byDay = DAY_ORDER.map((day) => ({
     day,
@@ -221,14 +280,26 @@ export function TimetableReview({
         ))}
       </ul>
 
+      {saveError !== null && (
+        <div className={styles.editorNotice}>
+          <Alert tone="danger" live="assertive" title="Not recorded">
+            {saveError} Nothing you reviewed has been lost — press the button again to retry.
+          </Alert>
+        </div>
+      )}
+
       <div className={styles.editorActions}>
-        {done ? (
-          <StatusPill tone="success">Saved</StatusPill>
-        ) : (
-          <Button variant="primary" disabled={!ready} onClick={confirm}>
-            {relation.kind === 'revision' ? 'Replace my timetable' : 'Confirm and save timetable'}
-          </Button>
-        )}
+        <Button
+          variant="primary"
+          disabled={!ready || saveState === 'saving'}
+          onClick={() => void confirm()}
+        >
+          {saveState === 'saving'
+            ? 'Recording…'
+            : relation.kind === 'revision'
+              ? 'Replace my timetable'
+              : 'Confirm and save timetable'}
+        </Button>
       </div>
     </section>
   );

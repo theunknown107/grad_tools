@@ -77,15 +77,18 @@ export function DocumentImportPanel({
       semesterSubjects={semesterSubjects}
       savedCalendars={calendars}
       savedTimetables={timetableImports}
-      onSave={(result) => {
-        void saveResult(result);
-      }}
-      onSaveCalendar={(calendar) => {
-        void saveCalendar(calendar);
-      }}
-      onSaveTimetable={(slots, record) => {
-        void replaceTimetable(slots, record);
-      }}
+      /*
+       * THE PROMISES ARE RETURNED, NOT VOIDED.
+       *
+       * Each of these was `void save(...)`, which threw the result away twice
+       * over: the review could not wait for the write, so it announced success
+       * before anything had reached storage — and a REJECTED write became an
+       * unhandled rejection nobody saw, leaving a record that looked saved,
+       * was only in memory, and vanished on the next reload.
+       */
+      onSave={saveResult}
+      onSaveCalendar={saveCalendar}
+      onSaveTimetable={replaceTimetable}
       onCancel={onDone}
     />
   );

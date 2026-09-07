@@ -78,3 +78,8 @@ UI clone reference/
 # Supplied real-student test pack: personal academic records (results, USN,
 # marks, a division timetable). Read locally for validation, never committed.
 GradTools_Real_Student_Test_Pack/
+
+# Supplied CSBS scheme and syllabus documents, and the real student pack.
+# Reference material for local development only: never committed, never
+# published, never turned into a fixture.
+CSBS22 Docs/

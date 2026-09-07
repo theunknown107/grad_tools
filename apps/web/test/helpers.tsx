@@ -25,6 +25,7 @@ import type { SavedTimetable } from '../src/domain/timetable-import.js';
 import type { NotificationPreferences, NotificationRecord } from '../src/domain/notifications.js';
 import type { RepositoryBundle } from '../src/repositories/types.js';
 import { RepositoryProvider } from '../src/repositories/context.js';
+import { ToastProvider } from '../src/components/ui/Toast.js';
 
 export interface MemorySeed {
   profile?: StudentProfile | null;
@@ -136,7 +137,18 @@ export function renderWith(
   const { repositories = createMemoryRepositories().bundle, route = '/' } = options;
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <RepositoryProvider repositories={repositories}>{ui}</RepositoryProvider>
+      <RepositoryProvider repositories={repositories}>
+        {/*
+          THE TOAST PROVIDER, BECAUSE THE APP ALWAYS HAS ONE.
+          
+          `AppShell` mounts it around every route, so any component in the
+          product can announce a confirmation. A page rendered bare in a test
+          has no shell, and `useToast` throws by design rather than doing
+          nothing quietly — so the harness supplies what the app supplies, and
+          a page test exercises the same tree the browser does.
+        */}
+        <ToastProvider>{ui}</ToastProvider>
+      </RepositoryProvider>
     </MemoryRouter>,
   );
 }

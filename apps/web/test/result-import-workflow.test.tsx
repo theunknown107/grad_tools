@@ -15,7 +15,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { screen } from '@testing-library/dom';
+import { screen, waitFor } from '@testing-library/dom';
 import { cleanup } from '@testing-library/react';
 import type { ImportLine } from '../src/domain/result-import.js';
 import { createMemoryRepositories, renderWith } from './helpers.js';
@@ -482,5 +482,100 @@ describe('the filename', () => {
     expect(list.textContent).toContain('<script>');
     // Rendered as text: no element was created from it.
     expect(document.querySelector('script')).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* What happens after Confirm                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The reported symptom was "Done freezes". It did not freeze — it finished
+ * invisibly. The review stayed fully rendered with the button swapped for a
+ * 24px "Saved" pill at the foot of a long form, so the screen after a
+ * successful import looked exactly like the screen before it.
+ *
+ * Worse, `setDone(true)` ran SYNCHRONOUSLY, before the write, and the panel
+ * above called `void saveResult(result)` — so the pill appeared whether or not
+ * anything reached storage, and a rejected write was swallowed entirely.
+ */
+describe('confirming an import', () => {
+  it('says so, unmistakably, and leaves the review', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ResultsPage />, { repositories: bundle });
+
+    await choose(user);
+    await screen.findByText(/Semester 4/);
+    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+
+    expect(await screen.findByText(/Data confirmed and recorded/i)).toBeTruthy();
+    expect(peek.results()).toHaveLength(1);
+
+    // And the review is gone, rather than sitting there looking unfinished.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /confirm and save result/i })).toBeNull(),
+    );
+  });
+
+  it('offers the way on to the saved record', async () => {
+    const user = userEvent.setup();
+    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+
+    await choose(user);
+    await screen.findByText(/Semester 4/);
+    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+
+    expect(await screen.findByRole('link', { name: /view results/i })).toBeTruthy();
+  });
+
+  it('keeps the review, and everything typed into it, when the write fails', async () => {
+    /*
+     * THE ONE THING A STUDENT CANNOT GET BACK is the work of reviewing. A
+     * failed write used to show "Saved" anyway, because the rejection went into
+     * a `void` — the record looked stored, was only in memory, and vanished on
+     * the next reload.
+     */
+    const user = userEvent.setup();
+    const { bundle } = createMemoryRepositories();
+    const failing = {
+      ...bundle,
+      results: {
+        ...bundle.results,
+        upsert: () => Promise.reject(new Error('the disk is full')),
+      },
+    };
+    renderWith(<ResultsPage />, { repositories: failing });
+
+    await choose(user);
+    await screen.findByText(/Semester 4/);
+    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+
+    expect(await screen.findByText(/could not be recorded/i)).toBeTruthy();
+    expect(screen.getByText(/the disk is full/i)).toBeTruthy();
+    // The button is back, so it can be retried, and the rows are still there.
+    expect(screen.getByRole('button', { name: /confirm and save result/i })).toBeTruthy();
+    expect(screen.getByLabelText(/^Subject code 1$/i)).toBeTruthy();
+  });
+
+  it('records one semester however many times Confirm is pressed', async () => {
+    /*
+     * Disabling the button is not enough on its own: the disable only lands on
+     * the render AFTER the first click, so a double click, a held Enter or an
+     * impatient retry can all get two writes in first.
+     */
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ResultsPage />, { repositories: bundle });
+
+    await choose(user);
+    await screen.findByText(/Semester 4/);
+
+    const confirmButton = screen.getByRole('button', { name: /confirm and save result/i });
+    await user.tripleClick(confirmButton);
+    await screen.findByText(/Data confirmed and recorded/i);
+
+    expect(peek.results()).toHaveLength(1);
+    expect(peek.results().filter((entry) => entry.semester === 4)).toHaveLength(1);
   });
 });
