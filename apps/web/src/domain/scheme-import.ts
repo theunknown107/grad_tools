@@ -115,7 +115,15 @@ export interface ParsedScheme {
  */
 const COURSE_CODE = /^B[A-Z]{2,4}\d{3}[A-Za-z]?$/;
 
-const SEMESTER_HEADING = /^(I|II|III|IV|V|VI|VII|VIII)\s+SEMESTER\b/i;
+/*
+ * THE SPACE IS OPTIONAL, because a PDF's text runs do not have to respect it.
+ * The first-year CSE-stream scheme heads its tables "ISemester (CSE" and
+ * "IISemester(CSEStream)" — the roman numeral and the word arrive in one run
+ * with nothing between them. Requiring whitespace there made this reader miss
+ * every physics-group table and file the chemistry-group ones as semesters 1
+ * and 2: the wrong cycle's courses under the right numbers.
+ */
+const SEMESTER_HEADING = /^(I|II|III|IV|V|VI|VII|VIII)\s*SEMESTER\b/i;
 
 const ROMAN: Readonly<Record<string, number>> = {
   I: 1,
@@ -134,8 +142,15 @@ const ROMAN: Readonly<Record<string, number>> = {
  * `TD:CB` and `PSB:CS` are printed inside the row band and to the left of the
  * first numeric column, so a title assembled by x-position alone swallows them.
  * They are structure, not part of any course's name.
+ *
+ * A COLON IS REQUIRED, and that is the whole point. The first-year scheme
+ * prints a column HEADER reading "TD/PSB" — no colon, and further left than any
+ * value in the column. Matching it made the header's own position the ceiling
+ * for every title on the page, so titles beginning at exactly that x were
+ * clipped to nothing and their courses refused for "no course title". A
+ * department VALUE always names a department after a colon; a header does not.
  */
-const DEPARTMENT_CELL = /^(TD|PSB)\s*[:/]/i;
+const DEPARTMENT_CELL = /^(TD|PSB)\b[^:]{0,14}:/i;
 
 /**
  * A whole number as the scheme prints one: `3`, `03`, `100`.
@@ -372,13 +387,29 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
     const matches =
       number === undefined ? [] : slots.filter((slot) => /\d{3}/.exec(slot.code)?.[0] === number);
 
-    const slot = matches.length === 1 ? matches[0] : undefined;
+    /*
+     * SEVERAL SLOTS ARE FINE WHEN THEY SAY THE SAME THING.
+     *
+     * A first-year scheme prints its tables once per cycle group — the same
+     * `BESCK104x` slot appears in the physics-group semester 1 and again in the
+     * chemistry-group semester 1, both worth 3 credits. Refusing that as
+     * ambiguous was over-cautious: nothing about the figure is in doubt.
+     *
+     * What must be unambiguous is the ANSWER, not the number of places it is
+     * written. Slots that disagree on credits or on the semester leave the
+     * option unresolved, because then there really is a choice to make and
+     * nothing in the document makes it.
+     */
+    const agreed =
+      matches.length > 0 &&
+      new Set(matches.map((m) => `${String(m.credits)}@${String(m.semester)}`)).size === 1;
+    const slot = agreed ? matches[0] : undefined;
     if (slot === undefined) {
       stillRejected.push(
         matches.length > 1
           ? {
               ...rejection,
-              reason: `More than one elective slot in this scheme carries course number ${String(number)}, so which credits apply cannot be settled.`,
+              reason: `More than one elective slot carries course number ${String(number)} and they do not agree on the credits, so which applies cannot be settled.`,
             }
           : rejection,
       );
