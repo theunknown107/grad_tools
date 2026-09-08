@@ -59,6 +59,15 @@ export interface SchemeCourse {
    * an inherited figure as a row the document printed.
    */
   readonly viaElectiveSlot: string | null;
+  /**
+   * The course this one is an ALTERNATIVE to, when the scheme pairs them.
+   *
+   * A first-year table offers some slots as a choice between two named
+   * courses — "Communicative English" OR "Professional Writing Skills" — and
+   * prints ONE set of columns for the pair, on the row carrying the word "OR".
+   * Both options are worth what that row says. Null for an ordinary course.
+   */
+  readonly viaAlternativeTo: string | null;
 }
 
 export interface SchemeRejection {
@@ -179,6 +188,23 @@ const MAX_CREDITS = 10;
  * duration. Below six there is no table row, only a course named in prose.
  */
 const MIN_NUMERIC_CELLS = 6;
+
+/**
+ * The word a scheme prints between two courses a student picks ONE of.
+ *
+ * The whole cell, not a word inside one: a title containing "or" is not an
+ * alternative marker.
+ */
+const ALTERNATIVE_MARKER = /^OR$/i;
+
+/**
+ * The fewest numeric cells a SHARED alternative row prints.
+ *
+ * Shorter than a full course row, because the pair's row carries the serial
+ * number, the marks heads, the total and the credits without repeating the
+ * teaching pattern. Below this the columns are not on this baseline at all.
+ */
+const MIN_SHARED_CELLS = 4;
 
 /**
  * How far above or below a code's baseline the rest of its row may sit.
@@ -351,7 +377,86 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
       }
 
       semesters.add(semester);
-      courses.push({ code, title, credits, semester, page, viaElectiveSlot: null });
+      courses.push({
+        code,
+        title,
+        credits,
+        semester,
+        page,
+        viaElectiveSlot: null,
+        viaAlternativeTo: null,
+      });
+    }
+  }
+
+  /*
+   * ---------------------------------------------------------------------
+   * ALTERNATIVE COURSES, AND THE ROW THEY SHARE
+   * ---------------------------------------------------------------------
+   *
+   * A first-year table offers some slots as a choice between two named
+   * courses and prints ONE set of columns for the pair. The layout is not
+   * ambiguous — it is a structure the document states:
+   *
+   *     BENGK106   Communicative English
+   *          OR                             1 0 0 0  01  50 50 100  01
+   *     BPWSK106   Professional Writing Skills
+   *
+   * The word "OR" is the marker, the course above and the course below are
+   * its two options, and the columns on the OR row's OWN baseline belong to
+   * the pair. Both options are worth what that row says.
+   *
+   * This deliberately does NOT widen the row band, take the nearest number
+   * below a course, or special-case the seven codes that exposed it (§7).
+   * Any of those would eventually hand a course its neighbour's credits. The
+   * relationship is read from the document's own marker or it is not read.
+   */
+  const alternatives: SchemeCourse[] = [];
+  for (const { page, items: raw } of pages) {
+    const pageItems = raw.filter((item) => item.text.trim() !== '');
+    const semester = semesterOf(pageItems);
+    if (semester === null) continue;
+
+    const codeCells = pageItems.filter((cell) => COURSE_CODE.test(cell.text.trim()));
+
+    for (const marker of pageItems.filter((cell) => ALTERNATIVE_MARKER.test(cell.text.trim()))) {
+      const above = codeCells.filter((c) => c.y > marker.y).sort((a, b) => a.y - b.y)[0];
+      const below = codeCells.filter((c) => c.y < marker.y).sort((a, b) => b.y - a.y)[0];
+      if (above === undefined || below === undefined) continue;
+
+      const numbers = pageItems
+        .filter(
+          (cell) => Math.abs(cell.y - marker.y) <= band && WHOLE_NUMBER.test(cell.text.trim()),
+        )
+        .sort((a, b) => a.x - b.x);
+
+      /*
+       * The shared row is short — a serial number, the marks heads, the total
+       * and the credits. Fewer than that and the columns are not on this
+       * baseline, so the pair stays unresolved rather than borrowing from a
+       * neighbouring row.
+       */
+      if (numbers.length < MIN_SHARED_CELLS) continue;
+      const credits = Number(numbers[numbers.length - 1]?.text ?? '');
+      if (!Number.isInteger(credits) || credits > MAX_CREDITS) continue;
+
+      for (const [option, partner] of [
+        [above, below],
+        [below, above],
+      ] as const) {
+        const code = option.text.trim();
+        if (courses.some((c) => c.code === code && c.semester === semester)) continue;
+        if (alternatives.some((c) => c.code === code && c.semester === semester)) continue;
+        alternatives.push({
+          code,
+          title: titleBeside(pageItems, option, band, departmentColumn(pageItems)),
+          credits,
+          semester,
+          page,
+          viaElectiveSlot: null,
+          viaAlternativeTo: partner.text.trim(),
+        });
+      }
     }
   }
 
@@ -378,7 +483,12 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
    * resolved only when exactly one slot in the whole scheme shares its
    * number. Two candidates, or none, and it stays unresolved with its reason.
    */
-  const slots = courses.filter((course) => /x$/i.test(course.code));
+  /*
+   * Slots include those the alternative pass just resolved. The ETC and PLC
+   * slots are themselves printed as an OR pair, so their options could not
+   * find them while this ran first.
+   */
+  const slots = [...courses, ...alternatives].filter((course) => /x$/i.test(course.code));
   const inherited: SchemeCourse[] = [];
   const stillRejected: SchemeRejection[] = [];
 
@@ -403,7 +513,17 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
     const agreed =
       matches.length > 0 &&
       new Set(matches.map((m) => `${String(m.credits)}@${String(m.semester)}`)).size === 1;
-    const slot = agreed ? matches[0] : undefined;
+    /*
+     * Where several agreeing slots share a number, prefer the one whose letters
+     * match the option's own. `BPLCK205B` belongs to the `BPLCK205x` slot, not
+     * to the `BETCK205x` it is printed beside — they are an OR pair with the
+     * same credits, so the figure was right either way, but the attribution
+     * was not. Exact prefix, never a similarity score.
+     */
+    const prefixOf = (value: string) => /^[A-Z]+/.exec(value)?.[0] ?? '';
+    const slot = agreed
+      ? (matches.find((m) => prefixOf(m.code) === prefixOf(rejection.code)) ?? matches[0])
+      : undefined;
     if (slot === undefined) {
       stillRejected.push(
         matches.length > 1
@@ -425,12 +545,15 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
       semester: slot.semester,
       page: rejection.page,
       viaElectiveSlot: slot.code,
+      viaAlternativeTo: null,
     });
   }
 
+  const resolvedByAlternative = new Set(alternatives.map((c) => c.code));
+
   return {
-    courses: [...courses, ...inherited],
-    rejected: stillRejected,
+    courses: [...courses, ...inherited, ...alternatives],
+    rejected: stillRejected.filter((r) => !resolvedByAlternative.has(r.code)),
     semesters: [...semesters].sort((a, b) => a - b),
     programme: headingMatch(usable, /B\.?E\.?\s+in\s+(.+)/i),
     schemeYear: headingMatch(usable, /Scheme\s+of\s+Teaching\s+and\s+Examinations\s*(20\d{2})/i),
@@ -497,4 +620,34 @@ export function schemePages(
     else bucket.push(item);
   }
   return [...byPage.entries()].sort(([a], [b]) => a - b).map(([page, items]) => ({ page, items }));
+}
+
+/**
+ * The title printed beside one course code.
+ *
+ * Shared by the main pass and the alternative pass so a course recovered from
+ * an OR group is named the same way as any other.
+ */
+function titleBeside(
+  pageItems: readonly PositionedText[],
+  code: PositionedText,
+  band: number,
+  departmentX: number,
+): string {
+  return pageItems
+    .filter(
+      (cell) =>
+        Math.abs(cell.y - code.y) <= band &&
+        cell.x > code.x &&
+        cell.x < departmentX &&
+        !DEPARTMENT_CELL.test(cell.text.trim()) &&
+        !WHOLE_NUMBER.test(cell.text.trim()) &&
+        !COURSE_CODE.test(cell.text.trim()) &&
+        !ALTERNATIVE_MARKER.test(cell.text.trim()),
+    )
+    .sort((a, b) => a.x - b.x)
+    .map((cell) => cell.text.trim())
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
