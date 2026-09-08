@@ -16,15 +16,20 @@
     "build": "tsc --noEmit -p tsconfig.build.json",
     "reference:coverage": "tsx scripts/reference-coverage.ts",
     "source:inventory": "tsx scripts/source-inventory.ts",
-    "vtu:discover": "tsx scripts/vtu-discover.ts"
+    "vtu:discover": "tsx scripts/vtu-discover.ts",
+    "vtu:download": "tsx scripts/vtu-download.ts",
+    "vtu:normalize": "tsx scripts/vtu-normalize.ts",
+    "vtu:smoke": "tsx scripts/vtu-smoke.ts"
   },
   "dependencies": {
     "@gradtools/academic-rules": "workspace:*",
     "@gradtools/shared-types": "workspace:*",
+    "@gradtools/vtu-catalogue": "workspace:*",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "helmet": "^8.2.0",
     "jose": "^6.2.10",
+    "pdfjs-dist": "^6.3.289",
     "pino": "^10.1.0",
     "pino-http": "^11.0.0",
     "postgres": "^3.4.7",

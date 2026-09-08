@@ -35,7 +35,7 @@
  * labs are usually worth one credit; the scheme still has to say so.
  */
 
-import type { PositionedText } from './pdf-layout.js';
+import type { PositionedText } from './positioned-text.js';
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                     */

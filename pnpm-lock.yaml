@@ -56,6 +56,9 @@ importers:
       '@gradtools/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+      '@gradtools/vtu-catalogue':
+        specifier: workspace:*
+        version: link:../../packages/vtu-catalogue
       '@radix-ui/react-accordion':
         specifier: ^1.2.20
         version: 1.2.20(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -183,6 +186,8 @@ importers:
         specifier: ^4.1.13
         version: 4.4.3
 
+  packages/vtu-catalogue: {}
+
   services/api:
     dependencies:
       '@gradtools/academic-rules':
@@ -191,6 +196,9 @@ importers:
       '@gradtools/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+      '@gradtools/vtu-catalogue':
+        specifier: workspace:*
+        version: link:../../packages/vtu-catalogue
       cors:
         specifier: ^2.8.6
         version: 2.8.6
@@ -203,6 +211,9 @@ importers:
       jose:
         specifier: ^6.2.10
         version: 6.2.10
+      pdfjs-dist:
+        specifier: ^6.3.289
+        version: 6.3.289
       pino:
         specifier: ^10.1.0
         version: 10.3.1
