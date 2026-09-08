@@ -316,3 +316,90 @@ describe('what the document says about itself', () => {
     expect(parsed.programme).toBeNull();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Two courses that share one row                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A first-year table offers some slots as a choice between two named courses
+ * and prints ONE set of columns for the pair, on the row carrying "OR":
+ *
+ *     BQQ106   Invented Course A
+ *        OR                        1 0 0 0  01  50 50 100  01
+ *     BQQ206   Invented Course B
+ *
+ * Seven real courses were unresolved because of this, which left the student's
+ * first two semesters without credits and therefore without an SGPA.
+ */
+describe('an OR row shared by two alternative courses', () => {
+  /** The pair's shared columns, short: serial, marks, total, credits. */
+  const sharedRow = (y: number, credits: number): PositionedText[] => [
+    at('OR', COL.title + 80, y),
+    at('6', COL.serial, y),
+    at('01', COL.duration, y),
+    at('50', COL.cie, y),
+    at('50', COL.see, y),
+    at('100', COL.total, y),
+    at(String(credits).padStart(2, '0'), COL.credits, y),
+  ];
+
+  const pair = (creditsOnRow: number): SchemePage[] =>
+    page([
+      at('BQQ106', COL.code, 258),
+      at('Invented Course A', COL.title, 258),
+      ...sharedRow(239, creditsOnRow),
+      at('BQQ206', COL.code, 222),
+      at('Invented Course B', COL.title, 222),
+    ]);
+
+  it('gives both options the credits the shared row states', () => {
+    const parsed = parseScheme(pair(1));
+    const a = parsed.courses.find((c) => c.code === 'BQQ106');
+    const b = parsed.courses.find((c) => c.code === 'BQQ206');
+
+    expect(a).toMatchObject({ credits: 1, semester: 4, viaAlternativeTo: 'BQQ206' });
+    expect(b).toMatchObject({ credits: 1, semester: 4, viaAlternativeTo: 'BQQ106' });
+  });
+
+  it('keeps each option’s own title, and the marker out of it', () => {
+    const parsed = parseScheme(pair(1));
+    expect(parsed.courses.find((c) => c.code === 'BQQ106')?.title).toBe('Invented Course A');
+    expect(parsed.courses.find((c) => c.code === 'BQQ206')?.title).toBe('Invented Course B');
+  });
+
+  it('does not take a NEIGHBOURING row’s credits when the pair has none of its own', () => {
+    /*
+     * THE FAILURE MODE THIS RULE EXISTS TO AVOID (§7). With no columns on the
+     * OR baseline the pair is unresolved — it does not reach up or down for
+     * the nearest number it can find, because that number belongs to another
+     * course and would enter a real SGPA as though it were theirs.
+     */
+    const parsed = parseScheme(
+      page(row(322, 'BQQ401', 'A Course With Its Own Row', 4), [
+        at('BQQ106', COL.code, 258),
+        at('Invented Course A', COL.title, 258),
+        at('OR', COL.title + 80, 239),
+        at('BQQ206', COL.code, 222),
+        at('Invented Course B', COL.title, 222),
+      ]),
+    );
+
+    expect(parsed.courses.map((c) => c.code)).toEqual(['BQQ401']);
+    expect(parsed.courses.find((c) => c.code === 'BQQ106')).toBeUndefined();
+  });
+
+  it('needs a code on BOTH sides of the marker', () => {
+    // An "OR" with nothing above it pairs nothing, and resolves nothing.
+    const parsed = parseScheme(
+      page([...sharedRow(239, 1), at('BQQ206', COL.code, 222), at('Only One', COL.title, 222)]),
+    );
+    expect(parsed.courses.find((c) => c.code === 'BQQ206')).toBeUndefined();
+  });
+
+  it('does not treat the word "or" inside a title as a marker', () => {
+    const parsed = parseScheme(page(row(322, 'BQQ402', 'Measurement or Estimation Methods', 4)));
+    expect(parsed.courses.find((c) => c.code === 'BQQ402')?.credits).toBe(4);
+    expect(parsed.courses.every((c) => c.viaAlternativeTo === null)).toBe(true);
+  });
+});
