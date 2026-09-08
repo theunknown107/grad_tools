@@ -190,16 +190,90 @@ number, because that number belongs to another course.
 ordinary tests depend on the internet, and a test that fails on a train is
 measuring the network rather than the code.
 
+## Persistence
+
+`0014_vtu_catalogue.sql`. Postgres is the system of record; the shipped JSON is
+the offline distribution of the same normalized data. One producer, two
+destinations — not two catalogues.
+
+| Table | Holds |
+| --- | --- |
+| `source_document_versions` | A document, keyed by its SHA-256 |
+| `source_document_references` | Every URL that has served those bytes |
+| `academic_streams` / `academic_stream_programmes` | Streams and their programmes |
+| `document_applicability` | Who a document is for: programme, stream, common, unknown, ambiguous |
+| `catalogue_courses` | The normalized courses, with provenance |
+| `catalogue_course_options` | Elective slot to its candidate courses |
+| `catalogue_conflicts` / `catalogue_conflict_readings` | Documents that disagree |
+| `catalogue_aliases` | Codes the university writes two ways |
+
+**Not `documents`.** That table (0004) holds what a *person* uploaded: it
+quarantines by default and carries a rights determination, because its job is to
+stop a student's file reaching anyone else. A public document the software
+fetched from a university's own site has the opposite properties.
+
+### Identity
+
+| Entity | Key |
+| --- | --- |
+| Document version | its SHA-256 |
+| Source reference | (version, url) |
+| Applicability | (version, scope, programme, stream) |
+| Course | (scheme year, programme, **stream**, semester, code) |
+
+**A course title is not part of its identity.** VTU corrects wording between
+revisions, and a title in the key turns every correction into a second course.
+
+**The stream is**, and leaving it out was a measured defect: the Civil-stream
+and CSE-stream first-year schemes both describe "semester 1" with no programme,
+so their courses shared an identity and overwrote each other. Of 57 courses read
+from the Civil scheme, 4 survived. Adding the stream took the catalogue from 160
+courses to 187.
+
+## vtu:sync
+
+```
+pnpm vtu:sync --scheme 2022 --programme CSBS
+              --dry-run --changed-only
+              --from page.html          # a captured listing
+              --emit path/to/catalogue.json
+```
+
+Discover, download, extract, normalize, persist, report — each count reported
+separately, because "1134 discovered" is not "1134 downloaded".
+
+### Idempotency
+
+A second run over unchanged sources: **0 new versions, 0 new references, 0 new
+applicability rows, 0 courses inserted, 0 updated, 187 unchanged.**
+
+Two defects had to be fixed to get there:
+
+- `ON CONFLICT (…, programme_name, stream_id)` never matched, because NULL does
+  not equal NULL in a unique constraint — so every run inserted the same
+  applicability row again. The index is over `COALESCE` now.
+- A scheme prints the same course in more than one table (the first-year
+  document repeats every semester once per cycle group), so the second reading
+  UPDATEd the first and the stored value depended on document order. One write
+  per identity per run now, and two readings that disagree are reported as a
+  conflict rather than settled by whichever was read last.
+
 ## What is not built yet
 
-- `vtu:validate` and `vtu:sync` as commands — validation currently happens
-  inside normalize (dedup, conflict detection) and the reconciliation document.
-- Persisting the catalogue into the API's Postgres schema. The catalogue is a
-  build artifact the app reads directly; the `documents`/`sources` tables exist
-  but the crawler does not write to them.
-- Syllabus extraction (§16). Syllabus documents are discovered and downloaded;
-  only scheme documents are normalized.
-- Programme namespacing across **streams**. Stream-wide documents all carry
-  `programme: null`, so a Civil-stream and a CSE-stream first-year course share
-  a namespace. No conflict has arisen because their codes differ, but the model
-  does not yet distinguish them.
+- **Syllabus extraction.** Syllabus documents are discovered and downloaded;
+  only scheme documents are extracted and normalized. `Course → Syllabus →
+  Module → Topic` does not exist, and Phase 8 needs it.
+- **`vtu:validate` as a command.** Validation happens inside sync (dedup,
+  disagreement detection, schema constraints) rather than as its own step, and
+  semester-total validation lives in the reconciliation document rather than in
+  code.
+- **Conflict persistence.** Disagreements are detected and reported by `sync`;
+  `catalogue_conflicts` exists but sync does not write to it yet.
+- **Elective option groups.** `catalogue_course_options` exists and is unused —
+  slots and options are both stored as courses with `credit_basis` and
+  `related_code`, which records the relationship but not as a queryable group.
+- **Alias persistence.** `catalogue_aliases` exists; the BCS358D alias still
+  lives in the web app's `course-aliases.ts` and is not written to the database.
+- **The app reads the artifact, not Postgres.** That is deliberate for a
+  local-first product — a student resolving credits offline cannot query a
+  server — but it means the database is not yet on the read path.

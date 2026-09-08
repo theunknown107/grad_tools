@@ -1,10 +1,10 @@
 {
   "normalizationVersion": "1.0.0",
-  "generatedAt": "2026-09-08T11:34:32.381Z",
+  "generatedAt": "2026-09-08T13:21:14.118Z",
   "courses": [
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BCEDK103",
       "title": "Civil/Mech Computer-aided engineering Drawing Engg dept",
@@ -16,12 +16,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BCHEC102",
       "title": "Applied Chemistry for Civil Engg Stream Chemistry",
@@ -33,29 +33,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
-      "semester": 1,
-      "code": "BCHES102",
-      "title": "Applied Chemistry for CSE Stream Chemistry",
-      "credits": 4,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 7,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BENGK106",
       "title": "Communicative English",
@@ -67,12 +50,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BESCK104A",
       "title": "Introduction to Civil Engineering Smart Materials and Systems",
@@ -84,12 +67,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BESCK104B",
       "title": "Introduction to Electrical Engineering Green Buildings",
@@ -101,12 +84,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BESCK104C",
       "title": "Introduction to Electronics Introduction to Nano Technology",
@@ -118,12 +101,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BESCK104D",
       "title": "Introduction to Mechanical Engineering Introduction to Sustainable Engineering",
@@ -135,12 +118,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BESCK104E",
       "title": "Introduction to C Programming Renewable Energy Sources",
@@ -152,12 +135,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BESCK104x",
       "title": "Respective Engineering Science Course-I Dept",
@@ -169,12 +152,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105A",
       "title": "Smart Materials and Systems",
@@ -186,12 +169,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105B",
       "title": "Green Buildings",
@@ -203,12 +186,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105C",
       "title": "Introduction to Nano Technology",
@@ -220,12 +203,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105D",
       "title": "Introduction to Sustainable Engineering",
@@ -237,12 +220,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105E",
       "title": "Renewable Energy Sources",
@@ -254,12 +237,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105F",
       "title": "Waste Management",
@@ -271,12 +254,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105G",
       "title": "Emerging Applications of Biosensors",
@@ -288,12 +271,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105H",
       "title": "Introduction to Internet of Things (IOT)",
@@ -305,12 +288,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105I",
       "title": "Introduction to Cyber Security",
@@ -322,12 +305,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105J",
       "title": "Introduction to Embedded System",
@@ -339,12 +322,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BETCK105x",
       "title": "Emerging Technology Course-I",
@@ -356,12 +339,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BICOK107",
       "title": "Indian Constitution",
@@ -373,29 +356,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
-      "semester": 1,
-      "code": "BIDTK158",
-      "title": "Innovation and Design Thinking",
-      "credits": 1,
-      "creditBasis": "alternative",
-      "relatedCode": "BSFHK158",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 1,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BITDK158",
       "title": "Innovation and Design Thinking Any Dept",
@@ -407,12 +373,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BKBK107",
       "title": "Samskrutika Kannada/ Balake Kannada",
@@ -424,29 +390,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
-      "semester": 1,
-      "code": "BKBKK107",
-      "title": "Kannada Humanities",
-      "credits": 1,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 1,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BMATC101",
       "title": "Mathematics-I for Civil Engg Stream Maths",
@@ -458,46 +407,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
-      "semester": 1,
-      "code": "BMATS101",
-      "title": "Mathematics-I for CSE Stream Maths",
-      "credits": 4,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 1,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 1,
-      "code": "BPHYS102",
-      "title": "Applied Physics for CSE stream Physics",
-      "credits": 4,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 1,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BPLCK105A",
       "title": "Introduction to Web Programming",
@@ -509,12 +424,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BPLCK105B",
       "title": "Introduction to Python Programming",
@@ -526,12 +441,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BPLCK105C",
       "title": "Basics of JAVA programming",
@@ -543,12 +458,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BPLCK105D",
       "title": "Introduction to C++ Programming",
@@ -560,12 +475,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BPLCK105x",
       "title": "Programming Language Course-I",
@@ -577,29 +492,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
-      "semester": 1,
-      "code": "BPOPS103",
-      "title": "Principles of Programming Using C CSE",
-      "credits": 3,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 1,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BPWSK106",
       "title": "Professional Writing Skills in English",
@@ -611,12 +509,12 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BSFHK158",
       "title": "Scientific Foundations of Health AnyDept",
@@ -628,568 +526,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BCEDK203",
-      "title": "Civil/Mech Computer-Aided Engineering Drawing Engg dept",
-      "credits": 3,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 4,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BCHES202",
-      "title": "Applied Chemistry for CSE Stream Chemistry",
-      "credits": 4,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 4,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BENGK206",
-      "title": "Communicative English",
-      "credits": 1,
-      "creditBasis": "alternative",
-      "relatedCode": "BPWSK206",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 4,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BESCK204A",
-      "title": "Introduction to Civil Engineering Smart materials and Systems",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BESCK204x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BESCK204B",
-      "title": "Introduction to Electrical Engineering Green Buildings",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BESCK204x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BESCK204C",
-      "title": "Introduction to Electronics Introduction to Nano Technology",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BESCK204x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BESCK204D",
-      "title": "Introduction to Mechanical Engineering Introduction to Sustainable Engineering",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BESCK204x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BESCK204E",
-      "title": "Introduction to C Programming Renewable Energy Sources",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BESCK204x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BESCK204x",
-      "title": "Respective Engineering Science Course-II Engg. Dept",
-      "credits": 3,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 4,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205A",
-      "title": "Smart materials and Systems",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205B",
-      "title": "Green Buildings",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205C",
-      "title": "Introduction to Nano Technology",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205D",
-      "title": "Introduction to Sustainable Engineering",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205E",
-      "title": "Renewable Energy Sources",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205F",
-      "title": "Waste Management",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205G",
-      "title": "Emerging Applications of Biosensors",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205H",
-      "title": "Introduction to Internet of Things(IoT)",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205I",
-      "title": "Introduction to Cyber Security",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205J",
-      "title": "Introduction to Embedded System",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BETCK205x",
-      "title": "Programming Language Course-II",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BETCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 4,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BICOK207",
-      "title": "Indian Constitution",
-      "credits": 1,
-      "creditBasis": "alternative",
-      "relatedCode": "BKBKK207",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 4,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BIDTK258",
-      "title": "Innovation and Design Thinking",
-      "credits": 1,
-      "creditBasis": "alternative",
-      "relatedCode": "BSFHK258",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 10,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BKBKK207",
-      "title": "Samskrutika Kannada/ Balake Kannada Humanities",
-      "credits": 1,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 10,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BMATS201",
-      "title": "Mathematics-II forCSE Stream Maths",
-      "credits": 4,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 4,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BPHYS202",
-      "title": "Applied Physics for CSE Stream Physics",
-      "credits": 4,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 10,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BPLCK205A",
-      "title": "Introduction to Web Programming",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BPLCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BPLCK205B",
-      "title": "Introduction to Python Programming",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BPLCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BPLCK205C",
-      "title": "Basics of JAVA programming",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BPLCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BPLCK205D",
-      "title": "Introduction to C++ Programming",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BPLCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 6,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BPLCK205x",
-      "title": "Emerging Technology Course-II",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BPLCK205x",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 4,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BPOPS203",
-      "title": "Principles of Programming Using C CSE",
-      "credits": 3,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 10,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BPWSK206",
-      "title": "Professional Writing Skills in English",
-      "credits": 1,
-      "creditBasis": "alternative",
-      "relatedCode": "BENGK206",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 4,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": null,
-      "semester": 2,
-      "code": "BSFHK258",
-      "title": "Scientific Foundations of Health",
-      "credits": 1,
-      "creditBasis": "alternative",
-      "relatedCode": "BIDTK258",
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 10,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1206,7 +543,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1223,7 +560,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1240,7 +577,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1257,7 +594,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1274,7 +611,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 2,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1291,7 +628,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 2,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1308,7 +645,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1325,7 +662,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 2,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1342,7 +679,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1359,7 +696,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 2,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1376,7 +713,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 2,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1393,7 +730,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 2,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1410,7 +747,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1427,7 +764,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1444,7 +781,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1461,7 +798,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1478,7 +815,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1495,7 +832,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1512,7 +849,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 4,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1529,7 +866,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1546,7 +883,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1563,7 +900,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 4,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1580,7 +917,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 4,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1597,7 +934,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 4,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1614,7 +951,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 4,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1631,7 +968,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 4,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1648,7 +985,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 4,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1665,7 +1002,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 4,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1682,7 +1019,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1699,7 +1036,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1716,7 +1053,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1733,7 +1070,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 3,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1750,7 +1087,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1767,7 +1104,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1784,7 +1121,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1801,7 +1138,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1818,7 +1155,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1835,7 +1172,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1852,7 +1189,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1869,7 +1206,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1886,7 +1223,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1903,7 +1240,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1920,7 +1257,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1937,7 +1274,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1954,7 +1291,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 5,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1971,7 +1308,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 8,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -1988,7 +1325,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 8,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2005,7 +1342,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2022,7 +1359,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2039,7 +1376,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2056,7 +1393,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2073,7 +1410,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 8,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2090,7 +1427,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2107,7 +1444,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2124,7 +1461,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2141,7 +1478,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 8,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2158,7 +1495,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 8,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2175,7 +1512,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2192,7 +1529,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 8,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2209,7 +1546,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 8,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2226,7 +1563,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2243,7 +1580,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 8,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2260,7 +1597,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2277,7 +1614,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2294,7 +1631,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2311,7 +1648,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2328,7 +1665,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2345,7 +1682,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2362,7 +1699,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2379,7 +1716,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2396,7 +1733,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2413,7 +1750,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2430,7 +1767,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2447,7 +1784,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2464,7 +1801,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2481,7 +1818,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2498,7 +1835,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2515,7 +1852,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2532,7 +1869,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 10,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2549,7 +1886,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2566,7 +1903,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2583,7 +1920,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2600,7 +1937,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2617,7 +1954,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2634,7 +1971,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2651,7 +1988,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2668,7 +2005,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2685,7 +2022,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2702,7 +2039,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     },
     {
@@ -2719,7 +2056,1129 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
         "sourcePage": 12,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T11:34:32.381Z"
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BCEDK103",
+      "title": "Civil/Mech Computer-Aided Engineering Drawing Engg dept",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BCHES102",
+      "title": "Applied Chemistry for CSE Stream Chemistry",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BENGK106",
+      "title": "Communicative English",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BPWSK106",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BESCK104A",
+      "title": "Introduction to Civil Engineering Smart Materials and Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK104x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BESCK104B",
+      "title": "Introduction to Electrical Engineering Green Buildings",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK104x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BESCK104C",
+      "title": "Introduction to Electronics Introduction to Nano Technology",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK104x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BESCK104D",
+      "title": "Introduction to Mechanical Engineering Introduction to Sustainable Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK104x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BESCK104E",
+      "title": "Introduction to C Programming Renewable Energy Sources",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK104x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BESCK104x",
+      "title": "Respective Engg Engineering Science Course-I Dept",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105A",
+      "title": "Smart Materials and Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105B",
+      "title": "Green Buildings",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105C",
+      "title": "Introduction to Nano Technology",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105D",
+      "title": "Introduction to Sustainable Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105E",
+      "title": "Renewable Energy Sources",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105F",
+      "title": "Waste Management",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105G",
+      "title": "Emerging Applications of Biosensors",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105H",
+      "title": "Introduction to Internet of Things (IOT)",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105I",
+      "title": "Introduction to Cyber Security",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105J",
+      "title": "Introduction to Embedded System",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BETCK105x",
+      "title": "Emerging Technology Course-I",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BICOK107",
+      "title": "Indian Constitution",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BKBKK107",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BIDTK158",
+      "title": "Innovation and Design Thinking",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BSFHK158",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BKBKK107",
+      "title": "Kannada Humanities",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BMATS101",
+      "title": "Mathematics-I for CSE Stream Maths",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BPHYS102",
+      "title": "Applied Physics for CSE stream Physics",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BPLCK105A",
+      "title": "Introduction to Web Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BPLCK105B",
+      "title": "Introduction to Python Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BPLCK105C",
+      "title": "Basics of JAVA programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BPLCK105D",
+      "title": "Introduction to C++ Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BPLCK105x",
+      "title": "Programming Languages Course-I",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK105x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BPOPS103",
+      "title": "Principles of Programming Using C CSE",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BPWSK106",
+      "title": "Professional Writing Skills in English",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BENGK106",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 1,
+      "code": "BSFHK158",
+      "title": "Scientific Foundations of Health",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BIDTK158",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BCEDK203",
+      "title": "Civil/Mech Computer-Aided Engineering Drawing Engg dept",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BCHES202",
+      "title": "Applied Chemistry for CSE Stream Chemistry",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BENGK206",
+      "title": "Communicative English",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BPWSK206",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BESCK204A",
+      "title": "Introduction to Civil Engineering Smart materials and Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BESCK204B",
+      "title": "Introduction to Electrical Engineering Green Buildings",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BESCK204C",
+      "title": "Introduction to Electronics Introduction to Nano Technology",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BESCK204D",
+      "title": "Introduction to Mechanical Engineering Introduction to Sustainable Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BESCK204E",
+      "title": "Introduction to C Programming Renewable Energy Sources",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BESCK204x",
+      "title": "Respective Engineering Science Course-II Engg. Dept",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205A",
+      "title": "Smart materials and Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205B",
+      "title": "Green Buildings",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205C",
+      "title": "Introduction to Nano Technology",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205D",
+      "title": "Introduction to Sustainable Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205E",
+      "title": "Renewable Energy Sources",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205F",
+      "title": "Waste Management",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205G",
+      "title": "Emerging Applications of Biosensors",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205H",
+      "title": "Introduction to Internet of Things(IoT)",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205I",
+      "title": "Introduction to Cyber Security",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205J",
+      "title": "Introduction to Embedded System",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BETCK205x",
+      "title": "Programming Language Course-II",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BICOK207",
+      "title": "Indian Constitution",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BKBKK207",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BIDTK258",
+      "title": "Innovation and Design Thinking",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BSFHK258",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BKBKK207",
+      "title": "Samskrutika Kannada/ Balake Kannada Humanities",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BMATS201",
+      "title": "Mathematics-II forCSE Stream Maths",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BPHYS202",
+      "title": "Applied Physics for CSE Stream Physics",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BPLCK205A",
+      "title": "Introduction to Web Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BPLCK205B",
+      "title": "Introduction to Python Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BPLCK205C",
+      "title": "Basics of JAVA programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BPLCK205D",
+      "title": "Introduction to C++ Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BPLCK205x",
+      "title": "Emerging Technology Course-II",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BPOPS203",
+      "title": "Principles of Programming Using C CSE",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BPWSK206",
+      "title": "Professional Writing Skills in English",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BENGK206",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "semester": 2,
+      "code": "BSFHK258",
+      "title": "Scientific Foundations of Health",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BIDTK258",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T13:21:14.118Z"
       }
     }
   ],
@@ -2731,7 +3190,7 @@
       "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
       "kind": "scheme",
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "courses": 57
     },
     {
@@ -2739,7 +3198,7 @@
       "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
       "kind": "scheme",
       "schemeYear": "2022",
-      "programme": null,
+      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
       "courses": 121
     },
     {

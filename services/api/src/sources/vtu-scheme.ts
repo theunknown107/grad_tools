@@ -73,6 +73,15 @@ export interface SchemeDocument {
   readonly semesters: readonly [number, number] | null;
   /** True when the document serves a whole stream rather than one programme. */
   readonly common: boolean;
+  /**
+   * The stream this document belongs to, where its own label names one.
+   *
+   * "CSE Stream Scheme (CSE/ISC/BT)" is not a programme-less document — it is
+   * the CSE stream's, and its courses are namespaced by that. Without it the
+   * Civil and CSE first-year schemes shared an identity and overwrote each
+   * other (§5, §7).
+   */
+  readonly streamLabel: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -283,6 +292,7 @@ export const vtuSchemeAdapter: SourceAdapter & {
         programme: label !== null && COMMON.test(label) ? null : label,
         semesters: semestersOf(linkText),
         common: label === null ? COMMON.test(item.title) : COMMON.test(label),
+        streamLabel: label !== null && /\bstream\b/i.test(label) ? label : null,
       };
     });
   },
