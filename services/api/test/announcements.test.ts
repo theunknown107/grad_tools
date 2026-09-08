@@ -187,11 +187,7 @@ describeDb('announcements against PostgreSQL', () => {
     sql = createClient(DATABASE_URL as string);
     await runMigrations(sql);
     await seed(sql);
-    app = createApp(
-      loadConfig({ DATABASE_URL, NODE_ENV: 'test', APP_ENV: 'test' }),
-      sql,
-      logger,
-    );
+    app = createApp(loadConfig({ DATABASE_URL, NODE_ENV: 'test', APP_ENV: 'test' }), sql, logger);
   }, 60_000);
 
   afterAll(async () => {

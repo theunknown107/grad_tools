@@ -33,6 +33,8 @@ import { dirname, resolve } from 'node:path';
 import postgres from 'postgres';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
+  COURSE_ALIASES,
+  optionGroupsOf,
   parseScheme,
   parseSyllabusDocument,
   type ParsedSyllabus,
@@ -49,15 +51,28 @@ import {
   type Manifest,
 } from '../src/sources/vtu-download.js';
 import { vtuSchemeAdapter, type SchemeDocument } from '../src/sources/vtu-scheme.js';
+import { resolveProgramme } from '../src/sources/programme-aliases.js';
 import {
   upsertApplicability,
   upsertCourse,
+  recordConflict,
   upsertDocumentVersion,
   upsertSourceReference,
   upsertStream,
+  upsertAlias,
+  upsertOptionGroup,
   upsertSyllabus,
   type UnresolvedField,
 } from '../src/sources/catalogue-store.js';
+
+/**
+ * The document that establishes the one alias GradTools holds.
+ *
+ * Named explicitly rather than searched for: the citation is part of the fact,
+ * and an alias attached to whatever document happened to be at hand is not
+ * evidence of anything (§14).
+ */
+const ALIAS_EVIDENCE_URL = /2csbssyll\.pdf$/i;
 
 /** Bumped when syllabus extraction changes; recorded on every module (§9). */
 const SYLLABUS_PARSER_VERSION = '1.0.0';
@@ -208,9 +223,40 @@ function unresolvedOf(read: ParsedSyllabus): Record<string, UnresolvedField> {
   return out;
 }
 
+/**
+ * The course code a syllabus document is FILED under, where its name is one.
+ *
+ * VTU names each first-year syllabus after the course it describes, so
+ * `.../BMATS101.pdf` is the university stating an identity independently of
+ * the header inside. Only an exact course-code filename counts — a
+ * semester-wide document like `2csbssyll.pdf` names no single course, and
+ * reading one out of it would be invention.
+ */
+function filedCode(url: string): string | null {
+  const name =
+    url
+      .split('/')
+      .pop()
+      ?.replace(/\.pdf$/i, '') ?? '';
+  return /^[A-Z]{2,5}\d{3}[A-Za-z]?$/.test(name) ? name : null;
+}
+
 async function main(): Promise<void> {
   const wantYear = flag('scheme');
-  const wantProgramme = flag('programme');
+  /*
+   * `--programme CSBS` used to select NOTHING, silently: VTU's listing labels
+   * the row "Computer Science & Business System", and an empty selection looks
+   * exactly like a source with no documents. The alias table is explicit, and
+   * an acronym that is not in it is an error rather than a guess (§4, §14).
+   */
+  const named = flag('programme');
+  const resolved = named === null ? null : resolveProgramme(named);
+  if (resolved !== null && 'error' in resolved) {
+    console.error(`\n  ${resolved.error}\n`);
+    process.exitCode = 1;
+    return;
+  }
+  const wantProgramme = resolved === null ? null : resolved.match;
   const dryRun = has('dry-run');
   const report = {
     startedAt: new Date().toISOString(),
@@ -242,6 +288,11 @@ async function main(): Promise<void> {
     persisted_syllabi_inserted: 0,
     persisted_syllabi_updated: 0,
     persisted_syllabi_unchanged: 0,
+    option_groups: 0,
+    option_memberships: 0,
+    conflicts_opened: 0,
+    conflicts_existing: 0,
+    aliases_persisted: 0,
     conflicts: 0,
   };
 
@@ -340,6 +391,8 @@ async function main(): Promise<void> {
    */
   const written = new Map<string, { credits: number; sha256: string }>();
   const disagreements: {
+    schemeYear: string;
+    programmeName: string | null;
     code: string;
     semester: number;
     a: { credits: number; sha256: string };
@@ -491,6 +544,8 @@ async function main(): Promise<void> {
           if (already !== undefined) {
             if (already.credits !== course.credits) {
               disagreements.push({
+                schemeYear: doc.schemeYear ?? 'unknown',
+                programmeName: where.programmeName,
                 code: course.code,
                 semester: course.semester,
                 a: already,
@@ -523,6 +578,68 @@ async function main(): Promise<void> {
           if (action === 'inserted') report.persisted_courses_inserted += 1;
           else if (action === 'updated') report.persisted_courses_updated += 1;
           else report.persisted_courses_unchanged += 1;
+        }
+
+        /*
+         * The choices this document offers. Written from the rows it printed,
+         * not from the courses already stored: a group is a reading of ONE
+         * document, and gathering it across documents would invent options no
+         * single scheme ever listed together (§6).
+         */
+        for (const group of optionGroupsOf(parsed.courses)) {
+          await upsertOptionGroup(sql, {
+            schemeYear: doc.schemeYear ?? 'unknown',
+            programmeName: where.programmeName,
+            streamId: where.streamId,
+            semester: group.semester,
+            slotCode: group.slotCode,
+            kind: group.kind,
+            credits: group.credits,
+            sha256,
+            sourcePage: group.page,
+            members: group.members.map((member) => ({
+              code: member.code,
+              title: member.title,
+              credits: member.credits,
+              sourcePage: member.page,
+            })),
+          });
+          report.option_groups += 1;
+          report.option_memberships += group.members.length;
+        }
+
+        /*
+         * A SYLLABUS THAT NAMES A CODE ITS OWN FILE IS NOT FILED UNDER.
+         *
+         * VTU files each first-year syllabus under the course code —
+         * `BMATS101.pdf` describes BMATS101 — so the filename is a second,
+         * independent statement of identity. Two of them disagree with their
+         * own contents: `BCHEC102.pdf` and `BCHEE102.pdf` print
+         * "Course Code: BCHEC202 /202" in their headers.
+         *
+         * Neither reading is corrected here. §16: the disagreement is recorded
+         * with both readings and left OPEN, because nothing in this pipeline
+         * has the standing to decide which of the university's own statements
+         * about its own course is the mistaken one.
+         */
+        for (const read of syllabi) {
+          const printed = read.courseCode.value;
+          const filed = filedCode(doc.url);
+          if (printed === null || filed === null || filed === printed) continue;
+          const outcome = await recordConflict(sql, {
+            entityType: 'syllabus',
+            schemeYear: doc.schemeYear ?? 'unknown',
+            programmeName: where.programmeName,
+            semester: read.semester.value,
+            code: filed,
+            field: 'code',
+            readings: [
+              { value: printed, sha256, sourcePage: read.courseCode.page },
+              { value: filed, sha256, sourcePage: null },
+            ],
+          });
+          if (outcome === 'opened') report.conflicts_opened += 1;
+          else report.conflicts_existing += 1;
         }
       }
 
@@ -559,6 +676,67 @@ async function main(): Promise<void> {
         courses: parsed.courses.length,
       });
     }
+
+    /*
+     * PERSIST THE DISAGREEMENT, do not merely print it.
+     *
+     * Two readings of one course that differ on credits used to be reported to
+     * the terminal and then forgotten, so the durable catalogue looked settled
+     * when it was not. Both readings are stored against the documents that made
+     * them, and the conflict stays OPEN: §18 allows nothing here to resolve it,
+     * because "the second document also said something" is not evidence about
+     * which document is right.
+     */
+    if (sql !== null) {
+      for (const d of disagreements) {
+        const outcome = await recordConflict(sql, {
+          entityType: 'course',
+          schemeYear: d.schemeYear,
+          programmeName: d.programmeName,
+          semester: d.semester,
+          code: d.code,
+          field: 'credits',
+          readings: [
+            { value: String(d.a.credits), sha256: d.a.sha256, sourcePage: null },
+            { value: String(d.b.credits), sha256: d.b.sha256, sourcePage: null },
+          ],
+        });
+        if (outcome === 'opened') report.conflicts_opened += 1;
+        else report.conflicts_existing += 1;
+      }
+    }
+
+    /*
+     * THE ALIAS TABLE, PERSISTED (§11).
+     *
+     * It used to live only in the web app, where the crawler and the database
+     * could not see it — an authoritative academic fact held by the frontend
+     * alone. It is written here from the same table the app reads, against the
+     * document that establishes it, so `vtu:validate` can check it and a query
+     * can join through it.
+     *
+     * The alias is stored only when its evidence document is actually held.
+     * Writing an equivalence whose citation we cannot produce would be the one
+     * thing §14 forbids: an alias nobody can check.
+     */
+    if (sql !== null) {
+      for (const alias of COURSE_ALIASES) {
+        const evidence = [...bySha.entries()].find(([, entry]) =>
+          entry.urls.some((entryUrl) => ALIAS_EVIDENCE_URL.test(entryUrl)),
+        );
+        if (evidence === undefined) continue;
+        await upsertAlias(sql, {
+          schemeYear: alias.schemeYear,
+          variantCode: alias.variant,
+          canonicalCode: alias.canonical,
+          title: alias.title,
+          reason: alias.evidence,
+          sha256: evidence[0],
+          sourcePage: null,
+        });
+        report.aliases_persisted += 1;
+      }
+    }
   } finally {
     await sql?.end();
   }
@@ -586,8 +764,28 @@ async function main(): Promise<void> {
           a.semester - b.semester ||
           a.code.localeCompare(b.code),
       ),
-      conflicts: [],
-      aliases: [],
+      conflicts: disagreements.map((d) => ({
+        schemeYear: d.schemeYear,
+        programme: d.programmeName,
+        semester: d.semester,
+        code: d.code,
+        field: 'credits' as const,
+        readings: [
+          { value: String(d.a.credits), documentSha256: d.a.sha256 },
+          { value: String(d.b.credits), documentSha256: d.b.sha256 },
+        ],
+      })),
+      /*
+       * The shipped catalogue carries the alias table too, so an offline app
+       * resolves BCSL358D without a database and without a copy of the table
+       * of its own (§11, §38).
+       */
+      aliases: COURSE_ALIASES.map((alias) => ({
+        variant: alias.variant,
+        canonical: alias.canonical,
+        title: alias.title,
+        evidence: alias.evidence,
+      })),
       documents,
     };
     const path = resolve(emit);
@@ -603,6 +801,7 @@ async function main(): Promise<void> {
   console.log(`    no text layer    ${String(report.no_text_layer)}`);
   console.log(`    failed           ${String(report.extraction_failures)}`);
   report.conflicts = disagreements.length;
+
   if (disagreements.length > 0) {
     console.log('');
     console.log('  conflicts (two readings of one course disagree on credits)');
@@ -636,6 +835,15 @@ async function main(): Promise<void> {
     console.log(`    syllabi new      ${String(report.persisted_syllabi_inserted)}`);
     console.log(`    syllabi updated  ${String(report.persisted_syllabi_updated)}`);
     console.log(`    syllabi same     ${String(report.persisted_syllabi_unchanged)}`);
+  }
+
+  console.log('  options');
+  console.log(`    groups           ${String(report.option_groups)}`);
+  console.log(`    memberships      ${String(report.option_memberships)}`);
+  if (sql !== null) {
+    console.log('  conflicts');
+    console.log(`    newly opened     ${String(report.conflicts_opened)}`);
+    console.log(`    already open     ${String(report.conflicts_existing)}`);
   }
 
   if (!dryRun) {

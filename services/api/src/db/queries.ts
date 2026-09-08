@@ -451,23 +451,9 @@ export async function findPublicDocument(sql: Sql, id: string): Promise<Document
   return parseRows(documentSchema, rows)[0] ?? null;
 }
 
-
-
-
-
-
 /* -------------------------------------------------------------------------- */
 /* Extracted question structure (M5A.5)                                       */
 /* -------------------------------------------------------------------------- */
-
-
-
-
-
-
-
-
-
 
 /* -------------------------------------------------------------------------- */
 /* Announcements (M7)                                                         */
@@ -601,9 +587,6 @@ export async function listAnnouncementFilters(sql: Sql): Promise<{
 /* The question-paper library (M8)                                            */
 /* -------------------------------------------------------------------------- */
 
-
-
-
 export interface PaperFilter {
   readonly subjectCode?: string | undefined;
   readonly schemeId?: string | undefined;
@@ -617,10 +600,6 @@ export interface PaperFilter {
   readonly limit: number;
   readonly offset: number;
 }
-
-
-
-
 
 /* -------------------------------------------------------------------------- */
 /* Question search (M10B)                                                     */
@@ -639,5 +618,3 @@ export interface QuestionSearchFilter {
   readonly limit: number;
   readonly offset: number;
 }
-
-

@@ -273,6 +273,7 @@ export async function upsertStreamProgramme(
 export async function recordConflict(
   sql: Sql,
   conflict: {
+    entityType?: 'course' | 'syllabus' | 'option_group' | 'alias';
     schemeYear: string;
     programmeName: string | null;
     semester: number | null;
@@ -280,17 +281,34 @@ export async function recordConflict(
     field: string;
     readings: readonly { value: string; sha256: string; sourcePage: number | null }[];
   },
-): Promise<void> {
-  const rows = await sql<{ id: string }[]>`
-    INSERT INTO catalogue_conflicts (scheme_year, programme_name, semester, code, field)
-    VALUES (
-      ${conflict.schemeYear}, ${conflict.programmeName}, ${conflict.semester},
-      ${conflict.code}, ${conflict.field}
+): Promise<'opened' | 'existing'> {
+  /*
+   * ONE RECORD PER DISAGREEMENT, not one per run. A durable note that two
+   * documents disagree about BCHEC102 is only useful if it accumulates the
+   * readings; a row per sync is a log, and a log is what §16 says this must
+   * stop being.
+   *
+   * `DO UPDATE` rather than `DO NOTHING` so the row comes back either way, and
+   * NOTHING here touches `status`: §18 is explicit that a conflict is resolved
+   * only by an explicit precedence decision or a human, never by being seen
+   * again.
+   */
+  const rows = await sql<{ id: string; opened: boolean }[]>`
+    INSERT INTO catalogue_conflicts (
+      entity_type, scheme_year, programme_name, semester, code, field
     )
-    RETURNING id
+    VALUES (
+      ${conflict.entityType ?? 'course'}, ${conflict.schemeYear}, ${conflict.programmeName},
+      ${conflict.semester}, ${conflict.code}, ${conflict.field}
+    )
+    ON CONFLICT (
+      entity_type, scheme_year, COALESCE(programme_name, ''), COALESCE(semester, 0), code, field
+    )
+    DO UPDATE SET code = EXCLUDED.code
+    RETURNING id, (xmax = 0) AS opened
   `;
   const id = rows[0]?.id;
-  if (id === undefined) return;
+  if (id === undefined) return 'existing';
   for (const reading of conflict.readings) {
     await sql`
       INSERT INTO catalogue_conflict_readings (conflict_id, version_id, value, source_page)
@@ -299,6 +317,7 @@ export async function recordConflict(
       ON CONFLICT DO NOTHING
     `;
   }
+  return rows[0]?.opened === true ? 'opened' : 'existing';
 }
 
 /** An equivalence the university's own documents establish (§12). */
@@ -548,4 +567,112 @@ async function writeModules(
       `;
     }
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Option groups                                                              */
+/* -------------------------------------------------------------------------- */
+
+export interface OptionGroupInput {
+  readonly schemeYear: string;
+  readonly programmeName: string | null;
+  readonly streamId: string | null;
+  readonly semester: number;
+  readonly slotCode: string;
+  readonly kind: 'elective_slot' | 'alternative';
+  readonly credits: number | null;
+  readonly sha256: string;
+  readonly sourcePage: number | null;
+  readonly members: readonly {
+    readonly code: string;
+    readonly title: string | null;
+    readonly credits: number | null;
+    readonly sourcePage: number | null;
+  }[];
+}
+
+/**
+ * One choice the curriculum offers, and the courses that may fill it.
+ *
+ * Membership is REPLACED on each write rather than merged, because a group is
+ * a reading of one document: a scheme that drops an option has dropped it, and
+ * merging would keep the old member alive forever with nothing stating it.
+ * Groups themselves are matched on identity, so ids stay stable across runs.
+ */
+export async function upsertOptionGroup(
+  sql: Sql,
+  input: OptionGroupInput,
+): Promise<'inserted' | 'updated' | 'unchanged'> {
+  const versions = await sql<{ id: string }[]>`
+    SELECT id FROM source_document_versions WHERE sha256 = ${input.sha256}
+  `;
+  const versionId = versions[0]?.id;
+  if (versionId === undefined) {
+    throw new Error(`No document version ${input.sha256} for option group ${input.slotCode}.`);
+  }
+
+  const existing = await sql<{ id: string; credits: string | null; kind: string }[]>`
+    SELECT id, credits::text, kind::text FROM catalogue_option_groups
+    WHERE scheme_year = ${input.schemeYear}
+      AND COALESCE(programme_name, '') = COALESCE(${input.programmeName}::text, '')
+      AND COALESCE(stream_id, '') = COALESCE(${input.streamId}::text, '')
+      AND semester = ${input.semester}
+      AND slot_code = ${input.slotCode}
+  `;
+
+  let groupId = existing[0]?.id;
+  let action: 'inserted' | 'updated' | 'unchanged' = 'unchanged';
+
+  if (groupId === undefined) {
+    const rows = await sql<{ id: string }[]>`
+      INSERT INTO catalogue_option_groups (
+        scheme_year, programme_name, stream_id, semester, slot_code, kind,
+        credits, version_id, source_page
+      )
+      VALUES (
+        ${input.schemeYear}, ${input.programmeName}, ${input.streamId}, ${input.semester},
+        ${input.slotCode}, ${input.kind}::catalogue_option_kind,
+        ${input.credits}, ${versionId}, ${input.sourcePage}
+      )
+      RETURNING id
+    `;
+    groupId = rows[0]?.id;
+    action = 'inserted';
+  } else if (
+    Number(existing[0]?.credits ?? NaN) !== (input.credits ?? NaN) ||
+    existing[0]?.kind !== input.kind
+  ) {
+    await sql`
+      UPDATE catalogue_option_groups
+      SET credits = ${input.credits}, kind = ${input.kind}::catalogue_option_kind,
+          version_id = ${versionId}, source_page = ${input.sourcePage}, updated_at = now()
+      WHERE id = ${groupId}
+    `;
+    action = 'updated';
+  }
+  if (groupId === undefined) throw new Error(`Could not write option group ${input.slotCode}.`);
+
+  const codes = input.members.map((member) => member.code);
+  await sql`
+    DELETE FROM catalogue_option_members
+    WHERE group_id = ${groupId}
+      AND ${codes.length === 0 ? sql`TRUE` : sql`code <> ALL(${codes}::text[])`}
+  `;
+  for (const member of input.members) {
+    await sql`
+      INSERT INTO catalogue_option_members (
+        group_id, code, title, credits, version_id, source_page
+      )
+      VALUES (
+        ${groupId}, ${member.code}, ${member.title}, ${member.credits},
+        ${versionId}, ${member.sourcePage}
+      )
+      ON CONFLICT (group_id, code) DO UPDATE SET
+        title = EXCLUDED.title,
+        credits = EXCLUDED.credits,
+        version_id = EXCLUDED.version_id,
+        source_page = EXCLUDED.source_page
+    `;
+  }
+  return action;
 }

@@ -16,6 +16,19 @@ export {
   type SchemeRejection,
 } from './scheme-import.js';
 export {
+  aliasEvidence,
+  aliasesOf,
+  canonicalCodeOf,
+  COURSE_ALIASES,
+  type CourseAlias,
+} from './aliases.js';
+export {
+  optionGroupsOf,
+  type OptionGroup,
+  type OptionKind,
+  type OptionMember,
+} from './option-groups.js';
+export {
   parseSyllabusDocument,
   type Field,
   type FieldState,
