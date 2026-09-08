@@ -480,12 +480,19 @@ describe('current semester on the dashboard', () => {
 
     /*
      * The only SGPA on the snapshot is labelled as a PAST semester's. With no
-     * results saved there is none, so it reads as an em dash — never as a
-     * figure for the semester still running.
+     * results saved there is none — and it says so in words, never as a figure
+     * that could be read as the running semester's.
+     *
+     * This used to assert an em dash, which was how absence rendered before
+     * Phase 7C §1. The dash is gone; the guarantee it stood for is not, so the
+     * assertion moved onto the guarantee itself.
      */
     expect(within(strip).getByText('Last SGPA')).toBeTruthy();
     expect(within(strip).queryByText('Current SGPA')).toBeNull();
-    expect(within(strip).getAllByText('—').length).toBeGreaterThan(0);
+
+    const lastSgpa = within(strip).getByText('Last SGPA').closest('div');
+    expect(lastSgpa?.textContent ?? '').toMatch(/Unavailable/);
+    expect(lastSgpa?.textContent ?? '').not.toMatch(/\d\.\d\d/);
   });
 
   it('shows no semester panel until one is marked in progress', async () => {

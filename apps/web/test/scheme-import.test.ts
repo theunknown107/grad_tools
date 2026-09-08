@@ -176,12 +176,18 @@ describe('reading the scheme table', () => {
 });
 
 describe('what the scheme does not state', () => {
-  it('refuses an elective option, because the credits belong to the slot', () => {
+  it('gives an elective option the credits of the slot it is an option for', () => {
     /*
      * Below each table the scheme lists the courses a student may CHOOSE for
      * an elective slot. Those rows have no columns of their own — the credits
-     * belong to the placeholder row (`BXXnnnx`) above. Handing a neighbour's
-     * figure to them would put a wrong credit into a real SGPA.
+     * belong to the placeholder row (`BQQ415x`) above, and the option inherits
+     * them.
+     *
+     * This is reading the document, not guessing at it: the scheme says these
+     * courses ARE the choices for that slot, and VTU numbers them to match, so
+     * the course number is the link. On the real document, refusing them left
+     * a student's semester at seven of nine credits and therefore no SGPA at
+     * all, because SGPA is credit-weighted across the whole semester.
      */
     const parsed = parseScheme(
       page(row(322, 'BQQ415x', 'Invented Elective Slot', 3), [
@@ -190,8 +196,51 @@ describe('what the scheme does not state', () => {
       ]),
     );
 
-    expect(parsed.courses.map((course) => course.code)).toEqual(['BQQ415x']);
-    expect(parsed.rejected[0]).toMatchObject({ code: 'BQQ415A' });
+    const option = parsed.courses.find((course) => course.code === 'BQQ415A');
+    expect(option).toMatchObject({
+      credits: 3,
+      semester: 4,
+      viaElectiveSlot: 'BQQ415x',
+      title: 'Invented Elective Option',
+    });
+    /* And the slot itself is still a course, stating its own credits. */
+    expect(parsed.courses.find((c) => c.code === 'BQQ415x')?.viaElectiveSlot).toBeNull();
+    expect(parsed.rejected).toHaveLength(0);
+  });
+
+  it('refuses an option when two slots could be the one it belongs to', () => {
+    /*
+     * The link is the course NUMBER, and it has to be unambiguous. Two slots
+     * sharing a number would make the inherited figure a coin toss, and a
+     * wrong credit goes straight into a real SGPA.
+     */
+    const parsed = parseScheme([
+      {
+        page: 1,
+        items: [
+          ...HEADING,
+          ...row(322, 'BQQ415x', 'First Slot', 3),
+          ...row(298, 'BZZ415x', 'Second Slot', 4),
+          at('BQQ415A', COL.code, 200),
+          at('Invented Elective Option', COL.title, 200),
+        ],
+      },
+    ]);
+
+    expect(parsed.courses.map((c) => c.code).sort()).toEqual(['BQQ415x', 'BZZ415x']);
+    expect(parsed.rejected[0]?.reason).toMatch(/more than one elective slot/i);
+  });
+
+  it('refuses an option no slot accounts for', () => {
+    const parsed = parseScheme(
+      page(row(322, 'BQQ415x', 'Invented Elective Slot', 3), [
+        at('BQQ999A', COL.code, 200),
+        at('Unrelated Course', COL.title, 200),
+      ]),
+    );
+
+    expect(parsed.courses.map((c) => c.code)).toEqual(['BQQ415x']);
+    expect(parsed.rejected[0]).toMatchObject({ code: 'BQQ999A' });
     expect(parsed.rejected[0]?.reason).toMatch(/elective option/i);
   });
 
