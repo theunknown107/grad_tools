@@ -161,6 +161,10 @@ export function SemestersPage() {
             {statistics.cgpa.value !== null && (
               <MetaPill>CGPA {formatGpa(statistics.cgpa.value)}</MetaPill>
             )}
+            {/* Completed and fully resolved are different counts (§11). */}
+            <MetaPill>
+              {`${String(statistics.semesters.filter((e) => e.completeness === 'fully_resolved').length)} fully resolved`}
+            </MetaPill>
             {(statistics.creditsEarned.value ?? 0) > 0 && (
               <MetaPill>{formatCount(statistics.creditsEarned.value ?? 0, 'credit')}</MetaPill>
             )}
@@ -177,8 +181,13 @@ export function SemestersPage() {
             "not entered" from "one course needs review".
           */}
           <div>
-            <dt>CGPA</dt>
-            <dd>{metricDisplay(statistics.cgpa, formatGpa).value}</dd>
+            {/* The CGPA when it is one; the running average when it is not. */}
+            <dt>{statistics.cgpaBasis.pending.length > 0 ? 'Average so far' : 'CGPA'}</dt>
+            <dd>
+              {statistics.cgpaBasis.pending.length > 0
+                ? metricDisplay(statistics.provisionalCgpa, formatGpa).value
+                : metricDisplay(statistics.cgpa, formatGpa).value}
+            </dd>
           </div>
           <div>
             <dt>Percentage</dt>

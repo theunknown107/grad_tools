@@ -278,10 +278,35 @@ function distributionOf(
 /* One semester                                                               */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * How much of a semester's record actually resolved.
+ *
+ *   fully_resolved      every course has a grade and credits
+ *   partially_resolved  a result exists, and some course is short of one
+ *   unresolved          no result, or nothing in it resolved at all
+ */
+export type SemesterCompleteness = 'fully_resolved' | 'partially_resolved' | 'unresolved';
+
+/**
+ * Whether this semester may take part in the CGPA.
+ *
+ *   yes                 it resolved, and its SGPA is a legitimate input
+ *   no                  it is not expected to — not sat yet, or still running
+ *   pending_resolution  it SHOULD contribute and cannot yet
+ *
+ * The third state is the one that matters, and it is why this exists. Dropping
+ * a semester that ought to count and publishing the average of the rest gives a
+ * number that looks like a CGPA, is arithmetically sound, and answers a
+ * question nobody asked (§9, §28).
+ */
+export type CgpaContribution = 'yes' | 'no' | 'pending_resolution';
+
 export interface SemesterStatistics {
   readonly number: number;
   readonly view: SemesterView;
   readonly hasResult: boolean;
+  readonly completeness: SemesterCompleteness;
+  readonly cgpaContribution: CgpaContribution;
 
   readonly courseCount: number;
   /** Courses whose grade AND credits are both known. */
@@ -321,6 +346,13 @@ function semesterStatistics(view: SemesterView): SemesterStatistics {
       number: view.number,
       view,
       hasResult: false,
+      completeness: 'unresolved',
+      /*
+       * A semester with no result is only PENDING if the student says it is
+       * behind them. One still running, or not yet reached, is simply not a
+       * CGPA input and never was.
+       */
+      cgpaContribution: view.status === 'completed' ? 'pending_resolution' : 'no',
       courseCount: 0,
       resolvedCourses: 0,
       unresolvedCourses: 0,
@@ -375,10 +407,23 @@ function semesterStatistics(view: SemesterView): SemesterStatistics {
   const courseCount = result.subjects.length;
   const unresolvedCourses = courseCount - resolvedCourses;
 
+  const sgpa = sgpaMetric(view);
+
   return {
     number: view.number,
     view,
     hasResult: true,
+    completeness:
+      resolvedCourses === courseCount
+        ? 'fully_resolved'
+        : resolvedCourses === 0
+          ? 'unresolved'
+          : 'partially_resolved',
+    /*
+     * A SEMESTER WITH A RESULT IS EXPECTED TO COUNT. If its SGPA resolved it
+     * does; if not, it is pending — never silently dropped.
+     */
+    cgpaContribution: sgpa.value === null ? 'pending_resolution' : 'yes',
     courseCount,
     resolvedCourses,
     unresolvedCourses,
@@ -410,7 +455,7 @@ function semesterStatistics(view: SemesterView): SemesterStatistics {
                 : `${String(creditsUnresolved)} course${creditsUnresolved === 1 ? '' : 's'} have no credit figure.`,
           },
     creditsUnresolved,
-    sgpa: sgpaMetric(view),
+    sgpa,
     grades: distributionOf(result.subjects, ruleSet),
     outcomes,
     /*
@@ -481,7 +526,28 @@ export interface AcademicStatistics {
   readonly semestersCompleted: Metric<number>;
   readonly semestersGraded: Metric<number>;
   readonly latestSgpa: Metric<{ readonly semester: number; readonly sgpa: number }>;
+  /**
+   * The CGPA, and only when it is really the CGPA.
+   *
+   * `partial` — with NO value — whenever a semester that ought to count
+   * cannot yet. See `provisionalCgpa` for the figure over what has resolved.
+   */
   readonly cgpa: Metric<number>;
+  /**
+   * The credit-weighted average over the semesters that HAVE resolved.
+   *
+   * A DIFFERENT QUESTION, KEPT UNDER A DIFFERENT NAME (§1, §10). This is what
+   * the product used to publish as "CGPA": with three of four semesters
+   * unresolved it was the fourth semester's SGPA wearing the word CGPA, which
+   * is arithmetically true of the set it averaged and an untrue answer to the
+   * question the label asks.
+   *
+   * `basis` says how many semesters it covers, so the figure can never be read
+   * without knowing what it is an average of.
+   */
+  readonly provisionalCgpa: Metric<number>;
+  /** How many semesters `provisionalCgpa` covers, and how many are pending. */
+  readonly cgpaBasis: { readonly counted: number; readonly pending: readonly number[] };
   readonly percentage: Metric<number>;
 
   readonly creditsAttempted: Metric<number>;
@@ -613,6 +679,16 @@ export function academicStatistics(input: {
     .map((entry) => entry.averagePercentage)
     .filter((metric) => metric.value !== null);
 
+  /*
+   * Which semesters count, and which ought to and cannot yet. A semester the
+   * student has not reached is in neither set — it is not pending, it simply
+   * has not happened.
+   */
+  const contributing = stats.filter((entry) => entry.cgpaContribution === 'yes');
+  const pending = stats
+    .filter((entry) => entry.cgpaContribution === 'pending_resolution')
+    .map((entry) => entry.number);
+
   const backlogSummary = summariseBacklogs(input.backlogs);
   const derivedBacklogs = views.reduce(
     (running, view) => {
@@ -651,22 +727,64 @@ export function academicStatistics(input: {
             SOURCE.resultsCreditsRules,
           ),
 
+    /*
+     * ------------------------------------------------------------------
+     * WHAT "CGPA" MEANS HERE (§28)
+     * ------------------------------------------------------------------
+     *
+     * The credit-weighted average over EVERY semester that ought to count —
+     * and nothing less. `cumulativeStanding` averages the semesters whose SGPA
+     * resolved, which is the right arithmetic over the wrong set the moment
+     * one semester is short: on a real record with semesters 1-3 unresolved it
+     * returned semester 4's own SGPA, and the page called it the CGPA.
+     *
+     * So a pending semester makes the CGPA UNAVAILABLE and says which ones,
+     * and the figure that can be computed lives under its own name below.
+     */
     cgpa:
-      standing.cgpa !== null
-        ? resolved(standing.cgpa, SOURCE.resultsCreditsRules)
-        : unresolved(
-            withResults.length === 0 ? 'unavailable' : 'partial',
-            standing.reason ?? 'No semester has a calculated SGPA to average.',
-          ),
-    percentage:
-      standing.percentage !== null
-        ? resolved(standing.percentage, SOURCE.resultsCreditsRules)
-        : standing.cgpa === null
-          ? unresolved(
+      pending.length > 0
+        ? unresolved(
+            'partial',
+            `CGPA covers every completed semester. ${
+              pending.length === 1
+                ? `Semester ${String(pending[0])} does not`
+                : `Semesters ${pending.map(String).join(', ')} do not`
+            } yet have the credit and grade data to be graded, so a cumulative figure would be an average of the rest.`,
+          )
+        : standing.cgpa !== null
+          ? resolved(standing.cgpa, SOURCE.resultsCreditsRules)
+          : unresolved(
               withResults.length === 0 ? 'unavailable' : 'partial',
-              standing.reason ?? 'A percentage follows the CGPA.',
-            )
-          : unresolved('not_applicable', 'This rule set defines no percentage conversion.'),
+              standing.reason ?? 'No semester has a calculated SGPA to average.',
+            ),
+
+    provisionalCgpa:
+      standing.cgpa === null
+        ? unresolved(
+            withResults.length === 0 ? 'unavailable' : 'partial',
+            standing.reason ?? 'No semester has a calculated SGPA yet.',
+          )
+        : pending.length === 0
+          ? resolved(standing.cgpa, SOURCE.resultsCreditsRules)
+          : {
+              value: standing.cgpa,
+              status: 'partial',
+              source: SOURCE.resultsCreditsRules,
+              reason: `Across ${String(contributing.length)} of ${String(contributing.length + pending.length)} completed semesters. Not your CGPA.`,
+            },
+    cgpaBasis: { counted: contributing.length, pending },
+
+    percentage:
+      pending.length > 0
+        ? unresolved('partial', 'A percentage follows the CGPA, which is not available yet.')
+        : standing.percentage !== null
+          ? resolved(standing.percentage, SOURCE.resultsCreditsRules)
+          : standing.cgpa === null
+            ? unresolved(
+                withResults.length === 0 ? 'unavailable' : 'partial',
+                standing.reason ?? 'A percentage follows the CGPA.',
+              )
+            : unresolved('not_applicable', 'This rule set defines no percentage conversion.'),
 
     creditsAttempted,
     creditsEarned,
