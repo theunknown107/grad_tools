@@ -16,7 +16,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseScheme, type SchemePage } from '../src/domain/scheme-import.js';
+import { parseScheme, type SchemePage } from '@gradtools/vtu-catalogue';
 import type { PositionedText } from '../src/domain/pdf-layout.js';
 
 /** Column x-positions, in the proportions the scheme prints them. */

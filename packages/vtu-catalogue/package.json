@@ -1,0 +1,19 @@
+{
+  "name": "@gradtools/vtu-catalogue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reads VTU scheme documents into a normalized course catalogue. See docs/38_VTU_INGESTION.md",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./data": "./data/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {},
+  "sideEffects": false
+}
