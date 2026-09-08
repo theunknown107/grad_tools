@@ -278,7 +278,13 @@ function YourFigures() {
       */}
       <MetricStrip
         metrics={[
-          metricStripEntry('CGPA', statistics.cgpa, formatGpa),
+          /*
+            The CGPA when it is one, and the running average under its own
+            name when it is not (§1, §10, §13).
+          */
+          statistics.cgpaBasis.pending.length > 0
+            ? metricStripEntry('Average so far', statistics.provisionalCgpa, formatGpa)
+            : metricStripEntry('CGPA', statistics.cgpa, formatGpa),
           metricStripEntry('Percentage', statistics.percentage, formatPercent),
           metricStripEntry('Credits earned', statistics.creditsEarned),
           metricStripEntry('Semesters graded', statistics.semestersGraded),
@@ -347,6 +353,21 @@ function YourFigures() {
             <dt className={styles.derivedLabel}>Need review</dt>
             <dd>{statistics.dataQuality.coursesNeedingReview}</dd>
           </div>
+          {/*
+            AVAILABLE AND UNRESOLVED, SIDE BY SIDE (§13). "4 completed" and
+            "1 fully resolved" are different facts, and showing only the first
+            implies all four carry valid SGPA and CGPA inputs.
+          */}
+          <div className={styles.derivedItem}>
+            <dt className={styles.derivedLabel}>Fully resolved</dt>
+            <dd>
+              {
+                statistics.semesters.filter((entry) => entry.completeness === 'fully_resolved')
+                  .length
+              }{' '}
+              of {statistics.semesters.filter((entry) => entry.hasResult).length} imported
+            </dd>
+          </div>
         </dl>
         {statistics.dataQuality.notes.map((note) => (
           <p className={styles.gap} key={note}>
@@ -361,6 +382,9 @@ function YourFigures() {
         they are looking at unless the page says (M10A §19).
       */}
       <p className={styles.basis}>{completeness.basis}</p>
+      {statistics.cgpa.reason !== null && statistics.cgpaBasis.pending.length > 0 && (
+        <p className={styles.gap}>{statistics.cgpa.reason}</p>
+      )}
       {completeness.gaps.map((gap) => (
         <p className={styles.gap} key={gap}>
           {gap}

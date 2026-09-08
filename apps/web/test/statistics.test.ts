@@ -235,9 +235,41 @@ describe('four semesters, one of them unresolvable', () => {
     expect(points[2]?.status).toBe('partial');
   });
 
-  it('gives a CGPA from the three semesters that resolved', () => {
-    expect(state.cgpa.status).toBe('resolved');
+  it('refuses to call the average of three semesters a CGPA', () => {
+    /*
+     * THE DEFECT THIS TEST USED TO ASSERT. It read "gives a CGPA from the
+     * three semesters that resolved" — which is the right arithmetic over the
+     * wrong set. A CGPA covers every completed semester; averaging the ones
+     * that happen to have resolved produces a number that looks official and
+     * answers a question nobody asked.
+     *
+     * On the real record it was worse: three of four semesters unresolved
+     * meant "CGPA 7.47" was semester 4's own SGPA wearing the word CGPA.
+     */
+    expect(state.cgpa).toMatchObject({ value: null, status: 'partial' });
+    expect(state.cgpa.reason).toMatch(/Semester 3 does not/);
     expect(state.semestersGraded.value).toBe(3);
+  });
+
+  it('still offers the figure it CAN compute, under its own name', () => {
+    /* The information is not lost — it is just not allowed to be the CGPA. */
+    expect(state.provisionalCgpa.value).toBeGreaterThan(0);
+    expect(state.provisionalCgpa.status).toBe('partial');
+    expect(state.provisionalCgpa.reason).toMatch(/3 of 4 completed semesters/);
+    expect(state.provisionalCgpa.reason).toMatch(/Not your CGPA/);
+  });
+
+  it('names which semesters the CGPA is waiting on', () => {
+    expect(state.cgpaBasis).toEqual({ counted: 3, pending: [3] });
+  });
+
+  it('marks the short semester partially resolved rather than hiding it', () => {
+    const third = state.semesters.find((entry) => entry.number === 3);
+    expect(third?.completeness).toBe('partially_resolved');
+    expect(third?.cgpaContribution).toBe('pending_resolution');
+    /* And it still reports everything that did resolve. */
+    expect(third?.resolvedCourses).toBe(3);
+    expect(third?.unresolvedCourses).toBe(1);
   });
 
   it('ranks only the semesters that have an SGPA', () => {
@@ -474,5 +506,58 @@ describe('the same semester imported twice', () => {
     expect(state.semesters.filter((entry) => entry.hasResult)).toHaveLength(1);
     expect(state.creditsEarned.value).toBe(12);
     expect(state.grades.total).toBe(4);
+  });
+});
+
+describe('when every completed semester has resolved', () => {
+  it('publishes a real CGPA, weighted by credits and not an average of SGPAs', () => {
+    /*
+     * §2. Two semesters of different credit weight, so an unweighted mean and
+     * the credit-weighted one give different answers and the test can tell
+     * them apart. The engine's own formula is the authority; this asserts the
+     * product feeds it the right set and reports the right thing.
+     */
+    const light = [course('BCS401', 4, { internal: 47, external: 44 })];
+    const heavy = [
+      course('BCS501', 4, { internal: 36, external: 30 }),
+      course('BCS502', 4, { internal: 36, external: 30 }),
+      course('BCS503', 4, { internal: 36, external: 30 }),
+    ];
+    const state = stats({ results: [result(4, light), result(5, heavy)] });
+
+    expect(state.cgpa.status).toBe('resolved');
+    expect(state.cgpaBasis).toEqual({ counted: 2, pending: [] });
+    /* Both figures agree once nothing is pending. */
+    expect(state.provisionalCgpa.value).toBeCloseTo(state.cgpa.value ?? 0, 6);
+
+    /* 91% is O (10); 66% is B+ (7). Weighted: (4*10 + 12*7)/16 = 7.75. */
+    expect(state.cgpa.value).toBeCloseTo(7.75, 2);
+    /* An unweighted mean of the two SGPAs would be 8.5 — it is not that. */
+    expect(state.cgpa.value).not.toBeCloseTo(8.5, 1);
+  });
+
+  it('does not wait on a semester the student has not sat', () => {
+    // A future semester is not "pending resolution" — it has not happened.
+    const state = stats({
+      results: [result(4, GOOD)],
+      semesters: [semesterRecord(5, 'in_progress')],
+    });
+    expect(state.cgpa.status).toBe('resolved');
+    expect(state.cgpaBasis.pending).toEqual([]);
+  });
+
+  it('waits on a semester marked completed that has no result at all', () => {
+    /*
+     * A student who says semester 3 is behind them and has entered nothing for
+     * it has a CGPA the product cannot compute. Publishing one over semester 4
+     * alone would be the same masquerade by a different route.
+     */
+    const state = stats({
+      results: [result(4, GOOD)],
+      semesters: [semesterRecord(3, 'completed')],
+    });
+    expect(state.cgpa).toMatchObject({ value: null, status: 'partial' });
+    expect(state.cgpaBasis.pending).toEqual([3]);
+    expect(state.semesters.find((e) => e.number === 3)?.completeness).toBe('unresolved');
   });
 });
