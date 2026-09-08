@@ -42,6 +42,7 @@
  */
 
 import type { Subject } from '@gradtools/shared-types';
+import { aliasesOf } from './course-aliases.js';
 import type {
   AttendanceRecord,
   BacklogRecord,
@@ -182,6 +183,22 @@ interface Draft {
   sources: Set<SubjectSource>;
 }
 
+/**
+ * TWO VERIFIED ROWS THAT DISAGREE LEAVE NO CANONICAL TITLE (§5).
+ *
+ * Catalogue uniqueness is (scheme, branch, code), so one code can legitimately
+ * carry two rows with different wording across branches. Picking either would
+ * be inventing an answer the reference data does not give.
+ */
+function indexCatalogueTitle(draft: Draft, title: string): void {
+  const wording = title.trim();
+  if (draft.canonicalTitle === null && !draft.canonicalConflict) draft.canonicalTitle = wording;
+  else if (draft.canonicalTitle !== wording) {
+    draft.canonicalTitle = null;
+    draft.canonicalConflict = true;
+  }
+}
+
 function draftFor(index: Map<string, Draft>, code: string): Draft | null {
   const key = subjectKey(code);
   if (key === '') return null;
@@ -245,24 +262,25 @@ export function buildSubjectIndex(input: SubjectIndexInput): Map<string, Subject
    * student record is read — and so a later source can never overwrite them.
    */
   for (const subject of input.catalogue ?? []) {
+    /*
+     * A CATALOGUE ROW ANSWERS FOR EVERY SPELLING THE UNIVERSITY USES.
+     *
+     * The CSBS scheme's elective list writes `BCSL358D` where the course's own
+     * syllabus page — and the result card — write `BCS358D`. Indexing the row
+     * under both means a card carrying either spelling finds its credits,
+     * without anything guessing that two codes look alike: the equivalence is
+     * a documented fact in `course-aliases`, or it does not exist (§6, §7).
+     */
+    for (const spelling of aliasesOf(subject.code)) {
+      const draft = draftFor(drafts, spelling);
+      if (draft === null) continue;
+      observe(draft, 'catalogue', subject.title, subject.semester);
+      draft.credits = subject.credits;
+      draft.hasSee = subject.hasSee;
+      indexCatalogueTitle(draft, subject.title);
+    }
     const draft = draftFor(drafts, subject.code);
     if (draft === null) continue;
-    observe(draft, 'catalogue', subject.title, subject.semester);
-    draft.credits = subject.credits;
-    draft.hasSee = subject.hasSee;
-
-    /*
-     * TWO VERIFIED ROWS THAT DISAGREE LEAVE NO CANONICAL TITLE (§5). Catalogue
-     * uniqueness is (scheme, branch, code), so one code can legitimately carry
-     * two rows with different wording across branches. Picking either would be
-     * inventing an answer the reference data does not give.
-     */
-    const wording = subject.title.trim();
-    if (draft.canonicalTitle === null && !draft.canonicalConflict) draft.canonicalTitle = wording;
-    else if (draft.canonicalTitle !== wording) {
-      draft.canonicalTitle = null;
-      draft.canonicalConflict = true;
-    }
   }
 
   for (const result of input.results ?? []) {
