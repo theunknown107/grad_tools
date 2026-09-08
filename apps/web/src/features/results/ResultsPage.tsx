@@ -843,6 +843,14 @@ function ResultsOverview({ items }: { readonly items: readonly SemesterResult[] 
               <span className={styles.ledgerSemester}>S{entry.result.semester}</span>
               <span className={styles.ledgerMeta}>
                 {entry.result.subjects.length} subjects
+                {/*
+                  IMPORTED, RESOLVED, PARTIAL (§12). A semester where eight of
+                  nine courses resolved says so, rather than looking identical
+                  to one where all nine did and simply showing no SGPA.
+                */}
+                {entry.stats !== null && entry.stats.unresolvedCourses > 0
+                  ? ` · ${String(entry.stats.resolvedCourses)} resolved · ${String(entry.stats.unresolvedCourses)} need review`
+                  : ''}
                 {(entry.stats?.creditsAttempted.value ?? 0) > 0
                   ? ` · ${String(entry.stats?.creditsAttempted.value ?? 0)} credits`
                   : ''}

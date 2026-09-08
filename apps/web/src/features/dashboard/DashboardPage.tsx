@@ -272,13 +272,25 @@ function Snapshot({
             and only one of those is the student's to fix.
           */
           {
-            label: 'CGPA',
-            value: cgpa.value,
-            ...(cgpa.note !== undefined
-              ? { note: cgpa.note }
-              : stats.percentage.value !== null
-                ? { note: percentage.value }
-                : {}),
+            /*
+              THE CGPA, OR THE FIGURE THAT IS NOT IT (Phase 7C.1 §1, §10).
+              When a completed semester is still missing its credit or grade
+              data, no cumulative figure can honestly be called the CGPA — so
+              the label changes with the meaning rather than the meaning
+              quietly changing under a fixed label.
+            */
+            label: stats.cgpaBasis.pending.length > 0 ? 'Average so far' : 'CGPA',
+            value:
+              stats.cgpaBasis.pending.length > 0
+                ? metricDisplay(stats.provisionalCgpa, formatGpa).value
+                : cgpa.value,
+            ...(stats.cgpaBasis.pending.length > 0
+              ? { note: stats.provisionalCgpa.reason ?? undefined }
+              : cgpa.note !== undefined
+                ? { note: cgpa.note }
+                : stats.percentage.value !== null
+                  ? { note: percentage.value }
+                  : {}),
           },
           {
             label: 'Last SGPA',
