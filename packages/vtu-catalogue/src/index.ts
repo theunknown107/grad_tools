@@ -16,6 +16,14 @@ export {
   type SchemeRejection,
 } from './scheme-import.js';
 export {
+  parseSyllabusDocument,
+  type Field,
+  type FieldState,
+  type ParsedSyllabus,
+  type SyllabusModule,
+  type SyllabusTopic,
+} from './syllabus-import.js';
+export {
   courseKey,
   type Catalogue,
   type CatalogueAlias,
