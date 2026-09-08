@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc --noEmit -p tsconfig.build.json",
     "reference:coverage": "tsx scripts/reference-coverage.ts",
-    "source:inventory": "tsx scripts/source-inventory.ts"
+    "source:inventory": "tsx scripts/source-inventory.ts",
+    "vtu:discover": "tsx scripts/vtu-discover.ts"
   },
   "dependencies": {
     "@gradtools/academic-rules": "workspace:*",
