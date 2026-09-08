@@ -302,19 +302,32 @@ function Snapshot({
               : {}),
           },
           {
+            /*
+              THESE TWO WERE THE LAST BARE DASHES ON THE PAGE (§1), and a real
+              import found them: beside a resolved CGPA sat two em dashes that
+              could not say whether the figure was missing, zero, or waiting on
+              something the student had to do. Both now say which.
+            */
             label: 'Attendance',
-            value: overall?.ok === true ? formatPercent(overall.value.percentage) : '—',
-            ...(overall?.ok === true && overall.value.status !== 'safe'
-              ? {
-                  tone:
-                    overall.value.status === 'dx_risk' ? ('danger' as const) : ('warning' as const),
-                }
-              : {}),
+            value: overall?.ok === true ? formatPercent(overall.value.percentage) : 'Not recorded',
+            ...(overall?.ok === true
+              ? overall.value.status !== 'safe'
+                ? {
+                    tone:
+                      overall.value.status === 'dx_risk'
+                        ? ('danger' as const)
+                        : ('warning' as const),
+                  }
+                : {}
+              : { note: 'No classes have been marked for this semester yet.' }),
           },
           {
             /* The semester's shape, per M9.3 §11. */
             label: 'Subjects',
-            value: subjectCount === 0 ? '—' : String(subjectCount),
+            value: subjectCount === 0 ? 'Not set' : String(subjectCount),
+            ...(subjectCount === 0
+              ? { note: 'Add the subjects you are taking to see them here.' }
+              : {}),
           },
           {
             /*

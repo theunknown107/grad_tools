@@ -34,6 +34,9 @@ const PORT = 4327;
 const TYPES = {
   '.html': 'text/html',
   '.js': 'text/javascript',
+  /* pdf.js ships its worker as an ES module; octet-stream makes it unloadable. */
+  '.mjs': 'text/javascript',
+  '.map': 'application/json',
   '.css': 'text/css',
   '.svg': 'image/svg+xml',
   '.json': 'application/json',
