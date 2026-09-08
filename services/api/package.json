@@ -19,7 +19,8 @@
     "vtu:discover": "tsx scripts/vtu-discover.ts",
     "vtu:download": "tsx scripts/vtu-download.ts",
     "vtu:normalize": "tsx scripts/vtu-normalize.ts",
-    "vtu:smoke": "tsx scripts/vtu-smoke.ts"
+    "vtu:smoke": "tsx scripts/vtu-smoke.ts",
+    "vtu:sync": "tsx scripts/vtu-sync.ts"
   },
   "dependencies": {
     "@gradtools/academic-rules": "workspace:*",
