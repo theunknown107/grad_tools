@@ -150,7 +150,8 @@ export async function fetchDocument(
     Accept: 'application/pdf,*/*',
   };
   if (options.etag !== null && options.etag !== undefined) headers['If-None-Match'] = options.etag;
-  if (options.lastModified !== null && options.lastModified !== undefined) headers['If-Modified-Since'] = options.lastModified;
+  if (options.lastModified !== null && options.lastModified !== undefined)
+    headers['If-Modified-Since'] = options.lastModified;
 
   let lastError = 'unknown';
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
