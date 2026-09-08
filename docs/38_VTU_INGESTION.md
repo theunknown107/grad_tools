@@ -206,6 +206,8 @@ destinations — not two catalogues.
 | `catalogue_course_options` | Elective slot to its candidate courses |
 | `catalogue_conflicts` / `catalogue_conflict_readings` | Documents that disagree |
 | `catalogue_aliases` | Codes the university writes two ways |
+| `catalogue_syllabi` | What a course contains, as its own document states it |
+| `catalogue_modules` / `catalogue_topics` | The structure inside a syllabus |
 
 **Not `documents`.** That table (0004) holds what a *person* uploaded: it
 quarantines by default and carries a rights determination, because its job is to
@@ -220,6 +222,9 @@ fetched from a university's own site has the opposite properties.
 | Source reference | (version, url) |
 | Applicability | (version, scope, programme, stream) |
 | Course | (scheme year, programme, **stream**, semester, code) |
+| Syllabus | the same, with a nullable semester some documents never print |
+| Module | (syllabus, the number its heading prints) |
+| Topic | (module, its position in the module) |
 
 **A course title is not part of its identity.** VTU corrects wording between
 revisions, and a title in the key turns every correction into a second course.
@@ -258,11 +263,60 @@ Two defects had to be fixed to get there:
   per identity per run now, and two readings that disagree are reported as a
   conflict rather than settled by whichever was read last.
 
-## What is not built yet
+## Syllabus, module, topic
 
-- **Syllabus extraction.** Syllabus documents are discovered and downloaded;
-  only scheme documents are extracted and normalized. `Course → Syllabus →
-  Module → Topic` does not exist, and Phase 8 needs it.
+`packages/vtu-catalogue/src/syllabus-import.ts`, persisted by
+`0015_syllabus_structure.sql`.
+
+A scheme says a course exists and what it is worth. Only its syllabus says what
+is IN it, and the structure — not a text blob — is what makes that answerable:
+which module an examination question belongs to cannot be asked of a string.
+
+**A topic is only what the document sets out as one.** VTU heads the parts of a
+module with a phrase and a colon:
+
+```
+INTRODUCTION TO DATA STRUCTURES: Data Structures, Classifications
+ARRAYS and STRUCTURES: Arrays, Dynamic Allocated Arrays
+STACKS: Stacks, Evaluation and conversion of Expressions
+```
+
+Those headings are the topics. A module written as continuous prose — much of
+the mathematics is — has **none**, and none is what gets stored. Splitting its
+sentences would present our guesses as the university's own structure, which is
+exactly how everything downstream would read them.
+
+**There is no one template.** Across seventeen documents the header states the
+semester three ways (`I Semester`, `Semester 3`, `Semester IV`), the module
+heading states its hours three ways (`Module-1: Title`, `Module-1 8Hours`,
+`MODULE-1 No. of Hours: 8`), and the title is typeset *above* its label in
+`BCHEC102` and *below* it in `BPHYS102`. Each is read as printed.
+
+**Some figures cannot be what they say.** `BCS358A` is published with
+`Credits 01 Exam Hours 100` — that cell has collected a marks figure from the
+column beside it. The column stays NULL so nothing can use it as a duration,
+and `unresolved` keeps the reading:
+
+```json
+{"examHours": {"state": "ambiguous", "printed": 100}}
+```
+
+`resolved` / `unavailable` / `ambiguous` are three different answers, and NULL
+alone cannot tell silence from an impossible reading.
+
+**A syllabus is not a child of a course row.** It carries the same identity —
+(scheme year, programme, stream, semester, code) — but no foreign key, because
+the two come from different documents and the documents disagree: the scheme's
+option list writes `BCSL358D` where the syllabus writes `BCS358D`. A foreign key
+would force that decision at write time and discard one document's reading.
+
+Provenance is mandatory on every extracted row: document version, source page,
+parser version, extraction method, all NOT NULL.
+
+Against the store: **19 documents → 187 courses, 56 syllabi, 225 modules, 383
+topics.** A second run inserts and updates nothing.
+
+## What is not built yet
 - **`vtu:validate` as a command.** Validation happens inside sync (dedup,
   disagreement detection, schema constraints) rather than as its own step, and
   semester-total validation lives in the reconciliation document rather than in

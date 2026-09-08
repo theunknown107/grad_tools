@@ -299,6 +299,18 @@ function readCourse(lines: readonly Line[]): ParsedSyllabus {
   let title: Field<string> = unavailable();
   let semester: Field<number> = unavailable();
 
+  /*
+   * TWO PASSES, and the order is the point. A header that carries an explicit
+   * "Course Title" label must be read before the semester line is allowed to
+   * supply a title, because the semester is often printed FIRST:
+   *
+   *     16-2-2023            <- a revision stamp
+   *     I Semester
+   *     Course Title: Mathematics-I for Computer Science and Engineering
+   *
+   * Reading in one pass let the semester line claim the nearest neighbouring
+   * line — the date — and the real title arrived too late to displace it.
+   */
   for (const [index, line] of header.entries()) {
     const codeMatch = COURSE_CODE.exec(line.text);
     if (codeMatch?.[1] !== undefined && code.value === null) {
@@ -328,7 +340,9 @@ function readCourse(lines: readonly Line[]): ParsedSyllabus {
         title = adjacentValue(header, index) ?? title;
       }
     }
+  }
 
+  for (const [index, line] of header.entries()) {
     /*
      * The semester, and with it the title in the templates that print no
      * "Course Title" label at all.
@@ -481,10 +495,16 @@ function semesterOn(text: string): { value: number; index: number } | null {
   return value === undefined ? null : { value, index: after.index };
 }
 
-/** A candidate title, if it reads as a name and not as a header cell. */
+/**
+ * A candidate title, if it reads as the name of a course.
+ *
+ * "16-2-2023" is a revision stamp printed above the header in the first-year
+ * documents, and it sits exactly where a title would. A name has words in it.
+ */
 function usableTitle(text: string, line: Line): Field<string> | null {
   const trimmed = text.trim();
-  return trimmed.length >= 4 && !HEADER_LABEL.test(trimmed) ? resolved(trimmed, line.page) : null;
+  if (trimmed.length < 4 || HEADER_LABEL.test(trimmed)) return null;
+  return /[A-Za-z]{3}/.test(trimmed) ? resolved(trimmed, line.page) : null;
 }
 
 /**
@@ -496,9 +516,8 @@ function usableTitle(text: string, line: Line): Field<string> | null {
 function adjacentValue(header: readonly Line[], index: number): Field<string> | null {
   for (const candidate of [header[index + 1], header[index - 1]]) {
     if (candidate === undefined) continue;
-    const text = candidate.text.trim();
-    if (text.length < 4 || HEADER_LABEL.test(text)) continue;
-    return resolved(text, candidate.page);
+    const usable = usableTitle(candidate.text, candidate);
+    if (usable !== null) return usable;
   }
   return null;
 }

@@ -322,3 +322,27 @@ describe('reading a document', () => {
     expect(parsed[0]?.cieMarks.value).toBe(50);
   });
 });
+
+describe('what sits where a title would', () => {
+  it('does not read the revision stamp above the header as the title', () => {
+    /*
+     * THE DEFECT THIS CATCHES. The first-year documents print "16-2-2023"
+     * above the header, one line above "I Semester" — exactly where a title
+     * would sit. Reading the header in a single pass let the semester line
+     * claim it, and the real title arrived too late to displace it.
+     */
+    const course = one([
+      '16-2-2023',
+      'I Semester',
+      'Course Title: Mathematics-I for Computer Science and Engineering',
+      ...HEADER,
+    ]);
+    expect(course.courseTitle.value).toBe('Mathematics-I for Computer Science and Engineering');
+    expect(course.semester.value).toBe(1);
+  });
+
+  it('does not read a bare date as a title even with no label to prefer', () => {
+    const course = one(['16-2-2023', 'Semester 3', ...HEADER]);
+    expect(course.courseTitle.value).not.toBe('16-2-2023');
+  });
+});
