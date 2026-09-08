@@ -28,7 +28,8 @@
     "qa:visual:seeded": "node tests/visual-qa-seeded.mjs",
     "test:api": "vitest run --project api",
     "db:migrate": "pnpm --filter @gradtools/api migrate",
-    "db:seed": "pnpm --filter @gradtools/api seed"
+    "db:seed": "pnpm --filter @gradtools/api seed",
+    "vtu:discover": "pnpm --filter @gradtools/api vtu:discover"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
