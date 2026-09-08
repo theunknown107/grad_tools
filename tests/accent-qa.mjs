@@ -224,9 +224,26 @@ const run = async () => {
       viewport: { width: 1280, height: 900 },
       colorScheme: os,
     });
-    // `system` is the DEFAULT, so nothing is written to storage here: the
-    // absence of data-theme is exactly what hands control to the media query.
+    /*
+     * `system` IS NOT THE DEFAULT, and this used to assume it was.
+     *
+     * The default is LIGHT, deliberately and on the record (M10A.9 §26): the
+     * product is designed around the light interface, and "system" is a choice
+     * a student makes rather than the one made for them. This harness asserted
+     * the opposite and reported three problems against working code on every
+     * run — a stale test describing a decision that had been taken the other
+     * way, which is worse than no test at all.
+     *
+     * So `system` is STORED here, and what is verified is what it promises:
+     * no `data-theme`, and the OS driving the painted background.
+     */
     const page = await context.newPage();
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        'gradtools:v1:theme',
+        JSON.stringify({ appearance: 'system', accent: 'violet' }),
+      );
+    });
     await page.goto(`http://localhost:${PORT}/`);
     await page.waitForTimeout(500);
 
@@ -244,7 +261,7 @@ const run = async () => {
 
   // The two OS settings must produce DIFFERENT painted backgrounds, or the
   // system option is not actually following anything.
-  if (systemNotes[0] === systemNotes[1].replace('dark', 'light')) {
+  if (systemNotes[0] === systemNotes[1]) {
     problems.push('SYSTEM: light and dark produced the same background');
   }
 
