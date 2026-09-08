@@ -434,11 +434,29 @@
   }
 }
 
-@media (min-width: 1024px) {
+/*
+ * THE BOTTOM BAR GOES WHERE THE RAIL ARRIVES, not 256px later.
+ *
+ * The rail appears at 768px (below that `.sidebar` is `display: none`), but
+ * this hid the bottom bar only from 1024px — so every width from 768 to 1023
+ * painted BOTH: a 48px icon rail down the left and a full-width 64px bar
+ * across the bottom, each with its own `aria-current="page"` on the same
+ * destination. A browser sweep at 834px caught it.
+ *
+ * The tablet's navigation is the rail (M9.5). One navigation at a time.
+ */
+@media (min-width: 768px) {
   .bottomNav {
     display: none;
   }
 
+  /* And the space the page reserved for it goes with it. */
+  .footer {
+    padding-bottom: var(--space-8);
+  }
+}
+
+@media (min-width: 1024px) {
   .main {
     padding: var(--space-8) var(--gutter);
     padding-bottom: var(--space-8);

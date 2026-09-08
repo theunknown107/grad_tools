@@ -19,13 +19,15 @@
  * semester by hand is the fallback, not the product.
  */
 
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/AppShell.js';
 import { MetaPill } from '../../components/ui/tone.js';
 import { DocumentImportPanel } from './DocumentImportPanel.js';
 import styles from './import.module.css';
 
 export function ImportPage() {
+  const navigate = useNavigate();
+
   return (
     <>
       <PageHeader
@@ -51,7 +53,22 @@ export function ImportPage() {
           would be the same sentence twice on one screen, which reads as
           boilerplate and gets skipped — including by the person who needed it.
         */}
-        <DocumentImportPanel onDone={() => undefined} />
+        {/*
+          DONE GOES SOMEWHERE. On Results the panel sits inside a page, so
+          closing it reveals what is behind; here the panel IS the page, and
+          `onDone` was `() => undefined` — a button a student could press
+          forever with nothing happening. A browser sweep flagged it as a dead
+          control, and it was one.
+
+          It goes to Results, which is where whatever they just imported now
+          lives, and which is where the success alert already offers to take
+          them.
+        */}
+        <DocumentImportPanel
+          onDone={() => {
+            navigate('/results');
+          }}
+        />
 
         {/*
           THE FALLBACK, AND VISIBLY SECOND. A document that cannot be read must
