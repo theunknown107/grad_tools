@@ -29,7 +29,10 @@
     "test:api": "vitest run --project api",
     "db:migrate": "pnpm --filter @gradtools/api migrate",
     "db:seed": "pnpm --filter @gradtools/api seed",
-    "vtu:discover": "pnpm --filter @gradtools/api vtu:discover"
+    "vtu:discover": "pnpm --filter @gradtools/api vtu:discover",
+    "vtu:download": "pnpm --filter @gradtools/api vtu:download",
+    "vtu:normalize": "pnpm --filter @gradtools/api vtu:normalize",
+    "vtu:smoke": "pnpm --filter @gradtools/api vtu:smoke"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

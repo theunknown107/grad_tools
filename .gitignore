@@ -83,3 +83,13 @@ GradTools_Real_Student_Test_Pack/
 # Reference material for local development only: never committed, never
 # published, never turned into a fixture.
 CSBS22 Docs/
+
+# Retrieved VTU documents and their manifest. Content-addressed, regenerable,
+# and never committed: the repository keeps normalized records, not binaries.
+.vtu-store/
+
+# Compiled output emitted beside the generated catalogue data.
+packages/*/data/*.js
+packages/*/data/*.js.map
+packages/*/data/*.d.ts
+packages/*/data/*.d.ts.map

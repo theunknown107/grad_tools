@@ -1,0 +1,2754 @@
+{
+  "normalizationVersion": "1.0.0",
+  "generatedAt": "2026-09-08T11:34:32.381Z",
+  "courses": [
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BCEDK103",
+      "title": "Civil/Mech Computer-aided engineering Drawing Engg dept",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BCHEC102",
+      "title": "Applied Chemistry for Civil Engg Stream Chemistry",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BCHES102",
+      "title": "Applied Chemistry for CSE Stream Chemistry",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BENGK106",
+      "title": "Communicative English",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BPWSK106",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BESCK104A",
+      "title": "Introduction to Civil Engineering Smart Materials and Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK104x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BESCK104B",
+      "title": "Introduction to Electrical Engineering Green Buildings",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK104x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BESCK104C",
+      "title": "Introduction to Electronics Introduction to Nano Technology",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK104x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BESCK104D",
+      "title": "Introduction to Mechanical Engineering Introduction to Sustainable Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK104x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BESCK104E",
+      "title": "Introduction to C Programming Renewable Energy Sources",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK104x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BESCK104x",
+      "title": "Respective Engineering Science Course-I Dept",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105A",
+      "title": "Smart Materials and Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105B",
+      "title": "Green Buildings",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105C",
+      "title": "Introduction to Nano Technology",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105D",
+      "title": "Introduction to Sustainable Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105E",
+      "title": "Renewable Energy Sources",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105F",
+      "title": "Waste Management",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105G",
+      "title": "Emerging Applications of Biosensors",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105H",
+      "title": "Introduction to Internet of Things (IOT)",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105I",
+      "title": "Introduction to Cyber Security",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105J",
+      "title": "Introduction to Embedded System",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BETCK105x",
+      "title": "Emerging Technology Course-I",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BICOK107",
+      "title": "Indian Constitution",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BKBK107",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BIDTK158",
+      "title": "Innovation and Design Thinking",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BSFHK158",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BITDK158",
+      "title": "Innovation and Design Thinking Any Dept",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BSFHK158",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BKBK107",
+      "title": "Samskrutika Kannada/ Balake Kannada",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BICOK107",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BKBKK107",
+      "title": "Kannada Humanities",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BMATC101",
+      "title": "Mathematics-I for Civil Engg Stream Maths",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BMATS101",
+      "title": "Mathematics-I for CSE Stream Maths",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BPHYS102",
+      "title": "Applied Physics for CSE stream Physics",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BPLCK105A",
+      "title": "Introduction to Web Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BPLCK105B",
+      "title": "Introduction to Python Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BPLCK105C",
+      "title": "Basics of JAVA programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BPLCK105D",
+      "title": "Introduction to C++ Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BPLCK105x",
+      "title": "Programming Language Course-I",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK105x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BPOPS103",
+      "title": "Principles of Programming Using C CSE",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BPWSK106",
+      "title": "Professional Writing Skills in English",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BENGK106",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 1,
+      "code": "BSFHK158",
+      "title": "Scientific Foundations of Health AnyDept",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BITDK158",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BCEDK203",
+      "title": "Civil/Mech Computer-Aided Engineering Drawing Engg dept",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BCHES202",
+      "title": "Applied Chemistry for CSE Stream Chemistry",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BENGK206",
+      "title": "Communicative English",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BPWSK206",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BESCK204A",
+      "title": "Introduction to Civil Engineering Smart materials and Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BESCK204B",
+      "title": "Introduction to Electrical Engineering Green Buildings",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BESCK204C",
+      "title": "Introduction to Electronics Introduction to Nano Technology",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BESCK204D",
+      "title": "Introduction to Mechanical Engineering Introduction to Sustainable Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BESCK204E",
+      "title": "Introduction to C Programming Renewable Energy Sources",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BESCK204x",
+      "title": "Respective Engineering Science Course-II Engg. Dept",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205A",
+      "title": "Smart materials and Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205B",
+      "title": "Green Buildings",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205C",
+      "title": "Introduction to Nano Technology",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205D",
+      "title": "Introduction to Sustainable Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205E",
+      "title": "Renewable Energy Sources",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205F",
+      "title": "Waste Management",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205G",
+      "title": "Emerging Applications of Biosensors",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205H",
+      "title": "Introduction to Internet of Things(IoT)",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205I",
+      "title": "Introduction to Cyber Security",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205J",
+      "title": "Introduction to Embedded System",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BETCK205x",
+      "title": "Programming Language Course-II",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BICOK207",
+      "title": "Indian Constitution",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BKBKK207",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BIDTK258",
+      "title": "Innovation and Design Thinking",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BSFHK258",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BKBKK207",
+      "title": "Samskrutika Kannada/ Balake Kannada Humanities",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BMATS201",
+      "title": "Mathematics-II forCSE Stream Maths",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BPHYS202",
+      "title": "Applied Physics for CSE Stream Physics",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BPLCK205A",
+      "title": "Introduction to Web Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BPLCK205B",
+      "title": "Introduction to Python Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BPLCK205C",
+      "title": "Basics of JAVA programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BPLCK205D",
+      "title": "Introduction to C++ Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BPLCK205x",
+      "title": "Emerging Technology Course-II",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BPOPS203",
+      "title": "Principles of Programming Using C CSE",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BPWSK206",
+      "title": "Professional Writing Skills in English",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BENGK206",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": null,
+      "semester": 2,
+      "code": "BSFHK258",
+      "title": "Scientific Foundations of Health",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BIDTK258",
+      "provenance": {
+        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCS301",
+      "title": "Mathematics for Computer Science",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCS302",
+      "title": "Digital Design & Computer Organization",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCS303",
+      "title": "Operating Systems",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCS304",
+      "title": "Data Structures and Applications",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCS306A",
+      "title": "Object Oriented Programming with Java",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCS306x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 2,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCS306B",
+      "title": "Object Oriented Programming with C++",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCS306x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 2,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCS306x",
+      "title": "ESC/ETC/PLC",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCS358A",
+      "title": "Data analytics with Excel Project Management with Git",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX358x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 2,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCSL305",
+      "title": "Data Structures Lab",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCSL358B",
+      "title": "R programming Data Visualization with Python",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX358x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 2,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCSL358C",
+      "title": "Project Management with Git",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX358x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 2,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BCSL358D",
+      "title": "Data Visualization with Python",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX358x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 2,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BPEK359",
+      "title": "Physical Education (PE) (Sports and Athletics)",
+      "credits": 0,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BSCK307",
+      "title": "Social Connect and Responsibility",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 3,
+      "code": "BXX358x",
+      "title": "Ability Enhancement Course/Skill Enhancement Course - III",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BBOC407",
+      "title": "Biology For Computer Engineers",
+      "credits": 2,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCB402",
+      "title": "Financial Management",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCB405x",
+      "title": "ESC/ETC/PLC",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCB456D",
+      "title": "Business Communication",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX456x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCS401",
+      "title": "Analysis & Design of Algorithms",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCS403",
+      "title": "Database Management Systems",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCS405A",
+      "title": "Discrete Mathematical Structures Optimization Technique",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB405x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCS405B",
+      "title": "Graph Theory Linear Algebra",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB405x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCS405C",
+      "title": "Optimization Technique",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB405x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCS405D",
+      "title": "Linear Algebra",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB405x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCS456A",
+      "title": "Green IT and Sustainability UI/UX",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX456x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCS456B",
+      "title": "Capacity Planning for IT Business Communication",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX456x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCS456C",
+      "title": "UI/UX",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX456x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BCSL404",
+      "title": "Analysis & Design of Algorithms Lab",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BPEK459",
+      "title": "Physical Education Physical Education (PE) (Sports and Athletics)",
+      "credits": 0,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BUHK408",
+      "title": "Universal human values course",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 4,
+      "code": "BXX456x",
+      "title": "Ability Enhancement Course/Skill Enhancement Course- IV",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 3,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BCB501",
+      "title": "Fundamentals of Management",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BCB515A",
+      "title": "Marketing Research & Marketing Management Unix System Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX515x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BCB515B",
+      "title": "Advanced Java Distributed Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX515x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BCB586",
+      "title": "Mini Project",
+      "credits": 2,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BCBL504",
+      "title": "Computational Statistics Lab",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BCS502",
+      "title": "Computer Networks",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BCS503",
+      "title": "Theory of Computation",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BCS508",
+      "title": "Environmental Studies and E-waste Management",
+      "credits": 2,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BCS515C",
+      "title": "Unix System Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX515x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BCS515D",
+      "title": "Distributed Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX515x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BPEK559",
+      "title": "Physical Education Physical Education (PE) (Sports and Athletics)",
+      "credits": 0,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BRMK557",
+      "title": "Research Methodology and IPR",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 5,
+      "code": "BXX515x",
+      "title": "Professional Elective Course",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 5,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BAI654D",
+      "title": "Introduction to Artificial Intelligence",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX654x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 8,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BAIL657C",
+      "title": "Generative AI",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX657x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 8,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCB601",
+      "title": "Artificial Intelligence for Business",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCB613B",
+      "title": "Supply Chain Management Big Data Analytics",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX613x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCB613D",
+      "title": "Big Data Analytics",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX613x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCB685",
+      "title": "Project Phase I",
+      "credits": 2,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCGL657A",
+      "title": "Mobile Application Development with Flutter Generative AI",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX657x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 8,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCS602",
+      "title": "Machine Learning",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCS613A",
+      "title": "Blockchain Technology Compiler Design",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX613x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCS613C",
+      "title": "Compiler Design",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX613x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCS654A",
+      "title": "Introduction to Data Structures Mobile Application Development",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX654x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 8,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCS654B",
+      "title": "Fundamentals of Operating Systems Introduction to Artificial Intelligence",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX654x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 8,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCSL606",
+      "title": "Machine Learning lab",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCSL657B",
+      "title": "React Devops",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX657x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 8,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BCSL657D",
+      "title": "Devops",
+      "credits": 1,
+      "creditBasis": "slot",
+      "relatedCode": "BXX657x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 8,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BIKS609",
+      "title": "Indian Knowledge System",
+      "credits": 0,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BIS654C",
+      "title": "Mobile Application Development",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BXX654x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 8,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BPEK658",
+      "title": "Physical Education Physical Education (PE) (Sports and Athletics)",
+      "credits": 0,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BXX613x",
+      "title": "Professional Elective Course",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BXX654x",
+      "title": "Open Elective Course",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 6,
+      "code": "BXX657x",
+      "title": "Ability Enhancement Course/Skill Development Course V",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 7,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BAD714D",
+      "title": "Social Network Analysis",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB714x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCB701",
+      "title": "Business Intelligence and Data Analytics",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCB714B",
+      "title": "Financial & Cost Accounting Social Network Analysis",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB714x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCB714C",
+      "title": "Total Quality Management",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB714x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCB714x",
+      "title": "Professional Elective Course",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCB755x",
+      "title": "Open Elective Course",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCB786",
+      "title": "Major Project Phase-II",
+      "credits": 6,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCS702",
+      "title": "Parallel Computing",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCS703",
+      "title": "Cryptography & Network Security",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCS714A",
+      "title": "Deep Learning Total Quality Management",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB714x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCS755A",
+      "title": "Introduction to DBMS Software Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB755x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCS755B",
+      "title": "Introduction to Algorithms",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB755x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 7,
+      "code": "BCS755C",
+      "title": "Software Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB755x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB801A",
+      "title": "BOS will publish courses based on the availability",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB801x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB801B",
+      "title": "BCB801B",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB801x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB801C",
+      "title": "BCB801C",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB801x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB801D",
+      "title": "BCB801D",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB801x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB801x",
+      "title": "Professional Elective (Online Courses) Only through NPTEL",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB802A",
+      "title": "BOS will publish courses based on the availability",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB802x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB802B",
+      "title": "BCB802B",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB802x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB802C",
+      "title": "BCB802C",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB802x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB802D",
+      "title": "BCB802D",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BCB802x",
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB802x",
+      "title": "Open Elective (Online Courses) Only through NPTEL",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "semester": 8,
+      "code": "BCB803",
+      "title": "Internship (Industry/Research) (14 - 20 weeks)",
+      "credits": 10,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+        "sourcePage": 12,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-09-08T11:34:32.381Z"
+      }
+    }
+  ],
+  "conflicts": [],
+  "aliases": [],
+  "documents": [
+    {
+      "sha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+      "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+      "kind": "scheme",
+      "schemeYear": "2022",
+      "programme": null,
+      "courses": 57
+    },
+    {
+      "sha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
+      "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
+      "kind": "scheme",
+      "schemeYear": "2022",
+      "programme": null,
+      "courses": 121
+    },
+    {
+      "sha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
+      "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
+      "kind": "scheme",
+      "schemeYear": "2022",
+      "programme": "Computer Science & Business System",
+      "courses": 90
+    }
+  ]
+}

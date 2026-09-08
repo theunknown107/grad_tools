@@ -23,7 +23,7 @@
  */
 
 import { useState } from 'react';
-import type { ParsedScheme } from '../../domain/scheme-import.js';
+import type { ParsedScheme } from '@gradtools/vtu-catalogue';
 import type { SchemeCourse } from '../../domain/types.js';
 import type { StudentProfileId } from '../../domain/identity.js';
 import { Button, Notice } from '../../components/ui/index.js';
