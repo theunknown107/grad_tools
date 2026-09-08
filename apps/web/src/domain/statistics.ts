@@ -558,16 +558,33 @@ export function academicStatistics(input: {
     SOURCE.schemeCredits,
     `${String(creditsUnresolved)} course${creditsUnresolved === 1 ? '' : 's'} across your semesters have no credit figure yet.`,
   );
+  /*
+   * THE REASON IS DERIVED, NOT FIXED. This carried one hardcoded sentence —
+   * "some courses could not be read as passed or failed" — which a real import
+   * showed beside 34 of 34 courses passed and nothing needing review. The
+   * actual cause there was 17 courses with no credit figure, so the screen
+   * stated a problem the student did not have while hiding the one they did.
+   */
+  const unreadable = outcomesOf(withResults).unresolved;
   const creditsEarned = sumMetric(
     withResults.map((entry) => entry.creditsEarned),
     SOURCE.resultsCreditsRules,
-    'Some courses could not be read as passed or failed, so the true figure may be higher.',
+    [
+      creditsUnresolved > 0
+        ? `${String(creditsUnresolved)} course${creditsUnresolved === 1 ? '' : 's'} have no credit figure, so this counts only the rest.`
+        : null,
+      unreadable > 0
+        ? `${String(unreadable)} course${unreadable === 1 ? '' : 's'} could not be read as passed or failed, so the true figure may be higher.`
+        : null,
+    ]
+      .filter((part): part is string => part !== null)
+      .join(' ') || 'Not every semester is fully resolved.',
   );
 
   /* ---- Grades and outcomes, pooled across every semester ----------------- */
 
   const grades = mergeDistributions(withResults.map((entry) => entry.grades));
-  const outcomes = mergeOutcomes(withResults.map((entry) => entry.outcomes));
+  const outcomes = outcomesOf(withResults);
 
   /* ---- The trend, with gaps rather than interpolation (§13) -------------- */
 
@@ -787,6 +804,11 @@ function mergeDistributions(parts: readonly GradeDistribution[]): GradeDistribut
     unresolved: unresolvedCount,
     total,
   };
+}
+
+/** Pooled outcomes for a set of semesters. */
+function outcomesOf(entries: readonly SemesterStatistics[]): OutcomeCounts {
+  return mergeOutcomes(entries.map((entry) => entry.outcomes));
 }
 
 function mergeOutcomes(parts: readonly OutcomeCounts[]): OutcomeCounts {

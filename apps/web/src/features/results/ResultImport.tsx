@@ -307,7 +307,13 @@ function ResolvedRow({
         <dt>Grade point</dt>
         <dd>
           {gradePoint.value === null ? (
-            <span className={styles.resolvedMissing}>—</span>
+            <>
+              {/* A dash cannot say whether the point is zero or unknown (§1). */}
+              <span className={styles.resolvedMissing}>Not known</span>
+              {gradePoint.reason !== null && (
+                <span className={styles.resolvedWhy}>{gradePoint.reason}</span>
+              )}
+            </>
           ) : (
             <span className={styles.resolvedValue}>{gradePoint.value}</span>
           )}

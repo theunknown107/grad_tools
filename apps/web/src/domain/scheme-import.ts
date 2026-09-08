@@ -49,6 +49,16 @@ export interface SchemeCourse {
   /** The semester whose table this row sits in. */
   readonly semester: number;
   readonly page: number;
+  /**
+   * The elective SLOT this course's credits came from, when they came from one.
+   *
+   * Null for an ordinary table row, which states its own credits. Set for a
+   * course listed as one of the OPTIONS for a slot — `BCS306A` under
+   * `BCS306x` — where the credit figure belongs to the slot and the option
+   * inherits it. Carried so the review can say which, rather than presenting
+   * an inherited figure as a row the document printed.
+   */
+  readonly viaElectiveSlot: string | null;
 }
 
 export interface SchemeRejection {
@@ -56,6 +66,14 @@ export interface SchemeRejection {
   readonly page: number;
   /** Why this row could not become a catalogue entry, in words. */
   readonly reason: string;
+  /**
+   * The title printed beside the code, where there was one.
+   *
+   * Carried because the elective pass below can resolve a row the first pass
+   * refused, and a course recovered without its name would be listed by its
+   * code alone on every screen that shows it.
+   */
+  readonly title: string;
 }
 
 /**
@@ -212,14 +230,37 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
        * an option list has no semester heading to belong to. Without one there
        * is no honest way to say which semester the row is for.
        */
-      if (semester === null) {
-        rejected.push({ code, page, reason: 'This page states no semester.' });
-        continue;
-      }
-
       const row = pageItems.filter(
         (other) => Math.abs(other.y - item.y) <= band && other.x > item.x,
       );
+
+      /*
+       * The name beside the code, read before any refusal so that a row the
+       * elective pass later recovers keeps the title the document gave it.
+       * Deliberately loose: an option list has no columns to bound it.
+       */
+      const nearbyTitle = row
+        .filter(
+          (cell) =>
+            !DEPARTMENT_CELL.test(cell.text.trim()) &&
+            !WHOLE_NUMBER.test(cell.text.trim()) &&
+            !COURSE_CODE.test(cell.text.trim()),
+        )
+        .sort((a, b) => a.x - b.x)
+        .map((cell) => cell.text.trim())
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (semester === null) {
+        rejected.push({
+          code,
+          page,
+          title: nearbyTitle,
+          reason: 'This page states no semester.',
+        });
+        continue;
+      }
       const numbers = row
         .filter((cell) => WHOLE_NUMBER.test(cell.text.trim()))
         .sort((a, b) => a.x - b.x);
@@ -228,6 +269,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
         rejected.push({
           code,
           page,
+          title: nearbyTitle,
           reason:
             'Listed as an elective option rather than in the table, so the scheme states no credits against it here.',
         });
@@ -239,6 +281,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
         rejected.push({
           code,
           page,
+          title: nearbyTitle,
           reason: `The rightmost figure in this row is ${String(credits)}, which is not a credit count — the credits column could not be read.`,
         });
         continue;
@@ -288,18 +331,75 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
         .trim();
 
       if (title === '') {
-        rejected.push({ code, page, reason: 'The row prints no course title.' });
+        rejected.push({ code, page, title: '', reason: 'The row prints no course title.' });
         continue;
       }
 
       semesters.add(semester);
-      courses.push({ code, title, credits, semester, page });
+      courses.push({ code, title, credits, semester, page, viaElectiveSlot: null });
     }
   }
 
+  /*
+   * ---------------------------------------------------------------------
+   * THE ELECTIVE OPTIONS, AND THE SLOT THEY BELONG TO
+   * ---------------------------------------------------------------------
+   *
+   * A scheme states an elective as a placeholder row carrying the credits —
+   * `BCS306x`, 3 credits — and then lists the courses a student may choose
+   * for it on the following page. The options have no columns of their own,
+   * so the first pass refuses them; and on the real document that left a
+   * student's semester with seven of nine credits and therefore NO SGPA,
+   * because SGPA is credit-weighted across the whole semester.
+   *
+   * Reading the option's credits off its slot is not inventing them: the
+   * document says these courses ARE the choices for that slot, and the slot
+   * says what the choice is worth. VTU numbers them to match — the slot and
+   * every one of its options share a course number, and only the letters
+   * differ, because a lab option carries an L and a placeholder carries XX
+   * where the department varies.
+   *
+   * So the number is the link, and it must be UNAMBIGUOUS: an option is
+   * resolved only when exactly one slot in the whole scheme shares its
+   * number. Two candidates, or none, and it stays unresolved with its reason.
+   */
+  const slots = courses.filter((course) => /x$/i.test(course.code));
+  const inherited: SchemeCourse[] = [];
+  const stillRejected: SchemeRejection[] = [];
+
+  for (const rejection of rejected) {
+    const number = /\d{3}/.exec(rejection.code)?.[0];
+    const matches =
+      number === undefined ? [] : slots.filter((slot) => /\d{3}/.exec(slot.code)?.[0] === number);
+
+    const slot = matches.length === 1 ? matches[0] : undefined;
+    if (slot === undefined) {
+      stillRejected.push(
+        matches.length > 1
+          ? {
+              ...rejection,
+              reason: `More than one elective slot in this scheme carries course number ${String(number)}, so which credits apply cannot be settled.`,
+            }
+          : rejection,
+      );
+      continue;
+    }
+
+    semesters.add(slot.semester);
+    inherited.push({
+      code: rejection.code,
+      /* The option's own title, where the first pass managed to read one. */
+      title: rejection.title === '' ? rejection.code : rejection.title,
+      credits: slot.credits,
+      semester: slot.semester,
+      page: rejection.page,
+      viaElectiveSlot: slot.code,
+    });
+  }
+
   return {
-    courses,
-    rejected,
+    courses: [...courses, ...inherited],
+    rejected: stillRejected,
     semesters: [...semesters].sort((a, b) => a - b),
     programme: headingMatch(usable, /B\.?E\.?\s+in\s+(.+)/i),
     schemeYear: headingMatch(usable, /Scheme\s+of\s+Teaching\s+and\s+Examinations\s*(20\d{2})/i),

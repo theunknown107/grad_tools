@@ -1042,7 +1042,22 @@ function SavedResult({
                     <td className={numericClass}>{markText(subject.total)}</td>
                     <td className={numericClass}>
                       {grade === null ? (
-                        <span className={styles.absent}>—</span>
+                        /*
+                          A DASH IN AN EIGHT-COLUMN TABLE, but never a silent
+                          one: the cell carries the reason as its accessible
+                          name, and the panel above the table names every row
+                          that held the SGPA back (§1, §16). A sentence will
+                          not fit in this column at 390px.
+                        */
+                        <span
+                          className={styles.absent}
+                          title={evaluation?.unavailableReason ?? 'No grade could be resolved.'}
+                          aria-label={
+                            evaluation?.unavailableReason ?? 'No grade could be resolved.'
+                          }
+                        >
+                          —
+                        </span>
                       ) : (
                         <StatusPill tone="neutral">{grade}</StatusPill>
                       )}
