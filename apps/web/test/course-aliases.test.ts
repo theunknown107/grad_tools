@@ -1,7 +1,12 @@
 /**
  * Course codes the university itself writes two ways.
  *
- * Authority: Phase 7C.1 §6, §7, §26
+ * Authority: Phase 7D.2 §11-§15 · Phase 7C.1 §6, §7, §26
+ *
+ * The table itself now lives in `@gradtools/vtu-catalogue`, where the crawler
+ * and the database can see it too. These tests check how the WEB APP applies
+ * it: that a catalogue row answers for both spellings, and that nothing else
+ * resolves.
  *
  * The rule under test is a NEGATIVE one as much as a positive: two codes are
  * the same course only when a document says so. Everything else — a shared
@@ -11,7 +16,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { COURSE_ALIASES, aliasEvidence, aliasesOf } from '../src/domain/course-aliases.js';
+import { COURSE_ALIASES, aliasEvidence, aliasesOf } from '@gradtools/vtu-catalogue';
 import { buildSubjectIndex, creditsFor, resolveSubject } from '../src/domain/subjects.js';
 import type { Subject } from '@gradtools/shared-types';
 

@@ -42,7 +42,16 @@
  */
 
 import type { Subject } from '@gradtools/shared-types';
-import { aliasesOf } from './course-aliases.js';
+/*
+ * THE ALIAS TABLE LIVES IN THE CATALOGUE, NOT HERE (Phase 7D.2 §11, §13).
+ *
+ * An equivalence between two course codes decides which credits reach a real
+ * SGPA. That is an academic fact about the university's documents, not a
+ * presentation concern, so it belongs where the crawler and the database can
+ * see it too — `apps/web/src/domain/course-aliases.ts` was the frontend
+ * holding an authoritative record alone.
+ */
+import { aliasesOf } from '@gradtools/vtu-catalogue';
 import type {
   AttendanceRecord,
   BacklogRecord,
