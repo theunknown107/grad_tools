@@ -120,6 +120,16 @@ export function BacklogPanel({ profileId }: { readonly profileId: StudentProfile
       )}
 
       <form className={styles.backlogForm} onSubmit={(event) => void add(event)}>
+        {/*
+          REQUIRED, SO THE BROWSER SAYS SO. `add` returns early on an empty
+          code, which made "Add backlog" a control that could be pressed and
+          did nothing at all — no message, no focus move, nothing. A browser
+          sweep flagged it as a dead control, and it was one.
+
+          The constraint is declared rather than hand-written: the platform
+          already blocks the submit, moves focus to the field and announces
+          why, in the viewer's own language.
+        */}
         <TextField
           label="Subject code"
           value={code}
@@ -127,6 +137,7 @@ export function BacklogPanel({ profileId }: { readonly profileId: StudentProfile
             setCode(event.target.value);
           }}
           placeholder="BCS301"
+          required
         />
         <TextField
           label="Subject name"
