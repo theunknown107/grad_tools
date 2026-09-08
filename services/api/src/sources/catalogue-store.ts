@@ -329,3 +329,223 @@ export async function upsertAlias(
       reason = EXCLUDED.reason
   `;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Syllabus, module, topic                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A field the parser could not establish, and why.
+ *
+ * `printed` carries what the document actually said when the reading was
+ * impossible rather than absent — "Exam Hours 100" survives for someone to
+ * look at, in a column no consumer can mistake for the exam duration.
+ */
+export interface UnresolvedField {
+  readonly state: 'unavailable' | 'ambiguous';
+  readonly printed?: number | string;
+}
+
+export interface SyllabusInput {
+  readonly schemeYear: string;
+  readonly programmeName: string | null;
+  readonly streamId: string | null;
+  readonly semester: number | null;
+  readonly code: string;
+  readonly title: string | null;
+  readonly credits: number | null;
+  readonly cieMarks: number | null;
+  readonly seeMarks: number | null;
+  readonly totalMarks: number | null;
+  readonly examHours: number | null;
+  readonly teachingHours: string | null;
+  readonly unresolved: Readonly<Record<string, UnresolvedField>>;
+  readonly objectives: readonly string[];
+  readonly outcomes: readonly string[];
+  readonly sha256: string;
+  readonly sourcePage: number;
+  readonly parserVersion: string;
+  readonly extractionMethod: string;
+  readonly modules: readonly ModuleInput[];
+}
+
+export interface ModuleInput {
+  readonly number: number;
+  readonly title: string | null;
+  readonly hours: number | null;
+  readonly content: string;
+  readonly sourcePage: number;
+  readonly topics: readonly TopicInput[];
+}
+
+export interface TopicInput {
+  readonly position: number;
+  readonly title: string;
+  readonly sourcePage: number;
+}
+
+/**
+ * `postgres` types its JSON parameter as a closed union, which a readonly
+ * interface does not satisfy structurally even though its values are JSON.
+ */
+const asJson = (value: object): Parameters<Sql['json']>[0] =>
+  JSON.parse(JSON.stringify(value)) as Parameters<Sql['json']>[0];
+
+export interface SyllabusCounts {
+  readonly syllabiInserted: number;
+  readonly syllabiUpdated: number;
+  readonly modulesWritten: number;
+  readonly topicsWritten: number;
+}
+
+/**
+ * One syllabus and everything under it.
+ *
+ * Modules and topics are matched on their printed position — `(syllabus,
+ * module number)` and `(module, topic position)` — rather than deleted and
+ * reinserted. Wholesale replacement would be shorter, and it would give every
+ * row a new id on every run; §35 asks for a catalogue that reproduces
+ * deterministically, and an id that changes when nothing changed is the first
+ * thing to break that.
+ *
+ * A module the document no longer prints IS removed, so a corrected syllabus
+ * does not leave its predecessor's modules behind.
+ */
+export async function upsertSyllabus(
+  sql: Sql,
+  input: SyllabusInput,
+): Promise<'inserted' | 'updated' | 'unchanged'> {
+  const versions = await sql<{ id: string }[]>`
+    SELECT id FROM source_document_versions WHERE sha256 = ${input.sha256}
+  `;
+  const versionId = versions[0]?.id;
+  if (versionId === undefined) {
+    throw new Error(`No document version ${input.sha256} for syllabus ${input.code}.`);
+  }
+
+  const existing = await sql<{ id: string }[]>`
+    SELECT id FROM catalogue_syllabi
+    WHERE scheme_year = ${input.schemeYear}
+      AND COALESCE(programme_name, '') = COALESCE(${input.programmeName}::text, '')
+      AND COALESCE(stream_id, '') = COALESCE(${input.streamId}::text, '')
+      AND COALESCE(semester, 0) = COALESCE(${input.semester}::smallint, 0)
+      AND code = ${input.code}
+  `;
+
+  const fields = {
+    title: input.title,
+    credits: input.credits,
+    cie_marks: input.cieMarks,
+    see_marks: input.seeMarks,
+    total_marks: input.totalMarks,
+    exam_hours: input.examHours,
+    teaching_hours: input.teachingHours,
+    unresolved: sql.json(asJson(input.unresolved)),
+    objectives: input.objectives,
+    outcomes: input.outcomes,
+    version_id: versionId,
+    source_page: input.sourcePage,
+    parser_version: input.parserVersion,
+    extraction_method: input.extractionMethod,
+  };
+
+  let syllabusId = existing[0]?.id;
+  let action: 'inserted' | 'updated' | 'unchanged';
+
+  if (syllabusId === undefined) {
+    const rows = await sql<{ id: string }[]>`
+      INSERT INTO catalogue_syllabi ${sql({
+        scheme_year: input.schemeYear,
+        programme_name: input.programmeName,
+        stream_id: input.streamId,
+        semester: input.semester,
+        code: input.code,
+        ...fields,
+      })}
+      RETURNING id
+    `;
+    syllabusId = rows[0]?.id;
+    action = 'inserted';
+  } else {
+    const rows = await sql<{ id: string }[]>`
+      UPDATE catalogue_syllabi SET ${sql(fields)}, updated_at = now()
+      WHERE id = ${syllabusId}
+        AND (
+          COALESCE(title, '') IS DISTINCT FROM COALESCE(${input.title}::text, '')
+          OR credits IS DISTINCT FROM ${input.credits}::numeric
+          OR exam_hours IS DISTINCT FROM ${input.examHours}::smallint
+          OR version_id IS DISTINCT FROM ${versionId}::uuid
+        )
+      RETURNING id
+    `;
+    action = rows.length > 0 ? 'updated' : 'unchanged';
+  }
+  if (syllabusId === undefined) throw new Error(`Could not write syllabus ${input.code}.`);
+
+  await writeModules(sql, syllabusId, versionId, input);
+  return action;
+}
+
+/** The modules under one syllabus, matched on the number the heading prints. */
+async function writeModules(
+  sql: Sql,
+  syllabusId: string,
+  versionId: string,
+  input: SyllabusInput,
+): Promise<void> {
+  const numbers = input.modules.map((module) => module.number);
+  await sql`
+    DELETE FROM catalogue_modules
+    WHERE syllabus_id = ${syllabusId}
+      AND ${numbers.length === 0 ? sql`TRUE` : sql`number <> ALL(${numbers}::smallint[])`}
+  `;
+
+  for (const module of input.modules) {
+    const rows = await sql<{ id: string }[]>`
+      INSERT INTO catalogue_modules (
+        syllabus_id, number, title, hours, content,
+        version_id, source_page, parser_version, extraction_method
+      )
+      VALUES (
+        ${syllabusId}, ${module.number}, ${module.title}, ${module.hours}, ${module.content},
+        ${versionId}, ${module.sourcePage}, ${input.parserVersion}, ${input.extractionMethod}
+      )
+      ON CONFLICT (syllabus_id, number) DO UPDATE SET
+        title = EXCLUDED.title,
+        hours = EXCLUDED.hours,
+        content = EXCLUDED.content,
+        version_id = EXCLUDED.version_id,
+        source_page = EXCLUDED.source_page,
+        parser_version = EXCLUDED.parser_version,
+        extraction_method = EXCLUDED.extraction_method,
+        updated_at = now()
+      RETURNING id
+    `;
+    const moduleId = rows[0]?.id;
+    if (moduleId === undefined) continue;
+
+    const positions = module.topics.map((topic) => topic.position);
+    await sql`
+      DELETE FROM catalogue_topics
+      WHERE module_id = ${moduleId}
+        AND ${positions.length === 0 ? sql`TRUE` : sql`position <> ALL(${positions}::smallint[])`}
+    `;
+    for (const topic of module.topics) {
+      await sql`
+        INSERT INTO catalogue_topics (
+          module_id, position, title, version_id, source_page, parser_version, extraction_method
+        )
+        VALUES (
+          ${moduleId}, ${topic.position}, ${topic.title},
+          ${versionId}, ${topic.sourcePage}, ${input.parserVersion}, ${input.extractionMethod}
+        )
+        ON CONFLICT (module_id, position) DO UPDATE SET
+          title = EXCLUDED.title,
+          version_id = EXCLUDED.version_id,
+          source_page = EXCLUDED.source_page,
+          parser_version = EXCLUDED.parser_version,
+          extraction_method = EXCLUDED.extraction_method
+      `;
+    }
+  }
+}
