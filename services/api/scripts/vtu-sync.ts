@@ -34,6 +34,8 @@ import postgres from 'postgres';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
   parseScheme,
+  parseSyllabusDocument,
+  type ParsedSyllabus,
   type Catalogue,
   type CatalogueCourse,
   type PositionedText,
@@ -53,7 +55,12 @@ import {
   upsertDocumentVersion,
   upsertSourceReference,
   upsertStream,
+  upsertSyllabus,
+  type UnresolvedField,
 } from '../src/sources/catalogue-store.js';
+
+/** Bumped when syllabus extraction changes; recorded on every module (§9). */
+const SYLLABUS_PARSER_VERSION = '1.0.0';
 
 const ROOT = 'https://vtu.ac.in/b-e-scheme-syllabus/';
 const STORE_ROOT = resolve('../../.vtu-store/documents');
@@ -171,6 +178,36 @@ function streamIdFor(label: string): string {
   );
 }
 
+/**
+ * Every header field that did not resolve, and why (§5).
+ *
+ * An ambiguous reading keeps what was PRINTED. "Exam Hours 100" is in a real
+ * laboratory syllabus, and storing it in the column would make an impossible
+ * figure indistinguishable from an established one; storing nothing at all
+ * would lose the evidence that the document says something odd.
+ */
+function unresolvedOf(read: ParsedSyllabus): Record<string, UnresolvedField> {
+  const fields = {
+    title: read.courseTitle,
+    semester: read.semester,
+    credits: read.credits,
+    cieMarks: read.cieMarks,
+    seeMarks: read.seeMarks,
+    totalMarks: read.totalMarks,
+    examHours: read.examHours,
+    teachingHours: read.teachingHours,
+  };
+  const out: Record<string, UnresolvedField> = {};
+  for (const [name, field] of Object.entries(fields)) {
+    if (field.state === 'resolved') continue;
+    out[name] =
+      field.state === 'ambiguous' && field.value !== null
+        ? { state: 'ambiguous', printed: field.value }
+        : { state: 'unavailable' };
+  }
+  return out;
+}
+
 async function main(): Promise<void> {
   const wantYear = flag('scheme');
   const wantProgramme = flag('programme');
@@ -194,6 +231,17 @@ async function main(): Promise<void> {
     persisted_courses_inserted: 0,
     persisted_courses_updated: 0,
     persisted_courses_unchanged: 0,
+    /*
+     * Kept apart from the course counts. §44: discovered, downloaded,
+     * extracted, normalized and persisted are five different numbers, and a
+     * syllabus is not a course.
+     */
+    normalized_syllabi: 0,
+    normalized_modules: 0,
+    normalized_topics: 0,
+    persisted_syllabi_inserted: 0,
+    persisted_syllabi_updated: 0,
+    persisted_syllabi_unchanged: 0,
     conflicts: 0,
   };
 
@@ -217,7 +265,13 @@ async function main(): Promise<void> {
 
   const selected = graph.filter(
     (doc) =>
-      doc.kind === 'scheme' &&
+      /*
+       * Syllabus documents as well as schemes. A scheme says a course exists
+       * and what it is worth; only its syllabus says what is IN it, and §3
+       * makes that structure the point of this phase rather than a later
+       * extra.
+       */
+      (doc.kind === 'scheme' || doc.kind === 'syllabus') &&
       (wantYear === null || doc.schemeYear === wantYear) &&
       (wantProgramme === null ||
         doc.common ||
@@ -227,7 +281,11 @@ async function main(): Promise<void> {
 
   console.log(`\nVTU sync${dryRun ? ' (DRY RUN)' : ''}`);
   console.log(`  discovered      ${String(raw.length)} PDF URLs on 1 page`);
-  console.log(`  selected        ${String(selected.length)} scheme documents\n`);
+  const schemeCount = selected.filter((doc) => doc.kind === 'scheme').length;
+  console.log(
+    `  selected        ${String(schemeCount)} scheme, ` +
+      `${String(selected.length - schemeCount)} syllabus documents\n`,
+  );
 
   /* ---- 2. Download ----------------------------------------------------- */
 
@@ -310,10 +368,18 @@ async function main(): Promise<void> {
       else if (extraction.status === 'no_text_layer') report.no_text_layer += 1;
       else report.extraction_failures += 1;
 
+      const readable = extraction.status === 'text';
       const parsed =
-        extraction.status === 'text'
+        readable && doc.kind === 'scheme'
           ? parseScheme(extraction.pages)
           : { courses: [], rejected: [], semesters: [], programme: null, schemeYear: null };
+      const syllabi =
+        readable && doc.kind === 'syllabus' ? parseSyllabusDocument(extraction.pages) : [];
+      report.normalized_syllabi += syllabi.length;
+      for (const read of syllabi) {
+        report.normalized_modules += read.modules.length;
+        for (const module of read.modules) report.normalized_topics += module.topics.length;
+      }
 
       const where = applicabilityOf(doc);
 
@@ -362,6 +428,55 @@ async function main(): Promise<void> {
           })
         ) {
           report.persisted_applicability += 1;
+        }
+
+        /*
+         * A syllabus keeps the identity its own document states. It is NOT
+         * matched to a course row first: the two come from different
+         * documents and the documents disagree — the scheme's option list
+         * writes BCSL358D where the syllabus writes BCS358D. Forcing a match
+         * here would discard one document's reading to satisfy the other's,
+         * and §22 records disagreements rather than resolving them.
+         */
+        for (const read of syllabi) {
+          if (read.courseCode.value === null) continue;
+          const action = await upsertSyllabus(sql, {
+            schemeYear: doc.schemeYear ?? 'unknown',
+            programmeName: where.programmeName,
+            streamId: where.streamId,
+            semester: read.semester.value,
+            code: read.courseCode.value,
+            title: read.courseTitle.value,
+            credits: read.credits.state === 'resolved' ? read.credits.value : null,
+            cieMarks: read.cieMarks.state === 'resolved' ? read.cieMarks.value : null,
+            seeMarks: read.seeMarks.state === 'resolved' ? read.seeMarks.value : null,
+            totalMarks: read.totalMarks.state === 'resolved' ? read.totalMarks.value : null,
+            examHours: read.examHours.state === 'resolved' ? read.examHours.value : null,
+            teachingHours:
+              read.teachingHours.state === 'resolved' ? read.teachingHours.value : null,
+            unresolved: unresolvedOf(read),
+            objectives: read.objectives,
+            outcomes: read.outcomes,
+            sha256,
+            sourcePage: read.pages[0] ?? 1,
+            parserVersion: SYLLABUS_PARSER_VERSION,
+            extractionMethod: 'pdfjs-text-layer',
+            modules: read.modules.map((module) => ({
+              number: module.number,
+              title: module.title,
+              hours: module.hours,
+              content: module.content,
+              sourcePage: module.page,
+              topics: module.topics.map((topic) => ({
+                position: topic.order,
+                title: topic.title,
+                sourcePage: topic.page,
+              })),
+            })),
+          });
+          if (action === 'inserted') report.persisted_syllabi_inserted += 1;
+          else if (action === 'updated') report.persisted_syllabi_updated += 1;
+          else report.persisted_syllabi_unchanged += 1;
         }
 
         for (const course of parsed.courses) {
@@ -507,6 +622,20 @@ async function main(): Promise<void> {
     console.log(`    courses inserted ${String(report.persisted_courses_inserted)}`);
     console.log(`    courses updated  ${String(report.persisted_courses_updated)}`);
     console.log(`    courses same     ${String(report.persisted_courses_unchanged)}`);
+  }
+
+  /*
+   * Its own block. §44: a syllabus is not a course, and "62 normalized" must
+   * never be readable as 62 of whichever the reader had in mind.
+   */
+  console.log('\n  syllabus');
+  console.log(`    syllabi          ${String(report.normalized_syllabi)}`);
+  console.log(`    modules          ${String(report.normalized_modules)}`);
+  console.log(`    topics           ${String(report.normalized_topics)}`);
+  if (sql !== null) {
+    console.log(`    syllabi new      ${String(report.persisted_syllabi_inserted)}`);
+    console.log(`    syllabi updated  ${String(report.persisted_syllabi_updated)}`);
+    console.log(`    syllabi same     ${String(report.persisted_syllabi_unchanged)}`);
   }
 
   if (!dryRun) {
