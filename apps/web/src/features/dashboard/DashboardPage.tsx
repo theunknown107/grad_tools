@@ -45,7 +45,7 @@ import {
 } from '../../domain/types.js';
 import { markFor } from '../../domain/attendance.js';
 import { Bar, Empty, MetricStrip, Row, Rows, Skeleton } from '../../components/ui/layout.js';
-import { PastelCard, Rail, toneFor } from '../../components/ui/tone.js';
+import { PastelCard, Rail } from '../../components/ui/tone.js';
 import { Panel } from '../../components/ui/index.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
 import { formatCount, formatGpa, formatPercent, formatTime, localDay } from '../../lib/format.js';
@@ -409,7 +409,7 @@ function SemesterRail({ views }: { readonly views: readonly SemesterView[] }) {
 
   return (
     <Rail label="Semesters">
-      {views.map((view, index) => {
+      {views.map((view) => {
         const done = view.status === 'completed';
         /*
           "No SGPA yet" reads as "you have not finished entering this", which
@@ -420,7 +420,7 @@ function SemesterRail({ views }: { readonly views: readonly SemesterView[] }) {
         return (
           <PastelCard
             key={view.number}
-            tone={toneFor(index)}
+            tone="neutral"
             to="/semesters"
             pill={done ? 'Completed' : view.status === 'in_progress' ? 'In progress' : 'Planned'}
             title={`Semester ${String(view.number)}`}
