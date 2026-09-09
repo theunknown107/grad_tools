@@ -103,15 +103,23 @@
   min-height: 20px;
 }
 
-/* Matches the Section heading exactly, so the two primitives are visually the
-   same thing and a page mixing them does not look assembled from parts. */
+/*
+ * The approved design's section heading: 13px, semibold, uppercase, widely
+ * tracked, and set in the SECONDARY ink.
+ *
+ * It was a small heading in primary ink at body-ish size, which made every
+ * panel title compete with the page title above it. Setting it as a label
+ * puts the section name below the content in the reading order, which is
+ * where a section name belongs.
+ */
 .panelTitle {
   margin: 0;
-  font-size: var(--text-h3);
-  line-height: var(--text-h3-lh);
+  font-size: 13px;
+  line-height: 1.3;
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-tight);
-  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
 }
 
 .panelBody {
@@ -364,15 +372,22 @@
 
 /* --- Status pill ----------------------------------------------------------- */
 /* Colour is never the only signal: every pill carries an icon and a label. */
+/*
+ * The approved design's badge: 11px, tracked, on a tinted ground with a
+ * transparent border so a bordered and an unbordered tone sit on the same
+ * baseline and at the same height.
+ */
 .pill {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 3px var(--space-3);
+  padding: 2px var(--space-2);
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
+  font-size: 11px;
+  line-height: 1.45;
   font-weight: var(--weight-medium);
+  letter-spacing: 0.01em;
   white-space: nowrap;
 }
 

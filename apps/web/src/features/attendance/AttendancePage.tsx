@@ -192,6 +192,7 @@ export function AttendancePage() {
   return (
     <>
       <PageHeader
+        eyebrow="Semester attendance"
         title="Attendance"
         subtitle={`The requirement is ${String(ruleSet.attendanceRequiredPct)}% per course (clause 22OB 3.7). Below ${String(ruleSet.attendanceDxFloorPct)}% a course is marked DX and you cannot sit its exam.`}
         pills={
