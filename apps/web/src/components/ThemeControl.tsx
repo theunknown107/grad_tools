@@ -42,7 +42,8 @@ const ACCENT_LABEL: Record<Accent, string> = {
   violet: 'Violet',
   cyan: 'Cyan',
   amber: 'Amber',
-  rose: 'Rose',
+  /* The attribute is `rose`; the hue is crimson. See tokens.css. */
+  rose: 'Crimson',
   green: 'Green',
 };
 

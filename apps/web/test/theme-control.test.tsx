@@ -104,10 +104,10 @@ describe('the theme control', () => {
     render(<ThemeControl />);
     await open(user);
 
-    await user.click(screen.getByRole('button', { name: 'Rose' }));
+    await user.click(screen.getByRole('button', { name: 'Crimson' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Rose' }).getAttribute('aria-pressed')).toBe(
+      expect(screen.getByRole('button', { name: 'Crimson' }).getAttribute('aria-pressed')).toBe(
         'true',
       );
     });
