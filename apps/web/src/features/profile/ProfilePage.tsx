@@ -108,6 +108,7 @@ export function ProfilePage() {
   return (
     <>
       <PageHeader
+        eyebrow="Account"
         title="Profile"
         subtitle="Optional, and stored only in this browser. Every field can be left blank."
         /* Only what the student actually filled in. A blank profile shows no

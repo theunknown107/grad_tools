@@ -105,6 +105,7 @@ export function AnnouncementsPage() {
   return (
     <div className={styles.page}>
       <PageHeader
+        eyebrow="Overview"
         title="Announcements"
         subtitle="Academic notices. GradTools shows them; it does not issue them."
         /* Counts that already exist on the page — the feed's size and how much
