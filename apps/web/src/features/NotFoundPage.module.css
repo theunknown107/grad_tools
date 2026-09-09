@@ -1,0 +1,73 @@
+/*
+ * 404, to the approved design.
+ *
+ * Centred in the viewport rather than stacked at the top of a page: there is
+ * no content behind it to align to, and a 404 pinned to the top of an empty
+ * column reads as a page that failed to load rather than one that is not there.
+ */
+
+.page {
+  display: flex;
+  min-block-size: 60vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.mark {
+  position: relative;
+  margin-block-end: var(--space-6);
+}
+
+.badge {
+  display: grid;
+  place-items: center;
+  inline-size: 80px;
+  block-size: 80px;
+  border-radius: var(--radius-xl);
+  background: var(--accent-pastel);
+  color: var(--accent-pastel-ink);
+}
+
+/*
+ * The code, in the technical face, rotated slightly. It is a label on the
+ * mark rather than a headline: the sentence below says what happened, and a
+ * giant "404" says only that something is broken.
+ */
+.code {
+  position: absolute;
+  inset-block-start: -8px;
+  inset-inline-end: -8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-subtle);
+  transform: rotate(6deg);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.body {
+  margin: var(--space-2) 0 0;
+  max-inline-size: 28rem;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-6);
+}
