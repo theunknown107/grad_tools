@@ -222,8 +222,25 @@
   box-shadow: none;
 }
 
+/*
+ * THE SUPPORTING PANELS, three across.
+ *
+ * They were a single stacked column, so a desktop dashboard ran to two screens
+ * and "what changed" sat a long way below "where you stand". The approved
+ * design puts them side by side above 1024 — the same three regions, read in
+ * one glance instead of three scrolls — and stacks them below that width,
+ * which is what a phone did anyway.
+ */
 .quietStack {
   display: grid;
+  gap: var(--space-6);
+}
+
+@media (min-width: 1024px) {
+  .quietStack {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
 }
 
 /*
@@ -239,4 +256,147 @@
   font-size: var(--text-sm);
   line-height: 1.5;
   border-bottom: 1px solid var(--border);
+}
+
+/* ========================================================================== */
+/* THE HERO, from the approved design                                         */
+/* ========================================================================== */
+
+/*
+ * One card, two columns above 1024: the greeting and its actions, and the
+ * standing block beside them. Below that it stacks and the greeting leads,
+ * which is the reading order on a phone anyway.
+ */
+.hero {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+}
+
+@media (min-width: 640px) {
+  .hero {
+    padding: var(--space-8);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero {
+    grid-template-columns: 1.4fr 1fr;
+    align-items: center;
+  }
+}
+
+.heroMain {
+  min-inline-size: 0;
+}
+
+.heroBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/*
+ * 28px, rising to 34px above 640, in the display face. Larger than a page
+ * title because this one IS the page's opening — every other screen leads
+ * with the smaller header instead.
+ */
+.heroTitle {
+  margin: var(--space-4) 0 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1.08;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 640px) {
+  .heroTitle {
+    font-size: 34px;
+  }
+}
+
+.heroLede {
+  margin: var(--space-2) 0 0;
+  max-inline-size: 30rem;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-5);
+}
+
+/*
+ * The standing block sits on the PANEL surface, a step off the card it is
+ * inside, so the one figure a student opens the app for is visibly its own
+ * object rather than more text in the same box.
+ */
+.standing {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--nav-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.standingLabel {
+  margin: 0;
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+/* 44px: the largest figure in the product, and the only one this size. */
+.standingValue {
+  margin: 2px 0 0;
+  font-size: 44px;
+  line-height: 1;
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+/* Same rule as the metric tiles: a word is not a figure, so it is not set at
+   figure size. "Unavailable" at 44px shouts an absence. */
+.standingValue[data-absent='true'] {
+  font-size: 22px;
+  letter-spacing: normal;
+  color: var(--text-subtle);
+}
+
+.standingNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-subtle);
+}
+
+.standingProgress {
+  margin-block-start: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.standingProgressHead {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.standingProgressCount {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-medium);
+  color: var(--text);
 }
