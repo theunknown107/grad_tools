@@ -39,12 +39,18 @@ const APPEARANCE_META: Record<Appearance, { readonly label: string; readonly ico
 };
 
 const ACCENT_LABEL: Record<Accent, string> = {
+  mono: 'Mono',
   violet: 'Violet',
-  cyan: 'Cyan',
+  matrix: 'Matrix',
+  crimson: 'Crimson',
+  turquoise: 'Turquoise',
+  ocean: 'Ocean',
   amber: 'Amber',
-  /* The attribute is `rose`; the hue is crimson. See tokens.css. */
-  rose: 'Crimson',
-  green: 'Green',
+  rose: 'Rose',
+  indigo: 'Indigo',
+  emerald: 'Emerald',
+  solar: 'Solar',
+  slate: 'Slate',
 };
 
 /**

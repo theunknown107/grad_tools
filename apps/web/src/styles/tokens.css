@@ -98,118 +98,328 @@
  * paint in.
  */
 
-:root,
-[data-accent='violet'] {
-  --a-on-dark: #a48bff;
-  --a-on-light: #5b34d4;
-  --a-fill: #6d4de0;
-  --a-fill-hover: #7d5fe8;
-  --a-weak-dark: #1d1733;
-  --a-weak-light: #ede8fc;
-  --a-border-dark: #3d2f77;
-  --a-border-light: #d3c7f7;
-  /* The reference's selected-state material: a pastel FILL with dark ink on
-     it, not a saturated block. One per accent, so the picker still works. */
-  --a-pastel-light: #e6d6fb;
-  --a-pastel-ink-light: #35176b;
-  --a-pastel-dark: #2c1c52;
-  --a-pastel-ink-dark: #ddd0f7;
-  --a-glow-rgb: 109 77 224;
-}
-
-[data-accent='cyan'] {
-  --a-on-dark: #55d6e8;
-  /* Darkened in the light-theme reset: the ground moved from #e7ebf5 to
-     #dae0ec and cyan fell to 4.37:1. Every other accent was already dark
-     enough to survive the change; this one was the only one riding the line. */
-  --a-on-light: #0a6a80;
-  --a-fill: #0e7490;
-  --a-fill-hover: #1189a8;
-  --a-weak-dark: #0d2a30;
-  --a-weak-light: #e0f4f8;
-  --a-border-dark: #17505c;
-  --a-border-light: #b6dfe9;
-  /* The reference's selected-state material: a pastel FILL with dark ink on
-     it, not a saturated block. One per accent, so the picker still works. */
-  --a-pastel-light: #cbe6f8;
-  --a-pastel-ink-light: #0c3a52;
-  --a-pastel-dark: #12313f;
-  --a-pastel-ink-dark: #bfe4f2;
-  --a-glow-rgb: 14 116 144;
-}
-
-[data-accent='amber'] {
-  --a-on-dark: #f0b445;
-  --a-on-light: #8a5206;
-  --a-fill: #a3620a;
-  --a-fill-hover: #bd730e;
-  --a-weak-dark: #2b1f0b;
-  --a-weak-light: #fbf0dd;
-  --a-border-dark: #6a4a12;
-  --a-border-light: #ecd5a8;
-  /* The reference's selected-state material: a pastel FILL with dark ink on
-     it, not a saturated block. One per accent, so the picker still works. */
-  --a-pastel-light: #fbd9a5;
-  --a-pastel-ink-light: #4a2c05;
-  --a-pastel-dark: #402d0c;
-  --a-pastel-ink-dark: #f7d9a4;
-  --a-glow-rgb: 163 98 10;
-}
-
 /*
- * CRIMSON. The whole ramp is derived from ONE hue, #DC143C, so there is a
- * single authoritative definition of what crimson is here and nothing to drift
- * against it. Every value below is that colour held at hue 348 and moved along
- * lightness; nothing is picked by eye.
+ * THE TWELVE ACCENTS, from the approved Figma design.
  *
- * The canonical hue is the FILL, because that is where it is seen at full
- * strength — the primary button — and a white label on it clears 4.5:1.
+ * Each block states the raw light/dark pairs and nothing else; the appearance
+ * blocks resolve which half is in play. `mono` is the DEFAULT, and it is the
+ * reason the pairs cannot collapse into single values: it is near-black on the
+ * light ground and near-white on the dark one, so an accent that did not flip
+ * would be invisible in one of the two appearances.
  *
- * It is NOT the text colour. #DC143C on the light ground is 4.50:1, which
- * passes only by rounding, so accent text takes a darker shade of the same hue
- * (6.02:1 on white) and a lighter one on the dark ground (6.70:1 on the
- * surface). That is what "derive lighter and darker shades" is for: the brand
- * hue stays exact where it is a surface, and legibility wins where it is ink.
+ * Only the accent, its weak tint, its ink and its focus ring change. NOTHING
+ * here touches a surface: the canvas, the panels and the sidebar stay neutral
+ * in every theme, which is what stops the product reading as "the purple one".
  *
- * The attribute is still `rose`. Renaming it would be a data migration, not a
- * rename — the accent is persisted per device under that string, and an
- * unrecognised value silently resets the student to violet. The value is an
- * identifier; the label the picker shows is in ThemeControl.
+ * `--a-contrast` is the label colour for a solid accent fill, chosen per accent
+ * rather than assumed to be white. Turquoise, amber and emerald are light
+ * enough that a white label measures 3.6-3.9:1 against them; those three carry
+ * a near-black label instead, so every primary button clears AA in both
+ * appearances without any accent being shifted off its approved hue.
  */
-[data-accent='rose'] {
-  --a-on-dark: #f37c94;
-  --a-on-light: #c41236;
-  --a-fill: #dc143c;
-  --a-fill-hover: #eb234b;
-  --a-weak-dark: #330f16;
-  --a-weak-light: #fdeaee;
-  --a-border-dark: #732636;
-  --a-border-light: #f8bcc8;
-  /* The reference's selected-state material: a pastel FILL with dark ink on
-     it, not a saturated block. One per accent, so the picker still works. */
-  --a-pastel-light: #fbc9d3;
-  --a-pastel-ink-light: #6e0a1e;
-  --a-pastel-dark: #3c131b;
-  --a-pastel-ink-dark: #fabfcb;
+
+[data-accent='mono'] {
+  --a-fill-light: #1b1a17;
+  --a-fill-dark: #f4f3f1;
+  --a-fill-hover-light: #2e2d27;
+  --a-fill-hover-dark: #f8f8f6;
+  --a-contrast-light: #ffffff;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #1b1a17;
+  --a-on-dark: #f4f3f1;
+  --a-weak-light: #e7e4dd;
+  --a-weak-dark: #26262b;
+  --a-border-light: #a29f9a;
+  --a-border-dark: #6c6c6e;
+  --a-ring-light: #1b1a17;
+  --a-ring-dark: #d8d6d1;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #e7e4dd;
+  --a-pastel-ink-light: #1b1a17;
+  --a-pastel-dark: #26262b;
+  --a-pastel-ink-dark: #f4f3f1;
+  --a-glow-rgb: 27 26 23;
+}
+
+[data-accent='violet'] {
+  --a-fill-light: #5b4cc4;
+  --a-fill-dark: #8f80f0;
+  --a-fill-hover-light: #7467cd;
+  --a-fill-hover-dark: #aba0f4;
+  --a-contrast-light: #ffffff;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #44379f;
+  --a-on-dark: #b7aef7;
+  --a-weak-light: #ece9fb;
+  --a-weak-dark: #201d31;
+  --a-border-light: #bbb4e8;
+  --a-border-dark: #463f72;
+  --a-ring-light: #6c5ce0;
+  --a-ring-dark: #8f80f0;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #ece9fb;
+  --a-pastel-ink-light: #44379f;
+  --a-pastel-dark: #201d31;
+  --a-pastel-ink-dark: #b7aef7;
+  --a-glow-rgb: 91 76 196;
+}
+
+[data-accent='matrix'] {
+  --a-fill-light: #2f7d4f;
+  --a-fill-dark: #4bbd7f;
+  --a-fill-hover-light: #39975f;
+  --a-fill-hover-dark: #65c792;
+  --a-contrast-light: #ffffff;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #235f3c;
+  --a-on-dark: #86dcae;
+  --a-weak-light: #d9efe0;
+  --a-weak-dark: #0e2a1c;
+  --a-border-light: #9fc8af;
+  --a-border-dark: #235c3e;
+  --a-ring-light: #379460;
+  --a-ring-dark: #4bbd7f;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #d9efe0;
+  --a-pastel-ink-light: #235f3c;
+  --a-pastel-dark: #0e2a1c;
+  --a-pastel-ink-dark: #86dcae;
+  --a-glow-rgb: 47 125 79;
+}
+
+[data-accent='crimson'] {
+  --a-fill-light: #dc143c;
+  --a-fill-dark: #f04d63;
+  --a-fill-hover-light: #eb284f;
+  --a-fill-hover-dark: #f36e80;
+  --a-contrast-light: #ffffff;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #a8102e;
+  --a-on-dark: #f4a6b1;
+  --a-weak-light: #fbdde2;
+  --a-weak-dark: #350a11;
+  --a-border-light: #f099aa;
+  --a-border-dark: #75212d;
+  --a-ring-light: #dc143c;
+  --a-ring-dark: #f04d63;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #fbdde2;
+  --a-pastel-ink-light: #a8102e;
+  --a-pastel-dark: #350a11;
+  --a-pastel-ink-dark: #f4a6b1;
   --a-glow-rgb: 220 20 60;
 }
 
-[data-accent='green'] {
-  --a-on-dark: #4fd9a0;
-  --a-on-light: #0f6b42;
-  --a-fill: #15803d;
-  --a-fill-hover: #1a9c4a;
-  --a-weak-dark: #10281f;
-  --a-weak-light: #e4f5ec;
-  --a-border-dark: #1e5c3e;
-  --a-border-light: #b7e0c8;
-  /* The reference's selected-state material: a pastel FILL with dark ink on
-     it, not a saturated block. One per accent, so the picker still works. */
-  --a-pastel-light: #d8f56d;
-  --a-pastel-ink-light: #2c3b06;
-  --a-pastel-dark: #2f3f0d;
-  --a-pastel-ink-dark: #d8f56d;
-  --a-glow-rgb: 21 128 61;
+[data-accent='turquoise'] {
+  --a-fill-light: #0d8f9c;
+  --a-fill-dark: #35c2cf;
+  --a-fill-hover-light: #10adbd;
+  --a-fill-hover-dark: #52cbd6;
+  --a-contrast-light: #12110f;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #0a6b76;
+  --a-on-dark: #7fe0e8;
+  --a-weak-light: #d7f0f1;
+  --a-weak-dark: #0c2c2e;
+  --a-border-light: #92cfd4;
+  --a-border-dark: #1a5f65;
+  --a-ring-light: #12a8b6;
+  --a-ring-dark: #35c2cf;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #d7f0f1;
+  --a-pastel-ink-light: #0a6b76;
+  --a-pastel-dark: #0c2c2e;
+  --a-pastel-ink-dark: #7fe0e8;
+  --a-glow-rgb: 13 143 156;
+}
+
+[data-accent='ocean'] {
+  --a-fill-light: #2b6cb0;
+  --a-fill-dark: #5ea1e6;
+  --a-fill-hover-light: #327ecd;
+  --a-fill-hover-dark: #7db3eb;
+  --a-contrast-light: #ffffff;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #1f5490;
+  --a-on-dark: #9cc6f2;
+  --a-weak-light: #dce9f7;
+  --a-weak-dark: #0f2237;
+  --a-border-light: #a0bedf;
+  --a-border-dark: #2a4d72;
+  --a-ring-light: #3b82c4;
+  --a-ring-dark: #5ea1e6;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #dce9f7;
+  --a-pastel-ink-light: #1f5490;
+  --a-pastel-dark: #0f2237;
+  --a-pastel-ink-dark: #9cc6f2;
+  --a-glow-rgb: 43 108 176;
+}
+
+[data-accent='amber'] {
+  --a-fill-light: #b7791f;
+  --a-fill-dark: #e0a848;
+  --a-fill-hover-light: #d68d24;
+  --a-fill-hover-dark: #e5b767;
+  --a-contrast-light: #12110f;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #8a5a12;
+  --a-on-dark: #f0cd86;
+  --a-weak-light: #f6ecd3;
+  --a-weak-dark: #2c2109;
+  --a-border-light: #e1c596;
+  --a-border-dark: #694f1e;
+  --a-ring-light: #d08a1f;
+  --a-ring-dark: #e0a848;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #f6ecd3;
+  --a-pastel-ink-light: #8a5a12;
+  --a-pastel-dark: #2c2109;
+  --a-pastel-ink-dark: #f0cd86;
+  --a-glow-rgb: 183 121 31;
+}
+
+[data-accent='rose'] {
+  --a-fill-light: #be2f65;
+  --a-fill-dark: #f0709b;
+  --a-fill-hover-light: #d04177;
+  --a-fill-hover-dark: #f390b2;
+  --a-contrast-light: #ffffff;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #9a244f;
+  --a-on-dark: #f6a9c3;
+  --a-weak-light: #fadfe8;
+  --a-weak-dark: #33121f;
+  --a-border-light: #e6a3bb;
+  --a-border-dark: #733249;
+  --a-ring-light: #d24677;
+  --a-ring-dark: #f0709b;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #fadfe8;
+  --a-pastel-ink-light: #9a244f;
+  --a-pastel-dark: #33121f;
+  --a-pastel-ink-dark: #f6a9c3;
+  --a-glow-rgb: 190 47 101;
+}
+
+[data-accent='indigo'] {
+  --a-fill-light: #4338ca;
+  --a-fill-dark: #818cf8;
+  --a-fill-hover-light: #5e54d2;
+  --a-fill-hover-dark: #a3abfa;
+  --a-contrast-light: #ffffff;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #362da0;
+  --a-on-dark: #b3baf9;
+  --a-weak-light: #e3e1fb;
+  --a-weak-dark: #1a1c3a;
+  --a-border-light: #ada8ea;
+  --a-border-dark: #3d427b;
+  --a-ring-light: #5348d6;
+  --a-ring-dark: #818cf8;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #e3e1fb;
+  --a-pastel-ink-light: #362da0;
+  --a-pastel-dark: #1a1c3a;
+  --a-pastel-ink-dark: #b3baf9;
+  --a-glow-rgb: 67 56 202;
+}
+
+[data-accent='emerald'] {
+  --a-fill-light: #059669;
+  --a-fill-dark: #34d399;
+  --a-fill-hover-light: #06b981;
+  --a-fill-hover-dark: #51d9a8;
+  --a-contrast-light: #12110f;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #047251;
+  --a-on-dark: #7fe7c1;
+  --a-weak-light: #d5f2e6;
+  --a-weak-dark: #0c2c20;
+  --a-border-light: #8ed3bc;
+  --a-border-dark: #1a6549;
+  --a-ring-light: #10ac7c;
+  --a-ring-dark: #34d399;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #d5f2e6;
+  --a-pastel-ink-light: #047251;
+  --a-pastel-dark: #0c2c20;
+  --a-pastel-ink-dark: #7fe7c1;
+  --a-glow-rgb: 5 150 105;
+}
+
+[data-accent='solar'] {
+  --a-fill-light: #b45309;
+  --a-fill-dark: #f0932e;
+  --a-fill-hover-light: #d6630b;
+  --a-fill-hover-dark: #f2a44f;
+  --a-contrast-light: #ffffff;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #8a3f08;
+  --a-on-dark: #f6bd7e;
+  --a-weak-light: #f7e6d1;
+  --a-weak-dark: #2e1c07;
+  --a-border-light: #e0b48d;
+  --a-border-dark: #704414;
+  --a-ring-light: #cd6510;
+  --a-ring-dark: #f0932e;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #f7e6d1;
+  --a-pastel-ink-light: #8a3f08;
+  --a-pastel-dark: #2e1c07;
+  --a-pastel-ink-dark: #f6bd7e;
+  --a-glow-rgb: 180 83 9;
+}
+
+[data-accent='slate'] {
+  --a-fill-light: #475569;
+  --a-fill-dark: #94a3b8;
+  --a-fill-hover-light: #55667e;
+  --a-fill-hover-dark: #a9b5c6;
+  --a-contrast-light: #ffffff;
+  --a-contrast-dark: #12110f;
+  --a-on-light: #384154;
+  --a-on-dark: #c1cbd8;
+  --a-weak-light: #e2e6ec;
+  --a-weak-dark: #1c222c;
+  --a-border-light: #adb5bf;
+  --a-border-dark: #454e5c;
+  --a-ring-light: #556279;
+  --a-ring-dark: #94a3b8;
+  /* The selected-state material: the weak tint carrying its own ink. */
+  --a-pastel-light: #e2e6ec;
+  --a-pastel-ink-light: #384154;
+  --a-pastel-dark: #1c222c;
+  --a-pastel-ink-dark: #c1cbd8;
+  --a-glow-rgb: 71 85 105;
+}
+
+/*
+ * WHICH HALF OF EACH PAIR IS IN PLAY.
+ *
+ * Resolved here rather than inside the accent blocks because the picker's
+ * swatches set `data-accent` on THEMSELVES to paint their own hue, so the
+ * mapping has to re-resolve per element rather than once at the root. Both
+ * selectors are needed in the dark rules: the root carries the attribute too.
+ */
+[data-accent] {
+  --a-fill: var(--a-fill-light);
+  --a-fill-hover: var(--a-fill-hover-light);
+  --a-contrast: var(--a-contrast-light);
+}
+:root[data-theme='dark'],
+:root[data-theme='dark'] [data-accent] {
+  --a-fill: var(--a-fill-dark);
+  --a-fill-hover: var(--a-fill-hover-dark);
+  --a-contrast: var(--a-contrast-dark);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']),
+  :root:not([data-theme='light']) [data-accent] {
+    --a-fill: var(--a-fill-dark);
+    --a-fill-hover: var(--a-fill-hover-dark);
+    --a-contrast: var(--a-contrast-dark);
+  }
 }
 
 /* ========================================================================== */
@@ -239,33 +449,33 @@
    * light up. That is what makes the material behave like glass instead of
    * looking like a photograph of glass.
    */
-  --bg: #111114;
+  --bg: #070708;
   /* A second ground for insets — recessed wells, input tracks, the strip
      behind a segmented control. Darker than the page, never lighter. */
-  --bg-sunken: #0b0b0e;
+  --bg-sunken: #050506;
 
   /* Level 1: an ordinary content surface. Barely there on purpose. */
-  --surface: #1a1a1f;
+  --surface: #161619;
   /* Level 2: an elevated group — a panel that owns its content. */
-  --surface-raised: #212127;
+  --surface-raised: #1e1e23;
   /* Level 3: a control or row that is being pointed at or is selected. */
-  --surface-active: #2a2a31;
-  --surface-translucent: #1a1a1f;
+  --surface-active: #26262b;
+  --surface-translucent: #161619;
 
   /*
    * Borders are light, not paint. A hairline on glass is the edge catching
    * illumination, so it is white at low alpha — a coloured border would tint
    * the whole outline of every object on the screen.
    */
-  --border: #2b2b33;
-  --border-strong: #3d3d47;
+  --border: #232327;
+  --border-strong: #33333a;
 
   /* --- Text -------------------------------------------------------------- */
   /* Cool near-white, never pure #fff: pure white on a near-black ground
      vibrates, and a trace of blue keeps it in the same air as the ground. */
-  --text: #f4f4f6;
-  --text-muted: #a6a6b2;
-  --text-subtle: #8e8e9a;
+  --text: #f4f3f1;
+  --text-muted: #a7a5a0;
+  --text-subtle: #84817b;
 
   /* --- Accent ------------------------------------------------------------ */
   /*
@@ -292,13 +502,13 @@
   --tone-peach: #402d0c;
   --tone-peach-ink: #f7d9a4;
   --tone-pill-bg: rgb(255 255 255 / 12%);
-  --nav-bg: var(--surface);
+  --nav-bg: #0e0e11;
   --scrim: rgb(0 0 0 / 62%);
   --field-bg: var(--surface-raised);
   --accent-pastel-ink: var(--a-pastel-ink-dark);
   --accent-weak: rgb(var(--a-glow-rgb) / 14%);
   --accent-border: rgb(var(--a-glow-rgb) / 42%);
-  --accent-contrast: #ffffff;
+  --accent-contrast: var(--a-contrast);
 
   /*
    * The primary action is a GLASS CONTROL with a luminous edge, not a solid
@@ -310,18 +520,18 @@
   --action-fg: #ffffff;
   --action-border: rgb(var(--a-glow-rgb) / 55%);
 
-  --info: #6fd3e6;
-  --info-weak: rgb(111 211 230 / 12%);
+  --info: #63a0e0;
+  --info-weak: #0e1f30;
 
   /* --- Status ------------------------------------------------------------ */
   /* Status stays chromatic — it is the one place colour carries meaning — but
      its backgrounds are tints at low alpha, not blocks. */
-  --success: #5fd9a4;
-  --success-weak: rgb(95 217 164 / 12%);
-  --warning: #f0bb5e;
-  --warning-weak: rgb(240 187 94 / 12%);
-  --danger: #ff8b8b;
-  --danger-weak: rgb(255 139 139 / 12%);
+  --success: #4ec38a;
+  --success-weak: #0f2c20;
+  --warning: #e0a848;
+  --warning-weak: #2c2109;
+  --danger: #ec6a5c;
+  --danger-weak: #331210;
 
   /* --- Ambient illumination --------------------------------------------- */
   /*
@@ -392,7 +602,22 @@
   --bottom-nav-height: 64px;
 
   /* --- Typography -------------------------------------------------------- */
-  --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /*
+   * IBM Plex Sans is the approved text face: a technical grotesque with real
+   * academic character, drawn for long reading rather than for product
+   * marketing. Space Grotesk is the DISPLAY face and is used sparingly — page
+   * titles and the numbers a student actually came to read — because its
+   * personality is wrong for a paragraph and right for a headline.
+   *
+   * Every stack ends in the system font. The faces are fetched from Google and
+   * a student with no network still gets a correctly proportioned interface,
+   * which is why the fallbacks are full stacks rather than a bare `sans-serif`.
+   */
+  --font-sans:
+    'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display:
+    'Space Grotesk', 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /*
@@ -494,12 +719,12 @@
   /* --- Radii -------------------------------------------------------------- */
   --radius-sm: 8px;
   --radius-md: 12px;
-  /* 18px, measured off the references' panels — 16 read as slightly mechanical
-     next to them and 20 starts to look inflated on a wide form. */
-  --radius-lg: 18px;
-  /* Mobile modules only. The reference's phone cards are notably rounder than
-     its desktop panels; that difference is real and intentional. */
-  --radius-xl: 22px;
+  /* 14px and 18px, from the approved design. The previous 18/22 pairing was
+     measured off a different reference and reads as inflated beside it: a
+     panel corner that large starts to look like a marketing card rather than
+     a document surface. */
+  --radius-lg: 14px;
+  --radius-xl: 18px;
   --radius-pill: 999px;
 
   /* --- Shadows ------------------------------------------------------------ */
@@ -570,12 +795,12 @@
      * ground with tone, a surface that is genuinely lighter, an edge you can
      * see, and a shadow underneath. Not by making cards whiter.
      */
-    --bg: #f3f3f5;
-    --bg-sunken: #e9e9ed;
+    --bg: #f4f2ee;
+    --bg-sunken: #efece7;
 
     --surface: #ffffff;
     --surface-raised: #ffffff;
-    --surface-active: #ebebef;
+    --surface-active: #efece7;
     --surface-translucent: #ffffff;
 
     /*
@@ -584,11 +809,11 @@
      * against the ground — the dark theme's edge measures 1.41:1, so the light
      * border was nearly three times weaker and panels had no outline at all.
      */
-    --border: #e6e6ea;
-    --border-strong: #d3d3d9;
+    --border: #e3dfd7;
+    --border-strong: #d2cdc2;
 
-    --text: #101014;
-    --text-muted: #4e4e59;
+    --text: #1b1a17;
+    --text-muted: #55524b;
     /*
      * Darkened from #6b7590 (M9.6F). At 12px on the light ground it measured
      * 4.24:1 — under AA. Only visible once Announcements had real data at
@@ -597,13 +822,13 @@
     /* Dark enough to clear 4.5:1 on the ACCENT TINT, not only on a white
        card — the selected timetable row is a tinted surface and 12px
        metadata sits on it. */
-    --text-subtle: #5f5f6b;
+    --text-subtle: #716d65;
 
     --accent: var(--a-on-light);
     /* The reference's selected-state material, resolved for this appearance. */
     --accent-pastel: var(--a-pastel-light);
-  --tab-selected-bg: #131316;
-  --tab-selected-fg: #ffffff;
+    --tab-selected-bg: #131316;
+    --tab-selected-fg: #ffffff;
     --tab-selected-bg: #131316;
     --tab-selected-fg: #ffffff;
     /* --- Reference tones ---------------------------------------------------
@@ -621,16 +846,16 @@
     --tone-peach: #fbd9a5;
     --tone-peach-ink: #4a2c05;
     --tone-pill-bg: rgb(255 255 255 / 72%);
-  --nav-bg: #ffffff;
-  --scrim: rgb(16 16 20 / 45%);
-  --field-bg: #ffffff;
-    --nav-bg: #ffffff;
+    --nav-bg: #fbfaf8;
+    --scrim: rgb(16 16 20 / 45%);
+    --field-bg: #ffffff;
+    --nav-bg: #fbfaf8;
     --scrim: rgb(16 16 20 / 45%);
     --field-bg: #ffffff;
     --accent-pastel-ink: var(--a-pastel-ink-light);
     --accent-weak: rgb(var(--a-glow-rgb) / 10%);
     --accent-border: rgb(var(--a-glow-rgb) / 32%);
-    --accent-contrast: #ffffff;
+    --accent-contrast: var(--a-contrast);
 
     /*
      * The light primary action stays INK — the M9.4 mobile reference's
@@ -643,15 +868,15 @@
     --action-fg: #ffffff;
     --action-border: rgb(16 24 44 / 24%);
 
-    --info: #0c6a80;
-    --info-weak: rgb(12 106 128 / 10%);
+    --info: #2b6cb0;
+    --info-weak: #dce9f7;
 
-    --success: #0e6b45;
-    --success-weak: rgb(14 107 69 / 10%);
-    --warning: #8a5a08;
-    --warning-weak: rgb(138 90 8 / 12%);
-    --danger: #b2202c;
-    --danger-weak: rgb(178 32 44 / 10%);
+    --success: #2f855a;
+    --success-weak: #dbf0e4;
+    --warning: #b7791f;
+    --warning-weak: #f6ecd3;
+    --danger: #c0392b;
+    --danger-weak: #f8dedb;
 
     /*
      * THE ENVIRONMENT HAS TO REACH THE BOTTOM OF THE PAGE.
@@ -691,25 +916,25 @@
    * it — lighter than the ground rather than darker — which is what keeps the
    * material reading as glass in both appearances.
    */
-  --bg: #f3f3f5;
-  --bg-sunken: #e9e9ed;
+  --bg: #f4f2ee;
+  --bg-sunken: #efece7;
 
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --surface-active: #ebebef;
+  --surface-active: #efece7;
   --surface-translucent: #ffffff;
 
   /* On a light ground the edge is a shadow, not a highlight, so borders are
      INK at low alpha rather than white. */
-  --border: #e6e6ea;
-  --border-strong: #d3d3d9;
+  --border: #e3dfd7;
+  --border-strong: #d2cdc2;
 
-  --text: #101014;
-  --text-muted: #4e4e59;
+  --text: #1b1a17;
+  --text-muted: #55524b;
   /* Dark enough to clear 4.5:1 on the ACCENT TINT, not only on a white
      card — the selected timetable row is a tinted surface and 12px
      metadata sits on it. */
-  --text-subtle: #5f5f6b;
+  --text-subtle: #716d65;
 
   --accent: var(--a-on-light);
   /* The reference's selected-state material, resolved for this appearance. */
@@ -732,7 +957,7 @@
   --accent-pastel-ink: var(--a-pastel-ink-light);
   --accent-weak: rgb(var(--a-glow-rgb) / 10%);
   --accent-border: rgb(var(--a-glow-rgb) / 32%);
-  --accent-contrast: #ffffff;
+  --accent-contrast: var(--a-contrast);
 
   /*
    * The light primary action stays INK — the M9.4 mobile reference's
@@ -745,15 +970,15 @@
   --action-fg: #ffffff;
   --action-border: rgb(16 24 44 / 24%);
 
-  --info: #0c6a80;
-  --info-weak: rgb(12 106 128 / 10%);
+  --info: #2b6cb0;
+  --info-weak: #dce9f7;
 
-  --success: #0e6b45;
-  --success-weak: rgb(14 107 69 / 10%);
-  --warning: #8a5a08;
-  --warning-weak: rgb(138 90 8 / 12%);
-  --danger: #b2202c;
-  --danger-weak: rgb(178 32 44 / 10%);
+  --success: #2f855a;
+  --success-weak: #dbf0e4;
+  --warning: #b7791f;
+  --warning-weak: #f6ecd3;
+  --danger: #c0392b;
+  --danger-weak: #f8dedb;
 
   --ambient: none;
 
@@ -911,4 +1136,33 @@
     --control-height: var(--touch-target-min);
     --control-height-sm: 38px;
   }
+}
+
+/* ========================================================================== */
+/* THE CHART FAMILY                                                           */
+/* ========================================================================== */
+
+/*
+ * ONE HUE, FIVE STEPS, DERIVED FROM THE ACTIVE ACCENT.
+ *
+ * A chart series is a luminance ramp from the accent toward the canvas, not a
+ * palette of unrelated hues. Two consequences, both deliberate:
+ *
+ *   In Mono — the default — the accent is neutral, so the ramp resolves to
+ *   GRAYSCALE. The default product has no coloured charts at all.
+ *
+ *   In every colour theme the series stay one family, so a bar chart cannot
+ *   drift into the rainbow that makes a dashboard look like a toy.
+ *
+ * It is written once and recomputes per theme and appearance on its own,
+ * because `--accent` and `--bg` are already resolved by the time these are
+ * read. There is no per-theme chart palette to maintain, and no opportunity
+ * for one to fall out of step with the accent it belongs to.
+ */
+:root {
+  --chart-1: var(--accent);
+  --chart-2: color-mix(in oklab, var(--accent) 82%, var(--bg));
+  --chart-3: color-mix(in oklab, var(--accent) 64%, var(--bg));
+  --chart-4: color-mix(in oklab, var(--accent) 46%, var(--bg));
+  --chart-5: color-mix(in oklab, var(--accent) 30%, var(--bg));
 }

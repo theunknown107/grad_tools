@@ -10,6 +10,21 @@
     />
     <title>GradTools</title>
     <!--
+      The approved type stack. Preconnected because a webfont that arrives late
+      reflows the whole page, and `display=swap` so a slow or absent network
+      shows the system fallback immediately rather than invisible text.
+
+      Nothing here is required for the app to work: every stack in tokens.css
+      ends in a full system fallback, so a student with no connection gets a
+      correctly proportioned interface in a different face.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+    <!--
       Applies the stored theme BEFORE first paint.
 
       This has to be an inline, blocking script in <head>. The React bundle is a

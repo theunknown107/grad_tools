@@ -280,3 +280,157 @@ input[type='number'] {
     scroll-behavior: auto !important;
   }
 }
+
+/* ========================================================================== */
+/* MATERIALS, from the approved design                                        */
+/* ========================================================================== */
+
+/*
+ * THE METRIC MATERIAL.
+ *
+ * The surface the academic figures sit on: a card, a hairline, a one-pixel
+ * highlight along the top edge, and a shadow small enough that you notice the
+ * card rather than the shadow.
+ *
+ * DELIBERATELY NEUTRAL IN EVERY ACCENT THEME. No accent colour, no coloured
+ * left stripe, no glow. A student's CGPA is not a status and colouring it
+ * turns the metric row into a widget grid — the numbers are the subject, and
+ * typography and material are what carry them.
+ *
+ * The effect must survive `backdrop-filter` being unavailable, so the border
+ * and the shadow do the work and the highlight is only ever a refinement.
+ */
+.gt-metric {
+  --metric-highlight: rgb(255 255 255 / 65%);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow:
+    inset 0 1px 0 var(--metric-highlight),
+    var(--shadow-sm, 0 1px 2px rgb(27 26 23 / 5%));
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gt-metric:hover {
+  border-color: var(--border-strong);
+}
+
+.gt-metric[data-interactive='true'] {
+  cursor: pointer;
+}
+
+.gt-metric[data-interactive='true']:hover {
+  border-color: var(--border-strong);
+  box-shadow:
+    inset 0 1px 0 var(--metric-highlight),
+    var(--shadow-md, 0 4px 14px -4px rgb(27 26 23 / 10%));
+  transform: translateY(-1px);
+}
+
+.gt-metric[data-interactive='true']:active {
+  transform: translateY(0);
+  box-shadow: inset 0 1px 2px rgb(27 26 23 / 10%);
+}
+
+/* On the near-black ground the highlight is light at low alpha, not white. */
+:root:not([data-theme='light']) .gt-metric {
+  --metric-highlight: rgb(255 255 255 / 5%);
+  background-color: rgb(255 255 255 / 2.2%);
+  border-color: rgb(255 255 255 / 7.5%);
+}
+
+:root:not([data-theme='light']) .gt-metric:hover {
+  border-color: rgb(255 255 255 / 12%);
+}
+
+:root:not([data-theme='light']) .gt-metric[data-interactive='true']:hover {
+  background-color: rgb(255 255 255 / 4.5%);
+  border-color: rgb(255 255 255 / 14%);
+}
+
+/*
+ * GLASS IS FOR CONTROLS, AND ONLY FOR CONTROLS.
+ *
+ * A button, a search field, a compact toggle. NEVER the sidebar, a large card,
+ * a table or the page itself: glass over a big opaque rectangle is just a
+ * gradient, and applying it everywhere is the single most reliable way to make
+ * an interface look generated rather than designed.
+ *
+ * Like the metric material, this must remain fully legible with
+ * `backdrop-filter` switched off — the background colour and border carry it.
+ */
+.gt-glass {
+  background-color: var(--surface);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 70%), rgb(255 255 255 / 28%));
+  border: 1px solid var(--border);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 75%),
+    var(--shadow-sm, 0 1px 2px rgb(27 26 23 / 5%));
+  backdrop-filter: blur(6px) saturate(1.1);
+}
+
+.gt-glass:hover {
+  background-color: var(--surface-raised);
+  border-color: var(--border-strong);
+}
+
+.gt-glass:active {
+  box-shadow: inset 0 1px 2px rgb(27 26 23 / 12%);
+}
+
+:root:not([data-theme='light']) .gt-glass {
+  background-color: rgb(255 255 255 / 2.5%);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 1.5%));
+  border-color: rgb(255 255 255 / 9%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 7%),
+    inset 0 -1px 1px rgb(0 0 0 / 55%),
+    var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 50%));
+}
+
+:root:not([data-theme='light']) .gt-glass:hover {
+  background-color: rgb(255 255 255 / 5.5%);
+  border-color: rgb(255 255 255 / 15%);
+}
+
+/* ---- Motion, from the approved design ----------------------------------- */
+
+@keyframes gt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* The page transition: content arrives, it does not fly in. */
+.gt-rise {
+  animation: gt-rise 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes gt-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+}
+
+.gt-pop {
+  animation: gt-pop 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * The in-app reduced-motion switch, which is not the same thing as the system
+ * preference: a student may want the OS animating and this application still.
+ * Both are honoured, and both stop short of 0 so animation end events still
+ * fire and nothing waiting on one hangs.
+ */
+.gt-reduce-motion *,
+.gt-reduce-motion *::before,
+.gt-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
