@@ -32,18 +32,11 @@
 
 import { Icon, type IconName } from './icons.js';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ThemeControl } from './ThemeControl.js';
 import { GlobalSearch, useSearchHotkey } from './GlobalSearch.js';
 import { NotificationInbox } from './NotificationInbox.js';
+import { Sheet } from './ui/Sheet.js';
 import { TooltipProvider } from './ui/Tooltip.js';
 import { ToastProvider } from './ui/Toast.js';
 import { useAnnouncements, useNotifications } from '../hooks/useAnnouncements.js';
@@ -139,76 +132,19 @@ const GROUPS = ['Overview', 'Academics', 'Account'] as const;
  * The mobile bar, CHOSEN rather than truncated (M9.3 §18). Five is the ceiling:
  * past that, labels stop being legible at 320px.
  */
-const MOBILE_PATHS = ['/', '/academics', '/attendance', '/import', '/account'] as const;
+/*
+ * THE FOUR DESTINATIONS THE BOTTOM BAR CARRIES, from the approved design.
+ *
+ * Home, Results, Timetable, Attendance — the four a student opens on a phone —
+ * and a fifth control that is NOT a destination: "More", which opens the rest
+ * of the navigation as a sheet. The bar used to spend all five slots on
+ * destinations, which meant seven of the eleven routes were unreachable on a
+ * phone without going through a page that happened to link to them.
+ */
+const MOBILE_PATHS = ['/', '/results', '/timetable', '/attendance'] as const;
 const MOBILE_TABS: readonly Destination[] = MOBILE_PATHS.map(
   (path) => DESTINATIONS.find((destination) => destination.to === path) as Destination,
 );
-
-/**
- * The limelight: one indicator that TRAVELS between navigation items.
- *
- * Authority: M9.6B Reference 03 (@easemize/limelight-nav) — RECREATED.
- *
- * The reference's whole idea is that the active marker is a single object that
- * moves, not one of N markers that switch on. That difference is the entire
- * effect: a spotlight sliding to the tab you picked reads as one continuous
- * surface, where per-item underlines read as separate buttons.
- *
- * Position is MEASURED from the DOM rather than computed as `index / count`,
- * because the bar is a flex row whose items are sized by their labels. It is
- * re-measured on resize, so a rotation does not strand the light.
- *
- * Returns null until the first measurement, so the indicator never animates in
- * from x=0 on the first paint.
- */
-interface Box {
-  readonly left: number;
-  readonly width: number;
-  readonly top: number;
-  readonly height: number;
-}
-
-function useLimelight(
-  containerRef: React.RefObject<HTMLElement | null>,
-  activeKey: string,
-): Box | null {
-  const [box, setBox] = useState<Box | null>(null);
-
-  const measure = useCallback(() => {
-    const container = containerRef.current;
-    if (container === null) return;
-    const active = container.querySelector<HTMLElement>('[data-active="true"]');
-    if (active === null) {
-      setBox(null);
-      return;
-    }
-    /*
-     * Both axes, because the same indicator now travels DOWN a sidebar as well
-     * as across the mobile bar. Measuring both costs nothing and means the
-     * reference rebuild kept the travelling-marker behaviour instead of
-     * replacing it with five markers that switch on.
-     */
-    setBox({
-      left: active.offsetLeft,
-      width: active.offsetWidth,
-      top: active.offsetTop,
-      height: active.offsetHeight,
-    });
-  }, [containerRef]);
-
-  useLayoutEffect(measure, [measure, activeKey]);
-
-  useEffect(() => {
-    if (typeof ResizeObserver === 'undefined') return;
-    const container = containerRef.current;
-    if (container === null) return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [containerRef, measure]);
-
-  return box;
-}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -231,6 +167,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [location.pathname]);
 
   const [searchOpen, setSearchOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const openSearch = useCallback(() => setSearchOpen(true), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
   useSearchHotkey(openSearch);
@@ -242,9 +179,6 @@ export function AppShell({ children }: { children: ReactNode }) {
    */
   const { items: announcements } = useAnnouncements();
   const { notifications, unread, setState, readAll } = useNotifications(announcements);
-
-  const bottomNavRef = useRef<HTMLElement>(null);
-  const bottomLight = useLimelight(bottomNavRef, location.pathname);
 
   return (
     /*
@@ -355,23 +289,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             </main>
           </div>
 
-          <nav
-            className={`${styles.bottomNav ?? ''} surfaceNav`}
-            aria-label="Main"
-            ref={bottomNavRef}
-          >
-            {/* The limelight itself: a beam above the active tab plus the lit pill
-            behind it, travelling as one object (Reference 03). */}
-            {bottomLight !== null ? (
-              <span
-                className={styles.limelight}
-                aria-hidden="true"
-                style={{
-                  transform: `translateX(${String(bottomLight.left)}px)`,
-                  width: `${String(bottomLight.width)}px`,
-                }}
-              />
-            ) : null}
+          {/*
+            THE BOTTOM BAR, from the approved design: four destinations and a
+            way to reach everything else. No travelling marker — the design
+            marks the active tab with ink, and a beam sliding under a thumb is
+            motion nobody asked for.
+          */}
+          <nav className={`${styles.bottomNav ?? ''} surfaceNav`} aria-label="Main">
             {MOBILE_TABS.map((item) => (
               <NavLink
                 key={item.to}
@@ -390,7 +314,65 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {item.shortLabel}
               </NavLink>
             ))}
+            <button
+              type="button"
+              className={styles.bottomLink}
+              onClick={() => {
+                setMoreOpen(true);
+              }}
+              aria-haspopup="dialog"
+              aria-expanded={moreOpen}
+            >
+              <Icon name="dashboard" size="medium" />
+              More
+            </button>
           </nav>
+
+          {/*
+            Everything the bar has no room for, as a bottom sheet — the same
+            groups the sidebar shows, so a phone reaches every route the
+            desktop does.
+          */}
+          <Sheet
+            open={moreOpen}
+            onClose={() => {
+              setMoreOpen(false);
+            }}
+            side="bottom"
+            title="Go to"
+          >
+            <div className={styles.moreSheet}>
+              {GROUPS.map((group) => (
+                <Fragment key={group}>
+                  <span className={styles.sideGroup}>{group}</span>
+                  <div className={styles.moreGrid}>
+                    {DESTINATIONS.filter((destination) => destination.group === group).map(
+                      (item) => {
+                        const isActive =
+                          item.to === '/'
+                            ? location.pathname === '/'
+                            : location.pathname.startsWith(item.to);
+                        return (
+                          <NavLink
+                            key={item.to}
+                            to={item.to}
+                            end={item.to === '/'}
+                            onClick={() => {
+                              setMoreOpen(false);
+                            }}
+                            className={`${styles.moreLink ?? ''} ${isActive ? (styles.moreLinkActive ?? '') : ''}`}
+                          >
+                            <Icon name={item.icon} size="nav" />
+                            {item.label}
+                          </NavLink>
+                        );
+                      },
+                    )}
+                  </div>
+                </Fragment>
+              ))}
+            </div>
+          </Sheet>
 
           <GlobalSearch open={searchOpen} onClose={closeSearch} />
         </div>
