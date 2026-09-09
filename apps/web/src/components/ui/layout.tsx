@@ -34,7 +34,14 @@ import styles from './layout.module.css';
 
 export interface Metric {
   readonly label: string;
-  /** Already formatted. An em dash where the figure does not exist yet. */
+  /**
+   * Already formatted.
+   *
+   * A value carrying NO DIGIT — "Unavailable", "Not recorded", "Not set" — is
+   * an answer rather than a figure, and is set smaller and muted instead of
+   * rendered at 30px where a number belongs. The shape of the value decides
+   * that, so no call site has to remember to say so.
+   */
   readonly value: string;
   /** Small qualifier under the value: "of 8", "sem 4", "22OB". */
   readonly note?: string | undefined;
@@ -42,22 +49,35 @@ export interface Metric {
 }
 
 /**
- * A dense row of figures.
+ * A grid of instruments.
  *
- * NOT FOUR FLOATING CARDS (M9.3 §10). Numbers a student reads together should
- * sit together and be comparable at a glance; giving each one a card makes four
- * separate announcements out of one summary.
+ * This was one bordered module with the figures set inside it, on the argument
+ * that giving each a card makes four announcements out of one summary. The
+ * approved design answers that differently and better: the tiles share ONE
+ * material and one grid, so they still read as a set, and each figure gets the
+ * room to be legible at six across on a wide screen.
  *
- * The value is large enough to scan and no larger. A 40px number does not
+ * What the old rule was really protecting against is still enforced — the
+ * tiles are monochrome, they carry no coloured stripe, and the value is 30px
+ * rather than the 40px that makes a dashboard shout. A larger number does not
  * become more true.
  */
 export function MetricStrip({ metrics }: { readonly metrics: readonly Metric[] }) {
   return (
     <dl className={styles.metrics}>
       {metrics.map((metric) => (
-        <div key={metric.label} className={styles.metric}>
+        /*
+         * `gt-metric` is a GLOBAL material, not a module class, because the
+         * same surface is used by tiles this component does not own. It is
+         * monochrome in every accent theme by design.
+         */
+        <div key={metric.label} className={`gt-metric ${styles.metric ?? ''}`}>
           <dt className={styles.metricLabel}>{metric.label}</dt>
-          <dd className={styles.metricValue} data-tone={metric.tone ?? 'default'}>
+          <dd
+            className={styles.metricValue}
+            data-tone={metric.tone ?? 'default'}
+            data-absent={/\d/.test(metric.value) ? undefined : 'true'}
+          >
             {metric.value}
             {metric.note !== undefined && <span className={styles.metricNote}>{metric.note}</span>}
           </dd>
