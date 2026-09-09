@@ -33,7 +33,8 @@
     "vtu:download": "pnpm --filter @gradtools/api vtu:download",
     "vtu:normalize": "pnpm --filter @gradtools/api vtu:normalize",
     "vtu:smoke": "pnpm --filter @gradtools/api vtu:smoke",
-    "vtu:sync": "pnpm --filter @gradtools/api vtu:sync"
+    "vtu:sync": "pnpm --filter @gradtools/api vtu:sync",
+    "vtu:validate": "pnpm --filter @gradtools/api vtu:validate"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
