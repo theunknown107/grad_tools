@@ -113,9 +113,21 @@ export function ResultsPage() {
    */
   const anyMismatch = statistics.views.some((view) => view.sgpaDisagrees);
 
+  /* Programme and scheme, from the profile — never a placeholder. */
+  const eyebrow =
+    [profile?.branch, profile?.schemeId === 'vtu-2022' ? '2022 scheme' : null]
+      .filter((part): part is string => part !== undefined && part !== null && part !== '')
+      .join(' · ') || null;
+
   return (
     <>
       <PageHeader
+        /*
+          The approved design names the programme and scheme this record
+          belongs to. Both come from the stored profile; where a student has
+          set neither, the line is omitted rather than filled in.
+        */
+        {...(eyebrow === null ? {} : { eyebrow })}
         title="Results"
         subtitle="Enter a result card as it is printed. SGPA, CGPA and backlogs follow from it."
         pills={
