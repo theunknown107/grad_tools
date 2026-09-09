@@ -197,8 +197,20 @@ function GradeDistributionRows({ grades }: { readonly grades: GradeDistribution 
 
   return (
     <ul className={styles.gradeRows}>
-      {rows.map((row) => (
-        <li className={styles.gradeRow} key={row.key} data-zero={row.count === 0}>
+      {rows.map((row, index) => (
+        /*
+          THE CHART FAMILY, not one flat colour. Every bar was `--accent`, so
+          the distribution read as one block; the approved design walks a
+          single-hue luminance ramp across the series. Because the ramp is
+          derived from the accent, Mono resolves it to grayscale and no theme
+          can produce a rainbow.
+        */
+        <li
+          className={styles.gradeRow}
+          key={row.key}
+          data-zero={row.count === 0}
+          data-series={Math.min(index + 1, 5)}
+        >
           <span className={styles.gradeLetter} title={row.title}>
             {row.label}
           </span>

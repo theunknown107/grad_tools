@@ -16,7 +16,10 @@
 
 .line {
   fill: none;
-  stroke: var(--accent);
+  /* The first series of the chart family, which is the accent itself. Naming
+     it as a chart token rather than as the accent is what keeps every chart in
+     the product on one system. */
+  stroke: var(--chart-1);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -31,7 +34,7 @@
 
 .dot {
   fill: var(--surface);
-  stroke: var(--accent);
+  stroke: var(--chart-1);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
