@@ -651,3 +651,87 @@ function titleBeside(
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+/* -------------------------------------------------------------------------- */
+/* The totals a scheme prints for itself                                      */
+/* -------------------------------------------------------------------------- */
+
+export interface SemesterTotal {
+  readonly semester: number;
+  /** The credit figure the document's own TOTAL row states. */
+  readonly credits: number;
+  readonly page: number;
+}
+
+/**
+ * The credit total each semester's table prints on its own TOTAL row.
+ *
+ * This is the document checking our arithmetic, which is the only check worth
+ * having: a parser that reads every row wrongly and consistently produces a
+ * catalogue that looks self-consistent. VTU prints the answer at the foot of
+ * each table —
+ *
+ *     TOTAL   400   400   800   20
+ *
+ * — and the last figure on that row is the credits. Marks columns come first
+ * and are much larger, so "the last number" is not a guess about column order:
+ * it is where the credits column is, in both templates seen.
+ *
+ * DELIBERATELY SEPARATE FROM `parseScheme`. The parser's behaviour against
+ * seventeen real documents is verified, and a validation aid has no business
+ * changing what it returns.
+ */
+export function semesterTotalsOf(pages: readonly SchemePage[]): SemesterTotal[] {
+  const totals: SemesterTotal[] = [];
+  /*
+   * The heading CARRIES FORWARD. A semester's table runs across pages and only
+   * its first page prints "III SEMESTER", so requiring the heading on the same
+   * page as the TOTAL row lost every total that fell on a continuation page.
+   */
+  let semester: number | null = null;
+  for (const { page, items } of pages) {
+    semester = semesterOf(items) ?? semester;
+    if (semester === null) continue;
+
+    for (const row of rowsOf(items)) {
+      const first = row[0]?.text.trim() ?? '';
+      if (!/^TOTAL\b/i.test(first)) continue;
+
+      const numbers = row
+        .slice(1)
+        .map((cell) => cell.text.trim())
+        .filter((text) => WHOLE_NUMBER.test(text));
+      const credits = Number(numbers[numbers.length - 1] ?? '');
+      /*
+       * A plausible semester's worth of credits.
+       *
+       * Both ends of the range matter. A TOTAL row yielding 800 is the marks
+       * column, read because the credits cell was not on this baseline. A row
+       * yielding 2 is a running-header fragment — the CSBS scheme's first page
+       * produces "Total | 2" and "Total | d" from its page furniture. Either
+       * one, reported, would fail a comparison for a reason that has nothing
+       * to do with the catalogue.
+       *
+       * No VTU semester is worth fewer than ten credits or more than thirty.
+       */
+      if (!Number.isInteger(credits) || credits < 10 || credits > 30) continue;
+      totals.push({ semester, credits, page });
+    }
+  }
+  return totals;
+}
+
+/** The page's text clustered onto printed rows, left to right. */
+function rowsOf(items: readonly PositionedText[]): PositionedText[][] {
+  const rows = new Map<number, PositionedText[]>();
+  for (const item of items) {
+    if (item.text.trim() === '') continue;
+    const key = Math.round(item.y);
+    const bucket = rows.get(key);
+    if (bucket === undefined) rows.set(key, [item]);
+    else bucket.push(item);
+  }
+  return [...rows.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([, cells]) => cells.sort((a, b) => a.x - b.x));
+}

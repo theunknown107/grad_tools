@@ -10,10 +10,12 @@ export type { PositionedText } from './positioned-text.js';
 export {
   parseScheme,
   schemePages,
+  semesterTotalsOf,
   type ParsedScheme,
   type SchemeCourse,
   type SchemePage,
   type SchemeRejection,
+  type SemesterTotal,
 } from './scheme-import.js';
 export {
   aliasEvidence,
