@@ -19,7 +19,7 @@ import { MetaPill } from '../../components/ui/tone.js';
 import { SectionedForm } from '../../components/ui/SectionedForm.js';
 import { AppearanceSettings } from '../../components/AppearanceSettings.js';
 import { Icon } from '../../components/icons.js';
-import { Button, Notice, Panel, StatusPill } from '../../components/ui/index.js';
+import { Button, Notice, Panel, StatusPill, buttonClassName } from '../../components/ui/index.js';
 import { useAuth } from './AuthContext.js';
 import { SYNC_LABEL } from '../../domain/auth.js';
 import { useSync } from './useSync.js';
@@ -68,7 +68,13 @@ export function AccountPage() {
             An account syncs your records between devices. Without one, GradTools works exactly the
             same on this device.
           </p>
-          <Link className={styles.primaryLink} to="/sign-in">
+          {/*
+            The SHARED button, not a page-local copy of one. `.primaryLink`
+            styled its own pill with its own height and radius, so this one
+            control kept the old geometry after the button system moved to the
+            approved design — which is exactly how a design system comes apart.
+          */}
+          <Link className={buttonClassName('primary')} to="/sign-in">
             Sign in or create an account
           </Link>
         </Panel>
