@@ -1,14 +1,20 @@
 /*
- * The island: a self-contained rounded object with a lit top edge, sitting
- * clearly above the page. Inline-flex so it is only as wide as its tabs —
- * a full-width segmented bar reads as a toolbar, not an island.
+ * The segmented control, from the approved design: a recessed track on the
+ * SUNKEN surface with a hairline, and the selected segment raised out of it.
+ *
+ * It was a pill-shaped island with a solid dark travelling marker. The design
+ * inverts that relationship — the track is the low thing and the selection is
+ * the high one — which is what makes it read as a switch rather than as a
+ * navigation bar. Inline-flex still, so it is only as wide as its segments.
  */
 .island {
   position: relative;
   display: inline-flex;
-  gap: 2px;
+  gap: var(--space-1);
   padding: 4px;
-  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   max-inline-size: 100%;
   overflow-x: auto;
   scrollbar-width: none;
@@ -31,10 +37,16 @@
    * one place it spends full contrast. The travelling behaviour is unchanged;
    * only what travels looks different.
    */
-  border-radius: var(--radius-pill);
-  background: var(--tab-selected-bg);
+  /*
+   * The raised segment: the CARD surface with the product's smallest shadow,
+   * lifted off the recessed track. It used to be a solid dark block with light
+   * text, which spent full contrast on a control that is not the subject of
+   * any screen it appears on.
+   */
+  border-radius: var(--radius-md);
+  background: var(--surface);
   border: 0;
-  box-shadow: none;
+  box-shadow: var(--shadow-sm, 0 1px 2px rgb(27 26 23 / 5%));
   transition:
     transform var(--motion-base) var(--ease-glide),
     width var(--motion-base) var(--ease-glide);
@@ -46,15 +58,16 @@
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  min-block-size: 34px;
-  padding-inline: var(--space-4);
+  /* 32px and 14px of padding, from the approved design. */
+  min-block-size: 32px;
+  padding-inline: 14px;
   border: 0;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-muted);
   font-family: inherit;
-  font-size: var(--text-small);
-  line-height: var(--text-small-lh);
+  font-size: 13px;
+  line-height: 1.4;
   font-weight: var(--weight-medium);
   white-space: nowrap;
   cursor: pointer;
@@ -81,7 +94,9 @@
  */
 .tab[data-state='active'],
 .tab[data-state='on'] {
-  color: var(--tab-selected-fg);
+  /* Primary ink on the raised segment — not inverted, because the segment is
+     now a light surface rather than a dark block. */
+  color: var(--text);
 }
 
 .tab:focus-visible {
