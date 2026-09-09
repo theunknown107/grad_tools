@@ -156,22 +156,42 @@
   --a-glow-rgb: 163 98 10;
 }
 
+/*
+ * CRIMSON. The whole ramp is derived from ONE hue, #DC143C, so there is a
+ * single authoritative definition of what crimson is here and nothing to drift
+ * against it. Every value below is that colour held at hue 348 and moved along
+ * lightness; nothing is picked by eye.
+ *
+ * The canonical hue is the FILL, because that is where it is seen at full
+ * strength — the primary button — and a white label on it clears 4.5:1.
+ *
+ * It is NOT the text colour. #DC143C on the light ground is 4.50:1, which
+ * passes only by rounding, so accent text takes a darker shade of the same hue
+ * (6.02:1 on white) and a lighter one on the dark ground (6.70:1 on the
+ * surface). That is what "derive lighter and darker shades" is for: the brand
+ * hue stays exact where it is a surface, and legibility wins where it is ink.
+ *
+ * The attribute is still `rose`. Renaming it would be a data migration, not a
+ * rename — the accent is persisted per device under that string, and an
+ * unrecognised value silently resets the student to violet. The value is an
+ * identifier; the label the picker shows is in ThemeControl.
+ */
 [data-accent='rose'] {
-  --a-on-dark: #ff8fa3;
-  --a-on-light: #b3164a;
-  --a-fill: #be123c;
-  --a-fill-hover: #d5214d;
-  --a-weak-dark: #2d1418;
-  --a-weak-light: #fdeaef;
-  --a-border-dark: #6d2338;
-  --a-border-light: #f4c2d1;
+  --a-on-dark: #f37c94;
+  --a-on-light: #c41236;
+  --a-fill: #dc143c;
+  --a-fill-hover: #eb234b;
+  --a-weak-dark: #330f16;
+  --a-weak-light: #fdeaee;
+  --a-border-dark: #732636;
+  --a-border-light: #f8bcc8;
   /* The reference's selected-state material: a pastel FILL with dark ink on
      it, not a saturated block. One per accent, so the picker still works. */
-  --a-pastel-light: #fbd0dd;
-  --a-pastel-ink-light: #6b0f30;
-  --a-pastel-dark: #3c1220;
-  --a-pastel-ink-dark: #f8c6d6;
-  --a-glow-rgb: 190 18 60;
+  --a-pastel-light: #fbc9d3;
+  --a-pastel-ink-light: #6e0a1e;
+  --a-pastel-dark: #3c131b;
+  --a-pastel-ink-dark: #fabfcb;
+  --a-glow-rgb: 220 20 60;
 }
 
 [data-accent='green'] {
