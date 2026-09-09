@@ -61,7 +61,12 @@
   flex-direction: column;
   gap: var(--space-5);
   padding: var(--space-5) var(--space-4);
-  background: var(--surface);
+  /*
+   * The chrome sits on `--nav-bg`, which is the approved design's PANEL — a
+   * step off the canvas, not the same surface a card uses. It is what makes
+   * the workspace read as the lit area and the navigation as the frame.
+   */
+  background: var(--nav-bg);
   border-inline-end: 1px solid var(--border);
   position: sticky;
   inset-block-start: 0;
@@ -83,15 +88,33 @@
   inline-size: 32px;
   block-size: 32px;
   border-radius: 10px;
-  background: var(--accent-pastel);
-  color: var(--accent-pastel-ink);
+  /* The solid accent, with the label colour chosen for it — near-black on the
+     light ground and near-white on the dark one under the default Mono. */
+  background: var(--a-fill);
+  color: var(--a-contrast);
   font-weight: var(--weight-semibold);
 }
 
+.brandText {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  line-height: 1.15;
+}
+
 .brandWord {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: var(--weight-semibold);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+}
+
+/* The product's own subtitle, set in the technical face at label size. */
+.brandKind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--text-subtle);
 }
 
 .sideNav {
@@ -104,42 +127,43 @@
   overflow-y: auto;
 }
 
-/* The travelling marker, preserved from the top bar and turned on its side. */
-.sideLight {
-  position: absolute;
-  inset-inline: 0;
-  inset-block-start: 0;
-  border-radius: 12px;
-  background: var(--accent-pastel);
-  transition:
-    transform var(--motion-slow) var(--ease-glide),
-    height var(--motion-slow) var(--ease-glide);
-  pointer-events: none;
-}
-
 .sideLink {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 9px var(--space-3);
-  border-radius: 12px;
+  /* 40px tall, from the approved design: a row you can hit, not a dense list. */
+  block-size: 40px;
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-lg);
   color: var(--text-muted);
   text-decoration: none;
   font-size: var(--text-body);
-  transition: color var(--motion-fast) var(--ease-glide);
+  font-weight: var(--weight-medium);
+  transition:
+    color var(--motion-fast) var(--ease-glide),
+    background-color var(--motion-fast) var(--ease-glide);
 }
 
 .sideLink:hover {
   color: var(--text);
-  background: var(--surface-hover, var(--bg));
+  background: var(--bg-sunken);
 }
 
+/*
+ * THE ACTIVE ROW IS A FILLED PILL, not a travelling marker.
+ *
+ * The marker that used to slide between rows was carried over from a top bar
+ * where the destinations sat side by side and the movement read as a tab
+ * indicator. Down a vertical list the same animation reads as the page
+ * lurching, and the approved design does not have one: the active row is the
+ * accent's weak tint carrying the accent's own ink, which survives a
+ * monochrome display and needs nothing measured at runtime to place it.
+ */
 .sideLinkActive,
 .sideLinkActive:hover {
   color: var(--accent-pastel-ink);
-  font-weight: var(--weight-medium);
-  background: none;
+  background: var(--accent-pastel);
 }
 
 .sideLabel {
@@ -149,10 +173,26 @@
   white-space: nowrap;
 }
 
-.sideRule {
-  block-size: 1px;
-  margin: var(--space-3) var(--space-3);
-  background: var(--border);
+/*
+ * A NAMED GROUP, not a rule.
+ *
+ * The three groups were separated by a hairline, which says only "these are
+ * apart". The approved design names them, so the list reads as Overview /
+ * Academics / Account rather than as three anonymous runs — and a name is
+ * also the thing a screen reader can announce.
+ */
+.sideGroup {
+  margin-block: var(--space-4) var(--space-1);
+  padding-inline: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--text-subtle);
+}
+
+.sideGroup:first-child {
+  margin-block-start: 0;
 }
 
 .sideFoot {

@@ -66,7 +66,7 @@ import {
 import { formatCount, formatGpa } from '../../lib/format.js';
 import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { MetricStrip } from '../../components/ui/layout.js';
-import { MetaPill, PastelCard, Rail, toneFor } from '../../components/ui/tone.js';
+import { MetaPill, PastelCard, Rail } from '../../components/ui/tone.js';
 import { DropdownMenu } from '../../components/ui/DropdownMenu.js';
 import { Sheet } from '../../components/ui/Sheet.js';
 import { newId, nowIso } from '../../lib/id.js';
@@ -236,7 +236,7 @@ export function ResultsPage() {
               <Rail label="Saved semesters">
                 {[...items]
                   .sort((a, b) => a.semester - b.semester)
-                  .map((item, index) => {
+                  .map((item) => {
                     /*
                       From the shared reading, not a fifth computation of it.
                       This ran `semesterSgpa` per card on every render of the
@@ -248,7 +248,7 @@ export function ResultsPage() {
                     return (
                       <PastelCard
                         key={item.id}
-                        tone={toneFor(index)}
+                        tone="neutral"
                         pill={`Semester ${String(item.semester)}`}
                         title={sgpa === null ? 'SGPA not available' : `SGPA ${formatGpa(sgpa)}`}
                         body={formatCount(item.subjects.length, 'subject')}

@@ -34,7 +34,11 @@ import { Icon } from '../icons.js';
 import styles from './ui.module.css';
 
 export const TONES = ['sky', 'lime', 'lilac', 'peach'] as const;
-export type Tone = (typeof TONES)[number];
+/**
+ * `neutral` is the approved design's card and is NOT one of the cycling hues:
+ * it is what a list uses when its items differ in status rather than in kind.
+ */
+export type Tone = (typeof TONES)[number] | 'neutral';
 
 /** The hue for position `index` in a list that carries no meaning of its own. */
 export function toneFor(index: number): Tone {
