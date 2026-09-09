@@ -896,6 +896,15 @@ a.pastelCard:hover {
   overflow: hidden;
 }
 
+/* The neutral day: one card surface with a hairline, as the approved design
+   draws it. The four hues below stay for the places that use them
+   semantically. */
+.toneItem[data-tone='neutral'] {
+  --tone-fill: var(--surface);
+  --tone-ink: var(--text);
+  border: 1px solid var(--border);
+}
+
 .toneItem[data-tone='sky'] {
   --tone-fill: var(--tone-sky);
   --tone-ink: var(--tone-sky-ink);
