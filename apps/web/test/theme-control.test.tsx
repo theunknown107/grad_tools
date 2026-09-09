@@ -91,10 +91,10 @@ describe('the theme control', () => {
     await open(user);
 
     await user.click(screen.getByRole('button', { name: 'Dark' }));
-    await user.click(screen.getByRole('button', { name: 'Cyan' }));
+    await user.click(screen.getByRole('button', { name: 'Turquoise' }));
 
     await waitFor(() => {
-      expect(document.documentElement.getAttribute('data-accent')).toBe('cyan');
+      expect(document.documentElement.getAttribute('data-accent')).toBe('turquoise');
     });
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
   });
@@ -120,14 +120,32 @@ describe('the theme control', () => {
   it('restores a stored preference on mount', async () => {
     window.localStorage.setItem(
       THEME_STORAGE_KEY,
-      JSON.stringify({ appearance: 'light', accent: 'green' }),
+      JSON.stringify({ appearance: 'light', accent: 'emerald' }),
     );
     render(<ThemeControl />);
 
     await waitFor(() => {
       expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     });
-    expect(document.documentElement.getAttribute('data-accent')).toBe('green');
+    expect(document.documentElement.getAttribute('data-accent')).toBe('emerald');
+  });
+
+  it('carries a renamed accent across rather than resetting it', async () => {
+    /*
+     * The approved palette renamed two hues. A stored value the list no longer
+     * contains fails validation and silently drops the student back to the
+     * default, which is a worse outcome than showing them the successor to the
+     * colour they picked.
+     */
+    window.localStorage.setItem(
+      THEME_STORAGE_KEY,
+      JSON.stringify({ appearance: 'light', accent: 'cyan' }),
+    );
+    render(<ThemeControl />);
+
+    await waitFor(() => {
+      expect(document.documentElement.getAttribute('data-accent')).toBe('turquoise');
+    });
   });
 
   it('closes on Escape and returns focus to the trigger', async () => {

@@ -35,8 +35,35 @@ export type Appearance = (typeof APPEARANCES)[number];
  * not be, and would eventually produce an unreadable interface that looks like
  * our bug rather than their choice.
  */
-export const ACCENTS = ['violet', 'cyan', 'amber', 'rose', 'green'] as const;
+export const ACCENTS = [
+  'mono',
+  'violet',
+  'matrix',
+  'crimson',
+  'turquoise',
+  'ocean',
+  'amber',
+  'rose',
+  'indigo',
+  'emerald',
+  'solar',
+  'slate',
+] as const;
 export type Accent = (typeof ACCENTS)[number];
+
+/**
+ * Accents that were renamed when the approved design replaced the palette.
+ *
+ * A stored value the list no longer contains fails `isAccent` and silently
+ * resets the student to the default, so the two hues that were renamed rather
+ * than removed are carried across to their successors. This is a migration,
+ * not an alias: nothing reads these names after the preference is next
+ * written, and no NEW code may use them.
+ */
+const RENAMED_ACCENTS: Readonly<Record<string, Accent>> = {
+  cyan: 'turquoise',
+  green: 'emerald',
+};
 
 export interface ThemePreference {
   readonly appearance: Appearance;
@@ -51,7 +78,7 @@ export interface ThemePreference {
  * designed around. "System" remains available and an explicit choice always
  * wins — this is only the answer for someone who has not given one.
  */
-export const DEFAULT_THEME: ThemePreference = { appearance: 'light', accent: 'violet' };
+export const DEFAULT_THEME: ThemePreference = { appearance: 'light', accent: 'mono' };
 
 /** Device-scoped on purpose — see the header. */
 export const THEME_STORAGE_KEY = 'gradtools:v1:theme';
@@ -92,8 +119,17 @@ export function readStoredTheme(storage: Pick<Storage, 'getItem'>): ThemePrefere
     appearance: isAppearance(record['appearance'])
       ? record['appearance']
       : DEFAULT_THEME.appearance,
-    accent: isAccent(record['accent']) ? record['accent'] : DEFAULT_THEME.accent,
+    accent: accentFrom(record['accent']),
   };
+}
+
+/** A stored accent, its renamed successor, or the default. */
+function accentFrom(stored: unknown): Accent {
+  if (isAccent(stored)) return stored;
+  if (typeof stored === 'string' && stored in RENAMED_ACCENTS) {
+    return RENAMED_ACCENTS[stored] as Accent;
+  }
+  return DEFAULT_THEME.accent;
 }
 
 /** Writes the preference. A failure to persist must never break the UI. */
