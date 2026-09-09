@@ -55,7 +55,7 @@ describe('reading a stored preference', () => {
 
   it('round-trips a written preference', () => {
     const storage = memoryStorage();
-    const preference: ThemePreference = { appearance: 'dark', accent: 'cyan' };
+    const preference: ThemePreference = { appearance: 'dark', accent: 'turquoise' };
     writeStoredTheme(storage, preference);
     expect(readStoredTheme(storage)).toEqual(preference);
   });
@@ -95,7 +95,9 @@ describe('reading a stored preference', () => {
     } as unknown as Storage;
 
     expect(readStoredTheme(hostile)).toEqual(DEFAULT_THEME);
-    expect(() => writeStoredTheme(hostile, { appearance: 'dark', accent: 'green' })).not.toThrow();
+    expect(() =>
+      writeStoredTheme(hostile, { appearance: 'dark', accent: 'emerald' }),
+    ).not.toThrow();
   });
 });
 
@@ -238,7 +240,7 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
   it('reads the grounds it is about to test against', () => {
     // M9.6C: a blue-black environment, not the M9.4 violet-black.
     // Rebuilt to the reference: a neutral near-black, not the blue-black.
-    expect(darkBg).toBe('#111114');
+    expect(darkBg).toBe('#070708');
     /*
      * Deepened twice for the same reason, and the second time with a
      * measurement rather than a judgement.
@@ -253,7 +255,7 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
      * #dae0ec has tone of its own, which is what a translucent surface needs
      * in order to look lighter than something.
      */
-    expect(lightBg).toBe('#f3f3f5');
+    expect(lightBg).toBe('#f4f2ee');
   });
 
   it('composites surfaces rather than assuming a flat fill', () => {
@@ -299,13 +301,17 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
     /*
      * Unqualified, because the accent blocks are. They used to be scoped to
      * `:root`, which meant `data-accent` on anything else matched nothing —
-     * and the accent picker's five swatches, each of which sets the attribute
-     * on itself, all painted the root's colour. Five identical circles.
+     * and the accent picker's swatches, each of which sets the attribute on
+     * itself, all painted the root's colour.
+     *
+     * EVERY ACCENT NOW HAS TWO HALVES. `mono` is the default and is near-black
+     * on the light ground and near-white on the dark one, so a single value per
+     * accent cannot exist: each half is checked against the ground and the card
+     * of the appearance it belongs to.
      */
     const selector = `[data-accent='${accent}']`;
     const onDark = tokenIn(selector, 'a-on-dark');
     const onLight = tokenIn(selector, 'a-on-light');
-    const fill = tokenIn(selector, 'a-fill');
 
     // Accent text on both dark grounds.
     expect(contrast(onDark, darkBg)).toBeGreaterThanOrEqual(4.5);
@@ -313,14 +319,33 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
     // Accent text on both light grounds.
     expect(contrast(onLight, lightBg)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(onLight, lightSurface)).toBeGreaterThanOrEqual(4.5);
-    // White label on the accent's own fill — the primary button.
-    expect(contrast('#ffffff', fill)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([...ACCENTS])('%s carries a legible label on its own fill', (accent) => {
+    /*
+     * The primary button, in both appearances.
+     *
+     * This used to assert WHITE on the fill, which was the wrong pair twice
+     * over: it never checked the dark appearance at all, and it assumed a
+     * label colour rather than reading the one the stylesheet ships. Three of
+     * the approved accents — turquoise, amber and emerald — are light enough
+     * that a white label measures 3.6-3.9:1 against them, so they carry a
+     * near-black label instead. Reading `--a-contrast-*` checks what a person
+     * actually sees, and it holds every accent to AA without any of them being
+     * shifted off the hue the design approved.
+     */
+    const selector = `[data-accent='${accent}']`;
+    for (const half of ['light', 'dark'] as const) {
+      const fill = tokenIn(selector, `a-fill-${half}`);
+      const label = tokenIn(selector, `a-contrast-${half}`);
+      expect(contrast(label, fill)).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it('checks every accent the product offers, not a subset', () => {
-    // Guards the loop above: adding an accent to ACCENTS without adding a
+    // Guards the loops above: adding an accent to ACCENTS without adding a
     // block to tokens.css must fail here rather than ship unchecked.
-    expect(ACCENTS.length).toBe(5);
+    expect(ACCENTS.length).toBe(12);
     for (const accent of ACCENTS) {
       expect(CSS).toContain(`data-accent='${accent}'`);
     }
