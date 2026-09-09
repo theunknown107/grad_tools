@@ -136,14 +136,19 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: var(--control-height);
-  /* 20px of side padding, not 16. Every button in both references is notably
-     wider than its label needs — that generosity is most of why the controls
-     read as considered rather than as form furniture. */
-  padding: 0 var(--space-5);
+  /*
+   * 38px tall, 14px of side padding, 14px radius — the approved design's
+   * medium button, read off its own source rather than judged.
+   *
+   * It was a PILL at 34px with 20px padding, on the argument that the extra
+   * width read as considered. Against the approved design a pill reads as a
+   * chip: the product's controls are square-shouldered, and the shape is what
+   * separates a button from a status badge at a glance.
+   */
+  min-height: 38px;
+  padding: 0 14px;
   border: 1px solid transparent;
-  /* Pill, from both reference groups. It is the one shape they share. */
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-lg);
   font-size: var(--text-small);
   font-weight: var(--weight-medium);
   cursor: pointer;
@@ -156,9 +161,14 @@
     color var(--motion-fast) var(--ease-enter);
 }
 
-/* A button that moves under the finger feels pressed. 1px is enough. */
+/*
+ * A button that moves under the finger feels pressed.
+ *
+ * The approved design scales rather than translating: a 2% shrink reads as the
+ * control taking the press, where a 1px drop reads as the layout shifting.
+ */
 .button:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: scale(0.98);
 }
 
 .button:disabled {
@@ -184,8 +194,9 @@
  * neither is a bright fill. Without it the two read as the same button, which
  * is the failure this replaced.
  */
+/* Padding comes from the SIZE, not the variant: the approved design gives
+   every variant the same box and varies only its material. */
 .primary {
-  padding: 0 var(--space-6);
   background: var(--action-bg);
   border-color: var(--action-border);
   color: var(--action-fg);
@@ -210,7 +221,6 @@
 .ghost {
   background: transparent;
   color: var(--text-muted);
-  padding: 0 var(--space-3);
 }
 .ghost:hover:not(:disabled) {
   background: var(--surface);
@@ -243,14 +253,16 @@
  * viewports and only shrinks where a pointer is the likely input
  * (docs/27 §27.8). Caught by the touch-target sweep in tests/visual-qa.mjs.
  */
+/* The approved design's small button: 32px, 12px of padding, 13px type. */
 .small {
-  min-height: var(--control-height);
-  font-size: var(--text-caption);
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
 }
 
 @media (min-width: 1024px) {
   .small {
-    min-height: 36px;
+    min-height: 32px;
   }
 }
 
