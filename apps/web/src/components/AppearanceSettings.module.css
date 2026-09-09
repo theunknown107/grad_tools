@@ -1,0 +1,203 @@
+/*
+ * Appearance settings, to the approved design's geometry.
+ *
+ * Two cards, each with a heading, a sentence explaining what the choice does,
+ * and a grid of options. Nothing here names a colour: the accent swatches
+ * paint themselves from `data-accent`, and the theme swatches are the two
+ * grounds the product actually uses.
+ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.card {
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+
+.heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.explain {
+  margin: var(--space-2) 0 var(--space-4);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-inline-size: 60ch;
+}
+
+.strong {
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+/* ---- Theme ---------------------------------------------------------- */
+
+.themes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.theme {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-glide),
+    box-shadow var(--motion-fast) var(--ease-glide);
+}
+
+.theme:hover {
+  border-color: var(--border-strong);
+}
+
+.theme[data-selected='true'] {
+  border-color: var(--a-fill);
+  /* The ring is the accent at low alpha, so a selected card reads as lit
+     rather than as outlined in a second, heavier border. */
+  box-shadow: 0 0 0 2px rgb(var(--a-glow-rgb) / 20%);
+}
+
+.theme:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/*
+ * The swatch shows the GROUND each appearance paints, not an abstract icon
+ * tile: the light one is the workspace white, the dark one the near-black, and
+ * system is the seam between them.
+ */
+.themeSwatch {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.themeSwatch[data-appearance='light'] {
+  background: #ffffff;
+  color: #1b1a17;
+}
+
+.themeSwatch[data-appearance='dark'] {
+  background: #0e0e11;
+  color: #f4f3f1;
+  border-color: rgb(255 255 255 / 10%);
+}
+
+.themeSwatch[data-appearance='system'] {
+  background: linear-gradient(135deg, #ffffff 0%, #ffffff 48%, #0e0e11 52%, #0e0e11 100%);
+  color: var(--text);
+}
+
+.themeLabel {
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+}
+
+.tick {
+  position: absolute;
+  inset-block-start: var(--space-2);
+  inset-inline-end: var(--space-2);
+  display: grid;
+  place-items: center;
+  inline-size: 18px;
+  block-size: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--a-fill);
+  color: var(--a-contrast);
+}
+
+/* ---- Accent --------------------------------------------------------- */
+
+.accents {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+@media (min-width: 640px) {
+  .accents {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .accents {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.accent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-glide),
+    box-shadow var(--motion-fast) var(--ease-glide);
+}
+
+.accent:hover {
+  border-color: var(--border-strong);
+}
+
+.accent[data-selected='true'] {
+  border-color: var(--a-fill);
+  box-shadow: 0 0 0 2px rgb(var(--a-glow-rgb) / 20%);
+}
+
+.accent:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/*
+ * Paints the accent it names. `--a-fill` resolves from the `data-accent` the
+ * button sets on itself, and `--a-contrast` is the label colour chosen for
+ * that fill — which is why the tick stays legible on amber and on mono alike.
+ */
+.dot {
+  display: grid;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--a-fill);
+  color: var(--a-contrast);
+}
+
+.accentLabel {
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  text-align: center;
+}

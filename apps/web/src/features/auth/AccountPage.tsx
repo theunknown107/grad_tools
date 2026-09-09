@@ -17,7 +17,7 @@ import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/AppShell.js';
 import { MetaPill } from '../../components/ui/tone.js';
 import { SectionedForm } from '../../components/ui/SectionedForm.js';
-import { ThemeControl } from '../../components/ThemeControl.js';
+import { AppearanceSettings } from '../../components/AppearanceSettings.js';
 import { Icon } from '../../components/icons.js';
 import { Button, Notice, Panel, StatusPill } from '../../components/ui/index.js';
 import { useAuth } from './AuthContext.js';
@@ -72,6 +72,14 @@ export function AccountPage() {
             Sign in or create an account
           </Link>
         </Panel>
+
+        {/*
+          APPEARANCE BELONGS TO THE DEVICE, NOT THE ACCOUNT (docs/32 DEC-039).
+          It was reachable only once signed in, which made the one preference
+          that deliberately survives sign-out the one you had to sign in to
+          find. It is the same control and the same stored value either way.
+        */}
+        <AppearanceSettings />
       </div>
     );
   }
@@ -170,9 +178,12 @@ export function AccountPage() {
                   items and highlights. Saved on this device only &mdash; it is never synced and
                   never affects an academic figure.
                 </p>
-                <div className={styles.actions}>
-                  <ThemeControl />
-                </div>
+                {/*
+                  The settings screen shows every option at once and names it.
+                  The header popover is still there for a mid-task switch; both
+                  read and write the same device preference.
+                */}
+                <AppearanceSettings />
               </>
             ),
           },
