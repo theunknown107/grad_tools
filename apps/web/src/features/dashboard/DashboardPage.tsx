@@ -46,7 +46,7 @@ import {
 import { markFor } from '../../domain/attendance.js';
 import { Bar, Empty, MetricStrip, Row, Rows, Skeleton } from '../../components/ui/layout.js';
 import { PastelCard, Rail } from '../../components/ui/tone.js';
-import { Panel } from '../../components/ui/index.js';
+import { Panel, StatusPill, buttonClassName } from '../../components/ui/index.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
 import { formatCount, formatGpa, formatPercent, formatTime, localDay } from '../../lib/format.js';
 import {
@@ -81,6 +81,68 @@ const ruleSet = vtu2022RuleSet;
 function todayWeekday(): Weekday {
   const index = new Date().getDay();
   return WEEKDAYS[index === 0 ? 0 : index - 1] ?? 'Mon';
+}
+
+/* -------------------------------------------------------------------------- */
+/* The hero's words                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Morning, afternoon or evening, from the device clock.
+ *
+ * The approved design greets by time of day. It is the one thing on this page
+ * that is not academic state, and it is deliberately the only one.
+ */
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/**
+ * The standing figure, and NEVER a figure called something it is not.
+ *
+ * When a completed semester is still missing credit or grade data, no
+ * cumulative figure can honestly be called the CGPA — so the label above this
+ * says "Average so far" and this returns the provisional reading. The domain
+ * decides which case applies; this only renders it.
+ */
+function standingFigure(stats: AcademicStatistics): string {
+  const provisional = stats.cgpaBasis.pending.length > 0;
+  const metric = provisional ? stats.provisionalCgpa : stats.cgpa;
+  return metric.value === null ? 'Unavailable' : formatGpa(metric.value);
+}
+
+/** Why the figure is what it is, in the domain's own words. */
+function standingNote(stats: AcademicStatistics): string {
+  const provisional = stats.cgpaBasis.pending.length > 0;
+  const metric = provisional ? stats.provisionalCgpa : stats.cgpa;
+  if (metric.reason !== null && metric.reason !== undefined) return metric.reason;
+  const graded = stats.semestersGraded.value ?? 0;
+  if (graded === 0) return 'No semester has been graded yet.';
+  return `Credit-weighted across ${formatCount(graded, 'graded semester')}.`;
+}
+
+/**
+ * One sentence about where the student stands.
+ *
+ * Assembled from figures the domain has already established — never a claim
+ * the data does not support, and never an invented trend.
+ */
+function standingSentence(stats: AcademicStatistics, semester: number | null): string {
+  const graded = stats.semestersGraded.value ?? 0;
+  if (!stats.hasAnyResult) {
+    return 'No results are saved yet. Add a result card and your figures appear here.';
+  }
+  const parts: string[] = [];
+  parts.push(graded === 1 ? '1 semester graded' : `${String(graded)} semesters graded`);
+  if (stats.creditsEarned.value !== null) {
+    parts.push(formatCount(stats.creditsEarned.value, 'credit') + ' earned');
+  }
+  if (stats.backlogs.value === 0 && !stats.backlogsUndetermined) parts.push('no backlogs');
+  const where = semester === null ? '' : ` You are in semester ${String(semester)}.`;
+  return `${parts.join(', ')}.${where}`;
 }
 
 /** The subject's real name, or its code when nobody has entered one. */
@@ -160,20 +222,76 @@ export function DashboardPage() {
           they are not, and on a phone the split did not exist anyway.
         */
         <>
-          <section className={`${styles.brief ?? ''} surfaceCard`} aria-labelledby="brief-title">
-            <header className={styles.briefHead}>
-              <div>
-                <p className={styles.eyebrow}>
-                  {name !== undefined && name !== '' ? `${name} · ` : ''}
-                  {profile?.branch ?? 'GradTools'}
-                  {profile?.schemeId === 'vtu-2022' ? ' · 2022 scheme' : ''}
-                </p>
-                <h1 className={styles.title} id="brief-title">
-                  {semesterNumber === null ? 'Your degree' : `Semester ${String(semesterNumber)}`}
-                  {current !== null && <span className={styles.status}>In progress</span>}
-                </h1>
+          {/*
+            THE HERO, from the approved design.
+            
+            Two columns above 1024: the greeting and its actions on the left,
+            and the ONE figure a student opens the app for on the right, set
+            large on its own panel. Below that width it stacks, greeting first.
+            
+            Everything in it is real. The badges are the stored profile, the
+            standing is the domain's own CGPA reading, and the progress bar
+            counts semesters the rules engine has actually graded — there is
+            no credit requirement in the domain, so none is invented here.
+          */}
+          <section className={`${styles.hero ?? ''} surfaceCard`} aria-labelledby="brief-title">
+            <div className={styles.heroMain}>
+              <div className={styles.heroBadges}>
+                {profile?.branch !== undefined && profile.branch !== '' && (
+                  <StatusPill tone="accent">{profile.branch}</StatusPill>
+                )}
+                {profile?.schemeId === 'vtu-2022' && (
+                  <StatusPill tone="neutral">2022 scheme</StatusPill>
+                )}
+                {semesterNumber !== null && (
+                  <StatusPill tone="neutral">Semester {semesterNumber}</StatusPill>
+                )}
               </div>
-            </header>
+              <h1 className={styles.heroTitle} id="brief-title">
+                {name !== undefined && name !== ''
+                  ? `${greeting()}, ${name.split(' ')[0] ?? name}.`
+                  : greeting() + '.'}
+              </h1>
+              <p className={styles.heroLede}>{standingSentence(statistics, semesterNumber)}</p>
+              <div className={styles.heroActions}>
+                <Link to="/import" className={buttonClassName('primary')}>
+                  Add result
+                </Link>
+                <Link to="/results" className={buttonClassName()}>
+                  View results
+                </Link>
+              </div>
+            </div>
+
+            {/* The standing block: one figure, and what it is made of. */}
+            <div className={styles.standing}>
+              <p className={styles.standingLabel}>
+                {statistics.cgpaBasis.pending.length > 0 ? 'Average so far' : 'Cumulative CGPA'}
+              </p>
+              <p
+                className={styles.standingValue}
+                data-absent={/\d/.test(standingFigure(statistics)) ? undefined : 'true'}
+              >
+                {standingFigure(statistics)}
+              </p>
+              <p className={styles.standingNote}>{standingNote(statistics)}</p>
+              <div className={styles.standingProgress}>
+                <div className={styles.standingProgressHead}>
+                  <span>Semesters graded</span>
+                  <span className={styles.standingProgressCount}>
+                    {statistics.semestersGraded.value ?? 0}/{statistics.views.length}
+                  </span>
+                </div>
+                <Bar
+                  value={
+                    statistics.views.length === 0
+                      ? 0
+                      : ((statistics.semestersGraded.value ?? 0) / statistics.views.length) * 100
+                  }
+                  label="Semesters graded"
+                />
+              </div>
+            </div>
           </section>
 
           {/*
