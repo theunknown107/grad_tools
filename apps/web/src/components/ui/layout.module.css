@@ -26,58 +26,70 @@
  * which is the test the mobile reference's rounded cards have to pass
  * (M9.4 §24). Everything else on the screen stays a row.
  */
+/*
+ * THE METRIC GRID, from the approved design.
+ *
+ * These used to be one bordered module with the figures set inside it as a
+ * strip. The approved design gives each figure its OWN tile, on a shared
+ * material, in a grid that goes two across on a phone, three on a laptop and
+ * six on a wide desktop — so a student reads six comparable instruments rather
+ * than one box containing six numbers.
+ *
+ * The container is now nothing at all: no background, no border, no padding.
+ * A card inside a card is the "giant stat card" this product spent two
+ * milestones removing, and the tiles carry their own surface.
+ */
 .metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
-  gap: var(--space-5) var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
   margin: 0;
-  padding: var(--space-5);
-  /* M9.6C: the metric strip is the most elevated surface on a dashboard, so it
-     takes the glass material rather than a flat fill. */
-  background: var(--glass-surface-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--glass-highlight);
+  padding: 0;
 }
 
-/*
- * On a desktop it goes back to being a strip. A wide bordered box around five
- * numbers is the "giant stat card" the product has spent two milestones
- * removing; `auto-fill` with a capped column keeps the figures grouped at the
- * start of the line instead of spreading across the full width (M9.3 §10).
- */
-/*
- * A SURFACE AT EVERY WIDTH (M9.5.1). The strip used to dissolve into a pair of
- * hairlines on a desktop, which left the five figures a student opens the app
- * for as the least substantial thing on the screen. They keep the module and
- * simply spread inside it.
- */
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .metrics {
-    /* 124px: five figures fit on one line inside the main column beside the
-       320px rail at 1280-1440, which is the whole point of a strip. */
-    grid-template-columns: repeat(auto-fill, minmax(92px, 124px));
-    gap: var(--space-5) var(--space-6);
-    padding: var(--space-5);
-    border-radius: var(--radius-lg);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
+@media (min-width: 1280px) {
+  .metrics {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/*
+ * One instrument.
+ *
+ * The material is `gt-metric` (global.css) — surface, hairline, a one-pixel
+ * highlight and a small shadow. Deliberately MONOCHROME in every accent theme:
+ * no tint, no glow, and above all no coloured left stripe. The figure is the
+ * subject, and type and material are what carry it.
+ */
 .metric {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-xl);
 }
 
+/*
+ * 12px, sentence case. The label used to be uppercase micro type with wide
+ * tracking, which at six across reads as a row of shouted abbreviations. The
+ * approved design sets it as ordinary small text and lets the figure below it
+ * be the loud thing.
+ */
 .metricLabel {
-  font-size: var(--text-micro);
-  line-height: var(--text-micro-lh);
+  font-size: 12px;
+  line-height: 1.4;
   font-weight: var(--weight-medium);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text-subtle);
+  color: var(--text-muted);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /*
@@ -93,11 +105,12 @@
  */
 .metricValue {
   margin: 0;
-  font-size: var(--text-h1);
-  line-height: var(--text-h1-lh);
+  margin-block-start: 2px;
+  font-size: 30px;
+  line-height: 1;
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
-  letter-spacing: var(--tracking-display);
+  letter-spacing: -0.02em;
   color: var(--text);
 }
 
@@ -109,10 +122,26 @@
   color: var(--danger);
 }
 
+/*
+ * A VALUE THAT IS NOT A FIGURE IS NOT SET AT FIGURE SIZE.
+ *
+ * "Unavailable", "Not recorded", "Not set" are answers, and the approved
+ * design gives them their own treatment — 15px, muted — rather than rendering
+ * a word at 30px where a number belongs. A dashboard with nothing in it yet
+ * then reads as quiet rather than as six shouted absences.
+ */
+.metricValue[data-absent='true'] {
+  font-size: 15px;
+  line-height: 1.4;
+  letter-spacing: normal;
+  color: var(--text-subtle);
+}
+
 .metricNote {
   display: block;
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
+  margin-block-start: 6px;
+  font-size: 12px;
+  line-height: 1.4;
   font-weight: var(--weight-regular);
   color: var(--text-subtle);
 }

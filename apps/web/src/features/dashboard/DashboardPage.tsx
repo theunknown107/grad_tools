@@ -174,13 +174,20 @@ export function DashboardPage() {
                 </h1>
               </div>
             </header>
-
-            <Snapshot
-              stats={statistics}
-              attendance={thisSemester}
-              subjectCount={subjectsNow.length}
-            />
           </section>
+
+          {/*
+            THE FIGURES ARE THEIR OWN SECTION, not contents of the header card.
+            The approved design puts the standing tiles directly on the canvas:
+            each one carries its own material, and nesting them inside another
+            surface makes a card full of cards — the "giant stat card" this
+            product has twice removed.
+          */}
+          <Snapshot
+            stats={statistics}
+            attendance={thisSemester}
+            subjectCount={subjectsNow.length}
+          />
 
           {/*
             THE REFERENCE'S SIGNATURE ROW, carrying GradTools' own content.
