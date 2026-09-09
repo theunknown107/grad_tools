@@ -535,16 +535,40 @@
  * uniform wall of 14px. Only this grows; body, metadata and controls keep the
  * compact scale they already had.
  */
+/*
+ * The eyebrow: the technical face at label size, saying what the page's
+ * content belongs to — a programme, a scheme, a semester, a division.
+ */
+.pageEyebrow {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--text-subtle);
+}
+
+/*
+ * 26px, rising to 30px above 640. The DISPLAY face — Space Grotesk — which is
+ * used here and on the figures a student came to read, and nowhere else.
+ */
 .pageTitle {
-  font-size: clamp(28px, 3.2vw, 40px);
+  font-family: var(--font-display);
+  font-size: 26px;
   line-height: 1.1;
   font-weight: var(--weight-semibold);
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 640px) {
+  .pageTitle {
+    font-size: 30px;
+  }
 }
 
 .pageSubtitle {
-  margin-top: var(--space-2);
-  font-size: var(--text-small);
+  margin-top: 6px;
+  font-size: 14px;
   line-height: var(--text-small-lh);
   color: var(--text-muted);
   max-width: 68ch;

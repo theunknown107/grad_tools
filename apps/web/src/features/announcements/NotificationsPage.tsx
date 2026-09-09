@@ -157,6 +157,7 @@ export function NotificationsPage() {
   return (
     <div className={`${styles.page ?? ''} ${styles.settingsPage ?? ''}`}>
       <PageHeader
+        eyebrow="Overview"
         title="Notifications"
         subtitle="What is new since you last looked. Read state stays on this device."
         pills={unread > 0 ? <MetaPill>{formatCount(unread, 'unread')}</MetaPill> : undefined}

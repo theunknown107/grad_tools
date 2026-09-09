@@ -31,6 +31,7 @@ export function ImportPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Import"
         title="Add academic document"
         subtitle="Drop a result card, an academic calendar or a class timetable. GradTools works out which is which."
         /*

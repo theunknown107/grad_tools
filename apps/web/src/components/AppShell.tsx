@@ -402,19 +402,27 @@ export function AppShell({ children }: { children: ReactNode }) {
 /**
  * Consistent page heading block.
  *
- * No eyebrow line: the reference application puts a breadcrumb above its
- * heading, but the second navigation tier already says which area is open and
- * which destination is current. Adding "ACADEMICS" above "Results" would
- * repeat, in smaller type, something the highlighted chip two rows up already
- * says.
+ * THE EYEBROW IS BACK, and it is not a breadcrumb. The old reasoning was that
+ * a navigation tier already said which area was open, so a line above the
+ * title would repeat it. The approved design uses the slot for something the
+ * navigation cannot say: the programme and scheme a page's figures belong to,
+ * the semester a record covers, the division a timetable is for. That is
+ * context, not a duplicate label.
+ *
+ * The title is set in the DISPLAY face at 26px, rising to 30px above 640.
+ * It was `clamp(28px, 3.2vw, 40px)`, which reached 40px on a wide screen —
+ * a page title that large is a poster, and every page had one.
  */
 export function PageHeader({
+  eyebrow,
   title,
   subtitle,
   action,
   back,
   pills,
 }: {
+  /** Programme, scheme, semester — what the page's content belongs to. */
+  eyebrow?: string;
   title: string;
   subtitle?: string;
   action?: ReactNode;
@@ -430,6 +438,7 @@ export function PageHeader({
   return (
     <div className={styles.pageHeader}>
       <div className={styles.pageHeading}>
+        {eyebrow !== undefined && <p className={styles.pageEyebrow}>{eyebrow}</p>}
         <div className={styles.titleRow}>
           {back !== undefined && (
             <Link to={back} className={styles.backButton ?? ''} aria-label="Go back">

@@ -56,6 +56,7 @@ export function AccountPage() {
     return (
       <div className={styles.page}>
         <PageHeader
+          eyebrow="Account"
           title="Account"
           subtitle="You are not signed in. Everything you enter stays on this device."
         />
@@ -95,6 +96,7 @@ export function AccountPage() {
   return (
     <div className={`${styles.page ?? ''} ${styles.settingsPage ?? ''}`}>
       <PageHeader
+        eyebrow="Account"
         title="Account"
         subtitle="Who you are signed in as, and what you can do."
         /* The one fact this page is about: which account, if any. */

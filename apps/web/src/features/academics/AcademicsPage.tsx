@@ -73,6 +73,7 @@ export function AcademicsPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Academic performance"
         title="SGPA & CGPA"
         subtitle="Every figure is computed by the shared rules engine against the VTU 2022 regulation, and every one can show its working."
         /* The regulation is a fact about the page; the figures belong to the

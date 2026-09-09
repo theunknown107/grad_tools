@@ -133,6 +133,7 @@ export function FirstSyncPage() {
   return (
     <div className={styles.page}>
       <PageHeader
+        eyebrow="Sync"
         title="Your records"
         subtitle="You are signed in. Choose what happens to the records already on this device."
         /* The two real counts, stated before the choice that depends on them.
