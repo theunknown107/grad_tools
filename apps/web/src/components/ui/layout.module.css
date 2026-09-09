@@ -269,11 +269,13 @@
 /* Bar                                                                        */
 /* -------------------------------------------------------------------------- */
 
+/* 8px on the SUNKEN surface, from the approved design — a recessed track, not
+   a border-coloured line. */
 .bar {
   inline-size: 100%;
-  block-size: 6px;
+  block-size: 8px;
   overflow: hidden;
-  background: var(--border);
+  background: var(--bg-sunken);
   border-radius: var(--radius-pill);
 }
 

@@ -40,16 +40,21 @@
  * environment is just a slightly lighter rectangle; with it, the ambient light
  * behind the panel bends and the surface acquires depth.
  */
+/*
+ * The card, from the approved design: the RAISED surface, a hairline, and an
+ * 18px corner. No glass — the design reserves that treatment for compact
+ * interactive controls, and a page of glass panels is the failure the material
+ * exists to avoid.
+ */
 .panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
   padding: var(--space-5);
-  background: var(--glass-surface-bg);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--glass-highlight);
+  border-radius: var(--radius-xl);
 }
 
 /*
@@ -322,17 +327,24 @@
   padding-left: calc(var(--space-4) * 2 + var(--icon-nav));
 }
 
+/*
+ * The field, from the approved design: 38px on the PANEL surface — recessed
+ * against the card it sits on, which is what makes it read as somewhere to
+ * type rather than as another card.
+ */
 .input,
 .select {
-  min-height: var(--control-height);
+  min-height: 38px;
   width: 100%;
-  padding: 0 var(--space-4);
-  background: var(--surface);
+  padding: 0 var(--space-3);
+  background: var(--nav-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   color: var(--text);
-  font-size: var(--text-body);
-  transition: border-color var(--motion-fast) var(--ease-enter);
+  font-size: 14px;
+  transition:
+    border-color var(--motion-fast) var(--ease-enter),
+    box-shadow var(--motion-fast) var(--ease-enter);
 }
 
 .input:hover:not(:disabled),
@@ -340,9 +352,16 @@
   border-color: var(--border-strong);
 }
 
+/*
+ * Focus is the accent border AND a soft ring of the same hue at low alpha,
+ * which is the approved design's treatment. The border alone is a one-pixel
+ * change that a person can miss on a field they are already looking at.
+ */
 .input:focus,
 .select:focus {
-  border-color: var(--accent);
+  border-color: var(--a-fill);
+  box-shadow: 0 0 0 3px rgb(var(--a-glow-rgb) / 25%);
+  outline: none;
 }
 
 .input[aria-invalid='true'] {
