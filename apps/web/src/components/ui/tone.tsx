@@ -22,9 +22,11 @@
  *   lime   progress and healthy status
  *   peach  attention, deadlines, anything pending
  *
- * `toneFor` exists so a list of things with no meaning of their own — eight
- * semesters, six subjects — still cycles rather than picking one hue and
- * repeating it.
+ * NOTHING CYCLES BY POSITION ANY MORE. `toneFor` handed a list of eight
+ * semesters or six days a hue chosen from its index, which is decoration: the
+ * colour told a reader nothing, and it made the busiest rows on a page the
+ * loudest. Those lists are `neutral` now, and the four hues below are used
+ * only where they carry one of the meanings above.
  */
 
 import { useState, type ReactNode } from 'react';
@@ -39,11 +41,6 @@ export const TONES = ['sky', 'lime', 'lilac', 'peach'] as const;
  * it is what a list uses when its items differ in status rather than in kind.
  */
 export type Tone = (typeof TONES)[number] | 'neutral';
-
-/** The hue for position `index` in a list that carries no meaning of its own. */
-export function toneFor(index: number): Tone {
-  return TONES[index % TONES.length] as Tone;
-}
 
 /**
  * A metadata pill: outlined, white, icon optional.
@@ -215,12 +212,20 @@ export function ToneAccordion({
       value={[...open]}
       onValueChange={setChosen}
     >
-      {items.map((item, index) => (
+      {items.map((item) => (
         <AccordionPrimitive.Item
           key={item.id}
           value={item.id}
           className={styles.toneItem ?? ''}
-          data-tone={toneFor(index)}
+          /*
+            NEUTRAL, like every other list that cycles by position.
+            
+            The week's days were painted from the four pastels by index, so a
+            timetable read as six coloured blocks and the colour said nothing
+            about the day. The approved design gives them one surface and lets
+            the sessions inside carry the meaning.
+          */
+          data-tone="neutral"
         >
           {/*
             The trigger must be inside a HEADER. Radix renders `Header` as an
