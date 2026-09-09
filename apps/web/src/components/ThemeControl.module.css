@@ -45,7 +45,8 @@
   inset-block-start: calc(100% + var(--space-2));
   inset-inline-end: 0;
   z-index: var(--z-overlay);
-  inline-size: 244px;
+  /* 264px: six 30px swatches and their gaps, plus the panel's own padding. */
+  inline-size: 264px;
   padding: var(--space-4);
   display: grid;
   gap: var(--space-4);
@@ -136,15 +137,24 @@
 
 /* --- Accent -------------------------------------------------------------- */
 
+/*
+ * A GRID, NOT A ROW.
+ *
+ * Five accents fitted on one line; twelve do not, and a flex row simply ran
+ * them off the edge of the panel. Six to a row keeps the popover the same
+ * width it has always been and puts the whole palette two rows deep.
+ */
 .accents {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--space-2);
+  justify-items: center;
 }
 
 /*
  * Each swatch sets `data-accent` on ITSELF, so the accent blocks in tokens.css
  * resolve locally and the swatch paints its own hue without a single colour
- * being written here. Adding a sixth accent needs no change to this file.
+ * being written here. Adding a thirteenth accent needs no change to this file.
  */
 .swatch {
   display: inline-flex;
