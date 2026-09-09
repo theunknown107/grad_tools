@@ -676,10 +676,16 @@ describe('navigation', () => {
 
   it('shows a 404 that offers real destinations', async () => {
     renderWith(<App />, { route: '/nope' });
-    expect(await screen.findByRole('heading', { name: /page not found/i })).toBeTruthy();
+    /*
+     * The wording follows the approved design — a 404 says the route is not
+     * part of the student's record rather than announcing a failure. What is
+     * under test is unchanged: the page names itself, and it offers a way out
+     * rather than being a dead end.
+     */
+    expect(await screen.findByRole('heading', { name: /in your record/i })).toBeTruthy();
     // Scoped to main: "Dashboard" is also a navigation link.
     const main = screen.getByRole('main');
-    expect(within(main).getByRole('link', { name: /^dashboard$/i })).toBeTruthy();
+    expect(within(main).getByRole('link', { name: /go to dashboard/i })).toBeTruthy();
   });
 
   it('carries the independence disclaimer on every screen', () => {

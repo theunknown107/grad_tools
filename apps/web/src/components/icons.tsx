@@ -332,6 +332,13 @@ const SHAPES = {
     </>
   ),
   check: <path d="m4.8 12.4 4.6 4.6 9.8-9.8" />,
+  /* The 404's mark: a compass, from the approved design. */
+  compass: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m15.9 8.1-2.1 5.8-5.8 2.1 2.1-5.8Z" />
+    </>
+  ),
   /* Drawn, not a rotated chevronRight: six components point one down and a
      per-callsite transform class is six chances to forget one. */
   chevronDown: <path d="M5.8 9.4 12 15.6l6.2-6.2" />,
