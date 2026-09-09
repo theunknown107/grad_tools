@@ -699,6 +699,24 @@ a.pastelCard:hover {
   filter: brightness(0.985);
 }
 
+/*
+ * NEUTRAL — the approved design's card, and the default for a list that
+ * carries no meaning of its own.
+ *
+ * A row of eight semesters used to cycle through the four pastels by POSITION.
+ * That is decoration rather than information: the colour told a student
+ * nothing, and it made the busiest row on the dashboard the loudest. The
+ * approved design gives them all one surface with a hairline, and lets the
+ * status pill and the numbers carry the difference.
+ *
+ * The four hues below are kept for the places that use them SEMANTICALLY.
+ */
+.pastelCard[data-tone='neutral'] {
+  --tone-fill: var(--surface);
+  --tone-ink: var(--text);
+  border: 1px solid var(--border);
+}
+
 .pastelCard[data-tone='sky'] {
   --tone-fill: var(--tone-sky);
   --tone-ink: var(--tone-sky-ink);

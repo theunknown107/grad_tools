@@ -145,26 +145,6 @@ const MOBILE_TABS: readonly Destination[] = MOBILE_PATHS.map(
 );
 
 /**
- * Which area the current route belongs to.
- *
- * Routes with no destination of their own — a single paper, the first-sync
- * screen, a mistyped URL — resolve to the area their parent path belongs to,
- * so `/papers/abc123` keeps Academics open and its chip row visible rather than
- * blanking the navigation.
- */
-export function groupForPath(pathname: string): string {
-  const exact = DESTINATIONS.find((destination) => destination.to === pathname);
-  if (exact) return exact.group;
-
-  const nested = DESTINATIONS.find(
-    (destination) => destination.to !== '/' && pathname.startsWith(`${destination.to}/`),
-  );
-  if (nested) return nested.group;
-
-  return 'Overview';
-}
-
-/**
  * The limelight: one indicator that TRAVELS between navigation items.
  *
  * Authority: M9.6B Reference 03 (@easemize/limelight-nav) — RECREATED.
@@ -235,8 +215,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
   const isFirstRender = useRef(true);
 
-  const activeGroup = groupForPath(location.pathname);
-
   /*
    * Route changes move focus to the main region.
    *
@@ -265,9 +243,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { items: announcements } = useAnnouncements();
   const { notifications, unread, setState, readAll } = useNotifications(announcements);
 
-  const sideNavRef = useRef<HTMLElement>(null);
   const bottomNavRef = useRef<HTMLElement>(null);
-  const navLight = useLimelight(sideNavRef, activeGroup);
   const bottomLight = useLimelight(bottomNavRef, location.pathname);
 
   return (
@@ -304,26 +280,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className={styles.brandMark} aria-hidden="true">
                 G
               </span>
-              <span className={styles.brandWord}>GradTools</span>
+              <span className={styles.brandText}>
+                <span className={styles.brandWord}>GradTools</span>
+                <span className={styles.brandKind}>Academic OS</span>
+              </span>
             </NavLink>
 
-            <nav className={styles.sideNav} aria-label="Destinations" ref={sideNavRef}>
-              {/* The travelling marker, now moving down instead of across. */}
-              {navLight !== null ? (
-                <span
-                  className={styles.sideLight}
-                  aria-hidden="true"
-                  style={{
-                    transform: `translateY(${String(navLight.top)}px)`,
-                    height: `${String(navLight.height)}px`,
-                  }}
-                />
-              ) : null}
+            <nav className={styles.sideNav} aria-label="Destinations">
               {GROUPS.map((group) => (
                 <Fragment key={group}>
-                  {group !== 'Overview' ? (
-                    <span className={styles.sideRule} aria-hidden="true" />
-                  ) : null}
+                  {/* The group is NAMED, not merely separated by a rule. */}
+                  <span className={styles.sideGroup}>{group}</span>
                   {DESTINATIONS.filter((destination) => destination.group === group).map((item) => {
                     const isActive =
                       item.to === '/'
