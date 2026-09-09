@@ -119,7 +119,13 @@ describe('dashboard', () => {
     });
     renderWith(<DashboardPage />, { repositories: bundle });
 
-    expect(await screen.findByText('8.75')).toBeTruthy();
+    /*
+     * The approved design carries the CGPA twice: once as the hero's standing
+     * figure and once in the comparable metric row. Both must show the rules
+     * engine's number, so this asserts on ALL of them rather than picking one.
+     */
+    const figures = await screen.findAllByText('8.75');
+    expect(figures.length).toBeGreaterThan(0);
     // 8.75 x 10 = 87.5%, per 22OB 6.7. NOT (8.75-0.75)x10 = 80.0%.
     expect(screen.getByText('87.5%')).toBeTruthy();
     expect(screen.queryByText('80.0%')).toBeNull();

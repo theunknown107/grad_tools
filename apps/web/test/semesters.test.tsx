@@ -457,7 +457,13 @@ describe('current semester on the dashboard', () => {
     });
     renderWith(<DashboardPage />, { repositories: bundle });
 
-    await screen.findByRole('heading', { name: /Semester 5/ });
+    /*
+     * The dashboard still says which semester the student is in; the approved
+     * design carries it as a badge in the hero rather than as the page's h1,
+     * which now greets. The guarantee under test is that the page identifies
+     * the semester, not which element does it.
+     */
+    expect((await screen.findAllByText(/Semester 5/)).length).toBeGreaterThan(0);
     /*
      * Scoped to the snapshot strip: the attendance list further down shows the
      * same figure per subject, so an unscoped match would prove nothing.
@@ -475,7 +481,13 @@ describe('current semester on the dashboard', () => {
     const { bundle } = createMemoryRepositories({ semesters: [semester(5, 'in_progress')] });
     renderWith(<DashboardPage />, { repositories: bundle });
 
-    await screen.findByRole('heading', { name: /Semester 5/ });
+    /*
+     * The dashboard still says which semester the student is in; the approved
+     * design carries it as a badge in the hero rather than as the page's h1,
+     * which now greets. The guarantee under test is that the page identifies
+     * the semester, not which element does it.
+     */
+    expect((await screen.findAllByText(/Semester 5/)).length).toBeGreaterThan(0);
     const strip = document.querySelector('dl') as HTMLElement;
 
     /*
