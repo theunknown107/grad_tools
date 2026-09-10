@@ -620,13 +620,17 @@ describe('timetable', () => {
     });
     renderWith(<TimetablePage />, { repositories: bundle });
     /*
-     * M9.6F made Today the primary view and moved the week — including the
-     * mobile day agenda — behind a tab. The assertion is unchanged: the
-     * agenda must offer BUTTON navigation, not swipe only.
+     * The approved design replaced the prev/next agenda pair with a day PICKER
+     * — every day is one press away rather than several. The guarantee under
+     * test is unchanged and is what actually matters: reaching another day
+     * must be possible with BUTTONS, never with a swipe alone (docs/27 §27.8).
      */
-    await userEvent.click(await screen.findByRole('tab', { name: /week/i }));
-    expect(await screen.findByRole('button', { name: /next day/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /previous day/i })).toBeTruthy();
+    await userEvent.click(await screen.findByRole('tab', { name: /^day/i }));
+    for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']) {
+      expect(screen.getByRole('button', { name: day })).toBeTruthy();
+    }
+    await userEvent.click(screen.getByRole('button', { name: 'Mon' }));
+    expect(screen.getByRole('button', { name: 'Mon' }).getAttribute('aria-pressed')).toBe('true');
   });
 });
 
