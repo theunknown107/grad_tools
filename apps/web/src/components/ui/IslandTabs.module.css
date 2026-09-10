@@ -104,20 +104,22 @@
   outline-offset: -2px;
 }
 
+/*
+ * THE COUNT TAKES THE TAB'S OWN INK, on a tint of it.
+ *
+ * It used to be a fixed ink on a fixed 20% white wash, which on the selected
+ * tab in dark mode put #101014 on #454547 — 1.98:1. Deriving both from
+ * `currentColor` makes the pair contrast-safe by construction: whatever ink
+ * the tab is using, the chip behind the count is a 12% tint of that ink.
+ */
 .count {
   padding-inline: 6px;
   border-radius: var(--radius-pill);
-  background: var(--surface-raised);
-  color: var(--text-subtle);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: inherit;
   font-size: var(--text-micro);
   line-height: 18px;
   font-variant-numeric: tabular-nums;
-}
-
-.tab[data-state='active'] .count,
-.tab[data-state='on'] .count {
-  background: rgb(255 255 255 / 20%);
-  color: var(--tab-selected-fg);
 }
 
 .panel {
