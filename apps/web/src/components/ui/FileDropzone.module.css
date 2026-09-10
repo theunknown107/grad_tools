@@ -13,15 +13,22 @@
   gap: var(--space-3);
 }
 
+/*
+ * The approved design's drop surface: a TWO-pixel dashed edge on the panel
+ * surface, 64px of vertical room, an 18px corner. The heavier edge is what
+ * makes it read as a target rather than as an empty card, and the recessed
+ * ground is what separates it from the cards around it.
+ */
 .zone {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-7) var(--space-5);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  padding: var(--space-8) var(--space-6);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-xl);
+  background: var(--nav-bg);
   text-align: center;
   transition:
     border-color var(--motion-fast) var(--ease-enter),
@@ -30,7 +37,6 @@
 
 .zone[data-dragging='true'] {
   border-color: var(--a-fill);
-  border-style: solid;
   background: var(--accent-weak);
 }
 

@@ -92,6 +92,7 @@ import {
 } from '../../components/ui/index.js';
 import { Alert } from '../../components/ui/Feedback.js';
 import { useToast } from '../../components/ui/Toast.js';
+import { ImportStepper, type ImportStep } from '../../components/ui/ImportStepper.js';
 import { FileDropzone } from '../../components/ui/FileDropzone.js';
 import { Attachment, ItemGroup, ItemRow } from '../../components/ui/Item.js';
 import { newId, nowIso } from '../../lib/id.js';
@@ -351,7 +352,7 @@ function fileMeta(entry: FileState): string {
 export function ResultImport({
   profileId,
   schemeId,
-  title = 'Add academic document',
+  title,
   savedSemesters,
   savedResults,
   semesterSubjects,
@@ -371,6 +372,11 @@ export function ResultImport({
    * On Results the panel needs to name itself, because it sits among other
    * things. On `/import` the page heading says the same words directly above
    * it, and printing them twice is a heading a screen reader reads twice.
+   *
+   * IT USED TO DEFAULT to "Add academic document", which meant the one caller
+   * that deliberately passed nothing got the heading anyway — and with it a
+   * card wrapping the whole flow. The approved design puts the stepper and the
+   * drop surface directly on the canvas there, so absence has to mean absence.
    */
   readonly title?: string | undefined;
   readonly savedSemesters: readonly number[];
@@ -712,13 +718,30 @@ export function ResultImport({
         entry.reading?.source === 'ocr' && entry.file !== null && group.files.includes(entry.file),
     );
 
-  return (
-    <Panel title={title} flush>
-      <div className={styles.importIntro}>
-        <Notice>
-          Your file is read on this device. It is never uploaded, and GradTools does not keep it —
-          only the information you confirm is saved.
-        </Notice>
+  /*
+   * WHERE THE DOCUMENT HAS GOT TO, from the pipeline's own state.
+   *
+   * Every step is a state the importer actually passes through: a file being
+   * read, a picture being recognised, rows waiting to be confirmed, a write
+   * that completed. Nothing is inferred and nothing runs ahead of the work —
+   * a stepper that shows a stage the code never enters is a promise it cannot
+   * keep.
+   */
+  const step: ImportStep =
+    saved.length > 0
+      ? 'Confirm'
+      : files.some((entry) => entry.status === 'recognising')
+        ? 'Parse'
+        : files.some((entry) => entry.status === 'reading' || entry.status === 'queued')
+          ? 'Validate'
+          : groups.length > 0
+            ? 'Review'
+            : 'Select';
+
+  const body = (
+    <>
+      <div className={styles.importSteps}>
+        <ImportStepper at={step} />
       </div>
 
       {/*
@@ -878,6 +901,22 @@ export function ResultImport({
           {busy ? 'Cancel' : 'Done'}
         </Button>
       </div>
+    </>
+  );
+
+  /*
+   * A CARD ONLY WHERE THE PANEL IS A GUEST.
+   *
+   * On Results it sits among other things and needs an edge and a name. On
+   * `/import` it IS the page, and the approved design puts the stepper and the
+   * drop surface straight onto the canvas — a card there is a box around the
+   * whole screen carrying a heading the page already printed.
+   */
+  return title === undefined ? (
+    <div className={styles.importBare}>{body}</div>
+  ) : (
+    <Panel title={title} flush>
+      {body}
     </Panel>
   );
 }
@@ -1105,21 +1144,72 @@ function ImportGroup({
    * place to change a result, and the two would disagree.
    */
   if (done) {
+    /*
+     * THE SUCCESS STATE, as the approved design composes it: a mark, the
+     * sentence, the figures that were actually written, and somewhere to go
+     * next. It was an inline alert — correct, and easy to miss at the end of a
+     * long review.
+     *
+     * The figures are counted from the rows that were saved. The design also
+     * shows an SGPA here; this does not, because the SGPA is the rules
+     * engine's to compute and it is not in scope at this point. Two true
+     * numbers beat three where one is guessed.
+     */
+    /*
+     * THE RESOLVED CREDITS, not the typed field.
+     *
+     * `row.credits` is what the student typed, and it is empty whenever the
+     * catalogue supplied the figure instead — which is the usual case, and
+     * why summing it reported 0 credits for a twenty-credit semester. The
+     * enrichment holds the number that was actually saved.
+     *
+     * If ANY row's credits are unresolved the total is omitted rather than
+     * under-reported: a partial sum presented as the semester's credits is
+     * worse than not showing one.
+     */
+    const perRow = rows.map((row) => enrichmentFor(row).credits.value);
+    const creditsKnown = perRow.every((value) => value !== null);
+    const credits = perRow.reduce((total: number, value) => total + (value ?? 0), 0);
     return (
-      <section className={styles.importGroup} aria-label={`Semester ${semester} recorded`}>
-        <Alert
-          tone="success"
-          live
-          title="Data confirmed and recorded."
-          action={
-            <Link className={buttonClassName('secondary')} to="/results">
-              View results
-            </Link>
-          }
-        >
+      <section
+        className={`${styles.importDone ?? ''} gt-pop`}
+        aria-label={`Semester ${semester} recorded`}
+      >
+        <span className={styles.doneMark} aria-hidden="true">
+          <Icon name="check" size="large" />
+        </span>
+        {/* `live` used to carry this to a screen reader; the region does now. */}
+        <h3 className={styles.doneTitle} role="status">
+          Data confirmed and recorded.
+        </h3>
+        <p className={styles.doneBody}>
           Semester {semester} and its {rows.length} subject{rows.length === 1 ? '' : 's'} are saved
           on this device. Your dashboard, results and degree progress are already up to date.
-        </Alert>
+        </p>
+        <dl className={styles.doneFigures}>
+          <div>
+            <dd>{rows.length}</dd>
+            <dt>subject{rows.length === 1 ? '' : 's'}</dt>
+          </div>
+          {creditsKnown && (
+            <div>
+              <dd>{credits}</dd>
+              <dt>credits</dt>
+            </div>
+          )}
+          <div>
+            <dd>{semester}</dd>
+            <dt>semester</dt>
+          </div>
+        </dl>
+        <div className={styles.doneActions}>
+          <Link className={buttonClassName('primary')} to="/results">
+            View results
+          </Link>
+          <Link className={buttonClassName()} to="/">
+            Go to dashboard
+          </Link>
+        </div>
       </section>
     );
   }
