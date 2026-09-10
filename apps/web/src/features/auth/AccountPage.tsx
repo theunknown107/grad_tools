@@ -54,7 +54,7 @@ export function AccountPage() {
 
   if (state.status !== 'signed_in') {
     return (
-      <div className={styles.page}>
+      <div className={`${styles.page ?? ''} ${styles.settingsPage ?? ''}`}>
         <PageHeader
           eyebrow="Account"
           title="Account"
@@ -64,29 +64,54 @@ export function AccountPage() {
           /* Told, not silently logged out (M9 §39, §68). */
           <Notice tone="warning">Your session has expired. Sign in again to resume syncing.</Notice>
         )}
-        <Panel>
-          <p className={styles.explainer}>
-            An account syncs your records between devices. Without one, GradTools works exactly the
-            same on this device.
-          </p>
-          {/*
-            The SHARED button, not a page-local copy of one. `.primaryLink`
-            styled its own pill with its own height and radius, so this one
-            control kept the old geometry after the button system moved to the
-            approved design — which is exactly how a design system comes apart.
-          */}
-          <Link className={buttonClassName('primary')} to="/sign-in">
-            Sign in or create an account
-          </Link>
-        </Panel>
 
         {/*
-          APPEARANCE BELONGS TO THE DEVICE, NOT THE ACCOUNT (docs/32 DEC-039).
-          It was reachable only once signed in, which made the one preference
-          that deliberately survives sign-out the one you had to sign in to
-          find. It is the same control and the same stored value either way.
+          THE SAME RAIL EITHER WAY (approved design).
+
+          Signed out, this page used to be a flat stack: a sign-in card, then
+          the whole of Appearance, then nothing else. The design puts the
+          settings behind one rail — a concern at a time — and there is no
+          reason a student without an account should get a different shape of
+          settings screen from one with.
         */}
-        <AppearanceSettings />
+        <SectionedForm
+          label="Settings"
+          sections={[
+            {
+              id: 'appearance',
+              label: 'Appearance',
+              icon: 'palette',
+              /*
+                APPEARANCE BELONGS TO THE DEVICE, NOT THE ACCOUNT (DEC-039).
+                It is the same control and the same stored value either way.
+              */
+              children: <AppearanceSettings />,
+            },
+            {
+              id: 'account',
+              label: 'Account',
+              icon: 'account',
+              children: (
+                <Panel title="Sign in">
+                  <p className={styles.explainer}>
+                    An account syncs your records between devices. Without one, GradTools works
+                    exactly the same on this device.
+                  </p>
+                  {/*
+                    The SHARED button, not a page-local copy of one.
+                    `.primaryLink` styled its own pill with its own height and
+                    radius, so this one control kept the old geometry after the
+                    button system moved to the approved design.
+                  */}
+                  <Link className={buttonClassName('primary')} to="/sign-in">
+                    Sign in or create an account
+                  </Link>
+                </Panel>
+              ),
+            },
+            { id: 'about', label: 'About', icon: 'info', children: <About /> },
+          ]}
+        />
       </div>
     );
   }
@@ -279,6 +304,7 @@ export function AccountPage() {
               </>
             ),
           },
+          { id: 'about', label: 'About', icon: 'info', children: <About /> },
           {
             id: 'sign-out',
             /*
@@ -379,5 +405,39 @@ export function AccountPage() {
         ]}
       />
     </div>
+  );
+}
+
+/**
+ * What this product is, as the approved design's About card.
+ *
+ * NOTHING HERE IS A CLAIM THE BUILD CANNOT MAKE. The design's card carries a
+ * version string and a "all systems normal" badge; this one states only what
+ * is true of any build — the catalogue it holds, and that the records are on
+ * this device. A version number nobody sets would be a fact invented for a
+ * card (§13).
+ */
+function About() {
+  return (
+    <Panel title="About">
+      <div className={styles.aboutHead}>
+        <span className={styles.aboutMark} aria-hidden="true">
+          <Icon name="degree" size="medium" />
+        </span>
+        <div>
+          <p className={styles.aboutName}>GradTools</p>
+          <p className={styles.aboutLine}>Academic OS · VTU 2022 scheme catalogue</p>
+        </div>
+      </div>
+      <p className={styles.explainer}>
+        A personal academic workspace: results, SGPA and CGPA, attendance, the timetable and the
+        documents they come from, in one place and on one device.
+      </p>
+      <div className={styles.aboutBadges}>
+        <StatusPill tone="neutral">Catalogue: 2022 scheme</StatusPill>
+        <StatusPill tone="neutral">Local-first</StatusPill>
+        <StatusPill tone="neutral">No account required</StatusPill>
+      </div>
+    </Panel>
   );
 }
