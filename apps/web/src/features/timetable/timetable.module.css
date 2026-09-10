@@ -37,176 +37,12 @@
   width: 100%;
 }
 
-/* --- Week grid (desktop only) ---------------------------------------------- */
-.weekGrid {
-  display: none;
-}
-
-/*
- * 1100px, not 900px.
- *
- * Six columns of a 900px page are 130px wide, and once the time column and the
- * padding are taken out a subject code has about 45px left — so `BCS502` was
- * being broken one character per line. `overflow-wrap: anywhere` is right for a
- * long room name and catastrophic for a code in a box too small for it, and the
- * honest fix is to not draw a six-column week until six columns fit. Below
- * this the agenda is a better view anyway.
- */
-@media (min-width: 1100px) {
-  .weekGrid {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: var(--space-3);
-    align-items: start;
-  }
-}
-
-.dayColumn {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  min-width: 0;
-}
-
-.dayHeading {
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
-  font-weight: var(--weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--border);
-}
-
 .dayEmpty {
   padding: var(--space-4) var(--space-3);
   font-size: var(--text-caption);
   color: var(--text-subtle);
 }
 
-/* --- Agenda (mobile only) -------------------------------------------------- */
-.agenda {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-
-@media (min-width: 1100px) {
-  .agenda {
-    display: none;
-  }
-}
-
-.agendaNav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border);
-}
-
-.agendaTitle {
-  font-size: var(--text-h3);
-  line-height: var(--text-h3-lh);
-}
-
-/* Reuses the chevron rather than shipping a second icon for one direction. */
-.flip {
-  transform: rotate(180deg);
-}
-
-/* --- Slots ----------------------------------------------------------------- */
-.slotList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.slot {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--border);
-}
-
-.slot:last-child {
-  border-bottom: none;
-}
-
-.slotTime {
-  display: flex;
-  flex-direction: column;
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-  flex: 0 0 auto;
-  min-width: 68px;
-}
-
-.slotTimeEnd {
-  color: var(--text-subtle);
-}
-
-.slotBody {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
-}
-
-.slotSubject {
-  font-family: var(--font-mono);
-  font-size: var(--text-small);
-  font-weight: var(--weight-medium);
-  overflow-wrap: anywhere;
-}
-
-.slotMeta {
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
-  color: var(--text-muted);
-  overflow-wrap: anywhere;
-}
-
-/*
- * Inside a week column the slot stacks: the two times side by side on one line,
- * the subject and its room beneath, and the remove control held to the right of
- * both. Beside each other they left the code 45px; stacked it gets the column.
- */
-.weekGrid .slot {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: var(--space-1) var(--space-2);
-}
-
-.weekGrid .slotTime {
-  flex-direction: row;
-  gap: var(--space-2);
-  min-width: 0;
-  grid-column: 1;
-}
-
-.weekGrid .slotBody {
-  grid-column: 1;
-}
-
-.weekGrid .slot > button {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-}
-
-/* "9:00 am" must not become "9:00" over "am". */
-.weekGrid .slotTime span {
-  white-space: nowrap;
-}
-
-/* -------------------------------------------------------------------------- */
-/* M9.6F — Today leads, the week is a tab                                      */
 /* -------------------------------------------------------------------------- */
 
 .addClass {
@@ -259,81 +95,6 @@
 }
 
 /*
- * The next class. A left rail plus the accent, so the marker survives a
- * greyscale printout and does not rely on colour alone (docs/27 §27.2).
- */
-.slot[data-next='true'] {
-  border-inline-start: 2px solid var(--accent);
-  background: var(--accent-weak);
-}
-
-.slot[data-next='true'] .slotTime span:first-child {
-  color: var(--accent);
-  font-weight: var(--weight-semibold);
-}
-
-/*
- * Marking a class from today's agenda.
- *
- * Wraps rather than shrinking: at 320px the two actions drop below the class
- * instead of squeezing the time and the subject, which are what the row is for.
- */
-.slotActions {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-/* -------------------------------------------------------------------------- */
-/* M10A.11 — the daily loop                                                    */
-/* -------------------------------------------------------------------------- */
-
-/*
- * The class happening right now. Derived from the clock, never stored (§17),
- * and deliberately quieter than the NEXT rail so the two do not compete when a
- * class is both.
- */
-.nowTag {
-  align-self: flex-start;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-sm);
-  /*
-   * ACCENT AS TEXT, NOT AS FILL. A solid accent chip with white on it is
-   * 2.72:1 in dark — the accent is a light violet, and 11px counts as small
-   * text needing 4.5:1. The same pairing the NEXT rail already uses passes in
-   * both appearances, and axe was the one that noticed.
-   */
-  background: var(--accent-weak);
-  color: var(--accent);
-  font-size: var(--text-micro);
-  line-height: 1.6;
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/*
- * ALREADY ANSWERED (§28).
- *
- * The pressed button carries the state; this only tints the row so a week of
- * marked classes is readable at a glance. Colour is never the only signal —
- * `aria-pressed` is on the button itself, which is what a screen reader and a
- * greyscale screen both read.
- */
-.slot[data-marked] .slotSubject {
-  color: var(--text-muted);
-}
-
-.slot[data-marked='missed'] {
-  border-inline-start: 2px solid var(--danger);
-}
-
-.slot[data-marked='attended'] {
-  border-inline-start: 2px solid var(--success);
-}
-
-/*
  * Which timetable this is (§23). One line, muted, above the tabs: the answer
  * to "am I looking at R1 or R2" should be available without being the headline.
  */
@@ -361,6 +122,366 @@
 
 /* The week as pastel sections. The old six-column grid is gone; each day now
    opens in place, so the same list works from 320px to a wide desktop. */
-.weekStack {
-  display: block;
+
+/* --- Controls -------------------------------------------------------------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.gap {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+}
+
+/* --- The week, six days across -------------------------------------------- */
+
+/*
+ * A column per day, as the approved design lays it out — and the SAME columns
+ * stacked on a phone, which is the design's own mobile composition rather than
+ * a shrunk grid.
+ *
+ * The six-column grid appears at 1100px, not sooner. Six columns of a 900px
+ * page leave a subject code about 45px, and `BCS502` was being broken one
+ * character per line.
+ */
+.week {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 1100px) {
+  .week {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--space-3);
+    align-items: start;
+  }
+}
+
+.weekDay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+.weekHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: start;
+  color: inherit;
+  cursor: pointer;
+}
+
+@media (min-width: 1100px) {
+  .weekHead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
+}
+
+.weekHead:hover .weekDayName {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.weekHead:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.weekDayName {
+  font-size: 13px;
+  font-weight: var(--weight-semibold);
+}
+
+.weekCount {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-subtle);
+}
+
+/* The day the student is standing in is marked, and not by colour alone. */
+.weekDay[data-today='true'] .weekDayName::after {
+  content: ' · today';
+  font-weight: var(--weight-regular);
+  color: var(--text-subtle);
+}
+
+.weekBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-inline-size: 0;
+}
+
+/* --- One class, as a chip -------------------------------------------------- */
+
+.chip {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--motion-fast) var(--ease-glide);
+}
+
+.chip:hover {
+  border-color: var(--border-strong);
+}
+
+/*
+ * The rule the design puts down the left of a session. It carries the session
+ * KIND there; a GradTools slot has no kind field, so here it is one neutral
+ * chart tone — a mark that the row is a class, not a claim about which sort.
+ */
+.chipRule {
+  position: absolute;
+  inset-block: 8px;
+  inset-inline-start: 0;
+  inline-size: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--chart-1);
+}
+
+.chipBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-inline-start: 8px;
+  min-inline-size: 0;
+}
+
+.chipTime {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+
+.chipName {
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.chipMeta {
+  font-size: 11px;
+  color: var(--text-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- The day picker -------------------------------------------------------- */
+
+/*
+ * Scrolls sideways on a phone and sits as a row on a desktop, which is the
+ * design's own behaviour. Buttons, never a swipe alone: a gesture must not be
+ * the only way to reach content (docs/27 §27.8).
+ */
+.dayPicker {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-block-end: 2px;
+  scrollbar-width: none;
+}
+
+.dayPicker::-webkit-scrollbar {
+  display: none;
+}
+
+.dayPick {
+  flex: none;
+  padding: 8px var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-glide),
+    background-color var(--motion-fast) var(--ease-glide);
+}
+
+.dayPick:hover {
+  border-color: var(--border-strong);
+}
+
+.dayPick[data-selected='true'] {
+  border-color: var(--a-fill);
+  background: var(--accent-weak);
+  color: var(--text);
+}
+
+.dayPick:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* --- One day, in focus ----------------------------------------------------- */
+
+.dayCount {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.dayList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dayRow {
+  display: grid;
+  grid-template-columns: auto 3px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-block-end: 1px solid var(--border);
+}
+
+.dayRow:last-child {
+  border-block-end: 0;
+}
+
+.rowTime {
+  display: flex;
+  flex-direction: column;
+  inline-size: 5.5rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.rowTimeEnd {
+  color: var(--text-subtle);
+}
+
+/* Derived from the clock, never stored (§17). */
+.nowTag {
+  margin-block-start: 2px;
+  inline-size: fit-content;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--a-fill);
+  color: var(--a-contrast);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.02em;
+}
+
+.rowRule {
+  align-self: stretch;
+  min-block-size: 34px;
+  border-radius: var(--radius-pill);
+  background: var(--chart-1);
+}
+
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.rowName {
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowMeta {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-subtle);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowMeta svg {
+  flex: none;
+  margin-inline-start: 2px;
+}
+
+/*
+ * Marking a class. Wraps rather than shrinking: at 320px the two actions drop
+ * below the class instead of squeezing the time and the subject, which are
+ * what the row is for.
+ */
+.rowActions {
+  grid-column: 3 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (min-width: 640px) {
+  .dayRow {
+    grid-template-columns: auto 3px minmax(0, 1fr) auto auto;
+  }
+
+  .rowActions {
+    grid-column: auto;
+    flex-wrap: nowrap;
+  }
+}
+
+/*
+ * The next class. A left rail plus the accent, so the marker survives a
+ * greyscale printout and does not rely on colour alone (docs/27 §27.2).
+ */
+.dayRow[data-next='true'] .rowRule,
+.dayRow[data-now='true'] .rowRule {
+  background: var(--a-fill);
+}
+
+/*
+ * ALREADY ANSWERED (§28). The pressed button carries the state; this only
+ * tints the row so a day of marked classes is readable at a glance. Colour is
+ * never the only signal — `aria-pressed` is on the button itself.
+ */
+.dayRow[data-marked='attended'] .rowName::after {
+  content: ' · attended';
+  font-weight: var(--weight-regular);
+  font-size: 12px;
+  color: var(--success-ink);
+}
+
+.dayRow[data-marked='missed'] .rowName::after {
+  content: ' · missed';
+  font-weight: var(--weight-regular);
+  font-size: 12px;
+  color: var(--warning-ink);
 }
