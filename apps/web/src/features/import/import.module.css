@@ -21,3 +21,28 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+
+/*
+ * The trust line, at the foot of the page.
+ *
+ * Three facts, quiet, in a row that wraps: where the file is read, what gets
+ * saved, and what the page accepts. The approved design places it after the
+ * drop surface rather than before it — read once a student is holding a file,
+ * which is when the question occurs to them.
+ */
+.trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.trust li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

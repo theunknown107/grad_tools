@@ -1,0 +1,92 @@
+/*
+ * The import stepper, to the approved design's geometry: pill-shaped steps
+ * joined by a hairline, scrolling sideways rather than wrapping — a stepper
+ * that breaks onto two lines stops reading as one sequence.
+ */
+
+.steps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.steps::-webkit-scrollbar {
+  display: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+/* Done is the one place this uses a status colour: it is a status. */
+.step[data-state='done'] {
+  border-color: var(--success);
+  background: var(--success-weak);
+  color: var(--success);
+}
+
+.step[data-state='active'] {
+  border-color: var(--a-fill);
+  background: var(--accent-pastel);
+  color: var(--accent-pastel-ink);
+}
+
+.marker {
+  display: grid;
+  place-items: center;
+  inline-size: 18px;
+  block-size: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  color: var(--text-subtle);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.step[data-state='done'] .marker {
+  background: var(--success);
+  color: var(--surface);
+}
+
+.step[data-state='active'] .marker {
+  background: var(--a-fill);
+  color: var(--a-contrast);
+}
+
+.link {
+  inline-size: 16px;
+  block-size: 1px;
+  background: var(--border);
+}
+
+.link[data-done='true'] {
+  background: var(--success);
+}
+
+/* It takes focus because it scrolls; the ring has to be visible when it does. */
+.steps:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}

@@ -385,7 +385,10 @@
 /* Result import (M10A.6A)                                                     */
 /* -------------------------------------------------------------------------- */
 
-.importIntro {
+/* The stepper sits where the privacy notice used to. The notice moved to the
+   foot of the page, which is where the approved design puts its trust line —
+   a reassurance read before anything has happened is read as boilerplate. */
+.importSteps {
   padding: var(--space-4) var(--space-4) 0;
 }
 
@@ -601,4 +604,98 @@
   .schemeTitle {
     grid-column: 2 / -1;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The import succeeded                                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The approved design's success state: centred, with a mark, the sentence, the
+ * figures that were written, and somewhere to go. It was an inline alert —
+ * correct, and easy to miss at the foot of a long review.
+ */
+.importDone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+}
+
+.doneMark {
+  display: grid;
+  place-items: center;
+  inline-size: 64px;
+  block-size: 64px;
+  margin-block-end: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--success);
+  color: var(--surface);
+}
+
+.doneTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.doneBody {
+  margin: 0;
+  max-inline-size: 34rem;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* The figures that were actually written, on their own panel. */
+.doneFigures {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3) var(--space-5);
+  background: var(--nav-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+
+.doneFigures div {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+}
+
+.doneFigures dd {
+  margin: 0;
+  font-size: 20px;
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.doneFigures dt {
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.doneActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-5);
+}
+
+/*
+ * The importer when it IS the page: no card, no heading, the same vertical
+ * rhythm the panel gave it. `flush` rows still pull to the edges, so the
+ * padding that made that work has to stay.
+ */
+.importBare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
