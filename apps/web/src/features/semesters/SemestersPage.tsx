@@ -33,10 +33,10 @@ import type { SemesterComparison } from '../../domain/academics.js';
 import type { SemesterRecord, SemesterStatus } from '../../domain/types.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
-import { MetaPill } from '../../components/ui/tone.js';
+import { Icon, type IconName } from '../../components/icons.js';
 import { EmptyState, Notice, Panel, SelectField, StatusPill } from '../../components/ui/index.js';
 import { Bar } from '../../components/ui/layout.js';
-import { formatCount, formatGpa, formatPercent } from '../../lib/format.js';
+import { formatCount, formatGpa } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useProfile, useResults, useSemesters } from '../../hooks/useCollection.js';
 import { BacklogPanel } from './BacklogPanel.js';
@@ -48,12 +48,6 @@ const STATUS_LABEL: Record<SemesterStatus, string> = {
   planned: 'Planned',
   in_progress: 'In progress',
   completed: 'Completed',
-};
-
-const STATUS_TONE: Record<SemesterStatus, 'neutral' | 'accent' | 'success'> = {
-  planned: 'neutral',
-  in_progress: 'accent',
-  completed: 'success',
 };
 
 /** Why a semester carries no comparable figure. Shown verbatim. */
@@ -83,6 +77,16 @@ function directionOf(delta: number | null): 'up' | 'down' | 'flat' | 'none' {
   return delta > 0 ? 'up' : 'down';
 }
 
+/** How a semester's state is drawn on its card, from the approved design. */
+const STATUS_PRESENTATION: Record<
+  SemesterStatus,
+  { readonly tone: 'neutral' | 'accent' | 'success'; readonly icon: IconName }
+> = {
+  planned: { tone: 'neutral', icon: 'empty' },
+  in_progress: { tone: 'accent', icon: 'compass' },
+  completed: { tone: 'success', icon: 'check' },
+};
+
 export function SemestersPage() {
   const { profile } = useProfile();
   const { items: results, loading: resultsLoading } = useResults();
@@ -104,7 +108,7 @@ export function SemestersPage() {
 
   /*
    * The credit requirement is NOT assumed. Nothing in this build establishes a
-   * verified total for a scheme, so it is null and the panel says so rather
+   * verified total for a scheme, so it is null and the page says so rather
    * than putting a made-up denominator under a real numerator (M6 §13).
    */
   const progress = useMemo(() => graduationProgress(views, null), [views]);
@@ -113,8 +117,7 @@ export function SemestersPage() {
 
   /*
    * The last semester worth putting in a HISTORY: the furthest one that has a
-   * result or is being sat. Everything past it is the rest of the degree, and
-   * the Semesters panel below is where the future belongs.
+   * result or is being sat. Everything past it is the rest of the degree.
    */
   const lastRelevantSemester = useMemo(() => {
     const reached = views.filter((view) => view.result !== null || view.status !== 'planned');
@@ -148,370 +151,326 @@ export function SemestersPage() {
     }
   }
 
-  const maxSgpa = 10;
+  const current = views.find((view) => view.status === 'in_progress') ?? null;
+  const graded = statistics.semestersGraded.value ?? 0;
+  /*
+   * WHAT THE PROGRESS BAR MEASURES, AND WHY IT IS NOT CREDITS.
+   *
+   * The design fills this bar with credits earned against credits required.
+   * GradTools does not have the second number for any scheme — see
+   * `graduationProgress`, which returns null and says so — and a bar over an
+   * invented denominator is the one thing docs/37 forbids outright. Semesters
+   * graded against the eight a degree has is a proportion the record actually
+   * supports, and the caption names it rather than letting the bar imply the
+   * other one.
+   */
+  const progressPct = (graded / progress.semestersTotal) * 100;
+  const openView = views.find((view) => view.number === openSemester) ?? null;
+
+  const eyebrow =
+    [profile?.branch, profile?.schemeId === 'vtu-2022' ? '2022 scheme' : null]
+      .filter((part): part is string => part !== undefined && part !== null && part !== '')
+      .join(' · ') || null;
 
   return (
     <div className={styles.page}>
       <PageHeader
+        eyebrow="Programme progress"
         title="My degree"
-        subtitle="Eight semesters, from the ones behind you to the ones ahead. Everything here stays on this device."
-        pills={
-          <>
-            <MetaPill>{`${String(statistics.semestersCompleted.value ?? 0)} of 8 done`}</MetaPill>
-            {statistics.cgpa.value !== null && (
-              <MetaPill>CGPA {formatGpa(statistics.cgpa.value)}</MetaPill>
-            )}
-            {/* Completed and fully resolved are different counts (§11). */}
-            <MetaPill>
-              {`${String(statistics.semesters.filter((e) => e.completeness === 'fully_resolved').length)} fully resolved`}
-            </MetaPill>
-            {(statistics.creditsEarned.value ?? 0) > 0 && (
-              <MetaPill>{formatCount(statistics.creditsEarned.value ?? 0, 'credit')}</MetaPill>
-            )}
-          </>
+        subtitle={
+          eyebrow === null
+            ? 'Eight semesters, from the ones behind you to the ones ahead. Everything here stays on this device.'
+            : `${eyebrow} · eight semesters, from the ones behind you to the ones ahead.`
         }
       />
 
-      {/* ---- Standing ------------------------------------------------- */}
-      <Panel title="Where you stand">
-        <dl className={styles.standing}>
-          {/*
-            NO BARE EM DASHES (1). Each figure shows its value or "Unavailable",
-            and the reasons follow underneath the list — a dash cannot tell
-            "not entered" from "one course needs review".
-          */}
-          <div>
-            {/* The CGPA when it is one; the running average when it is not. */}
-            <dt>{statistics.cgpaBasis.pending.length > 0 ? 'Average so far' : 'CGPA'}</dt>
-            <dd>
-              {statistics.cgpaBasis.pending.length > 0
+      {/* ---- The hero: where this degree stands ------------------------ */}
+      <section className={styles.hero} aria-label="Degree standing">
+        <div className={styles.heroMain}>
+          <div className={styles.heroIdentity}>
+            <span className={styles.heroMark} aria-hidden="true">
+              <Icon name="degree" size="medium" />
+            </span>
+            <div className={styles.heroWho}>
+              <p className={styles.heroProgramme}>{profile?.branch ?? 'Programme not set'}</p>
+              <p className={styles.heroWhere}>
+                {current === null
+                  ? profile?.currentSemester === null || profile?.currentSemester === undefined
+                    ? 'No semester marked as in progress'
+                    : `Currently in semester ${String(profile.currentSemester)}`
+                  : `Currently in semester ${String(current.number)}`}
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.heroProgress}>
+            <div className={styles.heroProgressHead}>
+              <span>Semesters graded</span>
+              <span className={styles.heroProgressValue}>
+                {graded} of {progress.semestersTotal}
+              </span>
+            </div>
+            <span className={styles.heroTrack} aria-hidden="true">
+              <span className={styles.heroFill} style={{ inlineSize: `${String(progressPct)}%` }} />
+            </span>
+            <div className={styles.heroProgressFoot}>
+              <span>{metricDisplay(statistics.creditsEarned).value} credits earned</span>
+              <span>{progress.reason === null ? '' : 'Credits remaining unknown'}</span>
+            </div>
+          </div>
+        </div>
+
+        <dl className={styles.heroMetrics}>
+          <HeroMetric
+            label={statistics.cgpaBasis.pending.length > 0 ? 'Average so far' : 'CGPA'}
+            value={
+              statistics.cgpaBasis.pending.length > 0
                 ? metricDisplay(statistics.provisionalCgpa, formatGpa).value
-                : metricDisplay(statistics.cgpa, formatGpa).value}
-            </dd>
-          </div>
-          <div>
-            <dt>Percentage</dt>
-            <dd>{metricDisplay(statistics.percentage, formatPercent).value}</dd>
-          </div>
-          <div>
-            <dt>Credits earned</dt>
-            <dd>{metricDisplay(statistics.creditsEarned).value}</dd>
-          </div>
-          <div>
-            <dt>Semesters done</dt>
-            <dd>
-              {statistics.semestersCompleted.value ?? 0} of {progress.semestersTotal}
-            </dd>
-          </div>
-          <div>
-            <dt>Backlogs</dt>
-            <dd>{metricDisplay(statistics.backlogs).value}</dd>
-          </div>
+                : metricDisplay(statistics.cgpa, formatGpa).value
+            }
+            note={statistics.cgpaBasis.pending.length > 0 ? 'Not your CGPA' : 'Credit-weighted'}
+          />
+          <HeroMetric
+            label="Standing"
+            value={
+              statistics.backlogsFromResults.value === null
+                ? 'Unavailable'
+                : statistics.backlogsFromResults.value === 0
+                  ? 'Clear'
+                  : 'To clear'
+            }
+            note={
+              statistics.backlogsFromResults.value === null
+                ? 'Backlogs could not be checked'
+                : statistics.backlogsFromResults.value === 0
+                  ? 'No backlogs'
+                  : formatCount(statistics.backlogsFromResults.value, 'backlog')
+            }
+          />
+          <HeroMetric
+            label="Credits earned"
+            value={metricDisplay(statistics.creditsEarned).value}
+            note={`Across ${formatCount(graded, 'graded semester')}`}
+          />
+          <HeroMetric
+            label="Credits left"
+            value="Unavailable"
+            /* Never a made-up denominator: the reason is the domain's own. */
+            note="This scheme's total is not recorded"
+          />
         </dl>
 
-        {/*
-          WHAT THESE FIGURES REST ON (M10A §19). A CGPA of 7.85 means something
-          different across four semesters than across one, and a student cannot
-          tell which they are looking at unless the page says.
-        */}
-        <p className={styles.basis}>{completeness.basis}</p>
+        <p className={styles.heroBasis}>{completeness.basis}</p>
+        <p className={styles.heroNote}>{progress.reason}</p>
+      </section>
 
-        {completeness.gaps.map((gap) => (
-          <p className={styles.gap} key={gap}>
-            {gap}
-          </p>
-        ))}
-
-        {/*
-          Every metric above that could not resolve says why, once, here. The
-          set is deduplicated because several figures share one cause — an
-          unresolved CGPA and an unresolved percentage are usually the same
-          sentence twice.
-        */}
-        {[
-          ...new Set(
-            [statistics.cgpa, statistics.percentage, statistics.creditsEarned, statistics.backlogs]
-              .map((figure) => figure.reason)
-              .filter((reason): reason is string => reason !== null),
-          ),
-        ].map((reason) => (
-          <p className={styles.note} key={reason}>
-            {reason}
-          </p>
-        ))}
-
-        {/*
-          Semesters graded under different regulations cannot honestly be
-          averaged into one number without saying so (M6 §6).
-        */}
-        {statistics.mixedRuleSets && (
-          <Notice tone="warning">
-            These semesters were graded under more than one set of rules. The combined figures are a
-            simplification.
-          </Notice>
-        )}
-
-        {/* The remainder is unknown, and the panel says which part is unknown. */}
-        <p className={styles.note}>
-          {progress.creditsRequired === null
-            ? progress.reason
-            : `${String(progress.creditsRemaining)} credits remaining of ${String(progress.creditsRequired)}.`}
-        </p>
-      </Panel>
-
-      {/* ---- Semester history ------------------------------------------ */}
-      {/*
-        A TREND ONLY WHERE THERE IS SOMETHING TO TREND (M10A §7). Below two
-        comparable semesters this is one sentence saying so, not a line drawn
-        through a single point.
-
-        The bars are proportional to the ten-point scale and carry no axis: they
-        are there so the shape of four numbers is visible at a glance, and the
-        numbers themselves are always beside them. No chart library (OQ-040).
-      */}
-      {/* Quiet: the trend is context for the figures above, not a peer of
-          them. Glass on every region marks no hierarchy at all (ui §7). */}
-      <Panel title="Semester history" material="quiet">
-        {!history.available ? (
-          <p className={styles.note}>{history.reason}</p>
-        ) : (
-          <>
-            {history.mixedRuleSets && (
-              <Notice tone="warning">
-                These semesters were graded under more than one set of rules, so comparing their
-                SGPAs is a simplification.
-              </Notice>
-            )}
-            <ol className={styles.historyList}>
-              {/*
-                HISTORY STOPS AT THE PRESENT. Semesters not yet reached are not
-                gaps in a history — they are the rest of the degree. Listing
-                them here would pad the panel with empty rows (M10A §34).
-              */}
-              {history.entries.slice(0, lastRelevantSemester).map((entry) => (
-                <li className={styles.historyRow} key={entry.number}>
-                  <span className={styles.historySemester}>S{entry.number}</span>
-
-                  {entry.sgpa === null ? (
-                    /*
-                      A semester with no comparable figure says WHY, in the muted
-                      colour, and gets no bar. A missing semester is not a low
-                      semester (M10A §6).
-                    */
-                    <span className={styles.historyAbsent}>{absenceLabel(entry)}</span>
-                  ) : (
-                    <>
-                      <span className={styles.historySgpa}>{formatGpa(entry.sgpa)}</span>
-                      <span className={styles.historyBar}>
-                        <Bar
-                          value={(entry.sgpa / 10) * 100}
-                          label={`Semester ${String(entry.number)} SGPA`}
-                        />
-                      </span>
-                      <span
-                        className={styles.historyDelta}
-                        data-direction={directionOf(entry.delta)}
-                      >
-                        {entry.delta === null ? '' : formatDelta(entry.delta)}
-                      </span>
-                      <span className={styles.historyMark}>
-                        {entry.isHighest ? 'Highest' : entry.isLowest ? 'Lowest' : ''}
-                      </span>
-                    </>
-                  )}
-                </li>
-              ))}
-            </ol>
-            <p className={styles.note}>
-              Change is measured against the semester immediately before, and only when both were
-              graded. SGPA is the figure computed from your subjects.
-            </p>
-          </>
-        )}
-      </Panel>
-
-      {/* ---- The eight semesters --------------------------------------- */}
-      {/* Quiet, because each semester inside it is already its own raised
-          surface — glass here put cards inside cards. */}
-      <Panel title="Semesters" material="quiet">
-        <p className={styles.note}>
-          Set where you are. A semester with a saved result counts as completed.
-        </p>
-
-        {/*
-          -------------------------------------------------------------------
-          M9.6E: THE DEGREE IS A JOURNEY, SO SHOW IT AS ONE
-          -------------------------------------------------------------------
-
-          This page listed eight equally-weighted blocks stacked vertically,
-          which answers "what is semester 6" but never "where am I". The spine
-          answers the second question in one glance and is the primary control:
-          picking a node selects the semester whose detail is shown below.
-
-          Each node carries its own state and its SGPA. Height encodes the
-          SGPA across the PASSING range 4-10 rather than 0-10 — below 4 a
-          course is failed, so the bottom 40% of a 0-10 scale is a region no
-          real reading can occupy.
-
-          No gamification (§9): no levels, no badges, no streaks. A node is a
-          semester, its fill is a grade point, and the current one is lit.
-        */}
-        <ol className={styles.spine} aria-label="Semester progression">
+      {/* ---- Semester progression -------------------------------------- */}
+      <section className={styles.section} aria-label="Semester progression">
+        <h2 className={styles.sectionTitle}>Semester progression</h2>
+        <ol className={styles.semesterGrid}>
           {views.map((view) => {
             const sgpa = view.sgpaComputed;
+            const presentation = STATUS_PRESENTATION[view.status];
             const selected = openSemester === view.number;
             return (
-              <li key={`node-${String(view.number)}`}>
+              <li key={view.number}>
                 <button
                   type="button"
-                  className={styles.spineNode}
+                  className={styles.semesterCard}
                   data-status={view.status}
-                  data-selected={selected}
-                  aria-pressed={selected}
-                  aria-label={`Semester ${String(view.number)}, ${STATUS_LABEL[view.status]}${
-                    sgpa === null ? '' : `, SGPA ${formatGpa(sgpa)}`
-                  }`}
-                  onClick={() => setOpenSemester(selected ? null : view.number)}
+                  data-selected={selected ? 'true' : undefined}
+                  aria-expanded={selected}
+                  /*
+                    "S3" is an abbreviation the eye completes and a screen
+                    reader does not. The card's name says the semester, its
+                    state and its figure, in that order.
+                  */
+                  aria-label={`Semester ${String(view.number)}, ${STATUS_LABEL[
+                    view.status
+                  ].toLowerCase()}${sgpa === null ? '' : `, SGPA ${formatGpa(sgpa)}`}`}
+                  onClick={() => {
+                    setOpenSemester(selected ? null : view.number);
+                  }}
                 >
-                  <span className={styles.spineTrack} aria-hidden="true">
-                    <span
-                      className={styles.spineFill}
-                      style={{
-                        blockSize:
-                          sgpa === null
-                            ? '0%'
-                            : `${String(Math.max(6, Math.min(100, ((sgpa - 4) / 6) * 100)))}%`,
-                      }}
-                    />
+                  <span className={styles.semesterCardHead}>
+                    <span className={styles.semesterIndex}>S{view.number}</span>
+                    <StatusPill tone={presentation.tone} icon={presentation.icon}>
+                      {STATUS_LABEL[view.status]}
+                    </StatusPill>
                   </span>
-                  <span className={styles.spineLabel}>S{view.number}</span>
+                  <span
+                    className={styles.semesterFigure}
+                    data-absent={sgpa === null ? 'true' : undefined}
+                  >
+                    {sgpa === null ? (view.result === null ? '·' : '—') : formatGpa(sgpa)}
+                  </span>
+                  <span className={styles.semesterMeta}>
+                    {view.subjectCount > 0
+                      ? `${formatCount(view.subjectCount, 'course')} · ${String(view.credits)} cr`
+                      : 'Not yet started'}
+                  </span>
+                  {view.credits > 0 && (
+                    <span className={styles.semesterBar} aria-hidden="true">
+                      <span
+                        data-status={view.status}
+                        style={{
+                          inlineSize:
+                            sgpa === null ? '100%' : `${String(Math.min(100, (sgpa / 10) * 100))}%`,
+                        }}
+                      />
+                    </span>
+                  )}
                 </button>
               </li>
             );
           })}
         </ol>
 
-        <ul className={styles.semesterList}>
-          {views.map((view) => {
-            const sgpa = view.sgpaComputed;
-            const reading = sgpaReading(view);
-            const isOpen = openSemester === view.number;
-            return (
-              <li key={view.number}>
-                <div className={styles.semester} data-status={view.status}>
-                  <div className={styles.semesterHead}>
-                    <h3 className={styles.semesterName}>Semester {view.number}</h3>
-                    <StatusPill tone={STATUS_TONE[view.status]}>
-                      {STATUS_LABEL[view.status]}
-                    </StatusPill>
-                  </div>
+        {/*
+          THE SEMESTER A CARD OPENS. One at a time, below the grid, so the
+          eight cards stay on one screen — the shape of the degree is the thing
+          this section is for, and eight expanded blocks destroy it.
+        */}
+        {openView !== null && (
+          <SemesterDetail
+            view={openView}
+            profileId={profileId}
+            onStatus={(status) => void setStatus(openView, status)}
+            onClose={() => {
+              setOpenSemester(null);
+            }}
+          />
+        )}
+      </section>
 
-                  {/*
-                    A bar per semester rather than a chart library: the only
-                    comparison worth making is between the student's own
-                    semesters, and a row of bars shows it without a dependency
-                    (docs/05 §5.12).
-                  */}
-                  <div className={styles.sgpaRow}>
-                    <span className={styles.sgpaValue}>
-                      {sgpa === null ? '—' : formatGpa(sgpa)}
-                    </span>
-                    <span
-                      className={styles.sgpaTrack}
-                      role="img"
-                      aria-label={
-                        sgpa === null
-                          ? `Semester ${String(view.number)}: no SGPA. ${reading.reason ?? ''}`
-                          : `Semester ${String(view.number)}: SGPA ${formatGpa(sgpa)} of 10`
-                      }
-                    >
-                      <span
-                        className={styles.sgpaFill}
-                        style={{ width: `${String(((sgpa ?? 0) / maxSgpa) * 100)}%` }}
-                      />
-                    </span>
-                    <span className={styles.semesterMeta}>
-                      {view.subjectCount > 0
-                        ? `${String(view.subjectCount)} subjects · ${String(view.credits)} credits`
-                        : 'No result entered'}
-                    </span>
-                  </div>
+      {/* ---- History and standing -------------------------------------- */}
+      <div className={styles.twoUp}>
+        <Panel title="Semester history">
+          {!history.available ? (
+            <p className={styles.note}>{history.reason}</p>
+          ) : (
+            <>
+              {history.mixedRuleSets && (
+                <Notice tone="warning">
+                  These semesters were graded under more than one set of rules, so comparing their
+                  SGPAs is a simplification.
+                </Notice>
+              )}
+              <ol className={styles.historyList}>
+                {/*
+                  HISTORY STOPS AT THE PRESENT. Semesters not yet reached are
+                  not gaps in a history — they are the rest of the degree, and
+                  the grid above already shows them (M10A §34).
+                */}
+                {history.entries.slice(0, lastRelevantSemester).map((entry) => (
+                  <li className={styles.historyRow} key={entry.number}>
+                    <span className={styles.historySemester}>S{entry.number}</span>
+                    {entry.sgpa === null ? (
+                      /*
+                        A semester with no comparable figure says WHY, in the
+                        muted colour, and gets no bar. A missing semester is
+                        not a low semester (M10A §6).
+                      */
+                      <span className={styles.historyAbsent}>{absenceLabel(entry)}</span>
+                    ) : (
+                      <>
+                        <span className={styles.historySgpa}>{formatGpa(entry.sgpa)}</span>
+                        <span className={styles.historyBar}>
+                          <Bar
+                            value={(entry.sgpa / 10) * 100}
+                            label={`Semester ${String(entry.number)} SGPA`}
+                          />
+                        </span>
+                        <span
+                          className={styles.historyDelta}
+                          data-direction={directionOf(entry.delta)}
+                        >
+                          {entry.delta === null ? '' : formatDelta(entry.delta)}
+                        </span>
+                        <span className={styles.historyMark}>
+                          {entry.isHighest ? 'Highest' : entry.isLowest ? 'Lowest' : ''}
+                        </span>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ol>
+              <p className={styles.note}>
+                Change is measured against the semester immediately before, and only when both were
+                graded.
+              </p>
+            </>
+          )}
+        </Panel>
 
-                  {/*
-                    NEVER A BARE DASH. The em dash above says a figure is
-                    absent; this says which subjects stopped it and what they
-                    are missing, which is the only version a student can act
-                    on (Phase 7C §13).
-                  */}
-                  {sgpa === null && reading.reason !== null && view.result !== null && (
-                    <p className={styles.note}>{reading.reason}</p>
-                  )}
+        <Panel title="Backlog and standing">
+          {/*
+            THE STATE OF THE RECORD, said once and plainly. The design draws
+            the clear case; a real record also has the other two, and each gets
+            the same shape in its own tone rather than a red version of a green
+            card.
+          */}
+          <div
+            className={styles.standingBlock}
+            data-tone={
+              statistics.backlogsFromResults.value === null
+                ? 'unknown'
+                : statistics.backlogsFromResults.value === 0
+                  ? 'clear'
+                  : 'attention'
+            }
+          >
+            <span className={styles.standingMark} aria-hidden="true">
+              <Icon
+                name={statistics.backlogsFromResults.value === 0 ? 'check' : 'warning'}
+                size="medium"
+              />
+            </span>
+            <div>
+              <p className={styles.standingTitle}>
+                {statistics.backlogsFromResults.value === null
+                  ? 'Backlogs could not be checked'
+                  : statistics.backlogsFromResults.value === 0
+                    ? 'Clear academic record'
+                    : `${formatCount(statistics.backlogsFromResults.value, 'backlog')} to clear`}
+              </p>
+              <p className={styles.standingBody}>
+                {statistics.backlogsFromResults.value === null
+                  ? (statistics.backlogsFromResults.reason ??
+                    'Some courses cannot be read as passed or failed.')
+                  : `${String(statistics.backlogsFromResults.value)}${
+                      statistics.backlogsUndetermined > 0 ? ' or more' : ''
+                    } across ${formatCount(statistics.grades.total, 'recorded course')}.`}
+              </p>
+            </div>
+          </div>
 
-                  {view.sgpaDisagrees && (
-                    <p className={styles.disagree}>
-                      Your grade card says {formatGpa(view.sgpaAsserted ?? 0)}; these grades work
-                      out to {formatGpa(sgpa ?? 0)}. Both are shown — check the entry.
-                    </p>
-                  )}
+          {statistics.backlogsUndetermined > 0 && (
+            <p className={styles.note}>
+              {formatCount(statistics.backlogsUndetermined, 'course')} could not be checked, because
+              whether the course has a semester-end exam is not recorded. The count above is a
+              floor.
+            </p>
+          )}
 
-                  {/*
-                    A semester read under today's rules rather than its own is
-                    said out loud: a regulation change must not silently
-                    re-grade the past.
-                  */}
-                  {view.result !== null && view.ruleSetResolution === 'fallback' && (
-                    <p className={styles.note}>
-                      Saved before rule versions were recorded, so it is read under the current
-                      rules.
-                    </p>
-                  )}
+          {/*
+            Semesters graded under different regulations cannot honestly be
+            averaged into one number without saying so (M6 §6).
+          */}
+          {statistics.mixedRuleSets && (
+            <Notice tone="warning">
+              These semesters were graded under more than one set of rules. The combined figures are
+              a simplification.
+            </Notice>
+          )}
 
-                  {/*
-                    THE RULES THIS SEMESTER WAS GRADED UNDER ARE MISSING. Nothing
-                    is calculated and nothing is substituted - an SGPA produced
-                    under a different regulation would look entirely normal and
-                    be wrong (M6 section 6).
-                  */}
-                  {view.ruleSetResolution === 'unavailable' && (
-                    <Notice tone="warning">
-                      This semester was graded under rules this version of GradTools does not have (
-                      {view.missingRuleSetId}). Its SGPA is left blank rather than worked out under
-                      the current rules.
-                    </Notice>
-                  )}
-
-                  <div className={styles.semesterActions}>
-                    <SelectField
-                      label={`Semester ${String(view.number)} status`}
-                      hideLabel
-                      value={view.status}
-                      onChange={(event) => {
-                        void setStatus(view, event.target.value as SemesterStatus);
-                      }}
-                    >
-                      <option value="planned">Planned</option>
-                      <option value="in_progress">In progress</option>
-                      <option value="completed">Completed</option>
-                    </SelectField>
-                    <button
-                      type="button"
-                      className={styles.linkButton}
-                      aria-expanded={isOpen}
-                      onClick={() => {
-                        setOpenSemester(isOpen ? null : view.number);
-                      }}
-                    >
-                      {isOpen ? 'Hide subjects' : 'Subjects'}
-                    </button>
-                  </div>
-
-                  {isOpen && <SemesterSubjects semester={view.number} profileId={profileId} />}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </Panel>
+          {completeness.gaps.map((gap) => (
+            <p className={styles.gap} key={gap}>
+              {gap}
+            </p>
+          ))}
+        </Panel>
+      </div>
 
       {/* ---- Subjects --------------------------------------------------- */}
       <SubjectInsights performances={performances} strengths={strengths} loading={resultsLoading} />
@@ -524,6 +483,115 @@ export function SemestersPage() {
           Nothing here yet. Add a semester result on the Results page and this fills in.
         </EmptyState>
       )}
+    </div>
+  );
+}
+
+/** One of the four figures beside the hero's progress. */
+function HeroMetric({
+  label,
+  value,
+  note,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly note: string;
+}) {
+  return (
+    <div className={`gt-metric ${styles.heroMetric ?? ''}`}>
+      <dt>{label}</dt>
+      <dd data-absent={/\d/.test(value) ? undefined : 'true'}>
+        {value}
+        <span>{note}</span>
+      </dd>
+    </div>
+  );
+}
+
+/**
+ * One semester, opened from its card.
+ *
+ * Everything the long list used to carry per semester — the status control,
+ * the reason an SGPA is missing, the rule-set warnings and the subject list —
+ * lives here, for the one semester being looked at.
+ */
+function SemesterDetail({
+  view,
+  profileId,
+  onStatus,
+  onClose,
+}: {
+  readonly view: SemesterView;
+  readonly profileId: ReturnType<typeof asStudentProfileId>;
+  readonly onStatus: (status: SemesterStatus) => void;
+  readonly onClose: () => void;
+}) {
+  const sgpa = view.sgpaComputed;
+  const reading = sgpaReading(view);
+
+  return (
+    <div className={styles.detail} data-status={view.status}>
+      <div className={styles.detailHead}>
+        <h3 className={styles.detailTitle}>Semester {view.number}</h3>
+        <div className={styles.detailActions}>
+          <SelectField
+            label={`Semester ${String(view.number)} status`}
+            hideLabel
+            value={view.status}
+            onChange={(event) => {
+              onStatus(event.target.value as SemesterStatus);
+            }}
+          >
+            <option value="planned">Planned</option>
+            <option value="in_progress">In progress</option>
+            <option value="completed">Completed</option>
+          </SelectField>
+          <button type="button" className={styles.linkButton} onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+
+      {/*
+        NEVER A BARE DASH. The card above says a figure is absent; this says
+        which subjects stopped it and what they are missing, which is the only
+        version a student can act on (Phase 7C §13).
+      */}
+      {sgpa === null && reading.reason !== null && view.result !== null && (
+        <p className={styles.note}>{reading.reason}</p>
+      )}
+
+      {view.sgpaDisagrees && (
+        <p className={styles.disagree}>
+          Your grade card says {formatGpa(view.sgpaAsserted ?? 0)}; these grades work out to{' '}
+          {formatGpa(sgpa ?? 0)}. Both are shown — check the entry.
+        </p>
+      )}
+
+      {/*
+        A semester read under today's rules rather than its own is said out
+        loud: a regulation change must not silently re-grade the past.
+      */}
+      {view.result !== null && view.ruleSetResolution === 'fallback' && (
+        <p className={styles.note}>
+          Saved before rule versions were recorded, so it is read under the current rules.
+        </p>
+      )}
+
+      {/*
+        THE RULES THIS SEMESTER WAS GRADED UNDER ARE MISSING. Nothing is
+        calculated and nothing is substituted — an SGPA produced under a
+        different regulation would look entirely normal and be wrong (M6 §6).
+      */}
+      {view.ruleSetResolution === 'unavailable' && (
+        <Notice tone="warning">
+          This semester was graded under rules this version of GradTools does not have (
+          {view.missingRuleSetId}). Its SGPA is left blank rather than worked out under the current
+          rules.
+        </Notice>
+      )}
+
+      <SemesterSubjects semester={view.number} profileId={profileId} />
     </div>
   );
 }

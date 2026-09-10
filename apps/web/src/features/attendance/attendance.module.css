@@ -28,219 +28,17 @@
   padding: 0 var(--space-4) var(--space-4);
 }
 
-/* --- Course cards ---------------------------------------------------------- */
-.cards {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-4);
-}
-
-@media (min-width: 720px) {
-  .cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1280px) {
-  .cards {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-}
-
-.cardHeader {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-4) var(--space-4) var(--space-2);
-}
-
-.cardTitle {
-  font-family: var(--font-mono);
-  font-size: var(--text-small);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.02em;
-  margin-right: auto;
-}
-
-.percentage {
-  padding: 0 var(--space-4);
-  font-size: var(--text-display);
-  line-height: var(--text-display-lh);
-  font-weight: var(--weight-semibold);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-.ratio {
-  padding: 0 var(--space-4);
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
-  color: var(--text-muted);
-}
-
-.meterWrap {
-  padding: var(--space-4);
-}
-
-.meterLegend {
-  display: flex;
-  justify-content: space-between;
-  margin-top: var(--space-2);
-  font-size: 11px;
-  line-height: 14px;
-  color: var(--text-subtle);
-  font-variant-numeric: tabular-nums;
-}
-
-/* --- The answer block ------------------------------------------------------ */
-.answerBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0 var(--space-4) var(--space-4);
-  padding: var(--space-3);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-
-.answerLabel {
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
-  color: var(--text-muted);
-}
-
-.answerFigure {
-  font-size: var(--text-h2);
-  line-height: var(--text-h2-lh);
-  font-weight: var(--weight-semibold);
-  font-variant-numeric: tabular-nums;
-}
-
-.answerNote {
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
-  color: var(--text-muted);
-}
-
-.cardNotice {
-  padding: 0 var(--space-4) var(--space-4);
-}
-
-/*
- * Grid cells equalise height, so a shorter card would otherwise leave its
- * disclosure floating mid-card above dead space. Anchoring it to the bottom
- * keeps the row of cards visually aligned.
- */
-.card > details {
-  margin-top: auto;
-}
-
 /* --- Planner --------------------------------------------------------------- */
 .plannerControls {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-3);
-  padding: var(--space-4);
-  align-items: end;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 640px) {
   .plannerControls {
-    grid-template-columns: 1.4fr 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-
-.plannerField {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.plannerLabel {
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
-  font-weight: var(--weight-medium);
-  color: var(--text-muted);
-}
-
-.plannerSelect {
-  min-height: var(--control-height);
-  width: 100%;
-  padding: 0 var(--space-3);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: var(--text-body);
-  cursor: pointer;
-}
-
-.plannerResult {
-  border-top: 1px solid var(--border);
-}
-
-.plannerOutcome {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-4) var(--space-4) var(--space-2);
-}
-
-.plannerFigure {
-  font-size: var(--text-display);
-  line-height: var(--text-display-lh);
-  font-weight: var(--weight-semibold);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-.plannerResult > span {
-  margin: 0 var(--space-4);
-}
-
-.plannerRecovery {
-  padding: var(--space-3) var(--space-4) var(--space-4);
-  font-size: var(--text-small);
-  line-height: var(--text-small-lh);
-  color: var(--text-muted);
-}
-
-/* -- Course rows (M9.3 §13, §26) ------------------------------------------- */
-
-/*
- * The percentage, its bar and the requirement, stacked in a fixed-width
- * trailing column so a list of courses can be read straight down.
- */
-.rowFigures {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: flex-end;
-  min-inline-size: 92px;
-}
-
-.rowPercent {
-  font-size: var(--text-small);
-  font-weight: var(--weight-semibold);
-  font-variant-numeric: tabular-nums;
-}
-
-.rowPercent[data-tone='warning'] {
-  color: var(--warning);
-}
-
-.rowPercent[data-tone='danger'] {
-  color: var(--danger);
 }
 
 /* The DX rule, stated once beneath the list rather than inside every card. */
@@ -255,24 +53,12 @@
 
 .dxHint {
   font-size: var(--text-caption);
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 
 /* -------------------------------------------------------------------------- */
 /* M9.6F — standing leads, entry follows                                       */
 /* -------------------------------------------------------------------------- */
-
-.standing {
-  padding: var(--space-5);
-  margin-block-end: var(--space-5);
-}
-
-.standing [class*='metrics'] {
-  background: none;
-  border: 0;
-  padding: 0;
-  box-shadow: none;
-}
 
 .standingNote {
   margin: var(--space-4) 0 0;
@@ -336,12 +122,6 @@
  * student came to read, and an action placed ahead of the answer makes the
  * answer harder to scan down a column.
  */
-.rowActions {
-  display: flex;
-  gap: var(--space-2);
-  flex: none;
-}
-
 /*
  * Undo, as a quiet strip rather than a toast.
  *
@@ -360,4 +140,396 @@
   font-size: var(--text-caption);
   line-height: var(--text-caption-lh);
   color: var(--text-muted);
+}
+
+/* --- Standing and courses, side by side ----------------------------------- */
+
+.twoUp {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .twoUp {
+    /* The list is the half that decides anything, so it takes the wider one. */
+    grid-template-columns: 1fr 1.1fr;
+  }
+}
+
+/* --- The standing gauge ---------------------------------------------------- */
+
+.gaugeFigure {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.gaugeValue {
+  font-size: 40px;
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.gaugeValue[data-tone='warning'] {
+  color: var(--warning-ink);
+}
+
+.gaugeValue[data-tone='danger'] {
+  color: var(--danger-ink);
+}
+
+/*
+ * Both thresholds drawn where they fall. The design puts a reference line on a
+ * time series; with counts rather than events there is no series, and the
+ * honest equivalent is to show the standing against the two lines that decide.
+ */
+.gauge {
+  margin-block-start: var(--space-2);
+}
+
+.gaugeTrack {
+  position: relative;
+  display: block;
+  block-size: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.gaugeFill {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--chart-1);
+  transition: inline-size var(--motion-slow) var(--ease-glide);
+}
+
+.gaugeFill[data-tone='warning'] {
+  background: var(--warning);
+}
+
+.gaugeFill[data-tone='danger'] {
+  background: var(--danger);
+}
+
+.gaugeMark {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 2px;
+  background: var(--surface);
+}
+
+.gaugeMark[data-kind='floor'] {
+  background: var(--danger);
+}
+
+.gaugeMark[data-kind='required'] {
+  background: var(--text);
+}
+
+.gaugeScale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 6px 0 0;
+  color: var(--text-subtle);
+  font-size: 11px;
+}
+
+/* Each legend entry carries the same mark the track does. */
+.gaugeScale > span::before {
+  content: '';
+  display: inline-block;
+  inline-size: 2px;
+  block-size: 0.9em;
+  margin-inline-end: 6px;
+  vertical-align: -1px;
+  background: var(--danger);
+}
+
+.gaugeScale > span[data-kind='required']::before {
+  background: var(--text);
+}
+
+/* --- The course list ------------------------------------------------------- */
+
+.courseList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.courseRow {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-block-end: 1px solid var(--border);
+}
+
+.courseRow:last-child {
+  border-block-end: 0;
+}
+
+.courseMark {
+  display: grid;
+  place-items: center;
+  inline-size: 36px;
+  block-size: 36px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-sunken);
+  color: var(--text-subtle);
+}
+
+.courseMark[data-tone='safe'] {
+  background: var(--success-weak);
+  color: var(--success-ink);
+}
+
+.courseMark[data-tone='warning'] {
+  background: var(--warning-weak);
+  color: var(--warning-ink);
+}
+
+.courseMark[data-tone='danger'] {
+  background: var(--danger-weak);
+  color: var(--danger-ink);
+}
+
+.courseBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-inline-size: 0;
+}
+
+.courseName {
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Never lets its longest word set the column's floor: the NAME needs the room,
+   and a squeezed grid column takes it from whichever child cannot shrink. */
+.courseMeta {
+  color: var(--text-subtle);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.courseBar {
+  display: none;
+  block-size: 8px;
+  inline-size: 5rem;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.courseBar > span {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--chart-1);
+}
+
+.courseBar > span[data-tone='warning'] {
+  background: var(--warning);
+}
+
+.courseBar > span[data-tone='danger'] {
+  background: var(--danger);
+}
+
+.coursePercent {
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  min-inline-size: 3.2rem;
+}
+
+.coursePercent[data-tone='warning'] {
+  color: var(--warning-ink);
+}
+
+.coursePercent[data-tone='danger'] {
+  color: var(--danger-ink);
+}
+
+.coursePercent:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/*
+ * The row's own actions. Below 640px they drop to their own line rather than
+ * squeezing the name to nothing — the name is what identifies the row.
+ */
+.courseActions {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Quick marking appears only where the row has room for it — see the note in
+   AttendancePage.tsx. Below that width the planner carries it. */
+.courseMarks {
+  display: none;
+  gap: var(--space-2);
+}
+
+@media (min-width: 1440px) {
+  .courseMarks {
+    display: flex;
+  }
+}
+
+@media (min-width: 640px) {
+  .courseRow {
+    grid-template-columns: 36px minmax(0, 1fr) 5rem 3.2rem auto;
+  }
+
+  .courseBar {
+    display: block;
+  }
+
+  .courseActions {
+    grid-column: auto;
+    flex-wrap: nowrap;
+  }
+}
+
+/* --- The planner ----------------------------------------------------------- */
+
+.planner {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.plannerFigures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.plannerFigure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-4);
+  background: var(--nav-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+
+.plannerLabel {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.plannerValue {
+  font-size: 30px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.plannerValue[data-tone='warning'] {
+  color: var(--warning-ink);
+}
+
+.plannerValue[data-tone='danger'] {
+  color: var(--danger-ink);
+}
+
+.plannerNote {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.plannerVerdict {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--nav-bg);
+}
+
+.plannerVerdict[data-tone='safe'] {
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  background: color-mix(in srgb, var(--success-weak) 40%, var(--surface));
+}
+
+.plannerVerdict[data-tone='attention'] {
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  background: color-mix(in srgb, var(--danger-weak) 30%, var(--surface));
+}
+
+.plannerVerdictMark {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.plannerVerdict[data-tone='safe'] .plannerVerdictMark {
+  color: var(--success-ink);
+}
+
+.plannerVerdict[data-tone='attention'] .plannerVerdictMark {
+  color: var(--danger-ink);
+}
+
+.plannerVerdictTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: var(--weight-semibold);
+}
+
+.plannerVerdictBody {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.plannerResult {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--border);
+}
+
+.plannerMark {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--border);
+}
+
+.plannerMarkButtons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.plannerFoot {
+  display: flex;
+  justify-content: flex-end;
 }
