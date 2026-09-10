@@ -125,7 +125,7 @@
   margin: 0;
   font-size: var(--text-caption);
   line-height: var(--text-caption-lh);
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 
 .mismatchHelp {

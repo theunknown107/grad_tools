@@ -86,7 +86,7 @@
 /* Destructive sections are marked in the rail, so the person knows what they
    are about to open before they open it. */
 .railItem[data-tone='danger'] {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .railItem[data-tone='danger'][data-active='true'] {

@@ -147,11 +147,11 @@
 }
 
 .attendanceCell [data-tone='warning'] {
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 
 .attendanceCell [data-tone='danger'] {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 /* -- Resources ------------------------------------------------------------- */

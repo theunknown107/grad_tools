@@ -97,7 +97,7 @@
 /* Tints the HEADING, never the surface. A coloured box around a warning is the
    thing M9.3 removed and it is not coming back (docs/05 §5.14). */
 .panel[data-tone='attention'] .panelTitle {
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 
 .panelHeader {
@@ -243,7 +243,7 @@
 .danger {
   background: transparent;
   border-color: var(--border);
-  color: var(--danger);
+  color: var(--danger-ink);
   border-color: transparent;
 }
 .danger:hover:not(:disabled) {
@@ -303,7 +303,7 @@
 .error {
   font-size: var(--text-caption);
   line-height: var(--text-caption-lh);
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .inputWrap {
@@ -476,8 +476,15 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/*
+ * A MINIMUM WIDTH, so a wide table SCROLLS inside `.tableScroll` rather than
+ * crushing its own columns. Without it a six-column table at 390px squeezed
+ * every cell to a word fragment — "Tal onc" where "Taken once" belongs — and
+ * looked broken rather than scrollable.
+ */
 .table {
   width: 100%;
+  min-width: 32rem;
   border-collapse: collapse;
   font-size: var(--text-small);
   font-variant-numeric: tabular-nums;
