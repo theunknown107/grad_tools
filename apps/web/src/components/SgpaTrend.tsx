@@ -38,6 +38,14 @@ export interface SemesterPoint {
   /** Null when the semester has no computable SGPA — never a zero. */
   readonly sgpa: number | null;
   readonly state: 'graded' | 'in_progress' | 'planned';
+  /**
+   * The cumulative standing after this semester, drawn as the second series.
+   *
+   * From `statistics.trend`, which gets it from the rules engine. Omit it and
+   * the chart draws the SGPA line alone — which is what every screen but the
+   * SGPA & CGPA page wants.
+   */
+  readonly cgpaSoFar?: number | null | undefined;
 }
 
 const MIN = 4;
@@ -65,11 +73,15 @@ function y(sgpa: number): number {
  * Each run becomes its own polyline, which is what makes a gap a gap. A single
  * polyline over the whole series would join across missing semesters.
  */
-function runs(points: readonly SemesterPoint[]): readonly (readonly SemesterPoint[])[] {
+function runs(
+  points: readonly SemesterPoint[],
+  valueOf: (point: SemesterPoint) => number | null | undefined = (point) => point.sgpa,
+): readonly (readonly SemesterPoint[])[] {
   const output: SemesterPoint[][] = [];
   let current: SemesterPoint[] = [];
   for (const point of points) {
-    if (point.sgpa === null) {
+    const value = valueOf(point);
+    if (value === null || value === undefined) {
       if (current.length > 0) output.push(current);
       current = [];
     } else {
@@ -80,10 +92,31 @@ function runs(points: readonly SemesterPoint[]): readonly (readonly SemesterPoin
   return output;
 }
 
-export function SgpaTrend({ points }: { readonly points: readonly SemesterPoint[] }): ReactNode {
+export function SgpaTrend({
+  points,
+  size = 'default',
+}: {
+  readonly points: readonly SemesterPoint[];
+  /**
+   * `tall` is the height the approved design gives the chart when it is the
+   * subject of its own card rather than a summary on the dashboard.
+   */
+  readonly size?: 'default' | 'tall' | undefined;
+}): ReactNode {
   const gradientId = useId();
   const graded = points.filter((point) => point.sgpa !== null);
   const segments = runs(points);
+  /*
+   * THE SECOND SERIES, and only where the caller supplied one. It is the
+   * cumulative standing after each semester — the line the approved design
+   * draws dashed beneath the SGPA — and it breaks over a gap for the same
+   * reason the first one does.
+   */
+  const cumulative = points.some(
+    (point) => point.cgpaSoFar !== null && point.cgpaSoFar !== undefined,
+  )
+    ? runs(points, (point) => point.cgpaSoFar)
+    : [];
 
   if (graded.length === 0) {
     return (
@@ -99,13 +132,20 @@ export function SgpaTrend({ points }: { readonly points: readonly SemesterPoint[
    * screen-reader user is owed the same numbers a sighted one can read off.
    */
   return (
-    <figure className={styles.figure}>
+    <figure className={styles.figure} data-size={size}>
       <svg
         viewBox={`0 0 ${String(W)} ${String(H)}`}
         className={styles.svg}
         role="img"
         aria-label={`SGPA by semester. ${graded
-          .map((point) => `Semester ${String(point.semester)}: ${(point.sgpa ?? 0).toFixed(2)}`)
+          .map(
+            (point) =>
+              `Semester ${String(point.semester)}: ${(point.sgpa ?? 0).toFixed(2)}${
+                point.cgpaSoFar === null || point.cgpaSoFar === undefined
+                  ? ''
+                  : `, cumulative ${point.cgpaSoFar.toFixed(2)}`
+              }`,
+          )
           .join('. ')}`}
         preserveAspectRatio="none"
       >
@@ -148,6 +188,20 @@ export function SgpaTrend({ points }: { readonly points: readonly SemesterPoint[
           );
         })}
 
+        {cumulative.map((segment) => {
+          if (segment.length < 2) return null;
+          const first = segment[0] as SemesterPoint;
+          return (
+            <polyline
+              key={`cgpa-${String(first.semester)}`}
+              className={styles.cumulative}
+              points={segment
+                .map((point) => `${String(x(point.semester))},${String(y(point.cgpaSoFar ?? 0))}`)
+                .join(' ')}
+            />
+          );
+        })}
+
         {graded.map((point) => (
           <circle
             key={point.semester}
@@ -181,6 +235,7 @@ export function SgpaTrend({ points }: { readonly points: readonly SemesterPoint[
       <figcaption className={styles.caption}>
         Scale starts at 4.0, the lowest passing grade point (22OB 6.1). Semesters without a
         computable SGPA are left blank rather than joined.
+        {cumulative.length > 0 && ' The dashed line is the cumulative standing after each semester.'}
       </figcaption>
     </figure>
   );
