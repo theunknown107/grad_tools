@@ -43,7 +43,8 @@
 .step[data-state='done'] {
   border-color: var(--success);
   background: var(--success-weak);
-  color: var(--success);
+  /* 12px text on the tint — the ink, for the same reason the pills use it. */
+  color: var(--success-ink);
 }
 
 .step[data-state='active'] {

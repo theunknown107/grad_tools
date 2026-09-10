@@ -533,6 +533,21 @@
   --danger: #ec6a5c;
   --danger-weak: #331210;
 
+  /*
+   * THE INK FOR SMALL TEXT ON A WEAK STATUS TINT.
+   *
+   * A status colour is chosen to read against the PAGE, and a pill puts it on
+   * its own tint instead — where light mode's green managed 3.8:1 and its
+   * amber 3.1:1 at 11px, both below AA. Found by auditing the import review,
+   * which a route sweep never reaches because it needs a document.
+   *
+   * Against these dark tints the status colours already pass comfortably
+   * (6.8:1, 7.4:1, 5.5:1), so here the ink IS the status colour.
+   */
+  --success-ink: var(--success);
+  --warning-ink: var(--warning);
+  --danger-ink: var(--danger);
+
   /* --- Ambient illumination --------------------------------------------- */
   /*
    * Barely noticeable until you look for it (M9.6C §8).
@@ -878,6 +893,12 @@
     --danger: #c0392b;
     --danger-weak: #f8dedb;
 
+    /* Darker than the status colour, and ONLY for text on its own tint:
+       6.3:1, 5.6:1 and 6.1:1 where the status colours give 3.8, 3.1 and 4.3. */
+    --success-ink: #22603f;
+    --warning-ink: #7f5410;
+    --danger-ink: #9e2318;
+
     /*
      * THE ENVIRONMENT HAS TO REACH THE BOTTOM OF THE PAGE.
      *
@@ -979,6 +1000,10 @@
   --warning-weak: #f6ecd3;
   --danger: #c0392b;
   --danger-weak: #f8dedb;
+
+  --success-ink: #22603f;
+  --warning-ink: #7f5410;
+  --danger-ink: #9e2318;
 
   --ambient: none;
 
