@@ -416,17 +416,19 @@
   white-space: nowrap;
 }
 
+/* The INK, not the status colour: a pill is 11px text on the tint, and the
+   status colour does not carry AA there in light mode. */
 .pillSuccess {
   background: var(--success-weak);
-  color: var(--success);
+  color: var(--success-ink);
 }
 .pillWarning {
   background: var(--warning-weak);
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 .pillDanger {
   background: var(--danger-weak);
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 .pillNeutral {
   background: var(--surface);

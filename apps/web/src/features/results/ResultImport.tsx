@@ -85,9 +85,11 @@ import { Icon } from '../../components/icons.js';
 import {
   Button,
   buttonClassName,
+  monoClass,
   Notice,
   Panel,
   SelectField,
+  StatusPill,
   TextField,
 } from '../../components/ui/index.js';
 import { Alert } from '../../components/ui/Feedback.js';
@@ -96,6 +98,7 @@ import { ImportStepper, type ImportStep } from '../../components/ui/ImportSteppe
 import { FileDropzone } from '../../components/ui/FileDropzone.js';
 import { Attachment, ItemGroup, ItemRow } from '../../components/ui/Item.js';
 import { newId, nowIso } from '../../lib/id.js';
+import { formatCount } from '../../lib/format.js';
 import { useSubjects } from '../../hooks/useReference.js';
 import { useSchemeCourses } from '../../hooks/useCollection.js';
 import { coursesForScheme } from '@gradtools/vtu-catalogue/data';
@@ -880,6 +883,15 @@ export function ResultImport({
             await onSave(result);
             setSaved((current) => [...current, result.semester]);
           }}
+          /*
+           * DISCARD DROPS THE FILES, not just the review. The groups derive
+           * from `files`, so removing the entries this group was built from
+           * takes its review with it and leaves any other document alone.
+           */
+          onDiscard={() => {
+            const names = new Set(group.files.map((file) => file.fileName));
+            setFiles((current) => current.filter((entry) => !names.has(entry.fileName)));
+          }}
         />
       ))}
 
@@ -932,6 +944,7 @@ function ImportGroup({
   subjectIndex,
   profileId,
   onSave,
+  onDiscard,
 }: {
   readonly group: SemesterGroup;
   /** True when any file behind this semester was read off a picture. */
@@ -940,6 +953,8 @@ function ImportGroup({
   readonly subjectIndex: Map<string, SubjectIdentity>;
   readonly profileId: ReturnType<typeof asStudentProfileId>;
   readonly onSave: (result: SemesterResult) => void | Promise<void>;
+  /** Takes this document back out of the review, files and all. */
+  readonly onDiscard: () => void;
 }) {
   const first = group.files[0];
   const [semester, setSemester] = useState(String(group.semester ?? ''));
@@ -960,6 +975,14 @@ function ImportGroup({
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const done = saveState === 'saved';
+  /**
+   * The rows opened onto their fields.
+   *
+   * The approved design reads a document before it edits one, so a course row
+   * is a line until it is asked to be a form. A row that needs an ANSWER is
+   * held open regardless — see `needsAnswer` below.
+   */
+  const [openRows, setOpenRows] = useState<ReadonlySet<string>>(() => new Set<string>());
 
   const update = (id: string, patch: Partial<DraftRow>) => {
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
@@ -1036,6 +1059,30 @@ function ImportGroup({
    */
   const rememberedCredits = (code: string) =>
     creditsFor(resolveSubject(subjectIndex, code)).credits;
+
+  /*
+   * EVERY ROW, WITH WHAT IS KNOWN ABOUT IT — computed once per render and
+   * shared by the summary, the table and the editor beneath it.
+   *
+   * A row counts as UNRESOLVED when it is missing something the semester's
+   * figures depend on: credits, a grade, or the final-exam answer. That is
+   * narrower than "not in the catalogue", and it is the honest line — a course
+   * the catalogue has never heard of but whose card printed a grade and whose
+   * credits this student has already recorded is not a problem to review.
+   */
+  const enriched = rows.map((row) => {
+    const enrichment = enrichmentFor(row);
+    const needsAnswer = needsSeeAnswer(row, catalogueFor(row.subjectCode)?.hasSee ?? null);
+    return {
+      row,
+      enrichment,
+      needsAnswer,
+      unresolved:
+        enrichment.credits.value === null || enrichment.grade.value === null || needsAnswer,
+    };
+  });
+  const unresolvedCount = enriched.filter((entry) => entry.unresolved).length;
+  const resolvedCount = enriched.length - unresolvedCount;
 
   const confirm = async () => {
     /*
@@ -1216,18 +1263,51 @@ function ImportGroup({
 
   return (
     <section className={styles.importGroup}>
-      <div className={styles.semesterHead}>
-        <div className={styles.semesterIdentity}>
-          <h3 className={styles.semesterTitle}>
-            {group.semester === null
-              ? 'Semester not detected'
-              : `Semester ${String(group.semester)}`}
-          </h3>
-          <span className={styles.semesterMeta}>
-            {rows.length} subjects · from {group.files.map((file) => file.fileName).join(', ')}
+      {/*
+        THE DOCUMENT, AND WHAT CAME OUT OF IT — the design's summary card. It
+        was a heading and a grey line; the two counts beside it are the reading
+        a student needs before scrolling: how much of this document GradTools
+        understood, and how much of it needs them.
+      */}
+      <div className={styles.reviewSummary}>
+        <span className={styles.reviewFile}>
+          <span className={styles.reviewFileMark} aria-hidden="true">
+            <Icon name="file" size="medium" />
           </span>
-        </div>
+          <span className={styles.reviewFileText}>
+            <h3 className={styles.reviewFileName}>
+              {group.semester === null
+                ? 'Semester not detected'
+                : `Semester ${String(group.semester)}`}
+            </h3>
+            <span className={styles.reviewFileMeta}>
+              {formatCount(rows.length, 'course')} read from{' '}
+              {group.files.map((file) => file.fileName).join(', ')}
+            </span>
+          </span>
+        </span>
+        <span className={styles.reviewBadges}>
+          <StatusPill tone="success">{String(resolvedCount)} resolved</StatusPill>
+          {unresolvedCount > 0 && (
+            <StatusPill tone="warning">{String(unresolvedCount)} need review</StatusPill>
+          )}
+        </span>
       </div>
+
+      {/*
+        PARTIAL IS A STATE, NOT A FAILURE (§12). A document where one course
+        could not be resolved is still worth saving — and saying so here stops
+        the marked row further down reading as a reason to abandon the import.
+      */}
+      {unresolvedCount > 0 && (
+        <div className={styles.editorNotice}>
+          <Notice tone="warning">
+            <strong>Partial result.</strong> {formatCount(unresolvedCount, 'course')} could not be
+            resolved — credits, a grade or the final-exam question is missing, so those rows carry
+            no grade point. The rest are unaffected, and everything is saved as read either way.
+          </Notice>
+        </div>
+      )}
 
       {/*
         THE BLOCKING REASON COMES FIRST, ALWAYS.
@@ -1326,159 +1406,253 @@ function ImportGroup({
         </div>
       )}
 
-      <ul className={styles.subjectRows}>
-        {rows.map((row, index) => (
-          <li key={row.id} className={styles.editorRow}>
-            <div className={styles.editorSubject}>
-              <TextField
-                label={`Subject code ${String(index + 1)}`}
-                mono
-                value={row.subjectCode}
-                onChange={(event) => {
-                  update(row.id, { subjectCode: event.target.value });
-                }}
-              />
-              <TextField
-                label={`Subject name ${String(index + 1)}`}
-                value={row.subjectTitle}
-                onChange={(event) => {
-                  update(row.id, { subjectTitle: event.target.value });
-                }}
-              />
-            </div>
-            <TextField
-              label={`Internal ${String(index + 1)}`}
-              inputMode="numeric"
-              value={row.internal}
-              onChange={(event) => {
-                update(row.id, { internal: event.target.value });
-              }}
-            />
-            <TextField
-              label={`External ${String(index + 1)}`}
-              inputMode="numeric"
-              value={row.external}
-              onChange={(event) => {
-                update(row.id, { external: event.target.value });
-              }}
-            />
-            <TextField
-              label={`Total ${String(index + 1)}`}
-              inputMode="numeric"
-              value={row.total}
-              onChange={(event) => {
-                update(row.id, { total: event.target.value });
-              }}
-            />
-            <SelectField
-              label={`Result ${String(index + 1)}`}
-              value={row.resultStatus}
-              onChange={(event) => {
-                update(row.id, { resultStatus: event.target.value });
-              }}
-            >
-              <option value="">—</option>
-              {RESULT_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </SelectField>
-            <TextField
-              label={`Credits ${String(index + 1)}`}
-              hint="Only if you know it."
-              inputMode="decimal"
-              value={row.credits}
-              onChange={(event) => {
-                update(row.id, { credits: event.target.value });
-              }}
-            />
-            <SelectField
-              label={`Grade ${String(index + 1)}`}
-              hint="Only if the card prints one."
-              value={row.gradeLetter}
-              onChange={(event) => {
-                update(row.id, { gradeLetter: event.target.value });
-              }}
-            >
-              <option value="">—</option>
-              {[...ruleSet.gradeBands, ...ruleSet.specialGrades].map((grade) => (
-                <option key={grade.letter} value={grade.letter}>
-                  {grade.letter}
-                </option>
-              ))}
-            </SelectField>
-            {/*
-              ASK ONLY WHEN NECESSARY.
-              
-              This control appears for a row whose course kind nothing could
-              resolve — no catalogue entry, no PP/NP/AU on the card, and an
-              external of 0, which reads identically as "this course has no
-              final exam" and "sat it and scored nothing" (DEC-037). That is
-              the ONE fact a result card cannot state and no arithmetic can
-              recover, and without it the row has no pass state, no grade, and
-              keeps the whole semester's SGPA unavailable.
-              
-              On the four real cards this was checked against it appears twice
-              in semester 3 and once in semester 4, and not at all in semesters
-              1 and 2 — which is the point. It is a question about the rows
-              that need one, not a field on every row.
-            */}
-            {needsSeeAnswer(row, catalogueFor(row.subjectCode)?.hasSee ?? null) && (
-              <SelectField
-                label={`Final exam ${String(index + 1)}`}
-                hint="This card does not say, and it changes the result."
-                value={row.hasSee}
-                onChange={(event) => {
-                  update(row.id, { hasSee: event.target.value });
-                }}
-              >
-                <option value="">Not sure</option>
-                <option value="yes">Had a final exam</option>
-                <option value="no">No final exam</option>
-              </SelectField>
-            )}
-            <Button
-              variant="danger"
-              iconOnly
-              aria-label={`Remove row ${String(index + 1)}`}
-              onClick={() => {
-                setRows((current) => current.filter((candidate) => candidate.id !== row.id));
-              }}
-            >
-              <Icon name="trash" size="nav" />
-            </Button>
+      {/*
+        THE REVIEW, AS THE APPROVED DESIGN COMPOSES IT.
 
-            {/*
-              WHAT IS ACTUALLY KNOWN ABOUT THIS ROW (§13).
-              
-              The card prints marks and nothing else — no credits, no grade, no
-              grade point — so all three are DERIVED, and each derivation can
-              fail on its own. Without this the review showed the raw fields and
-              two empty inputs, and a student could not tell "4 credits" from
-              "nobody knows how many credits this has".
-              
-              Uncertainty is shown, never hidden: an unresolved field says so
-              and says why.
-            */}
-            <ResolvedRow row={row} enrichment={enrichmentFor(row)} />
+        A document is READ FIRST and edited second: a table of what was
+        understood, one line per course, with the row that could not be
+        resolved marked and tinted — then the row opens where it sits, onto
+        exactly the fields that were here before.
 
-            {/*
-              WHAT THE PARSER SAW, beside what it made of it. When a reading is
-              wrong this line is the only thing that explains why — and every
-              warning is shown against the row it concerns rather than collected
-              into a list nobody reads.
-            */}
-            <p className={styles.sourceLine}>
-              <span className={styles.sourceLabel}>Read from</span> {row.sourceLine}
-            </p>
-            {row.warnings.map((warning) => (
-              <p key={warning.kind} className={styles.mismatch}>
-                {warning.message}
-              </p>
-            ))}
-          </li>
-        ))}
+        It used to be eight courses' worth of text inputs stacked down the
+        page, roughly 1,700px of form before the button. Nothing has been
+        taken away: every field, the derivation panel, the source line and
+        every warning are one press away, and a row that needs an ANSWER
+        before it can be graded is opened for you and cannot be closed.
+      */}
+      <div className={styles.reviewHead} aria-hidden="true">
+        <span>Course</span>
+        <span>Internal</span>
+        <span>External</span>
+        <span>Total</span>
+        <span>Credits</span>
+        <span>Grade</span>
+        <span>Result</span>
+      </div>
+
+      <ul className={styles.reviewRows}>
+        {enriched.map(({ row, enrichment, needsAnswer, unresolved }, index) => {
+          const position = String(index + 1);
+          const isOpen = needsAnswer || openRows.has(row.id);
+          return (
+            <li
+              key={row.id}
+              className={styles.reviewItem}
+              data-unresolved={unresolved ? 'true' : undefined}
+            >
+              <div className={styles.reviewRow}>
+                <span className={styles.reviewCourse}>
+                  {needsAnswer ? (
+                    /*
+                      NOT A TOGGLE, because this row cannot be closed. It is
+                      missing the one fact a result card never prints and no
+                      arithmetic recovers, and the question is below.
+                    */
+                    <span className={styles.reviewCourseText}>
+                      <ReviewCourseName row={row} unresolved={unresolved} />
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.reviewToggle}
+                      aria-expanded={isOpen}
+                      onClick={() => {
+                        setOpenRows((current) => {
+                          const next = new Set(current);
+                          if (next.has(row.id)) next.delete(row.id);
+                          else next.add(row.id);
+                          return next;
+                        });
+                      }}
+                    >
+                      <ReviewCourseName row={row} unresolved={unresolved} />
+                    </button>
+                  )}
+                </span>
+
+                <ReviewCell label="Internal" value={row.internal} />
+                <ReviewCell label="External" value={row.external} />
+                <ReviewCell label="Total" value={row.total} />
+                <ReviewCell
+                  label="Credits"
+                  value={enrichment.credits.value === null ? '' : String(enrichment.credits.value)}
+                  reason={enrichment.credits.reason}
+                />
+                <ReviewCell
+                  label="Grade"
+                  value={enrichment.grade.value ?? ''}
+                  reason={enrichment.grade.reason}
+                  pill="neutral"
+                />
+                {/* The letter the university printed, in the tone the record
+                    uses for it everywhere else. */}
+                <ReviewCell
+                  label="Result"
+                  value={row.resultStatus}
+                  pill={row.resultStatus === 'P' ? 'success' : 'neutral'}
+                />
+              </div>
+
+              {isOpen && (
+                <div className={styles.reviewEditor}>
+                  <div className={styles.editorSubject}>
+                    <TextField
+                      label={`Subject code ${position}`}
+                      mono
+                      value={row.subjectCode}
+                      onChange={(event) => {
+                        update(row.id, { subjectCode: event.target.value });
+                      }}
+                    />
+                    <TextField
+                      label={`Subject name ${position}`}
+                      value={row.subjectTitle}
+                      onChange={(event) => {
+                        update(row.id, { subjectTitle: event.target.value });
+                      }}
+                    />
+                  </div>
+
+                  <div className={styles.reviewFields}>
+                    <TextField
+                      label={`Internal ${position}`}
+                      inputMode="numeric"
+                      value={row.internal}
+                      onChange={(event) => {
+                        update(row.id, { internal: event.target.value });
+                      }}
+                    />
+                    <TextField
+                      label={`External ${position}`}
+                      inputMode="numeric"
+                      value={row.external}
+                      onChange={(event) => {
+                        update(row.id, { external: event.target.value });
+                      }}
+                    />
+                    <TextField
+                      label={`Total ${position}`}
+                      inputMode="numeric"
+                      value={row.total}
+                      onChange={(event) => {
+                        update(row.id, { total: event.target.value });
+                      }}
+                    />
+                    <SelectField
+                      label={`Result ${position}`}
+                      value={row.resultStatus}
+                      onChange={(event) => {
+                        update(row.id, { resultStatus: event.target.value });
+                      }}
+                    >
+                      <option value="">—</option>
+                      {RESULT_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <TextField
+                      label={`Credits ${position}`}
+                      hint="Only if you know it."
+                      inputMode="decimal"
+                      value={row.credits}
+                      onChange={(event) => {
+                        update(row.id, { credits: event.target.value });
+                      }}
+                    />
+                    <SelectField
+                      label={`Grade ${position}`}
+                      hint="Only if the card prints one."
+                      value={row.gradeLetter}
+                      onChange={(event) => {
+                        update(row.id, { gradeLetter: event.target.value });
+                      }}
+                    >
+                      <option value="">—</option>
+                      {[...ruleSet.gradeBands, ...ruleSet.specialGrades].map((grade) => (
+                        <option key={grade.letter} value={grade.letter}>
+                          {grade.letter}
+                        </option>
+                      ))}
+                    </SelectField>
+                    {/*
+                      ASK ONLY WHEN NECESSARY.
+
+                      This control appears for a row whose course kind nothing
+                      could resolve — no catalogue entry, no PP/NP/AU on the
+                      card, and an external of 0, which reads identically as
+                      "this course has no final exam" and "sat it and scored
+                      nothing" (DEC-037). That is the ONE fact a result card
+                      cannot state and no arithmetic can recover, and without it
+                      the row has no pass state, no grade, and keeps the whole
+                      semester's SGPA unavailable.
+
+                      On the four real cards this was checked against it appears
+                      twice in semester 3 and once in semester 4, and not at all
+                      in semesters 1 and 2 — which is the point. It is a question
+                      about the rows that need one, not a field on every row.
+                    */}
+                    {needsAnswer && (
+                      <SelectField
+                        label={`Final exam ${position}`}
+                        hint="This card does not say, and it changes the result."
+                        value={row.hasSee}
+                        onChange={(event) => {
+                          update(row.id, { hasSee: event.target.value });
+                        }}
+                      >
+                        <option value="">Not sure</option>
+                        <option value="yes">Had a final exam</option>
+                        <option value="no">No final exam</option>
+                      </SelectField>
+                    )}
+                  </div>
+
+                  {/*
+                    WHAT IS ACTUALLY KNOWN ABOUT THIS ROW (§13).
+
+                    The card prints marks and nothing else — no credits, no
+                    grade, no grade point — so all three are DERIVED, and each
+                    derivation can fail on its own. Uncertainty is shown, never
+                    hidden: an unresolved field says so and says why.
+                  */}
+                  <ResolvedRow row={row} enrichment={enrichment} />
+
+                  {/*
+                    WHAT THE PARSER SAW, beside what it made of it. When a
+                    reading is wrong this line is the only thing that explains
+                    why — and every warning is shown against the row it concerns
+                    rather than collected into a list nobody reads.
+                  */}
+                  <p className={styles.sourceLine}>
+                    <span className={styles.sourceLabel}>Read from</span> {row.sourceLine}
+                  </p>
+                  {row.warnings.map((warning) => (
+                    <p key={warning.kind} className={styles.mismatch}>
+                      {warning.message}
+                    </p>
+                  ))}
+
+                  <div className={styles.reviewRowActions}>
+                    <Button
+                      variant="danger"
+                      aria-label={`Remove row ${position}`}
+                      onClick={() => {
+                        setRows((current) =>
+                          current.filter((candidate) => candidate.id !== row.id),
+                        );
+                      }}
+                    >
+                      <Icon name="trash" size="nav" />
+                      Remove this course
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       {saveError !== null && (
@@ -1489,15 +1663,103 @@ function ImportGroup({
         </div>
       )}
 
-      <div className={styles.editorActions}>
-        <Button
-          variant="primary"
-          disabled={!ready || rows.length === 0 || saveState === 'saving'}
-          onClick={() => void confirm()}
-        >
-          {saveState === 'saving' ? 'Recording…' : 'Confirm and save result'}
-        </Button>
+      {/*
+        THE FOOT OF THE REVIEW, as the design sets it: what has and has not
+        happened yet, then the way out and the way on. The lock line is the
+        whole promise of this screen — nothing here has touched the record.
+      */}
+      <div className={styles.reviewFoot}>
+        <p className={styles.reviewPromise}>
+          <Icon name="lock" size="micro" />
+          Nothing is saved until you confirm.
+        </p>
+        <div className={styles.reviewActions}>
+          <Button onClick={onDiscard}>Discard this document</Button>
+          <Button
+            variant="primary"
+            disabled={!ready || rows.length === 0 || saveState === 'saving'}
+            onClick={() => void confirm()}
+          >
+            {saveState === 'saving'
+              ? 'Recording…'
+              : /*
+                  THE COUNT IS PART OF THE PROMISE, as the design has it — you
+                  press this knowing how much goes in. "Save" and not "record",
+                  because the calendar, scheme and timetable reviews beside this
+                  one all say save, and one screen should not hold two verbs for
+                  the same act.
+                */
+                `Confirm and save ${formatCount(rows.length, 'course')}`}
+          </Button>
+        </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * A course's name, and whether it still needs something.
+ *
+ * The code line carries the provenance the design puts there — where a figure
+ * came from is part of reading the row, not a detail behind a disclosure.
+ */
+function ReviewCourseName({
+  row,
+  unresolved,
+}: {
+  readonly row: DraftRow;
+  readonly unresolved: boolean;
+}) {
+  return (
+    <>
+      <span className={styles.reviewName}>
+        {row.subjectTitle === '' ? row.subjectCode : row.subjectTitle}
+        {unresolved && <StatusPill tone="warning">Needs review</StatusPill>}
+      </span>
+      <span className={`${styles.reviewCode ?? ''} ${monoClass}`}>{row.subjectCode}</span>
+    </>
+  );
+}
+
+/**
+ * One figure in the review row.
+ *
+ * The label is drawn only on narrow layouts, where the header row is not on
+ * screen; it stays in the markup at every width so the value is never a naked
+ * number to a screen reader.
+ */
+function ReviewCell({
+  label,
+  value,
+  reason,
+  pill,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly reason?: string | null | undefined;
+  /** Renders the value as a status pill, for the two columns that are one. */
+  readonly pill?: 'neutral' | 'success' | undefined;
+}) {
+  const missing = value.trim() === '';
+  return (
+    <span className={styles.reviewCell}>
+      <span className={styles.reviewCellLabel}>{label}</span>
+      {missing ? (
+        /*
+          "Unavailable" and not a dash: a dash in a column of numbers reads as
+          a zero that was printed, and this is a figure nobody has (§1).
+        */
+        <span
+          className={styles.reviewMissing}
+          {...(reason === null || reason === undefined ? {} : { title: reason })}
+        >
+          Unavailable
+        </span>
+      ) : pill === undefined ? (
+        <span className={styles.reviewValue}>{value}</span>
+      ) : (
+        <StatusPill tone={pill}>{value}</StatusPill>
+      )}
+    </span>
   );
 }
