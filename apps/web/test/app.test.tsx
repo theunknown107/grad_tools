@@ -450,12 +450,14 @@ describe('results', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     /*
-     * M9.6E split this page into Overview and Semesters tabs, so the per
-     * subject rows now live behind the second tab. The ASSERTIONS below are
-     * unchanged — every subject renders, and no padding row is invented — the
-     * test just navigates the way a person does to reach them.
+     * M9.6E split this page into Overview and Semesters tabs, and the approved
+     * design then put each semester behind a card rather than listing every
+     * record at once. The ASSERTIONS below are unchanged — every subject
+     * renders, and no padding row is invented — the test just navigates the way
+     * a person does to reach them.
      */
     await user.click(await screen.findByRole('tab', { name: /semesters/i }));
+    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
 
     await screen.findAllByText(subjects[0]?.code as string);
     for (const subject of subjects) {
@@ -481,6 +483,7 @@ describe('results', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await user.click(await screen.findByRole('tab', { name: /semesters/i }));
+    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
 
     // The computed figure now also appears in the Overview ledger, so both
     // views can show it; what matters is that BOTH figures are present.

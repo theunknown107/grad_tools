@@ -148,37 +148,87 @@
  * The ledger: one quiet row per semester, hairline-separated. Repeated data
  * takes a hairline, not a card (docs/05 §5.24).
  */
+/*
+ * THE SEMESTER LIST, from the approved design.
+ *
+ * Each row is a card you can press, not a line of text: the number on a tile,
+ * what the semester contains beside it, its SGPA at the end, and a chevron
+ * saying it opens. It was hairline-separated text that did nothing — the one
+ * place listing every semester, with no way to reach one.
+ */
 .ledger {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
+  gap: var(--space-3);
 }
 
 .ledgerRow {
+  inline-size: 100%;
   display: grid;
-  grid-template-columns: 2.5rem 1fr 4rem;
+  grid-template-columns: 44px minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: var(--space-3);
-  padding-block: var(--space-3);
-  border-block-start: 1px solid var(--border);
-}
-
-.ledgerRow:first-child {
-  border-block-start: 0;
-}
-
-.ledgerSemester {
+  gap: var(--space-4);
+  padding: var(--space-4);
+  text-align: start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
   color: var(--text);
-  font-size: var(--text-small);
-  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-glide),
+    box-shadow var(--motion-fast) var(--ease-glide),
+    transform var(--motion-fast) var(--ease-glide);
+}
+
+.ledgerRow:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgb(27 26 23 / 5%));
+  transform: translateY(-1px);
+}
+
+.ledgerRow:active {
+  transform: translateY(0);
+}
+
+.ledgerRow:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The number, on the recessed tile the design gives it. */
+.ledgerSemester {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-sunken);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
+}
+
+.ledgerBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.ledgerName {
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
 }
 
 .ledgerMeta {
   color: var(--text-subtle);
-  font-size: var(--text-caption);
-  line-height: var(--text-caption-lh);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .ledgerBar {
@@ -189,26 +239,67 @@
   display: block;
   block-size: 100%;
   border-radius: var(--radius-pill);
-  background: var(--accent);
+  background: var(--chart-1);
   transition: inline-size var(--motion-slow) var(--ease-glide);
 }
 
+/* The figure and its name, stacked and right-aligned, as the design sets it. */
+.ledgerFigure {
+  display: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.ledgerFigureLabel {
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
 .ledgerSgpa {
-  text-align: end;
   color: var(--text);
-  font-size: var(--text-small);
+  font-size: 18px;
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
 }
 
-/* The bar needs room to mean anything; below 640px the figure carries it. */
+/* A word is not a figure — the same rule the metric tiles follow. */
+.ledgerSgpa[data-absent='true'] {
+  font-size: 13px;
+  font-weight: var(--weight-regular);
+  color: var(--text-subtle);
+}
+
+/* The state marker, which needs the width the figure needed. */
+.ledgerState {
+  display: none;
+}
+
 @media (min-width: 640px) {
+  .ledgerFigure {
+    display: flex;
+  }
+}
+
+/*
+ * The bar needs room to mean anything; below 640px the figure carries it.
+ *
+ * It is scaled across the PASSING range (4-10), not 0-10: below 4 a course is
+ * failed, so the lower 40% of a 0-10 bar is a region no SGPA can occupy and
+ * every real reading would sit in the top half looking identical.
+ */
+@media (min-width: 900px) {
   .ledgerRow {
-    grid-template-columns: 2.5rem minmax(0, 1fr) 8rem 4rem;
+    grid-template-columns: 44px minmax(0, 1fr) 7rem auto auto auto;
+  }
+
+  .ledgerState {
+    display: block;
   }
 
   .ledgerBar {
     display: block;
-    block-size: 4px;
+    block-size: 6px;
     border-radius: var(--radius-pill);
     background: var(--bg-sunken);
     overflow: hidden;
@@ -698,4 +789,258 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+/* --- Controls: the view switch and the search box ------------------------- */
+
+/*
+ * ONE LINE WHERE THERE IS ROOM, from the approved design.
+ *
+ * `column-reverse` below 640px is not a flourish: the design puts the search
+ * box ABOVE the tabs on a phone, because a thumb reaches the top of a scrolled
+ * list sooner than it reaches a tab strip that has scrolled away.
+ */
+.controls {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-3);
+}
+
+.search {
+  inline-size: 100%;
+}
+
+@media (min-width: 640px) {
+  .controls {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .search {
+    inline-size: 18rem;
+    flex-shrink: 0;
+  }
+}
+
+/* --- The semester grid ---------------------------------------------------- */
+
+.cards {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  text-align: start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-glide),
+    box-shadow var(--motion-fast) var(--ease-glide),
+    transform var(--motion-fast) var(--ease-glide);
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgb(27 26 23 / 5%));
+  transform: translateY(-1px);
+}
+
+.card:active {
+  transform: translateY(0);
+}
+
+.card:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cardIdentity {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.cardEyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.cardSgpa {
+  margin-block-start: var(--space-1);
+  font-size: 32px;
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A word is not a figure — the rule the metric tiles and the ledger follow. */
+.cardSgpa[data-absent='true'] {
+  font-size: 15px;
+  font-weight: var(--weight-regular);
+  color: var(--text-subtle);
+  line-height: 1.4;
+}
+
+.cardSgpaLabel {
+  margin-block-start: 2px;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.cardFoot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.cardRate {
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/*
+ * The bar carries no number of its own: the percentage sits directly above it
+ * in text, so the fill is a restatement rather than the only reading of it.
+ */
+.cardBar {
+  display: block;
+  block-size: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.cardBar > span {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--success);
+  transition: inline-size var(--motion-slow) var(--ease-glide);
+}
+
+.cardNote {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-subtle);
+}
+
+/* --- Back, from one record to the grid ------------------------------------ */
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  inline-size: fit-content;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text-subtle);
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.back:hover {
+  color: var(--text);
+}
+
+.back:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* --- A course row, opened where it sits ----------------------------------- */
+
+/*
+ * The subject cell is the control. A whole `<tr>` cannot be a button without
+ * giving up the table — and the table is what lets a screen reader read
+ * "External, 34" instead of a bare number.
+ */
+.subjectToggle {
+  display: block;
+  inline-size: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: start;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.subjectToggle:hover .subjectName {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.subjectToggle:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.detailRow > td {
+  padding: var(--space-4) var(--space-4) var(--space-5);
+  background: var(--bg-sunken);
+}
+
+/*
+ * IN A TABLE, THE SAME FIELDS READ IN COLUMNS. The sheet stacks them because a
+ * phone is one column wide; a row opened under a seven-column table has the
+ * width for four, with the label above its value as the design draws it.
+ */
+.detailRow .detailList {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-6);
+}
+
+.detailRow .detailList div {
+  display: block;
+  padding-block-end: 0;
+  border-block-end: 0;
+}
+
+.detailRow .detailList dd {
+  margin-block-start: 2px;
+}
+
+@media (min-width: 900px) {
+  .detailRow .detailList {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
