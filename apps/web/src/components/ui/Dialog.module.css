@@ -187,7 +187,7 @@
 .destructive {
   border-color: var(--danger);
   background: var(--danger-weak);
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .destructive:hover {

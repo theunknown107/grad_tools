@@ -34,7 +34,7 @@
 }
 
 .alert[data-tone='success'] .alertIcon {
-  color: var(--success);
+  color: var(--success-ink);
 }
 
 .alert[data-tone='warning'] {
@@ -43,7 +43,7 @@
 }
 
 .alert[data-tone='warning'] .alertIcon {
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 
 .alert[data-tone='danger'] {
@@ -52,7 +52,7 @@
 }
 
 .alert[data-tone='danger'] .alertIcon {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .alertBody {

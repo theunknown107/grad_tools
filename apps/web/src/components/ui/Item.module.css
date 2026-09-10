@@ -39,7 +39,7 @@
 
 .item[data-tone='danger'] .media {
   background: var(--danger-weak);
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .content {
@@ -72,7 +72,7 @@
 }
 
 .item[data-tone='danger'] .description {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .trailing {

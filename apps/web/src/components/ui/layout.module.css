@@ -115,11 +115,11 @@
 }
 
 .metricValue[data-tone='warning'] {
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 
 .metricValue[data-tone='danger'] {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 /*
