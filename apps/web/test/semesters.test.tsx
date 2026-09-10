@@ -66,14 +66,28 @@ afterEach(cleanup);
 /* The eight semesters                                                        */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Opens one semester's card.
+ *
+ * The approved design puts the eight semesters in a grid of cards and the
+ * detail of one — its status control, its subjects, its warnings — behind the
+ * card you press. Reaching them is one click; what they must say is unchanged.
+ */
+async function openSemester(number: number): Promise<void> {
+  await userEvent.click(
+    await screen.findByRole('button', { name: new RegExp(`^Semester ${String(number)},`) }),
+  );
+}
+
 describe('the degree screen', () => {
   it('shows all eight semesters to a student with nothing entered', async () => {
     renderWith(<SemestersPage />);
 
-    // Queried as headings: "Semester 1" is also a backlog select option.
-    expect(await screen.findByRole('heading', { name: 'Semester 1' })).toBeTruthy();
+    // Queried as the cards' own names: "Semester 1" is also a backlog select
+    // option, and the card's label carries the state as well as the number.
+    expect(await screen.findByRole('button', { name: /^Semester 1,/ })).toBeTruthy();
     for (const number of [2, 3, 4, 5, 6, 7, 8]) {
-      expect(screen.getByRole('heading', { name: `Semester ${String(number)}` })).toBeTruthy();
+      expect(screen.getByRole('button', { name: new RegExp(`^Semester ${String(number)},`) })).toBeTruthy();
     }
   });
 
@@ -104,8 +118,10 @@ describe('the degree screen', () => {
      * many semesters ARE the present. The invariant under test is unchanged:
      * exactly one semester carries each lifecycle state.
      */
-    await screen.findAllByRole('heading', { name: 'Semester 1' });
-    const panel = screen.getByRole('heading', { name: 'Semesters' }).closest('section');
+    await screen.findByRole('button', { name: /^Semester 1,/ });
+    const panel = screen
+      .getByRole('heading', { name: 'Semester progression' })
+      .closest('section');
     expect(panel).not.toBeNull();
 
     const pills = (label: string) =>
@@ -122,6 +138,7 @@ describe('the degree screen', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<SemestersPage />, { repositories: bundle });
 
+    await openSemester(5);
     const select = await screen.findByLabelText('Semester 5 status');
     await userEvent.selectOptions(select, 'in_progress');
 
@@ -135,6 +152,7 @@ describe('the degree screen', () => {
     const { bundle, peek } = createMemoryRepositories({ semesters: [semester(4, 'in_progress')] });
     renderWith(<SemestersPage />, { repositories: bundle });
 
+    await openSemester(5);
     await userEvent.selectOptions(await screen.findByLabelText('Semester 5 status'), 'in_progress');
 
     await waitFor(() => {
@@ -143,18 +161,28 @@ describe('the degree screen', () => {
     });
   });
 
-  it('shows CGPA and percentage from completed semesters', async () => {
+  it('shows the cumulative standing from completed semesters', async () => {
     const { bundle } = createMemoryRepositories({
       results: [result(1, [['BMATS101', 4, 'O']]), result(2, [['BMATS201', 4, 'O']])],
     });
     renderWith(<SemestersPage />, { repositories: bundle });
 
-    // Scoped to the standing panel: 10.00 is also each semester's SGPA.
-    const heading = await screen.findByRole('heading', { name: 'Where you stand' });
-    const panel = heading.closest('section') as HTMLElement;
-
-    expect(within(panel).getByText('10.00')).toBeTruthy();
-    expect(within(panel).getByText('100.0%')).toBeTruthy();
+    /*
+     * Scoped to the hero: 10.00 is also each semester's own SGPA on its card.
+     * The percentage moved to the SGPA & CGPA page, where the design puts it —
+     * this page carries the standing, the credits and the backlog state.
+     */
+    const hero = await screen.findByLabelText('Degree standing');
+    expect(within(hero).getByText('10.00')).toBeTruthy();
+    /*
+     * The hero also carries what the credits and the backlog state are, from
+     * the same reading. Their VALUES are the domain's to decide — with the
+     * final-exam applicability of these rows unknown, credits earned is
+     * honestly 0 rather than 8 — so what is asserted here is that the figure
+     * is present and labelled, not what it works out to.
+     */
+    expect(within(hero).getByText('Credits earned')).toBeTruthy();
+    expect(within(hero).getByText('Standing')).toBeTruthy();
   });
 
   /*
@@ -303,8 +331,7 @@ describe('semester subjects', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<SemestersPage />, { repositories: bundle });
 
-    const rows = await screen.findAllByRole('button', { name: 'Subjects' });
-    await userEvent.click(rows[4] as HTMLElement); // Semester 5
+    await openSemester(5);
 
     await userEvent.type(screen.getByLabelText('Code'), 'BCS501');
     await userEvent.click(screen.getByRole('button', { name: /Add subject/ }));
@@ -333,8 +360,7 @@ describe('semester subjects', () => {
     });
     renderWith(<SemestersPage />, { repositories: bundle });
 
-    const rows = await screen.findAllByRole('button', { name: 'Subjects' });
-    await userEvent.click(rows[4] as HTMLElement);
+    await openSemester(5);
 
     expect(await screen.findByText('<img src=x onerror=alert(1)>')).toBeTruthy();
     expect(document.querySelector('img')).toBeNull();
@@ -357,8 +383,7 @@ describe('semester subjects', () => {
     });
     renderWith(<SemestersPage />, { repositories: bundle });
 
-    const rows = await screen.findAllByRole('button', { name: 'Subjects' });
-    await userEvent.click(rows[4] as HTMLElement);
+    await openSemester(5);
     expect(await screen.findByText(/Design and Analysis of Algorithms/)).toBeTruthy();
   });
 });
@@ -373,6 +398,7 @@ describe('persistence', () => {
     const { bundle, peek } = createMemoryRepositories();
     const first = renderWith(<SemestersPage />, { repositories: bundle });
 
+    await openSemester(5);
     await userEvent.selectOptions(await screen.findByLabelText('Semester 5 status'), 'in_progress');
     await waitFor(() => {
       expect(peek.semesters().length).toBe(1);
@@ -381,7 +407,7 @@ describe('persistence', () => {
     first.unmount();
     renderWith(<SemestersPage />, { repositories: bundle });
 
-    await screen.findAllByRole('heading', { name: 'Semester 5' });
+    await screen.findByRole('button', { name: /^Semester 5, in progress/ });
     expect(
       screen.getAllByText('In progress').filter((node) => node.tagName === 'SPAN').length,
     ).toBe(1);
@@ -537,6 +563,7 @@ describe('a semester whose rules this build does not have', () => {
   it('says which rules are missing rather than leaving a silent blank', async () => {
     const { bundle } = createMemoryRepositories({ results: [pinnedToMissing()] });
     renderWith(<SemestersPage />, { repositories: bundle });
+    await openSemester(2);
 
     expect(await screen.findByText(/rules this version of GradTools does not have/)).toBeTruthy();
     // Named beside the semester's own missing SGPA as well as in the notice,
@@ -559,6 +586,7 @@ describe('a semester whose rules this build does not have', () => {
     };
     const { bundle } = createMemoryRepositories({ results: [noCredits] });
     renderWith(<SemestersPage />, { repositories: bundle });
+    await openSemester(2);
 
     expect(await screen.findByText(/BMATS201 has no credits/)).toBeTruthy();
   });
@@ -566,6 +594,7 @@ describe('a semester whose rules this build does not have', () => {
   it('does not show an SGPA worked out under the current rules', async () => {
     const { bundle } = createMemoryRepositories({ results: [pinnedToMissing()] });
     renderWith(<SemestersPage />, { repositories: bundle });
+    await openSemester(2);
 
     await screen.findByText(/rules this version of GradTools does not have/);
     // 'O' on 4 credits is 10.00 under the current rules. It must not appear.
@@ -576,6 +605,7 @@ describe('a semester whose rules this build does not have', () => {
   it('does not claim it was read under the current rules', async () => {
     const { bundle } = createMemoryRepositories({ results: [pinnedToMissing()] });
     renderWith(<SemestersPage />, { repositories: bundle });
+    await openSemester(2);
 
     await screen.findByText(/rules this version of GradTools does not have/);
     expect(screen.queryByText(/read under the current rules/)).toBeNull();
@@ -586,6 +616,7 @@ describe('a semester whose rules this build does not have', () => {
       results: [{ ...result(2, [['BMATS201', 4, 'O']]), ruleSetId: null }],
     });
     renderWith(<SemestersPage />, { repositories: bundle });
+    await openSemester(2);
 
     expect(await screen.findByText(/read under the current rules/)).toBeTruthy();
   });

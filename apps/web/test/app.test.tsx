@@ -321,6 +321,17 @@ describe('CGPA calculator', () => {
 /* Attendance and bunk planner                                                */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Opens a course's planner.
+ *
+ * The approved design moved "how many can I miss" off the row and into the
+ * planner the row's own button opens — the row carries the percentage, the
+ * planner carries what to do about it. The guarantees below are unchanged.
+ */
+async function openPlanner(): Promise<void> {
+  await userEvent.click(await screen.findByRole('button', { name: /plan against/i }));
+}
+
 describe('attendance', () => {
   it('adds a course and persists it through the repository', async () => {
     const user = userEvent.setup();
@@ -364,13 +375,13 @@ describe('attendance', () => {
     });
     renderWith(<AttendancePage />, { repositories: bundle });
 
-    // 45/50 at an 85% requirement allows exactly 2 more (docs/16 §16.9). The
-    // answer is on the row itself now, not inside a sub-panel (M9.3 §13).
-    const meta = await screen.findByText(/can miss 2 classes/i);
-    // The row carries the ratio and the answer together, so both are read in
-    // one glance rather than found in two places.
-    expect(meta.textContent).toMatch(/45 of 50 classes/);
-    expect(screen.getAllByText('90.0%').length).toBeGreaterThan(0);
+    // The row carries the percentage; the planner behind it carries the answer.
+    expect((await screen.findAllByText('90.0%')).length).toBeGreaterThan(0);
+
+    await openPlanner();
+    // 45/50 at an 85% requirement allows exactly 2 more (docs/16 §16.9).
+    expect(await screen.findByText(/can miss 2 more classes/i)).toBeTruthy();
+    expect(screen.getAllByText(/45 of 50 classes/).length).toBeGreaterThan(0);
   });
 
   it('shows the DX consequence and frames condonation as discretionary', async () => {
@@ -402,6 +413,7 @@ describe('bunk planner', () => {
       attendance: [attendance('a1', 'BCS301', 45, 50)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
+    await openPlanner();
 
     const planned = await screen.findByLabelText(/classes still to be held/i);
     const missed = screen.getByLabelText(/classes you would miss/i);
@@ -420,6 +432,7 @@ describe('bunk planner', () => {
       attendance: [attendance('a1', 'BCS301', 45, 50)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
+    await openPlanner();
 
     const planned = await screen.findByLabelText(/classes still to be held/i);
     const missed = screen.getByLabelText(/classes you would miss/i);
