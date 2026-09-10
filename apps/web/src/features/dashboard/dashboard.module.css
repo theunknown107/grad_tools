@@ -400,3 +400,52 @@
   font-weight: var(--weight-medium);
   color: var(--text);
 }
+
+/* --- The chart row, as the design lays it out ------------------------------ */
+
+.charts {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .charts {
+    grid-template-columns: 1.5fr 1fr;
+  }
+}
+
+/*
+ * Which line is which. The chart itself already names both series in its
+ * accessible label; this is the sighted reader's half of the same fact.
+ */
+.chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.chartLegend > span[data-series='sgpa'] {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--chart-1);
+}
+
+.chartLegend > span[data-series='cgpa'] {
+  inline-size: 14px;
+  block-size: 2px;
+  margin-inline-start: var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--chart-3);
+}
+
+.chartNote {
+  margin: var(--space-2) 0 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+}

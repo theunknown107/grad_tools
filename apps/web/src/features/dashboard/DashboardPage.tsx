@@ -48,6 +48,7 @@ import { Bar, Empty, MetricStrip, Row, Rows, Skeleton } from '../../components/u
 import { PastelCard, Rail } from '../../components/ui/tone.js';
 import { Panel, StatusPill, buttonClassName } from '../../components/ui/index.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
+import { GradeDistributionRows } from '../../components/GradeDistribution.js';
 import { formatCount, formatGpa, formatPercent, formatTime, localDay } from '../../lib/format.js';
 import {
   useAttendance,
@@ -175,9 +176,6 @@ export function DashboardPage() {
   const thisSemester = attendance.filter(
     (record) => semesterNumber === null || record.semester === semesterNumber,
   );
-  const subjectsNow = semesterSubjects.filter(
-    (subject) => semesterNumber === null || subject.semester === semesterNumber,
-  );
 
   /*
    * The calendar reaches the day view here rather than inside `Today`, so the
@@ -301,11 +299,7 @@ export function DashboardPage() {
             surface makes a card full of cards — the "giant stat card" this
             product has twice removed.
           */}
-          <Snapshot
-            stats={statistics}
-            attendance={thisSemester}
-            subjectCount={subjectsNow.length}
-          />
+          <Snapshot stats={statistics} attendance={thisSemester} />
 
           {/*
             THE REFERENCE'S SIGNATURE ROW, carrying GradTools' own content.
@@ -348,7 +342,6 @@ export function DashboardPage() {
 function Snapshot({
   stats,
   attendance,
-  subjectCount,
 }: {
   /*
    * THE SHARED READING, not a local one. Every figure below used to be
@@ -358,7 +351,6 @@ function Snapshot({
    */
   readonly stats: AcademicStatistics;
   readonly attendance: readonly AttendanceRecord[];
-  readonly subjectCount: number;
 }) {
   /*
    * All eight semesters, always. A semester with no computable SGPA carries a
@@ -368,6 +360,9 @@ function Snapshot({
   const trendPoints: readonly SemesterPoint[] = stats.trend.map((point) => ({
     semester: point.semester,
     sgpa: point.sgpa,
+    /* The cumulative standing after each semester — the design's second,
+       dashed series. From the rules engine, never computed here. */
+    cgpaSoFar: point.cgpaSoFar,
     state:
       point.sgpa !== null
         ? ('graded' as const)
@@ -432,13 +427,6 @@ function Snapshot({
             ...(credits.note === undefined ? {} : { note: credits.note }),
           },
           {
-            label: 'Passed',
-            value: String(stats.outcomes.passed),
-            ...(stats.outcomes.unresolved > 0
-              ? { note: `${String(stats.outcomes.unresolved)} still to review` }
-              : {}),
-          },
-          {
             /*
               THESE TWO WERE THE LAST BARE DASHES ON THE PAGE (§1), and a real
               import found them: beside a resolved CGPA sat two em dashes that
@@ -459,11 +447,18 @@ function Snapshot({
               : { note: 'No classes have been marked for this semester yet.' }),
           },
           {
-            /* The semester's shape, per M9.3 §11. */
-            label: 'Subjects',
-            value: subjectCount === 0 ? 'Not set' : String(subjectCount),
-            ...(subjectCount === 0
-              ? { note: 'Add the subjects you are taking to see them here.' }
+            /*
+              SIX TILES, AS THE DESIGN LAYS THEM OUT — and six is the point:
+              the grid is six across on a wide screen, and a seventh tile
+              wrapped alone onto a second row. "Passed" and "Subjects" were the
+              two the design does not carry; both are still a click away, on
+              SGPA & CGPA and on My degree respectively.
+            */
+            label: 'Semesters',
+            value: `${String(stats.semestersGraded.value ?? 0)}/8`,
+            ...(stats.semestersCompleted.value !== null &&
+            stats.semestersCompleted.value !== (stats.semestersGraded.value ?? 0)
+              ? { note: `${String(stats.semestersCompleted.value)} marked complete` }
               : {}),
           },
           {
@@ -510,9 +505,31 @@ function Snapshot({
         as a direction is exactly the invented insight docs/37 forbids.
       */}
       {(stats.semestersGraded.value ?? 0) >= 2 && (
-        <Panel title="SGPA by semester" material="quiet">
-          <SgpaTrend points={trendPoints} />
-        </Panel>
+        /*
+          TWO CHARTS SIDE BY SIDE, as the design lays the row out: the shape of
+          the degree beside what it is made of. The distribution is the shared
+          component the SGPA & CGPA page uses — one chart, two screens.
+        */
+        <div className={styles.charts}>
+          <Panel title="SGPA by semester" material="quiet">
+            <SgpaTrend points={trendPoints} />
+            <p className={styles.chartLegend}>
+              <span data-series="sgpa" />
+              SGPA per semester
+              <span data-series="cgpa" />
+              CGPA so far
+            </p>
+          </Panel>
+          {stats.grades.total > 0 && (
+            <Panel title="Grade distribution" material="quiet">
+              <GradeDistributionRows grades={stats.grades} />
+              <p className={styles.chartNote}>
+                {formatCount(stats.outcomes.passed, 'course')} passed across{' '}
+                {formatCount(stats.semestersGraded.value ?? 0, 'graded semester')}.
+              </p>
+            </Panel>
+          )}
+        </div>
       )}
     </>
   );
