@@ -148,6 +148,17 @@ describe('recording a class from the attendance page', () => {
   });
 });
 
+/**
+ * The timetable's Day view, which is where a class is marked.
+ *
+ * The approved design opens this page on the WEEK and puts the day — today, by
+ * default — behind its own tab, with the marking on it. Reaching the class the
+ * student is looking at is one click; every guarantee below is unchanged.
+ */
+async function openToday(): Promise<void> {
+  await userEvent.click(await screen.findByRole('tab', { name: /^day/i }));
+}
+
 describe("recording a class from today's timetable", () => {
   it('marks attendance for a class the student is looking at', async () => {
     /*
@@ -162,6 +173,7 @@ describe("recording a class from today's timetable", () => {
       timetable: [slot('BCS501')],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     await user.click(await screen.findByRole('button', { name: /mark BCS501 attended/i }));
 
@@ -178,6 +190,7 @@ describe("recording a class from today's timetable", () => {
       timetable: [slot('BCS502')],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     await user.click(await screen.findByRole('button', { name: /mark BCS502 attended/i }));
 
@@ -203,6 +216,7 @@ describe("recording a class from today's timetable", () => {
       timetable: [slot('BCS 501')],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     await user.click(await screen.findByRole('button', { name: /mark BCS 501 attended/i }));
 
@@ -255,6 +269,7 @@ describe('a class cannot be counted twice', () => {
       timetable: [slot('BCS501')],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     const button = await screen.findByRole('button', { name: /mark BCS501 attended/i });
     await user.click(button);
@@ -278,10 +293,12 @@ describe('a class cannot be counted twice', () => {
       timetable: [slot('BCS501')],
     });
     const first = renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
     await user.click(await screen.findByRole('button', { name: /mark BCS501 attended/i }));
     first.unmount();
 
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
     const button = await screen.findByRole('button', { name: /mark BCS501 attended/i });
     expect(button.getAttribute('aria-pressed')).toBe('true');
 
@@ -301,6 +318,7 @@ describe('a class cannot be counted twice', () => {
       ],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     const buttons = await screen.findAllByRole('button', { name: /mark BCS501 attended/i });
     await user.click(buttons[0] as HTMLElement);
@@ -320,6 +338,7 @@ describe('correcting what was marked', () => {
       timetable: [slot('BCS501')],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     await user.click(await screen.findByRole('button', { name: /mark BCS501 attended/i }));
     await user.click(screen.getByRole('button', { name: /mark BCS501 missed/i }));
@@ -342,6 +361,7 @@ describe('correcting what was marked', () => {
       timetable: [slot('BCS501')],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     await user.click(await screen.findByRole('button', { name: /mark BCS501 attended/i }));
     await user.click(await screen.findByRole('button', { name: /^undo$/i }));
@@ -368,6 +388,7 @@ describe('a day the college is shut', () => {
       calendars: [holidayCalendar(todayDate, 'Ganesh Chaturthi')],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     expect(await screen.findByText(/Ganesh Chaturthi/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /mark BCS501 attended/i })).toBeNull();
@@ -381,6 +402,7 @@ describe('a day the college is shut', () => {
       calendars: [holidayCalendar(todayDate, 'Ganesh Chaturthi')],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     expect(await screen.findByText(/from your academic calendar/i)).toBeTruthy();
   });
@@ -392,6 +414,7 @@ describe('a day the college is shut', () => {
       calendars: [holidayCalendar('2020-01-01', 'Some other year')],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     expect(await screen.findByRole('button', { name: /mark BCS501 attended/i })).toBeTruthy();
   });
@@ -419,6 +442,7 @@ describe('which timetable am I looking at', () => {
       ],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     expect(await screen.findByText(/5 SEM CSE A · R2 · from 15 Jul 2026/)).toBeTruthy();
   });
@@ -459,6 +483,7 @@ describe('which timetable am I looking at', () => {
       ],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     expect(
       await screen.findByText(/A timetable effective 1 Aug 2026 was also imported/),
@@ -478,6 +503,7 @@ describe('a lab is one class', () => {
       timetable: [{ ...slot('BCSL504'), startTime: '14:00', endTime: '17:00' }],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     expect(await screen.findAllByRole('button', { name: /mark BCSL504 attended/i })).toHaveLength(
       1,
@@ -500,6 +526,7 @@ describe('the class happening right now', () => {
       ],
     });
     renderWith(<TimetablePage />, { repositories: bundle });
+    await openToday();
 
     expect(await screen.findAllByText('Now')).toHaveLength(1);
   });
