@@ -236,6 +236,18 @@ async function openCalculator(): Promise<void> {
   await userEvent.click(await screen.findByRole('tab', { name: /calculator/i }));
 }
 
+/**
+ * The calculator tab, then one of its four modes.
+ *
+ * The approved design puts SGPA, CGPA, Required SGPA and Required marks behind
+ * a mode switch inside the calculator, so reaching one is two clicks rather
+ * than one. The assertions each test makes are unchanged.
+ */
+async function openCalculatorMode(mode: RegExp): Promise<void> {
+  await openCalculator();
+  await userEvent.click(await screen.findByRole('tab', { name: mode }));
+}
+
 describe('SGPA calculator', () => {
   it('computes from entered credits and grades', async () => {
     const user = userEvent.setup();
@@ -281,7 +293,7 @@ describe('CGPA calculator', () => {
   it('computes CGPA, percentage and class from the rules engine', async () => {
     const user = userEvent.setup();
     renderWith(<AcademicsPage />);
-    await openCalculator();
+    await openCalculatorMode(/^CGPA$/i);
 
     await user.type(screen.getByLabelText(/total credits, row 1/i), '20');
     await user.type(screen.getByLabelText(/sgpa, row 1/i), '8.20');
@@ -298,7 +310,7 @@ describe('CGPA calculator', () => {
   it('explains why its percentage differs from other calculators', async () => {
     const user = userEvent.setup();
     renderWith(<AcademicsPage />);
-    await openCalculator();
+    await openCalculatorMode(/^CGPA$/i);
     await user.type(screen.getByLabelText(/total credits, row 1/i), '20');
     await user.type(screen.getByLabelText(/sgpa, row 1/i), '8.20');
     expect(await screen.findByText(/7.5 percentage points lower/i)).toBeTruthy();

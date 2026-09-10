@@ -509,6 +509,19 @@ export interface TrendPoint {
   readonly semester: number;
   readonly sgpa: number | null;
   readonly status: MetricStatus;
+  /**
+   * The cumulative standing as it was AFTER this semester — the second series
+   * the approved design draws against the SGPA line.
+   *
+   * Computed by `cumulativeStanding` over the semesters up to and including
+   * this one, which is the same function the page-level CGPA comes from. No
+   * screen computes it: a running average worked out in a component is a
+   * second answer to a question the rules engine already answers.
+   *
+   * Null until a semester actually has a cumulative figure, so the line breaks
+   * over an ungraded semester exactly as the SGPA line does.
+   */
+  readonly cgpaSoFar: number | null;
 }
 
 export interface DataQuality {
@@ -658,6 +671,16 @@ export function academicStatistics(input: {
     semester: entry.number,
     sgpa: entry.sgpa.value,
     status: entry.sgpa.status,
+    /*
+     * THE RUNNING CUMULATIVE, from the same function as the final one. A
+     * prefix of the degree is just a shorter degree, so the standing after
+     * semester 3 is `cumulativeStanding` over semesters 1-3 — credit-weighted
+     * by the engine, never a mean of the SGPAs so far.
+     */
+    cgpaSoFar:
+      entry.sgpa.value === null
+        ? null
+        : cumulativeStanding(views.filter((view) => view.number <= entry.number)).cgpa,
   }));
 
   const graded = stats.filter((entry) => entry.sgpa.value !== null);
