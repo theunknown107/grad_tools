@@ -14,35 +14,6 @@
   min-width: 0;
 }
 
-/* Standing: a compact figure row, not a wall of cards (M6 §12). */
-.standing {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3) var(--space-4);
-  margin: 0;
-}
-
-@media (min-width: 640px) {
-  .standing {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
-.standing dt {
-  font-size: var(--text-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-subtle);
-}
-
-.standing dd {
-  margin: var(--space-1) 0 0;
-  font-size: var(--text-h2);
-  font-weight: 600;
-  /* Aligned under its own label, not pushed to the far side of the column. */
-  font-variant-numeric: tabular-nums;
-}
-
 .note {
   margin: 0;
   font-size: var(--text-small);
@@ -57,94 +28,12 @@
   color: var(--text-subtle);
 }
 
-/* -- The eight semesters --------------------------------------------------- */
-
-.semesterList {
-  display: grid;
-  gap: var(--space-2);
-  margin: var(--space-3) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* The status is carried by a left edge AND by a pill in words: never colour
-   alone (docs/27 section 27.5). */
-.semester {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border-left: 3px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-}
-
-.semester[data-status='in_progress'] {
-  border-left-color: var(--accent);
-}
-
-.semester[data-status='completed'] {
-  border-left-color: var(--success);
-}
-
-.semesterHead {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.semesterName {
-  margin: 0;
-  font-size: var(--text-body);
-}
-
 /* A bar per semester: the only comparison worth making is against the
    student's own semesters, and this shows it without a chart library. */
-.sgpaRow {
-  display: grid;
-  grid-template-columns: 3.2rem minmax(0, 1fr);
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.sgpaValue {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.sgpaTrack {
-  display: block;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--bg);
-  overflow: hidden;
-}
-
-.sgpaFill {
-  display: block;
-  height: 100%;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-}
-
-.semesterMeta {
-  grid-column: 1 / -1;
-  font-size: var(--text-small);
-  color: var(--text-subtle);
-}
-
 .disagree {
   margin: 0;
   font-size: var(--text-small);
   color: var(--text-muted);
-}
-
-.semesterActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: flex-end;
 }
 
 .linkButton {
@@ -224,8 +113,6 @@
   border: 0;
 }
 
-/* -- Data completeness ------------------------------------------------------ */
-
 /* What the figures above rest on. Quiet, but not hidden. */
 .basis {
   margin: 0;
@@ -301,11 +188,11 @@
 }
 
 .historyDelta[data-direction='up'] {
-  color: var(--success);
+  color: var(--success-ink);
 }
 
 .historyDelta[data-direction='down'] {
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 
 /* Highest and lowest are observed facts, not judgements, so they are quiet. */
@@ -339,104 +226,385 @@
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* M9.6E — the degree spine                                                    */
-/* -------------------------------------------------------------------------- */
+/* --- The hero, to the approved design ------------------------------------- */
 
-/*
- * Eight nodes, one per semester. The primary control on the page: picking one
- * selects the semester whose detail appears below.
- */
-.spine {
+.hero {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: var(--space-2);
-  list-style: none;
-  margin: 0 0 var(--space-5);
-  padding: 0;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
 }
 
-.spineNode {
+@media (min-width: 1024px) {
+  .hero {
+    grid-template-columns: 1.3fr 1fr;
+    align-items: center;
+  }
+
+  /* The two supporting lines run the full width beneath both columns. */
+  .heroBasis,
+  .heroNote {
+    grid-column: 1 / -1;
+  }
+}
+
+.heroMain {
   display: grid;
-  gap: var(--space-2);
-  justify-items: center;
+  gap: var(--space-5);
+  align-content: start;
+  min-inline-size: 0;
+}
+
+.heroIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+.heroMark {
+  display: grid;
+  place-items: center;
+  inline-size: 40px;
+  block-size: 40px;
+  flex: none;
+  border-radius: var(--radius-lg);
+  background: var(--a-fill);
+  color: var(--a-contrast);
+}
+
+.heroWho {
+  min-inline-size: 0;
+}
+
+.heroProgramme {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+}
+
+.heroWhere {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.heroProgressHead,
+.heroProgressFoot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.heroProgressFoot {
+  margin-block-start: 6px;
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.heroProgressValue {
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.heroTrack {
+  display: block;
+  block-size: 10px;
+  margin-block-start: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.heroFill {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--chart-1);
+  transition: inline-size var(--motion-slow) var(--ease-glide);
+}
+
+.heroMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.heroMetric dt {
+  color: var(--text-subtle);
+  font-size: 11px;
+}
+
+.heroMetric dd {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 0;
+  font-size: 24px;
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.heroMetric dd[data-absent='true'] {
+  font-size: 14px;
+  font-weight: var(--weight-regular);
+  color: var(--text-subtle);
+}
+
+.heroMetric dd span {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: var(--weight-regular);
+  font-variant-numeric: normal;
+}
+
+.heroBasis,
+.heroNote {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  line-height: var(--text-small-lh);
+}
+
+.heroNote {
+  color: var(--text-subtle);
+}
+
+/* --- Semester progression -------------------------------------------------- */
+
+.section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.semesterGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .semesterGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .semesterGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.semesterCard {
   inline-size: 100%;
-  padding: var(--space-2) 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: transparent;
-  font-family: inherit;
+  block-size: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  text-align: start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  color: var(--text);
   cursor: pointer;
   transition:
-    background var(--motion-fast) var(--ease-enter),
-    border-color var(--motion-fast) var(--ease-enter);
+    border-color var(--motion-fast) var(--ease-glide),
+    box-shadow var(--motion-fast) var(--ease-glide),
+    transform var(--motion-fast) var(--ease-glide);
 }
 
-.spineNode:hover {
-  background: var(--surface);
+.semesterCard:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
-.spineNode:focus-visible {
+.semesterCard:active {
+  transform: translateY(0);
+}
+
+.semesterCard:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-/* The selected node is lit, not filled — the material catching light. */
-.spineNode[data-selected='true'] {
-  background: var(--surface-active);
-  border-color: var(--accent-border);
-  box-shadow: var(--glow-accent-soft);
+/* The semester being sat is the one lit; the one open is the one held. */
+.semesterCard[data-status='in_progress'] {
+  border-color: var(--a-fill);
 }
 
-/* The track a node's fill rises inside. Vertical, so the row reads as a
-   skyline and a weak semester is visible as a short column. */
-.spineTrack {
-  display: flex;
-  align-items: flex-end;
-  inline-size: 100%;
-  max-inline-size: 26px;
-  block-size: 44px;
-  padding: 2px;
-  border-radius: var(--radius-sm);
+.semesterCard[data-selected='true'] {
+  border-color: var(--border-strong);
   background: var(--bg-sunken);
-  box-shadow: var(--glass-highlight);
 }
 
-.spineFill {
-  inline-size: 100%;
-  border-radius: calc(var(--radius-sm) - 2px);
-  background: var(--border-strong);
-  transition: block-size var(--motion-slow) var(--ease-glide);
+.semesterCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
-/* Status carries the colour; the fill height carries the figure. */
-.spineNode[data-status='completed'] .spineFill {
-  background: var(--accent);
+.semesterIndex {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
 }
 
-.spineNode[data-status='in_progress'] .spineTrack {
-  border: 1px solid var(--accent-border);
-}
-
-.spineNode[data-status='in_progress'] .spineFill {
-  background: var(--warning);
-}
-
-.spineLabel {
-  color: var(--text-subtle);
-  font-size: var(--text-micro);
-  line-height: var(--text-micro-lh);
+.semesterFigure {
+  font-size: 26px;
+  font-weight: var(--weight-semibold);
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
-.spineNode[data-selected='true'] .spineLabel,
-.spineNode[data-status='in_progress'] .spineLabel {
-  color: var(--text);
-  font-weight: var(--weight-medium);
+.semesterFigure[data-absent='true'] {
+  color: var(--text-subtle);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .spineFill {
-    transition: none;
+.semesterMeta {
+  margin-block-start: -6px;
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.semesterBar {
+  display: block;
+  block-size: 6px;
+  margin-block-start: auto;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.semesterBar > span {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--chart-1);
+}
+
+/* An in-progress semester's bar is not a grade — it is the fact that it runs. */
+.semesterBar > span[data-status='in_progress'] {
+  background: var(--warning);
+  opacity: 0.4;
+}
+
+/* --- One semester, opened -------------------------------------------------- */
+
+.detail {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+}
+
+.detailHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.detailTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+}
+
+.detailActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* --- Backlog and standing -------------------------------------------------- */
+
+.twoUp {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .twoUp {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.standingBlock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--nav-bg);
+}
+
+.standingBlock[data-tone='clear'] {
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  background: color-mix(in srgb, var(--success-weak) 45%, var(--surface));
+}
+
+.standingBlock[data-tone='attention'] {
+  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+  background: color-mix(in srgb, var(--warning-weak) 30%, var(--surface));
+}
+
+.standingMark {
+  display: grid;
+  place-items: center;
+  inline-size: 40px;
+  block-size: 40px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+}
+
+.standingBlock[data-tone='clear'] .standingMark {
+  background: var(--success);
+  color: var(--surface);
+}
+
+.standingBlock[data-tone='attention'] .standingMark {
+  background: var(--warning);
+  color: var(--surface);
+}
+
+.standingTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+}
+
+.standingBody {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
