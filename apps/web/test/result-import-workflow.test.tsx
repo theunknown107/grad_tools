@@ -143,6 +143,25 @@ function setCard(semester: number, rows: readonly string[] = ROWS) {
 }
 
 /** Drops a file on the import surface. jsdom needs the list built by hand. */
+/**
+ * Opens a course row onto its fields.
+ *
+ * The review reads before it edits — the approved design makes a course a line
+ * until it is asked to be a form — so a test that reaches for a field opens the
+ * row first, the way a person does. A row that needs an ANSWER is already open
+ * and has no toggle, which is why this looks for a collapsed one.
+ */
+async function openRow(user: ReturnType<typeof userEvent.setup>, index = 0) {
+  /* The document is still being read when this is called; wait for the row. */
+  await waitFor(() => {
+    expect(document.querySelectorAll('button[aria-expanded="false"]').length).toBeGreaterThan(
+      index,
+    );
+  });
+  const toggle = document.querySelectorAll('button[aria-expanded="false"]')[index];
+  await user.click(toggle as HTMLElement);
+}
+
 async function choose(
   user: ReturnType<typeof userEvent.setup>,
   name = 'result.pdf',
@@ -201,7 +220,7 @@ describe('importing one result PDF', () => {
     expect(await screen.findByText(/Semester 4/)).toBeTruthy();
     expect(peek.results()).toHaveLength(0);
 
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(peek.results()).toHaveLength(1);
     expect(peek.results()[0]?.semester).toBe(4);
@@ -214,7 +233,7 @@ describe('importing one result PDF', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await choose(user);
-    await user.click(await screen.findByRole('button', { name: /confirm and save result/i }));
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
 
     const subject = peek.results()[0]?.subjects[0];
     expect(subject).toMatchObject({ internal: 44, external: 36, total: 80, resultStatus: 'P' });
@@ -229,6 +248,7 @@ describe('importing one result PDF', () => {
     renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user);
+    await openRow(user);
     expect(await screen.findByText(/BQAS401\s+ALGORITHMS/)).toBeTruthy();
   });
 
@@ -243,12 +263,13 @@ describe('importing one result PDF', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await choose(user);
+    await openRow(user);
     expect(await screen.findByText(/does not match the component marks/i)).toBeTruthy();
 
     const total = screen.getByLabelText(/total 1/i);
     await user.clear(total);
     await user.type(total, '80');
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(peek.results()[0]?.subjects[0]?.total).toBe(80);
   });
@@ -260,8 +281,9 @@ describe('importing one result PDF', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await choose(user);
+    await openRow(user, 1);
     await user.click(await screen.findByRole('button', { name: /remove row 2/i }));
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(peek.results()[0]?.subjects).toHaveLength(1);
   });
@@ -282,12 +304,11 @@ describe('a semester the document did not print', () => {
     // The FILENAME says semester 4. That is not evidence (§8).
     expect(await screen.findByText(/semester not detected/i)).toBeTruthy();
     expect(
-      (screen.getByRole('button', { name: /confirm and save result/i }) as HTMLButtonElement)
-        .disabled,
+      (screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement).disabled,
     ).toBe(true);
 
     await user.selectOptions(screen.getByLabelText(/^semester$/i), '4');
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(peek.results()[0]?.semester).toBe(4);
   });
@@ -329,7 +350,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
     await choose(user, 'card.jpg', 'image/jpeg');
 
     expect(await screen.findByText(/check every mark against the card/i)).toBeTruthy();
-    await user.click(await screen.findByRole('button', { name: /confirm and save result/i }));
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
 
     const saved = peek.results();
     expect(saved).toHaveLength(1);
@@ -439,7 +460,7 @@ describe('the one question a result card cannot answer', () => {
 
     await screen.findByText(/Semester 4/);
     await user.selectOptions(screen.getByLabelText(/^final exam/i), 'no');
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     // Answered, so the row is no longer unknown and the semester can be graded.
     expect(peek.results()[0]?.subjects[0]?.hasSee).toBe(false);
@@ -453,7 +474,7 @@ describe('the one question a result card cannot answer', () => {
     await choose(user);
 
     await screen.findByText(/Semester 4/);
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     // "Not sure" is a real answer and must stay null rather than defaulting to
     // true, which would report a backlog the university never gave.
@@ -472,7 +493,7 @@ describe('a semester that already has a result', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await choose(user);
-    await user.click(await screen.findByRole('button', { name: /confirm and save result/i }));
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
 
     // The same card again.
     await choose(user);
@@ -516,14 +537,14 @@ describe('confirming an import', () => {
 
     await choose(user);
     await screen.findByText(/Semester 4/);
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
     expect(peek.results()).toHaveLength(1);
 
     // And the review is gone, rather than sitting there looking unfinished.
     await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /confirm and save result/i })).toBeNull(),
+      expect(screen.queryByRole('button', { name: /confirm and save/i })).toBeNull(),
     );
   });
 
@@ -533,7 +554,7 @@ describe('confirming an import', () => {
 
     await choose(user);
     await screen.findByText(/Semester 4/);
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(await screen.findByRole('link', { name: /view results/i })).toBeTruthy();
   });
@@ -558,12 +579,15 @@ describe('confirming an import', () => {
 
     await choose(user);
     await screen.findByText(/Semester 4/);
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(await screen.findByText(/could not be recorded/i)).toBeTruthy();
     expect(screen.getByText(/the disk is full/i)).toBeTruthy();
-    // The button is back, so it can be retried, and the rows are still there.
-    expect(screen.getByRole('button', { name: /confirm and save result/i })).toBeTruthy();
+    // The button is back, so it can be retried, and the rows are still there —
+    // with everything typed into them, which is what a row opened onto its
+    // fields proves.
+    expect(screen.getByRole('button', { name: /confirm and save/i })).toBeTruthy();
+    await openRow(user);
     expect(screen.getByLabelText(/^Subject code 1$/i)).toBeTruthy();
   });
 
@@ -580,7 +604,7 @@ describe('confirming an import', () => {
     await choose(user);
     await screen.findByText(/Semester 4/);
 
-    const confirmButton = screen.getByRole('button', { name: /confirm and save result/i });
+    const confirmButton = screen.getByRole('button', { name: /confirm and save/i });
     await user.tripleClick(confirmButton);
     await screen.findAllByText(/Data confirmed and recorded/i);
 
@@ -721,7 +745,7 @@ describe('after a save, the figures follow', () => {
 
     await choose(user);
     await screen.findByText(/Semester 4/);
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
     expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
 
     /*
@@ -759,7 +783,7 @@ describe('after a save, the figures follow', () => {
 
     await choose(user);
     await screen.findByText(/Semester 4/);
-    await user.click(screen.getByRole('button', { name: /confirm and save result/i }));
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
     expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
     await user.click(screen.getByRole('button', { name: /^Done$/ }));
 
