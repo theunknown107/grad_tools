@@ -31,16 +31,22 @@ import { useEffect, useState } from 'react';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import { asStudentProfileId } from '../../domain/identity.js';
 import type { StudentProfile } from '../../domain/types.js';
+import { Link } from 'react-router-dom';
 import { AsyncSection } from '../../components/AsyncSection.js';
+import { Icon, type IconName } from '../../components/icons.js';
+import { useAcademicState } from '../../hooks/useAcademicState.js';
+import { formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
 import { PageHeader } from '../../components/AppShell.js';
-import { MetaPill } from '../../components/ui/tone.js';
+
 import { SectionedForm } from '../../components/ui/SectionedForm.js';
 import { ThemeControl } from '../../components/ThemeControl.js';
 import {
   Button,
+  buttonClassName,
   Notice,
   Panel,
   SelectField,
+  StatusPill,
   TextField,
   monoClass,
   numericClass,
@@ -71,6 +77,15 @@ export function ProfilePage() {
   const [semester, setSemester] = useState('3');
   const [saved, setSaved] = useState(false);
   const [storageOk, setStorageOk] = useState(true);
+  /**
+   * Whether the form is open.
+   *
+   * The approved design shows a profile before it offers to change one: a
+   * student opens this page to check their USN far more often than to edit it.
+   * A profile with nothing in it opens straight into the form, because there
+   * is nothing to read yet.
+   */
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     void isStorageAvailable().then(setStorageOk);
@@ -103,6 +118,17 @@ export function ProfilePage() {
     setSaved(true);
   };
 
+  /*
+   * Something to read, or nothing yet. A profile where every field is blank
+   * has no overview worth showing, so the form opens directly.
+   */
+  const hasProfile =
+    profile !== null &&
+    profile !== undefined &&
+    [profile.displayName, profile.usn, profile.collegeName, profile.branch].some(
+      (value) => value !== null && value !== '',
+    );
+
   if (loading) return <p>Loading…</p>;
 
   return (
@@ -113,18 +139,15 @@ export function ProfilePage() {
         subtitle="Optional, and stored only in this browser. Every field can be left blank."
         /* Only what the student actually filled in. A blank profile shows no
            pills rather than a row of placeholders. */
-        pills={
-          <>
-            {profile?.usn !== undefined && profile.usn !== null && profile.usn !== '' && (
-              <MetaPill>{profile.usn}</MetaPill>
-            )}
-            {profile?.branch !== undefined && profile.branch !== null && profile.branch !== '' && (
-              <MetaPill>{profile.branch}</MetaPill>
-            )}
-            {profile?.currentSemester !== undefined && profile.currentSemester !== null && (
-              <MetaPill>Semester {String(profile.currentSemester)}</MetaPill>
-            )}
-          </>
+        action={
+          <Button
+            onClick={() => {
+              setEditing((current) => !current);
+            }}
+          >
+            <Icon name={editing ? 'check' : 'edit'} size="nav" />
+            {editing ? 'Done editing' : 'Edit profile'}
+          </Button>
         }
       />
 
@@ -155,8 +178,16 @@ export function ProfilePage() {
         the theme control existed only in a header popover, which is right for
         a quick switch and wrong as the only home for a preference.
       */}
-        <SectionedForm
-          label="Profile settings"
+        {!editing && hasProfile ? (
+          <ProfileOverview
+            profile={profile ?? null}
+            onEdit={() => {
+              setEditing(true);
+            }}
+          />
+        ) : (
+          <SectionedForm
+            label="Profile settings"
           sections={[
             /*
              * Academic leads, and that is a product decision rather than an
@@ -384,10 +415,174 @@ export function ProfilePage() {
                 </>
               ),
             },
-          ]}
-        />
+            ]}
+          />
+        )}
       </div>
     </>
+  );
+}
+
+/**
+ * The profile as it is READ, from the approved design.
+ *
+ * ---------------------------------------------------------------------------
+ * EVERY VALUE IS THE STUDENT'S OWN, AND NOTHING IS INVENTED TO FILL A CARD
+ * ---------------------------------------------------------------------------
+ *
+ * The design's sample profile carries a name, an email and a date of birth.
+ * This product stores no email and no date of birth — DOB has no approved
+ * requirement and may not be added (DEC-008) — so those rows do not exist here
+ * rather than being invented for symmetry. A field the student has not filled
+ * in says "Not set", which is the truth and is also the invitation to set it.
+ */
+function ProfileOverview({
+  profile,
+  onEdit,
+}: {
+  readonly profile: StudentProfile | null;
+  readonly onEdit: () => void;
+}) {
+  const { statistics } = useAcademicState();
+
+  const name = profile?.displayName ?? null;
+  const usn = profile?.usn ?? null;
+  /* The one letter a person recognises themselves by. Never a stock avatar. */
+  const initial = (name ?? usn ?? '').trim().slice(0, 1).toUpperCase();
+
+  const fields: readonly { icon: IconName; label: string; value: string | null; mono?: boolean }[] =
+    [
+      { icon: 'profile', label: 'USN', value: usn, mono: true },
+      { icon: 'degree', label: 'College', value: profile?.collegeName ?? null },
+      { icon: 'degree', label: 'Branch', value: profile?.branch ?? null },
+      { icon: 'papers', label: 'Scheme', value: profile?.schemeId === 'vtu-2022' ? 'VTU 2022' : null },
+      {
+        icon: 'timetable',
+        label: 'Current semester',
+        value:
+          profile?.currentSemester === null || profile?.currentSemester === undefined
+            ? null
+            : `Semester ${String(profile.currentSemester)}`,
+      },
+    ];
+
+  return (
+    <div className={styles.overview}>
+      <section className={styles.identity} aria-label="Who you are">
+        <div className={styles.cover} aria-hidden="true" />
+        <div className={styles.identityBody}>
+          <div className={styles.identityHead}>
+            <span className={styles.avatar} aria-hidden="true">
+              {initial === '' ? <Icon name="account" size="large" /> : initial}
+            </span>
+            <div className={styles.identityWho}>
+              <h2 className={styles.identityName}>{name ?? 'Name not set'}</h2>
+              <p className={`${styles.identityUsn ?? ''} ${monoClass}`}>{usn ?? 'No USN recorded'}</p>
+            </div>
+          </div>
+          <div className={styles.identityBadges}>
+            {profile?.branch !== null && profile?.branch !== undefined && profile.branch !== '' && (
+              <StatusPill tone="accent">{profile.branch}</StatusPill>
+            )}
+            {profile?.currentSemester !== null && profile?.currentSemester !== undefined && (
+              <StatusPill tone="neutral">Semester {profile.currentSemester}</StatusPill>
+            )}
+            {profile?.schemeId === 'vtu-2022' && <StatusPill tone="neutral">2022 scheme</StatusPill>}
+            {/*
+              THE BACKLOG BADGE IS DERIVED, not decorative: it is the same
+              figure the degree page reports, and it says "unavailable" rather
+              than "clear" when the record cannot answer.
+            */}
+            {statistics.backlogsFromResults.value === 0 ? (
+              <StatusPill tone="success">No backlogs</StatusPill>
+            ) : statistics.backlogsFromResults.value !== null ? (
+              <StatusPill tone="warning">
+                {formatCount(statistics.backlogsFromResults.value, 'backlog')}
+              </StatusPill>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <div className={styles.overviewRow}>
+        <Panel title="Identity">
+          {/*
+            A LIST, NOT A DEFINITION LIST. The design's row is an icon beside a
+            label above a value, which needs a wrapper around the two lines —
+            and a `<dl>` may only ever hold `dt`/`dd` (directly, or inside one
+            plain `div`). A third level makes every pair invalid, which is what
+            axe reported. A labelled list says the same thing and is valid.
+          */}
+          <ul className={styles.fields}>
+            {fields.map((field) => (
+              <li className={styles.field} key={field.label}>
+                <span className={styles.fieldMark} aria-hidden="true">
+                  <Icon name={field.icon} size="nav" />
+                </span>
+                <span className={styles.fieldText}>
+                  <span className={styles.fieldLabel}>{field.label}</span>
+                  <span
+                    className={`${styles.fieldValue ?? ''} ${
+                      field.mono === true && field.value !== null ? monoClass : ''
+                    }`}
+                    data-absent={field.value === null ? 'true' : undefined}
+                  >
+                    {field.value ?? 'Not set'}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className={styles.fieldsAction}>
+            <Button onClick={onEdit}>
+              <Icon name="edit" size="nav" />
+              Edit profile
+            </Button>
+          </div>
+        </Panel>
+
+        <Panel title="Academic snapshot">
+          {/*
+            THE SAME READING EVERY OTHER SCREEN USES. Nothing is computed here:
+            an unavailable figure says so rather than showing a zero (§1).
+          */}
+          <dl className={styles.snapshot}>
+            <div>
+              <dt>{statistics.cgpaBasis.pending.length > 0 ? 'Average so far' : 'CGPA'}</dt>
+              <dd data-absent={statistics.cgpa.value === null ? 'true' : undefined}>
+                {statistics.cgpaBasis.pending.length > 0
+                  ? metricDisplay(statistics.provisionalCgpa, formatGpa).value
+                  : metricDisplay(statistics.cgpa, formatGpa).value}
+              </dd>
+            </div>
+            <div>
+              <dt>Credits</dt>
+              <dd data-absent={statistics.creditsEarned.value === null ? 'true' : undefined}>
+                {metricDisplay(statistics.creditsEarned).value}
+              </dd>
+            </div>
+            <div>
+              <dt>Semesters</dt>
+              <dd>
+                {statistics.semestersGraded.value ?? 0}
+                <span className={styles.snapshotOf}>/8</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Backlogs</dt>
+              <dd data-absent={statistics.backlogsFromResults.value === null ? 'true' : undefined}>
+                {metricDisplay(statistics.backlogsFromResults).value}
+              </dd>
+            </div>
+          </dl>
+          <div className={styles.fieldsAction}>
+            <Link className={buttonClassName()} to="/semesters">
+              View degree progress
+            </Link>
+          </div>
+        </Panel>
+      </div>
+    </div>
   );
 }
 
