@@ -136,6 +136,7 @@ export function TextField({
   error,
   mono = false,
   icon,
+  hideLabel = false,
   ...rest
 }: {
   label: string;
@@ -144,6 +145,13 @@ export function TextField({
   hint?: string | undefined;
   error?: string | undefined;
   mono?: boolean | undefined;
+  /**
+   * Hides the label VISUALLY ONLY — it stays in the accessibility tree, as it
+   * does on `SelectField`. For the one control the approved design draws with
+   * no label at all: a search box, whose icon and placeholder say what it is to
+   * anyone who can see it, and whose name a screen reader still needs.
+   */
+  hideLabel?: boolean | undefined;
   /**
    * A mark inside the field, before the text. For a field whose PURPOSE is not
    * obvious from its label alone — a search box is the case that earns it.
@@ -158,7 +166,7 @@ export function TextField({
 
   return (
     <div className={styles.field}>
-      <label className={styles.label} htmlFor={id}>
+      <label className={hideLabel ? (styles.srOnly ?? '') : styles.label} htmlFor={id}>
         {label}
       </label>
       <div className={styles.inputWrap}>
