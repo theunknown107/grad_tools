@@ -313,7 +313,15 @@ describe('the notification centre', () => {
     await waitFor(() => {
       expect(peek.notificationState()[0]?.state).toBe('read');
     });
-    expect(await screen.findByText('Read')).toBeTruthy();
+    /*
+     * The approved design marks UNREAD rather than read: a dot, with the word
+     * beside it for a screen reader, and neither once it has been read. The
+     * guarantee is the same one — the state is stored AND is on screen.
+     */
+    await waitFor(() => {
+      expect(document.querySelector('article[data-state="read"]')).not.toBeNull();
+    });
+    expect(document.querySelector('article[data-state="unread"]')).toBeNull();
   });
 
   it('marks everything as read at once', async () => {
@@ -321,7 +329,7 @@ describe('the notification centre', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<NotificationsPage />, { repositories: bundle });
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Mark all as read' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mark all read' }));
 
     await waitFor(() => {
       expect(peek.notificationState().filter((r) => r.state === 'read').length).toBe(2);
@@ -330,7 +338,7 @@ describe('the notification centre', () => {
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: /unread/i }).textContent).toContain('0');
     });
-    expect(screen.getByRole('button', { name: 'Mark all as read' }).hasAttribute('disabled')).toBe(
+    expect(screen.getByRole('button', { name: 'Mark all read' }).hasAttribute('disabled')).toBe(
       true,
     );
   });
@@ -463,9 +471,18 @@ describe('priority on screen', () => {
     ]);
     renderWith(<AnnouncementsPage />);
 
-    const urgent = await screen.findByText('Urgent');
-    expect(urgent).toBeTruthy();
-    expect(screen.getByText('For information')).toBeTruthy();
+    /*
+     * URGENT IS DERIVED FROM A REAL DEADLINE, and a circular with none is not
+     * urgent. The design's card carries a priority badge only when there IS
+     * one, so what is asserted is that exactly one notice is marked and the
+     * general circular is not — rather than the wording of a badge that no
+     * longer exists for the ordinary case.
+     */
+    expect(await screen.findByText('Urgent')).toBeTruthy();
+    expect(screen.getAllByText('Urgent')).toHaveLength(1);
+    expect(screen.queryByText('Important')).toBeNull();
+    const circular = screen.getByText('A general circular').closest('article');
+    expect(circular?.textContent).not.toMatch(/urgent|important/i);
     vi.useRealTimers();
   });
 

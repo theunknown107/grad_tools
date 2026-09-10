@@ -57,14 +57,19 @@
 
 /* Priority is carried by a left edge AND by a pill in words. Never colour
    alone (docs/27 section 27.5). */
-.row,
-.notification {
+/*
+ * The design's announcement card. The priority edge stays: it is derived from
+ * a real deadline, and a coloured edge plus a pill in words is how this product
+ * has always said "urgent" without relying on colour (docs/27 §27.5).
+ */
+.row {
   display: grid;
   min-width: 0;
   gap: var(--space-2);
-  padding: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
   border-left: 3px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xl);
   background: var(--surface);
 }
 
@@ -79,10 +84,6 @@
 /* A notice that is not aimed at this student is quieter, never hidden. */
 .row[data-relevant='false'] {
   background: var(--bg);
-}
-
-.notification[data-state='unread'] {
-  border-left-color: var(--accent);
 }
 
 .rowHead {
@@ -111,10 +112,13 @@
   color: var(--text-subtle);
 }
 
+/* 17px, from the design: the notice is the thing on the card. */
 .title {
   margin: 0;
-  font-size: var(--text-body);
+  font-size: 17px;
+  font-weight: var(--weight-semibold);
   line-height: 1.35;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 
@@ -247,15 +251,200 @@
   }
 }
 
-/* The notifications inbox toolbar, matching the header popover's language. */
-.toolbar {
+
+/* -------------------------------------------------------------------------- */
+/* The inbox, to the approved design                                          */
+/* -------------------------------------------------------------------------- */
+
+.inbox {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+/*
+ * One notification: a mark of its kind, the notice, and the unread dot. The
+ * card is the design's, and the unread tint is its accent wash rather than a
+ * saturated fill — surfaces stay neutral in every accent.
+ */
+.notification {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+
+.notification[data-state='unread'] {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: color-mix(in srgb, var(--accent-weak) 40%, var(--surface));
+}
+
+.notificationMark {
+  display: grid;
+  place-items: center;
+  inline-size: 36px;
+  block-size: 36px;
+  flex: none;
+  border-radius: var(--radius-lg);
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+}
+
+/* A notice with a deadline in days, or in a category that always matters. */
+.notificationMark[data-high='true'] {
+  background: var(--warning-weak);
+  color: var(--warning-ink);
+}
+
+.notificationBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  flex: 1;
+}
+
+.notificationHead {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  margin-block-end: var(--space-5);
+  gap: var(--space-2);
 }
 
-.toolbar > button:last-child {
+.notificationTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.35;
+}
+
+.notificationText {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.notificationMeta {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 11px;
+}
+
+/*
+ * The design's unread dot. Decorative — the word beside it is what carries the
+ * state to a screen reader, and colour is never the only signal (M7 §29).
+ */
+.unreadMark {
+  flex: none;
+  margin-block-start: 6px;
+}
+
+.unreadMark > span:first-child {
+  display: block;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--a-fill);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The announcements feed, to the approved design                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The categories as chips and the search box at the end — the design's filter
+ * row. It stacks on a phone and the chips scroll rather than wrap, so the row
+ * stays one line and the feed keeps the screen.
+ */
+.filterRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-block-end: var(--space-4);
+}
+
+@media (min-width: 1024px) {
+  .filterRow {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* Shrinks and scrolls rather than pushing the search box off the row. */
+.chips {
+  display: flex;
+  flex: 1;
+  min-inline-size: 0;
+  gap: 6px;
+  overflow-x: auto;
+  padding-block-end: 2px;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: none;
+  padding: 6px var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-glide),
+    background-color var(--motion-fast) var(--ease-glide);
+}
+
+.chip:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-sunken);
+}
+
+.chip[data-selected='true'] {
+  border-color: var(--a-fill);
+  background: var(--accent-weak);
+  color: var(--text);
+}
+
+.chip:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.search {
+  inline-size: 100%;
+}
+
+@media (min-width: 1024px) {
+  .search {
+    inline-size: 16rem;
+    flex: none;
+  }
+}
+
+/* One notice, as the design's card: badges and the date, then the notice. */
+.rowDate {
   margin-inline-start: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.source {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 12px;
 }
