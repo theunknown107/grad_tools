@@ -21,6 +21,7 @@
 
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/AppShell.js';
+import { Icon } from '../../components/icons.js';
 import { MetaPill } from '../../components/ui/tone.js';
 import { DocumentImportPanel } from './DocumentImportPanel.js';
 import styles from './import.module.css';
@@ -70,6 +71,27 @@ export function ImportPage() {
             navigate('/results');
           }}
         />
+
+        {/*
+          THE TRUST LINE, at the FOOT.
+          
+          It used to open the panel, above the drop surface. The approved design
+          puts it last, and that is the better place for it: a reassurance read
+          before anything has happened is read as boilerplate and skipped —
+          including by the person who needed it. Here it answers the question a
+          student actually has once they are holding a file.
+        */}
+        <ul className={styles.trust}>
+          <li>
+            <Icon name="lock" size="micro" />
+            Your file is read on this device.
+          </li>
+          <li>
+            <Icon name="shield" size="micro" />
+            Only the information you confirm is saved.
+          </li>
+          <li>Supported: PDF, PNG, JPG &middot; up to 20&nbsp;MB</li>
+        </ul>
 
         {/*
           THE FALLBACK, AND VISIBLY SECOND. A document that cannot be read must
