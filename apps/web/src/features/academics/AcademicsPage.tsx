@@ -12,18 +12,24 @@
  * `cgpa_x_10` formula (22OB 6.7). React never multiplies a CGPA by anything.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   calculateCGPA,
   calculateClass,
   calculatePercentage,
+  calculateRequiredMarks,
+  calculateRequiredSGPA,
   calculateSGPA,
   vtu2022RuleSet,
+  type BindingConstraint,
   type CourseGrade,
+  type MarksTarget,
   type SemesterSummary,
 } from '@gradtools/academic-rules';
+import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/AppShell.js';
 import { MetaPill } from '../../components/ui/tone.js';
+import { Tooltip } from '../../components/ui/Tooltip.js';
 import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { MetricStrip } from '../../components/ui/layout.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
@@ -32,6 +38,7 @@ import { Icon } from '../../components/icons.js';
 import {
   EmptyState,
   Button,
+  buttonClassName,
   ExplanationDisclosure,
   Notice,
   Panel,
@@ -39,7 +46,7 @@ import {
   StatusPill,
   TextField,
 } from '../../components/ui/index.js';
-import { formatGpa, formatPercent } from '../../lib/format.js';
+import { formatCount, formatGpa, formatPercent, metricDisplay } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
 import { semesterSgpa } from '../../domain/results.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
@@ -53,6 +60,12 @@ import { useResults } from '../../hooks/useCollection.js';
 import styles from './academics.module.css';
 
 const ruleSet = vtu2022RuleSet;
+
+/** Which of 22OB 6.3's three simultaneous thresholds decides the answer. */
+const BINDING_LABEL: Record<BindingConstraint, string> = {
+  see_minimum: 'the minimum mark the exam head itself requires',
+  overall_target: 'the total the course needs overall',
+};
 
 /** Credit values a VTU course can carry. A select, not free text. */
 const CREDIT_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5] as const;
@@ -79,6 +92,17 @@ export function AcademicsPage() {
         /* The regulation is a fact about the page; the figures belong to the
            panels below, which own the data. No count is invented here. */
         pills={<MetaPill>VTU 2022 regulation</MetaPill>}
+        /*
+          The design gives this page one action, and it is the action that
+          makes the figures exist. A student whose CGPA is unavailable is one
+          result away from having one.
+        */
+        action={
+          <Link className={buttonClassName('primary')} to="/import">
+            <Icon name="plus" size="nav" />
+            Add result
+          </Link>
+        }
       />
       {/*
         -------------------------------------------------------------------
@@ -119,10 +143,7 @@ export function AcademicsPage() {
           <YourFigures />
         </IslandTabPanel>
         <IslandTabPanel id="calculator">
-          <div className={styles.stack}>
-            <SgpaCalculator />
-            <CgpaCalculator />
-          </div>
+          <CalculatorPanel />
         </IslandTabPanel>
       </IslandTabGroup>
     </>
@@ -232,12 +253,155 @@ function GradeDistributionRows({ grades }: { readonly grades: GradeDistribution 
 }
 
 /**
- * What GradTools already knows, from the results the student saved.
+ * The hero figure, as the approved design sets it.
  *
- * Nothing here is computed in this component beyond summing credits: the SGPA,
- * the CGPA and the completeness statement all come from the rules engine and
- * the semester-view builder, so this page and My Degree cannot disagree.
+ * ONE CARD, THREE STATES, AND THEY ARE NOT THE SAME SENTENCE (§5):
+ *
+ *   complete     the CGPA, credit-weighted across every completed semester;
+ *   partial      "Average so far", said explicitly not to be the CGPA, with
+ *                the semesters that are holding it back named;
+ *   unavailable  the word, and the reason, and never a figure.
+ *
+ * The distinction is the domain's, not this component's: `statistics.cgpa` is
+ * unresolved the moment a semester that ought to count cannot, and
+ * `provisionalCgpa` is the figure over what HAS resolved. Nothing here decides
+ * which is which, and nothing here averages anything.
  */
+function StandingHero() {
+  const { statistics } = useAcademicState();
+  const pending = statistics.cgpaBasis.pending;
+  const partial = pending.length > 0;
+  const figure = partial ? statistics.provisionalCgpa : statistics.cgpa;
+  const shown = metricDisplay(figure, formatGpa);
+
+  return (
+    <section className={styles.hero} aria-label={partial ? 'Average so far' : 'Cumulative CGPA'}>
+      <span className={styles.heroBadge}>
+        {partial ? (
+          <StatusPill tone="warning">Not your CGPA</StatusPill>
+        ) : (
+          <StatusPill tone="success">Credit-weighted</StatusPill>
+        )}
+      </span>
+
+      {/*
+        THE UNAVAILABLE CGPA IS STATED, NOT IMPLIED. The design puts this above
+        the figure that CAN be computed, so a student never reads the smaller
+        number as the bigger one.
+      */}
+      {partial && (
+        <p className={styles.heroPending}>
+          <Icon name="warning" size="small" />
+          Cumulative CGPA unavailable
+        </p>
+      )}
+
+      <p className={styles.heroLabel}>{partial ? 'Average so far' : 'Cumulative CGPA'}</p>
+      {/* A word is not a figure: "Unavailable" is set as a sentence, not at
+          68px where a number belongs. The shape of the value decides. */}
+      <p className={styles.heroValue} data-absent={/\d/.test(shown.value) ? undefined : 'true'}>
+        {shown.value}
+      </p>
+
+      <p className={styles.heroNote}>
+        <Icon name="info" size="small" />
+        <span>
+          {partial ? (
+            <>
+              Across {String(statistics.cgpaBasis.counted)} of{' '}
+              {String(statistics.cgpaBasis.counted + pending.length)} completed semesters — a
+              credit-weighted average of what has resolved, which is not the same figure as your
+              CGPA.
+            </>
+          ) : (
+            <>
+              CGPA is calculated across every completed semester.{' '}
+              <Tooltip content="Σ(SGPA × credits) ÷ Σ credits — weighted by the credits each semester carried. Clause 22OB 6.6.">
+                <span className={styles.formula} tabIndex={0}>
+                  formula
+                </span>
+              </Tooltip>
+            </>
+          )}
+        </span>
+      </p>
+
+      {/* The reason, verbatim from the domain — it names the semesters. */}
+      {figure.reason !== null && <p className={styles.heroReason}>{figure.reason}</p>}
+
+      <dl className={styles.heroStats}>
+        <MiniStat
+          label="Latest SGPA"
+          value={
+            statistics.latestSgpa.value === null
+              ? 'Unavailable'
+              : formatGpa(statistics.latestSgpa.value.sgpa)
+          }
+        />
+        <MiniStat label="Credits" value={metricDisplay(statistics.creditsEarned).value} />
+        <MiniStat label="Backlogs" value={metricDisplay(statistics.backlogsFromResults).value} />
+      </dl>
+    </section>
+  );
+}
+
+/** One of the three small figures under the hero. */
+function MiniStat({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div className={styles.miniStat}>
+      <dt>{label}</dt>
+      <dd data-absent={/\d/.test(value) ? undefined : 'true'}>{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * Every graded semester, largest figure last — the design's SGPA history.
+ *
+ * The bar is the SGPA against the ten-point scale, which is what the design
+ * draws. A semester with no computable SGPA keeps its row and says so, because
+ * dropping it would make the history look shorter than the degree.
+ */
+function SgpaHistory() {
+  const { statistics } = useAcademicState();
+  const entries = statistics.semesters.filter((entry) => entry.hasResult);
+  if (entries.length === 0) return null;
+
+  return (
+    <Panel title="SGPA history" flush>
+      <ol className={styles.history}>
+        {entries.map((entry) => {
+          const sgpa = entry.sgpa.value;
+          return (
+            <li className={styles.historyRow} key={entry.number}>
+              <span className={styles.historyTile}>S{entry.number}</span>
+              <span className={styles.historyBody}>
+                <span className={styles.historyName}>Semester {entry.number}</span>
+                <span className={styles.historyMeta}>
+                  {formatCount(entry.courseCount, 'course')}
+                  {(entry.creditsAttempted.value ?? 0) > 0
+                    ? ` · ${String(entry.creditsAttempted.value ?? 0)} credits`
+                    : ''}
+                </span>
+              </span>
+              <span className={styles.historyBar} aria-hidden="true">
+                <span style={{ inlineSize: `${String(((sgpa ?? 0) / 10) * 100)}%` }} />
+              </span>
+              <span
+                className={styles.historyFigure}
+                data-absent={sgpa === null ? 'true' : undefined}
+                title={entry.sgpa.reason ?? undefined}
+              >
+                {sgpa === null ? 'Unavailable' : formatGpa(sgpa)}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </Panel>
+  );
+}
+
 function YourFigures() {
   /*
    * THE SHARED READING (18). This component used to build its own semester
@@ -253,6 +417,8 @@ function YourFigures() {
       statistics.trend.map((point) => ({
         semester: point.semester,
         sgpa: point.sgpa,
+        /* The second series the design draws, from the rules engine (§11). */
+        cgpaSoFar: point.cgpaSoFar,
         state:
           point.sgpa !== null
             ? ('graded' as const)
@@ -275,9 +441,23 @@ function YourFigures() {
    */
   if (!statistics.hasAnyResult) {
     return (
-      <EmptyState title="No figures yet" icons={['gpa', 'results', 'degree']}>
-        Save a semester result and your SGPA, CGPA and trend appear here. The calculator tab works
-        without any saved data.
+      <EmptyState
+        title="No calculated figures yet"
+        icons={['gpa', 'results', 'degree']}
+        action={
+          <div className={styles.emptyActions}>
+            <Link className={buttonClassName('primary')} to="/import">
+              <Icon name="plus" size="nav" />
+              Add result
+            </Link>
+            <Link className={buttonClassName()} to="/results">
+              Enter one by hand
+            </Link>
+          </div>
+        }
+      >
+        Add a semester result to calculate SGPA and CGPA. Your figures update as records are
+        confirmed, and the calculator tab works without any saved data.
       </EmptyState>
     );
   }
@@ -285,21 +465,32 @@ function YourFigures() {
   return (
     <div className={styles.stack}>
       {/*
-        EVERY FIGURE THE RECORDS SUPPORT, and each one on its own inputs (4).
-        An unresolved CGPA no longer takes the credits, the passes and the
+        THE STANDING AND ITS SHAPE, SIDE BY SIDE — the design's two-column
+        opening. The hero answers "where am I"; the chart answers "how did I
+        get here", and the two are read together.
+      */}
+      <div className={styles.figuresTop}>
+        <StandingHero />
+        <Panel title="CGPA progression">
+          <SgpaTrend points={points} size="tall" />
+        </Panel>
+      </div>
+
+      <SgpaHistory />
+
+      {/*
+        EVERY OTHER FIGURE THE RECORDS SUPPORT, and each one on its own inputs
+        (4). An unresolved CGPA no longer takes the credits, the passes and the
         grade distribution down with it — which is what emptied this page.
+      */}
+      {/*
+        CREDITS AND BACKLOGS ARE NOT REPEATED HERE. They are on the hero, three
+        inches above, and a figure printed twice on one screen invites a reader
+        to check whether the two agree.
       */}
       <MetricStrip
         metrics={[
-          /*
-            The CGPA when it is one, and the running average under its own
-            name when it is not (§1, §10, §13).
-          */
-          statistics.cgpaBasis.pending.length > 0
-            ? metricStripEntry('Average so far', statistics.provisionalCgpa, formatGpa)
-            : metricStripEntry('CGPA', statistics.cgpa, formatGpa),
           metricStripEntry('Percentage', statistics.percentage, formatPercent),
-          metricStripEntry('Credits earned', statistics.creditsEarned),
           metricStripEntry('Semesters graded', statistics.semestersGraded),
           {
             label: 'Passed',
@@ -308,13 +499,9 @@ function YourFigures() {
               ? { note: `${String(statistics.outcomes.unresolved)} still to review` }
               : {}),
           },
-          metricStripEntry('Backlogs', statistics.backlogs),
+          metricStripEntry('Backlogs recorded', statistics.backlogs),
         ]}
       />
-
-      <Panel title="SGPA across the degree" material="quiet">
-        <SgpaTrend points={points} />
-      </Panel>
 
       {/*
         THE GRADE DISTRIBUTION (7). Unresolved courses are counted in their own
@@ -395,15 +582,305 @@ function YourFigures() {
         they are looking at unless the page says (M10A §19).
       */}
       <p className={styles.basis}>{completeness.basis}</p>
-      {statistics.cgpa.reason !== null && statistics.cgpaBasis.pending.length > 0 && (
-        <p className={styles.gap}>{statistics.cgpa.reason}</p>
-      )}
       {completeness.gaps.map((gap) => (
         <p className={styles.gap} key={gap}>
           {gap}
         </p>
       ))}
     </div>
+  );
+}
+
+/**
+ * The answer, in the box the approved design gives it.
+ *
+ * Every calculator ends the same way — a label, the figure, and one line
+ * saying what it rests on — so they share the block rather than each drawing
+ * their own. A calculator that cannot answer says why in the caption and shows
+ * a dash where the figure would be, never a zero.
+ */
+function AnswerBlock({
+  label,
+  value,
+  caption,
+  children,
+}: {
+  readonly label: string;
+  /** Null when the inputs do not support an answer. */
+  readonly value: string | null;
+  readonly caption: string;
+  readonly children?: ReactNode;
+}) {
+  return (
+    <div className={styles.answer}>
+      <p className={styles.answerLabel}>{label}</p>
+      {value === null ? (
+        <p className={styles.answerPlaceholder}>—</p>
+      ) : (
+        <p className={styles.answerValue}>{value}</p>
+      )}
+      <p className={styles.answerCaption}>{caption}</p>
+      {children}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The calculator, and how it works                                           */
+/* -------------------------------------------------------------------------- */
+
+const CALC_MODES = [
+  { id: 'sgpa', label: 'SGPA' },
+  { id: 'cgpa', label: 'CGPA' },
+  { id: 'required-sgpa', label: 'Required SGPA' },
+  { id: 'required-marks', label: 'Required marks' },
+] as const;
+
+type CalcMode = (typeof CALC_MODES)[number]['id'];
+
+/**
+ * The calculator, as the approved design composes it: one card carrying the
+ * mode switch and the active calculator, and a companion card that states the
+ * formulas the whole thing runs on.
+ *
+ * The four modes are the four the rules engine already answers —
+ * `calculateSGPA`, `calculateCGPA`, `calculateRequiredSGPA` and
+ * `calculateRequiredMarks`. Nothing was added to the engine to fill the row,
+ * and no arithmetic happens in this file.
+ */
+function CalculatorPanel() {
+  const [mode, setMode] = useState<CalcMode>('sgpa');
+
+  return (
+    <div className={styles.calcLayout}>
+      {/*
+        ITS OWN TAB ROOT, and it has to be. `IslandTabs` renders a bare list
+        when a group is already above it, so these four would have become
+        triggers of the PAGE's tab group — pressing "CGPA" switched the page
+        back to Your figures and unmounted the calculator. Caught in the
+        browser, not by a type.
+      */}
+      <IslandTabGroup
+        value={mode}
+        onChange={(next) => {
+          setMode(next as CalcMode);
+        }}
+      >
+        <div className={styles.calcMain}>
+          <IslandTabs
+            label="Calculator"
+            value={mode}
+            onChange={(next) => {
+              setMode(next as CalcMode);
+            }}
+            tabs={CALC_MODES.map((entry) => ({ id: entry.id, label: entry.label }))}
+          />
+          <IslandTabPanel id="sgpa">
+            <SgpaCalculator />
+          </IslandTabPanel>
+          <IslandTabPanel id="cgpa">
+            <CgpaCalculator />
+          </IslandTabPanel>
+          <IslandTabPanel id="required-sgpa">
+            <RequiredSgpaCalculator />
+          </IslandTabPanel>
+          <IslandTabPanel id="required-marks">
+            <RequiredMarksCalculator />
+          </IslandTabPanel>
+        </div>
+      </IslandTabGroup>
+
+      <aside className={styles.calcAside}>
+        <Panel title="How it works">
+          <p className={styles.asideBody}>
+            Every figure is credit-weighted, exactly as the regulation defines it. The engine that
+            computes them is the same one your saved results go through.
+          </p>
+          <dl className={styles.formulaList}>
+            <div className={styles.formulaLine}>
+              <dt>SGPA</dt>
+              <dd>Σ(grade point × credits) ÷ Σ credits</dd>
+            </div>
+            <div className={styles.formulaLine}>
+              <dt>CGPA</dt>
+              <dd>Σ(SGPA × semester credits) ÷ Σ credits</dd>
+            </div>
+            <div className={styles.formulaLine}>
+              <dt>Percentage</dt>
+              <dd>CGPA × 10 (22OB 6.7)</dd>
+            </div>
+            <div className={styles.formulaLine}>
+              <dt>Grade points</dt>
+              <dd>
+                {[...ruleSet.gradeBands]
+                  .filter((band) => band.points !== null)
+                  .map((band) => `${band.letter}=${String(band.points)}`)
+                  .join(' · ')}
+              </dd>
+            </div>
+          </dl>
+          <p className={styles.asideNote}>
+            Figures here are estimates. Nothing is saved to your record — a result becomes part of
+            it only when you confirm one on Results or Add document.
+          </p>
+        </Panel>
+      </aside>
+    </div>
+  );
+}
+
+/**
+ * The SGPA a coming semester would need for a target CGPA.
+ *
+ * Every input defaults to what the student's own record already says, so the
+ * common case is "type the target, read the answer". `calculateRequiredSGPA`
+ * does the arithmetic and reports unreachable targets itself — this never
+ * decides that a target is out of range.
+ */
+function RequiredSgpaCalculator() {
+  const { statistics } = useAcademicState();
+  const currentCgpa = statistics.cgpa.value ?? statistics.provisionalCgpa.value;
+  const creditsDone = statistics.creditsEarned.value;
+
+  const [target, setTarget] = useState('8.00');
+  const [current, setCurrent] = useState(currentCgpa === null ? '' : currentCgpa.toFixed(2));
+  const [done, setDone] = useState(creditsDone === null ? '' : String(creditsDone));
+  const [next, setNext] = useState('21');
+
+  const result = useMemo(
+    () =>
+      calculateRequiredSGPA(Number(current), Number(done), Number(next), Number(target), ruleSet),
+    [current, done, next, target],
+  );
+
+  return (
+    <Panel title="Required SGPA for a target CGPA">
+      <div className={styles.calcFields}>
+        <TextField
+          label="Target CGPA"
+          inputMode="decimal"
+          value={target}
+          onChange={(event) => {
+            setTarget(event.target.value);
+          }}
+        />
+        <TextField
+          label="Current CGPA"
+          hint={currentCgpa === null ? 'No CGPA in your record yet.' : 'From your record.'}
+          inputMode="decimal"
+          value={current}
+          onChange={(event) => {
+            setCurrent(event.target.value);
+          }}
+        />
+        <TextField
+          label="Credits completed"
+          hint={creditsDone === null ? undefined : 'From your record.'}
+          inputMode="numeric"
+          value={done}
+          onChange={(event) => {
+            setDone(event.target.value);
+          }}
+        />
+        <TextField
+          label="Credits next semester"
+          inputMode="numeric"
+          value={next}
+          onChange={(event) => {
+            setNext(event.target.value);
+          }}
+        />
+      </div>
+
+      {/* The engine's own words when it cannot answer: it knows when a target
+          is unreachable and by how much, and rewording that here would lose
+          the figure it quotes. */}
+      <AnswerBlock
+        label="Required SGPA next semester"
+        value={result.ok ? formatGpa(result.value) : null}
+        caption={
+          result.ok
+            ? `Score at least this across ${next} credits to reach a CGPA of ${target}.`
+            : result.detail
+        }
+      />
+
+      <ExplanationDisclosure explanation={result.explanation} />
+    </Panel>
+  );
+}
+
+/**
+ * What the semester-end exam has to carry.
+ *
+ * The three thresholds of 22OB 6.3 apply at once, and the engine names which
+ * one binds — that is the part a student can act on, so it is shown rather
+ * than reduced to a single number.
+ */
+function RequiredMarksCalculator() {
+  const [internal, setInternal] = useState('28');
+  const [targetKind, setTargetKind] = useState('pass');
+
+  const target: MarksTarget = useMemo(
+    () => (targetKind === 'pass' ? { kind: 'pass' } : { kind: 'grade', letter: targetKind }),
+    [targetKind],
+  );
+  const result = useMemo(
+    () => calculateRequiredMarks(Number(internal), target, ruleSet),
+    [internal, target],
+  );
+
+  return (
+    <Panel title="Marks needed in the exam">
+      <div className={styles.calcFields}>
+        <TextField
+          label={`Internal / CIE (of ${String(ruleSet.cieMax)})`}
+          inputMode="numeric"
+          value={internal}
+          onChange={(event) => {
+            setInternal(event.target.value);
+          }}
+        />
+        <SelectField
+          label="Target"
+          value={targetKind}
+          onChange={(event) => {
+            setTargetKind(event.target.value);
+          }}
+        >
+          <option value="pass">Pass the course</option>
+          {ruleSet.gradeBands
+            .filter((band) => band.points !== null)
+            .map((band) => (
+              <option key={band.letter} value={band.letter}>
+                Grade {band.letter}
+              </option>
+            ))}
+        </SelectField>
+      </div>
+
+      <AnswerBlock
+        label="Required in the semester-end exam"
+        value={
+          result.ok
+            ? `${String(result.value.rawSeeRequired)} / ${String(result.value.rawSeeMaximum)}`
+            : null
+        }
+        caption={
+          result.ok
+            ? `On the exam script. That is ${result.value.printedExternalEquivalent.toFixed(1)} of ${String(result.value.printedExternalMaximum)} in the card's External column — the two scales are different, and confusing them halves or doubles the answer.`
+            : result.detail
+        }
+      >
+        {result.ok && (
+          <p className={styles.answerCaption}>
+            What decides it: {BINDING_LABEL[result.value.bindingConstraint]}.
+          </p>
+        )}
+      </AnswerBlock>
+
+      <ExplanationDisclosure explanation={result.explanation} />
+    </Panel>
   );
 }
 
@@ -513,22 +990,15 @@ function SgpaCalculator() {
         ))}
       </ul>
 
-      <div className={styles.answer}>
-        {result.ok ? (
-          <>
-            <p className={styles.answerValue}>{formatGpa(result.value)}</p>
-            <p className={styles.answerCaption}>
-              SGPA · {String(courses.length)} courses ·{' '}
-              {String(result.explanation.inputs.totalCredits ?? 0)} credits
-            </p>
-          </>
-        ) : (
-          <>
-            <p className={styles.answerPlaceholder}>—</p>
-            <p className={styles.answerCaption}>{result.detail}</p>
-          </>
-        )}
-      </div>
+      <AnswerBlock
+        label="Estimated SGPA"
+        value={result.ok ? formatGpa(result.value) : null}
+        caption={
+          result.ok
+            ? `${String(courses.length)} courses · ${String(result.explanation.inputs.totalCredits ?? 0)} credits entered`
+            : result.detail
+        }
+      />
 
       <ExplanationDisclosure explanation={result.explanation} />
     </Panel>
@@ -687,11 +1157,17 @@ function CgpaCalculator() {
         ))}
       </ul>
 
-      <div className={styles.answer}>
-        {cgpa.ok ? (
+      <AnswerBlock
+        label="Estimated CGPA"
+        value={cgpa.ok ? formatGpa(cgpa.value) : null}
+        caption={
+          cgpa.ok
+            ? `Credit-weighted across ${String(semesters.length)} entered semesters`
+            : cgpa.detail
+        }
+      >
+        {cgpa.ok && (
           <>
-            <p className={styles.answerValue}>{formatGpa(cgpa.value)}</p>
-            <p className={styles.answerCaption}>CGPA · {String(semesters.length)} semesters</p>
             <div className={styles.derived}>
               {percentage?.ok === true && (
                 <span className={styles.derivedItem}>
@@ -707,13 +1183,8 @@ function CgpaCalculator() {
               )}
             </div>
           </>
-        ) : (
-          <>
-            <p className={styles.answerPlaceholder}>—</p>
-            <p className={styles.answerCaption}>{cgpa.detail}</p>
-          </>
         )}
-      </div>
+      </AnswerBlock>
 
       <ExplanationDisclosure explanation={cgpa.explanation} />
 

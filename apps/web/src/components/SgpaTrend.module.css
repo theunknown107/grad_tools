@@ -8,6 +8,11 @@
   overflow: visible;
 }
 
+/* The design's own height, for the card whose subject IS the chart. */
+.figure[data-size='tall'] .svg {
+  block-size: 192px;
+}
+
 .grid {
   stroke: var(--border);
   stroke-width: 1;
@@ -79,4 +84,18 @@
   padding-block: var(--space-6);
   color: var(--text-subtle);
   font-size: var(--text-small);
+}
+
+/*
+ * The cumulative series, dashed, in the third chart colour — the approved
+ * design's second line. Dashed because it is DERIVED from the first: a solid
+ * second line would read as another thing that was measured.
+ */
+.cumulative {
+  fill: none;
+  stroke: var(--chart-3);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
 }
