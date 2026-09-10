@@ -22,10 +22,9 @@ import { PageHeader } from '../../components/AppShell.js';
 import { MetaPill } from '../../components/ui/tone.js';
 import { formatCount } from '../../lib/format.js';
 import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
-import { Select } from '../../components/ui/Select.js';
 /* Aliased: layout.js already exports a row-count Skeleton used further down. */
 import { Skeleton as ShapedSkeleton } from '../../components/ui/Skeleton.js';
-import { EmptyState, Notice, Panel, StatusPill } from '../../components/ui/index.js';
+import { EmptyState, Notice, Panel, StatusPill, TextField } from '../../components/ui/index.js';
 import { Row, Rows, Skeleton } from '../../components/ui/layout.js';
 import {
   useAnnouncements,
@@ -55,11 +54,22 @@ const CATEGORY_OPTIONS: readonly (AnnouncementCategory | 'all')[] = [
 export function AnnouncementsPage() {
   const [category, setCategory] = useState<string>('all');
   const [onlyRelevant, setOnlyRelevant] = useState(false);
+  /** What the search box holds. Filters the feed; never the counts on the tabs. */
+  const [query, setQuery] = useState('');
   const { items, loading, error, reload } = useAnnouncements(category);
   const sorted = useSortedAnnouncements(items);
   const context = useStudentContext();
 
-  const shown = onlyRelevant ? sorted.filter((item) => isRelevant(item, context)) : sorted;
+  /*
+   * SEARCH MATCHES THE NOTICE, not a category name: a student typing
+   * "revaluation" means the word in the title or the body, and the chips above
+   * are how a category is chosen.
+   */
+  const needle = query.trim().toLowerCase();
+  const shown = (onlyRelevant ? sorted.filter((item) => isRelevant(item, context)) : sorted).filter(
+    (item) =>
+      needle === '' || `${item.title} ${item.body ?? ''} ${item.publisher}`.toLowerCase().includes(needle),
+  );
 
   /*
    * THE FEED, HOISTED so it can be the content of BOTH tab panels.
@@ -81,12 +91,20 @@ export function AnnouncementsPage() {
       <ShapedSkeleton lines={5} height="56px" radius="md" label="Loading announcements" />
     ) : shown.length === 0 ? (
       <EmptyState
-        title={onlyRelevant ? 'Nothing applies to you right now' : 'No announcements yet'}
+        title={
+          needle !== ''
+            ? 'No matching notices'
+            : onlyRelevant
+              ? 'Nothing applies to you right now'
+              : 'No announcements yet'
+        }
         icons={['announcements', 'notifications', 'empty']}
       >
-        {onlyRelevant
-          ? 'Switch to All to see every notice GradTools holds.'
-          : 'Notices appear here once a source is connected or an operator adds one.'}
+        {needle !== ''
+          ? `Nothing in the feed matches “${query.trim()}”.`
+          : onlyRelevant
+            ? 'Switch to All to see every notice GradTools holds.'
+            : 'Notices appear here once a source is connected or an operator adds one.'}
       </EmptyState>
     ) : (
       <ul className={styles.list}>
@@ -161,17 +179,47 @@ export function AnnouncementsPage() {
             ]}
           />
 
-          <div className={styles.toolbarEnd}>
-            <Select
-              label="Category"
+        </div>
+
+        {/*
+          THE DESIGN'S FILTER ROW: the categories as chips that scroll rather
+          than a select that hides them, and a search box at the end. The chips
+          are the categories this product actually has — twelve, not the five of
+          a sample — so the row scrolls on a phone exactly as the design's does.
+        */}
+        <div className={styles.filterRow}>
+          <div className={styles.chips}>
+            {CATEGORY_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={styles.chip}
+                data-selected={category === option ? 'true' : undefined}
+                aria-pressed={category === option}
+                onClick={() => {
+                  setCategory(option);
+                }}
+              >
+                {option === 'all' ? 'All' : CATEGORY_LABEL[option]}
+              </button>
+            ))}
+          </div>
+          <div className={styles.search}>
+            <TextField
+              /*
+                The design draws this field with no visible label. The label
+                still exists — a search box with no accessible name is unusable
+                with a screen reader (docs/27 §27.11).
+              */
+              label="Search announcements"
               hideLabel
-              icon="announcements"
-              value={category}
-              onChange={setCategory}
-              options={CATEGORY_OPTIONS.map((option) => ({
-                value: option,
-                label: option === 'all' ? 'All categories' : CATEGORY_LABEL[option],
-              }))}
+              icon="search"
+              type="search"
+              placeholder="Search announcements…"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+              }}
             />
           </div>
         </div>

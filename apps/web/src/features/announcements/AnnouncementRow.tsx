@@ -79,34 +79,30 @@ export function AnnouncementRow({
 
   return (
     <article className={styles.row} data-priority={priority} data-relevant={relevant}>
+      {/*
+        THE DESIGN'S HEAD: what kind of notice this is on the left, when it was
+        published on the right. The priority pill stays because priority here is
+        DERIVED from a real deadline rather than a flag someone set (M7 §18).
+      */}
       <div className={styles.rowHead}>
-        <StatusPill tone={label.tone}>{label.text}</StatusPill>
+        <StatusPill tone="neutral">{CATEGORY_LABEL[announcement.category]}</StatusPill>
+        {priority !== 'normal' && priority !== 'informational' && (
+          <StatusPill tone={label.tone}>{label.text}</StatusPill>
+        )}
         {/*
           DEMO CONTENT SAYS SO. Driven by the record's origin, so a synthetic
           notice cannot be shown as though it were official (M7 §36).
         */}
         {announcement.origin === 'demo_fixture' && <span className={styles.demo}>Demo data</span>}
-        <span className={styles.category}>{CATEGORY_LABEL[announcement.category]}</span>
+        {announcement.publishedAt !== null && (
+          <time className={styles.rowDate} dateTime={announcement.publishedAt}>
+            {formatDate(announcement.publishedAt)}
+          </time>
+        )}
       </div>
 
       {/* External text, rendered as text. */}
       <h3 className={styles.title}>{announcement.title}</h3>
-
-      <p className={styles.meta}>
-        <span className={styles.publisher}>{announcement.publisher}</span>
-        {announcement.publishedAt !== null && (
-          <>
-            {' · '}
-            <time dateTime={announcement.publishedAt}>{formatDate(announcement.publishedAt)}</time>
-          </>
-        )}
-        {!relevant && targeted && (
-          <>
-            {' · '}
-            <span className={styles.notForYou}>Not for your branch or semester</span>
-          </>
-        )}
-      </p>
 
       {/*
         A DEADLINE ONLY FROM A REAL DATE (M7 §18). Nothing here reads wording:
@@ -141,6 +137,20 @@ export function AnnouncementRow({
           )}
         </>
       )}
+
+      {/*
+        WHO ISSUED IT, at the foot of the card as the design has it. GradTools
+        is never the authority: every notice names its publisher (M7 §9, §26).
+      */}
+      <p className={styles.source}>
+        {announcement.publisher}
+        {!relevant && targeted && (
+          <>
+            {' · '}
+            <span className={styles.notForYou}>Not for your branch or semester</span>
+          </>
+        )}
+      </p>
 
       {!compact && announcement.canonicalUrl !== null && (
         /*
