@@ -496,7 +496,14 @@ describe('current semester on the dashboard', () => {
      */
     const strip = document.querySelector('dl') as HTMLElement;
     expect(within(strip).getByText('86.0%')).toBeTruthy();
-    expect(within(strip).getByText('Subjects')).toBeTruthy();
+    /*
+     * The strip carries the six figures the approved design lays out, and
+     * "Subjects" is not among them — it lives on My degree, where the subject
+     * list itself is. What matters here is unchanged: the attendance figure
+     * for the semester in progress is on the dashboard, from the engine.
+     */
+    expect(within(strip).getByText('Attendance')).toBeTruthy();
+    expect(within(strip).getByText('Semesters')).toBeTruthy();
   });
 
   /*

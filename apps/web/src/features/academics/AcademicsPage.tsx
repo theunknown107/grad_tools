@@ -33,6 +33,7 @@ import { Tooltip } from '../../components/ui/Tooltip.js';
 import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
 import { MetricStrip } from '../../components/ui/layout.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
+import { GradeDistributionRows } from '../../components/GradeDistribution.js';
 import { dataCompleteness } from '../../domain/academics.js';
 import { Icon } from '../../components/icons.js';
 import {
@@ -50,11 +51,7 @@ import { formatCount, formatGpa, formatPercent, metricDisplay } from '../../lib/
 import { newId } from '../../lib/id.js';
 import { semesterSgpa } from '../../domain/results.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
-import {
-  OUTCOME_LABEL,
-  type CourseOutcome,
-  type GradeDistribution,
-} from '../../domain/statistics.js';
+import { OUTCOME_LABEL, type CourseOutcome } from '../../domain/statistics.js';
 import { metricStripEntry } from '../../lib/format.js';
 import { useResults } from '../../hooks/useCollection.js';
 import styles from './academics.module.css';
@@ -173,84 +170,6 @@ const OUTCOME_ORDER: readonly CourseOutcome[] = [
   'non_credit_not_passed',
   'unresolved',
 ];
-
-/**
- * How many courses took each grade.
- *
- * Bars rather than a chart library: the only comparison worth making is
- * between the student's own counts, and a row of bars shows it without a
- * dependency (docs/05 5.12).
- */
-function GradeDistributionRows({ grades }: { readonly grades: GradeDistribution }) {
-  const rows = [
-    ...grades.bands.map((band) => ({
-      key: band.letter,
-      label: band.letter,
-      count: band.count,
-      title: undefined as string | undefined,
-    })),
-    ...grades.specials
-      .filter((special) => special.count > 0)
-      .map((special) => ({
-        key: special.letter,
-        label: special.letter,
-        count: special.count,
-        title: special.meaning,
-      })),
-    ...(grades.unresolved > 0
-      ? [
-          {
-            key: 'unresolved',
-            label: 'Unresolved',
-            count: grades.unresolved,
-            /*
-              NEVER FOLDED INTO A LETTER (7). Counting these as F would invent
-              failures and counting them as P would invent passes; leaving them
-              out would make the rows not add up to the courses on screen.
-            */
-            title: 'These courses have no grade this build can resolve yet.' as string | undefined,
-          },
-        ]
-      : []),
-  ];
-
-  const peak = Math.max(1, ...rows.map((row) => row.count));
-
-  return (
-    <ul className={styles.gradeRows}>
-      {rows.map((row, index) => (
-        /*
-          THE CHART FAMILY, not one flat colour. Every bar was `--accent`, so
-          the distribution read as one block; the approved design walks a
-          single-hue luminance ramp across the series. Because the ramp is
-          derived from the accent, Mono resolves it to grayscale and no theme
-          can produce a rainbow.
-        */
-        <li
-          className={styles.gradeRow}
-          key={row.key}
-          data-zero={row.count === 0}
-          data-series={Math.min(index + 1, 5)}
-        >
-          <span className={styles.gradeLetter} title={row.title}>
-            {row.label}
-          </span>
-          <span
-            className={styles.gradeTrack}
-            role="img"
-            aria-label={`${row.label}: ${String(row.count)} of ${String(grades.total)} courses`}
-          >
-            <span
-              className={styles.gradeFill}
-              style={{ inlineSize: `${String((row.count / peak) * 100)}%` }}
-            />
-          </span>
-          <span className={styles.gradeCount}>{row.count}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 /**
  * The hero figure, as the approved design sets it.

@@ -21,11 +21,11 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/AppShell.js';
 import { MetaPill } from '../../components/ui/tone.js';
 import { formatCount } from '../../lib/format.js';
-import { Notice, Panel } from '../../components/ui/index.js';
+import { buttonClassName, Notice, Panel } from '../../components/ui/index.js';
 import { useAuth } from './AuthContext.js';
 import { useSync } from './useSync.js';
 import { MERGE_LABEL, mergeOptionsFor, type MergeChoice } from '../../domain/auth.js';
@@ -74,7 +74,39 @@ export function FirstSyncPage() {
   }, [userId]);
 
   if (state.status !== 'signed_in') {
-    return <Notice tone="info">Sign in first to choose what happens to your records.</Notice>;
+    /*
+     * NOT A BARE NOTICE ON AN EMPTY PAGE.
+     *
+     * This route is reachable directly, and signed out it rendered one
+     * sentence with no heading, no explanation and no way onward — a dead end
+     * that did not even say what the screen was for. It is the same page in
+     * the same shape as the signed-in state; only the thing it can offer
+     * changes.
+     */
+    return (
+      <div className={styles.page}>
+        <PageHeader
+          eyebrow="Sync"
+          title="Your records"
+          subtitle="This is where you choose what happens to the records on this device when an account is added."
+        />
+        <Panel>
+          <p className={styles.explainer}>
+            Nothing has been uploaded, and nothing will be until you sign in and choose. The records
+            already on this device are untouched either way.
+          </p>
+          <Notice tone="info">Sign in first to choose what happens to your records.</Notice>
+          <div className={styles.actions}>
+            <Link className={buttonClassName('primary')} to="/sign-in">
+              Go to sign in
+            </Link>
+            <Link className={buttonClassName()} to="/">
+              Continue without an account
+            </Link>
+          </div>
+        </Panel>
+      </div>
+    );
   }
   if (localCount === null) return <p className={styles.note}>Looking at what is on this device…</p>;
 

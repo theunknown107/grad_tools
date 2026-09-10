@@ -1,0 +1,73 @@
+/*
+ * The grade distribution, shared by the SGPA & CGPA page and the dashboard.
+ *
+ * The chart family, not one flat colour: every bar used to be `--accent`, so
+ * the distribution read as one block. The ramp is derived from the accent, so
+ * Mono resolves it to greyscale and no theme can produce a rainbow.
+ */
+
+.gradeRows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.gradeRow {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr 2.5rem;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+/* A band nobody scored is kept, and quieted. Its absence is information. */
+.gradeRow[data-zero='true'] {
+  opacity: 0.45;
+}
+
+.gradeLetter {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-lh);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gradeTrack {
+  display: block;
+  block-size: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.gradeFill {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--chart-1);
+}
+
+/* One hue, five steps toward the canvas. Grayscale under Mono, a coherent
+   family under every colour theme, and never unrelated hues. */
+.gradeRow[data-series='2'] .gradeFill {
+  background: var(--chart-2);
+}
+
+.gradeRow[data-series='3'] .gradeFill {
+  background: var(--chart-3);
+}
+
+.gradeRow[data-series='4'] .gradeFill {
+  background: var(--chart-4);
+}
+
+.gradeRow[data-series='5'] .gradeFill {
+  background: var(--chart-5);
+}
+
+.gradeCount {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
