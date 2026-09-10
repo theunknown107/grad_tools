@@ -192,6 +192,7 @@ describe('a saved result', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await user.click(await screen.findByRole('tab', { name: /semesters/i }));
+    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
 
     const table = screen.getByRole('table');
     expect(within(table).getByRole('columnheader', { name: /internal/i })).toBeTruthy();
@@ -209,6 +210,7 @@ describe('a saved result', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await user.click(await screen.findByRole('tab', { name: /semesters/i }));
+    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
     expect(screen.getByText(/no sgpa yet/i)).toBeTruthy();
     expect(screen.getAllByText(/BCS401/).length).toBeGreaterThan(0);
   });
@@ -224,13 +226,22 @@ describe('a saved result', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await user.click(await screen.findByRole('tab', { name: /semesters/i }));
-    await user.click(screen.getByRole('button', { name: /Physical Education/i }));
+    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
 
-    const sheet = await screen.findByRole('dialog');
-    expect(within(sheet).getByText(/not applicable/i)).toBeTruthy();
-    expect(within(sheet).queryByText(/0 \/ 50/)).toBeNull();
+    /*
+     * THE WIDE LAYOUT, where the row opens where it sits. Scoped to the table
+     * because the same course is also a button in the narrow row list — jsdom
+     * renders both layouts, and only one of them is ever on screen.
+     */
+    const table = screen.getByRole('table');
+    await user.click(within(table).getByRole('button', { name: /Physical Education/i }));
 
-    const backlog = within(sheet).getByText('Backlog').closest('div');
+    const detail = table.querySelector('dl');
+    expect(detail).toBeTruthy();
+    expect(within(detail as HTMLElement).getByText(/not applicable/i)).toBeTruthy();
+    expect(within(detail as HTMLElement).queryByText(/0 \/ 50/)).toBeNull();
+
+    const backlog = within(detail as HTMLElement).getByText('Backlog').closest('div');
     expect(backlog?.textContent).toMatch(/No$/);
   });
 
@@ -240,7 +251,16 @@ describe('a saved result', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await user.click(await screen.findByRole('tab', { name: /semesters/i }));
-    await user.click(screen.getByRole('button', { name: /Analysis & Design of Algorithms/i }));
+    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
+
+    /*
+     * THE NARROW LAYOUT, where the same fields arrive in a sheet. The one of
+     * the two buttons that is NOT in the table is the phone's row.
+     */
+    const rows = screen.getAllByRole('button', { name: /Analysis & Design of Algorithms/i });
+    const narrow = rows.find((row) => row.closest('table') === null);
+    expect(narrow).toBeTruthy();
+    await user.click(narrow as HTMLElement);
 
     const sheet = await screen.findByRole('dialog');
     expect(within(sheet).getByText('36 / 50')).toBeTruthy();
@@ -277,6 +297,7 @@ describe('a saved result', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await user.click(await screen.findByRole('tab', { name: /semesters/i }));
+    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
     await user.click(screen.getByRole('button', { name: /actions for semester 4/i }));
     await user.click(await screen.findByRole('menuitem', { name: /edit this semester/i }));
 
@@ -305,6 +326,7 @@ describe('a saved result', () => {
     renderWith(<ResultsPage />, { repositories: bundle });
 
     await user.click(await screen.findByRole('tab', { name: /semesters/i }));
+    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
     const table = screen.getByRole('table');
     // The title falls back to the code, so the cell carries it twice.
     expect(within(table).getAllByText('BCS301').length).toBeGreaterThan(0);

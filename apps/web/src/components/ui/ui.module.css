@@ -323,10 +323,6 @@
   pointer-events: none;
 }
 
-.inputWithIcon {
-  padding-left: calc(var(--space-4) * 2 + var(--icon-nav));
-}
-
 /*
  * The field, from the approved design: 38px on the PANEL surface — recessed
  * against the card it sits on, which is what makes it read as somewhere to
@@ -345,6 +341,16 @@
   transition:
     border-color var(--motion-fast) var(--ease-enter),
     box-shadow var(--motion-fast) var(--ease-enter);
+}
+
+/*
+ * AFTER `.input`, and it has to be. `.input` sets `padding` as a SHORTHAND, so
+ * at equal specificity whichever rule comes later wins the left edge — this
+ * block sat above it and had no effect at all, which is why the mark inside a
+ * search field sat on top of its own placeholder.
+ */
+.inputWithIcon {
+  padding-left: calc(var(--space-4) * 2 + var(--icon-nav));
 }
 
 .input:hover:not(:disabled),
