@@ -26,9 +26,12 @@
  * applies, because it is painted by the same rule.
  */
 
+import { useState } from 'react';
 import { useTheme } from '../hooks/useTheme.js';
 import { ACCENTS, APPEARANCES, type Accent, type Appearance } from '../lib/theme.js';
 import { Icon, type IconName } from './icons.js';
+import { Button, StatusPill, TextField } from './ui/index.js';
+import { IslandTabGroup, IslandTabPanel, IslandTabs } from './ui/IslandTabs.js';
 import styles from './AppearanceSettings.module.css';
 
 const APPEARANCE_LABEL: Record<Appearance, string> = {
@@ -148,6 +151,84 @@ export function AppearanceSettings() {
           })}
         </div>
       </section>
+
+      {/*
+        A LIVE SAMPLE, from the approved design.
+        
+        Every element here is the REAL component — the same pill, the same
+        island tabs, the same field, the same buttons — so the preview cannot
+        drift from the product it previews. The metric sample carries no
+        coloured stripe: the metric material is monochrome in every accent, and
+        that is the rule this card exists to demonstrate rather than break.
+      */}
+      <section className={styles.card} aria-labelledby="appearance-preview">
+        <h3 className={styles.heading} id="appearance-preview">
+          Preview
+        </h3>
+        <p className={styles.explain}>A live sample of the current theme and accent.</p>
+        <AppearancePreview />
+      </section>
+    </div>
+  );
+}
+
+function AppearancePreview() {
+  const [tab, setTab] = useState('overview');
+  return (
+    <div className={styles.preview}>
+      <div className={styles.previewPills}>
+        <StatusPill tone="accent">Semester 5</StatusPill>
+        <StatusPill tone="success">No backlogs</StatusPill>
+        <StatusPill tone="warning">2 at risk</StatusPill>
+      </div>
+
+      <div className={styles.previewRow}>
+        <div className={styles.previewNav} aria-hidden="true">
+          <span className={styles.previewNavItem} data-active="true">
+            <Icon name="degree" size="nav" />
+            Selected item
+          </span>
+          <span className={styles.previewNavItem}>
+            <Icon name="timetable" size="nav" />
+            Inactive item
+          </span>
+        </div>
+        <div className={`gt-metric ${styles.previewMetric ?? ''}`} aria-hidden="true">
+          <span className={styles.previewMetricLabel}>CGPA</span>
+          <span className={styles.previewMetricValue}>7.11</span>
+        </div>
+      </div>
+
+      {/*
+        A REAL TAB GROUP, panels and all. `IslandTabs` on its own stands up a
+        Radix root with no `Tabs.Content` anywhere, so every trigger's
+        `aria-controls` points at an element that was never rendered — an
+        invalid ARIA reference, and exactly the failure the component's own
+        docblock warns about. axe caught it here.
+      */}
+      <IslandTabGroup value={tab} onChange={setTab}>
+        <IslandTabs
+          label="Preview"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { id: 'overview', label: 'Overview' },
+            { id: 'detail', label: 'Detail' },
+          ]}
+        />
+        <IslandTabPanel id="overview">
+          <p className={styles.previewPanel}>A summary reads like this.</p>
+        </IslandTabPanel>
+        <IslandTabPanel id="detail">
+          <p className={styles.previewPanel}>A detail view reads like this.</p>
+        </IslandTabPanel>
+      </IslandTabGroup>
+      <TextField label="Preview search" hideLabel icon="search" placeholder="Search results, courses…" />
+      <div className={styles.previewButtons}>
+        <Button variant="primary">Primary action</Button>
+        <Button>Secondary</Button>
+        <Button variant="ghost">Ghost</Button>
+      </div>
     </div>
   );
 }

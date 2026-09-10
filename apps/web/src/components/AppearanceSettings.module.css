@@ -201,3 +201,91 @@
   font-weight: var(--weight-medium);
   text-align: center;
 }
+
+/* --- The live preview, from the approved design ---------------------------- */
+
+.preview {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+
+.previewPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.previewRow {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .previewRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.previewNav {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2);
+  background: var(--nav-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.previewNavItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px var(--space-3);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+}
+
+.previewNavItem[data-active='true'] {
+  background: var(--accent-weak);
+  color: var(--text);
+}
+
+/* Monochrome, and with no stripe: that is the metric material this previews. */
+.previewMetric {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+}
+
+.previewMetricLabel {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+}
+
+.previewMetricValue {
+  font-size: 24px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.previewButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.previewPanel {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}

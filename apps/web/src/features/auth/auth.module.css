@@ -307,3 +307,41 @@
 .stage .page > section {
   box-shadow: none;
 }
+
+/* --- About ----------------------------------------------------------------- */
+
+.aboutHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.aboutMark {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  flex: none;
+  border-radius: var(--radius-lg);
+  background: var(--a-fill);
+  color: var(--a-contrast);
+}
+
+.aboutName {
+  margin: 0;
+  font-size: 16px;
+  font-weight: var(--weight-semibold);
+}
+
+.aboutLine {
+  margin: 2px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.aboutBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
