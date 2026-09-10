@@ -116,7 +116,7 @@
 }
 
 .syncBadge[data-status='failed'] {
-  color: var(--warning);
+  color: var(--warning-ink);
   font-weight: 600;
 }
 

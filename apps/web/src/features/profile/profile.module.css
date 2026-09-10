@@ -29,7 +29,7 @@
 
 .savedNote {
   font-size: var(--text-caption);
-  color: var(--success);
+  color: var(--success-ink);
 }
 
 .prose {

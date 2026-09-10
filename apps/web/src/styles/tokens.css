@@ -475,7 +475,19 @@
      vibrates, and a trace of blue keeps it in the same air as the ground. */
   --text: #f4f3f1;
   --text-muted: #a7a5a0;
-  --text-subtle: #84817b;
+  /*
+   * READABLE ON EVERY GROUND IT LANDS ON, not just on the page.
+   *
+   * It was #84817b, which clears AA against the page (5.2:1) and fails against
+   * the surfaces this ink is actually used on — 4.27:1 on `--surface-raised`,
+   * 4.38:1 on a metric tile. Every caption, note and meta line in the product
+   * is set in it, so the failure was systemic rather than local; found by
+   * auditing a page whose metric tiles carry notes.
+   *
+   * The value now clears 4.5:1 against the darkest and the lightest ground it
+   * can sit on (worst case 5.08:1).
+   */
+  --text-subtle: #918e88;
 
   /* --- Accent ------------------------------------------------------------ */
   /*
@@ -837,7 +849,9 @@
     /* Dark enough to clear 4.5:1 on the ACCENT TINT, not only on a white
        card — the selected timetable row is a tinted surface and 12px
        metadata sits on it. */
-    --text-subtle: #716d65;
+    /* Clears 4.5:1 on the sunken ground as well as on the page — see the
+       dark value above. It was #716d65, which gave 4.37:1 on `--bg-sunken`. */
+    --text-subtle: #68645c;
 
     --accent: var(--a-on-light);
     /* The reference's selected-state material, resolved for this appearance. */
@@ -955,7 +969,7 @@
   /* Dark enough to clear 4.5:1 on the ACCENT TINT, not only on a white
      card — the selected timetable row is a tinted surface and 12px
      metadata sits on it. */
-  --text-subtle: #716d65;
+  --text-subtle: #68645c;
 
   --accent: var(--a-on-light);
   /* The reference's selected-state material, resolved for this appearance. */

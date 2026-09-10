@@ -520,7 +520,7 @@
 }
 
 .previewTotal[data-tone='good'] {
-  color: var(--success);
+  color: var(--success-ink);
 }
 
 .previewCaption {
@@ -989,7 +989,7 @@
   padding: 3px var(--space-3);
   border-radius: var(--radius-pill);
   background: var(--success-weak);
-  color: var(--success);
+  color: var(--success-ink);
   font-size: var(--text-caption);
   font-weight: var(--weight-medium);
 }
@@ -1082,11 +1082,11 @@
 }
 
 .attnPct[data-tone='warn'] {
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 
 .attnPct[data-tone='bad'] {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .attnNote {

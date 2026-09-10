@@ -108,12 +108,12 @@
 }
 
 .item[data-danger='true'] {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .item[data-danger='true'][data-highlighted] {
   background: var(--danger-weak);
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 /* A destructive item is fenced off from the item above it. */
