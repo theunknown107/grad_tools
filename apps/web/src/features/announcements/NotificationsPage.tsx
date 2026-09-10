@@ -13,8 +13,9 @@
  */
 
 import { useState } from 'react';
-import type { AnnouncementCategory } from '@gradtools/shared-types';
+import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
 import { PageHeader } from '../../components/AppShell.js';
+import { Icon, type IconName } from '../../components/icons.js';
 import { MetaPill } from '../../components/ui/tone.js';
 import { formatCount } from '../../lib/format.js';
 import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
@@ -39,6 +40,39 @@ const MUTABLE: readonly AnnouncementCategory[] = [
   'department_notice',
   'general',
 ];
+
+/**
+ * Which icon a category takes, from the icons this product already ships.
+ *
+ * The approved design gives every notification a mark of its kind. GradTools
+ * has twelve categories where the design's sample has five, so they are grouped
+ * onto marks that already exist rather than a new icon being drawn for each —
+ * one icon family, never a mixed set (§20).
+ */
+const CATEGORY_ICON: Record<AnnouncementCategory, IconName> = {
+  results: 'results',
+  exam_timetable: 'timetable',
+  exam_registration: 'edit',
+  backlog: 'warning',
+  summer_semester: 'degree',
+  revaluation: 'refresh',
+  fees: 'papers',
+  holiday: 'timetable',
+  academic_calendar: 'timetable',
+  college_notice: 'announcements',
+  department_notice: 'announcements',
+  general: 'info',
+};
+
+/** When it was published, as the design shows it — and never invented. */
+function publishedWhen(announcement: Announcement): string | null {
+  if (announcement.publishedAt === null) return null;
+  return new Date(announcement.publishedAt).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 export function NotificationsPage() {
   const { items, loading: feedLoading, error } = useAnnouncements();
@@ -100,53 +134,92 @@ export function NotificationsPage() {
           : 'Announcements that apply to you appear here.'}
       </EmptyState>
     ) : (
-      <ul className={styles.list}>
+      <ul className={styles.inbox}>
         {visible.map((notification) => {
-          const { announcement, state } = notification;
+          const { announcement, state, priority } = notification;
+          const when = publishedWhen(announcement);
+          const high = priority === 'urgent' || priority === 'important';
           return (
             <li key={announcement.id}>
+              {/*
+                THE DESIGN'S NOTIFICATION CARD: a mark of its kind, the notice,
+                and what it is — with the unread ones carried on their own tint.
+              */}
               <article className={styles.notification} data-state={state}>
-                <div className={styles.rowHead}>
-                  {/*
-                      UNREAD IS NOT CONVEYED BY COLOUR ALONE (M7 §29). The pill
-                      says the word; the dot is decoration.
+                <span
+                  className={styles.notificationMark}
+                  data-high={high ? 'true' : undefined}
+                  aria-hidden="true"
+                >
+                  <Icon name={CATEGORY_ICON[announcement.category]} size="nav" />
+                </span>
+
+                <div className={styles.notificationBody}>
+                  <div className={styles.notificationHead}>
+                    {/* External text, rendered as text. */}
+                    <h3 className={styles.notificationTitle}>{announcement.title}</h3>
+                    {high && <StatusPill tone="warning">Important</StatusPill>}
+                    <StatusPill tone="neutral">
+                      {CATEGORY_LABEL[announcement.category]}
+                    </StatusPill>
+                    {/*
+                      DEMO CONTENT SAYS SO, driven by the record's own origin so
+                      a synthetic notice can never be shown as official (M7 §36).
                     */}
-                  {state === 'unread' ? (
-                    <StatusPill tone="accent">Unread</StatusPill>
-                  ) : (
-                    <StatusPill tone="neutral">Read</StatusPill>
-                  )}
-                  {announcement.origin === 'demo_fixture' && (
-                    <span className={styles.demo}>Demo data</span>
-                  )}
-                  <span className={styles.category}>{CATEGORY_LABEL[announcement.category]}</span>
-                </div>
+                    {announcement.origin === 'demo_fixture' && (
+                      <span className={styles.demo}>Demo data</span>
+                    )}
+                  </div>
 
-                <h3 className={styles.title}>{announcement.title}</h3>
-                <p className={styles.meta}>{announcement.publisher}</p>
+                  {announcement.body !== null && (
+                    <p className={styles.notificationText}>{announcement.body}</p>
+                  )}
 
-                <div className={styles.notificationActions}>
-                  {state === 'unread' && (
+                  <p className={styles.notificationMeta}>
+                    {announcement.publisher}
+                    {when !== null && (
+                      <>
+                        {' · '}
+                        <time dateTime={announcement.publishedAt ?? undefined}>{when}</time>
+                      </>
+                    )}
+                  </p>
+
+                  <div className={styles.notificationActions}>
+                    {state === 'unread' && (
+                      <Button
+                        variant="secondary"
+                        small
+                        onClick={() => {
+                          void setState(announcement, 'read');
+                        }}
+                      >
+                        Mark as read
+                      </Button>
+                    )}
                     <Button
-                      variant="secondary"
+                      variant="ghost"
                       small
                       onClick={() => {
-                        void setState(announcement, 'read');
+                        void setState(announcement, 'dismissed');
                       }}
                     >
-                      Mark as read
+                      Dismiss
                     </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    small
-                    onClick={() => {
-                      void setState(announcement, 'dismissed');
-                    }}
-                  >
-                    Dismiss
-                  </Button>
+                  </div>
                 </div>
+
+                {/*
+                  UNREAD IS NOT CONVEYED BY COLOUR ALONE (M7 §29). The dot is
+                  the design's mark and is decorative; the word beside it is
+                  what a screen reader reads.
+                */}
+                {state === 'unread' && (
+                  <span className={styles.unreadMark}>
+                    <span aria-hidden="true" />
+                    <span className="visually-hidden">Unread</span>
+                  </span>
+                )}
               </article>
             </li>
           );
@@ -160,7 +233,19 @@ export function NotificationsPage() {
         eyebrow="Overview"
         title="Notifications"
         subtitle="What is new since you last looked. Read state stays on this device."
-        pills={unread > 0 ? <MetaPill>{formatCount(unread, 'unread')}</MetaPill> : undefined}
+        pills={unread > 0 ? <MetaPill>{formatCount(unread, 'unread', 'unread')}</MetaPill> : undefined}
+        action={
+          <Button
+            variant="secondary"
+            disabled={unread === 0}
+            onClick={() => {
+              void readAll();
+            }}
+          >
+            <Icon name="check" size="nav" />
+            Mark all read
+          </Button>
+        }
       />
 
       {/*
@@ -196,16 +281,6 @@ export function NotificationsPage() {
             ]}
           />
 
-          <Button
-            variant="secondary"
-            small
-            disabled={unread === 0}
-            onClick={() => {
-              void readAll();
-            }}
-          >
-            Mark all as read
-          </Button>
         </div>
 
         <IslandTabPanel id="all">{inbox}</IslandTabPanel>
