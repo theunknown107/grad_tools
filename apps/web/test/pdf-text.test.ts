@@ -175,6 +175,36 @@ describe('reading a synthetic result PDF', () => {
     });
   });
 
+  it('keeps a subject name that wrapped onto the lines under it', async () => {
+    /*
+     * THE TRUNCATION THIS EXISTS FOR. A name too long for its column is
+     * printed across two or three lines, and the lines under the first carry
+     * nothing else — no code, no marks. Read one line at a time they are not
+     * subject rows, so they were dropped and the subject was imported under
+     * half its name.
+     *
+     * Every value is synthetic.
+     */
+    const page = resultPage(1, [
+      ['BQOPS103', 'PRINCIPLES OF', '39', '27', '66', 'P', '2026-03-13'],
+    ]);
+    /* The wrap: the name's own column, and no other. */
+    page.push({ text: 'PROGRAMMING USING', x: 140, y: 648 });
+    page.push({ text: 'C', x: 140, y: 636 });
+
+    const card = parseResultCard((await extractPdfLines(makePdf([page]))).lines);
+    expect(card.rows).toHaveLength(1);
+    expect(card.rows[0]).toMatchObject({
+      subjectCode: 'BQOPS103',
+      subjectTitle: 'PRINCIPLES OF PROGRAMMING USING C',
+      internal: 39,
+      external: 27,
+      total: 66,
+      resultStatus: 'P',
+      announcedOn: '2026-03-13',
+    });
+  });
+
   it('reads an 8-subject and a 9-subject card without a fixed count', async () => {
     const rows = (count: number, prefix: string) =>
       Array.from({ length: count }, (_, i) => [

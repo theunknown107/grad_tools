@@ -171,3 +171,58 @@ describe('a whole synthetic result page, emitted out of order', () => {
     ]);
   });
 });
+
+describe('a printed line is not a row of the table', () => {
+  /*
+   * A title too long for its column WRAPS, and the remainder is printed on its
+   * own line with every other column of that row left blank. Read as separate
+   * lines, that remainder is not a subject row — no code, no marks — so it was
+   * dropped, and the subject arrived as "PRINCIPLES OF".
+   *
+   * EVERY VALUE IS SYNTHETIC.
+   */
+  it('joins a wrapped cell back into its row, with the marks still at the end', () => {
+    const items = [
+      at('BQOPS103', 30, 700),
+      at('PRINCIPLES OF', 110, 700),
+      at('39', 290, 700),
+      at('27', 360, 700),
+      at('66', 415, 700),
+      at('P', 470, 700),
+      /* The wrap: in the title's column, and in no other. */
+      at('PROGRAMMING USING', 110, 688),
+      at('C', 110, 676),
+    ];
+    expect(itemsToLines(items).map((line) => line.text)).toEqual([
+      'BQOPS103 PRINCIPLES OF PROGRAMMING USING C 39 27 66 P',
+    ]);
+  });
+
+  it('does not join a line that starts in the row above\u2019s FIRST column', () => {
+    /* That is the next row of the table, not the tail of this one. */
+    const items = [
+      at('BQOPS103', 30, 700),
+      at('ALGORITHMS', 110, 700),
+      at('BQOPS104', 30, 688),
+      at('FINANCE', 110, 688),
+    ];
+    expect(itemsToLines(items).map((line) => line.text)).toEqual([
+      'BQOPS103 ALGORITHMS',
+      'BQOPS104 FINANCE',
+    ]);
+  });
+
+  it('does not join a line that stands where the row above has nothing', () => {
+    /* The legend under the table: its columns are its own. */
+    const items = [
+      at('BQOPS103', 30, 700),
+      at('ALGORITHMS', 110, 700),
+      at('P -> PASS', 60, 660),
+      at('F -> FAIL', 160, 660),
+    ];
+    expect(itemsToLines(items).map((line) => line.text)).toEqual([
+      'BQOPS103 ALGORITHMS',
+      'P -> PASS F -> FAIL',
+    ]);
+  });
+});
