@@ -48,6 +48,7 @@ import {
   downloadAll,
   DEFAULT_DELAY_MS,
   EMPTY_MANIFEST,
+  type DownloadState,
   type Manifest,
 } from '../src/sources/vtu-download.js';
 import { vtuSchemeAdapter, type SchemeDocument } from '../src/sources/vtu-scheme.js';
@@ -82,6 +83,16 @@ const STORE_ROOT = resolve('../../.vtu-store/documents');
 const MANIFEST_PATH = resolve('../../.vtu-store/manifest.json');
 const CACHE_ROOT = resolve('../../.vtu-store/extractions');
 const REPORT_PATH = resolve('../../.vtu-store/last-sync.json');
+/**
+ * One row per selected document, beside the counts.
+ *
+ * A separate file because it is a different KIND of thing: the report is a
+ * tally a person reads, and this is the evidence behind every number in it.
+ * Gitignored with the rest of the store — it names public VTU URLs and nothing
+ * else, but it is generated, large, and belongs with the documents it
+ * describes rather than in the repository (§20).
+ */
+const LEDGER_PATH = resolve('../../.vtu-store/last-sync-documents.json');
 
 const EXTRACTOR_VERSION = '1.0.0';
 const NORMALIZATION_VERSION = '1.0.0';
@@ -178,6 +189,44 @@ function applicabilityOf(doc: SchemeDocument): {
     return { scope: 'common', programmeName: null, streamId: null, streamName: null };
   }
   return { scope: 'unknown', programmeName: null, streamId: null, streamName: null };
+}
+
+/**
+ * WHAT BECAME OF ONE DOCUMENT.
+ *
+ * A run used to report download states as COUNTS and nothing else, so "failed
+ * 4" named no URL and gave no reason, and the two `continue`s in the extract
+ * loop dropped those same documents again in silence. A count cannot be acted
+ * on: it says four sources are missing from the catalogue and not which four,
+ * nor at which stage they were lost.
+ *
+ * So every SELECTED document gets one of these, whatever happens to it. The
+ * fields are the vocabularies the pipeline already has — `DownloadState` from
+ * the downloader and the extractor's own status — rather than a third status
+ * system laid over them: a document has a download outcome and, if it got far
+ * enough to have one, an extraction outcome, and the two answer different
+ * questions.
+ *
+ * `extraction: null` is therefore not "extraction failed". It is "extraction
+ * was never reached", and the download state above it says why.
+ */
+interface DocumentLedgerRow {
+  readonly url: string;
+  readonly linkText: string | null;
+  readonly kind: string;
+  readonly schemeYear: string | null;
+  readonly programme: string | null;
+  readonly scope: 'programme' | 'stream' | 'common' | 'unknown';
+  readonly streamId: string | null;
+  readonly download: DownloadState;
+  readonly downloadReason: string | null;
+  readonly sha256: string | null;
+  readonly byteSize: number | null;
+  readonly extraction: ExtractionStatus | null;
+  /** Why nothing was extracted, where the download itself succeeded. */
+  readonly lostAt: string | null;
+  readonly courses: number;
+  readonly syllabi: number;
 }
 
 /** A stable slug for a stream, from the label the source prints. */
@@ -356,8 +405,10 @@ async function main(): Promise<void> {
       limit: null,
     },
   );
+  const downloadByUrl = new Map<string, (typeof outcomes)[number]>();
   for (const outcome of outcomes) {
     report.download[outcome.state] = (report.download[outcome.state] ?? 0) + 1;
+    downloadByUrl.set(outcome.url, outcome);
   }
   console.log('  download');
   for (const [state, n] of Object.entries(report.download).sort()) {
@@ -400,6 +451,7 @@ async function main(): Promise<void> {
   }[] = [];
 
   const courses: CatalogueCourse[] = [];
+  const ledger: DocumentLedgerRow[] = [];
   const documents: Catalogue['documents'] = [];
   const now = new Date().toISOString();
 
@@ -411,10 +463,47 @@ async function main(): Promise<void> {
 
   try {
     for (const doc of selected) {
+      const outcome = downloadByUrl.get(doc.url);
+      const where = applicabilityOf(doc);
+      const base = {
+        url: doc.url,
+        linkText: doc.linkText,
+        kind: doc.kind,
+        schemeYear: doc.schemeYear,
+        programme: where.programmeName,
+        scope: where.scope,
+        streamId: where.streamId,
+        download: outcome?.state ?? 'failed',
+        downloadReason: outcome?.reason ?? 'This URL was never attempted.',
+        sha256: outcome?.sha256 ?? null,
+        byteSize: outcome?.byteSize ?? null,
+      } as const;
+
+      /*
+       * A DOCUMENT THAT GOT NO FURTHER STILL GETS A ROW (§9, §18).
+       *
+       * These two used to be bare `continue`s, and they are the exact stage at
+       * which the run's four failed downloads disappeared: the counter said
+       * four had failed, and then nothing said which, or why, or that they had
+       * also been skipped here.
+       */
       const sha256 = byUrl.get(doc.url);
-      if (sha256 === undefined) continue;
+      if (sha256 === undefined) {
+        ledger.push({ ...base, extraction: null, lostAt: 'no bytes were retrieved', courses: 0, syllabi: 0 });
+        continue;
+      }
       const bytes = await store.get(sha256);
-      if (bytes === null) continue;
+      if (bytes === null) {
+        ledger.push({
+          ...base,
+          sha256,
+          extraction: null,
+          lostAt: 'the manifest names bytes the store does not hold',
+          courses: 0,
+          syllabi: 0,
+        });
+        continue;
+      }
 
       const extraction = await extract(sha256, bytes);
       if (extraction.status === 'text') report.extracted += 1;
@@ -434,7 +523,19 @@ async function main(): Promise<void> {
         for (const module of read.modules) report.normalized_topics += module.topics.length;
       }
 
-      const where = applicabilityOf(doc);
+      /*
+       * What this document actually yielded. A scheme that extracted cleanly
+       * and produced no courses is a NORMALIZATION gap, and it is only visible
+       * as one because the two numbers are recorded side by side (§43).
+       */
+      ledger.push({
+        ...base,
+        sha256,
+        extraction: extraction.status,
+        lostAt: readable ? null : 'the PDF carries no text layer',
+        courses: parsed.courses.length,
+        syllabi: syllabi.length,
+      });
 
       /* ---- 4. Persist ---------------------------------------------------- */
 
@@ -846,13 +947,33 @@ async function main(): Promise<void> {
     console.log(`    already open     ${String(report.conflicts_existing)}`);
   }
 
+  /*
+   * WHERE THE SOURCES THAT DID NOT ARRIVE WENT.
+   *
+   * Printed, not merely written, because a run that loses documents in silence
+   * is the failure this ledger exists to make impossible. A clean run prints
+   * nothing here.
+   */
+  const lost = ledger.filter((row) => row.lostAt !== null);
+  if (lost.length > 0) {
+    console.log('\n  sources that produced nothing');
+    for (const row of lost.slice(0, 12)) {
+      console.log(`    ${row.download.padEnd(16)} ${row.lostAt ?? ''}`);
+      console.log(`      ${row.url}`);
+      if (row.downloadReason !== null) console.log(`      ${row.downloadReason}`);
+    }
+    if (lost.length > 12) console.log(`    … and ${String(lost.length - 12)} more, in the ledger`);
+  }
+
   if (!dryRun) {
     await writeFile(
       REPORT_PATH,
       JSON.stringify({ ...report, finishedAt: new Date().toISOString() }, null, 2),
       'utf8',
     );
+    await writeFile(LEDGER_PATH, JSON.stringify(ledger, null, 2), 'utf8');
     console.log(`\n  report          ${REPORT_PATH}`);
+    console.log(`  documents       ${LEDGER_PATH}`);
   }
   console.log('');
 }
