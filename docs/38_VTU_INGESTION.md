@@ -317,17 +317,24 @@ Against the store: **19 documents → 187 courses, 56 syllabi, 225 modules, 383
 topics.** A second run inserts and updates nothing.
 
 ## What is not built yet
-- **`vtu:validate` as a command.** Validation happens inside sync (dedup,
-  disagreement detection, schema constraints) rather than as its own step, and
-  semester-total validation lives in the reconciliation document rather than in
-  code.
-- **Conflict persistence.** Disagreements are detected and reported by `sync`;
-  `catalogue_conflicts` exists but sync does not write to it yet.
-- **Elective option groups.** `catalogue_course_options` exists and is unused —
-  slots and options are both stored as courses with `credit_basis` and
-  `related_code`, which records the relationship but not as a queryable group.
-- **Alias persistence.** `catalogue_aliases` exists; the BCS358D alias still
-  lives in the web app's `course-aliases.ts` and is not written to the database.
+
+*Reviewed at `272d035`. The four items this section used to list — `vtu:validate`
+as a command, conflict persistence, elective option groups and alias
+persistence — were all built by `cbdaa38` and `ab574b4`, and the entry stayed
+behind. What follows is what is actually still open.*
+
+- **Coverage is one programme deep.** The listing offers 1134 PDFs across 275
+  programme labels; the store holds 20 documents and the catalogue 187 courses,
+  for CSBS plus the first-year CSE, Civil and Mechanical/Electrical stream
+  schemes. Every other VTU programme resolves no credits at all. Widening it is
+  a crawl of somebody else's server, so it is a decision rather than a
+  refactor.
+- **The shipped artifact carries no syllabi.** `vtu:sync` normalizes 56 syllabi,
+  225 modules and 383 topics into Postgres; `vtu-2022.json` carries
+  `courses`, `conflicts`, `aliases` and `documents` and has no syllabus field at
+  all. Postgres can answer what a course contains and the offline product
+  cannot.
 - **The app reads the artifact, not Postgres.** That is deliberate for a
   local-first product — a student resolving credits offline cannot query a
-  server — but it means the database is not yet on the read path.
+  server — but it means the database is not on the read path, and the two can
+  drift without anything noticing.
