@@ -3,6 +3,68 @@
 Authority: Phase 7E Workstream A · measured at `51a9aa3` against the live
 listing on 2026-09-11 · raw evidence in `.vtu-store/last-sync-documents.json`
 
+## Status at `a7dd961`
+
+`pnpm vtu:validate --scheme 2022` fails on **one rule with one case**, and that
+case is a refusal rather than a defect. The catalogue is still **not
+published**.
+
+| | First audit | Previous | Now |
+| --- | --- | --- | --- |
+| Failing validation rules | 5 | 1 | **1** |
+| Semester totals disagreeing | 37 of 149 | 7 of 144 | **1 of 144** |
+| Candidate course rows | 3221 | 3591 | **3603** |
+| Distinct course codes | 2007 | 2075 | **2085** |
+
+### The seven, classified (§A13)
+
+| Case | Classification | Root cause, from the source |
+| --- | --- | --- |
+| `aeroch` s5, `58aerossch` s5, `robosch` s4 | `PARSER_DEFECT` → **fixed** | The department cell wraps over three lines and pushes the credits off the code's baseline. Recovered from the **credits column within the row's own span** — the midpoints to the codes above and below. A span, not a widened band: two spans cannot overlap, so a row can never take its neighbour's figure. |
+| `enccsch` s3 | `PARSER_DEFECT` → **fixed** | Recorded here previously as "the PDF emits no code run". It does: `BMATELCE301`, seven letters, where the pattern stopped at six. |
+| `38cseaisch` s6 | `PARSER_DEFECT` → **fixed** | `BCA 685` — one run, inside the code column, with a space in it. |
+| `2aersosyll` s3 | `PARSER_DEFECT` → **fixed** | `BAS303/B` above the row and `AE303` below it: a compound code broken mid-code, not after the slash. |
+| `robosch` s3 | `UNRESOLVED` → **kept failing** | The row's figures are displaced a full line, and the span that reaches them also reaches the row above's figure. Two candidates is not a reading. |
+| `00.-SchemeA-B…` ×5 | `NOT_COMPARABLE` | A blank template — placeholder codes, empty title column — that still prints the totals a real scheme carries. |
+
+### The code grammar, measured not chosen
+
+Across the 287 documents of the crawl, the department segment is:
+
+| Letters | Occurrences | Examples |
+| --- | --- | --- |
+| 2 | 5046 | `BEC501`, `BVL502` |
+| 3 | 1592 | `BRMK557`, `BESK508` |
+| 4 | 563 | `BMATS101`, `BPOPS103` |
+| 5 | 8 | `BMATEI301`, `BMATEC301` |
+| 7 | 1 | `BMATELCE301` |
+
+No tokens of any other length exist, so the bound is evidence. All four
+catalogue-side recognizers were widened together; the audit found they already
+agreed with each other at six.
+
+**Known gap, deliberately not closed here.** `result-import.ts` and
+`timetable-import.ts` still cap the department segment at six letters, so a
+student whose card carries `BMATELCE301` would have that row go unread. It is a
+one-character change in each, held back because §A19 freezes `apps/web/src` for
+this workstream.
+
+### Scope, still separate
+
+| Unit | Full 2022 universe | CSBS production |
+| --- | --- | --- |
+| Normalized course rows | 3603 | 187 |
+| Distinct course codes | 2085 | 187 |
+| Rows scoped to CSBS by name | 90 | 90 |
+| Rows scoped to a stream | 97 | 97 |
+| Rows with neither | 46 | 0 |
+| Option groups | 488 | — |
+| Aliases / open conflicts | 1 / 11 | 1 / 0 |
+
+Candidate against production: **3416 added, 0 removed, 0 changed.**
+
+---
+
 ## Status at `1d19df3`
 
 `pnpm vtu:validate --scheme 2022` still fails on **one rule** — 7 of 144
