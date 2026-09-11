@@ -121,8 +121,21 @@ export interface ParsedScheme {
  * pattern rejected. `BXX515x` — a placeholder for "whichever elective is
  * chosen" — matches too, and is wanted: it is the row that carries the
  * elective slot's credits.
+ *
+ * SIX LETTERS, NOT FOUR. The comment above already said "the same shape family
+ * the result importer accepts" and the pattern did not: that importer takes
+ * `B[A-Z]{2,6}` and this took `B[A-Z]{2,4}`, so every course whose department
+ * needs five letters was invisible to the scheme reader. `BMATEC301`,
+ * "Mathematics-III for EC Engineering", is the first row of the Electronics &
+ * Communication third-semester table, and its three credits were missing from
+ * every total that table prints — one of the disagreements the semester-total
+ * check reports.
+ *
+ * Still anchored at `B`, so the 2025 family's `1BMATC101` does not match here.
+ * That one-character difference is a different scheme, not a variant of this
+ * one, and reading it as one would reattribute a course to the wrong year.
  */
-const COURSE_CODE = /^B[A-Z]{2,4}\d{3}[A-Za-z]?$/;
+const COURSE_CODE = /^B[A-Z]{2,6}\d{3}[A-Za-z]?$/;
 
 /*
  * THE SPACE IS OPTIONAL, because a PDF's text runs do not have to respect it.

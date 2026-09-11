@@ -403,3 +403,38 @@ describe('an OR row shared by two alternative courses', () => {
     expect(parsed.courses.every((c) => c.viaAlternativeTo === null)).toBe(true);
   });
 });
+
+describe('a course code longer than four letters', () => {
+  it('reads a row whose department needs five', () => {
+    /*
+     * THE DEFECT THIS EXISTS FOR. The pattern was `B[A-Z]{2,4}` while the
+     * comment above it said "the same shape family the result importer
+     * accepts" — and that importer takes `B[A-Z]{2,6}`. So a row like
+     * `BMATEC301`, "Mathematics-III for EC Engineering", was not a row at all:
+     * it was not read, not rejected, and not reported. Its three credits were
+     * simply missing from every semester total the document prints, and the
+     * only sign was a total that disagreed.
+     *
+     * EVERY VALUE IS SYNTHETIC; `BQQMAT301` is not a VTU code.
+     */
+    const parsed = parseScheme(
+      page(
+        row(322, 'BQQMAT301', 'Invented Mathematics for Invented Engineering', 3),
+        row(300, 'BQQ302', 'Invented Course Two', 4),
+      ),
+    );
+
+    expect(parsed.courses.map((course) => course.code)).toEqual(['BQQMAT301', 'BQQ302']);
+    expect(parsed.courses.reduce((sum, course) => sum + course.credits, 0)).toBe(7);
+  });
+
+  it('still refuses the LATER scheme family, which differs by one character', () => {
+    /*
+     * `1BMATC101` contains `BMATC101`. Widening the letter count must not
+     * widen this: the leading digit is a different scheme year, and reading it
+     * as this one would reattribute a course to the wrong year (docs/22).
+     */
+    const parsed = parseScheme(page(row(322, '1BQQMAT101', 'Invented Later-Scheme Course', 3)));
+    expect(parsed.courses).toHaveLength(0);
+  });
+});

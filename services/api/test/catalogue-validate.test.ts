@@ -12,7 +12,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import postgres from 'postgres';
 import { runMigrations } from '../src/db/migrate.js';
-import { validateCatalogue, type Finding } from '../src/sources/catalogue-validate.js';
+import { validateCatalogue, type Finding, creditsStoredFor } from '../src/sources/catalogue-validate.js';
 import {
   recordConflict,
   upsertAlias,
@@ -360,5 +360,70 @@ describeDb('validating the catalogue', () => {
     await sql`DELETE FROM source_document_references`;
     const result = await validateCatalogue(sql, { schemeYear: '2022' });
     expect(failures(result.findings).join(' ')).toMatch(/no URL points at/i);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* What a semester total is compared against                                  */
+/* -------------------------------------------------------------------------- */
+
+describe('the credits a semester of one document holds', () => {
+  const course = (
+    code: string,
+    credits: number,
+    extra: { viaElectiveSlot?: string | null; viaAlternativeTo?: string | null } = {},
+  ) => ({
+    code,
+    semester: 4,
+    credits,
+    viaElectiveSlot: extra.viaElectiveSlot ?? null,
+    viaAlternativeTo: extra.viaAlternativeTo ?? null,
+  });
+
+  it('counts a course once however many of the document tables print it', () => {
+    /*
+     * THE DEFECT THIS EXISTS FOR. A scheme prints one course under several
+     * headings, the parser reports a reading for each, and the store writes
+     * one row. Summing readings made the AI & Data Science fourth semester
+     * nine credits over its own printed total, on duplicates alone — a
+     * disagreement reported against a document that agrees.
+     */
+    const sum = creditsStoredFor([course('BQQ401', 3), course('BQQ401', 3), course('BQQ402', 4)], [], 4);
+    expect(sum).toBe(7);
+  });
+
+  it('leaves the options of an elective slot out, and counts the slot', () => {
+    /* The slot's row carries the credits for whichever option is taken. */
+    const sum = creditsStoredFor(
+      [
+        course('BQQ405x', 3),
+        course('BQQ405A', 3, { viaElectiveSlot: 'BQQ405x' }),
+        course('BQQ405B', 3, { viaElectiveSlot: 'BQQ405x' }),
+      ],
+      [],
+      4,
+    );
+    expect(sum).toBe(3);
+  });
+
+  it('counts an "A OR B" pair once, through its group', () => {
+    const sum = creditsStoredFor(
+      [course('BQQ407A', 2, { viaAlternativeTo: 'BQQ407B' }), course('BQQ407B', 2, { viaAlternativeTo: 'BQQ407A' })],
+      [{ semester: 4, kind: 'alternative', credits: 2 }],
+      4,
+    );
+    expect(sum).toBe(2);
+  });
+
+  it('keeps the FIRST reading where two disagree, as the store does', () => {
+    /*
+     * Not the largest, not the last, and not an average: the conflict rules
+     * report a disagreement, and this only has to match what was written.
+     */
+    expect(creditsStoredFor([course('BQQ401', 3), course('BQQ401', 4)], [], 4)).toBe(3);
+  });
+
+  it('counts nothing from another semester', () => {
+    expect(creditsStoredFor([{ ...course('BQQ301', 3), semester: 3 }], [], 4)).toBe(0);
   });
 });
