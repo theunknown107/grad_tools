@@ -294,6 +294,9 @@ export function buildSubjectIndex(input: SubjectIndexInput): Map<string, Subject
 
   for (const result of input.results ?? []) {
     for (const subject of result.subjects) {
+      /* The index is keyed by course code; a row without one has no identity
+         here, exactly as a timetable activity has none. */
+      if (subject.subjectCode === null) continue;
       const draft = draftFor(drafts, subject.subjectCode);
       if (draft === null) continue;
       observe(draft, 'result', subject.subjectTitle, result.semester);

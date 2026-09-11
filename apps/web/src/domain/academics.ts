@@ -435,6 +435,13 @@ export function subjectPerformance(views: readonly SemesterView[]): SubjectPerfo
        */
       const resolvedGrade = resolveSubjectGrade(subject, ruleSet);
       if (resolvedGrade === null) continue;
+      /*
+       * This history is keyed BY CODE — it is how a repeated attempt at one
+       * course is recognised across semesters. A row the student recorded
+       * without a code has nothing to key by, and guessing one from its title
+       * would merge two courses that merely read alike.
+       */
+      if (subject.subjectCode === null) continue;
       const code = subject.subjectCode.toUpperCase();
       const letter = resolvedGrade.letter;
       const gradePoint = gradePointOf(letter, ruleSet);
