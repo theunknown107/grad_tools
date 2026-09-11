@@ -35,7 +35,7 @@ import { useAcademicState } from '../../hooks/useAcademicState.js';
 import { metricStripEntry } from '../../lib/format.js';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import type { Subject } from '@gradtools/shared-types';
-import type { ResultSubject, SemesterResult } from '../../domain/types.js';
+import type { ResultSubject, SemesterResult, SubjectProvenance } from '../../domain/types.js';
 import { RESULT_STATUSES } from '../../domain/types.js';
 import {
   evaluateResultSubject,
@@ -412,7 +412,10 @@ interface DraftSubject {
   readonly credits: string;
   /** Tri-state, because unknown must be expressible (DEC-037). */
   readonly hasSee: 'yes' | 'no' | 'unknown';
-  readonly fromCatalogue: boolean;
+  /** The catalogue course the student has declared this row to be, or null. */
+  readonly catalogueCode: string | null;
+  /** How the row came to be. Carried through; linking never rewrites it. */
+  readonly provenance: SubjectProvenance;
   /** Carried through untouched: the editor never offers to change a source grade point. */
   readonly gradePoint: number | null;
 }
@@ -429,7 +432,9 @@ function blankSubject(): DraftSubject {
     gradeLetter: '',
     credits: '',
     hasSee: 'unknown',
-    fromCatalogue: false,
+    catalogueCode: null,
+    /* Typed into this editor by the student, which is what manual means. */
+    provenance: 'manual',
     gradePoint: null,
   };
 }
@@ -447,7 +452,8 @@ function toDraft(subject: ResultSubject): DraftSubject {
     gradeLetter: subject.gradeLetter ?? '',
     credits: subject.credits === null ? '' : String(subject.credits),
     hasSee: subject.hasSee === null ? 'unknown' : subject.hasSee ? 'yes' : 'no',
-    fromCatalogue: subject.provenance === 'catalogue',
+    catalogueCode: subject.catalogueCode,
+    provenance: subject.provenance,
     gradePoint: subject.gradePoint,
   };
 }
@@ -480,7 +486,13 @@ function toSubject(draft: DraftSubject, announcedOn: string): ResultSubject {
     gradePoint: draft.gradePoint,
     credits: draft.credits,
     hasSee: draft.hasSee === 'unknown' ? null : draft.hasSee === 'yes',
-    provenance: draft.fromCatalogue ? 'catalogue' : 'manual',
+    /*
+     * HOW THE ROW CAME TO BE, which linking does not change (§8). A row the
+     * student typed stays theirs after they identify it; the identification
+     * is `catalogueCode` beside this, not a replacement for it.
+     */
+    provenance: draft.provenance,
+    catalogueCode: draft.catalogueCode,
   });
 }
 
@@ -543,11 +555,16 @@ function ResultEditor({
       draft.id,
       subject === null
         ? {
-            subjectCode: '',
-            subjectTitle: '',
-            credits: '',
-            hasSee: 'unknown',
-            fromCatalogue: false,
+            /*
+             * UNLINKING KEEPS THE ROW (§9).
+             *
+             * This used to blank the code, the title and the credits, so a
+             * student who linked a row and changed their mind lost everything
+             * they had typed — including the values that were theirs before
+             * the link was ever made. Removing a declaration is not deleting
+             * a record: only the declaration goes.
+             */
+            catalogueCode: null,
           }
         : {
             subjectCode: subject.code,
@@ -565,7 +582,12 @@ function ResultEditor({
              */
             credits: subject.credits === null ? '' : String(subject.credits),
             hasSee: subject.hasSee === null ? 'unknown' : subject.hasSee ? 'yes' : 'no',
-            fromCatalogue: true,
+            /*
+             * The declaration, recorded as the code the catalogue actually
+             * has — this comes from picking a catalogue row, so it is an exact
+             * code by construction and never a resemblance (§6).
+             */
+            catalogueCode: subject.code,
           },
     );
   };
@@ -667,7 +689,7 @@ function ResultEditor({
                 {options.length > 0 && (
                   <SelectField
                     label={`Subject ${position}`}
-                    value={draft.fromCatalogue ? draft.subjectCode : ''}
+                    value={draft.catalogueCode ?? ''}
                     onChange={(event) => {
                       pick(
                         draft,
@@ -687,7 +709,7 @@ function ResultEditor({
                   label={options.length > 0 ? `Code ${position}` : `Subject code ${position}`}
                   placeholder="BCS301"
                   mono
-                  readOnly={draft.fromCatalogue}
+                  readOnly={draft.catalogueCode !== null}
                   value={draft.subjectCode}
                   error={errorFor(draft.id, 'subjectCode')}
                   onChange={(event) => {
@@ -696,8 +718,8 @@ function ResultEditor({
                 />
                 <TextField
                   label={`Subject name ${position}`}
-                  hint={draft.fromCatalogue ? undefined : 'Optional.'}
-                  readOnly={draft.fromCatalogue}
+                  hint={draft.catalogueCode !== null ? undefined : 'Optional.'}
+                  readOnly={draft.catalogueCode !== null}
                   value={draft.subjectTitle}
                   onChange={(event) => {
                     update(draft.id, { subjectTitle: event.target.value });
@@ -766,7 +788,7 @@ function ResultEditor({
               </SelectField>
               <TextField
                 label={`Credits ${position}`}
-                hint={draft.fromCatalogue ? 'From the catalogue' : undefined}
+                hint={draft.catalogueCode !== null ? 'From the catalogue' : undefined}
                 inputMode="decimal"
                 value={draft.credits}
                 error={errorFor(draft.id, 'credits')}
@@ -1541,7 +1563,11 @@ function SubjectDetail({
         <dd>
           {subject.credits === null
             ? ABSENT
-            : `${String(subject.credits)}${subject.provenance === 'catalogue' ? ' · from the catalogue' : ''}`}
+            : `${String(subject.credits)}${
+                subject.provenance === 'catalogue' || subject.catalogueCode !== null
+                  ? ' · from the catalogue'
+                  : ''
+              }`}
         </dd>
       </div>
       <div>
@@ -1575,10 +1601,24 @@ function SubjectDetail({
           <dd>{variants.map((entry) => entry.title).join(' · ')}</dd>
         </div>
       ) : null}
-      {subject.provenance === 'manual' ? (
+      {/*
+        WHERE THE ROW CAME FROM, AND WHAT IT HAS BEEN DECLARED TO BE (§13).
+        Two facts, and a row can carry both: one the student typed and then
+        identified is still one they typed. Said plainly, in the panel's own
+        voice — no badge, no colour, nothing that makes their own record look
+        like the lesser kind.
+      */}
+      {subject.provenance === 'manual' || subject.catalogueCode !== null ? (
         <div>
           <dt>Subject</dt>
-          <dd>Entered manually — not matched to the subject catalogue</dd>
+          <dd>
+            {subject.provenance === 'manual' ? 'Entered manually' : 'Read from your result card'}
+            {subject.catalogueCode === null
+              ? subject.provenance === 'manual'
+                ? ' — not matched to the subject catalogue'
+                : ''
+              : ` — linked to ${subject.catalogueCode} in the VTU catalogue`}
+          </dd>
         </div>
       ) : null}
     </dl>

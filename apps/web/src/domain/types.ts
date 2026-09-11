@@ -186,6 +186,28 @@ export interface ResultSubject {
   /** Whether this course has a semester-end examination. Null = unknown (DEC-037). */
   readonly hasSee: boolean | null;
   readonly provenance: SubjectProvenance;
+  /**
+   * The catalogue course this row is DECLARED to be, or null.
+   *
+   * ---------------------------------------------------------------------------
+   * A LINK, NOT A PROMOTION
+   * ---------------------------------------------------------------------------
+   *
+   * `provenance` says how the row came to be and does not change afterwards.
+   * This says what the student has since told us it corresponds to. The two
+   * are different facts and a row can carry both: a subject they typed
+   * themselves, linked to the catalogue's `BCS502`, is still a subject they
+   * typed. Writing the link into `provenance` said the opposite — the row
+   * stopped reading as theirs the moment they identified it, which is exactly
+   * the promotion §7 forbids.
+   *
+   * It holds a CODE rather than a row id because the catalogue is reference
+   * data keyed by code and versioned independently of any student: a link that
+   * survives a re-import is a link to the course, not to one reading of it.
+   * Set only from an exact code the catalogue actually has — never inferred
+   * from a title, and never from a resemblance.
+   */
+  readonly catalogueCode: string | null;
 }
 
 /**
