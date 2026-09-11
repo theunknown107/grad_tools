@@ -74,6 +74,29 @@ export function optionGroupsOf(courses: readonly SchemeCourse[]): OptionGroup[] 
 
   /* ---- Elective slots ---------------------------------------------------- */
 
+  /*
+   * ONE CHOICE, THOUGH THE DOCUMENT NAMES ITS SLOT TWICE.
+   *
+   * A scheme writes its Ability Enhancement row as `BCH358x/BCHL358x` — the
+   * slot is `BCH358x` if the student takes a theory course and `BCHL358x` if
+   * they take the laboratory one — and then prints ONE list of four options
+   * under it, three theory and one lab. Keyed by the code each option's own
+   * prefix matches, that one choice came apart into a group of three and a
+   * group of one, and the group of one offers no choice at all.
+   *
+   * The code cell is the evidence that the two names are one slot, and the
+   * parser already records it: the second name is an ALTERNATIVE of the
+   * first. So an option naming either lands in the group the first names.
+   */
+  const alternativeSlotNames = new Map<string, string>();
+  for (const course of courses) {
+    if (course.viaAlternativeTo === null) continue;
+    if (!/x$/i.test(course.code)) continue;
+    alternativeSlotNames.set(`${course.semester}|${course.code}`, course.viaAlternativeTo);
+  }
+  const slotNameFor = (semester: number, slotCode: string) =>
+    alternativeSlotNames.get(`${semester}|${slotCode}`) ?? slotCode;
+
   const slots = new Map<string, OptionMember[]>();
   for (const course of courses) {
     if (course.viaElectiveSlot === null) continue;
@@ -86,7 +109,7 @@ export function optionGroupsOf(courses: readonly SchemeCourse[]): OptionGroup[] 
      * and would make the group's own credit figure look like a fifth option.
      */
     if (course.code === course.viaElectiveSlot) continue;
-    const key = `${course.semester}|${course.viaElectiveSlot}`;
+    const key = `${course.semester}|${slotNameFor(course.semester, course.viaElectiveSlot)}`;
     const members = slots.get(key);
     const member = memberOf(course);
     if (members === undefined) slots.set(key, [member]);

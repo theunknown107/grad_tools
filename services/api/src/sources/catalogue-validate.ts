@@ -249,6 +249,11 @@ async function checkApplicability(sql: Sql): Promise<Finding[]> {
  * the credits for whichever option is taken — and an "A OR B" pair is counted
  * once, through its group.
  *
+ * A group only STANDS IN for a row nothing else counts. Where one of its
+ * members is itself a row of the table — which is what a code cell naming two
+ * codes produces, one printed row under the first of them — the row is already
+ * in the sum and the group must not add it again.
+ *
  * Exported because a check nobody can run against a made-up table is a check
  * nobody has seen fail.
  */
@@ -264,6 +269,7 @@ export function creditsStoredFor(
     readonly semester: number;
     readonly kind: string;
     readonly credits: number | null;
+    readonly members: readonly { readonly code: string }[];
   }[],
   semester: number,
 ): number {
@@ -275,7 +281,12 @@ export function creditsStoredFor(
   }
   const rows = [...byCode.values()].reduce((sum, credits) => sum + credits, 0);
   const pairs = groups
-    .filter((group) => group.semester === semester && group.kind === 'alternative')
+    .filter(
+      (group) =>
+        group.semester === semester &&
+        group.kind === 'alternative' &&
+        !group.members.some((member) => byCode.has(member.code)),
+    )
     .reduce((sum, group) => sum + (group.credits ?? 0), 0);
   return rows + pairs;
 }
@@ -531,18 +542,27 @@ async function checkOptions(sql: Sql): Promise<Finding[]> {
           HAVING count(*) > 1`,
     ),
     /*
-     * §27: no course belongs to incompatible groups. Two groups in the SAME
-     * scope and semester both offering one course would mean the course is
-     * simultaneously an option for two different slots, which no scheme prints.
+     * §27: no course belongs to incompatible groups. Two groups in ONE
+     * DOCUMENT and semester both offering a course would mean the scheme
+     * prints it as an option for two different slots at once, which no scheme
+     * does.
+     *
+     * SCOPED TO THE DOCUMENT, which is what that sentence always meant and
+     * what the query did not do. VTU names one slot differently across its own
+     * documents: the sixth-semester Open Elective is `BXX654x` in `6ecesch`,
+     * `BEC654x` in `5ecesch` and `BTE654x` in `6etsch`, and `BEC654A` is
+     * rightly an option in all three. Comparing across a programme's documents
+     * reported that as a contradiction; it is the same choice, named by each
+     * document in its own way, and a course identity may have more than one
+     * offering.
      */
     await mustBeEmpty(
       area,
-      'courses offered by two different slots in one semester',
+      'courses offered by two different slots of one document',
       sql`SELECT m.code || ' sem ' || g.semester AS what
           FROM catalogue_option_members m
           JOIN catalogue_option_groups g ON g.id = m.group_id
-          GROUP BY m.code, g.scheme_year, coalesce(g.programme_name, ''),
-                   coalesce(g.stream_id, ''), g.semester
+          GROUP BY m.code, g.version_id, g.semester
           HAVING count(DISTINCT g.slot_code) > 1`,
     ),
     await mustBeEmpty(

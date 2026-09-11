@@ -409,7 +409,14 @@ describe('the credits a semester of one document holds', () => {
   it('counts an "A OR B" pair once, through its group', () => {
     const sum = creditsStoredFor(
       [course('BQQ407A', 2, { viaAlternativeTo: 'BQQ407B' }), course('BQQ407B', 2, { viaAlternativeTo: 'BQQ407A' })],
-      [{ semester: 4, kind: 'alternative', credits: 2 }],
+      [
+        {
+          semester: 4,
+          kind: 'alternative',
+          credits: 2,
+          members: [{ code: 'BQQ407A' }, { code: 'BQQ407B' }],
+        },
+      ],
       4,
     );
     expect(sum).toBe(2);
@@ -421,6 +428,29 @@ describe('the credits a semester of one document holds', () => {
      * report a disagreement, and this only has to match what was written.
      */
     expect(creditsStoredFor([course('BQQ401', 3), course('BQQ401', 4)], [], 4)).toBe(3);
+  });
+
+  it('does not let a group count a row that is already in the sum', () => {
+    /*
+     * A code cell naming two codes prints ONE row, and the first code carries
+     * it. The other is recorded as an alternative to it, which makes a group —
+     * and a group only stands in for a row nothing else counts. Adding it here
+     * charged the semester twice for one printed row, and turned a document
+     * that had been five credits short into one five credits over.
+     */
+    const sum = creditsStoredFor(
+      [course('BAE303', 4), course('BAS303', 4, { viaAlternativeTo: 'BAE303' })],
+      [
+        {
+          semester: 4,
+          kind: 'alternative',
+          credits: 4,
+          members: [{ code: 'BAE303' }, { code: 'BAS303' }],
+        },
+      ],
+      4,
+    );
+    expect(sum).toBe(4);
   });
 
   it('counts nothing from another semester', () => {
