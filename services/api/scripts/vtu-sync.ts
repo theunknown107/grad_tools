@@ -95,7 +95,14 @@ const REPORT_PATH = resolve('../../.vtu-store/last-sync.json');
 const LEDGER_PATH = resolve('../../.vtu-store/last-sync-documents.json');
 
 const EXTRACTOR_VERSION = '1.0.0';
-const NORMALIZATION_VERSION = '1.0.0';
+/*
+ * 1.1.0: the scheme reader accepts six-letter course codes, so rows like
+ * `BMATEC301` that were invisible now normalize; and the listing's programme
+ * column is read from the table header, so documents that were unplaced now
+ * carry a programme. Both change what a document normalizes TO, which is what
+ * this version is recorded beside every row for.
+ */
+const NORMALIZATION_VERSION = '1.1.0';
 
 const flag = (name: string): string | null => {
   const index = process.argv.indexOf(`--${name}`);
