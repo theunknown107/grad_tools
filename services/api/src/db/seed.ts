@@ -287,6 +287,85 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
       terms_note = EXCLUDED.terms_note
   `;
 
+
+  /*
+   * THE SOURCE THE CATALOGUE CRAWLER ACTUALLY USES.
+   *
+   * `vtuSchemeAdapter` has declared `sourceId: 'vtu-scheme-syllabus'` since it
+   * was written, and `vtu:sync` has been fetching `vtu.ac.in/pdf/…` under it —
+   * against a registry row that did not exist. So the one automated path this
+   * project runs had no recorded legal status at all, while the two paths that
+   * are NOT run had carefully recorded ones. The gate cannot refuse what it has
+   * never been told about.
+   *
+   * Registering it does not enable it, and is not meant to: `enabled` stays
+   * false and `terms_status` stays `unknown`, because vtu.ac.in's terms of use
+   * have still never been reviewed (OQ-006). What changes is that the fetch now
+   * has an identity a reviewer can find, and a status a guard can check.
+   *
+   * The robots finding is the same host's, from the same fetch on 2026-08-24,
+   * and is cited as such rather than re-asserted as if independently checked.
+   */
+  await sql`
+    INSERT INTO sources (
+      id, kind, publisher, canonical_url, authority, access_method,
+      robots_status, robots_checked_at, robots_note,
+      terms_status, terms_note,
+      rights_status, verification, enabled, notes
+    ) VALUES (
+      'vtu-scheme-syllabus', 'syllabus', 'Visvesvaraya Technological University',
+      'https://vtu.ac.in/scheme-and-syllabus/', 'official', 'none',
+      'allowed', '2026-08-24',
+      'The same https://vtu.ac.in/robots.txt fetch recorded against vtu-announcements on 2026-08-24. Scheme and syllabus PDF paths are not disallowed.',
+      'unknown',
+      'Terms of use have NOT been reviewed. OQ-006 is open, and the terms state that the access licence does not extend to data-mining or extraction tools.',
+      'unknown', 'draft', false,
+      'The scheme crawler declares this id. Registered so the path has an explicit legal status; enabling it requires the terms review OQ-006 tracks.'
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      robots_status = EXCLUDED.robots_status,
+      robots_checked_at = EXCLUDED.robots_checked_at,
+      robots_note = EXCLUDED.robots_note,
+      terms_status = EXCLUDED.terms_status,
+      terms_note = EXCLUDED.terms_note,
+      notes = EXCLUDED.notes
+  `;
+
+  /*
+   * EXAM TIME TABLES, WHICH ARRIVE FROM THE STUDENT AND NOT FROM US.
+   *
+   * `access_method = 'manual_upload'` is the whole statement: the document is
+   * VTU's, and it reaches GradTools because a student had it and uploaded it.
+   * Nothing here fetches. The enable constraint refuses to switch on anything
+   * that is not `http_fetch`, so this row cannot become a crawl by accident —
+   * and its terms are unknown besides, which refuses it twice.
+   */
+  await sql`
+    INSERT INTO sources (
+      id, kind, publisher, canonical_url, authority, access_method,
+      robots_status, robots_checked_at, robots_note,
+      terms_status, terms_note,
+      rights_status, verification, enabled, notes
+    ) VALUES (
+      'vtu-exam-timetable', 'other', 'Visvesvaraya Technological University',
+      'https://vtu.ac.in/category/time-table/', 'official', 'manual_upload',
+      'allowed', '2026-08-24',
+      'The same https://vtu.ac.in/robots.txt fetch recorded against vtu-announcements on 2026-08-24. Recorded for completeness; nothing fetches this source.',
+      'unknown',
+      'Terms of use have NOT been reviewed (OQ-006). Automated retrieval is NOT authorised. Documents reach GradTools only when a student uploads one they already hold.',
+      'unknown', 'draft', false,
+      'Exam time tables are read from user-supplied documents. See docs/40.'
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      access_method = EXCLUDED.access_method,
+      robots_status = EXCLUDED.robots_status,
+      robots_checked_at = EXCLUDED.robots_checked_at,
+      robots_note = EXCLUDED.robots_note,
+      terms_status = EXCLUDED.terms_status,
+      terms_note = EXCLUDED.terms_note,
+      notes = EXCLUDED.notes
+  `;
+
   // syllabus_modules is intentionally left empty. See the header note.
 
   const [counts] = await sql<

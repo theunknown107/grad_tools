@@ -239,6 +239,51 @@ describeDb('M5 gates', () => {
     });
 
     /*
+     * THE PATH THAT WAS ACTUALLY RUNNING HAD NO ROW AT ALL.
+     *
+     * `vtuSchemeAdapter` declares `sourceId: 'vtu-scheme-syllabus'` and
+     * `vtu:sync` has been fetching under it, against a registry that had never
+     * heard of it — so the one automated path this project runs was the one
+     * path the gate could not refuse. It is registered now, and still not
+     * enabled: vtu.ac.in's terms remain unreviewed.
+     */
+    it('records the scheme crawler’s own source, unenabled', async () => {
+      const res = await request(app).get('/api/v1/sources/vtu-scheme-syllabus');
+      expect(res.status).toBe(200);
+      expect(res.body.robotsStatus).toBe('allowed');
+      expect(res.body.termsStatus).toBe('unknown');
+      expect(res.body.rightsStatus).toBe('unknown');
+      expect(res.body.enabled).toBe(false);
+    });
+
+    /*
+     * EXAM TIME TABLES ARRIVE FROM THE STUDENT (Phase 7B.2 §2, §44).
+     *
+     * `manual_upload` is the statement that nothing fetches this. The enable
+     * constraint refuses anything that is not `http_fetch`, so the row cannot
+     * become a crawl by accident — and its terms are unknown besides, which
+     * refuses it a second time. Both refusals are asserted, because a guard
+     * with one reason left is a guard that can be argued away.
+     */
+    it('records exam time tables as user-supplied, and refuses to make them a crawl', async () => {
+      const res = await request(app).get('/api/v1/sources/vtu-exam-timetable');
+      expect(res.status).toBe(200);
+      expect(res.body.accessMethod).toBe('manual_upload');
+      expect(res.body.termsStatus).toBe('unknown');
+      expect(res.body.enabled).toBe(false);
+
+      await expect(
+        sql`UPDATE sources SET enabled = true WHERE id = 'vtu-exam-timetable'`,
+      ).rejects.toThrow(/source_enable_requires_all_gates/);
+
+      /* And it cannot be turned into one by changing the method alone. */
+      await expect(
+        sql`UPDATE sources SET access_method = 'http_fetch', enabled = true
+            WHERE id = 'vtu-exam-timetable'`,
+      ).rejects.toThrow(/source_enable_requires_all_gates/);
+    });
+
+    /*
      * The announcements host: robots ALLOWS the path, and it is still disabled,
      * because a crawl policy is not a licence to reuse content and its terms
      * have never been reviewed (OQ-006).
