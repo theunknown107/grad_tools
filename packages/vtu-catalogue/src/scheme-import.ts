@@ -271,6 +271,60 @@ function joinCodeCells(items: readonly PositionedText[]): PositionedText[] {
   return [...items.filter((item) => !consumed.has(item)), ...joined];
 }
 
+/**
+ * THE CREDITS COLUMN, AND THE SPAN OF ONE ROW IN IT.
+ *
+ * A row's credits are normally the rightmost number on the code's own
+ * baseline, and that is how they are read. It fails on one layout: where the
+ * teaching-department cell wraps over three lines it pushes the marks and
+ * credits off the code's baseline onto the line above, and the rightmost
+ * number left beside the code is a marks figure of 50. The reader refuses it,
+ * correctly — taking 50 would be worse than reading nothing.
+ *
+ * The document still says what the credit is, in the column it prints every
+ * other row's credit in, and the row it belongs to is bounded by the rows
+ * either side of it. So:
+ *
+ *   COLUMN — the rightmost column of numbers on the page. On the Aeronautical
+ *   fifth-semester page that is x=796, under a header reading "Credits", and
+ *   every row's figure sits there.
+ *
+ *   SPAN — from the midpoint to the code above to the midpoint to the code
+ *   below. `BRMK557` sits at y=193 between `BAE586` at 229 and `BESK508` at
+ *   141, so its span is 167 to 211 — and its credit, at y=209, is inside it
+ *   while its neighbour's, at 229, is outside.
+ *
+ * This is NOT a widened row band. A band is a distance; a span is a boundary,
+ * derived from where the document put the neighbouring rows, and two spans
+ * cannot overlap. A row can therefore never take the row above's credits, which
+ * is the failure the band was kept narrow to prevent.
+ */
+function rightmostNumericColumn(items: readonly PositionedText[]): number | null {
+  const byX = new Map<number, number>();
+  for (const item of items) {
+    if (!WHOLE_NUMBER.test(item.text.trim())) continue;
+    const key = Math.round(item.x);
+    byX.set(key, (byX.get(key) ?? 0) + 1);
+  }
+  /* A column, not a stray figure: a page number appears once, a column many. */
+  const columns = [...byX.entries()].filter(([, count]) => count >= MIN_COLUMN_CELLS);
+  if (columns.length === 0) return null;
+  return Math.max(...columns.map(([x]) => x));
+}
+
+/** The vertical span a row owns, between the rows printed either side of it. */
+function rowSpan(codeYs: readonly number[], y: number): { top: number; bottom: number } | null {
+  const above = codeYs.filter((other) => other > y).sort((a, b) => a - b)[0];
+  const below = codeYs.filter((other) => other < y).sort((a, b) => b - a)[0];
+  if (above === undefined && below === undefined) return null;
+  const up = above === undefined ? (y - (below as number)) / 2 : (above - y) / 2;
+  const down = below === undefined ? (above as number) - y : y - below;
+  return { top: y + up, bottom: y - down / 2 };
+}
+
+/** How many cells share an x before it counts as a column. */
+const MIN_COLUMN_CELLS = 3;
+
 /** How many runs one code may be broken into, and how far apart they may sit. */
 const MAX_CODE_PIECES = 4;
 const CODE_PIECE_GAP = 0.5;
@@ -430,6 +484,10 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
     const pageItems = joinCodeCells(raw).filter((item) => item.text.trim() !== '');
     const semester = semesterOf(pageItems);
     const departmentX = departmentColumn(pageItems);
+    /* Where this page prints its rows, which is what bounds each row's span. */
+    const codeYsOnPage = pageItems
+      .filter((cell) => codesIn(cell.text.trim()).length > 0)
+      .map((cell) => cell.y);
     for (const item of pageItems) {
       const cell = item.text.trim();
       const named = codesIn(cell);
@@ -487,7 +545,28 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
         continue;
       }
 
-      const credits = Number(numbers[numbers.length - 1]?.text ?? '');
+      let credits = Number(numbers[numbers.length - 1]?.text ?? '');
+      if (!Number.isInteger(credits) || credits > MAX_CREDITS) {
+        /*
+         * The row's own figure, from the credits column and this row's span.
+         * Refused unless the span holds EXACTLY one — two would mean the
+         * boundary is wrong, and reading either would be a guess.
+         */
+        const column = rightmostNumericColumn(pageItems);
+        const span = column === null ? null : rowSpan(codeYsOnPage, item.y);
+        const inSpan =
+          column === null || span === null
+            ? []
+            : pageItems.filter(
+                (cell) =>
+                  Math.round(cell.x) === column &&
+                  cell.y <= span.top &&
+                  cell.y >= span.bottom &&
+                  WHOLE_NUMBER.test(cell.text.trim()),
+              );
+        const only = inSpan.length === 1 ? Number((inSpan[0] as PositionedText).text.trim()) : NaN;
+        if (Number.isInteger(only) && only <= MAX_CREDITS) credits = only;
+      }
       if (!Number.isInteger(credits) || credits > MAX_CREDITS) {
         rejected.push({
           code,
