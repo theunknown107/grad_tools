@@ -730,6 +730,31 @@ async function checkSemesterTotals(sql: Sql, schemeYear: string | null): Promise
     if (parsed.courses.length === 0) continue;
     const groups = optionGroupsOf(parsed.courses);
 
+    /*
+     * A BLANK TEMPLATE HAS NOTHING TO TOTAL.
+     *
+     * VTU publishes an empty scheme for boards to fill in — "B.E. in the title
+     * of the program", with placeholder codes `BXX301`…`BXXL305` and an EMPTY
+     * Course Title column — and it still prints the totals a real scheme would
+     * carry: 20, 20, 22, 18, 16.
+     *
+     * The reader refuses those rows, correctly, because a row that names no
+     * course is not one. Comparing what is left against the template's totals
+     * measures nothing: five of the fifteen disagreements were this one
+     * document, reporting a reading defect where the reading is right.
+     *
+     * So a document whose rows were refused FOR PRINTING NO TITLE is not
+     * comparable. A skip, not a pass — it is counted and named in the report,
+     * and the refusals themselves are already recorded against each code.
+     */
+    const titleless = parsed.rejected.filter((row) =>
+      /prints no course title/i.test(row.reason),
+    ).length;
+    if (titleless > 0) {
+      notComparable += [...new Set(totals.map((total) => total.semester))].length;
+      continue;
+    }
+
     const bySemester = new Map<number, number[]>();
     for (const total of totals) {
       const seen = bySemester.get(total.semester);
