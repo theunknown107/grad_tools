@@ -588,3 +588,90 @@ describe('a code cell the PDF broke apart', () => {
     expect(parsed.courses.map((course) => course.code)).not.toContain('BQQ402');
   });
 });
+
+describe('a credit the row prints off its own baseline', () => {
+  /*
+   * Where the teaching-department cell wraps over three lines it pushes the
+   * marks and credits onto the line ABOVE the code, and the rightmost number
+   * left beside the code is a marks figure of 50. The reader refuses that,
+   * correctly. The document still says what the credit is, in the column it
+   * prints every other row's credit in.
+   *
+   * The row it belongs to is bounded by the rows either side of it — a SPAN,
+   * not a widened band. Two spans cannot overlap, which is what makes the
+   * guarantee below hold.
+   *
+   * EVERY VALUE IS SYNTHETIC.
+   */
+  const CREDITS_X = COL.credits;
+
+  /** A row whose marks and credits sit one line ABOVE the code. */
+  const displaced = (y: number, code: string, title: string, credits: number) => [
+    at('1', COL.serial, y),
+    at('PCC', COL.category, y),
+    at(code, COL.code, y),
+    at(title, COL.title, y),
+    at('TD: Concerned', COL.department, y + 6),
+    at('department', COL.department, y),
+    at('PSB: as identified', COL.department, y - 6),
+    at('3', COL.lecture, y),
+    at('0', COL.tutorial, y),
+    at('0', COL.practical, y),
+    at('03', COL.duration, y),
+    at('50', COL.cie, y),
+    at('50', COL.see, y),
+    /* The row's own figures, printed a line up. */
+    at('100', COL.total, y + 16),
+    at(String(credits), CREDITS_X, y + 16),
+  ];
+
+  it('reads the credit from the credits column within the row’s own span', () => {
+    const parsed = parseScheme(
+      page(
+        row(398, 'BQQ400', 'Invented Course Zero', 3),
+        row(360, 'BQQ401', 'Invented Course One', 4),
+        displaced(322, 'BQQ402', 'Invented Course Two', 2),
+      ),
+    );
+
+    const two = parsed.courses.find((course) => course.code === 'BQQ402');
+    expect(two?.credits).toBe(2);
+  });
+
+  it('NEVER takes the neighbouring row’s credit', () => {
+    /*
+     * THE ASSERTION THAT MATTERS. Row A's figure is displaced; row B, printed
+     * just above it, has its own. A rule that widened the window would hand A
+     * the 4 that belongs to B — which is exactly why the window was kept
+     * narrow, and why this is a span between the rows rather than a distance
+     * from one.
+     */
+    const parsed = parseScheme(
+      page(
+        row(398, 'BQQ400', 'Invented Course Zero', 3),
+        row(360, 'BQQ401', 'Invented Course One', 4),
+        displaced(322, 'BQQ402', 'Invented Course Two', 2),
+      ),
+    );
+
+    expect(parsed.courses.find((course) => course.code === 'BQQ401')?.credits).toBe(4);
+    expect(parsed.courses.find((course) => course.code === 'BQQ402')?.credits).toBe(2);
+    expect(parsed.courses.filter((course) => course.credits === 4)).toHaveLength(1);
+  });
+
+  it('still refuses where the span holds no figure of its own', () => {
+    /* Nothing in the column for this row: unread beats a borrowed number. */
+    const bare = [
+      at('1', COL.serial, 322),
+      at('PCC', COL.category, 322),
+      at('BQQ403', COL.code, 322),
+      at('Invented Course Three', COL.title, 322),
+      at('50', COL.cie, 322),
+      at('50', COL.see, 322),
+    ];
+    const parsed = parseScheme(
+      page(row(398, 'BQQ400', 'Invented Course Zero', 3), row(360, 'BQQ401', 'Invented Course One', 4), bare),
+    );
+    expect(parsed.courses.map((course) => course.code)).not.toContain('BQQ403');
+  });
+});
