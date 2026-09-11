@@ -675,3 +675,86 @@ describe('a credit the row prints off its own baseline', () => {
     expect(parsed.courses.map((course) => course.code)).not.toContain('BQQ403');
   });
 });
+
+describe('the shapes a VTU code column actually prints', () => {
+  /*
+   * Each of these cost a row, and with it the credits its document counts in
+   * its own semester total. The bounds are measured, not chosen: across the
+   * 287 documents of the 2022 crawl the department segment is 2 letters 5046
+   * times, 3 letters 1592, 4 letters 563, 5 letters 8, and 7 letters exactly
+   * once. There are no tokens of any other length.
+   *
+   * EVERY VALUE IS SYNTHETIC.
+   */
+  it('reads a department segment of seven letters', () => {
+    /*
+     * `BMATELCE301`, "Mathematics for Electronics and Communication
+     * Engineering", is the first row of the Electronics & Computer
+     * third-semester table. The code was never missing from the PDF — only
+     * from the pattern, which stopped at six.
+     */
+    const parsed = parseScheme(page(row(322, 'BQQMATXY301', 'Invented Mathematics', 3)));
+    expect(parsed.courses.map((course) => course.code)).toEqual(['BQQMATXY301']);
+  });
+
+  it('refuses a department segment longer than the corpus has', () => {
+    /* The bound is evidence, not permission to accept anything after a B. */
+    const parsed = parseScheme(page(row(322, 'BQQMATXYZ301', 'Invented Course', 3)));
+    expect(parsed.courses).toHaveLength(0);
+  });
+
+  it('reads a code the document prints with a space inside the cell', () => {
+    /*
+     * `BCA 685` is ONE text run, x 132.6 to 170.1, squarely inside the code
+     * column the rows above and below use. The space is typography within a
+     * cell, not a boundary between two.
+     */
+    const parsed = parseScheme(page(row(322, 'BQQ 685', 'Invented Project Phase I', 2)));
+    expect(parsed.courses.map((course) => [course.code, course.credits])).toEqual([['BQQ685', 2]]);
+  });
+
+  it('does not turn a spaced fragment that is not a code into one', () => {
+    const parsed = parseScheme(page(row(322, 'PEC 613', 'Invented Elective', 3)));
+    expect(parsed.courses).toHaveLength(0);
+  });
+
+  it('joins a compound code broken in the MIDDLE of its second half', () => {
+    /*
+     *     BQS303/B     the code column, line above
+     *     3 IPCC  Fluid Mechanics ...   the row itself
+     *     QE303        the code column, line below
+     *
+     * The break lands after the slash on one document and mid-code on another.
+     * What the halves spell is checked against the compound grammar before it
+     * is believed.
+     */
+    const parsed = parseScheme(
+      page([
+        ...row(322, 'BQQIGNORED', 'Invented Fluid Mechanics', 4).filter(
+          (item) => item.text !== 'BQQIGNORED',
+        ),
+        at('BQS303/B', COL.code, 329),
+        at('QE303', COL.code + 2, 315),
+      ]),
+    );
+
+    expect(parsed.courses.map((course) => [course.code, course.viaAlternativeTo])).toEqual([
+      ['BQS303', null],
+      ['BQE303', 'BQS303'],
+    ]);
+    expect(parsed.courses[0]?.credits).toBe(4);
+  });
+
+  it('joins nothing when the halves do not spell two whole codes', () => {
+    const parsed = parseScheme(
+      page([
+        ...row(322, 'BQQIGNORED', 'Invented Course', 4).filter(
+          (item) => item.text !== 'BQQIGNORED',
+        ),
+        at('BQS303/B', COL.code, 329),
+        at('NONSENSE', COL.code + 2, 315),
+      ]),
+    );
+    expect(parsed.courses).toHaveLength(0);
+  });
+});

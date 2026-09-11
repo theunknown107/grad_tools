@@ -124,18 +124,30 @@ export interface ParsedScheme {
  *
  * SIX LETTERS, NOT FOUR. The comment above already said "the same shape family
  * the result importer accepts" and the pattern did not: that importer takes
- * `B[A-Z]{2,6}` and this took `B[A-Z]{2,4}`, so every course whose department
+ * `B[A-Z]{2,7}` and this took `B[A-Z]{2,4}`, so every course whose department
  * needs five letters was invisible to the scheme reader. `BMATEC301`,
  * "Mathematics-III for EC Engineering", is the first row of the Electronics &
  * Communication third-semester table, and its three credits were missing from
  * every total that table prints — one of the disagreements the semester-total
  * check reports.
  *
+ * SEVEN, ON THE EVIDENCE OF THE CORPUS. Across the 287 documents of the 2022
+ * crawl the department segment is 2 letters 5046 times, 3 letters 1592, 4
+ * letters 563, 5 letters 8 — and 7 letters exactly once, `BMATELCE301`,
+ * "Mathematics for Electronics and Communication Engineering", the first row
+ * of the Electronics & Computer third-semester table. There are no tokens of
+ * any other length, so the bound is measured rather than chosen, and every
+ * long form is `BMAT` followed by a branch.
+ *
+ * That row is why this matters: without it the semester read three credits
+ * short of the total its own document prints, and the code was not missing
+ * from the PDF at all — only from the pattern.
+ *
  * Still anchored at `B`, so the 2025 family's `1BMATC101` does not match here.
  * That one-character difference is a different scheme, not a variant of this
  * one, and reading it as one would reattribute a course to the wrong year.
  */
-const COURSE_CODE = /^B[A-Z]{2,6}\d{3}[A-Za-z]?$/;
+const COURSE_CODE = /^B[A-Z]{2,7}\d{3}[A-Za-z]?$/;
 
 /**
  * A CODE CELL THAT NAMES MORE THAN ONE CODE.
@@ -161,7 +173,7 @@ const COURSE_CODE = /^B[A-Z]{2,6}\d{3}[A-Za-z]?$/;
  * document actually prints. The row is read; the unprinted twin is not
  * invented (§1, §7).
  */
-const COMPOUND_CODES = /^B[A-Z]{2,6}\d{3}[A-Za-z]?(?:\/B[A-Z]{2,6}\d{3}[A-Za-z]?)+$/;
+const COMPOUND_CODES = /^B[A-Z]{2,7}\d{3}[A-Za-z]?(?:\/B[A-Z]{2,7}\d{3}[A-Za-z]?)+$/;
 const SHARED_TAIL = /^B([A-Z]{2,6})((?:\/[A-Z]{2,6})+)(\d{3}[A-Za-z]?)$/;
 
 /**
@@ -251,7 +263,7 @@ function joinCodeCells(items: readonly PositionedText[]): PositionedText[] {
           candidate.y < head.y &&
           head.y - candidate.y <= line * WRAPPED_CODE_LINES &&
           Math.abs(candidate.x - head.x) <= line &&
-          COURSE_CODE.test(candidate.text.trim()),
+          COMPOUND_CODES.test(`${text}${candidate.text.trim()}`),
       )
       .sort((a, b) => b.y - a.y)[0];
     if (tail === undefined) continue;
@@ -328,8 +340,17 @@ const MIN_COLUMN_CELLS = 3;
 /** How many runs one code may be broken into, and how far apart they may sit. */
 const MAX_CODE_PIECES = 4;
 const CODE_PIECE_GAP = 0.5;
-/** `BAE402/` — a compound code broken after its own slash. */
-const WRAPPED_CODE_HEAD = /^B[A-Z]{2,6}\d{3}[A-Za-z]?\/$/;
+/**
+ * `BAE402/`, `BAS303/B` — a compound code broken across two printed lines.
+ *
+ * The break lands after the slash on one document and in the MIDDLE of the
+ * second code on another: the Aerospace third-semester table prints
+ * `BAS303/B` above its row and `AE303` below it. Both halves sit in the code
+ * column, the row is the line between them, and what they spell is checked
+ * against the compound grammar before it is believed — so a head that happens
+ * to end in a slash joins nothing unless the result is two whole codes.
+ */
+const WRAPPED_CODE_HEAD = /^B[A-Z]{2,7}\d{3}[A-Za-z]?\/[A-Z]{0,7}$/;
 /** How many lines down its continuation may sit. */
 const WRAPPED_CODE_LINES = 1.6;
 
@@ -339,6 +360,20 @@ const WRAPPED_CODE_LINES = 1.6;
  */
 function codesIn(cell: string): string[] {
   if (COURSE_CODE.test(cell)) return [cell];
+  /*
+   * A SPACE INSIDE THE CELL IS STILL INSIDE THE CELL.
+   *
+   * The AI sixth-semester table prints its project row's code as `BCA 685` —
+   * ONE text run, x 132.6 to 170.1, squarely inside the code column that the
+   * rows above and below use (131.9 to 170.9). The space is typography within
+   * a cell, not a boundary between two, and stripping it is reading what is
+   * there rather than composing something that is not.
+   *
+   * Bounded by the grammar: what remains must be a course code. `PEC 613` and
+   * every other prose fragment on the page is not one.
+   */
+  const tight = cell.replace(/\s+/g, '');
+  if (tight !== cell && COURSE_CODE.test(tight)) return [tight];
   if (COMPOUND_CODES.test(cell)) return cell.split('/');
   const shared = SHARED_TAIL.exec(cell);
   if (shared === null) return [];
