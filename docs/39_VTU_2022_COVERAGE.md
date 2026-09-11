@@ -3,6 +3,53 @@
 Authority: Phase 7E Workstream A · measured at `51a9aa3` against the live
 listing on 2026-09-11 · raw evidence in `.vtu-store/last-sync-documents.json`
 
+## Status at `074a50f`
+
+Three of the five blockers this document first reported are fixed, and the
+catalogue is still **not published**. What changed:
+
+| | Before | After |
+| --- | --- | --- |
+| Documents with unknown applicability | 60 | 57 |
+| Course rows with neither programme nor stream | 588 | 46 |
+| Programme names that are really a row number | 2 (`21a`, `29a`) | 0 |
+| CSE's own scheme | no programme at all | Computer Science & Engineering |
+| Course rows | 3221 | 3490 |
+| Semester totals disagreeing | 37 of 149 | 33 of 149 |
+| `vtu:validate --scheme 2022` | FAILS, 5 rules | FAILS, 3 rules |
+
+The remaining 33 disagreements are classified from the readings themselves:
+
+| Count | Classification |
+| --- | --- |
+| 22 | a row the parser did not read |
+| 11 | one row read under two codes whose printed titles are identical |
+
+In ten of the eleven the delta equals the twin's credits exactly. **No alias
+was created from a repeated title**: an identical title may be the alias it
+looks like, or a title-extraction defect, and §16 wants evidence rather than a
+resemblance.
+
+Credit provenance is now reported on every run — 1723 `table`, 1739 `slot`, 28
+`alternative` — and two new rules check the borrowing: no borrowed credit may
+name a slot the catalogue does not hold, and none may contradict the slot it
+came from. **Both pass: there are no unresolved credit conflicts.**
+
+A candidate artifact was generated for comparison only, never published. Against
+the 187-course production catalogue: **3303 added, 0 removed, 0 changed, 187
+unchanged**, alias intact. The trusted CSBS data is untouched by any of this.
+
+### What is not established
+
+The `38csesch.pdf` document was expected to be first-year CSE *stream*
+material. The source says otherwise: it sits in the 3-8 semester programme
+table, its link reads "3- 8 Sem Scheme", and it spans semesters 3 to 8. The
+first-year CSE stream document is `csesch.pdf`, which already carries
+`CSE Stream Scheme (CSE/ISC/BT)`. So `38csesch.pdf` is recorded as the
+Computer Science & Engineering programme's scheme, on the listing's own words.
+
+---
+
 ## The headline
 
 **The broadened catalogue is not publishable.** `pnpm vtu:validate --scheme
