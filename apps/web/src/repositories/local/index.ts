@@ -19,6 +19,7 @@ import type {
 import type { NotificationPreferences, NotificationRecord } from '../../domain/notifications.js';
 import type { SavedCalendar } from '../../domain/calendar-import.js';
 import type { SavedTimetable } from '../../domain/timetable-import.js';
+import type { SavedExamTimetable, StoredExamEvent } from '../../domain/exam-import.js';
 import { normalizeResult } from '../../domain/results.js';
 import type {
   NotificationRepository,
@@ -125,6 +126,13 @@ export function createLocalRepositories(scope: AccountScope): RepositoryBundle {
     timetableImports: createListRepository<SavedTimetable>(scope, 'timetableImports'),
     classMarks: createListRepository<ClassMark>(scope, 'classMarks'),
     schemeCourses: createListRepository<SchemeCourse>(scope, 'schemeCourses'),
+    /*
+     * Exam time tables are their own two collections, kept apart from the
+     * weekly timetable for the reason the domain is: one is a recurring week,
+     * the other a handful of dated events (domain/exam-import).
+     */
+    examTimetables: createListRepository<SavedExamTimetable>(scope, 'examTimetables'),
+    examEvents: createListRepository<StoredExamEvent>(scope, 'examEvents'),
     notifications,
   };
 }

@@ -81,7 +81,7 @@ describe('the three documents GradTools reads', () => {
 });
 
 describe('documents that are academic and still not supported', () => {
-  it('does not read a university exam schedule as an academic calendar', () => {
+  it('reads a university exam schedule as one, not as an academic calendar', () => {
     /*
      * THE CASE THIS FILE EXISTS FOR. Shaped after a real VTU draft examination
      * time table: the university's own name, a Date/Day column, semester
@@ -100,7 +100,12 @@ describe('documents that are academic and still not supported', () => {
     );
 
     const seen = classifyDocument(examSchedule);
-    expect(seen.type).toBe('unsupported');
+    /*
+     * THIS USED TO EXPECT `unsupported`, and the document was refused with
+     * "GradTools does not read exam schedules yet". The detection was already
+     * right; only that sentence outlived the limitation it described.
+     */
+    expect(seen.type).toBe('exam_timetable');
     expect(seen.reason).toMatch(/examination time table/i);
   });
 
@@ -127,7 +132,7 @@ describe('documents that are academic and still not supported', () => {
     );
 
     const seen = classifyDocument(looksLikeBoth);
-    expect(seen.type).toBe('unsupported');
+    expect(seen.type).toBe('exam_timetable');
     expect(seen.reason).toMatch(/examination time table/i);
     expect(seen.reason).not.toMatch(/class timetable/i);
   });

@@ -20,6 +20,7 @@ import type {
 } from '../domain/types.js';
 import type { SavedCalendar } from '../domain/calendar-import.js';
 import type { SavedTimetable } from '../domain/timetable-import.js';
+import type { SavedExamTimetable, StoredExamEvent } from '../domain/exam-import.js';
 import { useRepositories } from '../repositories/context.js';
 
 interface ListLike<T> {
@@ -238,6 +239,15 @@ export function useClassMarks(): CollectionState<ClassMark> {
  */
 export function useSchemeCourses(): CollectionState<SchemeCourse> {
   return useCollection(useRepositories().schemeCourses);
+}
+
+/** Exam time tables the student supplied, and the exams read out of them. */
+export function useExamTimetables(): CollectionState<SavedExamTimetable> {
+  return useCollection(useRepositories().examTimetables);
+}
+
+export function useExamEvents(): CollectionState<StoredExamEvent> {
+  return useCollection(useRepositories().examEvents);
 }
 
 export interface ProfileState {

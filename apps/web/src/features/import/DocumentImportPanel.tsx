@@ -22,6 +22,7 @@
 import { asStudentProfileId } from '../../domain/identity.js';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import type { SchemeCourse, TimetableSlot } from '../../domain/types.js';
+import type { SavedExamTimetable, StoredExamEvent } from '../../domain/exam-import.js';
 import {
   useCalendars,
   useProfile,
@@ -30,6 +31,8 @@ import {
   useSemesterSubjects,
   useTimetable,
   useTimetableImports,
+  useExamTimetables,
+  useExamEvents,
 } from '../../hooks/useCollection.js';
 import { ResultImport } from '../results/ResultImport.js';
 
@@ -52,6 +55,8 @@ export function DocumentImportPanel({
   const { items: calendars, save: saveCalendar } = useCalendars();
   const { items: timetable, save: saveSlot, remove: removeSlot } = useTimetable();
   const { items: timetableImports, save: saveImport } = useTimetableImports();
+  const { items: examTimetables, save: saveExamDocument } = useExamTimetables();
+  const { save: saveExamEvent } = useExamEvents();
   const {
     items: schemeCourses,
     save: saveSchemeCourse,
@@ -94,6 +99,27 @@ export function DocumentImportPanel({
     await saveImport(record);
   };
 
+  /*
+   * EXAM TIME TABLES ACCUMULATE; THEY DO NOT REPLACE.
+   *
+   * A weekly timetable has exactly one current version, so importing one
+   * replaces the last. Exams do not work that way: a student may hold the
+   * theory time table and the practical one, and an exam season may be
+   * published in more than one document. Each is kept, and which is the newer
+   * publication is a question `relateExamTimetable` answers rather than one
+   * settled by deleting the other.
+   *
+   * A document already held is refused at review by its fingerprint, so this
+   * never writes the same one twice (§23).
+   */
+  const saveExamTimetable = async (
+    record: SavedExamTimetable,
+    events: readonly StoredExamEvent[],
+  ) => {
+    await saveExamDocument(record);
+    for (const event of events) await saveExamEvent(event);
+  };
+
   return (
     <ResultImport
       title={title}
@@ -116,6 +142,8 @@ export function DocumentImportPanel({
       onSave={saveResult}
       onSaveCalendar={saveCalendar}
       onSaveTimetable={replaceTimetable}
+      savedExamTimetables={examTimetables}
+      onSaveExamTimetable={saveExamTimetable}
       onSaveScheme={replaceScheme}
       onCancel={onDone}
     />
