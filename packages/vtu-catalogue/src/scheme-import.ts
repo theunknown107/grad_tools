@@ -165,6 +165,121 @@ const COMPOUND_CODES = /^B[A-Z]{2,6}\d{3}[A-Za-z]?(?:\/B[A-Z]{2,6}\d{3}[A-Za-z]?
 const SHARED_TAIL = /^B([A-Z]{2,6})((?:\/[A-Z]{2,6})+)(\d{3}[A-Za-z]?)$/;
 
 /**
+ * THE RUNS A PDF EMITS ARE NOT THE CELLS A TABLE HAS.
+ *
+ * The same principle the result-card reader had to learn: a producer splits
+ * text wherever it likes, and a logical cell can arrive as several runs on one
+ * baseline or as two lines of one column. Two shapes cost this reader six
+ * rows, and with them the credits their documents count in their own totals.
+ *
+ * SPLIT ACROSS RUNS. The Ability Enhancement code is emitted in pieces with no
+ * gap at all between them:
+ *
+ *     "B"(106→112) "BM"(112→127) "456x"(127→148)      = BBM456x
+ *
+ * Each piece ends exactly where the next begins, all on one baseline, and the
+ * span they cover is the code column — 106 to 148, where the rows above print
+ * `BBM401`…`BBM405x` at 109 to 151. Only a run of pieces with NO gap is
+ * joined, and only when what they spell is a course code and no piece already
+ * is one. A gap means a space, and a space means two cells.
+ *
+ * WRAPPED ONTO A SECOND LINE. A compound code too wide for its column breaks
+ * after the slash it is written with:
+ *
+ *     BAE402/   x=127 y=334        the code column, line above
+ *     2 IPCC    Aerodynamics ...        y=328   the row itself
+ *     BAS402    x=129 y=321        the code column, line below
+ *
+ * The trailing slash is the document's own continuation mark, the two pieces
+ * sit in one column, and the row they belong to is the line between them —
+ * which is where the joined cell is placed, on the baseline that carries the
+ * title and the credits.
+ *
+ * Neither rule reaches for a neighbour: both are refused unless the result is
+ * a course code by the grammar above (§11, §13).
+ */
+function joinCodeCells(items: readonly PositionedText[]): PositionedText[] {
+  const usable = items.filter((item) => item.text.trim() !== '');
+  if (usable.length === 0) return [...items];
+  const line = medianHeight(usable);
+
+  const consumed = new Set<PositionedText>();
+  const joined: PositionedText[] = [];
+
+  /* ---- One baseline, no gaps ------------------------------------------- */
+  const rows: PositionedText[][] = [];
+  for (const item of [...usable].sort((a, b) => b.y - a.y || a.x - b.x)) {
+    const row = rows.find((candidate) => Math.abs((candidate[0] as PositionedText).y - item.y) <= line * 0.5);
+    if (row === undefined) rows.push([item]);
+    else row.push(item);
+  }
+  for (const row of rows) {
+    const ordered = [...row].sort((a, b) => a.x - b.x);
+    for (let start = 0; start < ordered.length; start += 1) {
+      for (let count = MAX_CODE_PIECES; count >= 2; count -= 1) {
+        const parts = ordered.slice(start, start + count);
+        if (parts.length < count) continue;
+        if (parts.some((part) => consumed.has(part))) continue;
+        if (parts.some((part) => COURSE_CODE.test(part.text.trim()))) continue;
+        let contiguous = true;
+        for (let step = 1; step < parts.length; step += 1) {
+          const previous = parts[step - 1] as PositionedText;
+          const next = parts[step] as PositionedText;
+          if (next.x - (previous.x + previous.width) > CODE_PIECE_GAP) contiguous = false;
+        }
+        if (!contiguous) continue;
+        const text = parts.map((part) => part.text.trim()).join('');
+        if (!COURSE_CODE.test(text)) continue;
+        const first = parts[0] as PositionedText;
+        const last = parts[parts.length - 1] as PositionedText;
+        for (const part of parts) consumed.add(part);
+        joined.push({ text, x: first.x, y: first.y, width: last.x + last.width - first.x, height: first.height });
+        break;
+      }
+    }
+  }
+
+  /* ---- One column, two lines ------------------------------------------- */
+  for (const head of usable) {
+    if (consumed.has(head)) continue;
+    const text = head.text.trim();
+    if (!WRAPPED_CODE_HEAD.test(text)) continue;
+    const tail = usable
+      .filter(
+        (candidate) =>
+          !consumed.has(candidate) &&
+          candidate.y < head.y &&
+          head.y - candidate.y <= line * WRAPPED_CODE_LINES &&
+          Math.abs(candidate.x - head.x) <= line &&
+          COURSE_CODE.test(candidate.text.trim()),
+      )
+      .sort((a, b) => b.y - a.y)[0];
+    if (tail === undefined) continue;
+    consumed.add(head);
+    consumed.add(tail);
+    joined.push({
+      text: `${text}${tail.text.trim()}`,
+      x: Math.min(head.x, tail.x),
+      /* The row is the line BETWEEN them, which is where its columns are. */
+      y: (head.y + tail.y) / 2,
+      width: Math.max(head.width, tail.width),
+      height: head.height,
+    });
+  }
+
+  if (joined.length === 0) return [...items];
+  return [...items.filter((item) => !consumed.has(item)), ...joined];
+}
+
+/** How many runs one code may be broken into, and how far apart they may sit. */
+const MAX_CODE_PIECES = 4;
+const CODE_PIECE_GAP = 0.5;
+/** `BAE402/` — a compound code broken after its own slash. */
+const WRAPPED_CODE_HEAD = /^B[A-Z]{2,6}\d{3}[A-Za-z]?\/$/;
+/** How many lines down its continuation may sit. */
+const WRAPPED_CODE_LINES = 1.6;
+
+/**
  * Every code a cell names, in the order printed. One entry for an ordinary
  * cell, and an empty list for a cell that names none.
  */
@@ -312,7 +427,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
   const semesters = new Set<number>();
 
   for (const { page, items: raw } of pages) {
-    const pageItems = raw.filter((item) => item.text.trim() !== '');
+    const pageItems = joinCodeCells(raw).filter((item) => item.text.trim() !== '');
     const semester = semesterOf(pageItems);
     const departmentX = departmentColumn(pageItems);
     for (const item of pageItems) {
