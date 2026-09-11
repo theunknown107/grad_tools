@@ -216,6 +216,8 @@ export function TimetablePage() {
   const [endTime, setEndTime] = useState('10:00');
   const { items: semesterSubjects } = useSemesterSubjects();
   const [subjectCode, setSubjectCode] = useState('');
+  /* An hour that is scheduled but is not a coded course (domain/types). */
+  const [activityName, setActivityName] = useState('');
   const [room, setRoom] = useState('');
   const [faculty, setFaculty] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
@@ -235,8 +237,24 @@ export function TimetablePage() {
   }, [items]);
 
   const addSlot = () => {
-    if (subjectCode.trim() === '') {
-      setError('Enter a subject code.');
+    /*
+     * A CODE OR A NAME, NOT A CODE ONLY.
+     *
+     * An imported timetable can already hold an hour that names no course —
+     * "Placement & Training" — and a student adding one by hand could not,
+     * because this form demanded a code. They had to invent one, and an
+     * invented code reads exactly like a real VTU code and is offered for
+     * attendance beside them. So whichever field is filled decides which kind
+     * of hour this is, and the slot's own invariant does the rest.
+     */
+    const code = subjectCode.trim().toUpperCase();
+    const named = activityName.trim();
+    if (code === '' && named === '') {
+      setError('Enter a subject code, or a name for the activity.');
+      return;
+    }
+    if (code !== '' && named !== '') {
+      setError('Give a subject code or an activity name, not both.');
       return;
     }
     if (endTime <= startTime) {
@@ -250,13 +268,13 @@ export function TimetablePage() {
       day,
       startTime,
       endTime,
-      subjectCode: subjectCode.trim().toUpperCase(),
-      /* Typed by hand, against a code the form requires: always a course. */
-      activity: null,
+      subjectCode: code === '' ? null : code,
+      activity: code === '' ? named : null,
       room: room.trim() === '' ? null : room.trim(),
       faculty: faculty.trim() === '' ? null : faculty.trim(),
     });
     setSubjectCode('');
+    setActivityName('');
     setRoom('');
     setFaculty('');
   };
@@ -554,6 +572,20 @@ export function TimetablePage() {
                   </option>
                 ))}
               </datalist>
+              {/*
+                The other kind of hour. Named rather than coded, and filled in
+                INSTEAD of the code above — the helper text says so rather
+                than leaving the student to discover it from an error.
+              */}
+              <TextField
+                label="Or an activity"
+                placeholder="Placement & Training"
+                hint="For an hour that is scheduled but is not a coded course."
+                value={activityName}
+                onChange={(event) => {
+                  setActivityName(event.target.value);
+                }}
+              />
               <TextField
                 label="Room"
                 hint="Optional"
