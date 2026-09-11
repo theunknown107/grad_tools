@@ -29,7 +29,31 @@ const row = (serial: string, programme: string, ...cells: string[]) =>
     .map((cell, index) => `<td class="column-${String(index + 3)}">${cell}</td>`)
     .join('')}</tr>`;
 
-const page = (...rows: string[]) => `<html><body><table>${rows.join('')}</table></body></html>`;
+/**
+ * A header row, which is how the listing says what its columns are.
+ *
+ * Every table on the official page opens with one, and the programme column is
+ * found through it rather than guessed from the body rows — so a fixture
+ * without a header is a different case, not a shorthand for this one.
+ */
+const header = (...cells: string[]) =>
+  `<tr>${cells.map((cell) => `<th>${cell}</th>`).join('')}</tr>`;
+
+/** The header the official 3-8 semester table prints. */
+const PROGRAMME_HEADER = header(
+  'Sl. No',
+  'Program Title',
+  'Scheme',
+  '1st yr Syllabus',
+  '2nd yr Syllabus',
+);
+
+const page = (...rows: string[]) =>
+  `<html><body><table>${PROGRAMME_HEADER}${rows.join('')}</table></body></html>`;
+
+/** A page whose table says nothing about its columns. */
+const unheadedPage = (...rows: string[]) =>
+  `<html><body><table>${rows.join('')}</table></body></html>`;
 
 const describeAll = (html: string) => vtuSchemeAdapter.describe(vtuSchemeAdapter.parse(html));
 
@@ -103,6 +127,129 @@ describe('reading the official listing', () => {
     const [doc] = describeAll(html);
     expect(doc?.kind).toBe('unclassified');
     expect(doc?.url).toContain('714csbs.pdf');
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Which column names the row                                         */
+  /* ------------------------------------------------------------------ */
+
+  it('never reads the serial column as a programme, letter suffix and all', () => {
+    /*
+     * THE `21a` DEFECT. VTU numbers some rows 21a and 29a, so a rule that
+     * skipped a serial by testing for digits alone took the serial itself as
+     * the programme — and `21a` then carried a duplicate of the entire
+     * Computer Science scheme under a programme that does not exist.
+     */
+    const html = page(
+      row('21a', 'Computer Science', link('/pdf/2022_3to8/38cssch.pdf', '3-8 Sem Scheme')),
+      row('29a', 'Electronics Communication', link('/pdf/2022_3to8/actsch.pdf', 'Scheme')),
+    );
+    expect(describeAll(html).map((d) => d.programme)).toEqual([
+      'Computer Science',
+      'Electronics Communication',
+    ]);
+  });
+
+  it('reads a programme whose cell also carries an annotation link', () => {
+    /*
+     * THE 60-UNKNOWN DEFECT. VTU hangs a circular off the programme name —
+     * `Computer Science &amp; Engineering<br><a>Code correction 21SM72
+     * circular</a>` — and a rule that skipped any cell containing `.pdf`
+     * skipped the whole row. `38csesch.pdf` is Computer Science &
+     * Engineering's own scheme, 91 courses, and it was stored as though it
+     * applied to every student in the university.
+     */
+    const html = page(
+      row(
+        '6',
+        `Computer Science &amp; Engineering<br>${link('https://vtu.ac.in/wp-content/uploads/2024/11/3597-Typo.pdf', 'Code correction 21SM72 circular')}`,
+        link('/pdf/2022_3to8/38csesch.pdf', '3- 8 Sem Scheme'),
+      ),
+    );
+    const scheme = describeAll(html).find((d) => d.url.endsWith('38csesch.pdf'));
+    expect(scheme).toMatchObject({
+      programme: 'Computer Science & Engineering',
+      common: false,
+      streamLabel: null,
+    });
+  });
+
+  it('keeps a name that merely WRAPS across lines whole', () => {
+    /* `<br>` is not the divider: the same page sets one name over three lines. */
+    const html = page(
+      row(
+        '1',
+        'Bachelor of<br />Business<br />Administration',
+        link('/pdf/2022syll/x.pdf', 'Scheme'),
+      ),
+    );
+    expect(describeAll(html)[0]?.programme).toBe('Bachelor of Business Administration');
+  });
+
+  it('gives every document in one row the same programme', () => {
+    const html = page(
+      row(
+        '12',
+        'Computer Science &amp; Business System',
+        link('/pdf/2022_3to8/38csbssch.pdf', '3-8 Sem Scheme'),
+        link('/pdf/2022_3to8/2csbssyll.pdf', '3-4 Syllabus'),
+        link('/pdf/2022_3to8/3csbssyll.pdf', '5- Syllabus'),
+      ),
+    );
+    const found = describeAll(html);
+    expect(found).toHaveLength(3);
+    expect(new Set(found.map((d) => d.programme))).toEqual(
+      new Set(['Computer Science & Business System']),
+    );
+  });
+
+  it('does not read a COURSE row as a programme', () => {
+    /*
+     * The listing mixes per-course tables in among the programme tables. There
+     * is no degree called "Principles of Programming Using C", and reading one
+     * invented a hundred of them. The course code at the start of the label is
+     * the evidence — and it is read in either case, because VTU prints both
+     * `BETCK105I` and `BETCK105l`.
+     */
+    const html = `<html><body><table>${header('Sl. No', 'Course Code', 'Course Name', 'Syllabus')}${row('3', 'BPOPS103/203 Principles of Programming Using C', link('/pdf/2022syll/BPOPS103.pdf', 'Syllabus'))}</table></body></html>`;
+    expect(describeAll(html)[0]).toMatchObject({ programme: null, streamLabel: null });
+  });
+
+  it('still reads the STREAM a first-year course names', () => {
+    /*
+     * The other half of the same rule. "BMATS101 Mathematics for CSE Stream-I"
+     * is a course and not a programme, and it does say whose first year it
+     * belongs to — which is what keeps the Civil and CSE first years from
+     * sharing one identity.
+     */
+    const html = `<html><body><table>${header('Sl. No', 'Course Code', 'Course Name', 'Syllabus')}${row('1', 'BMATS101 Mathematics for CSE Stream-I', link('/pdf/2022syll/BMATS101.pdf', 'Syllabus'))}</table></body></html>`;
+    expect(describeAll(html)[0]).toMatchObject({
+      programme: null,
+      common: true,
+      streamLabel: 'BMATS101 Mathematics for CSE Stream-I',
+    });
+  });
+
+  it('leaves a row unplaced when its table names no column at all', () => {
+    /*
+     * §7: unknown beats fabricated. A table that does not say what its rows
+     * are is not made to say it — the answer is recorded as missing, and the
+     * document is still discovered.
+     */
+    const html = unheadedPage(row('1', 'Something', link('/pdf/2022syll/x.pdf', 'Scheme')));
+    const [doc] = describeAll(html);
+    expect(doc?.programme).toBeNull();
+    expect(doc?.url).toContain('x.pdf');
+  });
+
+  it('lets each table on the page keep its own columns', () => {
+    /* One page carries seventeen tables and they do not agree. */
+    const html =
+      `<html><body><table>${header('Sl. No', 'Program Title', 'Scheme')}${row('1', 'A Programme', link('/pdf/2022syll/a.pdf', 'Scheme'))}</table>` +
+      `<table>${header('Sl. No', 'Course Code', 'Course Name', 'Syllabus')}${row('1', 'BPOPS103 Principles of Programming Using C', link('/pdf/2022syll/b.pdf', 'Syllabus'))}</table></body></html>`;
+    const found = describeAll(html);
+    expect(found.find((d) => d.url.endsWith('a.pdf'))?.programme).toBe('A Programme');
+    expect(found.find((d) => d.url.endsWith('b.pdf'))?.programme).toBeNull();
   });
 
   it('refuses a link that is not a VTU document', () => {
