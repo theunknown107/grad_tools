@@ -89,12 +89,19 @@ function textOrNull(value: unknown): string | null {
 export function normalizeResultSubject(raw: unknown): ResultSubject {
   const row = (raw ?? {}) as Record<string, unknown>;
   const provenance: SubjectProvenance = row.provenance === 'catalogue' ? 'catalogue' : 'manual';
-  const code = typeof row.subjectCode === 'string' ? row.subjectCode : '';
+  /*
+   * ABSENT STAYS ABSENT (§6, §21). A row may carry no code — the student is
+   * recording something that has none — and '' would be a second way of
+   * saying so that every reader would then have to know about. A legacy row
+   * that stored '' is read as the absence it always meant.
+   */
+  const printed = typeof row.subjectCode === 'string' ? row.subjectCode.trim() : '';
+  const code = printed === '' ? null : printed;
 
   return {
     id: typeof row.id === 'string' ? row.id : '',
     subjectCode: code,
-    subjectTitle: typeof row.subjectTitle === 'string' ? row.subjectTitle : code,
+    subjectTitle: typeof row.subjectTitle === 'string' ? row.subjectTitle : (code ?? ''),
     internal: finiteOrNull(row.internal),
     external: finiteOrNull(row.external),
     total: finiteOrNull(row.total),
@@ -163,8 +170,15 @@ export function validateResultSubject(
 ): ResultSubjectIssue[] {
   const issues: ResultSubjectIssue[] = [];
 
-  if (subject.subjectCode.trim() === '') {
-    issues.push({ field: 'subjectCode', message: 'A subject code is required.' });
+  /*
+   * IDENTIFIABLE, NOT NECESSARILY CODED (§6, §21).
+   *
+   * A row has to be something the student can recognise on screen; it does
+   * not have to carry a VTU code. "Placement & Training" has none, and a code
+   * invented to get past this check would read exactly like a real one.
+   */
+  if ((subject.subjectCode ?? '').trim() === '' && subject.subjectTitle.trim() === '') {
+    issues.push({ field: 'subjectCode', message: 'Enter a subject code or a name.' });
   }
 
   const maxima = markMaxima(subject.hasSee, ruleSet);
@@ -352,7 +366,9 @@ export function evaluateResultSubject(
 
   const outcome = evaluateCourseResult(
     {
-      subjectCode: subject.subjectCode,
+      /* The rules identify a course for their own messages; a row with no
+         code is described by its title instead, and is evaluated the same. */
+      subjectCode: subject.subjectCode ?? subject.subjectTitle,
       internal: subject.internal,
       external: subject.external,
       total,
@@ -487,11 +503,15 @@ export function sgpaInputs(result: SemesterResult, ruleSet: RuleSet | undefined)
     const grade = resolveSubjectGrade(subject, ruleSet);
     const credits = subject.credits;
     if (grade !== null && credits !== null) {
-      courses.push({ credits, gradeLetter: grade.letter, subjectCode: subject.subjectCode });
+      courses.push({
+        credits,
+        gradeLetter: grade.letter,
+        subjectCode: subject.subjectCode ?? subject.subjectTitle,
+      });
       continue;
     }
     missing.push({
-      subjectCode: subject.subjectCode,
+      subjectCode: subject.subjectCode ?? subject.subjectTitle,
       reason:
         grade === null && credits === null
           ? 'no grade or credits'

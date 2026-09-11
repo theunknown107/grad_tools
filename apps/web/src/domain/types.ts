@@ -147,7 +147,19 @@ export type SubjectProvenance = (typeof SUBJECT_PROVENANCES)[number];
  */
 export interface ResultSubject {
   readonly id: string;
-  readonly subjectCode: string;
+  /**
+   * The course's code, or null where the student is recording something that
+   * has none.
+   *
+   * NOT THE IDENTITY. `id` is. A student's own record of "Placement &
+   * Training" or of a course whose code they do not have is a real row, and
+   * requiring a code forced them to invent one — which then reads on screen
+   * exactly like a VTU code and is indexed as a subject. The same reasoning
+   * that made `TimetableSlot.subjectCode` nullable applies here; what makes a
+   * row storable is that it can be NAMED, so the title carries identity when
+   * the code is absent, and `validateResultSubject` requires one or the other.
+   */
+  readonly subjectCode: string | null;
   readonly subjectTitle: string;
 
   /* ---- Source: what the result card printed, as the student read it ------ */
