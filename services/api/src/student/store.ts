@@ -110,6 +110,12 @@ export const COLLECTION_TABLES = {
       'credits',
       'has_see',
       'provenance',
+      /*
+       * What the student declared the row to be, beside how it came to be.
+       * Two facts, both synced: leaving this out would land a linked row on
+       * another device as an unlinked one (supabase/0006).
+       */
+      'catalogue_code',
       'ordinal',
     ],
   },

@@ -219,6 +219,9 @@ function needsSeeAnswer(row: DraftRow, referenceHasSee: boolean | null): boolean
          reference data already covers is never asked about. */
       hasSee: referenceHasSee,
       provenance: 'manual',
+      /* Nothing is being linked here; this shape exists only to ask a
+         question about the kind of course, not to be stored. */
+      catalogueCode: null,
       id: row.id,
     }).kind === null
   );

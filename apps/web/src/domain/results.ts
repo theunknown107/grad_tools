@@ -112,6 +112,12 @@ export function normalizeResultSubject(raw: unknown): ResultSubject {
     credits: finiteOrNull(row.credits),
     hasSee: typeof row.hasSee === 'boolean' ? row.hasSee : null,
     provenance,
+    /*
+     * A row written before links existed carries none, which is the truth:
+     * nobody has said what catalogue course it is. It is not back-filled from
+     * `provenance` — that would assert a link the student never made.
+     */
+    catalogueCode: textOrNull(row.catalogueCode),
   };
 }
 

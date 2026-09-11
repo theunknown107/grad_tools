@@ -93,6 +93,7 @@ function subjectToRecord(
       resultId,
       subjectCode: subject.subjectCode,
       subjectTitle: subject.subjectTitle,
+      catalogueCode: subject.catalogueCode,
       internal: subject.internal,
       external: subject.external,
       total: subject.total,
