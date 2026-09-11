@@ -166,3 +166,47 @@ describe('a slot is not one of its own options', () => {
     expect(groups[0]?.credits).toBe(3);
   });
 });
+
+describe('one choice the document names twice', () => {
+  it('gathers options listed under either name into one group', () => {
+    /*
+     * A scheme writes its Ability Enhancement row as `BQQ358x/BQQL358x` — the
+     * slot is the theory code if the student takes a theory course and the
+     * laboratory one if they take the lab — and then prints ONE list of
+     * options under it, three theory and one lab.
+     *
+     * Keyed by the code each option's own prefix matches, that one choice came
+     * apart into a group of three and a group of ONE, and a group of one
+     * offers no choice at all. The code cell is the evidence that the two
+     * names are one slot, and the parser records it as an alternative.
+     */
+    const groups = optionGroupsOf([
+      course({ code: 'BQQ358x', credits: 1 }),
+      course({ code: 'BQQL358x', credits: 1, viaAlternativeTo: 'BQQ358x' }),
+      course({ code: 'BQQL358A', credits: 1, viaElectiveSlot: 'BQQL358x' }),
+      course({ code: 'BQQ358B', credits: 1, viaElectiveSlot: 'BQQ358x' }),
+      course({ code: 'BQQ358C', credits: 1, viaElectiveSlot: 'BQQ358x' }),
+    ]);
+
+    const slots = groups.filter((group) => group.kind === 'elective_slot');
+    expect(slots).toHaveLength(1);
+    expect(slots[0]?.slotCode).toBe('BQQ358x');
+    expect(slots[0]?.members.map((member) => member.code).sort()).toEqual([
+      'BQQ358B',
+      'BQQ358C',
+      'BQQL358A',
+    ]);
+  });
+
+  it('leaves two genuinely different slots apart', () => {
+    /* The merge is driven by the document's own alternative marking, not by
+       the codes resembling one another. */
+    const groups = optionGroupsOf([
+      course({ code: 'BQQ358x', credits: 1 }),
+      course({ code: 'BQQL358x', credits: 1 }),
+      course({ code: 'BQQL358A', credits: 1, viaElectiveSlot: 'BQQL358x' }),
+      course({ code: 'BQQ358B', credits: 1, viaElectiveSlot: 'BQQ358x' }),
+    ]);
+    expect(groups.filter((group) => group.kind === 'elective_slot')).toHaveLength(2);
+  });
+});
