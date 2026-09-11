@@ -43,6 +43,7 @@ import { ThemeControl } from '../../components/ThemeControl.js';
 import {
   Button,
   buttonClassName,
+  EmptyState,
   Notice,
   Panel,
   SelectField,
@@ -53,8 +54,13 @@ import {
   TableScroll,
   tableClass,
 } from '../../components/ui/index.js';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogTrigger,
+} from '../../components/ui/Dialog.js';
 import { newId, nowIso } from '../../lib/id.js';
-import { useProfile } from '../../hooks/useCollection.js';
+import { useProfile, useResults, useTimetable } from '../../hooks/useCollection.js';
 import { useBranches, useSchemes, useSubjects } from '../../hooks/useReference.js';
 import { isStorageAvailable } from '../../repositories/local/store.js';
 import styles from './profile.module.css';
@@ -300,6 +306,7 @@ export function ProfilePage() {
                     )}
                   </div>
                   <SubjectsPanel semester={semester === '' ? null : Number(semester)} />
+                  <MyRecordsPanel />
                 </>
               ),
             },
@@ -583,6 +590,248 @@ function ProfileOverview({
         </Panel>
       </div>
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* What the student added themselves                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The other half of "what subjects does this product know about for me".
+ *
+ * ---------------------------------------------------------------------------
+ * WHY IT LIVES HERE AND NOT BEHIND A NAVIGATION ITEM OF ITS OWN
+ * ---------------------------------------------------------------------------
+ *
+ * The panel above this one lists subjects the UNIVERSITY published. This one
+ * lists the ones the student put in. Same page, same question, opposite
+ * provenance — so it needs no route, no eleventh destination, and nothing
+ * added to a navigation the design froze.
+ *
+ * ---------------------------------------------------------------------------
+ * DISCOVERY AND ACTIONS, NOT A SECOND EDITOR
+ * ---------------------------------------------------------------------------
+ *
+ * Results and the timetable remain the editors. What a student cannot do from
+ * either is see everything they have entered in one place — which is the whole
+ * problem this solves — so this lists, and then hands over: Open goes to the
+ * page that already knows how to edit the record, and the two actions that are
+ * complete in themselves happen here.
+ *
+ * Unlink is one of those. It clears a single field and needs no catalogue, no
+ * picker and no second relationship model; LINKING needs all three, so it
+ * stays where the picker is and this offers Open instead.
+ *
+ * ---------------------------------------------------------------------------
+ * WHAT "MINE" MEANS, HONESTLY, IN TWO DIFFERENT MODELS
+ * ---------------------------------------------------------------------------
+ *
+ * A result row RECORDS how it came to be: `provenance` is `manual` when the
+ * student typed it. A timetable slot does not — nothing distinguishes an hour
+ * they added from one an import produced. So this does not claim to: the
+ * timetable section lists hours that carry NO COURSE CODE, which is the honest
+ * thing the model can answer and is exactly the set a student has to manage by
+ * hand. Labelling them "manual" would assert something nobody recorded.
+ */
+function MyRecordsPanel() {
+  const results = useResults();
+  const timetable = useTimetable();
+  const [scope, setScope] = useState<'all' | 'results' | 'timetable'>('all');
+
+  const rows = results.items.flatMap((result) =>
+    result.subjects
+      .filter((subject) => subject.provenance === 'manual')
+      .map((subject) => ({ result, subject })),
+  );
+  const activities = timetable.items.filter((slot) => slot.subjectCode === null);
+
+  const showResults = scope !== 'timetable';
+  const showTimetable = scope !== 'results';
+  const total = rows.length + activities.length;
+
+  /** Remove one subject from its result, by the path the editor itself uses. */
+  const removeSubject = (resultId: string, subjectId: string) => {
+    const result = results.items.find((entry) => entry.id === resultId);
+    if (result === undefined) return;
+    void results.save({
+      ...result,
+      subjects: result.subjects.filter((subject) => subject.id !== subjectId),
+      updatedAt: nowIso(),
+    });
+  };
+
+  /** Take back the declaration, and nothing else (Phase 7B.1-final §9, §14). */
+  const unlinkSubject = (resultId: string, subjectId: string) => {
+    const result = results.items.find((entry) => entry.id === resultId);
+    if (result === undefined) return;
+    void results.save({
+      ...result,
+      subjects: result.subjects.map((subject) =>
+        subject.id === subjectId ? { ...subject, catalogueCode: null } : subject,
+      ),
+      updatedAt: nowIso(),
+    });
+  };
+
+  return (
+    <Panel title="What you added yourself">
+      {results.loading || timetable.loading ? null : total === 0 ? (
+        <EmptyState title="Nothing added by hand yet" icons={['papers']}>
+          Subjects you type into a result, and hours your timetable schedules without a course code,
+          appear here so you can find them again. Nothing is added for you.
+        </EmptyState>
+      ) : (
+        <>
+          <div className={styles.actions}>
+            <SelectField
+              label="Show"
+              value={scope}
+              onChange={(event) => {
+                setScope(event.target.value as 'all' | 'results' | 'timetable');
+              }}
+            >
+              <option value="all">Everything ({total})</option>
+              <option value="results">Results ({rows.length})</option>
+              <option value="timetable">Timetable ({activities.length})</option>
+            </SelectField>
+          </div>
+
+          {showResults && rows.length > 0 && (
+            <TableScroll>
+              <table className={tableClass}>
+                <caption className="visually-hidden">Subjects you entered into a result</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Subject</th>
+                    <th scope="col">Where</th>
+                    <th scope="col">How it is recorded</th>
+                    <th scope="col">
+                      <span className="visually-hidden">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(({ result, subject }) => (
+                    <tr key={subject.id}>
+                      <td>
+                        {subject.subjectTitle}
+                        {subject.subjectCode !== null && (
+                          <>
+                            {' · '}
+                            <span className={monoClass}>{subject.subjectCode}</span>
+                          </>
+                        )}
+                      </td>
+                      <td>Result · semester {result.semester}</td>
+                      <td>
+                        {/*
+                          BOTH FACTS (§6). A row the student typed is still a
+                          row they typed after they say what it corresponds to,
+                          and "Official VTU" is never what this says.
+                        */}
+                        <StatusPill tone="neutral">
+                          {subject.catalogueCode === null
+                            ? 'Entered by you'
+                            : `Entered by you · linked to ${subject.catalogueCode}`}
+                        </StatusPill>
+                      </td>
+                      <td>
+                        <div className={styles.actions}>
+                          <Link className={buttonClassName()} to="/results">
+                            Open
+                          </Link>
+                          {subject.catalogueCode !== null && (
+                            <Button
+                              small
+                              onClick={() => {
+                                unlinkSubject(result.id, subject.id);
+                              }}
+                            >
+                              Unlink
+                            </Button>
+                          )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button small variant="danger">
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent
+                              title="Delete this subject?"
+                              description={`${subject.subjectTitle} leaves your semester ${String(result.semester)} result. The rest of the result stays as it is.`}
+                              confirmLabel="Delete"
+                              onConfirm={() => {
+                                removeSubject(result.id, subject.id);
+                              }}
+                            />
+                          </AlertDialog>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableScroll>
+          )}
+
+          {showTimetable && activities.length > 0 && (
+            <TableScroll>
+              <table className={tableClass}>
+                <caption className="visually-hidden">
+                  Hours your timetable schedules without a course code
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Activity</th>
+                    <th scope="col">Where</th>
+                    <th scope="col">How it is recorded</th>
+                    <th scope="col">
+                      <span className="visually-hidden">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activities.map((slot) => (
+                    <tr key={slot.id}>
+                      <td>{slot.activity ?? 'Unnamed'}</td>
+                      <td>
+                        Timetable · {slot.day} {slot.startTime}
+                      </td>
+                      <td>
+                        <StatusPill tone="neutral">No course code</StatusPill>
+                      </td>
+                      <td>
+                        <div className={styles.actions}>
+                          <Link className={buttonClassName()} to="/timetable">
+                            Open
+                          </Link>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button small variant="danger">
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent
+                              title="Delete this activity?"
+                              description={`${slot.activity ?? 'This hour'} leaves your ${slot.day} timetable at ${slot.startTime}.`}
+                              confirmLabel="Delete"
+                              onConfirm={() => {
+                                void timetable.remove(slot.id);
+                              }}
+                            />
+                          </AlertDialog>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableScroll>
+          )}
+        </>
+      )}
+    </Panel>
   );
 }
 
