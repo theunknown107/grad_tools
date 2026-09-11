@@ -218,6 +218,15 @@ export function TimetablePage() {
   const [subjectCode, setSubjectCode] = useState('');
   /* An hour that is scheduled but is not a coded course (domain/types). */
   const [activityName, setActivityName] = useState('');
+  /*
+   * THE FORM EDITS AS WELL AS ADDS.
+   *
+   * There was no way to change an hour once saved — only delete it and type it
+   * again, which loses the room and the faculty with it. Rather than a second
+   * form with its own copy of the same validation, the one that exists loads
+   * the record: same fields, same rules, same message when they are not met.
+   */
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [room, setRoom] = useState('');
   const [faculty, setFaculty] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
@@ -235,6 +244,28 @@ export function TimetablePage() {
     }
     return map;
   }, [items]);
+
+  /** Load one saved hour back into the form. */
+  const editSlot = (slot: TimetableSlot) => {
+    setEditingId(slot.id);
+    setDay(slot.day);
+    setStartTime(slot.startTime);
+    setEndTime(slot.endTime);
+    setSubjectCode(slot.subjectCode ?? '');
+    setActivityName(slot.activity ?? '');
+    setRoom(slot.room ?? '');
+    setFaculty(slot.faculty ?? '');
+    setError(undefined);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setSubjectCode('');
+    setActivityName('');
+    setRoom('');
+    setFaculty('');
+    setError(undefined);
+  };
 
   const addSlot = () => {
     /*
@@ -263,7 +294,8 @@ export function TimetablePage() {
     }
     setError(undefined);
     void save({
-      id: newId(),
+      /* Editing writes back to the same record rather than making a second. */
+      id: editingId ?? newId(),
       profileId: profile?.id ?? asStudentProfileId('local'),
       day,
       startTime,
@@ -273,6 +305,7 @@ export function TimetablePage() {
       room: room.trim() === '' ? null : room.trim(),
       faculty: faculty.trim() === '' ? null : faculty.trim(),
     });
+    setEditingId(null);
     setSubjectCode('');
     setActivityName('');
     setRoom('');
@@ -485,6 +518,7 @@ export function TimetablePage() {
                   {...(activeDay === todayName
                     ? { outcomeOf, onMark: setOutcome, holiday }
                     : {})}
+                  onEdit={editSlot}
                   onRemove={remove}
                 />
 
@@ -519,7 +553,8 @@ export function TimetablePage() {
             </Panel>
           ) : null}
 
-          <details className={styles.addClass}>
+          {/* `open` while editing, so choosing Edit on a row reveals the form. */}
+          <details className={styles.addClass} open={editingId !== null || undefined}>
             <summary className={styles.addSummary}>
               <Icon name="plus" size="nav" />
               Add a class
@@ -612,9 +647,10 @@ export function TimetablePage() {
                 </div>
               )}
               <Button variant="primary" onClick={addSlot}>
-                <Icon name="plus" size="nav" />
-                Add class
+                <Icon name={editingId === null ? 'plus' : 'edit'} size="nav" />
+                {editingId === null ? 'Add class' : 'Save changes'}
               </Button>
+              {editingId !== null && <Button onClick={cancelEdit}>Cancel</Button>}
             </div>
           </details>
         </div>
@@ -729,6 +765,7 @@ function DayFocus({
   outcomeOf,
   holiday,
   onMark,
+  onEdit,
   onRemove,
 }: {
   readonly day: Weekday;
@@ -738,6 +775,8 @@ function DayFocus({
   /** The calendar's own holiday covering today, where it printed one (§19). */
   readonly holiday?: CalendarEvent | null | undefined;
   readonly onMark?: ((slot: TimetableSlot, outcome: ClassOutcome | null) => void) | undefined;
+  /** Loads the hour back into the form that created it. */
+  readonly onEdit?: ((slot: TimetableSlot) => void) | undefined;
   readonly onRemove: (id: string) => Promise<void> | void;
 }) {
   const now = new Date();
@@ -853,6 +892,18 @@ function DayFocus({
                   </span>
                 )}
 
+                {onEdit !== undefined && (
+                  <Button
+                    iconOnly
+                    small
+                    aria-label={`Edit ${entry.shortName} on ${slot.day} at ${formatTime(slot.startTime)}`}
+                    onClick={() => {
+                      onEdit(slot);
+                    }}
+                  >
+                    <Icon name="edit" size="nav" />
+                  </Button>
+                )}
                 <Button
                   variant="danger"
                   iconOnly
