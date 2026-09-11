@@ -13,7 +13,8 @@
  * simply migrate and seed, both of which are idempotent.
  */
 
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { createClient } from '../src/db/client.js';
 
 export async function setup(): Promise<void> {
@@ -55,14 +56,22 @@ async function resetCloudDatabase(): Promise<void> {
   try {
     await sql`DROP SCHEMA IF EXISTS public CASCADE`;
     await sql`CREATE SCHEMA public`;
-    for (const file of [
-      '0000_local_substrate.sql',
-      '0001_student_cloud.sql',
-      '0002_result_subject_sync.sql',
-      '0003_result_marks.sql',
-    ]) {
-      const path = new URL(`../src/db/supabase/${file}`, import.meta.url);
-      await sql.unsafe(await readFile(path, 'utf8'));
+    /*
+     * EVERY MIGRATION, FOUND RATHER THAN LISTED.
+     *
+     * This was a hardcoded list and it had fallen two behind: `0004` gave
+     * timetable slots their uncoded activities and `0005` gave result rows
+     * theirs, and neither had ever been applied to a test database — so the
+     * suite was asserting against a schema Supabase had already left behind,
+     * and would have kept passing while the real one broke.
+     *
+     * The directory is the list. Numbered prefixes sort lexically, which is
+     * why they are numbered.
+     */
+    const directory = fileURLToPath(new URL('../src/db/supabase/', import.meta.url));
+    const files = (await readdir(directory)).filter((name) => name.endsWith('.sql')).sort();
+    for (const file of files) {
+      await sql.unsafe(await readFile(new URL(file, new URL('../src/db/supabase/', import.meta.url)), 'utf8'));
     }
   } finally {
     await sql.end();
