@@ -3,6 +3,82 @@
 Authority: Phase 7E Workstream A · measured at `51a9aa3` against the live
 listing on 2026-09-11 · raw evidence in `.vtu-store/last-sync-documents.json`
 
+## Status at `c3547b9`
+
+`pnpm vtu:validate --scheme 2022` is down to **one failing rule** from five.
+The catalogue is still **not published**.
+
+| | First audit | Now |
+| --- | --- | --- |
+| Failing validation rules | 5 | **1** |
+| Semester totals disagreeing | 37 of 149 | **15 of 149** |
+| Option groups offering no choice | 1 (`BAE755x`) | **0** |
+| Courses offered by two slots | 4 (`BEC654A–D`) | **0** |
+| Documents with unknown applicability | 60 | 57 |
+| Course rows with neither programme nor stream | 588 | 46 |
+| Course rows (candidate) | 3221 | 3567 |
+| Distinct course codes | 2007 | 2056 |
+
+### Units, kept apart
+
+| Unit | Full 2022 universe | CSBS production |
+| --- | --- | --- |
+| Documents selected | 291 | 19 |
+| Unique binaries retrieved | 287 | 19 |
+| Normalized course rows | 3567 | 187 |
+| Distinct course codes | 2056 | 187 |
+| Rows scoped to CSBS by name | 90 | 90 |
+| Rows scoped to a stream | 97 | 97 |
+| Rows with neither | 46 | 0 |
+| Option groups / memberships | 482 / 1873 | — |
+| Aliases | 1 | 1 |
+| Open conflicts | 11 | 0 |
+
+The production catalogue's 187 rows are 90 CSBS + 66 CSE-stream + 31
+Civil-stream. **The full universe is not the CSBS catalogue** and must not be
+poured into it: 3380 of the candidate's rows belong to programmes GradTools
+does not serve.
+
+### The three structural defects fixed this round
+
+1. **A code cell naming more than one code.** `BCH358x/BCHL358x`,
+   `BTX/ST306x`, and `BBOC407 BBOK407` set side by side. The first two went
+   unread — taking their credits with them — and the third was read as two
+   rows, each charged the row's credits. 33 totals → 15.
+2. **A group counting a row already in the sum.** A compound cell prints one
+   row under its first code; charging the alternative group as well turned a
+   document five credits short into one five over.
+3. **One choice named twice.** `BCH358x` and `BCHL358x` are the theory and
+   laboratory names of one Ability Enhancement slot, and the document prints a
+   single list of four options under them.
+
+### Root causes, stated
+
+- **`BAE755x`** — its options are printed as slashed compound codes the reader
+  could not see, so the slot stood empty. Category: *choices were not parsed*.
+  Fixed in the parser; no rule was changed.
+- **`BEC654A–D`** — legitimate. VTU names the sixth-semester Open Elective
+  `BXX654x`, `BEC654x` and `BTE654x` in three of its own documents, and the
+  course is rightly an option in each. The rule compared across a programme's
+  documents where its own comment said "no scheme prints" — one scheme, one
+  document. Scoped to the document; within one, the invariant holds and is
+  still asserted.
+
+### What still fails, and why
+
+**15 semester totals, across 9 documents, every one an under-read** — the
+parser did not read a row the document counts. Classification:
+`PARSER_MISSING_ROW` × 15. Five of the fifteen are one document,
+`00.-SchemeA-B-2022-3-8-sem-V6-Final11.03.2026.pdf`, which also has
+unresolved applicability. Two more are a code the PDF broke across separate
+text runs (`B` `BM` `456x`). The rest are individually distinct.
+
+These are parser defects, not source conditions, so the rule is **not**
+relaxed for them and validation stays red. A green validator bought by
+loosening this rule would assert a faithfulness the catalogue does not have.
+
+---
+
 ## Status at `074a50f`
 
 Three of the five blockers this document first reported are fixed, and the
