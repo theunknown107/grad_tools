@@ -270,3 +270,15 @@
   font-size: 14px;
   font-weight: var(--weight-regular);
 }
+
+/* -------------------------------------------------------------------------- */
+/* What you added yourself                                                    */
+/* -------------------------------------------------------------------------- */
+
+/* The row's own controls. They wrap rather than widen the table. */
+.recordActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
