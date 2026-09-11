@@ -438,3 +438,68 @@ describe('a course code longer than four letters', () => {
     expect(parsed.courses).toHaveLength(0);
   });
 });
+
+describe('a row whose code cell names more than one code', () => {
+  /*
+   * One printed row, one set of columns, several codes. VTU writes it three
+   * ways, and none of them matched a pattern anchored on a single code — so
+   * the whole row went unread, and with it the credits the document counts in
+   * its own semester total. Thirteen of the twenty-two semesters that
+   * disagreed with their printed total disagreed for this reason.
+   *
+   * EVERY VALUE IS SYNTHETIC.
+   */
+  it('reads a cell that slashes two whole codes together', () => {
+    const parsed = parseScheme(page(row(322, 'BQQ358x/BQQL358x', 'Invented Enhancement Course', 1)));
+
+    expect(parsed.courses.map((course) => [course.code, course.viaAlternativeTo])).toEqual([
+      ['BQQ358x', null],
+      ['BQQL358x', 'BQQ358x'],
+    ]);
+    /* The row's credits, once: the first code carries it. */
+    expect(parsed.courses.filter((course) => course.viaAlternativeTo === null)).toHaveLength(1);
+  });
+
+  it('takes only the printed code from a shared tail, and invents no twin', () => {
+    /*
+     * `BQQ/ST306x` says the row is `BQQ306x` and is also offered under an
+     * `ST` code that is never printed in full. Composing `BST306x` would be
+     * writing a code the document does not — and a composed code ending in
+     * `x` then behaves as an elective slot with no options to offer.
+     */
+    const parsed = parseScheme(page(row(322, 'BQQ/ST306x', 'Invented Science Course', 3)));
+
+    expect(parsed.courses.map((course) => course.code)).toEqual(['BQQ306x']);
+    expect(parsed.courses[0]?.viaAlternativeTo).toBeNull();
+  });
+
+  it('reads two codes set side by side as one row', () => {
+    /*
+     *     4 BSC BQQC407 BQQK407 Invented Biology ... 2
+     *
+     * Two codes in the code cell, one set of columns. Read as two rows they
+     * were each charged the row's credits and the semester came out over its
+     * own printed total by exactly the duplicate.
+     */
+    const parsed = parseScheme(
+      page([
+        ...row(322, 'BQQC407', 'Invented Biology for Engineers', 2),
+        at('BQQK407', COL.code + 40, 322),
+      ]),
+    );
+
+    const rows = parsed.courses.filter((course) => course.viaAlternativeTo === null);
+    expect(rows.map((course) => course.code)).toEqual(['BQQC407']);
+    expect(parsed.courses.find((course) => course.code === 'BQQK407')?.viaAlternativeTo).toBe(
+      'BQQC407',
+    );
+  });
+
+  it('never makes a course its own alternative', () => {
+    /* A run repeated by the extractor would otherwise be a choice of one. */
+    const parsed = parseScheme(
+      page([...row(322, 'BQQ401', 'Invented Course One', 4), at('BQQ401', COL.code + 40, 322)]),
+    );
+    expect(parsed.courses.every((course) => course.viaAlternativeTo !== course.code)).toBe(true);
+  });
+});
