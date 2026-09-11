@@ -56,6 +56,8 @@ export type StorageKey =
   /** What the student said happened to today's scheduled classes (M10A.11). */
   | 'classMarks'
   | 'schemeCourses'
+  | 'examTimetables'
+  | 'examEvents'
   /** Sync bookkeeping: the cursor and the pending queue (M9 §40). */
   | 'syncState';
 

@@ -55,6 +55,13 @@ import {
   type SavedTimetable,
 } from '../../domain/timetable-import.js';
 import { TimetableReview } from './TimetableReview.js';
+import { ExamReview } from './ExamReview.js';
+import {
+  parseExamTimetable,
+  type ParsedExamTimetable,
+  type SavedExamTimetable,
+  type StoredExamEvent,
+} from '../../domain/exam-import.js';
 import {
   blockingReason,
   groupBySemester,
@@ -132,6 +139,7 @@ interface FileState {
   readonly calendar: ParsedCalendar | null;
   /** Set instead of `file` when the document turned out to be a timetable. */
   readonly timetable: ParsedTimetable | null;
+  readonly exam: ParsedExamTimetable | null;
   /** Set instead of `file` when the document turned out to be a scheme. */
   readonly scheme: ParsedScheme | null;
   readonly fingerprint: string | null;
@@ -367,6 +375,8 @@ export function ResultImport({
   onSave,
   onSaveCalendar,
   onSaveTimetable,
+  savedExamTimetables,
+  onSaveExamTimetable,
   onSaveScheme,
   onCancel,
 }: {
@@ -400,6 +410,11 @@ export function ResultImport({
   readonly onSave: (result: SemesterResult) => void | Promise<void>;
   readonly onSaveCalendar: (calendar: SavedCalendar) => void;
   readonly onSaveTimetable: (slots: readonly TimetableSlot[], record: SavedTimetable) => void;
+  readonly savedExamTimetables: readonly SavedExamTimetable[];
+  readonly onSaveExamTimetable: (
+    record: SavedExamTimetable,
+    events: readonly StoredExamEvent[],
+  ) => Promise<void>;
   /**
    * Records a scheme's courses as reference data.
    *
@@ -549,6 +564,7 @@ export function ResultImport({
       file: null,
       calendar: null,
       timetable: null,
+      exam: null,
       scheme: null,
       fingerprint: null,
       reading: null,
@@ -570,6 +586,16 @@ export function ResultImport({
           status: 'read',
           reading,
           calendar: parseAcademicCalendar(reading.lines, newId),
+          fingerprint: fingerprintOf(reading.lines),
+        });
+        return;
+      }
+
+      if (seen.type === 'exam_timetable') {
+        patch(id, {
+          status: 'read',
+          reading,
+          exam: parseExamTimetable(schemePages(reading.placed)),
           fingerprint: fingerprintOf(reading.lines),
         });
         return;
@@ -835,6 +861,20 @@ export function ResultImport({
             profileId={profileId}
             saved={savedTimetables}
             onSave={onSaveTimetable}
+          />
+        ),
+      )}
+
+      {files.map((entry) =>
+        entry.exam === null || entry.fingerprint === null ? null : (
+          <ExamReview
+            key={entry.id}
+            fileName={entry.fileName}
+            parsed={entry.exam}
+            fingerprint={entry.fingerprint}
+            profileId={profileId}
+            saved={savedExamTimetables}
+            onSave={onSaveExamTimetable}
           />
         ),
       )}

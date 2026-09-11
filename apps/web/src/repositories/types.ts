@@ -33,6 +33,7 @@
 
 import type { SavedCalendar } from '../domain/calendar-import.js';
 import type { SavedTimetable } from '../domain/timetable-import.js';
+import type { SavedExamTimetable, StoredExamEvent } from '../domain/exam-import.js';
 import type { NotificationPreferences, NotificationRecord } from '../domain/notifications.js';
 import type {
   AttendanceRecord,
@@ -155,6 +156,19 @@ export interface TimetableImportRepository {
   remove(id: string): Promise<void>;
 }
 
+/** Exam time tables the student supplied, and the exams read out of them. */
+export interface ExamTimetableRepository {
+  list(): Promise<SavedExamTimetable[]>;
+  upsert(record: SavedExamTimetable): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
+export interface ExamEventRepository {
+  list(): Promise<StoredExamEvent[]>;
+  upsert(record: StoredExamEvent): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
 /**
  * What the student said happened to a scheduled class (M10A.11 §11-13).
  *
@@ -182,4 +196,6 @@ export interface RepositoryBundle {
   readonly timetableImports: TimetableImportRepository;
   readonly classMarks: ClassMarkRepository;
   readonly schemeCourses: SchemeCourseRepository;
+  readonly examTimetables: ExamTimetableRepository;
+  readonly examEvents: ExamEventRepository;
 }

@@ -39,7 +39,13 @@
 import type { ImportLine } from './result-import.js';
 
 export type DocumentType =
-  'result' | 'academic_calendar' | 'college_timetable' | 'course_scheme' | 'unsupported';
+  | 'result'
+  | 'academic_calendar'
+  | 'college_timetable'
+  /** A university EXAMINATION time table: dated papers, not a weekly shape. */
+  | 'exam_timetable'
+  | 'course_scheme'
+  | 'unsupported';
 
 export interface Classification {
   readonly type: DocumentType;
@@ -284,10 +290,17 @@ export function classifyDocument(lines: readonly ImportLine[]): Classification {
    * "Registrar (Evaluation)" — so once they clear the floor they settle it.
    */
   if (exam.total >= MINIMUM) {
+    /*
+     * READ, NOT REFUSED. This branch used to end "GradTools does not read exam
+     * schedules yet", which was true when it was written and stopped being
+     * true when the exam reader arrived. The detection was already right and
+     * already outranked the class-timetable reading; only the sentence was
+     * out of date.
+     */
     return {
-      type: 'unsupported',
+      type: 'exam_timetable',
       reason:
-        'This looks like an examination time table rather than an academic calendar. GradTools does not read exam schedules yet — the dates on it are not the semester milestones a calendar carries.',
+        'This looks like an examination time table — dated papers with sitting times, rather than a shape that repeats every week.',
       signals: exam.names,
     };
   }

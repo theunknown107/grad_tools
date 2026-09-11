@@ -23,6 +23,7 @@ import type {
 } from '../src/domain/types.js';
 import type { SavedCalendar } from '../src/domain/calendar-import.js';
 import type { SavedTimetable } from '../src/domain/timetable-import.js';
+import type { SavedExamTimetable, StoredExamEvent } from '../src/domain/exam-import.js';
 import type { NotificationPreferences, NotificationRecord } from '../src/domain/notifications.js';
 import type { RepositoryBundle } from '../src/repositories/types.js';
 import { RepositoryProvider } from '../src/repositories/context.js';
@@ -39,6 +40,8 @@ export interface MemorySeed {
   calendars?: SavedCalendar[];
   classMarks?: ClassMark[];
   schemeCourses?: SchemeCourse[];
+  examTimetables?: SavedExamTimetable[];
+  examEvents?: StoredExamEvent[];
   timetableImports?: SavedTimetable[];
   notificationState?: NotificationRecord[];
   notificationPreferences?: NotificationPreferences | null;
@@ -73,6 +76,8 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
   const classMarks = listRepo<ClassMark>(seed.classMarks ?? []);
   const schemeCourses = listRepo<SchemeCourse>(seed.schemeCourses ?? []);
   const timetableImports = listRepo<SavedTimetable>(seed.timetableImports ?? []);
+  const examTimetables = listRepo<SavedExamTimetable>(seed.examTimetables ?? []);
+  const examEvents = listRepo<StoredExamEvent>(seed.examEvents ?? []);
   let notificationState: NotificationRecord[] = [...(seed.notificationState ?? [])];
   let notificationPreferences: NotificationPreferences | null =
     seed.notificationPreferences ?? null;
@@ -99,6 +104,8 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
     timetableImports,
     classMarks,
     schemeCourses,
+    examTimetables,
+    examEvents,
     notifications: {
       async listStates() {
         return notificationState;
@@ -129,6 +136,8 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
       timetableImports: timetableImports.peek,
       classMarks: classMarks.peek,
       schemeCourses: schemeCourses.peek,
+      examTimetables: examTimetables.peek,
+      examEvents: examEvents.peek,
       notificationState: () => notificationState,
       notificationPreferences: () => notificationPreferences,
     },

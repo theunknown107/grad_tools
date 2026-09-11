@@ -18,6 +18,7 @@ import { ImportPage } from './features/import/ImportPage.js';
 import { TimetablePage } from './features/timetable/TimetablePage.js';
 import { ProfilePage } from './features/profile/ProfilePage.js';
 import { SignInPage } from './features/auth/SignInPage.js';
+import { ExamsPage } from './features/exams/ExamsPage.js';
 import { AccountPage } from './features/auth/AccountPage.js';
 import { FirstSyncPage } from './features/auth/FirstSyncPage.js';
 import { NotFoundPage } from './features/NotFoundPage.js';
@@ -57,6 +58,7 @@ function ShellRoutes() {
         {/* Automatic ingestion is the primary workflow, so it has a destination. */}
         <Route path="/import" element={<ImportPage />} />
         <Route path="/timetable" element={<TimetablePage />} />
+        <Route path="/exams" element={<ExamsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/account" element={<AccountPage />} />
