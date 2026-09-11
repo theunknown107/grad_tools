@@ -503,3 +503,88 @@ describe('a row whose code cell names more than one code', () => {
     expect(parsed.courses.every((course) => course.viaAlternativeTo !== course.code)).toBe(true);
   });
 });
+
+describe('a code cell the PDF broke apart', () => {
+  /*
+   * The runs a producer emits are not the cells a table has — the same
+   * principle the result-card reader had to learn. Two shapes cost the scheme
+   * reader six rows, and with them the credits their documents count in their
+   * own totals.
+   *
+   * EVERY VALUE IS SYNTHETIC.
+   */
+  it('joins runs that touch on one baseline into the code they spell', () => {
+    /*
+     * The Ability Enhancement code arrives in pieces with NO gap between them:
+     * each ends exactly where the next begins, all in the code column.
+     */
+    const pieces = [
+      { text: 'B', x: COL.code, y: 322, width: 6, height: HEIGHT },
+      { text: 'QQ', x: COL.code + 6, y: 322, width: 15, height: HEIGHT },
+      { text: '456x', x: COL.code + 21, y: 322, width: 21, height: HEIGHT },
+    ];
+    const parsed = parseScheme(
+      page([...row(322, 'BQQIGNORED', 'Invented Enhancement Course', 1), ...pieces].filter(
+        (item) => item.text !== 'BQQIGNORED',
+      )),
+    );
+
+    expect(parsed.courses.map((course) => course.code)).toEqual(['BQQ456x']);
+    expect(parsed.courses[0]?.credits).toBe(1);
+  });
+
+  it('leaves runs with a real gap between them alone', () => {
+    /* A gap is a space, and a space is two cells. */
+    const pieces = [
+      { text: 'B', x: COL.code, y: 322, width: 6, height: HEIGHT },
+      { text: 'QQ', x: COL.code + 20, y: 322, width: 15, height: HEIGHT },
+      { text: '456x', x: COL.code + 60, y: 322, width: 21, height: HEIGHT },
+    ];
+    const parsed = parseScheme(
+      page([...row(322, 'BQQIGNORED', 'Invented Course', 1), ...pieces].filter(
+        (item) => item.text !== 'BQQIGNORED',
+      )),
+    );
+    expect(parsed.courses).toHaveLength(0);
+  });
+
+  it('joins a compound code the document wrapped after its own slash', () => {
+    /*
+     *     BQQ402/   the code column, line above
+     *     2 IPCC    Aerodynamics ...   the row itself
+     *     BQS402    the code column, line below
+     *
+     * The trailing slash is the document's continuation mark and the row it
+     * belongs to is the line BETWEEN the two pieces — which is where the
+     * joined cell is placed, on the baseline carrying the title and credits.
+     */
+    const parsed = parseScheme(
+      page([
+        ...row(322, 'BQQIGNORED', 'Invented Aerodynamics', 4).filter(
+          (item) => item.text !== 'BQQIGNORED',
+        ),
+        at('BQQ402/', COL.code, 329),
+        at('BQS402', COL.code + 2, 315),
+      ]),
+    );
+
+    expect(parsed.courses.map((course) => [course.code, course.viaAlternativeTo])).toEqual([
+      ['BQQ402', null],
+      ['BQS402', 'BQQ402'],
+    ]);
+    expect(parsed.courses[0]?.credits).toBe(4);
+  });
+
+  it('does not join a slashed code to a code two rows away', () => {
+    const parsed = parseScheme(
+      page([
+        ...row(322, 'BQQIGNORED', 'Invented Course', 4).filter(
+          (item) => item.text !== 'BQQIGNORED',
+        ),
+        at('BQQ402/', COL.code, 329),
+        at('BQS402', COL.code + 2, 240),
+      ]),
+    );
+    expect(parsed.courses.map((course) => course.code)).not.toContain('BQQ402');
+  });
+});
