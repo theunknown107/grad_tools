@@ -3,6 +3,54 @@
 Authority: Phase 7E Workstream A · measured at `51a9aa3` against the live
 listing on 2026-09-11 · raw evidence in `.vtu-store/last-sync-documents.json`
 
+## Status at `1d19df3`
+
+`pnpm vtu:validate --scheme 2022` still fails on **one rule** — 7 of 144
+semester totals — and **every one of the seven has a root cause traced to the
+source**. The catalogue is still **not published**.
+
+| | First audit | Previous | Now |
+| --- | --- | --- | --- |
+| Failing validation rules | 5 | 1 | **1** |
+| Semester totals disagreeing | 37 of 149 | 15 of 149 | **7 of 144** |
+| Candidate course rows | 3221 | 3567 | **3591** |
+| Distinct course codes | 2007 | 2056 | **2075** |
+
+### The 15, every one accounted for
+
+| Count | Root cause | Outcome |
+| --- | --- | --- |
+| 5 | **A blank scheme template.** `00.-SchemeA-B…` is VTU's empty scheme for boards to fill in — "B.E. in the title of the program", placeholder codes `BXX301`…`BXXL305`, an empty Course Title column — and it still prints the totals a real scheme carries. 17 rows are refused for naming no course, correctly. | Not comparable; the check now **skips** it and says so |
+| 2 | **A code split across touching runs.** `"B"(106→112) "BM"(112→127) "456x"(127→148)` — each piece ends exactly where the next begins, inside the code column. | **Fixed** |
+| 1 | **A compound code wrapped after its own slash.** `BAE402/` on the line above, `BAS402` on the line below, the row itself between them. | **Fixed** |
+| 4 | **The credits column sits outside the row band.** The department cell wraps over three lines and carries `100 3` off the row's baseline; the reader refuses rather than take the `50` beside it. Recorded per code. | Kept failing |
+| 1 | **The pages carrying the rows state no semester** (`2aersosyll.pdf`). | Kept failing |
+| 1 | **The PDF emits no code run at all** for the row (`enccsch.pdf` semester 3 prints "Mathematics for Electronics" with an empty code cell). | Kept failing |
+| 1 | **The row is never detected** (`38cseaisch.pdf` semester 6). | Kept failing |
+
+The four "credits outside the band" cases are the reader working as designed.
+Widening the band is what the code has warned against since it was written:
+*"Any of those would eventually hand a course its neighbour's credits."* A
+green validator bought that way would assert a faithfulness the catalogue does
+not have.
+
+### Scope, still separate
+
+| Unit | Full 2022 universe | CSBS production |
+| --- | --- | --- |
+| Normalized course rows | 3591 | 187 |
+| Distinct course codes | 2075 | 187 |
+| Rows scoped to CSBS by name | 90 | 90 |
+| Rows scoped to a stream | 97 | 97 |
+| Rows with neither | 46 | 0 |
+| Option groups | 487 | — |
+| Aliases / open conflicts | 1 / 11 | 1 / 0 |
+
+Candidate against production: **3404 added, 0 removed, 0 changed.** Every one
+of the 187 trusted rows survives identically.
+
+---
+
 ## Status at `c3547b9`
 
 `pnpm vtu:validate --scheme 2022` is down to **one failing rule** from five.
