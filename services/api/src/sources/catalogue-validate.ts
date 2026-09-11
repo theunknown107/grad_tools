@@ -209,7 +209,7 @@ async function checkApplicability(sql: Sql): Promise<Finding[]> {
       area,
       'programme names that are really a course code',
       sql`SELECT DISTINCT programme_name AS what FROM document_applicability
-          WHERE programme_name ~ '^1?B[A-Z]{2,6}[0-9]{3}'`,
+          WHERE programme_name ~ '^1?B[A-Z]{2,7}[0-9]{3}'`,
     ),
   ];
 

@@ -32,7 +32,7 @@
  * order, so the longer form always wins on its own merits instead of depending
  * on which regex was run first.
  */
-const ANY_CODE = /\b(1?B[A-Z]{2,6}\d{3}[A-Z]?)\b/g;
+const ANY_CODE = /\b(1?B[A-Z]{2,7}\d{3}[A-Z]?)\b/g;
 
 const MODEL_PAPER = /model\s+question\s+paper/i;
 const EFFECT_FROM = /with\s+effect\s+from\s+(\d{4}(?:-\d{2})?)/i;
