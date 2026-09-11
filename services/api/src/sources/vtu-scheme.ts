@@ -48,7 +48,7 @@ export const VTU_SCHEME_SOURCE_ID = 'vtu-scheme-syllabus';
  * being downloaded again, and that is only possible if the version is recorded
  * beside the extraction.
  */
-export const VTU_SCHEME_PARSER_VERSION = '1.0.0';
+export const VTU_SCHEME_PARSER_VERSION = '1.1.0';
 
 /** What kind of document a link points at. */
 export type SchemeDocumentKind =
@@ -109,6 +109,8 @@ const PDF_LINK = /<a\b[^>]*\bhref\s*=\s*["']([^"']+\.pdf)["'][^>]*>([\s\S]*?)<\/
  */
 const TABLE_ROW = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
 const TABLE_CELL = /<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi;
+/** A row of `<th>` cells: the table saying what its columns are. */
+const HEADER_ROW = /<th\b/i;
 
 const TAGS = /<[^>]*>/g;
 const ENTITIES: Readonly<Record<string, string>> = {
@@ -164,24 +166,98 @@ function kindOf(linkText: string, url: string): SchemeDocumentKind {
 }
 
 /**
- * The programme a table row names.
+ * A whole `<a>` element, text and all.
  *
- * DELIBERATELY NOT A LOOKUP AGAINST A PROGRAMME LIST (§16). The page's own
- * words are the answer; matching against a hardcoded roster would make the
- * crawler blind to any programme nobody had thought to add.
+ * A programme cell frequently carries an ANNOTATION link after the name —
+ * `Computer Science &amp; Engineering<br><a …>Code correction 21SM72
+ * circular</a>` — and the annotation is not part of the programme. Links are
+ * what mark it: the name is the cell's plain text and every note VTU hangs
+ * off it is a link to the circular that explains it.
  *
- * The label is the first cell that reads as a name rather than a serial number
- * or a link — the table numbers its rows, so cell one is usually "12".
+ * `<br>` is NOT the divider, which is the obvious guess and a wrong one: the
+ * same page sets "Bachelor of<br />Business<br />Administration" as one name
+ * across three lines.
  */
-function programmeFromRow(cells: readonly string[]): string | null {
-  for (const cell of cells) {
-    const name = textOf(cell);
-    if (name === '' || /^\d+$/.test(name)) continue;
-    if (/\.pdf/i.test(cell)) continue;
-    if (/\b(scheme|syllabus)\b/i.test(name) && name.length < 20) continue;
-    return name.length >= 3 ? name.slice(0, 160) : null;
-  }
-  return null;
+const ANCHOR = /<a\b[^>]*>[\s\S]*?<\/a>/gi;
+
+/** A header cell that numbers the rows: `Sl. No`, `S.No`, `Slno.`, `SL.No.` */
+const SERIAL_HEADER = /^(slno|sno)$/;
+/** A header cell whose column holds the row's documents rather than its name. */
+const DOCUMENT_HEADER = /\bscheme\b|\bsyllab/i;
+
+/**
+ * WHICH COLUMN NAMES THE ROW — ASKED OF THE TABLE'S OWN HEADER.
+ *
+ * This used to walk the cells of each BODY row looking for one that "reads
+ * like a name": not blank, not all digits, no `.pdf` in it. Both halves of
+ * that guess were wrong on the real listing, and each cost a whole class of
+ * documents.
+ *
+ *   - VTU numbers some rows `21a` and `29a`, which is not all digits, so the
+ *     SERIAL was returned as the programme. `21a` then carried a duplicate of
+ *     the entire Computer Science scheme under a programme that does not
+ *     exist.
+ *   - A programme cell that contains an annotation link contains `.pdf`, so
+ *     the whole cell was skipped and the row fell through to no programme at
+ *     all. That is why 60 documents had unknown applicability, among them
+ *     `38csesch.pdf` — Computer Science & Engineering, 91 courses — which was
+ *     then stored as though it applied to every student in the university.
+ *
+ * The page answers the question itself. Every table on it opens with a header
+ * row, and that row says which column is `Program Title` / `Programme Name` /
+ * `Programs` / `Course Title ( I & II Semester )` and which are `Scheme` and
+ * `1st yr Syllabus`. So the label column is the first header cell that neither
+ * numbers the rows nor holds their documents, and it is read ONCE per table
+ * rather than guessed once per row.
+ *
+ * Still not a lookup against a roster of programmes (§16): the page's own
+ * words remain the answer, and a programme nobody has heard of reads exactly
+ * like one everybody has. What changed is which cell is read.
+ */
+function labelColumnOf(cells: readonly string[]): number {
+  return cells.findIndex((cell) => {
+    const text = textOf(cell);
+    if (text === '') return false;
+    if (SERIAL_HEADER.test(text.replace(/[^a-z]/gi, '').toLowerCase())) return false;
+    return !DOCUMENT_HEADER.test(text);
+  });
+}
+
+/**
+ * A VTU course code at the very start of a label.
+ *
+ * `BMATS101 Mathematics for CSE Stream-I` is a COURSE, and the row it heads
+ * lists that one course's syllabus. The listing mixes such tables in among the
+ * programme tables and heads them "Course Code" or "Course Title", and reading
+ * their rows as programmes invented a hundred programmes that are really
+ * courses — and, worse, read "Mathematics for CSE Stream-I" as a STREAM,
+ * because the word is in the course's name.
+ *
+ * The code is the evidence. A row that opens with one is about a course, so
+ * its label is never a PROGRAMME — there is no degree called "Principles of
+ * Programming Using C". It can still name the STREAM the course serves, which
+ * is what "Mathematics for CSE Stream-I" does and what the first-year
+ * namespacing depends on; that reading is unchanged.
+ *
+ * The suffix is matched in either case because VTU prints both: `BETCK105I`
+ * and `BETCK105l` are the same code on the same page. Reading the shape as
+ * printed is not the same as correcting it.
+ */
+const LABEL_IS_A_COURSE = /^1?B[A-Z]{2,6}\d{3}[A-Za-z]?\b/;
+
+/**
+ * What the row calls itself, from the column the header pointed at.
+ *
+ * Null where the table named no such column — the 2014 archive heads its one
+ * column "UG Scheme and Syllabus" — because a table that does not say what its
+ * rows are is not made to say it here (§7).
+ */
+function labelFromRow(cells: readonly string[], column: number): string | null {
+  if (column < 0) return null;
+  const cell = cells[column];
+  if (cell === undefined) return null;
+  const name = textOf(cell.replace(ANCHOR, ' '));
+  return name === '' ? null : name.slice(0, 160);
 }
 
 const COMMON = /\bstream\b|\bcommon\b|\bcycle\b|\bI\s*(?:&|and)\s*II\b/i;
@@ -202,10 +278,19 @@ export const vtuSchemeAdapter: SourceAdapter & {
      * simply has no programme label.
      */
     const rows: { label: string | null; html: string }[] = [];
+    /*
+     * The header governs the rows that follow it, until the next header. One
+     * page carries seventeen tables and they do not agree on their columns.
+     */
+    let labelColumn = -1;
     for (const row of body.matchAll(TABLE_ROW)) {
       const html = row[1] ?? '';
       const cells = [...html.matchAll(TABLE_CELL)].map((cell) => cell[1] ?? '');
-      rows.push({ label: programmeFromRow(cells), html });
+      if (HEADER_ROW.test(html)) {
+        labelColumn = labelColumnOf(cells);
+        continue;
+      }
+      rows.push({ label: labelFromRow(cells, labelColumn), html });
     }
     rows.push({ label: null, html: body });
 
@@ -289,7 +374,13 @@ export const vtuSchemeAdapter: SourceAdapter & {
         linkText,
         kind: kindOf(item.title, url),
         schemeYear: schemeYearOf(item.title, url),
-        programme: label !== null && COMMON.test(label) ? null : label,
+        /*
+         * A label that opens with a course code names a course, never a
+         * degree. It can still be read as a stream below, which is where a
+         * first-year document says whose first year it is.
+         */
+        programme:
+          label !== null && !COMMON.test(label) && !LABEL_IS_A_COURSE.test(label) ? label : null,
         semesters: semestersOf(linkText),
         common: label === null ? COMMON.test(item.title) : COMMON.test(label),
         streamLabel: label !== null && /\bstream\b/i.test(label) ? label : null,
