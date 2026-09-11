@@ -137,6 +137,46 @@ export interface ParsedScheme {
  */
 const COURSE_CODE = /^B[A-Z]{2,6}\d{3}[A-Za-z]?$/;
 
+/**
+ * A CODE CELL THAT NAMES MORE THAN ONE CODE.
+ *
+ * One printed row, taken under either code — VTU's way of writing "the theory
+ * variant or the laboratory one", and of serving two programmes from one
+ * table. It prints in two forms:
+ *
+ *     BCH358x/BCHL358x        both codes in full
+ *     BTX/ST306x              alternative prefixes over one shared tail
+ *
+ * Neither matches `COURSE_CODE`, so the whole row was skipped — and with it
+ * the credits the document counts in its own semester total. Thirteen of the
+ * twenty-two semesters that disagreed with their printed total disagree for
+ * this one reason.
+ *
+ * ONLY THE FIRST CODE IS TAKEN FROM THE SECOND FORM. `BTX/ST306x` states
+ * that the row is `BTX306x` and is also offered under an `ST` code, and the
+ * `ST` code is never printed in full anywhere in the code column. Composing
+ * one would be writing a code the document does not, and a composed code
+ * ending in `x` then behaves as an elective SLOT — which produced three slots
+ * offering no choice, because the options are listed once, under the code the
+ * document actually prints. The row is read; the unprinted twin is not
+ * invented (§1, §7).
+ */
+const COMPOUND_CODES = /^B[A-Z]{2,6}\d{3}[A-Za-z]?(?:\/B[A-Z]{2,6}\d{3}[A-Za-z]?)+$/;
+const SHARED_TAIL = /^B([A-Z]{2,6})((?:\/[A-Z]{2,6})+)(\d{3}[A-Za-z]?)$/;
+
+/**
+ * Every code a cell names, in the order printed. One entry for an ordinary
+ * cell, and an empty list for a cell that names none.
+ */
+function codesIn(cell: string): string[] {
+  if (COURSE_CODE.test(cell)) return [cell];
+  if (COMPOUND_CODES.test(cell)) return cell.split('/');
+  const shared = SHARED_TAIL.exec(cell);
+  if (shared === null) return [];
+  const [, head, , tail] = shared as unknown as [string, string, string, string];
+  return [`B${head}${tail}`];
+}
+
 /*
  * THE SPACE IS OPTIONAL, because a PDF's text runs do not have to respect it.
  * The first-year CSE-stream scheme heads its tables "ISemester (CSE" and
@@ -276,8 +316,10 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
     const semester = semesterOf(pageItems);
     const departmentX = departmentColumn(pageItems);
     for (const item of pageItems) {
-      const code = item.text.trim();
-      if (!COURSE_CODE.test(code)) continue;
+      const cell = item.text.trim();
+      const named = codesIn(cell);
+      if (named.length === 0) continue;
+      const code = named[0] as string;
 
       /*
        * A course code appears in the option lists as well as in the table, and
@@ -390,15 +432,62 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
       }
 
       semesters.add(semester);
-      courses.push({
-        code,
-        title,
-        credits,
-        semester,
-        page,
-        viaElectiveSlot: null,
-        viaAlternativeTo: null,
-      });
+
+      /*
+       * THE SAME ROW, WITH THE CODES SET SIDE BY SIDE INSTEAD OF SLASHED.
+       *
+       *     5 PCCL BMEL305 BME305  Introduction to Modelling and Design ... 1
+       *     4 BSC  BBOC407 BBOK407 Biology for Engineers ...                2
+       *
+       * One printed row, one set of columns, two codes in the code cell — and
+       * `BBOC407` and `BBOK407` are not the same course, they are the choice
+       * the row offers. Read as two rows they were each charged the row's
+       * credits, and the semester came out over its own printed total by
+       * exactly the duplicate: eleven of the disagreements, and in ten of them
+       * the excess equalled the second code's credits to the credit.
+       *
+       * So a code with ANOTHER code to its left on the same baseline is not a
+       * row: it is an alternative on the row that one heads. Leftmost is the
+       * one the document prints first, which is the same rule the slashed form
+       * uses.
+       */
+      const leftmost = pageItems
+        .filter(
+          (other) =>
+            other !== item &&
+            Math.abs(other.y - item.y) <= band &&
+            other.x < item.x &&
+            codesIn(other.text.trim()).length > 0,
+        )
+        .sort((a, b) => a.x - b.x)[0];
+      /*
+       * Never itself. A run repeated by the extractor, or the same code set
+       * twice in one cell, would otherwise make a course its own alternative —
+       * which reads back as a choice of one, between a thing and itself.
+       */
+      const left = leftmost === undefined ? null : (codesIn(leftmost.text.trim())[0] as string);
+      const heads = left === code ? null : left;
+
+      /*
+       * ONE PRINTED ROW, ONE SET OF CREDITS, however many codes it names. The
+       * first carries the row; the others are recorded as alternatives TO it,
+       * so they stay searchable without the semester being charged twice.
+       *
+       * Deliberately asymmetric, unlike an "OR" row. There the document draws
+       * two courses either side of a marker and neither is the row; here it
+       * draws one row and writes more than one code against it.
+       */
+      for (const [index, alternative] of named.entries()) {
+        courses.push({
+          code: alternative,
+          title,
+          credits,
+          semester,
+          page,
+          viaElectiveSlot: null,
+          viaAlternativeTo: index === 0 ? heads : code,
+        });
+      }
     }
   }
 
