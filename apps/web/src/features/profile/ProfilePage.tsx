@@ -737,7 +737,7 @@ function MyRecordsPanel() {
                         </StatusPill>
                       </td>
                       <td>
-                        <div className={styles.actions}>
+                        <div className={styles.recordActions}>
                           <Link className={buttonClassName()} to="/results">
                             Open
                           </Link>
@@ -802,7 +802,7 @@ function MyRecordsPanel() {
                         <StatusPill tone="neutral">No course code</StatusPill>
                       </td>
                       <td>
-                        <div className={styles.actions}>
+                        <div className={styles.recordActions}>
                           <Link className={buttonClassName()} to="/timetable">
                             Open
                           </Link>
