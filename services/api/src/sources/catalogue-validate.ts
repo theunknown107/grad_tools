@@ -183,6 +183,34 @@ async function checkApplicability(sql: Sql): Promise<Finding[]> {
       sql`SELECT version_id::text AS what FROM document_applicability
           WHERE scope = 'common' AND programme_name IS NOT NULL`,
     ),
+    /*
+     * A PROGRAMME FRAGMENT IS NOT A PROGRAMME (§5).
+     *
+     * The listing numbers some of its rows `21a` and `29a`, and a reader that
+     * skipped serials by testing for digits alone took those for programme
+     * names — `21a` then carried a duplicate of the entire Computer Science
+     * scheme under a programme nobody offers. The discovery parser reads the
+     * table's header now and cannot produce one, and this is the assertion
+     * that says so of the DATA rather than of the parser.
+     */
+    await mustBeEmpty(
+      area,
+      'programme names that are really a row number',
+      sql`SELECT DISTINCT programme_name AS what FROM document_applicability
+          WHERE programme_name ~ '^[0-9]+[A-Za-z]?$'`,
+    ),
+    /*
+     * And a course whose scope is nobody's is not publishable: a row with
+     * neither a programme nor a stream claims to apply to every student at the
+     * university, which is what a genuinely common document claims. The two
+     * must not arrive at the same place by different routes (§3).
+     */
+    await mustBeEmpty(
+      area,
+      'programme names that are really a course code',
+      sql`SELECT DISTINCT programme_name AS what FROM document_applicability
+          WHERE programme_name ~ '^1?B[A-Z]{2,6}[0-9]{3}'`,
+    ),
   ];
 
   /*
@@ -197,6 +225,61 @@ async function checkApplicability(sql: Sql): Promise<Finding[]> {
   return findings;
 }
 
+/**
+ * What the catalogue actually HOLDS for one semester of one document.
+ *
+ * ---------------------------------------------------------------------------
+ * IDENTITIES, NOT READINGS
+ * ---------------------------------------------------------------------------
+ *
+ * A scheme prints the same course in more than one of its tables — the AI &
+ * Data Science document lists Biology for Engineers under four headings — and
+ * `parseScheme` returns a reading for each, exactly as it should. `vtu:sync`
+ * then writes ONE row per identity.
+ *
+ * Summing the readings compared a number that is stored nowhere against the
+ * document's own printed total, and reported a disagreement for a document
+ * that agrees: the AI & DS fourth semester came out nine credits over on
+ * duplicate readings alone. The first reading is kept, which is the one
+ * `vtu:sync` writes; a second reading that DISAGREES is a conflict, and the
+ * conflict rules are where that is reported rather than here, by inflating a
+ * total.
+ *
+ * An option of an elective slot is not counted — the slot's own row carries
+ * the credits for whichever option is taken — and an "A OR B" pair is counted
+ * once, through its group.
+ *
+ * Exported because a check nobody can run against a made-up table is a check
+ * nobody has seen fail.
+ */
+export function creditsStoredFor(
+  courses: readonly {
+    readonly code: string;
+    readonly semester: number;
+    readonly credits: number;
+    readonly viaElectiveSlot: string | null;
+    readonly viaAlternativeTo: string | null;
+  }[],
+  groups: readonly {
+    readonly semester: number;
+    readonly kind: string;
+    readonly credits: number | null;
+  }[],
+  semester: number,
+): number {
+  const byCode = new Map<string, number>();
+  for (const course of courses) {
+    if (course.semester !== semester) continue;
+    if (course.viaElectiveSlot !== null || course.viaAlternativeTo !== null) continue;
+    if (!byCode.has(course.code)) byCode.set(course.code, course.credits);
+  }
+  const rows = [...byCode.values()].reduce((sum, credits) => sum + credits, 0);
+  const pairs = groups
+    .filter((group) => group.semester === semester && group.kind === 'alternative')
+    .reduce((sum, group) => sum + (group.credits ?? 0), 0);
+  return rows + pairs;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Courses (§24, §25)                                                         */
 /* -------------------------------------------------------------------------- */
@@ -207,12 +290,79 @@ async function checkCourses(sql: Sql, schemeYear: string | null): Promise<Findin
     sql`SELECT count(*)::text AS n FROM catalogue_courses
         WHERE ${schemeYear === null ? sql`TRUE` : sql`scheme_year = ${schemeYear}`}`,
   );
+  /*
+   * HOW EVERY CREDIT WAS ESTABLISHED, REPORTED RATHER THAN AVERAGED (§12).
+   *
+   * `table` is a figure the course's own row prints. `slot` is one borrowed
+   * from the elective slot the course is an option for, and `alternative` one
+   * shared with the partner on an "A OR B" row. They are not equally strong
+   * evidence, and a catalogue where half the credits are borrowed is a
+   * different object from one where they are printed — so the split is
+   * reported on every run instead of being discoverable only by query.
+   *
+   * These are the three the store already writes. No parallel taxonomy is
+   * introduced beside them (§13).
+   */
+  const basis = (await sql`
+    SELECT credit_basis::text AS what, count(*)::text AS n
+    FROM catalogue_courses
+    WHERE ${schemeYear === null ? sql`TRUE` : sql`scheme_year = ${schemeYear}`}
+    GROUP BY 1 ORDER BY 2 DESC
+  `) as unknown as { what: string; n: string }[];
+  const borrowed = basis
+    .filter((row) => row.what !== 'table')
+    .reduce((sum, row) => sum + Number(row.n), 0);
+
   return [
     pass(area, `${String(total)} courses`),
+    pass(
+      area,
+      `credit provenance: ${basis.map((row) => `${row.n} ${row.what}`).join(', ')}`,
+    ),
+    total === 0
+      ? skip(area, 'no courses to weigh')
+      : borrowed * 2 > total
+        ? warn(
+            area,
+            `${String(borrowed)} of ${String(total)} credits are borrowed rather than printed ` +
+              'on the course\u2019s own row',
+          )
+        : pass(area, 'most credits are printed on the course\u2019s own row'),
     await mustBeEmpty(
       area,
       'courses with no title',
       sql`SELECT code AS what FROM catalogue_courses WHERE trim(title) = ''`,
+    ),
+    /*
+     * A borrowed credit has to name a slot THIS catalogue holds (§14). Where
+     * it names one that is not here, the figure cannot be checked against its
+     * source and is not evidence of anything.
+     */
+    await mustBeEmpty(
+      area,
+      'borrowed credits naming a slot the catalogue does not hold',
+      sql`SELECT c.code AS what FROM catalogue_courses c
+          WHERE c.credit_basis <> 'table' AND c.related_code IS NOT NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM catalogue_courses s
+              WHERE s.scheme_year = c.scheme_year AND s.code = c.related_code
+            )`,
+    ),
+    /*
+     * And where a course prints its OWN credits and also borrows a different
+     * figure, the two disagree and neither is chosen here (§15).
+     */
+    await mustBeEmpty(
+      area,
+      'courses whose borrowed credit contradicts the slot it came from',
+      sql`SELECT c.code || ' ' || c.credits || ' vs ' || s.credits AS what
+          FROM catalogue_courses c
+          JOIN catalogue_courses s
+            ON s.scheme_year = c.scheme_year AND s.code = c.related_code
+           AND coalesce(s.programme_name, '') = coalesce(c.programme_name, '')
+           AND coalesce(s.stream_id, '') = coalesce(c.stream_id, '')
+           AND s.semester = c.semester
+          WHERE c.credit_basis = 'slot' AND c.credits <> s.credits`,
     ),
     await mustBeEmpty(
       area,
@@ -572,18 +722,7 @@ async function checkSemesterTotals(sql: Sql, schemeYear: string | null): Promise
         notComparable += 1;
         continue;
       }
-      const tableRows = parsed.courses
-        .filter(
-          (course) =>
-            course.semester === semester &&
-            course.viaElectiveSlot === null &&
-            course.viaAlternativeTo === null,
-        )
-        .reduce((sum, course) => sum + course.credits, 0);
-      const pairs = groups
-        .filter((group) => group.semester === semester && group.kind === 'alternative')
-        .reduce((sum, group) => sum + (group.credits ?? 0), 0);
-      const computed = tableRows + pairs;
+      const computed = creditsStoredFor(parsed.courses, groups, semester);
 
       compared += 1;
       if (computed !== printed[0]) {
