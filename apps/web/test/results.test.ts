@@ -175,9 +175,19 @@ describe('validation', () => {
     ]);
   });
 
-  it('requires a subject code and nothing else', () => {
-    const issues = validateResultSubject(subject({ subjectCode: '  ' }), ruleSet);
-    expect(issues.map((issue) => issue.field)).toEqual(['subjectCode']);
+  it('requires the row to be identifiable, and nothing else', () => {
+    /*
+     * THIS USED TO REQUIRE A CODE. It asks for a code OR a name now: the row's
+     * identity is its `id`, and what it must be able to do is be recognised on
+     * screen. A blank code beside a title is a row the student can read; a
+     * blank of both is not. See "a row the student can name but not code".
+     */
+    expect(validateResultSubject(subject({ subjectCode: '  ' }), ruleSet)).toEqual([]);
+    expect(
+      validateResultSubject(subject({ subjectCode: '  ', subjectTitle: '  ' }), ruleSet).map(
+        (issue) => issue.field,
+      ),
+    ).toEqual(['subjectCode']);
   });
 });
 
@@ -602,6 +612,78 @@ describe('SGPA from a semester', () => {
     expect(resolveSubjectGrade(failed, ruleSet)).toBeNull();
     expect(sgpaInputs(result([failed]), ruleSet).missing).toEqual([
       { subjectCode: 'BCS401', reason: 'no grade' },
+    ]);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+
+describe('a row the student can name but not code', () => {
+  /*
+   * §6, §21, §47. `subjectCode` was required, so recording something of one's
+   * own meant supplying a VTU code for it — and an invented code reads on
+   * screen exactly like one the university issued. The row's identity is its
+   * `id`; what it has to be able to do is be RECOGNISED, which a title does as
+   * well as a code.
+   */
+  it('saves on a name alone', () => {
+    const issues = validateResultSubject(
+      subject({ subjectCode: null, subjectTitle: 'Placement & Training' }),
+      ruleSet,
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('still saves on a code alone', () => {
+    const issues = validateResultSubject(
+      subject({ subjectCode: 'BQAS401', subjectTitle: '' }),
+      ruleSet,
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('refuses a row that is neither coded nor named', () => {
+    const issues = validateResultSubject(
+      subject({ subjectCode: null, subjectTitle: '   ' }),
+      ruleSet,
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.field).toBe('subjectCode');
+    expect(issues[0]?.message).toMatch(/code or a name/i);
+  });
+
+  it('reads a stored row whose code is absent without inventing one', () => {
+    const row = normalizeResultSubject({
+      id: 'r1',
+      subjectCode: null,
+      subjectTitle: 'Placement & Training',
+      provenance: 'manual',
+    });
+    expect(row.subjectCode).toBeNull();
+    expect(row.subjectTitle).toBe('Placement & Training');
+    expect(row.provenance).toBe('manual');
+  });
+
+  it('counts toward the SGPA on the same terms as any other row', () => {
+    /*
+     * §24, §26: manual does not mean the rules stop applying. A named row with
+     * a grade and credits counts; one without them is reported missing, for
+     * the same reason a coded row would be — and it is named by its title,
+     * because naming it by an empty code would name nothing.
+     */
+    const named = subject({
+      subjectCode: null,
+      subjectTitle: 'Placement & Training',
+      credits: 2,
+      gradeLetter: 'A',
+    });
+    expect(sgpaInputs(result([named]), ruleSet).courses).toEqual([
+      { credits: 2, gradeLetter: 'A', subjectCode: 'Placement & Training' },
+    ]);
+
+    const bare = subject({ subjectCode: null, subjectTitle: 'Placement & Training' });
+    expect(sgpaInputs(result([bare]), ruleSet).missing.map((entry) => entry.subjectCode)).toEqual([
+      'Placement & Training',
     ]);
   });
 });

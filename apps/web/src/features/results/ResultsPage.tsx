@@ -437,7 +437,8 @@ function blankSubject(): DraftSubject {
 function toDraft(subject: ResultSubject): DraftSubject {
   return {
     id: subject.id,
-    subjectCode: subject.subjectCode,
+    /* The form holds strings; absent is the empty field, as it is for the rest. */
+    subjectCode: subject.subjectCode ?? '',
     subjectTitle: subject.subjectTitle,
     internal: subject.internal === null ? '' : String(subject.internal),
     external: subject.external === null ? '' : String(subject.external),
@@ -460,7 +461,12 @@ function toDraft(subject: ResultSubject): DraftSubject {
 function toSubject(draft: DraftSubject, announcedOn: string): ResultSubject {
   return normalizeResultSubject({
     id: draft.id,
-    subjectCode: draft.subjectCode.trim().toUpperCase(),
+    /*
+     * Left EMPTY means the student has none, not that they forgot: a row is
+     * saved on a code or a name, and `validateResultSubject` requires one of
+     * the two. Null rather than '' so storage and sync say "absent" once.
+     */
+    subjectCode: draft.subjectCode.trim() === '' ? null : draft.subjectCode.trim().toUpperCase(),
     subjectTitle:
       draft.subjectTitle.trim() === ''
         ? draft.subjectCode.trim().toUpperCase()
@@ -1338,7 +1344,11 @@ function SavedResult({
                           <SubjectDetail
                             subject={subject}
                             evaluation={evaluation}
-                            identity={resolveSubject(index, subject.subjectCode)}
+                            identity={
+                              subject.subjectCode === null
+                                ? null
+                                : resolveSubject(index, subject.subjectCode)
+                            }
                           />
                         </td>
                       </tr>
@@ -1395,7 +1405,9 @@ function SavedResult({
           <SubjectDetail
             subject={detail}
             evaluation={evaluations.get(detail.id)}
-            identity={resolveSubject(index, detail.subjectCode)}
+            identity={
+              detail.subjectCode === null ? null : resolveSubject(index, detail.subjectCode)
+            }
           />
         ) : null}
       </Sheet>
