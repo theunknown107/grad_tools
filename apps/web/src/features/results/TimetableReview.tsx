@@ -32,6 +32,7 @@ import {
   needsBatch,
   relateTimetable,
   slotsForBatch,
+  timetableEntry,
   type ParsedTimetable,
   type SavedTimetable,
 } from '../../domain/timetable-import.js';
@@ -273,7 +274,9 @@ export function TimetableReview({
             <div className={styles.editorSubject}>
               <strong>{group.day}</strong>
               <span className={styles.semesterMeta}>
-                {group.slots.map((slot) => `${slot.startTime} ${slot.subjectCode}`).join(' · ')}
+                {group.slots
+                  .map((slot) => `${slot.startTime} ${timetableEntry(slot, null).shortName}`)
+                  .join(' · ')}
               </span>
             </div>
           </li>

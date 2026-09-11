@@ -82,6 +82,7 @@ function slot(subjectCode: string): TimetableSlot {
     startTime: '09:00',
     endTime: '10:00',
     subjectCode,
+    activity: null,
     room: 'B205',
     faculty: null,
   };

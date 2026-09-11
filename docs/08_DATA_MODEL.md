@@ -315,7 +315,31 @@ Backlog {
 `reason` is distinguished because the remedy differs: an attendance DX requires repeating the course, while a CIE shortfall permits fresh CIE registration then SEE (22OB 6.3(7)–(8)).
 
 ### TimetableSlot
-`id, student_id, day_of_week, start_time, end_time, subject_code, subject_title, room?, slot_type (lecture|lab|tutorial)`
+`id, student_id, day_of_week, start_time, end_time, subject_code?, activity?, room?, faculty?`
+
+**A timetable schedules more than courses.** `subject_code` is nullable, and
+exactly one of `subject_code` and `activity` is set on every row — the CHECK in
+`supabase/0004` enforces it:
+
+| | `subject_code` | `activity` |
+| --- | --- | --- |
+| a course | `BCS502` | NULL |
+| a scheduled activity | NULL | `Placement & Training` |
+
+The Semester 5 V(B) document schedules "Value added Course", "Placement &
+Training" and "ESEVM" in the same grid as Computer Networks and defines none of
+them in its subject table. Those hours used to be dropped at save, because the
+only way to store one was to invent a code — and an invented code would be
+indexed as a subject, offered for attendance, and printed beside real VTU codes
+with nothing to mark it as ours.
+
+An activity is **not** an attendance-bearing subject: it can be marked, because
+a mark belongs to the slot, and it opens no attendance record, because those are
+counted per subject code. Read both fields through `timetableEntry`
+(`domain/timetable-import`) rather than testing them at each call site.
+
+A BREAK is neither. Short break and lunch are properties of the imported
+document's time columns (`TimeSlot.isBreak`) and never become rows here.
 
 ### UserPreference
 `student_id, theme, density, notification_prefs (jsonb), quiet_hours_start/end, timezone`

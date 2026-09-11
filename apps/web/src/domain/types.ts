@@ -321,6 +321,38 @@ export interface BacklogRecord {
   readonly updatedAt: string;
 }
 
+/**
+ * One scheduled hour of the student's week.
+ *
+ * ---------------------------------------------------------------------------
+ * NOT EVERYTHING A TIMETABLE SCHEDULES IS A COURSE
+ * ---------------------------------------------------------------------------
+ *
+ * A real college timetable prints hours that carry no subject code and never
+ * will: the Semester 5 V(B) document schedules "Value added Course",
+ * "Placement & Training" and "ESEVM" in the same grid as Computer Networks,
+ * and its own subject table defines none of them.
+ *
+ * `subjectCode` was required, so those hours were parsed, kept through review,
+ * warned about — and then dropped at save, because the only way to store one
+ * was to invent a code for it. A code we invented would then be indexed as a
+ * subject, offered for attendance and shown beside real VTU codes, which is a
+ * worse answer than losing the row.
+ *
+ * So a slot is one of two things, and says which:
+ *
+ *   a COURSE    subjectCode = 'BCS502',  activity = null
+ *   an ACTIVITY subjectCode = null,      activity = 'Placement & Training'
+ *
+ * Exactly one is set. A break is neither — it is not a slot at all, but a
+ * `TimeSlot` the imported document marks `isBreak`, and it never becomes a
+ * record here.
+ *
+ * Read these two fields through `timetableEntry` (domain/timetable-import)
+ * rather than testing them at each call site: what to display, what to put
+ * beside it, and whether the hour can bear attendance are one decision, and
+ * answering it in six places is how the six come to disagree.
+ */
 export interface TimetableSlot {
   readonly id: string;
   readonly profileId: StudentProfileId;
@@ -328,7 +360,10 @@ export interface TimetableSlot {
   /** 24-hour "HH:MM". */
   readonly startTime: string;
   readonly endTime: string;
-  readonly subjectCode: string;
+  /** The course this hour teaches, or null where the hour is an activity. */
+  readonly subjectCode: string | null;
+  /** What the timetable called this hour, where it names no course. */
+  readonly activity: string | null;
   readonly room: string | null;
   readonly faculty: string | null;
 }

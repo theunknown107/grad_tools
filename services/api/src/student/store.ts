@@ -121,7 +121,13 @@ export const COLLECTION_TABLES = {
   timetable: {
     table: 'timetable_slots',
     parent: 'profile_id',
-    columns: ['day', 'start_time', 'end_time', 'subject_code', 'room', 'faculty'],
+    /*
+     * `activity` beside `subject_code`: a slot names a course or names an hour
+     * the timetable schedules without one, and exactly one of the two is set
+     * (supabase/0004). Leaving it out here would sync the course rows and
+     * silently drop every activity on the way to the cloud.
+     */
+    columns: ['day', 'start_time', 'end_time', 'subject_code', 'activity', 'room', 'faculty'],
   },
   backlogs: {
     table: 'backlog_records',
