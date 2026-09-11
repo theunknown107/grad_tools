@@ -72,6 +72,14 @@ const ROW_TOLERANCE = 0.5;
  */
 const SPACE_THRESHOLD = 0.18;
 
+/**
+ * How close two runs' left edges must be to be the same COLUMN, as a fraction
+ * of text height. A column's entries are set flush, so this is jitter-sized
+ * rather than layout-sized; it must stay well under the gap between adjacent
+ * columns of a dense table.
+ */
+const COLUMN_TOLERANCE = 0.5;
+
 function medianHeight(items: readonly PositionedText[]): number {
   const heights = items
     .map((item) => item.height)
@@ -116,13 +124,69 @@ export function itemsToLines(items: readonly PositionedText[], page = 1): Import
     }
   }
 
-  return rows.map((row) => {
-    const ordered = [...row].sort((a, b) => a.x - b.x);
+  /*
+   * A PRINTED LINE IS NOT A ROW OF THE TABLE.
+   *
+   * A cell too long for its column wraps, and the wrapped remainder is printed
+   * on its own line with every other column of that row left blank:
+   *
+   *     BPOPS103  PRINCIPLES OF        39  27  66  P  2025-03-13
+   *               PROGRAMMING USING
+   *               C
+   *
+   * Read as three lines, the second and third are not subject rows — they have
+   * no code and no marks — so they were dropped, and the subject was imported
+   * as "PRINCIPLES OF". Six of the real Semester 1–4 cards' titles are cut this
+   * way, and nothing on screen said a word was missing.
+   *
+   * A line is a continuation when it starts in a column the line above uses but
+   * NOT in that line's first one, and every run it has stands in one of those
+   * columns. That is the shape of a wrap and not the shape of a new row, a
+   * heading or a legend: each of those either starts the table's first column
+   * or stands somewhere the row above has nothing.
+   */
+  const continues = (line: readonly PositionedText[], above: readonly PositionedText[]) => {
+    const head = line[0];
+    const first = above[0];
+    if (head === undefined || first === undefined) return false;
+    const slack = medianHeight(above) * COLUMN_TOLERANCE;
+    if (Math.abs(head.x - first.x) <= slack) return false;
+    return line.every((run) => above.some((column) => Math.abs(run.x - column.x) <= slack));
+  };
+
+  const merged: PositionedText[][] = [];
+  for (const row of rows) {
+    const previous = merged[merged.length - 1];
+    if (previous !== undefined && continues(row, previous)) {
+      previous.push(...row);
+      continue;
+    }
+    merged.push([...row]);
+  }
+
+  return merged.map((row) => {
+    /*
+     * By column, and within a column top to bottom: that puts a wrapped title
+     * back together in the middle of its row, where the marks still follow it.
+     */
+    const ordered = [...row].sort((a, b) => a.x - b.x || b.y - a.y);
     const gapThreshold = medianHeight(ordered) * SPACE_THRESHOLD;
 
     let text = '';
     let cursor: number | null = null;
+    let baseline: number | null = null;
     for (const item of ordered) {
+      if (cursor !== null) {
+        /*
+         * Two printed LINES are always two words, whatever their x says. The
+         * same tolerance that decided they were different lines decides it
+         * here, so a run nudged off its baseline within one line is unaffected.
+         */
+        if (baseline !== null && Math.abs(item.y - baseline) > tolerance) {
+          text += ' ';
+          cursor = null;
+        }
+      }
       if (cursor !== null) {
         const gap = item.x - cursor;
         /*
@@ -135,6 +199,7 @@ export function itemsToLines(items: readonly PositionedText[], page = 1): Import
       }
       text += item.text;
       cursor = item.x + item.width;
+      baseline = item.y;
     }
 
     return { text: text.trim(), page };
