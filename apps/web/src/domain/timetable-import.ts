@@ -356,6 +356,8 @@ const LAB_CELL = /^([A-Z]{2,6})\s*LAB\s*\(([^)]*)\)$/i;
 
 /** A VTU course code, the same shape the result importer accepts. */
 const COURSE_CODE = /\b(1?B[A-Z]{2,6}\d{3}[A-Z]?)\b/;
+/** The same, global: a name cell may list every code one subject is taken as. */
+const COURSE_CODE_ALL = /\b1?B[A-Z]{2,6}\d{3}[A-Z]?\b/g;
 /** `2+2+2`, `3 +0+ 2`. */
 const HOURS = /\b(\d)\s*\+\s*(\d)\s*\+\s*(\d)\b/g;
 /** `Prof. A B`, `Dr. C`. Where a subject table's title column stops. */
@@ -369,7 +371,22 @@ const FACULTY_ALL = /\b(?:prof|dr|adv|mr|ms|mrs)\s*\.?\s+[A-Za-z][A-Za-z. ]{1,40
  * Read row by row from the joined text, because each row is a list and lines
  * are enough for a list. The GRID needs positions; this does not.
  */
-export function readDictionary(rows: readonly string[]): DictionaryEntry[] {
+export function readDictionary(
+  rows: readonly string[],
+  /**
+   * What the caller knows about each row's LAYOUT, when it read one.
+   *
+   * `y` is where the row sits vertically, and is what tells a wrapped title
+   * apart from the start of a DIFFERENT table further down the page — see the
+   * block loop below. `runs` is the row's printed runs, left to right, which
+   * is what says where one COLUMN of the table ends and the next begins — see
+   * the name column below.
+   *
+   * Optional because the shape of the table is readable without either, and
+   * a caller that has only lines gets exactly the behaviour it had before.
+   */
+  layout?: readonly { readonly y: number; readonly runs: readonly PlacedLike[] }[],
+): DictionaryEntry[] {
   const entries: DictionaryEntry[] = [];
 
   /*
@@ -387,37 +404,123 @@ export function readDictionary(rows: readonly string[]): DictionaryEntry[] {
    * lost the word that makes its abbreviation MRMM rather than MRM. So a row
    * begins at a course code and continues until the next one.
    */
-  const blocks: string[][] = [];
-  for (const row of rows) {
-    if (COURSE_CODE.test(row)) blocks.push([row]);
-    else blocks[blocks.length - 1]?.push(row);
+  /*
+   * AND A TABLE IS NOT THE REST OF THE PAGE.
+   *
+   * Continuing a block until the next course code is right inside the table and
+   * catastrophic at the end of it: the last subject swallowed every remaining
+   * line of the real document — the lab batch ranges, the coordinator table,
+   * two rows of signatures — into its title.
+   *
+   * What separates the table from what follows it is SPACE. A wrapped title
+   * sits on the next printed line; a new section starts after a gap. So a block
+   * stops accepting continuations when the vertical step to the next line is
+   * much larger than the steps within the table. With no positions supplied the
+   * old behaviour stands, which is what the line-only callers still get.
+   */
+  const steps: number[] = [];
+  if (layout !== undefined) {
+    for (let index = 1; index < layout.length; index += 1) {
+      const step = (layout[index - 1]?.y ?? 0) - (layout[index]?.y ?? 0);
+      if (step > 0) steps.push(step);
+    }
   }
+  const sortedSteps = [...steps].sort((a, b) => a - b);
+  const medianStep =
+    sortedSteps.length === 0 ? 0 : (sortedSteps[Math.floor(sortedSteps.length / 2)] as number);
+  const sectionBreak = (index: number) => {
+    if (layout === undefined || medianStep === 0 || index === 0) return false;
+    const step = (layout[index - 1]?.y ?? 0) - (layout[index]?.y ?? 0);
+    return step > medianStep * 1.8;
+  };
 
-  for (const block of blocks) {
-    const head = block[0] as string;
-    const code = COURSE_CODE.exec(head)?.[1];
-    if (code === undefined) continue;
+  const blocks: number[][] = [];
+  let open = false;
+  rows.forEach((row, index) => {
+    if (COURSE_CODE.test(row)) {
+      blocks.push([index]);
+      open = true;
+      return;
+    }
+    if (!open) return;
+    if (sectionBreak(index)) {
+      open = false;
+      return;
+    }
+    blocks[blocks.length - 1]?.push(index);
+  });
 
+  /*
+   * THE NAME COLUMN IS A COLUMN TOO.
+   *
+   * A row of this table is `code + name | faculty | hours | hours | staff`,
+   * and reading it as one flattened line meant the title had to be told apart
+   * from the faculty by what the faculty LOOKS like — a `Prof.` or a `Dr.`
+   * ahead of it. The real Semester 5 table has two rows whose faculty is not
+   * yet appointed and is printed as the words "New Faculty", which no such
+   * rule can catch: BCB586's title came back "Mini project New Faculty" and
+   * BNSK559's "... Value added Course New Faculty", and a grid cell reading
+   * "Mini project" then matched neither.
+   *
+   * Where the caller read the page's columns, the title is taken from the
+   * row's first one and the faculty cannot reach it at all. Where it did not,
+   * the whole line is used and `stripAdmin` below does the old job.
+   */
+  const nameStarts = blocks
+    .map((block) => layout?.[block[0] as number]?.runs?.[1]?.x)
+    .filter((x): x is number => x !== undefined);
+  const nameRight = nameStarts.length === 0 ? Infinity : Math.min(...nameStarts);
+
+  const nameColumn = (index: number) => {
+    const runs = layout?.[index]?.runs;
+    if (runs === undefined) return rows[index] ?? '';
+    return runs
+      .filter((run) => run.x < nameRight)
+      .map((run) => run.text)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  /*
+   * THE INITIALS COLUMN IS A COLUMN, NOT A TOKEN.
+   *
+   * It was read per row as "the first short all-caps word after the code",
+   * which reads the reference document's `code title INITIALS faculty hours`
+   * correctly and cannot tell a declared abbreviation from an ordinary word
+   * inside a title. On the real Semester 5 table exactly one row trips it —
+   * `BRMK557 Research Methodology and IPR` — and the title was then cut at the
+   * word it found: "Research Methodology and", with IPR taken for the
+   * abbreviation and the last word of the title lost.
+   *
+   * A column a document fills in is filled in THROUGHOUT. So the candidate is
+   * still read per row, and then kept only if the table as a whole fills that
+   * column. A table that leaves it empty gets titles that run to the end; a
+   * table that fills it reads exactly as it did before.
+   */
+  const candidateFor = (head: string, code: string): string | null => {
     const after = head.slice(head.indexOf(code) + code.length);
-
-    /*
-     * The initials column, WHEN THE DOCUMENT FILLS IT IN.
-     *
-     * The first short all-caps token after the code that is not the code and
-     * not a department name. That is the original rule and it is kept, because
-     * it reads the reference document's layout — `code title INITIALS faculty
-     * hours` — correctly.
-     *
-     * What changed is that a row WITHOUT one is no longer discarded. The
-     * Semester 5 table's header names an "Initials" column and then not one row
-     * fills it in, so every subject was skipped and the dictionary came back
-     * holding a single entry — and that entry was a false positive, `IPR` read
-     * out of the middle of "Research Methodology and IPR".
-     */
-    const declared =
+    return (
       (after.match(/\b[A-Z]{2,6}\b/g) ?? []).find(
         (token) => !COURSE_CODE.test(token) && !/^(LAB|VTU|CSE|ECE|ISE|AIML|CSBS)$/i.test(token),
-      ) ?? null;
+      ) ?? null
+    );
+  };
+
+  const coded = blocks
+    .map((block) => {
+      const head = rows[block[0] as number] ?? '';
+      const code = COURSE_CODE.exec(head)?.[1];
+      return code === undefined ? null : { block, head, code };
+    })
+    .filter((entry): entry is { block: number[]; head: string; code: string } => entry !== null);
+
+  const filledRows = coded.filter((entry) => candidateFor(entry.head, entry.code) !== null).length;
+  const columnIsFilled = coded.length > 0 && filledRows * 2 > coded.length;
+
+  for (const { block, head, code } of coded) {
+    const after = head.slice(head.indexOf(code) + code.length);
+    const declared = columnIsFilled ? candidateFor(head, code) : null;
 
     /*
      * THE TITLE IS WHAT IS LEFT WHEN THE ADMINISTRATION IS TAKEN OUT.
@@ -458,18 +561,38 @@ export function readDictionary(rows: readonly string[]): DictionaryEntry[] {
       );
     };
 
+    /*
+     * Where the document names no initials the title comes from the NAME
+     * COLUMN, so nothing printed to its right can join it; where it does, the
+     * title ends at the initials exactly as before and the column rule is not
+     * needed. Continuation lines follow whichever of the two the head used.
+     */
+    const named = nameColumn(block[0] as number);
+    const namedAfter = named.slice(named.indexOf(code) + (named.includes(code) ? code.length : 0));
+
     const titleParts =
-      declared === null ? [stripAdmin(after)] : [after.slice(0, after.indexOf(declared))];
-    for (const line of block.slice(1)) titleParts.push(stripAdmin(line));
+      declared === null
+        ? [stripAdmin(namedAfter)]
+        : [after.slice(0, after.indexOf(declared))];
+    for (const index of block.slice(1)) {
+      titleParts.push(stripAdmin(declared === null ? nameColumn(index) : (rows[index] ?? '')));
+    }
 
     const title = titleParts
       .filter((part) => part !== '')
       .join(' ')
-      .replace(/^[\s\-–—:]+/, '')
+      /*
+       * `BNSK559/BPEK559/BYOK559 NSS/PE/YOGA ...` — one subject a student may
+       * be enrolled in under any of three codes, and the other two are no more
+       * part of its name than the first one is.
+       */
+      .replace(COURSE_CODE_ALL, ' ')
+      .replace(/^[\s\-–—:/]+/, '')
       .replace(/\s+/g, ' ')
       .trim();
 
-    const joined = block.join(' ');
+    /* The faculty and the workload are read from the WHOLE row, as before. */
+    const joined = block.map((index) => rows[index] ?? '').join(' ');
 
     /*
      * TWO WORKLOADS, KEPT APART (§27). A row prints what the college teaches
@@ -603,6 +726,27 @@ export function resolveGridSubject(
   const wanted = initials.trim().toUpperCase();
   if (wanted === '') {
     return { subjectCode: null, resolution: 'unknown', reason: 'The cell is empty.' };
+  }
+
+  /*
+   * THE CELL MAY SIMPLY BE THE NAME.
+   *
+   * A block the grid has room for is written out — the real document's
+   * "Mini project" cell is the subject table's "Mini project" entry, printed
+   * in full rather than shortened. Matched whole and case-insensitively: this
+   * is an EQUALITY, not a resemblance, and a cell that merely contains or
+   * nearly reads like a title still resolves to nothing (§29).
+   */
+  const spelled = dictionary.filter(
+    (entry) => entry.title.replace(/\s+/g, ' ').trim().toUpperCase() === wanted,
+  );
+  if (spelled.length === 1) {
+    return {
+      subjectCode: (spelled[0] as DictionaryEntry).subjectCode,
+      /* The document named it outright, which is as declared as a cell gets. */
+      resolution: 'declared',
+      reason: null,
+    };
   }
 
   const declared = dictionary.filter((entry) => entry.initials === wanted);
@@ -841,7 +985,18 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
   const joined = rowText.join('\n');
 
   const context = readContext(joined);
-  const dictionary = readDictionary(rowText);
+  const dictionary = readDictionary(
+    rowText,
+    /*
+     * Blank runs are dropped here for the same reason the column reader drops
+     * them: a PDF emits them to cross a gap, and one reported with the width
+     * of the gap it crossed sits to the LEFT of the column it precedes.
+     */
+    rows.map((row) => ({
+      y: row[0]?.y ?? 0,
+      runs: row.filter((item) => item.text.trim() !== ''),
+    })),
+  );
 
   /*
    * THE COLUMNS COME FROM THE HEADER, and the header is whichever row holds the
@@ -1064,70 +1219,84 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
     if (dayNameIn(rows[index] as PlacedLike[]) !== undefined) labelRows.push(index);
   }
 
-  /*
-   * A ROW BELONGS TO THE NEAREST DAY LABEL, ABOVE OR BELOW.
-   *
-   * The first attempt ran each band from its label to the next one. That is
-   * wrong in a way that produces plausible output: a Word-authored timetable
-   * centres the label vertically, so the SUBJECTS print on the line ABOVE it
-   * and the rooms below. Running label-to-label attached every day's subjects
-   * to the PREVIOUS day, and the first day's to nothing — 42 classes on a real
-   * document, every one of them on the wrong day, with nothing on screen to
-   * suggest it.
-   *
-   * Nearest-label is symmetric, so it reads a row on either side of its label,
-   * and it needs no rule about which side a document happens to use.
-   *
-   * The half-gap cap is what stops a page footer becoming Saturday's classes:
-   * a run further from every label than half the distance between labels is not
-   * in any day's band.
-   */
-  const gaps = labelRows.slice(1).map((value, index) => value - (labelRows[index] as number));
-  const sortedGaps = [...gaps].sort((a, b) => a - b);
-  const medianGap =
-    sortedGaps.length === 0 ? 2 : (sortedGaps[Math.floor(sortedGaps.length / 2)] as number);
-  const reach = Math.max(1, Math.floor(medianGap / 2));
+  /* How far apart the grid's own printed lines are, for the lone-day case. */
+  const gridSteps: number[] = [];
+  for (let index = headerIndex + 2; index < rows.length; index += 1) {
+    const step = (rows[index - 1]?.[0]?.y ?? 0) - (rows[index]?.[0]?.y ?? 0);
+    if (step > 0) gridSteps.push(step);
+  }
+  gridSteps.sort((a, b) => a - b);
+  const gridStep =
+    gridSteps.length === 0 ? tolerance : (gridSteps[Math.floor(gridSteps.length / 2)] as number);
 
+  /*
+   * A DAY OWNS THE ROWS BETWEEN THE MIDPOINTS TO ITS NEIGHBOURS.
+   *
+   * A Word-authored timetable centres the day label vertically in a tall table
+   * row, so the subjects print on the line ABOVE the label and the rooms on the
+   * line BELOW it. The band is therefore the region of the page that is nearer
+   * to this label than to any other — which is exactly the table row the
+   * document drew, and needs no rule about which side a document puts its
+   * cells on.
+   *
+   * WHAT THIS REPLACED, AND WHY. The previous rule read the neighbouring lines
+   * only for a label that had no cells of its own, deciding "own cells" by
+   * whether any run on the label's row fell inside a time column. On the real
+   * Semester 5 document that test is wrong three times out of six: Tuesday's,
+   * Wednesday's and Saturday's label rows each catch a stray run — a single
+   * letter of the vertically-set SHORT BREAK and LUNCH labels, or the second
+   * line of a cell that wrapped ("Value added" above, "Course" below). Each
+   * one declared the band complete, so the row holding that day's actual
+   * subjects was never read: half the week silently produced nothing, and the
+   * document reported no error at all.
+   *
+   * Midpoints have no such failure mode, and they degenerate correctly: on a
+   * timetable whose days each fit on one printed line, the rows either side of
+   * a label are past the midpoint, so the band is the label's row alone — byte
+   * for byte the behaviour that layout had before.
+   */
+  const labelY = (index: number) => (rows[index]?.[0]?.y ?? 0);
   const bands = new Map<number, Band>();
-  for (const labelRow of labelRows) {
+
+  for (let position = 0; position < labelRows.length; position += 1) {
+    const labelRow = labelRows[position] as number;
     const day = dayNameIn(rows[labelRow] as PlacedLike[]);
     if (day === undefined) continue;
-    /* The label itself is not a cell; everything else on its own row is. */
-    bands.set(labelRow, {
-      day,
-      items: (rows[labelRow] as PlacedLike[]).filter(
-        (item) => DAY_NAMES[item.text.replace(/[^A-Za-z]/g, '').toLowerCase()] === undefined,
-      ),
-    });
-  }
 
-  /*
-   * NEIGHBOURING ROWS ARE ONLY READ FOR A LABEL THAT HAS NOTHING OF ITS OWN.
-   *
-   * This is the condition that separates the two layouts, and it has to be
-   * exact — reaching for neighbours unconditionally pulled the SUBJECT
-   * DICTIONARY into Monday on a document whose days each fit on one line.
-   *
-   *   Reference layout: the label row carries its own cells, so the band is
-   *   that row alone. Byte for byte the previous behaviour.
-   *
-   *   Word layout: the label is alone on its printed line, so the cells are on
-   *   the neighbouring lines and there is no other way to read them.
-   */
-  const hasOwnCells = (band: Band) =>
-    band.items.some((item) => slotAt(bounded, item.x, item.x + item.width) >= 0);
+    const y = labelY(labelRow);
+    const previous = position > 0 ? labelY(labelRows[position - 1] as number) : null;
+    const next =
+      position + 1 < labelRows.length ? labelY(labelRows[position + 1] as number) : null;
 
-  for (const [labelRow, band] of bands) {
-    if (hasOwnCells(band)) continue;
-    for (let offset = 1; offset <= reach; offset += 1) {
-      for (const index of [labelRow - offset, labelRow + offset]) {
-        if (index <= headerIndex || index >= rows.length) continue;
-        if (bands.has(index)) continue;
-        /* Never past the midpoint to a neighbouring label. */
-        if (labelRows.some((other) => Math.abs(index - other) < offset)) continue;
-        band.items.push(...(rows[index] as PlacedLike[]));
+    /*
+     * The outer edges use the gap this day actually has, mirrored. A first or
+     * last day with no neighbour on one side would otherwise reach to the top
+     * of the page or into the subject dictionary below the grid.
+     */
+    /*
+     * A day with no neighbour on either side — a timetable of one day, or a
+     * fixture of one — has no midpoint to take, so the band is a printed row
+     * of the grid either side of the label. Without this the band collapsed
+     * onto the label's own line and a document whose subjects are printed
+     * above the label and rooms below it produced nothing at all.
+     */
+    const lone = gridStep * 3;
+    const above = previous !== null ? previous - y : next !== null ? y - next : lone;
+    const below = next !== null ? y - next : previous !== null ? previous - y : lone;
+    const top = y + above / 2;
+    const bottom = y - below / 2;
+
+    const items: PlacedLike[] = [];
+    for (let index = headerIndex + 1; index < rows.length; index += 1) {
+      const rowY = labelY(index);
+      if (rowY > top || rowY < bottom) continue;
+      for (const item of rows[index] as PlacedLike[]) {
+        /* The label itself names the band; it is not one of its cells. */
+        if (DAY_NAMES[item.text.replace(/[^A-Za-z]/g, '').toLowerCase()] !== undefined) continue;
+        items.push(item);
       }
     }
+    bands.set(labelRow, { day, items });
   }
 
   for (const band of bands.values()) {
@@ -1140,6 +1309,23 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
      */
     const byColumn = new Map<number, PlacedLike[]>();
     for (const item of band.items) {
+      /*
+       * A BLANK RUN AND A SINGLE LETTER ARE NOT PART OF A CELL.
+       *
+       * A PDF emits blank runs to cross gaps and reports each with the width
+       * of the gap it crossed, so one left in a cell makes the cell look as
+       * wide as the page — the reader that groups the header's columns had to
+       * learn the same thing. And the letters:
+       *
+       * The vertically-set "SHORT BREAK" and "LUNCH" labels arrive one letter
+       * per line, and a narrow break column is not always wide enough to hold
+       * every one of them: a letter whose printed box crosses the boundary
+       * lands in the NEIGHBOURING column and joined that cell's text, which is
+       * how the real document produced a class called "Value added Course L".
+       * Dropping them here costs nothing — the pass that reads those labels
+       * stacks them straight off the page, below, and never looks at cells.
+       */
+      if (item.text.replace(/[^A-Za-z0-9]/g, '').length < 2) continue;
       const column = slotAt(bounded, item.x, item.x + item.width);
       if (column < 0) continue;
       const bucket = byColumn.get(column) ?? [];
@@ -1147,13 +1333,70 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
       byColumn.set(column, bucket);
     }
 
-    for (const [column, items] of byColumn) {
-      const text = items
+    /*
+     * A CELL THAT SPANS TWO COLUMNS HOLDS WHAT IS PRINTED UNDER BOTH.
+     *
+     * A lab written once across two hours is one class (§25), and the rooms
+     * its two batches run in are printed one under each hour. Bucketing purely
+     * by column left the second room stranded in a column of its own and it
+     * became a class — the real document reported TEJOMAYI, a room, as a
+     * subject nobody could identify.
+     *
+     * A run belongs to the column its CENTRE falls in, which is right for a
+     * cell that fits its column and arbitrary for one that does not: the same
+     * lab is centred over the earlier hour on Wednesday and over the later one
+     * on Thursday, so its rooms are stranded on the right one day and on the
+     * left the next. Two columns therefore join when the cell in either
+     * physically crosses into the other — where the left one REACHES, and
+     * where the right one BEGINS.
+     */
+    /*
+     * Measured on the cell's TOP line — what the cell SAYS — and not on the
+     * room printed under it. A room is a short word set under a narrow column
+     * and routinely wider than the column's header text, so measuring the
+     * whole cell made an ordinary subject-plus-room reach into its neighbour
+     * and swallow the class standing there.
+     */
+    const edges = (items: readonly PlacedLike[]) => {
+      const top = Math.max(...items.map((item) => item.y));
+      const line = items.filter((item) => top - item.y <= tolerance);
+      return {
+        left: Math.min(...line.map((item) => item.x)),
+        right: Math.max(...line.map((item) => item.x + item.width)),
+      };
+    };
+
+    const ordered = [...byColumn.entries()].sort((a, b) => a[0] - b[0]);
+    const cells: [number, PlacedLike[]][] = [];
+    for (const [column, items] of ordered) {
+      const previous = cells[cells.length - 1];
+      if (previous !== undefined) {
+        const reach = slotAt(bounded, edges(previous[1]).right - 1, edges(previous[1]).right);
+        const begins = slotAt(bounded, edges(items).left, edges(items).left);
+        if (reach >= column || begins <= previous[0]) {
+          previous[1].push(...items);
+          continue;
+        }
+      }
+      cells.push([column, items]);
+    }
+
+    for (const [column, items] of cells) {
+      const text = [...items]
+        .sort((a, b) => b.y - a.y || a.x - b.x)
         .map((item) => item.text)
         .join(' ')
         .replace(/\s+/g, ' ')
+        /*
+         * A cell is printed with LEADERS around it — `----Mini project---` on
+         * the real document — and a rule drawn out of dashes is typography,
+         * not part of the name. Only leader characters are taken: a bracket is
+         * data, and `MAT LAB(E1+E2)` loses its batches without the one that
+         * closes it.
+         */
+        .replace(/^[-–—_.·•*=~\s]+|[-–—_.·•*=~\s]+$/g, '')
         .trim();
-      if (text === '' || /^[-–—.]+$/.test(text)) continue;
+      if (text === '') continue;
 
       /*
        * A SINGLE LETTER IS NEVER A SUBJECT.
@@ -1210,35 +1453,82 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
         });
       };
 
-      const split = SPLIT_CELL.exec(text);
+      /*
+       * THE CELL, AND THE ROOM PRINTED UNDER IT.
+       *
+       * A band spans every printed line of one table row, so a column holds
+       * the subject AND the room written beneath it: `TOC-T LH-302`, or a lab
+       * rotation over the two rooms it runs in, `CNL-B1/CSL-B2 OJAS TEJOMAYI`.
+       * Matched as one string, none of the cell shapes fit — the real document
+       * lost every room, both lab rotations and both batch labels that way.
+       *
+       * So the shapes are matched against the longest PREFIX of the cell's
+       * words that satisfies one, and whatever follows is the room. Two things
+       * keep that safe: a prefix must be entirely upper case, which an
+       * abbreviation on a timetable is and an English word in a wrapped cell
+       * ("Value added Course") is not; and a cell matching no shape at all has
+       * nothing peeled from it, so a second subject can never be turned into a
+       * room.
+       */
+      const words = text.split(/\s+/).filter((word) => word !== '');
+      const isCellShape = (candidate: string) =>
+        candidate === candidate.toUpperCase() &&
+        (SPLIT_CELL.test(candidate) ||
+          LAB_CELL.test(candidate) ||
+          /^[A-Z]{2,6}$/.test(candidate) ||
+          COMPONENT_SUFFIX.test(candidate));
+
+      /*
+       * The WHOLE cell first, then its prefixes. `MAT LAB(E1+E2)` is a lab
+       * with two batches and no room printed; trying prefixes first read it as
+       * the subject MAT held in a room called "LAB(E1+E2)", and the second
+       * batch disappeared.
+       */
+      let head = text;
+      let printedRoom: string | null = null;
+      for (let count = words.length; count >= 1; count -= 1) {
+        const candidate = words.slice(0, count).join(' ');
+        if (!isCellShape(candidate)) continue;
+        head = candidate;
+        printedRoom = count === words.length ? null : words.slice(count).join(' ');
+        break;
+      }
+
+      const split = SPLIT_CELL.exec(head);
       if (split !== null) {
-        /* Two classes at one time, one per half of the group (§23). */
-        push(split[1] as string, split[2] as string, null);
-        push(split[3] as string, split[4] as string, null);
+        /*
+         * Two classes at one time, one per half of the group (§23). Where the
+         * document printed the rooms under the rotation they follow in the
+         * same order, so each half takes its own; where it printed one, both
+         * take it.
+         */
+        const rooms = printedRoom === null ? [] : printedRoom.split(/\s+/).filter(Boolean);
+        push(split[1] as string, split[2] as string, rooms[0] ?? null);
+        push(split[3] as string, split[4] as string, rooms[1] ?? rooms[0] ?? null);
         continue;
       }
 
-      const lab = LAB_CELL.exec(text);
+      const lab = LAB_CELL.exec(head);
       if (lab !== null) {
         const named = (lab[2] ?? '')
           .split(/[+,/]/)
           .map((part) => part.trim())
           .filter(Boolean);
-        if (named.length === 0) push(lab[1] as string, null, null);
-        else for (const batch of named) push(lab[1] as string, batch, null);
+        if (named.length === 0) push(lab[1] as string, null, printedRoom);
+        else for (const batch of named) push(lab[1] as string, batch, printedRoom);
         continue;
       }
 
-      const plain = /^([A-Z]{2,6})$/i.exec(text);
+      const plain = /^([A-Z]{2,6})$/i.exec(head);
       if (plain !== null) {
-        push(plain[1] as string, null, null);
+        push(plain[1] as string, null, printedRoom);
         continue;
       }
 
       /* `TOC-T`: the same subject, marked as its theory hour. */
-      const component = COMPONENT_SUFFIX.exec(text);
+      const component = COMPONENT_SUFFIX.exec(head);
       if (component !== null) {
-        push(component[1] as string, null, null);
+        push(component[1] as string, null, printedRoom);
         continue;
       }
 
@@ -1265,17 +1555,35 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
        * initials. Kept with a null code so the review can show it rather than
        * dropping a class in silence.
        */
+      /*
+       * The room is printed under this cell too, and it is a room whether or
+       * not the thing above it is an abbreviation this document defines —
+       * "Value added Course LH-302" is a block held in LH-302, not a class
+       * whose name ends in a room.
+       */
+      const trailing = /^(.*?)\s+([A-Z]{1,4}-?\d{1,4}[A-Z]?)$/i.exec(text);
+      const label = trailing?.[1] ?? text;
+
+      /*
+       * Still offered to the resolver, because a cell that is not an
+       * abbreviation can still be a NAME the subject table prints — and the
+       * real document's "Mini project" is exactly that.
+       */
+      const spelled = resolveGridSubject(dictionary, label);
+
       classes.push({
         day,
         start: slot.start,
         end,
-        subjectCode: null,
-        resolution: 'unknown',
+        subjectCode: spelled.subjectCode,
+        resolution: spelled.subjectCode === null ? 'unknown' : spelled.resolution,
         unresolvedReason:
-          'This cell is not a subject abbreviation this timetable defines. Check it against the printed timetable.',
-        initials: text.slice(0, 20),
+          spelled.subjectCode !== null
+            ? null
+            : 'This cell is not a subject abbreviation this timetable defines. Check it against the printed timetable.',
+        initials: label.slice(0, 20),
         batch: null,
-        room: null,
+        room: trailing?.[2]?.toUpperCase() ?? null,
         spansSlots: span,
         sourceText: text,
       });
@@ -1461,6 +1769,29 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
  * A class with no batch is everybody's. A class with one belongs to that batch
  * alone, and passing no batch keeps only the shared classes — which is the
  * honest answer while the student has not said which half they are in (§23).
+ *
+ * ---------------------------------------------------------------------------
+ * WHAT THIS CANNOT CARRY, STATED RATHER THAN WORKED AROUND
+ * ---------------------------------------------------------------------------
+ *
+ * **Breaks are represented; they are not classes.** SHORT BREAK and LUNCH are
+ * columns of the grid, and they are kept as `TimeSlot.isBreak` on the slots the
+ * header defines. They are never turned into a course record, and no subject
+ * code is invented for them.
+ *
+ * **A block the document never defines cannot be stored.** `TimetableSlot`
+ * requires a `subjectCode`, so a class the grid prints but the subject table
+ * does not identify — the real Semester 5 document's "Value added Course",
+ * "ESEVM" and "Placement & Training" — is parsed, kept in `classes`, counted in
+ * the coverage and named in a warning, and then DROPPED here. The student sees
+ * it on the review screen and not in the saved week.
+ *
+ * That is a limit of the stored schema, not of the reading, and it is recorded
+ * here rather than papered over: giving those blocks a code would mean either
+ * inventing one or guessing which subject the document meant, and both are
+ * forbidden (§18, §29). Lifting it means making `TimetableSlot.subjectCode`
+ * nullable, which reaches the day view, the week view and attendance — a
+ * change to the stored model, not to a parser.
  */
 export function slotsForBatch(
   parsed: ParsedTimetable,

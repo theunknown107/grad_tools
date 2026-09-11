@@ -906,3 +906,212 @@ describe('a break set vertically down its column', () => {
     expect(parsed.slots[6]?.isBreak).toBe(false);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* A table row is not a printed line, and a column is not a token             */
+/* -------------------------------------------------------------------------- */
+
+describe('the subject table read as COLUMNS', () => {
+  /**
+   * The layout a Word-authored subject table produces: the name in the first
+   * column, the faculty in the second, two workloads after it. The x values
+   * are what separate the columns; nothing here depends on what the words say.
+   */
+  const NAME_X = 60;
+  const FACULTY_X = 400;
+  const HOURS_X = 560;
+
+  const tableRow = (y: number, name: string, faculty: string | null, hours: string | null) =>
+    [
+      at(name, NAME_X, y, 300),
+      ...(faculty === null ? [] : [at(faculty, FACULTY_X, y, 120)]),
+      ...(hours === null ? [] : [at(hours, HOURS_X, y, 100)]),
+    ] as PlacedLike[];
+
+  const read = (lines: readonly PlacedLike[][]) =>
+    readDictionary(
+      lines.map((line) =>
+        line
+          .map((run) => run.text)
+          .join(' ')
+          .trim(),
+      ),
+      lines.map((line) => ({ y: line[0]?.y ?? 0, runs: line })),
+    );
+
+  it('keeps a title whose last word is an acronym the document never declares', () => {
+    /*
+     * The defect this exists for. "Research Methodology and IPR" ends in a
+     * word that is indistinguishable, read as a token, from an abbreviation in
+     * an Initials column — so the title was cut to "Research Methodology and"
+     * and IPR was reported as the subject's initials. An Initials column a
+     * document fills in is filled in THROUGHOUT, and this table fills in none.
+     */
+    const dictionary = read([
+      tableRow(300, 'BQAS501 Fundamentals of Management', 'Prof. A One', '3+0+0'),
+      tableRow(280, 'BQAS502 Computer Networks', 'Prof. B Two', '3+0+0'),
+      tableRow(260, 'BQMK557 Research Methodology and IPR', 'Prof. C Three', '2+2+0'),
+    ]);
+    const entry = dictionary.find((row) => row.subjectCode === 'BQMK557');
+    expect(entry?.title).toBe('Research Methodology and IPR');
+    expect(entry?.initials).toBeNull();
+    /* And the grid's own abbreviation reaches it, which the cut title could not. */
+    expect(resolveGridSubject(dictionary, 'RMIPR').subjectCode).toBe('BQMK557');
+  });
+
+  it('still reads an Initials column that the document does fill in', () => {
+    const dictionary = read([
+      tableRow(300, 'BQAS501 Fundamentals of Management FM', 'Prof. A One', '3+0+0'),
+      tableRow(280, 'BQAS502 Computer Networks CN', 'Prof. B Two', '3+0+0'),
+    ]);
+    expect(dictionary.map((row) => row.initials)).toEqual(['FM', 'CN']);
+    expect(dictionary[0]?.title).toBe('Fundamentals of Management');
+  });
+
+  it('does not let an unappointed faculty become part of the title', () => {
+    /*
+     * The faculty column is found by what it LOOKS like — a `Prof.` or a `Dr.`
+     * — and a post not yet filled is printed as words: "New Faculty". Reading
+     * the row as one flattened line made the subject "Mini project New
+     * Faculty", and a grid cell saying "Mini project" then matched nothing.
+     */
+    const dictionary = read([
+      tableRow(300, 'BQAS586-Mini project', 'New Faculty', null),
+    ]);
+    expect(dictionary[0]?.title).toBe('Mini project');
+  });
+
+  it('stops a title at the end of the table rather than the end of the page', () => {
+    /*
+     * A wrapped title continues on the next printed line; a different table
+     * further down the page does not. What tells them apart is the SPACE
+     * before it.
+     */
+    const dictionary = read([
+      tableRow(300, 'BQAS515A Marketing Research & Marketing', null, '3+0+0'),
+      tableRow(288, 'Management', 'Prof. A One', null),
+      /* A new section, after a gap much larger than the table's own spacing. */
+      tableRow(200, 'Lab Batches', null, null),
+      tableRow(188, 'Batch 1: 24AB001 To 24AB080', null, null),
+    ]);
+    expect(dictionary[0]?.title).toBe('Marketing Research & Marketing Management');
+  });
+
+  it('does not take the other codes a subject may be enrolled under as its name', () => {
+    const dictionary = read([
+      tableRow(300, 'BQSK559/BQEK559/BQOK559', 'Prof. A One', '0+0+0'),
+      tableRow(288, 'Sport/Music/Yoga', null, null),
+      tableRow(276, 'Value added Course', 'New Faculty', null),
+    ]);
+    expect(dictionary[0]?.title).toBe('Sport/Music/Yoga Value added Course');
+  });
+});
+
+describe('a cell the grid writes out in full', () => {
+  it('resolves a cell that is the table’s own name, leaders and all', () => {
+    /*
+     * A block with room to spare is printed as words rather than shortened,
+     * and drawn with leader rules around it: `----Mini project---`. The rules
+     * are typography; the name between them is an EXACT match for a title in
+     * the table, which is not a resemblance and not a fuzzy one.
+     */
+    const dictionary = readDictionary(['BQAS586-Mini project Prof. A One 0+0+0']);
+    expect(resolveGridSubject(dictionary, 'Mini project')).toMatchObject({
+      subjectCode: 'BQAS586',
+      resolution: 'declared',
+    });
+    /* A cell that merely CONTAINS a title still resolves to nothing. */
+    expect(resolveGridSubject(dictionary, 'Mini').subjectCode).toBeNull();
+  });
+});
+
+describe('a cell that crosses a column boundary', () => {
+  /**
+   * A lab written once over two hours, with the room each batch runs in
+   * printed under the hour it starts. A cell belongs to the column its centre
+   * falls in, and a cell wider than one column has a centre that lands on
+   * either side of the boundary depending on where it was set — so the same
+   * layout has to read the same both ways round.
+   */
+  const rotation = (labX: number, labWidth: number) => [
+    at('MONDAY', 40, 660, 70),
+    at('MATL-B1/POPL-B2', labX, 660, labWidth),
+    at('OJAS', COLUMNS[6] as number, 648, 40),
+    at('TEJOMAYI', COLUMNS[7] as number, 648, 60),
+  ];
+
+  it('takes the room under the second hour as the second batch, not a class', () => {
+    /*
+     * The room stranded in the next column became a class of its own — a real
+     * document reported a ROOM as a subject nobody could identify, and the
+     * batch that runs there lost the room it runs in.
+     */
+    const parsed = parseTimetable(page(rotation(COLUMNS[6] as number, 180)));
+    const monday = parsed.classes.filter((entry) => entry.day === 'Mon');
+    expect(monday).toHaveLength(2);
+    expect(monday.map((entry) => [entry.batch, entry.room])).toEqual([
+      ['B1', 'OJAS'],
+      ['B2', 'TEJOMAYI'],
+    ]);
+    expect(monday.every((entry) => entry.spansSlots === 2)).toBe(true);
+  });
+
+  it('reads it the same when the cell is centred over the LATER hour', () => {
+    const parsed = parseTimetable(page(rotation((COLUMNS[6] as number) + 60, 180)));
+    const monday = parsed.classes.filter((entry) => entry.day === 'Mon');
+    expect(monday).toHaveLength(2);
+    expect(monday.map((entry) => [entry.batch, entry.room])).toEqual([
+      ['B1', 'OJAS'],
+      ['B2', 'TEJOMAYI'],
+    ]);
+  });
+
+  it('does not let an ordinary subject swallow the class in the next column', () => {
+    /*
+     * The guard on the rule above. A room is a short word set under a narrow
+     * column and is routinely wider than the column's header text, so a reach
+     * measured on the whole cell rather than on what the cell SAYS made every
+     * subject-plus-room eat its neighbour.
+     */
+    const parsed = parseTimetable(
+      page([
+        at('MONDAY', 40, 660, 70),
+        at('ESC', COLUMNS[0] as number, 660, 20),
+        at('LH-302', COLUMNS[0] as number, 648, 110),
+        at('MAT', COLUMNS[1] as number, 660, 20),
+        at('LH-302', COLUMNS[1] as number, 648, 110),
+      ]),
+    );
+    const monday = parsed.classes.filter((entry) => entry.day === 'Mon');
+    expect(monday.map((entry) => [entry.initials, entry.room])).toEqual([
+      ['ESC', 'LH-302'],
+      ['MAT', 'LH-302'],
+    ]);
+  });
+});
+
+describe('the letters of a vertically-set break label', () => {
+  it('never join the cell in the column beside them', () => {
+    /*
+     * "LUNCH" set down a narrow column arrives one letter per printed line,
+     * and a letter whose printed box crosses the boundary lands in the
+     * neighbouring column. Joined to that cell it produced a class called
+     * "Value added Course L".
+     */
+    const letters = 'LUNCH'
+      .split('')
+      .map((letter, index) => at(letter, (COLUMNS[5] as number) + 40, 660 - index * 8, 10));
+    /* The one whose printed box crossed the boundary into the next column. */
+    const stray = at('H', (COLUMNS[6] as number) + 40, 652, 10);
+    const parsed = parseTimetable(
+      page([
+        at('MONDAY', 40, 660, 70),
+        at('Value added Course', COLUMNS[6] as number, 660, 70),
+        ...letters,
+        stray,
+      ]),
+    );
+    const monday = parsed.classes.filter((entry) => entry.day === 'Mon');
+    expect(monday.map((entry) => entry.initials)).toEqual(['Value added Course']);
+  });
+});
