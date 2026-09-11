@@ -471,3 +471,160 @@ export function parseExamTimetable(pages: readonly ExamPage[]): ParsedExamTimeta
 
   return { context, events, warnings };
 }
+
+/* -------------------------------------------------------------------------- */
+/* What the student keeps                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One exam timetable document the student supplied, as it is stored.
+ *
+ * `fingerprint` is the identity: the same document uploaded twice is one
+ * document, whatever the file was called the second time (§23).
+ */
+export interface SavedExamTimetable {
+  readonly id: string;
+  readonly profileId: string;
+  readonly examCycle: string | null;
+  readonly publicationState: string | null;
+  readonly notification: string | null;
+  /** SHA-256 of the supplied bytes. */
+  readonly fingerprint: string;
+  /** What the student called the file. Shown so they can recognise it again. */
+  readonly fileName: string | null;
+  readonly importedAt: string;
+  readonly eventCount: number;
+}
+
+/** One exam, as it is stored. */
+export interface StoredExamEvent extends ExamEventReading {
+  readonly id: string;
+  readonly profileId: string;
+  readonly timetableId: string;
+}
+
+export type ExamTimetableRelation =
+  | { readonly kind: 'new' }
+  | { readonly kind: 'duplicate'; readonly existing: SavedExamTimetable }
+  | {
+      readonly kind: 'revision';
+      readonly existing: SavedExamTimetable;
+      /** False where the incoming document is not the later publication. */
+      readonly supersedes: boolean;
+    };
+
+/**
+ * How an incoming exam timetable relates to one already held.
+ *
+ * ---------------------------------------------------------------------------
+ * A REVISION IS NOT A DUPLICATE, AND A DUPLICATE IS NOT A REVISION
+ * ---------------------------------------------------------------------------
+ *
+ * The same bytes are the same document: uploading a file twice must not
+ * produce two timetables, and the fingerprint settles that without reading a
+ * word of it (§23).
+ *
+ * A DIFFERENT document for the same cycle is a revision, and the order matters:
+ * a draft and the revision that replaces it are both real, and the product has
+ * to know which one is current. `supersedes` is decided by what the documents
+ * SAY — a published document supersedes a draft — and never by which was
+ * uploaded second, because a student who uploads the draft later has not
+ * un-published anything (§24).
+ *
+ * Where neither document states its publication, nothing is claimed: the
+ * relation is a revision that does not supersede, and the student is the one
+ * who decides.
+ */
+export function relateExamTimetable(
+  incoming: { readonly fingerprint: string; readonly examCycle: string | null; readonly publicationState: string | null },
+  saved: readonly SavedExamTimetable[],
+): ExamTimetableRelation {
+  const duplicate = saved.find((entry) => entry.fingerprint === incoming.fingerprint);
+  if (duplicate !== undefined) return { kind: 'duplicate', existing: duplicate };
+
+  /* Same cycle, different bytes: the documents are two readings of one exam
+     season, which is the only case where supersession means anything. */
+  const sameCycle = saved.filter(
+    (entry) =>
+      incoming.examCycle !== null &&
+      entry.examCycle !== null &&
+      entry.examCycle.toLowerCase() === incoming.examCycle.toLowerCase(),
+  );
+  const existing = sameCycle[sameCycle.length - 1];
+  if (existing === undefined) return { kind: 'new' };
+
+  const rank = (state: string | null) =>
+    state === null ? 0 : state === 'draft' || state === 'provisional' ? 1 : 2;
+  return {
+    kind: 'revision',
+    existing,
+    supersedes: rank(incoming.publicationState) > rank(existing.publicationState),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Whose exam is it                                                           */
+/* -------------------------------------------------------------------------- */
+
+/** What the student is, as far as an exam timetable is concerned. */
+export interface ExamAudience {
+  /** The scheme the student is enrolled under: "2022". */
+  readonly scheme: string | null;
+  readonly semester: number | null;
+  /** Codes the student is taking now. */
+  readonly enrolled: readonly string[];
+  /** Codes they still owe from an earlier semester. */
+  readonly backlog: readonly string[];
+}
+
+export type ExamRelevance =
+  /** The column is this student's, and the course is one of theirs. */
+  | 'enrolled'
+  /** The column is this student's, and the course is one they still owe. */
+  | 'backlog'
+  /** The column is this student's; which course the cell means is not stated. */
+  | 'unresolved'
+  /** The column belongs to another scheme or another semester. */
+  | 'not_applicable';
+
+/**
+ * Whether one exam is this student's, and on what evidence.
+ *
+ * ---------------------------------------------------------------------------
+ * THE COLUMN DECIDES, THEN THE CODE
+ * ---------------------------------------------------------------------------
+ *
+ * Scheme and semester come from the column the exam was printed in, and they
+ * are checked FIRST: a Semester III paper is not this student's business
+ * however familiar its code looks. Only then does the course matter.
+ *
+ * Matching is exact and nothing else (§16). A pattern like `B**301` names no
+ * course, so an exam in the student's own column whose cell is a pattern comes
+ * back `unresolved` — visible, honestly unidentified, and never quietly
+ * dropped or quietly resolved. That is the state §18 asks to be distinguished
+ * from "no exam", and the two are not allowed to look the same.
+ */
+export function examRelevance(event: ExamEventReading, audience: ExamAudience): ExamRelevance {
+  /* A column that names a scheme the student is not under is not theirs. */
+  if (event.scheme !== null && audience.scheme !== null && event.scheme !== audience.scheme) {
+    return 'not_applicable';
+  }
+  if (event.semester !== null && audience.semester !== null && event.semester !== audience.semester) {
+    /*
+     * An earlier semester can still be theirs — a backlog paper is sat with
+     * the juniors — but only when they actually owe one of its courses.
+     */
+    const owed = event.codes.some((code) => audience.backlog.includes(code));
+    return owed ? 'backlog' : 'not_applicable';
+  }
+
+  if (event.codes.some((code) => audience.enrolled.includes(code))) return 'enrolled';
+  if (event.codes.some((code) => audience.backlog.includes(code))) return 'backlog';
+
+  /*
+   * Their column, and the cell names no course this student holds. That is
+   * either a course they are not taking or a cell nobody can resolve, and the
+   * two are told apart by whether it named anything at all.
+   */
+  return event.codes.length === 0 ? 'unresolved' : 'not_applicable';
+}

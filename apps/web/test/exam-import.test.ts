@@ -20,7 +20,16 @@
  * pretending otherwise would be testing against a transcription error.
  */
 import { describe, expect, it } from 'vitest';
-import { classifyExamCell, parseExamTimetable, type ExamPage } from '../src/domain/exam-import.js';
+import {
+  classifyExamCell,
+  examRelevance,
+  parseExamTimetable,
+  relateExamTimetable,
+  type ExamAudience,
+  type ExamEventReading,
+  type ExamPage,
+  type SavedExamTimetable,
+} from '../src/domain/exam-import.js';
 import type { PositionedText } from '../src/domain/pdf-layout.js';
 
 const HEIGHT = 11;
@@ -252,5 +261,133 @@ describe('when the document cannot be read', () => {
     );
     expect(parsed.events[0]).toMatchObject({ kind: 'pattern', codes: [] });
     expect(parsed.warnings.join(' ')).toMatch(/code pattern/i);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+
+describe('whose exam it is', () => {
+  /*
+   * §18. The COLUMN decides first — scheme and semester — and only then the
+   * course. A Semester III paper is not this student's business however
+   * familiar its code looks.
+   */
+  const event = (over: Partial<ExamEventReading> = {}): ExamEventReading => ({
+    examDate: '2099-01-23',
+    weekday: 'Friday',
+    session: '2.00pm to 5.00pm',
+    startTime: '14:00',
+    endTime: '17:00',
+    scheme: '2022',
+    semester: 5,
+    printed: 'BQQ501',
+    kind: 'code',
+    codes: ['BQQ501'],
+    ...over,
+  });
+
+  const student: ExamAudience = {
+    scheme: '2022',
+    semester: 5,
+    enrolled: ['BQQ501', 'BQQ502'],
+    backlog: ['BQQ301'],
+  };
+
+  it('claims a course the student is taking', () => {
+    expect(examRelevance(event(), student)).toBe('enrolled');
+  });
+
+  it('refuses a column belonging to another scheme', () => {
+    /* §16: a 2021 paper is not a 2022 student's, whatever its code says. */
+    expect(examRelevance(event({ scheme: '2021' }), student)).toBe('not_applicable');
+  });
+
+  it('refuses another semester’s column', () => {
+    expect(examRelevance(event({ semester: 3, codes: ['BQQ399'], printed: 'BQQ399' }), student)).toBe(
+      'not_applicable',
+    );
+  });
+
+  it('claims an earlier semester’s paper the student still owes', () => {
+    /* A backlog paper is sat with the juniors — but only a course they owe. */
+    expect(
+      examRelevance(event({ semester: 3, codes: ['BQQ301'], printed: 'BQQ301' }), student),
+    ).toBe('backlog');
+  });
+
+  it('does not claim a course the student is simply not taking', () => {
+    expect(examRelevance(event({ codes: ['BQQ599'], printed: 'BQQ599' }), student)).toBe(
+      'not_applicable',
+    );
+  });
+
+  it('keeps a pattern in the student’s own column as UNRESOLVED', () => {
+    /*
+     * The state §18 insists on distinguishing. `B**501` is in this student's
+     * scheme and semester and names no course, so it is neither theirs nor
+     * not-theirs — it is unidentified, and saying either would be a claim the
+     * document does not support.
+     */
+    expect(
+      examRelevance(event({ kind: 'pattern', codes: [], printed: 'B**501' }), student),
+    ).toBe('unresolved');
+  });
+
+  it('says nothing about scheme or semester the document did not print', () => {
+    const silent = event({ scheme: null, semester: null, codes: ['BQQ501'] });
+    expect(examRelevance(silent, student)).toBe('enrolled');
+  });
+});
+
+describe('the same document twice, and the document that replaces it', () => {
+  const saved: SavedExamTimetable = {
+    id: 't1',
+    profileId: 'p1',
+    examCycle: 'Dec.2099/Jan.2100',
+    publicationState: 'draft',
+    notification: null,
+    fingerprint: 'aaa',
+    fileName: 'draft.pdf',
+    importedAt: '2099-01-01T00:00:00Z',
+    eventCount: 4,
+  };
+
+  it('knows the same bytes are the same document', () => {
+    /* §23: renaming the file does not make it a second timetable. */
+    const relation = relateExamTimetable(
+      { fingerprint: 'aaa', examCycle: 'Dec.2099/Jan.2100', publicationState: 'draft' },
+      [saved],
+    );
+    expect(relation.kind).toBe('duplicate');
+  });
+
+  it('treats a different document for the same cycle as a revision', () => {
+    const relation = relateExamTimetable(
+      { fingerprint: 'bbb', examCycle: 'Dec.2099/Jan.2100', publicationState: 'final' },
+      [saved],
+    );
+    expect(relation).toMatchObject({ kind: 'revision', supersedes: true });
+  });
+
+  it('does not let a draft supersede the published timetable it preceded', () => {
+    /*
+     * §24: supersession is decided by what the documents SAY, not by upload
+     * order. A student who uploads the draft afterwards has not un-published
+     * anything.
+     */
+    const published: SavedExamTimetable = { ...saved, fingerprint: 'ccc', publicationState: 'final' };
+    const relation = relateExamTimetable(
+      { fingerprint: 'ddd', examCycle: 'Dec.2099/Jan.2100', publicationState: 'draft' },
+      [published],
+    );
+    expect(relation).toMatchObject({ kind: 'revision', supersedes: false });
+  });
+
+  it('treats another cycle as a new timetable, not a revision of this one', () => {
+    const relation = relateExamTimetable(
+      { fingerprint: 'eee', examCycle: 'Jun.2100/Jul.2100', publicationState: 'draft' },
+      [saved],
+    );
+    expect(relation.kind).toBe('new');
   });
 });
