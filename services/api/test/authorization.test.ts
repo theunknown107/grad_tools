@@ -85,7 +85,16 @@ describeDb('the authorization matrix', () => {
   let app: Express;
   let sql: Sql;
 
-  const ids = { aSemester: '', bSemester: '', aProfile: '', bProfile: '' };
+  const ids = {
+    aSemester: '',
+    bSemester: '',
+    aProfile: '',
+    bProfile: '',
+    /* A's own records: one uncoded result row, one uncoded timetable hour. */
+    aResult: '',
+    aResultSubject: '',
+    aActivity: '',
+  };
 
   const sessionFor = (userId: string): Session => ({
     userId,
@@ -149,6 +158,39 @@ describeDb('the authorization matrix', () => {
       `;
       ids[key] = row?.id as string;
     }
+
+    /*
+     * MANUAL RECORDS, WHICH ARE THE MOST PRIVATE THING HERE.
+     *
+     * A row a student typed themselves has no counterpart anywhere else — no
+     * catalogue entry, no source document, nothing another student could
+     * legitimately have. Both of A's carry no course code, which is exactly
+     * the shape the manual-record work made storable, and neither may ever be
+     * visible to B.
+     */
+    const [aResult] = await admin<{ id: string }[]>`
+      INSERT INTO semester_results (auth_user_id, profile_id, semester, scheme_id, rule_set_id)
+      VALUES (${A}::uuid, ${ids.aProfile}::uuid, 5, 'vtu-2022', 'vtu-2022')
+      RETURNING id::text
+    `;
+    ids.aResult = aResult?.id as string;
+
+    const [aSubject] = await admin<{ id: string }[]>`
+      INSERT INTO result_subjects
+        (auth_user_id, result_id, subject_code, subject_title, provenance)
+      VALUES (${A}::uuid, ${ids.aResult}::uuid, NULL, 'Placement & Training', 'manual')
+      RETURNING id::text
+    `;
+    ids.aResultSubject = aSubject?.id as string;
+
+    const [aActivity] = await admin<{ id: string }[]>`
+      INSERT INTO timetable_slots
+        (auth_user_id, profile_id, day, start_time, end_time, subject_code, activity)
+      VALUES (${A}::uuid, ${ids.aProfile}::uuid, 'Mon', '10:00', '11:00', NULL,
+              'Placement & Training')
+      RETURNING id::text
+    `;
+    ids.aActivity = aActivity?.id as string;
   });
 
   /* ------------------------------------------------------------------------ */
@@ -324,6 +366,108 @@ describeDb('the authorization matrix', () => {
           >`SELECT id::text FROM semester_records WHERE id = ${ids.bSemester}::uuid`,
       );
       expect(stolen).toHaveLength(0);
+    });
+
+    /* ---------------------------------------------------------------- */
+    /* The records a student typed themselves                           */
+    /* ---------------------------------------------------------------- */
+
+    it('cannot see another student’s manual result row', async () => {
+      const mine = await withUser(cloud, sessionFor(B), (tx) =>
+        tx<{ id: string }[]>`SELECT id::text FROM result_subjects`,
+      );
+      expect(mine).toHaveLength(0);
+
+      const stolen = await withUser(
+        cloud,
+        sessionFor(B),
+        (tx) =>
+          tx<
+            { id: string }[]
+          >`SELECT id::text FROM result_subjects WHERE id = ${ids.aResultSubject}::uuid`,
+      );
+      expect(stolen).toHaveLength(0);
+    });
+
+    it('cannot see another student’s manual timetable activity', async () => {
+      const stolen = await withUser(
+        cloud,
+        sessionFor(B),
+        (tx) =>
+          tx<
+            { id: string; activity: string }[]
+          >`SELECT id::text, activity FROM timetable_slots WHERE id = ${ids.aActivity}::uuid`,
+      );
+      expect(stolen).toHaveLength(0);
+    });
+
+    it('cannot change another student’s manual row by naming its id', async () => {
+      /*
+       * §28. The id is the only thing a client controls, so it is the whole of
+       * the attack. An UPDATE that matches no visible row changes nothing —
+       * and the check below is of the DATA, because an UPDATE reporting zero
+       * rows and an UPDATE that silently worked look the same from here.
+       */
+      await withUser(
+        cloud,
+        sessionFor(B),
+        (tx) =>
+          tx`UPDATE result_subjects SET subject_title = 'Taken over'
+             WHERE id = ${ids.aResultSubject}::uuid`,
+      );
+      await withUser(
+        cloud,
+        sessionFor(B),
+        (tx) =>
+          tx`UPDATE timetable_slots SET activity = 'Taken over'
+             WHERE id = ${ids.aActivity}::uuid`,
+      );
+
+      const [subject] = await admin<{ subject_title: string }[]>`
+        SELECT subject_title FROM result_subjects WHERE id = ${ids.aResultSubject}::uuid
+      `;
+      const [slot] = await admin<{ activity: string }[]>`
+        SELECT activity FROM timetable_slots WHERE id = ${ids.aActivity}::uuid
+      `;
+      expect(subject?.subject_title).toBe('Placement & Training');
+      expect(slot?.activity).toBe('Placement & Training');
+    });
+
+    it('cannot delete another student’s manual rows', async () => {
+      await withUser(
+        cloud,
+        sessionFor(B),
+        (tx) => tx`DELETE FROM result_subjects WHERE id = ${ids.aResultSubject}::uuid`,
+      );
+      await withUser(
+        cloud,
+        sessionFor(B),
+        (tx) => tx`DELETE FROM timetable_slots WHERE id = ${ids.aActivity}::uuid`,
+      );
+
+      const subjects = await admin<{ id: string }[]>`
+        SELECT id::text FROM result_subjects WHERE id = ${ids.aResultSubject}::uuid
+      `;
+      const slots = await admin<{ id: string }[]>`
+        SELECT id::text FROM timetable_slots WHERE id = ${ids.aActivity}::uuid
+      `;
+      expect(subjects).toHaveLength(1);
+      expect(slots).toHaveLength(1);
+    });
+
+    it('cannot see another student’s catalogue link', async () => {
+      /*
+       * §29. The link is A's statement about A's row. B gains nothing from it
+       * — not the link, and not the fact that A made one.
+       */
+      await admin`
+        UPDATE result_subjects SET catalogue_code = 'BQAS502'
+        WHERE id = ${ids.aResultSubject}::uuid
+      `;
+      const seen = await withUser(cloud, sessionFor(B), (tx) =>
+        tx<{ catalogue_code: string | null }[]>`SELECT catalogue_code FROM result_subjects`,
+      );
+      expect(seen).toHaveLength(0);
     });
 
     /* A student cannot hand their own row to somebody else either (WITH CHECK). */
