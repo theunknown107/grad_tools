@@ -1771,27 +1771,21 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
  * honest answer while the student has not said which half they are in (§23).
  *
  * ---------------------------------------------------------------------------
- * WHAT THIS CANNOT CARRY, STATED RATHER THAN WORKED AROUND
+ * TWO KINDS OF HOUR, AND A THIRD THAT IS NOT AN HOUR AT ALL
  * ---------------------------------------------------------------------------
  *
- * **Breaks are represented; they are not classes.** SHORT BREAK and LUNCH are
- * columns of the grid, and they are kept as `TimeSlot.isBreak` on the slots the
- * header defines. They are never turned into a course record, and no subject
- * code is invented for them.
+ * **A course** keeps the code the subject table gave it.
  *
- * **A block the document never defines cannot be stored.** `TimetableSlot`
- * requires a `subjectCode`, so a class the grid prints but the subject table
- * does not identify — the real Semester 5 document's "Value added Course",
- * "ESEVM" and "Placement & Training" — is parsed, kept in `classes`, counted in
- * the coverage and named in a warning, and then DROPPED here. The student sees
- * it on the review screen and not in the saved week.
+ * **An activity** — a cell the grid prints and the subject table never defines,
+ * like "Value added Course" or "Placement & Training" — keeps the name the
+ * document printed and no code. It used to be dropped here, because a slot
+ * without a code could not be stored; it is stored now, as what it is. No code
+ * is invented for it (§18, §29): an invented code would be indexed as a
+ * subject and offered for attendance beside real VTU ones.
  *
- * That is a limit of the stored schema, not of the reading, and it is recorded
- * here rather than papered over: giving those blocks a code would mean either
- * inventing one or guessing which subject the document meant, and both are
- * forbidden (§18, §29). Lifting it means making `TimetableSlot.subjectCode`
- * nullable, which reaches the day view, the week view and attendance — a
- * change to the stored model, not to a parser.
+ * **A break** is neither. SHORT BREAK and LUNCH are columns of the grid, kept
+ * as `TimeSlot.isBreak` on the slots the header defines, and they never become
+ * a record here.
  */
 export function slotsForBatch(
   parsed: ParsedTimetable,
@@ -1804,12 +1798,12 @@ export function slotsForBatch(
   day: Weekday;
   startTime: string;
   endTime: string;
-  subjectCode: string;
+  subjectCode: string | null;
+  activity: string | null;
   room: string | null;
   faculty: string | null;
 }> {
   return parsed.classes
-    .filter((entry) => entry.subjectCode !== null)
     .filter((entry) => entry.batch === null || entry.batch === batch?.toUpperCase())
     .map((entry) => {
       const definition = parsed.dictionary.find(
@@ -1821,12 +1815,86 @@ export function slotsForBatch(
         day: entry.day,
         startTime: entry.start,
         endTime: entry.end,
-        subjectCode: entry.subjectCode as string,
+        subjectCode: entry.subjectCode,
+        /*
+         * What the CELL said, for an hour that names no course. `initials` is
+         * the cell's own text — "Placement & Training" where the grid wrote it
+         * out, "ESEVM" where it abbreviated — so this is the document's
+         * wording and not a description of it.
+         */
+        activity: entry.subjectCode === null ? entry.initials : null,
         room: entry.room ?? parsed.context.room,
         /* Present only where the document named one. Never inferred (§26). */
         faculty: definition?.faculty ?? null,
       };
     });
+}
+
+/**
+ * WHAT A SLOT IS, ANSWERED ONCE.
+ *
+ * Every screen that shows a slot asks the same three questions — what do I
+ * call it, what do I print beside it, and can this hour bear attendance — and
+ * before this they each answered them inline from `subjectCode`. Six copies of
+ * one rule is how the six come to disagree, and a nullable code would have put
+ * an `if` in every one of them (§29).
+ *
+ * `title` is what the subject index resolved for the code, or null. Passing it
+ * in keeps this pure and keeps the index where it already lives.
+ */
+export interface TimetableEntry {
+  /** The heading: a resolved title, else the code, else the activity's name. */
+  readonly name: string;
+  /**
+   * The shortest thing that identifies this hour: the code, or the activity's
+   * name where there is no code.
+   *
+   * Distinct from `name`, which prefers a title. A control that speaks about
+   * one hour — "Mark BCS502 attended" — wants the code a student recognises,
+   * not the sentence it expands to, and it wanted that before an hour could
+   * lack a code. This keeps that answer identical for every course.
+   */
+  readonly shortName: string;
+  /** What belongs in the smaller line beside it, or null if that would repeat. */
+  readonly detail: string | null;
+  /** A course the timetable identified. False for an hour it merely named. */
+  readonly isCourse: boolean;
+  /**
+   * The code attendance is counted against, or null.
+   *
+   * Null means this hour is not an attendance-bearing subject — not that its
+   * code is missing. An activity can still be MARKED, because the mark belongs
+   * to the slot; what it cannot do is open a subject's attendance record (§26).
+   */
+  readonly attendanceCode: string | null;
+}
+
+export function timetableEntry(
+  slot: {
+    readonly subjectCode: string | null;
+    readonly activity?: string | null;
+  },
+  title: string | null,
+): TimetableEntry {
+  const code = slot.subjectCode;
+  if (code === null) {
+    /*
+     * `?? ''` rather than a throw: a record written before slots could carry an
+     * activity has neither field, and a student's saved week is not the place
+     * to discover that. An empty name renders as nothing, which is what an
+     * unnameable row honestly is.
+     */
+    const named = slot.activity ?? '';
+    return { name: named, shortName: named, detail: null, isCourse: false, attendanceCode: null };
+  }
+  const named = title !== null && title !== '' && title !== code;
+  return {
+    name: named ? title : code,
+    shortName: code,
+    detail: named ? code : null,
+    isCourse: true,
+    attendanceCode: code,
+  };
 }
 
 /** Whether the student must say which batch they are in before saving (§23). */

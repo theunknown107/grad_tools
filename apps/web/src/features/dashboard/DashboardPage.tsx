@@ -44,6 +44,7 @@ import {
   type Weekday,
 } from '../../domain/types.js';
 import { markFor } from '../../domain/attendance.js';
+import { timetableEntry } from '../../domain/timetable-import.js';
 import { Bar, Empty, MetricStrip, Row, Rows, Skeleton } from '../../components/ui/layout.js';
 import { PastelCard, Rail } from '../../components/ui/tone.js';
 import { Panel, StatusPill, buttonClassName } from '../../components/ui/index.js';
@@ -649,7 +650,15 @@ function Today({
       ) : (
         <Rows>
           {slots.map((slot) => {
-            const title = nameFor(slot.subjectCode, subjects);
+            /*
+             * Through `timetableEntry`, which knows that an hour the timetable
+             * schedules without a course shows the name the document printed
+             * and nothing beside it.
+             */
+            const entry = timetableEntry(
+              slot,
+              slot.subjectCode === null ? null : nameFor(slot.subjectCode, subjects),
+            );
             /*
              * WHAT DID I MARK? (§35). Read-only here: the actions live on the
              * timetable's Today, and answering the same question twice in two
@@ -660,8 +669,8 @@ function Today({
               <Row
                 key={slot.id}
                 lead={formatTime(slot.startTime)}
-                title={title ?? slot.subjectCode}
-                meta={title === null ? undefined : slot.subjectCode}
+                title={entry.name}
+                meta={entry.detail ?? undefined}
                 trailing={
                   [slot.room, marked === null ? null : marked.outcome]
                     .filter(Boolean)

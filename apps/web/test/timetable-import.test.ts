@@ -31,6 +31,7 @@ import {
   relateTimetable,
   resolveGridSubject,
   slotsForBatch,
+  timetableEntry,
   type PlacedLike,
   type SavedTimetable,
 } from '../src/domain/timetable-import.js';
@@ -331,12 +332,102 @@ describe('what the student’s week becomes', () => {
     expect(slots[0]?.faculty).toMatch(/Divya/);
   });
 
-  it('drops a class whose subject the document never identified', () => {
-    /* An unresolved class cannot become a timetable slot: it has no subject. */
+  it('keeps an hour the document schedules but never identifies', () => {
+    /*
+     * THIS USED TO BE DROPPED, and the assertion here used to require it.
+     *
+     * A cell the grid prints and the subject table never defines is a real
+     * scheduled hour — the Semester 5 document's "Placement & Training" is one
+     * — and losing it made the saved week disagree with the printed timetable
+     * for no reason a student could see. It is stored as what it is: no code,
+     * and the name the document itself used.
+     */
     const unknown = parseTimetable(
       page(dayRow('MONDAY', 660, ['XYZ', null, null, null, null, null, null, null])),
     );
-    expect(slotsForBatch(unknown, null, 'p1', makeId)).toHaveLength(0);
+    const slots = slotsForBatch(unknown, null, 'p1', makeId);
+    expect(slots).toHaveLength(1);
+    expect(slots[0]).toMatchObject({ subjectCode: null, activity: 'XYZ' });
+  });
+
+  it('never gives an activity a subject code, and never gives a course an activity', () => {
+    /*
+     * The invariant the whole model rests on: exactly one of the two is set.
+     * A code invented for an activity would be indexed as a subject and
+     * offered for attendance beside real VTU ones (§21, §50).
+     */
+    const mixed = parseTimetable(
+      page(dayRow('MONDAY', 660, ['MAT', 'XYZ', null, null, null, null, null, null])),
+    );
+    const slots = slotsForBatch(mixed, null, 'p1', makeId);
+    expect(slots).toHaveLength(2);
+    for (const slot of slots) {
+      expect((slot.subjectCode === null) !== (slot.activity === null)).toBe(true);
+    }
+    expect(slots.find((slot) => slot.activity !== null)?.subjectCode).toBeNull();
+    expect(slots.find((slot) => slot.subjectCode !== null)?.activity).toBeNull();
+  });
+});
+
+describe('what a slot is, answered once', () => {
+  const hour = {
+    id: 's1',
+    profileId: 'p1',
+    day: 'Mon' as const,
+    startTime: '10:00',
+    endTime: '10:55',
+    room: null,
+    faculty: null,
+  };
+
+  it('names a course by its title and prints the code beside it', () => {
+    const entry = timetableEntry(
+      { ...hour, subjectCode: 'BQAS502', activity: null },
+      'Computer Networks',
+    );
+    expect(entry).toEqual({
+      name: 'Computer Networks',
+      shortName: 'BQAS502',
+      detail: 'BQAS502',
+      isCourse: true,
+      attendanceCode: 'BQAS502',
+    });
+  });
+
+  it('falls back to the code where no title resolved, and prints nothing twice', () => {
+    const entry = timetableEntry({ ...hour, subjectCode: 'BQAS502', activity: null }, null);
+    expect(entry).toMatchObject({ name: 'BQAS502', detail: null, isCourse: true });
+  });
+
+  it('names an activity as the document printed it, with no code beside it', () => {
+    const entry = timetableEntry({ ...hour, subjectCode: null, activity: 'Placement & Training' }, null);
+    expect(entry).toEqual({
+      name: 'Placement & Training',
+      shortName: 'Placement & Training',
+      detail: null,
+      isCourse: false,
+      attendanceCode: null,
+    });
+  });
+
+  it('gives an activity no attendance code, which is not the same as a missing one', () => {
+    /*
+     * §26. An activity can be MARKED — the mark belongs to the slot — and it
+     * cannot open a subject's attendance record, because it names no subject
+     * to count against. A course whose title is unknown still counts.
+     */
+    const activity = timetableEntry({ ...hour, subjectCode: null, activity: 'ESEVM' }, null);
+    const course = timetableEntry({ ...hour, subjectCode: 'BQAS502', activity: null }, null);
+    expect(activity.attendanceCode).toBeNull();
+    expect(activity.isCourse).toBe(false);
+    expect(course.attendanceCode).toBe('BQAS502');
+    expect(course.isCourse).toBe(true);
+  });
+
+  it('reads a record written before slots could carry an activity', () => {
+    /* No `activity` field at all: an old course row, and still a course. */
+    const entry = timetableEntry({ subjectCode: 'BQAS502' }, 'Computer Networks');
+    expect(entry).toMatchObject({ name: 'Computer Networks', isCourse: true });
   });
 });
 

@@ -164,6 +164,7 @@ describe('dashboard', () => {
       startTime,
       endTime,
       subjectCode,
+      activity: null,
       room: null,
       faculty: null,
     });
@@ -613,6 +614,7 @@ describe('timetable', () => {
           startTime: '09:00',
           endTime: '10:00',
           subjectCode: 'BCS301',
+          activity: null,
           room: null,
           faculty: null,
         },

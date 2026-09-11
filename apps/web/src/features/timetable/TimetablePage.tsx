@@ -54,6 +54,7 @@ import {
 import { activeCalendars, holidayOn, type CalendarEvent } from '../../domain/calendar-import.js';
 import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
 import { displayTitle, resolveSubject } from '../../domain/subjects.js';
+import { timetableEntry, type TimetableEntry } from '../../domain/timetable-import.js';
 import styles from './timetable.module.css';
 
 function sortSlots(slots: readonly TimetableSlot[]): TimetableSlot[] {
@@ -138,10 +139,22 @@ export function TimetablePage() {
     const id = markId(today, slot.id);
     decided.current.set(id, next);
 
-    const code = slot.subjectCode.replace(/\s+/g, '').toUpperCase();
-    const existing = recordFor(code);
+    /*
+     * AN ACTIVITY IS MARKABLE, AND IS NOT AN ATTENDANCE SUBJECT (§26).
+     *
+     * The mark below belongs to the SLOT and is written either way — the
+     * student said what happened, and that answer is theirs. What an hour with
+     * no course cannot do is open or move a subject's attendance record: those
+     * are counted per subject code, and "Placement & Training" has none. A
+     * record keyed by its printed name would be a subject we invented.
+     */
+    const entry = timetableEntry(slot, null);
+    const code = entry.attendanceCode?.replace(/\s+/g, '').toUpperCase() ?? null;
+    const existing = code === null ? undefined : recordFor(code);
     const delta = countDelta(before, next);
-    if (existing !== undefined) {
+    if (code === null) {
+      /* No counter to move. The mark below still records what happened. */
+    } else if (existing !== undefined) {
       const updated = applyDelta(existing, delta);
       counted.current.set(code, updated);
       void saveAttendance(updated);
@@ -176,13 +189,18 @@ export function TimetablePage() {
       profileId: profile?.id ?? asStudentProfileId('local'),
       date: today,
       slotId: slot.id,
-      subjectCode: code,
+      /*
+       * Denormalised so the mark stays readable if the slot is edited away —
+       * the code for a course, and for an activity the name the timetable
+       * printed. Nothing joins on this; the mark is found by date and slot.
+       */
+      subjectCode: code ?? entry.name,
       outcome: next,
       markedAt: new Date().toISOString(),
     });
     /* A mark's job is done in a fortnight; nothing reads it after that (§44). */
     for (const stale of staleMarks(marks, today)) void removeMark(stale.id);
-    setUndo({ slot, label: `${code} ${next}` });
+    setUndo({ slot, label: `${entry.shortName} ${next}` });
   };
 
   const [day, setDay] = useState<Weekday>('Mon');
@@ -233,6 +251,8 @@ export function TimetablePage() {
       startTime,
       endTime,
       subjectCode: subjectCode.trim().toUpperCase(),
+      /* Typed by hand, against a code the form requires: always a course. */
+      activity: null,
       room: room.trim() === '' ? null : room.trim(),
       faculty: faculty.trim() === '' ? null : faculty.trim(),
     });
@@ -616,7 +636,14 @@ function WeekGrid({
                 <p className={styles.dayEmpty}>Nothing recorded.</p>
               ) : (
                 slots.map((slot) => (
-                  <SessionChip key={slot.id} slot={slot} title={titleFor(slot.subjectCode)} />
+                  <SessionChip
+                    key={slot.id}
+                    slot={slot}
+                    entry={timetableEntry(
+                      slot,
+                      slot.subjectCode === null ? null : titleFor(slot.subjectCode),
+                    )}
+                  />
                 ))
               )}
             </div>
@@ -628,9 +655,14 @@ function WeekGrid({
 }
 
 /** One class in the week grid, to the design's chip geometry. */
-function SessionChip({ slot, title }: { readonly slot: TimetableSlot; readonly title: string }) {
-  const named = title !== '' && title !== slot.subjectCode;
-  const meta = [named ? slot.subjectCode : null, slot.room].filter(Boolean).join(' · ');
+function SessionChip({
+  slot,
+  entry,
+}: {
+  readonly slot: TimetableSlot;
+  readonly entry: TimetableEntry;
+}) {
+  const meta = [entry.detail, slot.room].filter(Boolean).join(' · ');
   return (
     <article className={styles.chip}>
       <span className={styles.chipRule} aria-hidden="true" />
@@ -638,7 +670,7 @@ function SessionChip({ slot, title }: { readonly slot: TimetableSlot; readonly t
         <span className={styles.chipTime}>
           {formatTime(slot.startTime)}–{formatTime(slot.endTime)}
         </span>
-        <span className={styles.chipName}>{named ? title : slot.subjectCode}</span>
+        <span className={styles.chipName}>{entry.name}</span>
         {/* Omitted rather than kept as an empty line: this record's importer
             captured no rooms, and a blank row is not a placeholder. */}
         {meta !== '' && <span className={styles.chipMeta}>{meta}</span>}
@@ -716,8 +748,10 @@ function DayFocus({
       ) : (
         <ul className={styles.dayList}>
           {slots.map((slot) => {
-            const title = titleFor(slot.subjectCode);
-            const named = title !== '' && title !== slot.subjectCode;
+            const entry = timetableEntry(
+              slot,
+              slot.subjectCode === null ? null : titleFor(slot.subjectCode),
+            );
             const outcome = outcomeOf?.(slot.id) ?? null;
             const isNow = isToday && slot.startTime <= clock && clock < slot.endTime;
             return (
@@ -738,9 +772,14 @@ function DayFocus({
                 <span className={styles.rowRule} aria-hidden="true" />
 
                 <span className={styles.rowBody}>
-                  <span className={styles.rowName}>{named ? title : slot.subjectCode}</span>
+                  <span className={styles.rowName}>{entry.name}</span>
                   <span className={styles.rowMeta}>
-                    <span className={monoClass}>{slot.subjectCode}</span>
+                    {/*
+                      The code, where there is one. An hour the timetable
+                      schedules without a course has nothing to print here, and
+                      prints nothing — not a dash, and not its own name twice.
+                    */}
+                    {entry.detail !== null && <span className={monoClass}>{entry.detail}</span>}
                     {slot.room !== null && (
                       <>
                         {' · '}
@@ -762,7 +801,7 @@ function DayFocus({
                     <Button
                       small
                       aria-pressed={outcome === 'attended'}
-                      aria-label={`Mark ${slot.subjectCode} attended`}
+                      aria-label={`Mark ${entry.shortName} attended`}
                       onClick={() => {
                         onMark(slot, 'attended');
                       }}
@@ -772,7 +811,7 @@ function DayFocus({
                     <Button
                       small
                       aria-pressed={outcome === 'missed'}
-                      aria-label={`Mark ${slot.subjectCode} missed`}
+                      aria-label={`Mark ${entry.shortName} missed`}
                       onClick={() => {
                         onMark(slot, 'missed');
                       }}
@@ -786,7 +825,7 @@ function DayFocus({
                   variant="danger"
                   iconOnly
                   small
-                  aria-label={`Remove ${slot.subjectCode} on ${slot.day} at ${formatTime(slot.startTime)}`}
+                  aria-label={`Remove ${entry.shortName} on ${slot.day} at ${formatTime(slot.startTime)}`}
                   onClick={() => void onRemove(slot.id)}
                 >
                   <Icon name="trash" size="nav" />

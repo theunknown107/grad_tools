@@ -339,8 +339,14 @@ export function buildSubjectIndex(input: SubjectIndexInput): Map<string, Subject
     observe(draft, 'attendance', record.subjectTitle, record.semester);
   }
 
-  /* A timetable slot carries a code and no title; it is a sighting all the same. */
+  /*
+   * A timetable slot carries a code and no title; it is a sighting all the
+   * same. An hour the timetable schedules WITHOUT a course — "Placement &
+   * Training" — is not a subject and gets no identity here: the index is keyed
+   * by course code, and an activity has none to key by (§27).
+   */
   for (const slot of input.timetable ?? []) {
+    if (slot.subjectCode === null) continue;
     const draft = draftFor(drafts, slot.subjectCode);
     if (draft === null) continue;
     observe(draft, 'timetable', null, null);
