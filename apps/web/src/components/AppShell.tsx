@@ -103,6 +103,20 @@ const DESTINATIONS: readonly Destination[] = [
     group: 'Academics',
   },
   /*
+   * EXAMS ARE NOT THE WEEKLY TIMETABLE, and the navigation says so by putting
+   * them beside it rather than inside it. One is the shape of an ordinary
+   * week; the other is a handful of dated events that matter enormously for a
+   * month and then do not exist. A student looking for either would not think
+   * to look under the other.
+   */
+  {
+    to: '/exams',
+    label: 'Exam time table',
+    shortLabel: 'Exams',
+    icon: 'papers',
+    group: 'Academics',
+  },
+  /*
    * ADDING A DOCUMENT IS A DESTINATION, because handing GradTools a result
    * card, a calendar or a timetable is how information gets in — and typing it
    * is the fallback (M10A.9 §1, §6, §11).
