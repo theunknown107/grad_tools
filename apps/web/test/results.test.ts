@@ -687,3 +687,50 @@ describe('a row the student can name but not code', () => {
     ]);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+
+describe('a link to the catalogue, and taking it back', () => {
+  /*
+   * §5–§10. Linking says what a row corresponds to. It does NOT say the row
+   * became official, and it does not overwrite how the row came to be: one the
+   * student typed is still one they typed after they identify it.
+   */
+  it('carries the declaration beside the provenance, not instead of it', () => {
+    const row = normalizeResultSubject({
+      id: 's1',
+      subjectCode: 'BQAS502',
+      subjectTitle: 'Invented Networks',
+      provenance: 'manual',
+      catalogueCode: 'BQAS502',
+    });
+    expect(row.provenance).toBe('manual');
+    expect(row.catalogueCode).toBe('BQAS502');
+  });
+
+  it('reads a row written before links existed as undeclared', () => {
+    /*
+     * Not back-filled from `provenance`: a row matched at import time was
+     * matched by the importer, and asserting the student declared it would be
+     * putting words in their mouth.
+     */
+    const row = normalizeResultSubject({
+      id: 's1',
+      subjectCode: 'BQAS502',
+      subjectTitle: 'Invented Networks',
+      provenance: 'catalogue',
+    });
+    expect(row.catalogueCode).toBeNull();
+  });
+
+  it('never derives a link from a title', () => {
+    /* §6: exact code or nothing. A resemblance is not evidence. */
+    const row = normalizeResultSubject({
+      id: 's1',
+      subjectCode: null,
+      subjectTitle: 'Computer Networks',
+      provenance: 'manual',
+    });
+    expect(row.catalogueCode).toBeNull();
+  });
+});
