@@ -243,7 +243,7 @@ function labelColumnOf(cells: readonly string[]): number {
  * and `BETCK105l` are the same code on the same page. Reading the shape as
  * printed is not the same as correcting it.
  */
-const LABEL_IS_A_COURSE = /^1?B[A-Z]{2,6}\d{3}[A-Za-z]?\b/;
+const LABEL_IS_A_COURSE = /^1?B[A-Z]{2,7}\d{3}[A-Za-z]?\b/;
 
 /**
  * What the row calls itself, from the column the header pointed at.
