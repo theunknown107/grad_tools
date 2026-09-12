@@ -858,8 +858,6 @@
     --accent-pastel: var(--a-pastel-light);
     --tab-selected-bg: #131316;
     --tab-selected-fg: #ffffff;
-    --tab-selected-bg: #131316;
-    --tab-selected-fg: #ffffff;
     /* --- Reference tones ---------------------------------------------------
      * The four pastels the reference cycles through. They are SEMANTIC, not
      * decorative: sky for schedule, lilac for performance, lime for progress,
@@ -875,9 +873,6 @@
     --tone-peach: #fbd9a5;
     --tone-peach-ink: #4a2c05;
     --tone-pill-bg: rgb(255 255 255 / 72%);
-    --nav-bg: #fbfaf8;
-    --scrim: rgb(16 16 20 / 45%);
-    --field-bg: #ffffff;
     --nav-bg: #fbfaf8;
     --scrim: rgb(16 16 20 / 45%);
     --field-bg: #ffffff;
@@ -942,6 +937,32 @@
 }
 
 :root[data-theme='light'] {
+  /*
+   * FIVE TOKENS THAT ONLY EXISTED IN A MEDIA QUERY.
+   *
+   * `--nav-bg`, `--scrim`, `--field-bg`, `--tab-selected-bg` and
+   * `--tab-selected-fg` had a dark value on bare `:root` and a light value
+   * ONLY inside `@media (prefers-color-scheme: light)`. So for the person
+   * whose operating system is dark and whose GradTools is on its default
+   * light theme — which is the default state for every dark-OS user — the
+   * media query did not match and these stayed near-black while every ink
+   * around them stayed light.
+   *
+   * `--nav-bg` is used by the sidebar, the dropzone, the segmented controls
+   * and six page surfaces. axe measured #1b1a17 ink on #0e0e11 at a ratio of
+   * 1.1 — invisible text — 99 times across every page and every width, and
+   * no screenshot caught it because every screenshot set both halves to
+   * agree.
+   *
+   * The rule this breaks: a colour must never have its ONLY definition inside
+   * a media query. An explicit choice has to win in both directions.
+   */
+  --nav-bg: #fbfaf8;
+  --scrim: rgb(16 16 20 / 45%);
+  --field-bg: #ffffff;
+  --tab-selected-bg: #f4f4f6;
+  --tab-selected-fg: #101014;
+
   /*
    * M9.6C: a premium macOS-style light interface, not an inverted dark one
    * and not a white SaaS dashboard (§17).
