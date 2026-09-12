@@ -35,7 +35,7 @@ import { asStudentProfileId } from '../../domain/identity.js';
 import { PageHeader } from '../../components/AppShell.js';
 import { Icon, type IconName } from '../../components/icons.js';
 import { EmptyState, Notice, Panel, SelectField, StatusPill } from '../../components/ui/index.js';
-import { Bar } from '../../components/ui/layout.js';
+import { Bar, SectionHeading } from '../../components/ui/layout.js';
 import { formatCount, formatGpa } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useProfile, useResults, useSemesters } from '../../hooks/useCollection.js';
@@ -266,7 +266,7 @@ export function SemestersPage() {
 
       {/* ---- Semester progression -------------------------------------- */}
       <section className={styles.section} aria-label="Semester progression">
-        <h2 className={styles.sectionTitle}>Semester progression</h2>
+        <SectionHeading>Semester progression</SectionHeading>
         <ol className={styles.semesterGrid}>
           {views.map((view) => {
             const sgpa = view.sgpaComputed;

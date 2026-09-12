@@ -108,6 +108,53 @@
   min-height: 20px;
 }
 
+/* --- The banded heading, for a panel that draws its own rows ---------------- */
+
+/*
+ * The band bleeds to the panel's edges and takes a rule beneath it, so the
+ * heading is separated from the first row of the list rather than reading as
+ * part of it. The design's own list cards are built exactly this way.
+ */
+.panel[data-banded='true'] {
+  /* The rule IS the separation; the column gap would double it. */
+  gap: 0;
+}
+
+.panel[data-banded='true'] .panelHeader {
+  align-items: center;
+  margin: calc(var(--space-5) * -1) calc(var(--space-5) * -1) 0;
+  padding: var(--space-4) var(--space-5);
+  border-block-end: 1px solid var(--border);
+}
+
+/*
+ * Sentence case at 14px, not an uppercase label.
+ *
+ * The uppercase treatment names a REGION. These cards are lists with a
+ * subject — "Needs attention", "Today · Monday" — and the design sets those
+ * as small headings in the primary ink, which is what a thing with a name
+ * rather than a category gets.
+ */
+.panel[data-banded='true'] .panelTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text);
+}
+
+.panel[data-banded='true'] .panelTitle svg {
+  flex: 0 0 auto;
+  color: var(--text-subtle);
+}
+
+/* The rows start immediately under the rule. */
+.panel[data-banded='true'] .panelBodyFlush {
+  margin-block-start: 0;
+}
+
 /*
  * The approved design's section heading: 13px, semibold, uppercase, widely
  * tracked, and set in the SECONDARY ink.
@@ -124,7 +171,10 @@
   font-weight: var(--weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-muted);
+  /* `ink-2` in the design, which is this system's `--text-subtle`. It was one
+     step fainter, which put a section heading below its own body text in the
+     ink hierarchy. */
+  color: var(--text-subtle);
 }
 
 .panelBody {
@@ -506,7 +556,18 @@
   vertical-align: middle;
 }
 
-.table tr:last-child td {
+/*
+ * The last row's hairline, on EVERY cell in it.
+ *
+ * This selected only `td`, and the row header of a data row is a
+ * `th[scope=row]` — so the bottom row of every table that names its rows kept
+ * one hairline under its first column and lost the rest. It read as a stray
+ * underline beneath the first word of the last row.
+ *
+ * Scoped to `tbody` because a single-row `thead` is also a `tr:last-child`,
+ * and the header rule must keep its border.
+ */
+.table tbody tr:last-child :is(td, th) {
   border-bottom: none;
 }
 
