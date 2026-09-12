@@ -248,4 +248,6 @@ export const STUDENT_ROUTES = {
   meNotifications: '/api/v1/me/notifications',
   meNotification: '/api/v1/me/notifications/:id',
   meNotificationsRead: '/api/v1/me/notifications/read-all',
+  /* The realtime doorbell (Phase 7B.5 §16). A read of one's own events. */
+  meNotificationsStream: '/api/v1/me/notifications/stream',
 } as const;
