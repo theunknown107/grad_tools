@@ -1,0 +1,70 @@
+{
+  "family": "administration",
+  "capturedAt": "2026-09-12",
+  "note": "Synthetic. The two v1 notices are byte-identical; one notice has been added.",
+  "items": [
+    {
+      "externalId": "adm-2026-0141",
+      "url": "https://vtu.ac.in/en/administration/adm-2026-0141/",
+      "title": "Circular - Declaration of holiday on account of local festival",
+      "body": "All affiliated colleges shall observe a holiday on 17 September 2026. Classes will resume the following working day.",
+      "publishedAt": "2026-08-28",
+      "updatedAt": null,
+      "supersedes": null,
+      "audience": {
+        "scheme": null,
+        "programme": null,
+        "branch": null,
+        "department": null,
+        "stream": null,
+        "college": null,
+        "semester": null,
+        "courses": [],
+        "examCycle": null,
+        "unresolvedScope": false
+      }
+    },
+    {
+      "externalId": "adm-2026-0139",
+      "url": "https://vtu.ac.in/en/administration/adm-2026-0139/",
+      "title": "Notification - Invitation of tenders for campus housekeeping services",
+      "body": "Sealed tenders are invited from registered agencies for housekeeping at the regional centre.",
+      "publishedAt": "2026-08-20",
+      "updatedAt": null,
+      "supersedes": null,
+      "audience": {
+        "scheme": null,
+        "programme": null,
+        "branch": null,
+        "department": null,
+        "stream": null,
+        "college": null,
+        "semester": null,
+        "courses": [],
+        "examCycle": null,
+        "unresolvedScope": false
+      }
+    },
+    {
+      "externalId": "adm-2026-0152",
+      "url": "https://vtu.ac.in/en/administration/adm-2026-0152/",
+      "title": "Circular - Student grievance redressal portal credentials",
+      "body": "Students of all affiliated colleges may register grievances through the portal. Colleges shall display this circular on the notice board.",
+      "publishedAt": "2026-09-05",
+      "updatedAt": null,
+      "supersedes": null,
+      "audience": {
+        "scheme": null,
+        "programme": null,
+        "branch": null,
+        "department": null,
+        "stream": null,
+        "college": null,
+        "semester": null,
+        "courses": [],
+        "examCycle": null,
+        "unresolvedScope": false
+      }
+    }
+  ]
+}

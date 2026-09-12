@@ -1,0 +1,28 @@
+{
+  "family": "academic_calendar",
+  "capturedAt": "2026-09-01",
+  "note": "Synthetic. One calendar, targeted at odd-semester students of one programme.",
+  "items": [
+    {
+      "externalId": "cal-2026-odd",
+      "url": "https://vtu.ac.in/academic-calendar/cal-2026-odd/",
+      "title": "Academic Calendar for the odd semester 2026-27",
+      "body": "Commencement of classes: 1 September 2026. Last working day: 20 December 2026.",
+      "publishedAt": "2026-07-14",
+      "updatedAt": null,
+      "supersedes": null,
+      "audience": {
+        "scheme": null,
+        "programme": "B.E.",
+        "branch": null,
+        "department": null,
+        "stream": null,
+        "college": null,
+        "semester": null,
+        "courses": [],
+        "examCycle": null,
+        "unresolvedScope": false
+      }
+    }
+  ]
+}

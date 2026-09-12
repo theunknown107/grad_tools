@@ -1,0 +1,6 @@
+{
+  "family": "examination",
+  "capturedAt": "2026-09-01",
+  "note": "Deliberately broken: `items` is a string. Proves that a snapshot we cannot read is reported as MALFORMED rather than as a source with nothing in it (Phase 7B.3 §5, §75).",
+  "items": "not an array"
+}

@@ -31,6 +31,7 @@
     "db:seed": "pnpm --filter @gradtools/api seed",
     "vtu:discover": "pnpm --filter @gradtools/api vtu:discover",
     "vtu:download": "pnpm --filter @gradtools/api vtu:download",
+    "vtu:monitor": "pnpm --filter @gradtools/api vtu:monitor",
     "vtu:normalize": "pnpm --filter @gradtools/api vtu:normalize",
     "vtu:smoke": "pnpm --filter @gradtools/api vtu:smoke",
     "vtu:sync": "pnpm --filter @gradtools/api vtu:sync",

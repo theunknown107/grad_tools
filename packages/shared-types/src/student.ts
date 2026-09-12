@@ -59,6 +59,8 @@ export const cloudProfileSchema = z.object({
   usn: z.string().nullable(),
   collegeName: z.string().nullable(),
   schemeId: z.string(),
+  /* Stated, never inferred from the scheme or the branch (Phase 7B.3 §29). */
+  programme: z.string().nullable(),
   branch: z.string().nullable(),
   currentSemester: z.number().int().min(1).max(8).nullable(),
   revision: z.number().int().positive(),
@@ -74,6 +76,7 @@ export const profileInputSchema = z.object({
   usn: z.string().min(1).max(20).nullable().optional(),
   collegeName: z.string().min(1).max(200).nullable().optional(),
   schemeId: z.string().min(1).max(40),
+  programme: z.string().min(1).max(60).nullable().optional(),
   branch: z.string().min(1).max(120).nullable().optional(),
   currentSemester: z.number().int().min(1).max(8).nullable().optional(),
   /** The revision the client read. Omitted only when creating. */

@@ -1,0 +1,70 @@
+{
+  "family": "examination",
+  "capturedAt": "2026-09-01",
+  "note": "Synthetic. A targeted time table, a revaluation notice with a deadline, and a notice whose audience is stated but unreadable.",
+  "items": [
+    {
+      "externalId": "exam-2026-0301",
+      "url": "https://vtu.ac.in/en/examination/exam-2026-0301/",
+      "title": "Time Table for B.E. V Semester Examination Dec.2026/Jan.2027",
+      "body": "The theory examination time table for the fifth semester of the 2022 scheme is notified herewith. Candidates shall report thirty minutes before the commencement of each paper.",
+      "publishedAt": "2026-08-30",
+      "updatedAt": null,
+      "supersedes": null,
+      "audience": {
+        "scheme": "2022",
+        "programme": "B.E.",
+        "branch": null,
+        "department": null,
+        "stream": null,
+        "college": null,
+        "semester": 5,
+        "courses": [],
+        "examCycle": "Dec.2026/Jan.2027",
+        "unresolvedScope": false
+      }
+    },
+    {
+      "externalId": "exam-2026-0298",
+      "url": "https://vtu.ac.in/en/examination/exam-2026-0298/",
+      "title": "Notification - Application for revaluation and photocopy of answer scripts",
+      "body": "Candidates who appeared for the June/July 2026 examination may apply for revaluation. Last date for submission of applications is 20 September 2026.",
+      "publishedAt": "2026-08-26",
+      "updatedAt": null,
+      "supersedes": null,
+      "audience": {
+        "scheme": null,
+        "programme": "B.E.",
+        "branch": null,
+        "department": null,
+        "stream": null,
+        "college": null,
+        "semester": null,
+        "courses": [],
+        "examCycle": "June/July 2026",
+        "unresolvedScope": false
+      }
+    },
+    {
+      "externalId": "exam-2026-0295",
+      "url": "https://vtu.ac.in/en/examination/exam-2026-0295/",
+      "title": "Circular - Examination centre change for the candidates concerned",
+      "body": "The examination centre stands changed for the candidates concerned. The colleges are requested to inform the candidates individually.",
+      "publishedAt": "2026-08-24",
+      "updatedAt": null,
+      "supersedes": null,
+      "audience": {
+        "scheme": null,
+        "programme": null,
+        "branch": null,
+        "department": null,
+        "stream": null,
+        "college": null,
+        "semester": null,
+        "courses": [],
+        "examCycle": null,
+        "unresolvedScope": true
+      }
+    }
+  ]
+}

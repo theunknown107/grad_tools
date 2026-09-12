@@ -170,6 +170,7 @@ const PROFILE_COLUMNS = (sql: Sql) => sql`
   usn,
   college_name     AS "collegeName",
   scheme_id        AS "schemeId",
+  programme,
   branch,
   current_semester AS "currentSemester",
   revision,
@@ -206,10 +207,13 @@ export async function upsertProfile(sql: Sql, input: ProfileInput): Promise<Prof
      * it anyway.
      */
     const rows = await sql<CloudProfile[]>`
-      INSERT INTO student_profiles (display_name, usn, college_name, scheme_id, branch, current_semester)
+      INSERT INTO student_profiles (
+        display_name, usn, college_name, scheme_id, programme, branch, current_semester
+      )
       VALUES (
         ${input.displayName ?? null}, ${input.usn ?? null}, ${input.collegeName ?? null},
-        ${input.schemeId}, ${input.branch ?? null}, ${input.currentSemester ?? null}
+        ${input.schemeId}, ${input.programme ?? null}, ${input.branch ?? null},
+        ${input.currentSemester ?? null}
       )
       RETURNING ${PROFILE_COLUMNS(sql)}
     `;
@@ -228,6 +232,7 @@ export async function upsertProfile(sql: Sql, input: ProfileInput): Promise<Prof
       usn              = ${input.usn ?? null},
       college_name     = ${input.collegeName ?? null},
       scheme_id        = ${input.schemeId},
+      programme        = ${input.programme ?? null},
       branch           = ${input.branch ?? null},
       current_semester = ${input.currentSemester ?? null}
     RETURNING ${PROFILE_COLUMNS(sql)}
