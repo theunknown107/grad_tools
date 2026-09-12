@@ -34,7 +34,16 @@
  * no cost, and the palette now makes no request at all.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, type IconName } from './icons.js';
 import { useDismissable, useFocusTrap } from '../hooks/useDismissable.js';
@@ -319,4 +328,34 @@ export function useSearchHotkey(onOpen: () => void): void {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onOpen]);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Opening it from a page                                                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The shell owns whether the palette is open; a PAGE sometimes needs to open
+ * it. The 404 is the case the design makes explicit — its middle action is
+ * "Search", because a route that does not exist is answered by looking rather
+ * than by two arbitrary destinations.
+ *
+ * A context rather than a prop threaded through the router, and rather than a
+ * page reaching into the topbar's DOM for the button.
+ */
+const OpenSearchContext = createContext<(() => void) | null>(null);
+
+export function OpenSearchProvider({
+  onOpen,
+  children,
+}: {
+  readonly onOpen: () => void;
+  readonly children: ReactNode;
+}) {
+  return <OpenSearchContext.Provider value={onOpen}>{children}</OpenSearchContext.Provider>;
+}
+
+/** Null outside the shell, so a page rendered on its own can hide the action. */
+export function useOpenSearch(): (() => void) | null {
+  return useContext(OpenSearchContext);
 }
