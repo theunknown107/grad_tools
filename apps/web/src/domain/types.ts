@@ -38,6 +38,16 @@ export interface StudentProfile {
   /** Academic metadata. */
   readonly collegeName: string | null;
   readonly schemeId: string;
+  /**
+   * The degree programme, as the student stated it. "B.E.", "M.Tech.".
+   *
+   * NULL MEANS THEY HAVE NOT SAID, and it is never filled in from anything
+   * else. VTU names the programme on nearly every notice it publishes, so
+   * without this a programme-scoped notice cannot be matched to anybody — but
+   * a branch, a scheme or a course code is evidence about the branch, the
+   * scheme or the course, not about this (Phase 7B.3.1 §6, §13).
+   */
+  readonly programme: string | null;
   readonly branch: string | null;
   readonly currentSemester: number | null;
 
