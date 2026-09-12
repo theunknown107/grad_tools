@@ -732,8 +732,17 @@ function SessionChip({
 }) {
   const meta = [entry.detail, slot.room].filter(Boolean).join(' · ');
   return (
-    <article className={styles.chip}>
-      <span className={styles.chipRule} aria-hidden="true" />
+    /*
+     * AN HOUR THAT IS NOT A CLASS DOES NOT LOOK LIKE ONE.
+     *
+     * BREAK, LUNCH and a named non-teaching block rendered with the class
+     * chip and its rule — and the rule's own note says it marks "that the row
+     * is a class". Unlike session KIND, which the record does not carry, this
+     * distinction IS in the data: `isCourse` is false for an hour the
+     * timetable merely named. The design draws those dashed and recessed.
+     */
+    <article className={styles.chip} data-course={entry.isCourse ? 'true' : 'false'}>
+      {entry.isCourse && <span className={styles.chipRule} aria-hidden="true" />}
       <span className={styles.chipBody}>
         <span className={styles.chipTime}>
           {formatTime(slot.startTime)}–{formatTime(slot.endTime)}
@@ -829,6 +838,7 @@ function DayFocus({
               <li
                 key={slot.id}
                 className={styles.dayRow}
+                data-course={entry.isCourse ? 'true' : 'false'}
                 data-next={slot.id === next?.id}
                 data-now={isNow}
                 data-marked={outcome ?? undefined}
@@ -840,6 +850,9 @@ function DayFocus({
                   {isNow && <span className={styles.nowTag}>Now</span>}
                 </span>
 
+                {/* Kept, not dropped: the design dims this rule for a
+                    non-teaching hour rather than removing it, and the row is a
+                    grid whose columns have to keep lining up. */}
                 <span className={styles.rowRule} aria-hidden="true" />
 
                 <span className={styles.rowBody}>

@@ -147,7 +147,12 @@
 .twoUp {
   display: grid;
   gap: var(--space-5);
-  align-items: start;
+  /*
+   * STRETCHED, which is the grid default and the design's. `align-items:
+   * start` left the shorter of the two cards floating with the gap below it
+   * outside its own border, so the pair read as one finished card beside one
+   * that had been cut off.
+   */
 }
 
 @media (min-width: 1024px) {
