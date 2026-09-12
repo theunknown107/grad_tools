@@ -54,16 +54,26 @@ import {
   TableScroll,
   tableClass,
 } from '../../components/ui/index.js';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogTrigger,
-} from '../../components/ui/Dialog.js';
+import { AlertDialog, AlertDialogContent, AlertDialogTrigger } from '../../components/ui/Dialog.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { useProfile, useResults, useTimetable } from '../../hooks/useCollection.js';
 import { useBranches, useSchemes, useSubjects } from '../../hooks/useReference.js';
 import { isStorageAvailable } from '../../repositories/local/store.js';
 import styles from './profile.module.css';
+
+/**
+ * The programmes VTU awards, as VTU writes them.
+ *
+ * A FIXED LIST, and the punctuation is part of it. Matching against a source
+ * notice is exact (§76, §77) — no edit distance, no "close enough" — so "B.E."
+ * and "BE" are different answers and only one of them is the one VTU prints.
+ *
+ * There is no "not applicable" option because there is no such student: every
+ * person VTU examines is on some programme. What a student who does not want
+ * to say has is "Not set", which resolves to `unresolved` and interrupts them
+ * about nothing (§11, §12).
+ */
+const PROGRAMMES = ['B.E.', 'B.Tech.', 'B.Arch.', 'M.Tech.', 'M.Arch.', 'MBA', 'MCA'] as const;
 
 export function ProfilePage() {
   const { profile, loading, save } = useProfile();
@@ -80,6 +90,7 @@ export function ProfilePage() {
   const [usn, setUsn] = useState('');
   const [collegeName, setCollegeName] = useState('');
   const [branch, setBranch] = useState('');
+  const [programme, setProgramme] = useState('');
   const [semester, setSemester] = useState('3');
   const [saved, setSaved] = useState(false);
   const [storageOk, setStorageOk] = useState(true);
@@ -103,6 +114,7 @@ export function ProfilePage() {
     setUsn(profile.usn ?? '');
     setCollegeName(profile.collegeName ?? '');
     setBranch(profile.branch ?? '');
+    setProgramme(profile.programme ?? '');
     setSemester(profile.currentSemester === null ? '' : String(profile.currentSemester));
   }, [profile]);
 
@@ -115,6 +127,11 @@ export function ProfilePage() {
       usn: usn.trim() === '' ? null : usn.trim().toUpperCase(),
       collegeName: collegeName.trim() === '' ? null : collegeName.trim(),
       schemeId: vtu2022RuleSet.schemeId,
+      /*
+       * BLANK STAYS NULL. "Not set" is a real answer — it means the student has
+       * not told us — and turning it into a guess is what §13 forbids.
+       */
+      programme: programme.trim() === '' ? null : programme.trim(),
       branch: branch.trim() === '' ? null : branch.trim(),
       currentSemester: semester === '' ? null : Number(semester),
       createdAt: profile?.createdAt ?? nowIso(),
@@ -194,154 +211,183 @@ export function ProfilePage() {
         ) : (
           <SectionedForm
             label="Profile settings"
-          sections={[
-            /*
-             * Academic leads, and that is a product decision rather than an
-             * ordering accident: branch, scheme and semester drive every figure
-             * GradTools computes, while name and USN are decorative and
-             * optional. The first section should be the one that matters.
-             */
-            {
-              id: 'academic',
-              label: 'Academic',
-              icon: 'degree',
-              children: (
-                <>
-                  <div className={styles.grid}>
-                    <TextField
-                      label="College"
-                      value={collegeName}
-                      onChange={(event) => {
-                        setCollegeName(event.target.value);
-                        setSaved(false);
-                      }}
-                    />
-                    <div className={styles.referenceField}>
-                      <AsyncSection
-                        state={branches.state}
-                        retry={branches.retry}
-                        label="branches"
-                        isEmpty={(list) => list.length === 0}
-                        empty={
-                          <TextField
-                            label="Branch"
-                            hint="No branches available from the server; type yours instead."
-                            placeholder="Computer Science"
-                            value={branch}
-                            onChange={(event) => {
-                              setBranch(event.target.value);
-                              setSaved(false);
-                            }}
-                          />
-                        }
+            sections={[
+              /*
+               * Academic leads, and that is a product decision rather than an
+               * ordering accident: branch, scheme and semester drive every figure
+               * GradTools computes, while name and USN are decorative and
+               * optional. The first section should be the one that matters.
+               */
+              {
+                id: 'academic',
+                label: 'Academic',
+                icon: 'degree',
+                children: (
+                  <>
+                    <div className={styles.grid}>
+                      <TextField
+                        label="College"
+                        value={collegeName}
+                        onChange={(event) => {
+                          setCollegeName(event.target.value);
+                          setSaved(false);
+                        }}
+                      />
+                      <div className={styles.referenceField}>
+                        <AsyncSection
+                          state={branches.state}
+                          retry={branches.retry}
+                          label="branches"
+                          isEmpty={(list) => list.length === 0}
+                          empty={
+                            <TextField
+                              label="Branch"
+                              hint="No branches available from the server; type yours instead."
+                              placeholder="Computer Science"
+                              value={branch}
+                              onChange={(event) => {
+                                setBranch(event.target.value);
+                                setSaved(false);
+                              }}
+                            />
+                          }
+                        >
+                          {(list) => (
+                            <SelectField
+                              label="Branch"
+                              hint="From the GradTools reference data."
+                              value={branch}
+                              onChange={(event) => {
+                                setBranch(event.target.value);
+                                setSaved(false);
+                              }}
+                            >
+                              <option value="">Not set</option>
+                              {list.map((item) => (
+                                <option key={item.id} value={item.name}>
+                                  {item.name}
+                                </option>
+                              ))}
+                            </SelectField>
+                          )}
+                        </AsyncSection>
+                      </div>
+                      {/*
+                       * WHY THIS IS ASKED (Phase 7B.3.1 §6, §10). VTU names the
+                       * programme on nearly every notice it publishes — "Time
+                       * Table for B.E. V Semester Examination" — so without it a
+                       * programme-scoped notice matches nobody. The hint says
+                       * that in the student's terms; "applicability engine" is
+                       * our word for it, not theirs.
+                       *
+                       * A SELECT RATHER THAN A TEXT FIELD, because matching is on
+                       * exact values and a free-text box invites "be" and "BE."
+                       * and "Bachelor of Engineering" — three spellings that
+                       * would each silently fail to match.
+                       */}
+                      <SelectField
+                        label="Programme"
+                        hint="Helps GradTools show you VTU notices meant for your programme."
+                        value={programme}
+                        onChange={(event) => {
+                          setProgramme(event.target.value);
+                          setSaved(false);
+                        }}
                       >
-                        {(list) => (
-                          <SelectField
-                            label="Branch"
-                            hint="From the GradTools reference data."
-                            value={branch}
-                            onChange={(event) => {
-                              setBranch(event.target.value);
-                              setSaved(false);
-                            }}
-                          >
-                            <option value="">Not set</option>
-                            {list.map((item) => (
-                              <option key={item.id} value={item.name}>
-                                {item.name}
-                              </option>
-                            ))}
-                          </SelectField>
-                        )}
-                      </AsyncSection>
-                    </div>
-                    <SelectField
-                      label="Current semester"
-                      value={semester}
-                      onChange={(event) => {
-                        setSemester(event.target.value);
-                        setSaved(false);
-                      }}
-                    >
-                      <option value="">Not set</option>
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((value) => (
-                        <option key={value} value={value}>
-                          Semester {value}
-                        </option>
-                      ))}
-                    </SelectField>
-                    <div className={styles.referenceField}>
-                      <AsyncSection
-                        state={schemes.state}
-                        retry={schemes.retry}
-                        label="schemes"
-                        isEmpty={(list) => list.length === 0}
+                        <option value="">Not set</option>
+                        {PROGRAMMES.map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </SelectField>
+                      <SelectField
+                        label="Current semester"
+                        value={semester}
+                        onChange={(event) => {
+                          setSemester(event.target.value);
+                          setSaved(false);
+                        }}
                       >
-                        {(list) => (
-                          <SelectField
-                            label="Scheme"
-                            hint="Only verified schemes are offered."
-                            value={vtu2022RuleSet.schemeId}
-                            disabled={list.length <= 1}
-                          >
-                            {list.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.name} ({item.regulationCode})
-                              </option>
-                            ))}
-                          </SelectField>
-                        )}
-                      </AsyncSection>
+                        <option value="">Not set</option>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((value) => (
+                          <option key={value} value={value}>
+                            Semester {value}
+                          </option>
+                        ))}
+                      </SelectField>
+                      <div className={styles.referenceField}>
+                        <AsyncSection
+                          state={schemes.state}
+                          retry={schemes.retry}
+                          label="schemes"
+                          isEmpty={(list) => list.length === 0}
+                        >
+                          {(list) => (
+                            <SelectField
+                              label="Scheme"
+                              hint="Only verified schemes are offered."
+                              value={vtu2022RuleSet.schemeId}
+                              disabled={list.length <= 1}
+                            >
+                              {list.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.name} ({item.regulationCode})
+                                </option>
+                              ))}
+                            </SelectField>
+                          )}
+                        </AsyncSection>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className={styles.actions}>
-                    <Button variant="primary" onClick={commit}>
-                      Save profile
-                    </Button>
-                    {saved && (
-                      <span className={styles.savedNote} role="status">
-                        Saved on this device.
-                      </span>
-                    )}
-                  </div>
-                  <SubjectsPanel semester={semester === '' ? null : Number(semester)} />
-                  <MyRecordsPanel />
-                </>
-              ),
-            },
-            {
-              id: 'identity',
-              label: 'You',
-              icon: 'profile',
-              children: (
-                <>
-                  <p className={styles.note}>
-                    Everything on this page is optional and stored only in this browser. GradTools
-                    never needs any of it to calculate anything.
-                  </p>
-                  <p className={styles.note}>
-                    Your name is used only to greet you on the dashboard. The USN is only used to
-                    label a result you export &mdash; leaving it blank costs nothing.
-                  </p>
+                    <div className={styles.actions}>
+                      <Button variant="primary" onClick={commit}>
+                        Save profile
+                      </Button>
+                      {saved && (
+                        <span className={styles.savedNote} role="status">
+                          Saved on this device.
+                        </span>
+                      )}
+                    </div>
+                    <SubjectsPanel semester={semester === '' ? null : Number(semester)} />
+                    <MyRecordsPanel />
+                  </>
+                ),
+              },
+              {
+                id: 'identity',
+                label: 'You',
+                icon: 'profile',
+                children: (
+                  <>
+                    <p className={styles.note}>
+                      Everything on this page is optional and stored only in this browser. GradTools
+                      never needs any of it to calculate anything.
+                    </p>
+                    <p className={styles.note}>
+                      Your name is used only to greet you on the dashboard. The USN is only used to
+                      label a result you export &mdash; leaving it blank costs nothing.
+                    </p>
 
-                  {/*
+                    {/*
                     Name and USN live HERE, not under Academic. The rail said
                     "You" while the name field sat in the academic section,
                     which is the kind of incoherence a split like this exists
                     to remove rather than introduce.
                   */}
-                  <div className={styles.grid}>
-                    <TextField
-                      label="Name"
-                      hint="Only used to greet you."
-                      value={displayName}
-                      onChange={(event) => {
-                        setDisplayName(event.target.value);
-                        setSaved(false);
-                      }}
-                    />
-                    {/*
+                    <div className={styles.grid}>
+                      <TextField
+                        label="Name"
+                        hint="Only used to greet you."
+                        value={displayName}
+                        onChange={(event) => {
+                          setDisplayName(event.target.value);
+                          setSaved(false);
+                        }}
+                      />
+                      {/*
                   -----------------------------------------------------------------
                   M9.6F: THE USN IS OPTIONAL AND SAYS SO ON ITS FACE
                   -----------------------------------------------------------------
@@ -356,72 +402,73 @@ export function ProfilePage() {
                   optional in its own label rather than in a hint, and the hint now
                   leads with the fact that leaving it blank costs nothing.
                 */}
-                    <TextField
-                      label="USN (optional)"
-                      hint="GradTools never needs it. Leave it blank and everything works the same; it is only used to label a result you export."
-                      mono
-                      placeholder="1XX22CS001"
-                      value={usn}
-                      onChange={(event) => {
-                        setUsn(event.target.value);
-                        setSaved(false);
-                      }}
-                    />
-                  </div>
-                </>
-              ),
-            },
-            {
-              id: 'appearance',
-              label: 'Appearance',
-              icon: 'sun',
-              children: (
-                <>
-                  <p className={styles.note}>
-                    Light, dark or whatever this device is set to, and the accent used for selected
-                    items and highlights. Saved on this device only &mdash; never synced, and it can
-                    never affect an academic figure.
-                  </p>
-                  <div className={styles.themeRow}>
-                    <ThemeControl />
-                  </div>
-                </>
-              ),
-            },
-            {
-              id: 'data',
-              label: 'Your data',
-              icon: 'shield',
-              children: (
-                <>
-                  <div className={styles.prose}>
-                    <p>
-                      Everything you enter (profile, attendance, results and timetable) is stored in
-                      this browser. GradTools has no account system yet and sends none of it to a
-                      server.
+                      <TextField
+                        label="USN (optional)"
+                        hint="GradTools never needs it. Leave it blank and everything works the same; it is only used to label a result you export."
+                        mono
+                        placeholder="1XX22CS001"
+                        value={usn}
+                        onChange={(event) => {
+                          setUsn(event.target.value);
+                          setSaved(false);
+                        }}
+                      />
+                    </div>
+                  </>
+                ),
+              },
+              {
+                id: 'appearance',
+                label: 'Appearance',
+                icon: 'sun',
+                children: (
+                  <>
+                    <p className={styles.note}>
+                      Light, dark or whatever this device is set to, and the accent used for
+                      selected items and highlights. Saved on this device only &mdash; never synced,
+                      and it can never affect an academic figure.
                     </p>
-                    <p>
-                      Clearing your browser data removes it. There is no sync between devices at
-                      this stage.
-                    </p>
-                    <p className={styles.muted}>
-                      GradTools does not collect your date of birth, phone number, or any login
-                      details for a university system, and never asks for a university password.
-                    </p>
-                  </div>
-                  <div className={styles.prose}>
-                    <p>
-                      This experimental version supports the <strong>VTU 2022 scheme (22OB)</strong>{' '}
-                      for B.E./B.Tech at non-autonomous affiliated colleges.
-                    </p>
-                    <p className={styles.muted}>
-                      Autonomous colleges set their own internal rules, so these figures may not
-                      apply there. Other schemes are not supported yet.
-                    </p>
-                  </div>
-                </>
-              ),
-            },
+                    <div className={styles.themeRow}>
+                      <ThemeControl />
+                    </div>
+                  </>
+                ),
+              },
+              {
+                id: 'data',
+                label: 'Your data',
+                icon: 'shield',
+                children: (
+                  <>
+                    <div className={styles.prose}>
+                      <p>
+                        Everything you enter (profile, attendance, results and timetable) is stored
+                        in this browser. GradTools has no account system yet and sends none of it to
+                        a server.
+                      </p>
+                      <p>
+                        Clearing your browser data removes it. There is no sync between devices at
+                        this stage.
+                      </p>
+                      <p className={styles.muted}>
+                        GradTools does not collect your date of birth, phone number, or any login
+                        details for a university system, and never asks for a university password.
+                      </p>
+                    </div>
+                    <div className={styles.prose}>
+                      <p>
+                        This experimental version supports the{' '}
+                        <strong>VTU 2022 scheme (22OB)</strong> for B.E./B.Tech at non-autonomous
+                        affiliated colleges.
+                      </p>
+                      <p className={styles.muted}>
+                        Autonomous colleges set their own internal rules, so these figures may not
+                        apply there. Other schemes are not supported yet.
+                      </p>
+                    </div>
+                  </>
+                ),
+              },
             ]}
           />
         )}
@@ -462,7 +509,11 @@ function ProfileOverview({
       { icon: 'profile', label: 'USN', value: usn, mono: true },
       { icon: 'degree', label: 'College', value: profile?.collegeName ?? null },
       { icon: 'degree', label: 'Branch', value: profile?.branch ?? null },
-      { icon: 'papers', label: 'Scheme', value: profile?.schemeId === 'vtu-2022' ? 'VTU 2022' : null },
+      {
+        icon: 'papers',
+        label: 'Scheme',
+        value: profile?.schemeId === 'vtu-2022' ? 'VTU 2022' : null,
+      },
       {
         icon: 'timetable',
         label: 'Current semester',
@@ -484,7 +535,9 @@ function ProfileOverview({
             </span>
             <div className={styles.identityWho}>
               <h2 className={styles.identityName}>{name ?? 'Name not set'}</h2>
-              <p className={`${styles.identityUsn ?? ''} ${monoClass}`}>{usn ?? 'No USN recorded'}</p>
+              <p className={`${styles.identityUsn ?? ''} ${monoClass}`}>
+                {usn ?? 'No USN recorded'}
+              </p>
             </div>
           </div>
           <div className={styles.identityBadges}>
@@ -494,7 +547,9 @@ function ProfileOverview({
             {profile?.currentSemester !== null && profile?.currentSemester !== undefined && (
               <StatusPill tone="neutral">Semester {profile.currentSemester}</StatusPill>
             )}
-            {profile?.schemeId === 'vtu-2022' && <StatusPill tone="neutral">2022 scheme</StatusPill>}
+            {profile?.schemeId === 'vtu-2022' && (
+              <StatusPill tone="neutral">2022 scheme</StatusPill>
+            )}
             {/*
               THE BACKLOG BADGE IS DERIVED, not decorative: it is the same
               figure the degree page reports, and it says "unavailable" rather

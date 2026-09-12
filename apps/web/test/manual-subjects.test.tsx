@@ -31,6 +31,7 @@ const profile: StudentProfile = {
   usn: '1XX22CS001',
   displayName: 'A Student',
   collegeName: null,
+  programme: null,
   branch: 'CSBS',
   schemeId: 'vtu-2022',
   currentSemester: 5,

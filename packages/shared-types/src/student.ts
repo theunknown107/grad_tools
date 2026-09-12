@@ -239,4 +239,13 @@ export const STUDENT_ROUTES = {
   meProfile: '/api/v1/me/profile',
   meSync: '/api/v1/me/sync',
   meExport: '/api/v1/me/export',
+  /*
+   * The notifications a background run created for this student while they were
+   * not here (Phase 7B.3.1 §14, §81). Under `/me` because that is what they
+   * are: rows belonging to the caller, reached through the same RLS-scoped
+   * connection as every other read on this router.
+   */
+  meNotifications: '/api/v1/me/notifications',
+  meNotification: '/api/v1/me/notifications/:id',
+  meNotificationsRead: '/api/v1/me/notifications/read-all',
 } as const;

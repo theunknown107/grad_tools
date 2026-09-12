@@ -22,8 +22,135 @@ import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/
 import { Skeleton as ShapedSkeleton } from '../../components/ui/Skeleton.js';
 import { Button, EmptyState, Notice, Panel, StatusPill } from '../../components/ui/index.js';
 import { useAnnouncements, useNotifications } from '../../hooks/useAnnouncements.js';
+import {
+  useSourceNotifications,
+  type SourceNotification,
+} from '../../hooks/useSourceNotifications.js';
 import { CATEGORY_LABEL } from './AnnouncementRow.js';
 import styles from './announcements.module.css';
+
+/**
+ * The notices a server-side run left for this student while they were away.
+ *
+ * Authority: Phase 7B.3.1 §14, §24, §27, §50, §51, §85
+ *
+ * ---------------------------------------------------------------------------
+ * A PANEL BESIDE THE INBOX, NOT A CHANGE TO IT
+ * ---------------------------------------------------------------------------
+ *
+ * The inbox below is local: a public feed, filtered on the device, with read
+ * state that never leaves the browser. These rows are the opposite — decided on
+ * a server, for this account, and read state the server owns. Merging them
+ * would mean one list where "read" means two different things depending on the
+ * row, and a student could not tell which.
+ *
+ * So they sit above, in their own panel, saying where they came from. The page
+ * below is untouched (§85).
+ *
+ * SIGNED OUT, THIS RENDERS NOTHING AT ALL. Not an empty state, not a prompt to
+ * sign in: a student using GradTools without an account is using it as designed,
+ * and a panel advertising what they are missing would be the nag this product
+ * does not do.
+ */
+export function FromVtu() {
+  const { items, unread, loading, unavailable, error, markRead, markAllRead } =
+    useSourceNotifications();
+
+  if (unavailable) return null;
+  if (loading && items.length === 0) return null;
+  if (error !== null) {
+    return (
+      <Panel title="Waiting for you from VTU">
+        <Notice tone="warning">{error}</Notice>
+      </Panel>
+    );
+  }
+  if (items.length === 0) return null;
+
+  return (
+    <Panel
+      title="Waiting for you from VTU"
+      action={
+        unread > 0 ? (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void markAllRead();
+            }}
+          >
+            <Icon name="check" size="nav" />
+            Mark all read
+          </Button>
+        ) : undefined
+      }
+    >
+      <ul className={styles.inbox}>
+        {items.map((row) => (
+          <FromVtuRow key={row.id} notification={row} onRead={markRead} />
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
+function FromVtuRow({
+  notification,
+  onRead,
+}: {
+  readonly notification: SourceNotification;
+  readonly onRead: (id: string) => Promise<void>;
+}) {
+  const high = notification.importance === 'high';
+  return (
+    <li>
+      <article className={styles.notification} data-state={notification.state}>
+        <span
+          className={styles.notificationMark}
+          data-high={high ? 'true' : undefined}
+          aria-hidden="true"
+        >
+          <Icon name="papers" size="nav" />
+        </span>
+
+        <div className={styles.notificationBody}>
+          <div className={styles.notificationHead}>
+            {/* Text from a document this project did not write. Rendered as text. */}
+            <h3 className={styles.notificationTitle}>{notification.title}</h3>
+            {high && <StatusPill tone="warning">Important</StatusPill>}
+            <StatusPill tone="neutral">{notification.category.replace(/_/g, ' ')}</StatusPill>
+          </div>
+
+          {/*
+            §27. WHY THEY GOT IT, in the values the source and their profile
+            actually carry — "Applies to your scheme · programme · semester."
+            A notification nobody can account for is one they learn to ignore.
+          */}
+          <p className={styles.notificationMeta}>{notification.reason}</p>
+
+          <div className={styles.notificationActions}>
+            {/*
+              §26, §52. The official document, never a copy we made of it.
+              `rel` because the destination is not ours.
+            */}
+            <a href={notification.sourceUrl} target="_blank" rel="noreferrer noopener">
+              Open official source
+            </a>
+            {notification.state === 'unread' && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  void onRead(notification.id);
+                }}
+              >
+                Mark read
+              </Button>
+            )}
+          </div>
+        </div>
+      </article>
+    </li>
+  );
+}
 
 /** Categories worth muting. Results and examinations are deliberately absent. */
 const MUTABLE: readonly AnnouncementCategory[] = [
@@ -159,9 +286,7 @@ export function NotificationsPage() {
                     {/* External text, rendered as text. */}
                     <h3 className={styles.notificationTitle}>{announcement.title}</h3>
                     {high && <StatusPill tone="warning">Important</StatusPill>}
-                    <StatusPill tone="neutral">
-                      {CATEGORY_LABEL[announcement.category]}
-                    </StatusPill>
+                    <StatusPill tone="neutral">{CATEGORY_LABEL[announcement.category]}</StatusPill>
                     {/*
                       DEMO CONTENT SAYS SO, driven by the record's own origin so
                       a synthetic notice can never be shown as official (M7 §36).
@@ -233,7 +358,9 @@ export function NotificationsPage() {
         eyebrow="Overview"
         title="Notifications"
         subtitle="What is new since you last looked. Read state stays on this device."
-        pills={unread > 0 ? <MetaPill>{formatCount(unread, 'unread', 'unread')}</MetaPill> : undefined}
+        pills={
+          unread > 0 ? <MetaPill>{formatCount(unread, 'unread', 'unread')}</MetaPill> : undefined
+        }
         action={
           <Button
             variant="secondary"
@@ -247,6 +374,8 @@ export function NotificationsPage() {
           </Button>
         }
       />
+
+      <FromVtu />
 
       {/*
         -------------------------------------------------------------------
@@ -280,7 +409,6 @@ export function NotificationsPage() {
               { id: 'unread', label: 'Unread', count: unread },
             ]}
           />
-
         </div>
 
         <IslandTabPanel id="all">{inbox}</IslandTabPanel>
