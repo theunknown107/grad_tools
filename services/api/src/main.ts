@@ -12,6 +12,7 @@ import { assertSafeExposure, loadConfig } from './config.js';
 import { createClient } from './db/client.js';
 import { createApp } from './http/app.js';
 import { createLogger } from './observability/logger.js';
+import { stopListening } from './monitor/realtime.js';
 
 function start(): void {
   let config;
@@ -48,13 +49,46 @@ function start(): void {
     );
   });
 
+  /*
+   * ---------------------------------------------------------------------------
+   * SSE CONNECTIONS NEVER END ON THEIR OWN
+   * ---------------------------------------------------------------------------
+   *
+   * `server.close()` stops accepting new connections and then waits for the
+   * open ones to finish. A notification stream is designed never to finish, so
+   * this used to wait forever: every rolling deploy would hang until the
+   * platform lost patience and sent SIGKILL, cutting off whatever else was
+   * in flight.
+   *
+   * So: stop accepting, drain what will drain, and after a grace period end
+   * the rest. `closeAllConnections` is Node's own — there is nothing to track
+   * by hand (Phase 7B.6 §78, §151).
+   */
   const shutdown = (signal: string): void => {
     logger.info({ signal }, 'shutting down');
-    server.close(() => {
-      void sql.end().then(() => {
-        process.exit(0);
-      });
-    });
+
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      /* The LISTEN session is not an HTTP connection and closes separately. */
+      void stopListening()
+        .then(() => sql.end())
+        .then(() => {
+          process.exit(0);
+        });
+    };
+
+    server.close(finish);
+    server.closeIdleConnections();
+
+    const grace = setTimeout(() => {
+      logger.info({ signal }, 'ending streams that did not drain');
+      server.closeAllConnections();
+      finish();
+    }, 5_000);
+    /* Do not keep the process alive purely to wait out the grace period. */
+    grace.unref();
   };
 
   process.on('SIGTERM', () => {
