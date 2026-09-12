@@ -104,7 +104,9 @@ export function ExamsPage() {
 
   return (
     <>
+      {/* Every other page names its area above the title; this one did not. */}
       <PageHeader
+        eyebrow="Examinations"
         title="Exam time table"
         subtitle="From the examination time tables you have added. GradTools does not fetch them."
       />
