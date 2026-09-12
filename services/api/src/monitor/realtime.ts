@@ -105,6 +105,9 @@ export async function publish(sql: Sql, event: NotificationCreated): Promise<boo
 
 type Listener = (event: NotificationCreated) => void;
 
+/** The process's one `LISTEN`, once something has opened it. */
+let listening: Promise<{ stop: () => Promise<void> }> | null = null;
+
 /**
  * The connected students in THIS process.
  *
@@ -177,6 +180,24 @@ export function clearListeners(): void {
 }
 
 /**
+ * Closes the process's `LISTEN`, if it has one.
+ *
+ * Shutdown calls this without holding a handle, because the handle belongs to
+ * whoever started listening and that is `createApp`, which does not keep one.
+ * Idempotent: a process that never listened is already stopped.
+ */
+export async function stopListening(): Promise<void> {
+  const held = listening;
+  if (held === null) return;
+  listening = null;
+  try {
+    await (await held).stop();
+  } catch {
+    /* Shutting down is not a moment to throw about a socket. */
+  }
+}
+
+/**
  * Opens the process's one `LISTEN` connection.
  *
  * ONE CONNECTION FOR THE WHOLE SERVER, not one per client. `LISTEN` is a
@@ -187,8 +208,6 @@ export function clearListeners(): void {
  * `postgres.js` reconnects its own listener, so a database restart does not
  * leave the process permanently deaf.
  */
-let listening: Promise<{ stop: () => Promise<void> }> | null = null;
-
 export async function startListening(sql: Sql): Promise<{ stop: () => Promise<void> }> {
   /*
    * ONCE PER PROCESS, ENFORCED.

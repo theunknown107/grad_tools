@@ -1,0 +1,32 @@
+# Anything that would bloat the image, leak a secret, or differ between the
+# machine that built it and the one that runs it.
+# Authority: Phase 7B.6 §111, §113
+
+node_modules
+**/node_modules
+**/dist
+coverage
+.qa
+.vtu-store
+.git
+.github
+
+# NEVER. `.env.example` is committed and safe; a real one is not.
+.env
+.env.*
+!.env.example
+
+# Private and developer-supplied material. None of it belongs in an image, and
+# some of it is a student's own documents (Phase 7B.3 §6).
+CSBS22 Docs
+GradTools_Academic_Calendar_and_Timetable_References
+GradTools_Academic_References_5_Images
+GradTools_M9.4_Reference_Images
+GradTools_Real_Student_Test_Pack
+UI clone reference
+*.traineddata
+
+# Tests and screenshots do not run in production.
+tests
+**/*.test.ts
+**/*.test.tsx
