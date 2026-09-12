@@ -34,7 +34,7 @@ import { Icon, type IconName } from './icons.js';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ThemeControl } from './ThemeControl.js';
-import { GlobalSearch, useSearchHotkey } from './GlobalSearch.js';
+import { GlobalSearch, OpenSearchProvider, useSearchHotkey } from './GlobalSearch.js';
 import { NotificationInbox } from './NotificationInbox.js';
 import { Sheet } from './ui/Sheet.js';
 import { TooltipProvider } from './ui/Tooltip.js';
@@ -234,12 +234,15 @@ export function AppShell({ children }: { children: ReactNode }) {
      */
     <TooltipProvider>
       <ToastProvider>
-        <div className={styles.shell} data-collapsed={collapsed ? 'true' : undefined}>
-          <a className={styles.skipLink} href="#main">
-            Skip to content
-          </a>
+        {/* So a page can open the palette — the 404's middle action is the
+            design's own "Search". */}
+        <OpenSearchProvider onOpen={openSearch}>
+          <div className={styles.shell} data-collapsed={collapsed ? 'true' : undefined}>
+            <a className={styles.skipLink} href="#main">
+              Skip to content
+            </a>
 
-          {/*
+            {/*
         ------------------------------------------------------------------
         THE SIDEBAR IS THE NAVIGATION (reference rebuild)
         ------------------------------------------------------------------
@@ -250,10 +253,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         two rows carried is here, in the same order, so nothing became
         unreachable — the arrangement changed, not the map.
       */}
-          <aside id="gt-sidebar" className={styles.sidebar} aria-label="Sections">
-            {/* Named explicitly: the wordmark is hidden in the icon rail, and
+            <aside id="gt-sidebar" className={styles.sidebar} aria-label="Sections">
+              {/* Named explicitly: the wordmark is hidden in the icon rail, and
             without this the brand link announces nothing there. */}
-            {/*
+              {/*
               A PLAIN LINK, not a NavLink.
               
               `NavLink` sets `aria-current="page"` when its target is active, so
@@ -262,42 +265,43 @@ export function AppShell({ children }: { children: ReactNode }) {
               which is a logo. The brand is a way home, not a destination in the
               list.
             */}
-            <Link to="/" className={styles.brand ?? ''} aria-label="GradTools home">
-              {/*
+              <Link to="/" className={styles.brand ?? ''} aria-label="GradTools home">
+                {/*
                 THE MARK IS THE MORTARBOARD, not a letter. The design puts the
                 same glyph here that "My degree" uses in the navigation below —
                 a lettermark reads as a placeholder that nobody got round to
                 replacing, and this product is about a degree.
               */}
-              <span className={styles.brandMark} aria-hidden="true">
-                <Icon name="degree" size="large" />
-              </span>
-              <span className={styles.brandText}>
-                <span className={styles.brandWord}>GradTools</span>
-                <span className={styles.brandKind}>Academic OS</span>
-              </span>
-            </Link>
+                <span className={styles.brandMark} aria-hidden="true">
+                  <Icon name="degree" size="large" />
+                </span>
+                <span className={styles.brandText}>
+                  <span className={styles.brandWord}>GradTools</span>
+                  <span className={styles.brandKind}>Academic OS</span>
+                </span>
+              </Link>
 
-            <nav className={styles.sideNav} aria-label="Destinations">
-              {GROUPS.map((group) => (
-                <Fragment key={group}>
-                  {/* The group is NAMED, not merely separated by a rule. */}
-                  <span className={styles.sideGroup}>{group}</span>
-                  {DESTINATIONS.filter((destination) => destination.group === group).map((item) => {
-                    const isActive =
-                      item.to === '/'
-                        ? location.pathname === '/'
-                        : location.pathname === item.to ||
-                          location.pathname.startsWith(`${item.to}/`);
-                    return (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        end={item.to === '/'}
-                        data-active={isActive}
-                        aria-current={isActive ? 'page' : undefined}
-                        className={`${styles.sideLink ?? ''} ${isActive ? (styles.sideLinkActive ?? '') : ''}`}
-                        /*
+              <nav className={styles.sideNav} aria-label="Destinations">
+                {GROUPS.map((group) => (
+                  <Fragment key={group}>
+                    {/* The group is NAMED, not merely separated by a rule. */}
+                    <span className={styles.sideGroup}>{group}</span>
+                    {DESTINATIONS.filter((destination) => destination.group === group).map(
+                      (item) => {
+                        const isActive =
+                          item.to === '/'
+                            ? location.pathname === '/'
+                            : location.pathname === item.to ||
+                              location.pathname.startsWith(`${item.to}/`);
+                        return (
+                          <NavLink
+                            key={item.to}
+                            to={item.to}
+                            end={item.to === '/'}
+                            data-active={isActive}
+                            aria-current={isActive ? 'page' : undefined}
+                            className={`${styles.sideLink ?? ''} ${isActive ? (styles.sideLinkActive ?? '') : ''}`}
+                            /*
                           IN THE RAIL THE LABEL IS THE ONLY NAME THERE IS.
                           Collapsed, the row is a bare glyph, so the design
                           gives it a `title` — and the visually-hidden label
@@ -305,18 +309,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                           reader in both states, which a `title` alone would
                           not do reliably.
                         */
-                        {...(collapsed ? { title: item.label } : {})}
-                      >
-                        <Icon name={item.icon} size="nav" />
-                        <span className={styles.sideLabel}>{item.label}</span>
-                      </NavLink>
-                    );
-                  })}
-                </Fragment>
-              ))}
-            </nav>
+                            {...(collapsed ? { title: item.label } : {})}
+                          >
+                            <Icon name={item.icon} size="nav" />
+                            <span className={styles.sideLabel}>{item.label}</span>
+                          </NavLink>
+                        );
+                      },
+                    )}
+                  </Fragment>
+                ))}
+              </nav>
 
-            {/*
+              {/*
               THE FOOTER IS THE STUDENT, not a disclaimer.
               
               The design ends the sidebar with who is signed in — avatar, name,
@@ -326,190 +331,191 @@ export function AppShell({ children }: { children: ReactNode }) {
               is where a disclaimer belongs, rather than repeated in the chrome
               of every screen.
             */}
-            {/* Named on hover in the rail, like every other row there. */}
-            <NavLink
-              to="/profile"
-              className={styles.sideIdentity ?? ''}
-              {...(collapsed ? { title: profile?.displayName ?? 'Your profile' } : {})}
-            >
-              <Avatar name={profile?.displayName ?? null} size={32} />
-              <span className={styles.sideIdentityText}>
-                <span className={styles.sideIdentityName}>
-                  {profile?.displayName ?? 'Your profile'}
+              {/* Named on hover in the rail, like every other row there. */}
+              <NavLink
+                to="/profile"
+                className={styles.sideIdentity ?? ''}
+                {...(collapsed ? { title: profile?.displayName ?? 'Your profile' } : {})}
+              >
+                <Avatar name={profile?.displayName ?? null} size={32} />
+                <span className={styles.sideIdentityText}>
+                  <span className={styles.sideIdentityName}>
+                    {profile?.displayName ?? 'Your profile'}
+                  </span>
+                  {/* Only where the student actually gave one (§24). */}
+                  {profile?.usn !== null && profile?.usn !== undefined && profile.usn !== '' ? (
+                    <span className={styles.sideIdentityUsn}>{profile.usn}</span>
+                  ) : null}
                 </span>
-                {/* Only where the student actually gave one (§24). */}
-                {profile?.usn !== null && profile?.usn !== undefined && profile.usn !== '' ? (
-                  <span className={styles.sideIdentityUsn}>{profile.usn}</span>
-                ) : null}
-              </span>
-            </NavLink>
-          </aside>
+              </NavLink>
+            </aside>
 
-          <div className={styles.workspace}>
-            <header className={styles.topbar}>
-              {/*
+            <div className={styles.workspace}>
+              <header className={styles.topbar}>
+                {/*
                 THE RAIL CONTROL, at the leading edge of the bar where the
                 design puts it, and desktop-only: below `lg` the sidebar is not
                 on screen at all, so a control that collapses it would do
                 nothing visible.
               */}
-              <button
-                type="button"
-                className={styles.railToggle ?? ''}
-                onClick={() => setCollapsed((value) => !value)}
-                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                aria-expanded={!collapsed}
-                aria-controls="gt-sidebar"
-                title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              >
-                <Icon name={collapsed ? 'sidebarExpand' : 'sidebarCollapse'} size="medium" />
-              </button>
-              <button
-                type="button"
-                className={styles.searchTrigger ?? ''}
-                onClick={openSearch}
-                aria-label="Search GradTools"
-                aria-keyshortcuts="Control+K"
-              >
-                <Icon name="search" size="nav" />
-                {/*
+                <button
+                  type="button"
+                  className={styles.railToggle ?? ''}
+                  onClick={() => setCollapsed((value) => !value)}
+                  aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  aria-expanded={!collapsed}
+                  aria-controls="gt-sidebar"
+                  title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                >
+                  <Icon name={collapsed ? 'sidebarExpand' : 'sidebarCollapse'} size="medium" />
+                </button>
+                <button
+                  type="button"
+                  className={styles.searchTrigger ?? ''}
+                  onClick={openSearch}
+                  aria-label="Search GradTools"
+                  aria-keyshortcuts="Control+K"
+                >
+                  <Icon name="search" size="nav" />
+                  {/*
                   The design's own placeholder. "Search" alone does not say what
                   is searchable, and this field reaches results, courses and
                   actions — so it says so.
                 */}
-                <span className={styles.searchLabel}>Search results, courses, actions…</span>
-                {/*
+                  <span className={styles.searchLabel}>Search results, courses, actions…</span>
+                  {/*
                   TWO CHIPS, as the design draws it — and the modifier is the
                   one this keyboard actually has. The design hardcodes ⌘; the
                   hotkey handler accepts either, so showing ⌘ to someone on
                   Windows would be telling them the wrong key.
                 */}
-                <span className={styles.searchKeys}>
-                  <kbd className={styles.searchKbd}>{MODIFIER_KEY}</kbd>
-                  <kbd className={styles.searchKbd}>K</kbd>
-                </span>
-              </button>
+                  <span className={styles.searchKeys}>
+                    <kbd className={styles.searchKbd}>{MODIFIER_KEY}</kbd>
+                    <kbd className={styles.searchKbd}>K</kbd>
+                  </span>
+                </button>
 
-              <div className={styles.topActions}>
-                <NotificationInbox
-                  notifications={notifications}
-                  unread={unread}
-                  onRead={(item) => void setState(item.announcement, 'read')}
-                  onReadAll={() => void readAll()}
-                />
+                <div className={styles.topActions}>
+                  <NotificationInbox
+                    notifications={notifications}
+                    unread={unread}
+                    onRead={(item) => void setState(item.announcement, 'read')}
+                    onReadAll={() => void readAll()}
+                  />
 
-                {/* On every page, not only Settings — a device setting, not a
+                  {/* On every page, not only Settings — a device setting, not a
                 destination. Settings > Appearance remains its home. */}
-                <ThemeControl />
+                  <ThemeControl />
 
-                {/*
+                  {/*
                   The design's top-right identity is the AVATAR and it goes to
                   Profile. Account keeps its sidebar destination; what the top
                   bar offers is "me", which is the thing people reach for up
                   there.
                 */}
-                <NavLink
-                  to="/profile"
-                  className={styles.topIdentity ?? ''}
-                  aria-label="Open profile"
-                >
-                  <Avatar name={profile?.displayName ?? null} size={34} />
-                </NavLink>
-              </div>
-            </header>
+                  <NavLink
+                    to="/profile"
+                    className={styles.topIdentity ?? ''}
+                    aria-label="Open profile"
+                  >
+                    <Avatar name={profile?.displayName ?? null} size={34} />
+                  </NavLink>
+                </div>
+              </header>
 
-            <main className={styles.main} id="main" ref={mainRef} tabIndex={-1}>
-              {children}
-            </main>
-          </div>
+              <main className={styles.main} id="main" ref={mainRef} tabIndex={-1}>
+                {children}
+              </main>
+            </div>
 
-          {/*
+            {/*
             THE BOTTOM BAR, from the approved design: four destinations and a
             way to reach everything else. No travelling marker — the design
             marks the active tab with ink, and a beam sliding under a thumb is
             motion nobody asked for.
           */}
-          <nav className={`${styles.bottomNav ?? ''} surfaceNav`} aria-label="Main">
-            {MOBILE_TABS.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                data-active={
-                  item.to === '/'
-                    ? location.pathname === '/'
-                    : location.pathname.startsWith(item.to)
-                }
-                className={({ isActive }) =>
-                  `${styles.bottomLink ?? ''} ${isActive ? (styles.bottomLinkActive ?? '') : ''}`
-                }
+            <nav className={`${styles.bottomNav ?? ''} surfaceNav`} aria-label="Main">
+              {MOBILE_TABS.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  data-active={
+                    item.to === '/'
+                      ? location.pathname === '/'
+                      : location.pathname.startsWith(item.to)
+                  }
+                  className={({ isActive }) =>
+                    `${styles.bottomLink ?? ''} ${isActive ? (styles.bottomLinkActive ?? '') : ''}`
+                  }
+                >
+                  <Icon name={item.icon} size="medium" />
+                  {item.shortLabel}
+                </NavLink>
+              ))}
+              <button
+                type="button"
+                className={styles.bottomLink}
+                onClick={() => {
+                  setMoreOpen(true);
+                }}
+                aria-haspopup="dialog"
+                aria-expanded={moreOpen}
               >
-                <Icon name={item.icon} size="medium" />
-                {item.shortLabel}
-              </NavLink>
-            ))}
-            <button
-              type="button"
-              className={styles.bottomLink}
-              onClick={() => {
-                setMoreOpen(true);
-              }}
-              aria-haspopup="dialog"
-              aria-expanded={moreOpen}
-            >
-              <Icon name="dashboard" size="medium" />
-              More
-            </button>
-          </nav>
+                <Icon name="dashboard" size="medium" />
+                More
+              </button>
+            </nav>
 
-          {/*
+            {/*
             Everything the bar has no room for, as a bottom sheet — the same
             groups the sidebar shows, so a phone reaches every route the
             desktop does.
           */}
-          <Sheet
-            open={moreOpen}
-            onClose={() => {
-              setMoreOpen(false);
-            }}
-            side="bottom"
-            title="Go to"
-          >
-            <div className={styles.moreSheet}>
-              {GROUPS.map((group) => (
-                <Fragment key={group}>
-                  <span className={styles.sideGroup}>{group}</span>
-                  <div className={styles.moreGrid}>
-                    {DESTINATIONS.filter((destination) => destination.group === group).map(
-                      (item) => {
-                        const isActive =
-                          item.to === '/'
-                            ? location.pathname === '/'
-                            : location.pathname.startsWith(item.to);
-                        return (
-                          <NavLink
-                            key={item.to}
-                            to={item.to}
-                            end={item.to === '/'}
-                            onClick={() => {
-                              setMoreOpen(false);
-                            }}
-                            className={`${styles.moreLink ?? ''} ${isActive ? (styles.moreLinkActive ?? '') : ''}`}
-                          >
-                            <Icon name={item.icon} size="nav" />
-                            {item.label}
-                          </NavLink>
-                        );
-                      },
-                    )}
-                  </div>
-                </Fragment>
-              ))}
-            </div>
-          </Sheet>
+            <Sheet
+              open={moreOpen}
+              onClose={() => {
+                setMoreOpen(false);
+              }}
+              side="bottom"
+              title="Go to"
+            >
+              <div className={styles.moreSheet}>
+                {GROUPS.map((group) => (
+                  <Fragment key={group}>
+                    <span className={styles.sideGroup}>{group}</span>
+                    <div className={styles.moreGrid}>
+                      {DESTINATIONS.filter((destination) => destination.group === group).map(
+                        (item) => {
+                          const isActive =
+                            item.to === '/'
+                              ? location.pathname === '/'
+                              : location.pathname.startsWith(item.to);
+                          return (
+                            <NavLink
+                              key={item.to}
+                              to={item.to}
+                              end={item.to === '/'}
+                              onClick={() => {
+                                setMoreOpen(false);
+                              }}
+                              className={`${styles.moreLink ?? ''} ${isActive ? (styles.moreLinkActive ?? '') : ''}`}
+                            >
+                              <Icon name={item.icon} size="nav" />
+                              {item.label}
+                            </NavLink>
+                          );
+                        },
+                      )}
+                    </div>
+                  </Fragment>
+                ))}
+              </div>
+            </Sheet>
 
-          <GlobalSearch open={searchOpen} onClose={closeSearch} />
-        </div>
+            <GlobalSearch open={searchOpen} onClose={closeSearch} />
+          </div>
+        </OpenSearchProvider>
       </ToastProvider>
     </TooltipProvider>
   );
