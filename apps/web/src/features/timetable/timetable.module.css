@@ -263,6 +263,29 @@
   background: var(--chart-1);
 }
 
+/*
+ * A non-teaching hour: dashed, recessed, quiet.
+ *
+ * The design draws BREAK, LUNCH and a named block this way rather than as a
+ * class, and the distinction is one the record genuinely makes — `isCourse`
+ * is false for an hour the timetable only named. Dashed AND recessed AND
+ * quieter, so the difference does not rest on one signal.
+ */
+.chip[data-course='false'] {
+  background: var(--bg-sunken);
+  border-style: dashed;
+}
+
+.chip[data-course='false'] .chipName {
+  font-weight: var(--weight-regular);
+  color: var(--text-subtle);
+}
+
+/* No rule is drawn, so the body reclaims its inset. */
+.chip[data-course='false'] .chipBody {
+  padding-inline-start: 0;
+}
+
 .chipBody {
   display: flex;
   flex-direction: column;
@@ -367,6 +390,17 @@
 
 .dayRow:last-child {
   border-block-end: 0;
+}
+
+/* The same distinction in the day view. The design keeps the rule here and
+   takes it down to the strong hairline, rather than dropping it. */
+.dayRow[data-course='false'] .rowRule {
+  background: var(--border-strong);
+}
+
+.dayRow[data-course='false'] .rowName {
+  font-weight: var(--weight-regular);
+  color: var(--text-subtle);
 }
 
 .rowTime {
