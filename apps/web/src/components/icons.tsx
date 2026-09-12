@@ -333,6 +333,27 @@ const SHAPES = {
   ),
   check: <path d="m4.8 12.4 4.6 4.6 9.8-9.8" />,
   /* The 404's mark: a compass, from the approved design. */
+  /*
+   * The sidebar controls, matching the design's `PanelLeftClose` /
+   * `PanelLeft`: a panel outline with the rail edge drawn in, and a chevron
+   * showing which way the panel is about to go. Two glyphs rather than one
+   * rotated, so "collapse" and "expand" are visibly different actions rather
+   * than the same arrow pointing two ways.
+   */
+  sidebarCollapse: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M9 4v16" />
+      <path d="m16 10-2 2 2 2" />
+    </>
+  ),
+  sidebarExpand: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M9 4v16" />
+      <path d="m14 10 2 2-2 2" />
+    </>
+  ),
   compass: (
     <>
       <circle cx="12" cy="12" r="9" />

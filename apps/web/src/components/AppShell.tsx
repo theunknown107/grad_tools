@@ -195,6 +195,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  /*
+   * THE RAIL. 256px expanded, 76px collapsed, as the design specifies.
+   *
+   * Plain component state, exactly as the design has it: the shell never
+   * unmounts during client-side navigation, so the choice survives moving
+   * between pages without being persisted. Storing it would be inventing a
+   * preference the design does not have.
+   */
+  const [collapsed, setCollapsed] = useState(false);
   const openSearch = useCallback(() => setSearchOpen(true), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
   useSearchHotkey(openSearch);
@@ -225,7 +234,7 @@ export function AppShell({ children }: { children: ReactNode }) {
      */
     <TooltipProvider>
       <ToastProvider>
-        <div className={styles.shell}>
+        <div className={styles.shell} data-collapsed={collapsed ? 'true' : undefined}>
           <a className={styles.skipLink} href="#main">
             Skip to content
           </a>
@@ -241,10 +250,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         two rows carried is here, in the same order, so nothing became
         unreachable — the arrangement changed, not the map.
       */}
-          <aside className={styles.sidebar} aria-label="Sections">
+          <aside id="gt-sidebar" className={styles.sidebar} aria-label="Sections">
             {/* Named explicitly: the wordmark is hidden in the icon rail, and
             without this the brand link announces nothing there. */}
-            <NavLink to="/" className={styles.brand ?? ''} aria-label="GradTools home">
+            {/*
+              A PLAIN LINK, not a NavLink.
+              
+              `NavLink` sets `aria-current="page"` when its target is active, so
+              on the dashboard the brand announced itself as the current page
+              alongside the Dashboard row — two "current page" elements, one of
+              which is a logo. The brand is a way home, not a destination in the
+              list.
+            */}
+            <Link to="/" className={styles.brand ?? ''} aria-label="GradTools home">
               {/*
                 THE MARK IS THE MORTARBOARD, not a letter. The design puts the
                 same glyph here that "My degree" uses in the navigation below —
@@ -258,7 +276,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <span className={styles.brandWord}>GradTools</span>
                 <span className={styles.brandKind}>Academic OS</span>
               </span>
-            </NavLink>
+            </Link>
 
             <nav className={styles.sideNav} aria-label="Destinations">
               {GROUPS.map((group) => (
@@ -279,6 +297,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                         data-active={isActive}
                         aria-current={isActive ? 'page' : undefined}
                         className={`${styles.sideLink ?? ''} ${isActive ? (styles.sideLinkActive ?? '') : ''}`}
+                        /*
+                          IN THE RAIL THE LABEL IS THE ONLY NAME THERE IS.
+                          Collapsed, the row is a bare glyph, so the design
+                          gives it a `title` — and the visually-hidden label
+                          below keeps the accessible name intact for a screen
+                          reader in both states, which a `title` alone would
+                          not do reliably.
+                        */
+                        {...(collapsed ? { title: item.label } : {})}
                       >
                         <Icon name={item.icon} size="nav" />
                         <span className={styles.sideLabel}>{item.label}</span>
@@ -299,7 +326,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               is where a disclaimer belongs, rather than repeated in the chrome
               of every screen.
             */}
-            <NavLink to="/profile" className={styles.sideIdentity ?? ''}>
+            {/* Named on hover in the rail, like every other row there. */}
+            <NavLink
+              to="/profile"
+              className={styles.sideIdentity ?? ''}
+              {...(collapsed ? { title: profile?.displayName ?? 'Your profile' } : {})}
+            >
               <Avatar name={profile?.displayName ?? null} size={32} />
               <span className={styles.sideIdentityText}>
                 <span className={styles.sideIdentityName}>
@@ -315,6 +347,23 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className={styles.workspace}>
             <header className={styles.topbar}>
+              {/*
+                THE RAIL CONTROL, at the leading edge of the bar where the
+                design puts it, and desktop-only: below `lg` the sidebar is not
+                on screen at all, so a control that collapses it would do
+                nothing visible.
+              */}
+              <button
+                type="button"
+                className={styles.railToggle ?? ''}
+                onClick={() => setCollapsed((value) => !value)}
+                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-expanded={!collapsed}
+                aria-controls="gt-sidebar"
+                title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                <Icon name={collapsed ? 'sidebarExpand' : 'sidebarCollapse'} size="medium" />
+              </button>
               <button
                 type="button"
                 className={styles.searchTrigger ?? ''}

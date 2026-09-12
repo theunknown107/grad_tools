@@ -166,6 +166,130 @@ async function seed(page, payload) {
 const problems = [];
 let checks = 0;
 
+/**
+ * The collapsed rail (Figma-port §22).
+ *
+ * Every line here is a MEASUREMENT, which is the only kind of assertion this
+ * file is allowed to make. §22 names six things collapsed mode must preserve,
+ * and four of them can be measured rather than eyeballed: the width, that no
+ * destination is lost, that every row still carries a hover name and an
+ * accessible name, and that the active fill stays inside its own row.
+ */
+async function probeRail(browser, dist) {
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    colorScheme: 'light',
+    deviceScaleFactor: 1,
+  });
+  await context.addInitScript(() =>
+    window.localStorage.setItem(
+      'gradtools:v1:theme',
+      JSON.stringify({ appearance: 'light', accent: 'mono' }),
+    ),
+  );
+  const page = await context.newPage();
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await seed(page, dist);
+  await page.goto(`http://localhost:${PORT}/results`, { waitUntil: 'networkidle' });
+
+  const NAV = 'aside#gt-sidebar nav[aria-label="Destinations"] a';
+  const toggle = page.getByRole('button', { name: 'Collapse sidebar' });
+  const width = () => page.locator('aside#gt-sidebar').evaluate((el) => el.getBoundingClientRect().width);
+
+  /* §22: expanded is the design's 256, collapsed its 76. */
+  const expanded = await width();
+  checks += 1;
+  if (Math.round(expanded) !== 256) problems.push(`rail: expanded sidebar is ${String(expanded)}px, not 256`);
+
+  const before = await page.locator(NAV).evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute('href')),
+  );
+
+  await toggle.click();
+  await page.waitForTimeout(320);
+
+  const collapsed = await width();
+  checks += 1;
+  if (Math.round(collapsed) !== 76) problems.push(`rail: collapsed sidebar is ${String(collapsed)}px, not 76`);
+
+  const rail = await page.locator(NAV).evaluateAll((nodes) =>
+    nodes.map((node) => ({
+      href: node.getAttribute('href'),
+      title: node.getAttribute('title'),
+      /* The accessible name must survive the rail: clip-path, not display:none. */
+      name: (node.textContent ?? '').trim(),
+      current: node.getAttribute('aria-current'),
+      box: node.getBoundingClientRect().width,
+    })),
+  );
+
+  /* No destination may be lost, and none may go nameless. */
+  checks += 1;
+  if (rail.length !== before.length)
+    problems.push(`rail: ${String(before.length)} destinations expanded, ${String(rail.length)} collapsed`);
+  for (const item of rail) {
+    checks += 1;
+    if (item.title === null || item.title === '')
+      problems.push(`rail: ${String(item.href)} has no tooltip when collapsed`);
+    if (item.name === '') problems.push(`rail: ${String(item.href)} has no accessible name when collapsed`);
+  }
+
+  /*
+   * §22: "No detached stripe. No pseudo-element leaking outside the active
+   * row." The active row's painted fill is its own background, so the test is
+   * that nothing inside it is wider than it is.
+   */
+  const active = page.locator(`${NAV}[aria-current="page"]`);
+  checks += 1;
+  if ((await active.count()) !== 1) {
+    problems.push(`rail: ${String(await active.count())} nav rows claim aria-current, expected 1`);
+  } else {
+    const leak = await active.evaluate((el) => {
+      const row = el.getBoundingClientRect();
+      const own = getComputedStyle(el);
+      const painted = own.backgroundColor !== 'rgba(0, 0, 0, 0)';
+      let widest = 0;
+      for (const child of el.querySelectorAll('*')) {
+        const style = getComputedStyle(child);
+        if (style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.boxShadow === 'none') continue;
+        widest = Math.max(widest, child.getBoundingClientRect().width);
+      }
+      return { painted, overhang: Math.round(widest - row.width), width: Math.round(row.width) };
+    });
+    checks += 1;
+    if (!leak.painted) problems.push('rail: the active row has no fill of its own when collapsed');
+    if (leak.overhang > 0)
+      problems.push(`rail: something inside the active row is ${String(leak.overhang)}px wider than the row`);
+  }
+
+  /* Keyboard traversal: the rail is still a list you can tab through. */
+  await page.locator(`${NAV}`).first().focus();
+  const reached = [];
+  for (let i = 0; i < rail.length; i += 1) {
+    reached.push(
+      await page.evaluate(() => document.activeElement?.getAttribute('href') ?? null),
+    );
+    await page.keyboard.press('Tab');
+  }
+  checks += 1;
+  const missed = rail.map((item) => item.href).filter((href) => !reached.includes(href));
+  if (missed.length > 0) problems.push(`rail: Tab never reached ${missed.join(', ')}`);
+
+  /* Focus is left on a nav row by the traversal above; a screenshot of the
+     rail should not also be a screenshot of a focus ring. */
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.screenshot({ path: join(OUT, 'rail-collapsed.png'), fullPage: false });
+
+  await page.getByRole('button', { name: 'Expand sidebar' }).click();
+  await page.waitForTimeout(320);
+  const reexpanded = await width();
+  checks += 1;
+  if (Math.round(reexpanded) !== 256)
+    problems.push(`rail: re-expanded sidebar is ${String(reexpanded)}px, not 256`);
+
+  await context.close();
+}
+
 async function main() {
   if (!existsSync(DIST)) {
     console.error('apps/web/dist is missing. Run: pnpm --filter @gradtools/web build');
@@ -213,9 +337,14 @@ async function main() {
             problems.push(`${appearance} ${width} ${name}: horizontal overflow ${overflow}px`);
           }
 
+          /*
+            FULL PAGE, always. Comparing a COMPOSITION against the design means
+            seeing the whole of it: a viewport crop hides the sections below the
+            fold, which is where the differences usually are.
+          */
           await page.screenshot({
             path: join(OUT, `${appearance}-${String(width)}-${name}.png`),
-            fullPage: width <= 430,
+            fullPage: true,
           });
         }
 
@@ -224,6 +353,8 @@ async function main() {
         await context.close();
       }
     }
+
+    await probeRail(browser, data);
   } finally {
     await browser.close();
     server.close();
