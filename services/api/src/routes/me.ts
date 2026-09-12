@@ -46,6 +46,7 @@ import {
   setNotificationState,
   unreadCount,
 } from '../monitor/inbox.js';
+import { addListener, forClient, MAX_CONNECTIONS_PER_USER } from '../monitor/realtime.js';
 import { requireSession, sessionOf, type Verifier } from '../auth/session.js';
 import { ApiError, notFound } from '../http/errors.js';
 import {
@@ -297,6 +298,91 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
       unread: await unreadCount(tx),
     }));
     res.json(payload);
+  });
+
+  /**
+   * The doorbell: server-sent events for this student's own notifications.
+   *
+   * ---------------------------------------------------------------------------
+   * SSE, NOT A WEBSOCKET
+   * ---------------------------------------------------------------------------
+   *
+   * Everything here travels one way: the server has news, the browser renders
+   * it. Marking something read is an ordinary PATCH that already exists and
+   * already works when the stream is down. A WebSocket would buy a channel back
+   * to the server that nothing needs, and cost a second protocol to
+   * authenticate, proxy, scale and debug (§15).
+   *
+   * SSE is an HTTP GET that does not end. Every piece of infrastructure in front
+   * of it already understands it.
+   *
+   * ---------------------------------------------------------------------------
+   * WHOSE STREAM IT IS, IS NOT UP FOR DISCUSSION
+   * ---------------------------------------------------------------------------
+   *
+   * The user comes from `guard`, which is the same verified token every other
+   * route on this router uses. There is no `?user_id=`, no path parameter and
+   * no body — so there is nothing for an attacker to change (§17, §20, §71).
+   * A listener is registered in the set belonging to that id and no other, so
+   * B's connection is not filtered out of A's events; it is never in the set
+   * those events are delivered to (§19).
+   *
+   * THE STREAM IS A HINT, NOT THE RECORD. It replays nothing on reconnect and
+   * guarantees nothing about what was missed — `GET /me/notifications` is the
+   * authority, and the client reads it on connect (§22, §26, §74).
+   */
+  router.get(STUDENT_ROUTES.meNotificationsStream, guard, (req: Request, res: Response) => {
+    const session = sessionOf(req);
+
+    const send = (event: string, data: unknown): void => {
+      /* The SSE frame: a name, a line of JSON, and a blank line to flush it. */
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const stop = addListener(session.userId, (created) => {
+      send('notification.created', forClient(created));
+    });
+
+    /* §150, §154. Refusing is better than growing without bound; the inbox is
+     * unaffected, and the student has three other tabs already working. */
+    if (stop === null) {
+      throw new ApiError(
+        'VALIDATION_FAILED',
+        `This account already has ${String(MAX_CONNECTIONS_PER_USER)} live connections open. ` +
+          `Close one, or reload — your notifications are unaffected.`,
+      );
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      /* Proxies that buffer turn a stream into a very slow page. */
+      'X-Accel-Buffering': 'no',
+    });
+    send('ready', { ok: true });
+
+    /*
+     * A comment line every 25 seconds. It is not a poll and asks the client for
+     * nothing: it exists because an idle connection is indistinguishable from a
+     * dead one to anything in between, and 30s is a common proxy idle timeout
+     * (§27, §153).
+     */
+    const heartbeat = setInterval(() => res.write(': ping\n\n'), 25_000);
+    heartbeat.unref?.();
+
+    /*
+     * THE CLEANUP IS THE WHOLE POINT OF THE ENDPOINT'S SAFETY. Without it the
+     * listener — and through it this response object — outlives the connection,
+     * which is how a streaming route runs a server out of memory over a week
+     * (§28, §151).
+     */
+    const close = (): void => {
+      clearInterval(heartbeat);
+      stop();
+    };
+    req.on('close', close);
+    res.on('close', close);
   });
 
   /**
