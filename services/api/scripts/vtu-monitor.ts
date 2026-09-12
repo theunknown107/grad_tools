@@ -12,6 +12,7 @@
  *   pnpm vtu:monitor --fixture --fanout --dry-run   # who WOULD be notified, and why
  *   pnpm vtu:monitor --fixture --fanout --watch     # on a schedule, until stopped
  *   pnpm vtu:monitor --floor high            # only interrupt people about the urgent
+ *   pnpm vtu:monitor --health                # is anything calling this at all?
  *   pnpm vtu:monitor                         # ask the registry, and be refused
  *
  * ---------------------------------------------------------------------------
@@ -75,6 +76,7 @@ import {
 } from '../src/monitor/store.js';
 import { materialize, type FanoutDecision } from '../src/monitor/fanout.js';
 import { scheduleFromEnv, startScheduler } from '../src/monitor/schedule.js';
+import { monitorHealth, worstOf } from '../src/monitor/health.js';
 import type { Importance } from '../src/monitor/classify.js';
 import { contentHashOf, changeOf } from '../src/monitor/run.js';
 
@@ -344,8 +346,52 @@ async function runCycle(sql: Sql | null, fanout: Sql | null): Promise<boolean> {
   return allWell;
 }
 
+/**
+ * Prints how the monitor is doing, and exits.
+ *
+ * `--health` is a read. It runs nothing, changes nothing, and is the command a
+ * deployment's monitoring calls to find out whether anything is calling the
+ * worker at all (§13, §54, §162).
+ */
+async function reportHealth(sql: Sql | null): Promise<void> {
+  if (sql === null) {
+    console.log('No DATABASE_URL, so there is no run history to read.');
+    process.exitCode = 1;
+    return;
+  }
+
+  const health = await monitorHealth(sql, scheduleFromEnv().intervalMinutes, SOURCE_FAMILIES);
+  for (const entry of health) {
+    const age =
+      entry.minutesSinceLastRun === null ? 'never' : `${String(entry.minutesSinceLastRun)}m ago`;
+    console.log(
+      `${entry.state.toUpperCase().padEnd(13)} ${entry.family.padEnd(20)} ${age.padEnd(10)} ` +
+        `${entry.consecutiveFailures > 0 ? `${String(entry.consecutiveFailures)} failed in a row  ` : ''}` +
+        entry.detail,
+    );
+  }
+
+  const worst = worstOf(health);
+  console.log(`\noverall: ${worst}`);
+  /*
+   * A NON-ZERO EXIT FOR THINGS SOMEBODY SHOULD LOOK AT. `unauthorized` is not
+   * one of them: it is the designed state while VTU's terms are unreviewed.
+   */
+  process.exitCode = worst === 'healthy' || worst === 'unauthorized' ? 0 : 1;
+}
+
 async function main(): Promise<void> {
   const sql = openRegistry();
+
+  if (has('health')) {
+    try {
+      await reportHealth(sql);
+    } finally {
+      await (sql as unknown as { end?: () => Promise<void> } | null)?.end?.();
+    }
+    return;
+  }
+
   const fanout = openFanout();
   if (sql === null && !FIXTURE) {
     console.log(
