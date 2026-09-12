@@ -450,8 +450,8 @@
     padding-inline: var(--space-2);
   }
 
-  .brandWord,
-  .sideIdentityText {
+  /* The wordmark can go: its link is named by `aria-label`. */
+  .brandWord {
     display: none;
   }
 
@@ -459,8 +459,14 @@
    * VISUALLY hidden, not removed. `display: none` on the label took the
    * accessible name off every link in the rail — twelve links announcing
    * nothing at all, which axe caught at 768px and no screenshot would have.
+   *
+   * The identity row was in the `display: none` group above, directly under
+   * that warning, and made exactly that mistake again: its avatar is
+   * aria-hidden, so removing the name left a link with nothing to announce.
+   * axe reported `link-name` on every page at 768 and 1024.
    */
-  .sideLabel {
+  .sideLabel,
+  .sideIdentityText {
     position: absolute;
     inline-size: 1px;
     block-size: 1px;

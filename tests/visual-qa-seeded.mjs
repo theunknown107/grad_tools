@@ -273,6 +273,9 @@ const run = async () => {
         .analyze();
       for (const v of axe.violations) {
         problems.push(`AXE ${name}@${vp.name}: ${v.id} (${v.nodes.length}) ${v.help}`);
+        /* The rule alone does not say WHICH element, and hunting for it by
+           reading the page is slower than printing it. */
+        for (const node of v.nodes.slice(0, 2)) problems.push(`     ${node.html}`);
       }
 
       await page.screenshot({
