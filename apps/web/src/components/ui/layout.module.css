@@ -86,7 +86,13 @@
   font-size: 12px;
   line-height: 1.4;
   font-weight: var(--weight-medium);
-  color: var(--text-muted);
+  /*
+   * The SECONDARY ink, not the muted one. The label and the note below it had
+   * these two the wrong way round: the label — the thing that says what the
+   * number is — was the fainter of the pair, and the footnote was the stronger.
+   * The design has the label at `ink-2` and the note at `ink-3`.
+   */
+  color: var(--text-subtle);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -114,13 +120,22 @@
   color: var(--text);
 }
 
-.metricValue[data-tone='warning'] {
-  color: var(--warning-ink);
-}
-
-.metricValue[data-tone='danger'] {
-  color: var(--danger-ink);
-}
+/*
+ * NO TONE TINT. The block comment above this already said the tile is
+ * "deliberately MONOCHROME in every accent theme: no tint, no glow" — and then
+ * these two rules tinted the figure amber and red anyway, so the file
+ * contradicted itself and the amber won.
+ *
+ * The design's metric component keeps a `tone` prop only for call-site
+ * compatibility and states that it no longer colours anything: identity comes
+ * from material and typographic hierarchy, never from a semantic colour on the
+ * number. A row of six tiles where two of them are coloured reads as a widget
+ * grid, which is exactly what the metric row is not.
+ *
+ * Status still has somewhere to live — the note beneath the figure, and the
+ * dedicated attendance and backlog surfaces, where a colour means something
+ * about one subject rather than about the summary.
+ */
 
 /*
  * A VALUE THAT IS NOT A FIGURE IS NOT SET AT FIGURE SIZE.
@@ -143,7 +158,8 @@
   font-size: 12px;
   line-height: 1.4;
   font-weight: var(--weight-regular);
-  color: var(--text-subtle);
+  /* `ink-3` — the footnote is quieter than the label. See .metricLabel. */
+  color: var(--text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
