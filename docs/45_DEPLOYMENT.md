@@ -8,9 +8,18 @@ Two different sentences, and §110 requires keeping them apart.
 
 | | |
 | --- | --- |
-| Code is deployment-ready | **yes** — image, entry points, health, shutdown, env matrix |
+| Code is deployment-ready | **yes, with one caveat below** — image built and run in 7B.7 |
 | Code is deployed | **no** — nothing runs anywhere |
 | VTU monitoring is live | **no** — the source gate refuses, by design |
+
+> **The caveat, found in 7B.7 by running the image and not present in this
+> document when it was first written.** Stage 1's document routes have no
+> authentication, and `main.ts` refuses a non-loopback bind because of it. A
+> container must bind `0.0.0.0` to be reachable, so a deployment has to set
+> `HOST=0.0.0.0` and `ALLOW_PUBLIC_BIND=true` together and deliberately — and
+> should only do so behind something that authenticates those routes. **Until
+> Stage 1 has authentication, this image is safe on a private network and is not
+> safe on the public internet.** See docs/46.
 
 So: **GradTools does not monitor VTU, and is not always-on.** Both would be
 false on two independent counts — nothing is deployed, and live acquisition is
@@ -227,10 +236,10 @@ last known good source intact. Plus `shutdown.test.ts` (2), above.
 
 Reported rather than fabricated (§26, §107).
 
-- **The image is not built.** Docker CLI 29.7.2 is installed; the daemon is not
-  running (`npipe:////./pipe/dockerDesktopLinuxEngine` unavailable). Every path
-  the `Dockerfile` copies was checked to exist and all five workspace members
-  are covered, but that is static checking, not a build.
+- ~~The image is not built.~~ **Built and run in 7B.7** — see docs/46. Doing so
+  found three defects in this configuration that reading it had not: a refused
+  startup, a package-manager download on every boot, and a clean shutdown
+  reporting exit 143.
 - **No real Supabase environment.** No project credentials are configured here,
   so the online browser test (§32) — authenticate, open an SSE stream, run the
   worker, watch a row appear without a refresh — has not been run against a real
