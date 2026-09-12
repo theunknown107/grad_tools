@@ -51,6 +51,16 @@ body {
   font-weight: var(--weight-regular);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /*
+   * THE ACCENT ON NATIVE CONTROLS.
+   *
+   * Nothing set this, so Chromium painted every checkbox, radio and range in
+   * its own blue — twelve of them in a grid on the Notifications page, the one
+   * colour on the screen that belongs to no theme in this product. One
+   * declaration covers every native control in every appearance, and under the
+   * default Mono it resolves to grey like everything else.
+   */
+  accent-color: var(--accent);
 }
 
 /* Wide content scrolls inside its own container; the page body never does. */
