@@ -325,6 +325,18 @@ async function runCycle(sql: Sql | null, fanout: Sql | null): Promise<boolean> {
     `  created ${String(result.created)}  already held ${String(result.alreadyHeld)}  ` +
       `not applicable ${String(result.notApplicable)}  unresolved ${String(result.unresolved)}`,
   );
+  /*
+   * §110, §111, §112. Delivery is reported apart from creation because they
+   * fail apart: every notification above is committed and in its student's
+   * inbox whatever this line says. A degraded doorbell is not a failed run.
+   */
+  if (result.deliveryAttempted > 0) {
+    const failed = result.deliveryAttempted - result.deliverySucceeded;
+    console.log(
+      `  announced ${String(result.deliverySucceeded)}/${String(result.deliveryAttempted)}` +
+        (failed > 0 ? `  (${String(failed)} not announced; all are still in the inbox)` : ''),
+    );
+  }
   if (DRY_RUN) {
     console.log('  dry run: nothing written');
     if (VERBOSE) printFanoutReport(result.decisions);

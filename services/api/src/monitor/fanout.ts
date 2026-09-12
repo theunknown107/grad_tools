@@ -42,7 +42,9 @@
  * depends on this code being careful; it depends on the index.
  */
 
+import { randomUUID } from 'node:crypto';
 import type { Sql } from '../db/client.js';
+import { publish, type NotificationCreated } from './realtime.js';
 import { applicabilityOf, type Applicability, type StudentAudience } from './applicability.js';
 import type { Importance, SourceCategory } from './classify.js';
 import type { PublishedItem } from './store.js';
@@ -100,6 +102,9 @@ export interface FanoutResult {
   readonly notApplicable: number;
   readonly unresolved: number;
   readonly belowFloor: number;
+  /** §111. Delivery is counted apart from creation, because they fail apart. */
+  readonly deliveryAttempted: number;
+  readonly deliverySucceeded: number;
   /** Populated only for a dry run; a real run would hold millions of these. */
   readonly decisions: readonly FanoutDecision[];
 }
@@ -228,6 +233,7 @@ export async function materialize(
   let notApplicable = 0;
   let unresolved = 0;
   const decisions: FanoutDecision[] = [];
+  const pending: NotificationCreated[] = [];
 
   await asMonitor(sql, async (tx) => {
     let after: string | null = null;
@@ -292,20 +298,45 @@ export async function materialize(
            * that silently, which is why the dedupe tests assert row counts
            * rather than trusting the clause.
            */
+          /*
+           * THE ID IS GENERATED HERE, not read back. `RETURNING` needs SELECT
+           * and the role has none (above), so the only way to know which row
+           * this is — which the realtime event needs — is to have chosen it.
+           * On a conflict nothing is inserted and this id is simply discarded.
+           */
+          const id = randomUUID();
           const result = await tx`
             INSERT INTO source_notifications (
-              auth_user_id, source_family, external_id, content_hash,
+              id, auth_user_id, source_family, external_id, content_hash,
               category, importance, title, source_url, published_at, reason, run_id
             ) VALUES (
-              ${recipient.userId}::uuid, ${item.family}, ${item.externalId},
+              ${id}::uuid, ${recipient.userId}::uuid, ${item.family}, ${item.externalId},
               ${item.contentHash}, ${item.category}, ${item.importance},
               ${item.title}, ${item.url}, ${item.publishedAt},
               ${verdict.reason}, ${runId}
             )
             ON CONFLICT DO NOTHING
           `;
-          if (result.count === 0) alreadyHeld += 1;
-          else created += 1;
+          if (result.count === 0) {
+            alreadyHeld += 1;
+            continue;
+          }
+          created += 1;
+          /*
+           * COLLECTED, NOT SENT. The transaction has not committed, and an
+           * event announcing a row that a rollback then removes is worse than
+           * no event at all (§14, §37).
+           */
+          pending.push({
+            type: 'notification.created',
+            userId: recipient.userId,
+            notificationId: id,
+            category: item.category,
+            importance: item.importance,
+            title: item.title,
+            sourceUrl: item.url,
+            reason: verdict.reason,
+          });
         }
       }
 
@@ -313,6 +344,20 @@ export async function materialize(
       if (batch.length < batchSize) break;
     }
   });
+
+  /*
+   * PERSIST, COMMIT, THEN RING THE DOORBELL (§14, §38). `asMonitor` has
+   * returned, so every row below is committed and belongs to its student
+   * whatever happens next. `publish` cannot throw, so a database that refuses
+   * the notify — or a listener nobody is on the other end of — costs a
+   * cosmetic delivery and not a monitoring run (§25, §110).
+   */
+  let deliveryAttempted = 0;
+  let deliverySucceeded = 0;
+  for (const event of pending) {
+    deliveryAttempted += 1;
+    if (await publish(sql, event)) deliverySucceeded += 1;
+  }
 
   return {
     usersConsidered,
@@ -322,6 +367,8 @@ export async function materialize(
     notApplicable,
     unresolved,
     belowFloor: belowFloorItems,
+    deliveryAttempted,
+    deliverySucceeded,
     decisions,
   };
 }

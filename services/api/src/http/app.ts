@@ -18,6 +18,7 @@ import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { createStudentRouter } from '../routes/me.js';
 import { createAccountDeleter, createCloudClient } from '../db/cloud.js';
+import { startListening } from '../monitor/realtime.js';
 import { authConfigFor, createVerifier } from '../auth/session.js';
 import { createAnnouncementRouter } from '../routes/announcements.js';
 import { createReferenceRouter } from '../routes/reference.js';
@@ -211,6 +212,23 @@ export function createApp(
         ...(student.deleteAccount === undefined ? {} : { deleteAccount: student.deleteAccount }),
       }),
     );
+
+    /*
+     * ONE `LISTEN` FOR THE PROCESS (Phase 7B.5 §16, §29).
+     *
+     * The monitoring worker is a different process, so its notifications reach
+     * connected browsers through the database rather than an in-memory emitter.
+     * This opens the single session that hears them; the SSE route registers
+     * per-connection listeners against it.
+     *
+     * Failing to listen is NOT fatal. Every notification is already persisted
+     * and every inbox still works — what is lost is the doorbell, and a
+     * deployment that refused to boot over a doorbell would be trading a real
+     * outage for a cosmetic one (§25, §110).
+     */
+    void startListening(student.sql).catch(() => {
+      /* Delivery is degraded; the notifications themselves are unaffected. */
+    });
   }
 
   app.use(createReferenceRouter(sql));
