@@ -68,6 +68,15 @@ const RENAMED_ACCENTS: Readonly<Record<string, Accent>> = {
 export interface ThemePreference {
   readonly appearance: Appearance;
   readonly accent: Accent;
+  /**
+   * An explicit request for less motion, from the design's Interface section.
+   *
+   * SEPARATE FROM the operating system's `prefers-reduced-motion`, which every
+   * stylesheet already honours on its own. This is the person who has not set
+   * it system-wide but wants this product still. It can only ever turn motion
+   * DOWN: there is no value here that overrides the system asking for less.
+   */
+  readonly reducedMotion: boolean;
 }
 
 /**
@@ -78,7 +87,13 @@ export interface ThemePreference {
  * designed around. "System" remains available and an explicit choice always
  * wins — this is only the answer for someone who has not given one.
  */
-export const DEFAULT_THEME: ThemePreference = { appearance: 'light', accent: 'mono' };
+export const DEFAULT_THEME: ThemePreference = {
+  appearance: 'light',
+  accent: 'mono',
+  /* Off by default: the system preference is already being honoured, and this
+     is an addition to it rather than a replacement for it. */
+  reducedMotion: false,
+};
 
 /** Device-scoped on purpose — see the header. */
 export const THEME_STORAGE_KEY = 'gradtools:v1:theme';
@@ -120,6 +135,7 @@ export function readStoredTheme(storage: Pick<Storage, 'getItem'>): ThemePrefere
       ? record['appearance']
       : DEFAULT_THEME.appearance,
     accent: accentFrom(record['accent']),
+    reducedMotion: record['reducedMotion'] === true,
   };
 }
 
@@ -164,6 +180,13 @@ export function applyTheme(root: HTMLElement, preference: ThemePreference): void
     root.style.colorScheme = preference.appearance;
   }
   root.setAttribute('data-accent', preference.accent);
+  /*
+   * An ATTRIBUTE, not a class, and absent rather than false when off — so the
+   * stylesheet's one reduced-motion block can be written as a plain selector
+   * and never has to fight a `[data-motion='full']`.
+   */
+  if (preference.reducedMotion) root.setAttribute('data-motion', 'reduced');
+  else root.removeAttribute('data-motion');
 }
 
 /** Which appearance `system` currently resolves to. */

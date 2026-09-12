@@ -35,6 +35,7 @@ export interface UseThemeResult {
   readonly resolved: 'light' | 'dark';
   readonly setAppearance: (appearance: Appearance) => void;
   readonly setAccent: (accent: Accent) => void;
+  readonly setReducedMotion: (reducedMotion: boolean) => void;
 }
 
 export function useTheme(): UseThemeResult {
@@ -78,11 +79,16 @@ export function useTheme(): UseThemeResult {
 
   const setAppearance = useCallback((appearance: Appearance) => update({ appearance }), [update]);
   const setAccent = useCallback((accent: Accent) => update({ accent }), [update]);
+  const setReducedMotion = useCallback(
+    (reducedMotion: boolean) => update({ reducedMotion }),
+    [update],
+  );
 
   return {
     preference,
     resolved: resolveAppearance(preference.appearance, systemDark),
     setAppearance,
     setAccent,
+    setReducedMotion,
   };
 }

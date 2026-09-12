@@ -280,15 +280,29 @@ input[type='number'] {
  * to 0.01ms rather than 0 so animation and transition END EVENTS still fire —
  * a component that waits for one before unmounting would otherwise hang.
  */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+/*
+ * THE SAME, ASKED FOR IN THE PRODUCT RATHER THAN BY THE SYSTEM.
+ *
+ * The design's Interface section has a Reduced motion switch, for a person who
+ * has not set the preference system-wide but wants it here. `applyTheme` puts
+ * `data-motion="reduced"` on the root and this turns everything down, exactly
+ * as the media query above does.
+ *
+ * This replaces a second, byte-identical copy of that media query that was
+ * sitting here — so the file is no longer saying the same thing twice, and the
+ * thing it now says twice is deliberate, because a media query and an
+ * attribute cannot be written as one selector.
+ *
+ * It can only turn motion DOWN. There is no attribute that switches it back
+ * on over the system's request.
+ */
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 /* ========================================================================== */

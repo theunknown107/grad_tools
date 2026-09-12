@@ -32,6 +32,7 @@ import { ACCENTS, APPEARANCES, type Accent, type Appearance } from '../lib/theme
 import { Icon, type IconName } from './icons.js';
 import { Button, StatusPill, TextField } from './ui/index.js';
 import { IslandTabGroup, IslandTabPanel, IslandTabs } from './ui/IslandTabs.js';
+import { Switch } from './ui/Controls.js';
 import styles from './AppearanceSettings.module.css';
 
 const APPEARANCE_LABEL: Record<Appearance, string> = {
@@ -69,7 +70,7 @@ const ACCENT_LABEL: Record<Accent, string> = {
 };
 
 export function AppearanceSettings() {
-  const { preference, resolved, setAppearance, setAccent } = useTheme();
+  const { preference, resolved, setAppearance, setAccent, setReducedMotion } = useTheme();
 
   return (
     <div className={styles.stack}>
@@ -150,6 +151,27 @@ export function AppearanceSettings() {
             );
           })}
         </div>
+      </section>
+
+      {/*
+        INTERFACE, from the design's own Appearance section.
+        
+        The design puts Density beside this. There is no Density control here:
+        this product has no compact spacing scale, so the switch would change
+        the page gutter and nothing else — a control that looks like it does
+        something and very nearly does not is worse than its absence. Noted
+        rather than faked.
+      */}
+      <section className={styles.card} aria-labelledby="appearance-interface">
+        <h3 className={styles.heading} id="appearance-interface">
+          Interface
+        </h3>
+        <Switch
+          label="Reduced motion"
+          hint="Minimise animations and transitions across the product. Your device's own setting is already respected; this asks for it here as well."
+          checked={preference.reducedMotion}
+          onCheckedChange={setReducedMotion}
+        />
       </section>
 
       {/*
