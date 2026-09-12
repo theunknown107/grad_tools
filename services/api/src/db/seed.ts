@@ -366,6 +366,94 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
       notes = EXCLUDED.notes
   `;
 
+
+  /*
+   * THE SIX SOURCE FAMILIES, REGISTERED AND REFUSED (Phase 7C §3, §5, §103).
+   *
+   * Every family GradTools intends to read is written down here BEFORE any
+   * code can reach it, because the audit that prompted this found the opposite
+   * order: `vtu-scheme-syllabus` was being fetched by a script under an id the
+   * registry had never heard of, and a gate cannot refuse what it does not
+   * know exists.
+   *
+   * All six carry the same status and it is the honest one:
+   *
+   *   robots_status  allowed    the same vtu.ac.in robots.txt fetch of
+   *                             2026-08-24; none of these paths is disallowed
+   *   terms_status   unknown    never reviewed (OQ-006), and VTU's terms say
+   *                             the access licence does not extend to
+   *                             data-mining robots or extraction tools
+   *   rights_status  unknown    reuse permission has not been established
+   *   enabled        false      and the CHECK constraint cannot be satisfied
+   *                             while terms are unknown
+   *
+   * `access_method = 'none'` says GradTools does not reach out for these at
+   * all. Documents in these families arrive only when a person supplies one
+   * (§2 Mode B, §65). When permission is eventually recorded, the change is to
+   * these rows — not to the pipeline behind them (§102).
+   */
+  const FAMILIES = [
+    {
+      id: 'vtu-administration',
+      kind: 'announcements',
+      url: 'https://vtu.ac.in/en/category/administration/',
+      note: 'Administration notices. Not every post here concerns students; classification decides.',
+    },
+    {
+      id: 'vtu-examination',
+      kind: 'announcements',
+      url: 'https://vtu.ac.in/en/category/examination/',
+      note: 'Examination circulars, notifications, result and revaluation notices.',
+    },
+    {
+      id: 'vtu-academic-calendar',
+      kind: 'other',
+      url: 'https://vtu.ac.in/academic-calendar/',
+      note: 'Academic calendars. A revised calendar versions the original rather than replacing it.',
+    },
+    {
+      id: 'vtu-pg-scheme-syllabus',
+      kind: 'syllabus',
+      url: 'https://vtu.ac.in/en/pg-scheme-syllabus/',
+      note: 'PG schemes and syllabi. Shares the normalisation architecture; not the UG assumptions.',
+    },
+    {
+      id: 'vtu-regulations',
+      kind: 'other',
+      url: 'https://vtu.ac.in/category/vtu-regulation/',
+      note: 'Regulations. Versioned source knowledge, never merged into catalogue rows.',
+    },
+  ] as const;
+
+  for (const family of FAMILIES) {
+    await sql`
+      INSERT INTO sources (
+        id, kind, publisher, canonical_url, authority, access_method,
+        robots_status, robots_checked_at, robots_note,
+        terms_status, terms_note,
+        rights_status, verification, enabled, notes
+      ) VALUES (
+        ${family.id}, ${family.kind}::source_kind,
+        'Visvesvaraya Technological University',
+        ${family.url}, 'official', 'none',
+        'allowed', '2026-08-24',
+        'The same https://vtu.ac.in/robots.txt fetch recorded against vtu-announcements on 2026-08-24. This path is not disallowed.',
+        'unknown',
+        'Terms of use have NOT been reviewed (OQ-006). VTU states the access licence does not include data-mining robots or other extraction tools, so robots permitting the path is not permission to fetch it.',
+        'unknown', 'draft', false,
+        ${family.note}
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        canonical_url = EXCLUDED.canonical_url,
+        robots_status = EXCLUDED.robots_status,
+        robots_checked_at = EXCLUDED.robots_checked_at,
+        robots_note = EXCLUDED.robots_note,
+        terms_status = EXCLUDED.terms_status,
+        terms_note = EXCLUDED.terms_note,
+        notes = EXCLUDED.notes
+    `;
+  }
+
   // syllabus_modules is intentionally left empty. See the header note.
 
   const [counts] = await sql<
