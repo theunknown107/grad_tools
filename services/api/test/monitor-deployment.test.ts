@@ -325,24 +325,33 @@ describeDb('deployment readiness', () => {
         upsertProfile(tx, { schemeId: '2022', programme: 'B.E.', currentSemester: 5 }),
       );
 
+      /*
+       * COUNTED FROM A's OWN INBOX, NOT FROM THE RUN TOTAL.
+       *
+       * `materialize` fans out to every profile in the database, so its
+       * `created` is a property of whoever else happens to exist — and the
+       * cloud test database is shared with every other file in this suite. An
+       * earlier version asserted on the run total, passed, and then failed the
+       * moment another file left a matching profile behind. The claim this test
+       * makes is about one student, so it counts one student's rows.
+       */
       /* t1 — first sight. */
       await scheduledRun('examination', 'v1');
-      const first = await fanout();
-      expect(first.created).toBeGreaterThan(0);
+      await fanout();
+      const afterFirst = (await inbox()).length;
+      expect(afterFirst).toBeGreaterThan(0);
 
       /* t2 — the source has not moved. */
       await scheduledRun('examination', 'v1');
-      const second = await fanout();
-      expect(second.created).toBe(0);
-      expect(second.alreadyHeld).toBe(first.created);
+      await fanout();
+      expect((await inbox()).length).toBe(afterFirst);
 
       /* t3 — VTU revised the timetable. */
       await scheduledRun('examination', 'v2');
-      const third = await fanout();
-      expect(third.created).toBe(1);
+      await fanout();
 
       const rows = await inbox();
-      expect(rows).toHaveLength(first.created + 1);
+      expect(rows).toHaveLength(afterFirst + 1);
       /* §24. Every row is a distinct notification; none arrived twice. */
       expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length);
 
