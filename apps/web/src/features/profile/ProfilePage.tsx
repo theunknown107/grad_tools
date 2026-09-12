@@ -202,12 +202,7 @@ export function ProfilePage() {
         a quick switch and wrong as the only home for a preference.
       */}
         {!editing && hasProfile ? (
-          <ProfileOverview
-            profile={profile ?? null}
-            onEdit={() => {
-              setEditing(true);
-            }}
-          />
+          <ProfileOverview profile={profile ?? null} />
         ) : (
           <SectionedForm
             label="Profile settings"
@@ -490,13 +485,7 @@ export function ProfilePage() {
  * rather than being invented for symmetry. A field the student has not filled
  * in says "Not set", which is the truth and is also the invitation to set it.
  */
-function ProfileOverview({
-  profile,
-  onEdit,
-}: {
-  readonly profile: StudentProfile | null;
-  readonly onEdit: () => void;
-}) {
+function ProfileOverview({ profile }: { readonly profile: StudentProfile | null }) {
   const { statistics } = useAcademicState();
 
   const name = profile?.displayName ?? null;
@@ -595,12 +584,9 @@ function ProfileOverview({
               </li>
             ))}
           </ul>
-          <div className={styles.fieldsAction}>
-            <Button onClick={onEdit}>
-              <Icon name="edit" size="nav" />
-              Edit profile
-            </Button>
-          </div>
+          {/* The page header already carries this action, where the design
+              puts it. Two identical buttons on one screen make a reader stop
+              and work out whether they do the same thing. */}
         </Panel>
 
         <Panel title="Academic snapshot">
