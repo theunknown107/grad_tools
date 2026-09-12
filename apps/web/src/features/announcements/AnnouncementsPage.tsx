@@ -258,8 +258,8 @@ export function LatestAnnouncements({ limit = 4 }: { readonly limit?: number }) 
    */
   return (
     <Panel
-      material="quiet"
       title="Latest"
+      icon="announcements"
       flush
       action={
         <Link to="/announcements" className={styles.viewAll}>

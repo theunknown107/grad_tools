@@ -42,6 +42,15 @@ const ROUTES = [
   ['/import', 'add-document'],
   ['/account', 'account'],
   ['/profile', 'profile'],
+  /*
+   * The five §6 destinations that are not in the sidebar. They are still
+   * compositions the design specifies, and the harness was only screenshotting
+   * what the shell can reach — so these were the pages nobody had looked at.
+   */
+  ['/sign-in', 'sign-in'],
+  ['/first-sync', 'first-sync'],
+  ['/welcome', 'welcome'],
+  ['/no-such-page', 'not-found'],
 ];
 
 const TYPES = {

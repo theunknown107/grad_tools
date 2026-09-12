@@ -45,8 +45,15 @@ import {
 } from '../../domain/types.js';
 import { markFor } from '../../domain/attendance.js';
 import { timetableEntry } from '../../domain/timetable-import.js';
-import { Bar, Empty, MetricStrip, Row, Rows, Skeleton } from '../../components/ui/layout.js';
-import { PastelCard, Rail } from '../../components/ui/tone.js';
+import {
+  Bar,
+  Empty,
+  MetricStrip,
+  Row,
+  Rows,
+  SectionHeading,
+  Skeleton,
+} from '../../components/ui/layout.js';
 import { Panel, StatusPill, buttonClassName } from '../../components/ui/index.js';
 import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
 import { GradeDistributionRows } from '../../components/GradeDistribution.js';
@@ -61,7 +68,7 @@ import {
   useSemesterSubjects,
   useTimetable,
 } from '../../hooks/useCollection.js';
-import { currentSemester, sgpaReading, type SemesterView } from '../../domain/academics.js';
+import { currentSemester } from '../../domain/academics.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
 import type { AcademicStatistics } from '../../domain/statistics.js';
 import { metricDisplay } from '../../lib/format.js';
@@ -302,25 +309,23 @@ export function DashboardPage() {
           */}
           <Snapshot stats={statistics} attendance={thisSemester} />
 
-          {/*
-            THE REFERENCE'S SIGNATURE ROW, carrying GradTools' own content.
-            Its dashboard leads with a horizontal rail of pastel course cards;
-            ours leads with the semesters of the degree, which is the same
-            shape of information — a set of things in progress, each with a
-            status and a proportion done.
-          */}
-          <SemesterRail views={statistics.views} />
 
+          {/*
+            THE DESIGN'S ORDER: what needs attention, then what is on today,
+            then what changed. It ran Today, calendar, attention — which opens
+            the row with a schedule and buries the one card that is asking the
+            student to do something.
+          */}
           <div className={styles.quietStack}>
+            <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
             <Today
               timetable={timetable}
               subjects={semesterSubjects}
               holiday={holiday}
               marks={marks}
             />
-            <NextDate calendars={inForce} conflicts={conflicts} />
-            <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
             <LatestAnnouncements />
+            <NextDate calendars={inForce} conflicts={conflicts} />
             <Resources />
           </div>
         </>
@@ -384,6 +389,23 @@ function Snapshot({
 
   return (
     <>
+      {/*
+        THE DESIGN NAMES THIS ROW, and gives it a way out.
+        
+        Six figures used to sit straight under the hero with nothing saying
+        what they were collectively, so the eye read them as loose chrome
+        rather than as one section called "academic standing". The action is
+        the design's own: the place to go when the summary is not enough.
+      */}
+      <SectionHeading
+        action={
+          <Link to="/academics" className={styles.sectionAction ?? ''}>
+            Open SGPA &amp; CGPA
+          </Link>
+        }
+      >
+        Academic standing
+      </SectionHeading>
       <MetricStrip
         metrics={[
           /*
@@ -414,10 +436,10 @@ function Snapshot({
                   : {}),
           },
           {
-            label: 'Last SGPA',
+            label: 'Latest SGPA',
             value: latest === null ? 'Unavailable' : formatGpa(latest.sgpa),
             ...(latest !== null
-              ? { note: `sem ${String(latest.semester)}` }
+              ? { note: `Semester ${String(latest.semester)}` }
               : stats.latestSgpa.reason === null
                 ? {}
                 : { note: stats.latestSgpa.reason }),
@@ -426,6 +448,19 @@ function Snapshot({
             label: 'Credits earned',
             value: credits.value,
             ...(credits.note === undefined ? {} : { note: credits.note }),
+          },
+          {
+            /*
+              A backlog count that could not be determined is NOT zero, and the
+              two must not render alike — zero backlogs is the best news the
+              page carries (1).
+            */
+            label: 'Backlogs',
+            value: backlogs.value,
+            ...(backlogs.note === undefined ? {} : { note: backlogs.note }),
+            ...((stats.backlogs.value ?? 0) > 0 || stats.backlogsUndetermined > 0
+              ? { tone: 'warning' as const }
+              : {}),
           },
           {
             /*
@@ -460,19 +495,6 @@ function Snapshot({
             ...(stats.semestersCompleted.value !== null &&
             stats.semestersCompleted.value !== (stats.semestersGraded.value ?? 0)
               ? { note: `${String(stats.semestersCompleted.value)} marked complete` }
-              : {}),
-          },
-          {
-            /*
-              A backlog count that could not be determined is NOT zero, and the
-              two must not render alike — zero backlogs is the best news the
-              page carries (1).
-            */
-            label: 'Backlogs',
-            value: backlogs.value,
-            ...(backlogs.note === undefined ? {} : { note: backlogs.note }),
-            ...((stats.backlogs.value ?? 0) > 0 || stats.backlogsUndetermined > 0
-              ? { tone: 'warning' as const }
               : {}),
           },
         ]}
@@ -555,41 +577,6 @@ function Snapshot({
  * its own record reports; one with nothing saved says so rather than being
  * given an invented percentage to make the row look fuller.
  */
-function SemesterRail({ views }: { readonly views: readonly SemesterView[] }) {
-  if (views.length === 0) return null;
-
-  return (
-    <Rail label="Semesters">
-      {views.map((view) => {
-        const done = view.status === 'completed';
-        /*
-          "No SGPA yet" reads as "you have not finished entering this", which
-          for a semester whose subjects carry no credits is the wrong story.
-          The reading says which it is (Phase 7C §13).
-        */
-        const reading = sgpaReading(view);
-        return (
-          <PastelCard
-            key={view.number}
-            tone="neutral"
-            to="/semesters"
-            pill={done ? 'Completed' : view.status === 'in_progress' ? 'In progress' : 'Planned'}
-            title={`Semester ${String(view.number)}`}
-            body={
-              view.sgpaComputed === null
-                ? view.subjectCount > 0
-                  ? `${formatCount(view.subjectCount, 'subject')}. ${reading.reason ?? 'No SGPA.'}`
-                  : 'No result saved yet.'
-                : `SGPA ${formatGpa(view.sgpaComputed)} from ${formatCount(view.subjectCount, 'subject')}.`
-            }
-            {...(done ? { progress: 100 } : {})}
-          />
-        );
-      })}
-    </Rail>
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /* Today                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -633,8 +620,8 @@ function Today({
 
   return (
     <Panel
-      material="quiet"
       title={`Today · ${day}`}
+      icon="clock"
       flush
       action={
         <Link className={styles.quietLink} to="/timetable">
@@ -742,7 +729,7 @@ function NextDate({
           : 'under way';
 
   return (
-    <Panel material="quiet" title="Next on the calendar" flush>
+    <Panel title="Next on the calendar" icon="timetable" flush>
       {conflicts.length > 0 && (
         /*
          * SHOWN, NEVER RESOLVED. Two calendars for one term disagree about a
@@ -820,8 +807,8 @@ function Attention({
 
   return (
     <Panel
-      material="quiet"
       title="Needs attention"
+      icon="warning"
       tone="attention"
       flush
       action={
@@ -887,7 +874,7 @@ function Resources() {
   return (
     /* Navigation, not an owned group — quiet, so the elevated surfaces on
        this page stay meaningful (M9.6C §7). */
-    <Panel title="Go to" flush material="quiet">
+    <Panel title="Go to" icon="compass" flush>
       <nav className={styles.resources} aria-label="Other areas">
         {/*
           IMPORT LEADS, because giving GradTools a document is the primary way

@@ -27,6 +27,7 @@ import styles from './ui.module.css';
  */
 export function Panel({
   title,
+  icon,
   action,
   children,
   flush = false,
@@ -34,6 +35,14 @@ export function Panel({
   material = 'glass',
 }: {
   title?: string | undefined;
+  /**
+   * A glyph before the title, for a flush panel.
+   *
+   * The design puts one on each of its list cards — an alert triangle, a
+   * clock, a pulse — because a banded heading with a glyph is how it marks
+   * "this card is a live list" apart from "this card is a region".
+   */
+  icon?: IconName | undefined;
   action?: ReactNode;
   children: ReactNode;
   /** Body runs to the panel's edges, for lists that draw their own rows. */
@@ -49,14 +58,33 @@ export function Panel({
    */
   material?: 'glass' | 'quiet' | undefined;
 }) {
+  /*
+   * A FLUSH panel gets a banded heading, because it draws its own rows.
+   *
+   * The design's three list cards all carry the same header: a rule beneath
+   * it, the title in sentence case at 14px rather than as an uppercase label,
+   * and a glyph in front. That is not decoration — a heading that sits
+   * directly above a divided list needs a divider of its own, or it reads as
+   * the list's first row.
+   */
+  const banded = flush && title !== undefined;
+
   return (
-    <section className={styles.panel} data-tone={tone} data-material={material}>
+    <section
+      className={styles.panel}
+      data-tone={tone}
+      data-material={material}
+      data-banded={banded ? 'true' : undefined}
+    >
       {title !== undefined && (
         /* A div, not a <header>: inside an unnamed <section> a <header> still
            maps to the BANNER landmark, so a page of panels announces a page of
            banners. The <h2> does the labelling that matters. */
         <div className={styles.panelHeader}>
-          <h2 className={styles.panelTitle}>{title}</h2>
+          <h2 className={styles.panelTitle}>
+            {icon !== undefined && <Icon name={icon} size="nav" />}
+            {title}
+          </h2>
           {action}
         </div>
       )}

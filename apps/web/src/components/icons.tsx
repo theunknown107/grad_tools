@@ -340,6 +340,13 @@ const SHAPES = {
    * rotated, so "collapse" and "expand" are visibly different actions rather
    * than the same arrow pointing two ways.
    */
+  /* The design's Clock, on the card that says what is on today. */
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
+    </>
+  ),
   sidebarCollapse: (
     <>
       <rect x="3" y="4" width="18" height="16" rx="2.5" />

@@ -232,7 +232,22 @@
   display: grid;
   gap: var(--space-5);
   padding: var(--space-6);
-  background: var(--surface);
+  /*
+   * The design gives this one hero — and only this one — a wash of the accent
+   * across its trailing third, fading out to the left. It is the single place
+   * in the application where the accent is a MATERIAL rather than a mark, and
+   * under the default Mono it reads as a faint change of paper rather than as
+   * colour. Painted as a background layer rather than a pseudo-element so
+   * there is no stacking order to get wrong.
+   */
+  background:
+    linear-gradient(
+        to left,
+        color-mix(in oklab, var(--accent-weak) 50%, transparent),
+        transparent
+      )
+      right / 33% 100% no-repeat,
+    var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
 }
@@ -382,15 +397,6 @@
 .section {
   display: grid;
   gap: var(--space-3);
-}
-
-.sectionTitle {
-  margin: 0;
-  font-size: 13px;
-  font-weight: var(--weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
 }
 
 .semesterGrid {

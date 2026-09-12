@@ -449,3 +449,21 @@
   color: var(--text-subtle);
   font-size: 12px;
 }
+
+/*
+ * The action beside a section heading.
+ *
+ * The design sets it at 12px in the accent's ink and underlines it on hover —
+ * a quiet way out of a section, not a button competing with the figures below.
+ */
+.sectionAction {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  color: var(--accent-pastel-ink);
+  text-decoration: none;
+}
+
+.sectionAction:hover {
+  text-decoration: underline;
+}

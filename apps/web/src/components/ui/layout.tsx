@@ -62,6 +62,36 @@ export interface Metric {
  * rather than the 40px that makes a dashboard shout. A larger number does not
  * become more true.
  */
+/**
+ * A heading above a region that is NOT a card.
+ *
+ * Authority: Figma Make `lib/ui.tsx` — SectionTitle
+ *
+ * The design's section heading is 13px, semibold, uppercase, widely tracked,
+ * in the secondary ink, with an optional action on the right. `Panel` already
+ * renders exactly that for a titled card; this is the same heading for a region
+ * with no surface of its own — the metric grid, a set of cards — where a
+ * `Panel` would add a container the design does not have.
+ *
+ * There were three separate one-off `sectionTitle` rules in this codebase
+ * before this existed, which is how a design system stops being one.
+ */
+export function SectionHeading({
+  children,
+  action,
+}: {
+  readonly children: ReactNode;
+  /** A link or control on the trailing edge, as the design places it. */
+  readonly action?: ReactNode;
+}) {
+  return (
+    <div className={styles.sectionHeading}>
+      <h2 className={styles.sectionHeadingText}>{children}</h2>
+      {action}
+    </div>
+  );
+}
+
 export function MetricStrip({ metrics }: { readonly metrics: readonly Metric[] }) {
   return (
     <dl className={styles.metrics}>

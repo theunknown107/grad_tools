@@ -532,10 +532,10 @@ describe('current semester on the dashboard', () => {
      * Phase 7C §1. The dash is gone; the guarantee it stood for is not, so the
      * assertion moved onto the guarantee itself.
      */
-    expect(within(strip).getByText('Last SGPA')).toBeTruthy();
+    expect(within(strip).getByText('Latest SGPA')).toBeTruthy();
     expect(within(strip).queryByText('Current SGPA')).toBeNull();
 
-    const lastSgpa = within(strip).getByText('Last SGPA').closest('div');
+    const lastSgpa = within(strip).getByText('Latest SGPA').closest('div');
     expect(lastSgpa?.textContent ?? '').toMatch(/Unavailable/);
     expect(lastSgpa?.textContent ?? '').not.toMatch(/\d\.\d\d/);
   });
