@@ -1,0 +1,26 @@
+/**
+ * Avatar.
+ * Authority: Figma Make `lib/ui.tsx` — Avatar
+ *
+ * A filled accent disc with the contrast colour on it, exactly as the brand
+ * mark is filled. Size and font-size come from the call site because the design
+ * has only two of them and they scale together.
+ */
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--a-fill);
+  color: var(--a-contrast);
+  font-weight: var(--weight-semibold);
+  /* Initials are two capitals side by side; the default tracking pushes them
+     apart enough to read as two separate letters rather than a monogram. */
+  letter-spacing: -0.02em;
+  line-height: 1;
+  /* Tabular so "WI" and "IL" occupy the same width and the disc never looks
+     off-centre between two different students. */
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}

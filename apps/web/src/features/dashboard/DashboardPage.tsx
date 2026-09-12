@@ -512,7 +512,15 @@ function Snapshot({
           component the SGPA & CGPA page uses — one chart, two screens.
         */
         <div className={styles.charts}>
-          <Panel title="SGPA by semester" material="quiet">
+          {/*
+            ON A CARD, not loose on the canvas. These were `material="quiet"`,
+            which drops the surface and keeps a hairline — right for a plain
+            list, wrong here: the design puts each chart in a raised card with
+            its own border, which is what separates the plot area from the page
+            behind it. A chart drawn straight onto the canvas has no edge, so
+            its gridlines read as page furniture.
+          */}
+          <Panel title="SGPA by semester">
             <SgpaTrend points={trendPoints} />
             <p className={styles.chartLegend}>
               <span data-series="sgpa" />
@@ -522,7 +530,7 @@ function Snapshot({
             </p>
           </Panel>
           {stats.grades.total > 0 && (
-            <Panel title="Grade distribution" material="quiet">
+            <Panel title="Grade distribution">
               <GradeDistributionRows grades={stats.grades} />
               <p className={styles.chartNote}>
                 {formatCount(stats.outcomes.passed, 'course')} passed across{' '}

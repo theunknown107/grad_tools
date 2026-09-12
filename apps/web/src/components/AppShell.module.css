@@ -87,12 +87,27 @@
   place-items: center;
   inline-size: 32px;
   block-size: 32px;
-  border-radius: 10px;
+  /* The design's `rounded-lg`, which is 14px in this system — not the 10px
+     this carried, which read as a slightly different family of corner to
+     every other 14px control beside it. */
+  border-radius: var(--radius-lg);
   /* The solid accent, with the label colour chosen for it — near-black on the
      light ground and near-white on the dark one under the default Mono. */
   background: var(--a-fill);
   color: var(--a-contrast);
   font-weight: var(--weight-semibold);
+}
+
+/*
+ * 20px inside the 32px mark.
+ *
+ * Declared here rather than added to the icon scale: the scale's nearest
+ * neighbours are 18 and 22, and the brand is a single one-off that should not
+ * bend a shared token either way (§28).
+ */
+.brandMark svg {
+  inline-size: 20px;
+  block-size: 20px;
 }
 
 .brandText {
@@ -195,12 +210,74 @@
   margin-block-start: 0;
 }
 
-.sideFoot {
-  margin: 0;
-  padding-inline: var(--space-3);
-  color: var(--text-subtle);
-  font-size: var(--text-micro);
-  line-height: 1.5;
+/*
+ * The sidebar's last block: who is signed in.
+ *
+ * The design gives it a top hairline and the sidebar's own hover, so it reads
+ * as part of the navigation rather than as a card dropped at the bottom. The
+ * whole row is the target — a name that is only decorative next to an avatar
+ * that is the link is a smaller tap area for no reason.
+ */
+.sideIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-start: auto;
+  /*
+   * Bled out to the sidebar's edges. The aside carries its own padding, so
+   * without the negative margins the hairline stops short on both sides and
+   * reads as an underline beneath the row rather than as the divider that
+   * closes the navigation.
+   */
+  margin-inline: calc(-1 * var(--space-4));
+  margin-block-end: calc(-1 * var(--space-5));
+  padding: var(--space-3) var(--space-4);
+  border-block-start: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  text-align: start;
+  transition: background-color var(--motion-fast) var(--ease-enter);
+}
+
+.sideIdentity:hover {
+  background: var(--bg-sunken);
+}
+
+.sideIdentityText {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  gap: 1px;
+}
+
+.sideIdentityName {
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: var(--weight-medium);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The register number is an identifier, so it is set in the mono face. */
+.sideIdentityUsn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The top-right identity. A disc, so the focus ring is a disc too. */
+.topIdentity {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
 }
 
 .workspace {
@@ -225,11 +302,26 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  inline-size: min(420px, 100%);
-  padding: 9px var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg);
+  /*
+   * The design's `w-full max-w-sm`: take the row's width up to 384px, and give
+   * it back when the row is narrower. `min(384px, 100%)` set only a BASE size,
+   * which flex was then free to shrink — the field rendered around 210px and
+   * truncated the placeholder it had just been given.
+   */
+  flex: 1 1 auto;
+  inline-size: 100%;
+  max-inline-size: 384px;
+  /* 38px tall — the design's `h-9.5`, the same height as every other control
+     in this row. */
+  block-size: 38px;
+  padding-inline: var(--space-3);
+  /*
+   * A ROUNDED RECTANGLE, NOT A PILL. The pill was the one control in the shell
+   * with a 999px radius, which made it read as a search *widget* dropped into
+   * a toolbar of 14px controls. The design uses `rounded-lg` here, the same
+   * corner as the buttons beside it.
+   */
+  border-radius: var(--radius-lg);
   color: var(--text-subtle);
   font: inherit;
   font-size: var(--text-body);
@@ -246,17 +338,41 @@
 
 .searchLabel {
   flex: 1;
+  min-inline-size: 0;
   text-align: start;
+  /*
+   * ONE LINE, ALWAYS. The design's placeholder is a sentence — "Search
+   * results, courses, actions…" — and without this it wrapped to three lines
+   * inside a 38px control and pushed the whole top bar out of shape. It
+   * truncates instead; the ellipsis is the design's own.
+   */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+.searchKeys {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+/* The design's Kbd: a 20px square-ish chip, mono, on the panel surface. */
 .searchKbd {
-  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 20px;
+  min-inline-size: 20px;
+  padding-inline: 6px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text-subtle);
   font-family: var(--font-mono);
-  font-size: var(--text-micro);
+  font-size: 11px;
+  font-weight: var(--weight-medium);
 }
 
 .topActions {
@@ -306,7 +422,7 @@
   }
 
   .brandWord,
-  .sideFoot {
+  .sideIdentityText {
     display: none;
   }
 
