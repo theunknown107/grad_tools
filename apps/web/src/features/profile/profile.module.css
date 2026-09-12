@@ -3,9 +3,15 @@
 .stack {
   display: flex;
   flex-direction: column;
-  max-width: var(--settings-max);
   gap: var(--space-4);
-  max-width: var(--reading-max);
+  /*
+   * ONE cap, not two. This declared max-width twice — the settings cap and
+   * then a stale reading cap — and the second won, so a page whose body is a
+   * two-column grid of cards was held to a PROSE measure of 680px and sat in
+   * 280px of dead column. `--settings-max` is the one that belongs here: a
+   * page of fields, not a page of paragraphs.
+   */
+  max-width: var(--settings-max);
 }
 
 .grid {
@@ -14,9 +20,12 @@
   gap: var(--space-4);
 }
 
-@media (min-width: 640px) {
+/* The design's ratio: identity is the half with six fields in it. Held to
+   1024 because two cards of fields side by side at 640 are two narrow
+   columns. */
+@media (min-width: 1024px) {
   .grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1.4fr 1fr;
   }
 }
 
@@ -224,11 +233,6 @@
 .fieldValue[data-absent='true'] {
   color: var(--text-subtle);
   font-weight: var(--weight-regular);
-}
-
-.fieldsAction {
-  display: flex;
-  justify-content: flex-start;
 }
 
 /* --- The snapshot ---------------------------------------------------------- */

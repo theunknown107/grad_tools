@@ -180,13 +180,19 @@
 /* -------------------------------------------------------------------------- */
 
 /*
- * Reference 12's lit stage, with Reference 11's restraint. One glow, placed
- * behind the panel, so the form reads as an object standing in light rather
- * than a card on a page.
+ * THE STAGE, WITHOUT THE LIGHT.
  *
- * What was deliberately left out of Reference 12: the neural-network pattern,
- * the floating particles and the animated orbs. Three moving backgrounds behind
- * a password field compete with the only task on the screen.
+ * This carried "Reference 12's lit stage": a 680x420 accent orb at 34% alpha
+ * under a 64px blur, behind the card. That reference is superseded — the
+ * current design has no glow anywhere in the product, and under the default
+ * Mono this one resolved to a grey smudge across the top of the page rather
+ * than to atmosphere. The card can stand on the canvas the way every other
+ * surface does.
+ *
+ * What it also took with it: the layer was deliberately wider than the stage
+ * (inset -20% either side) so the glow had somewhere to fall off, which gave
+ * <html> up to 155px of horizontal scroll — invisible because body hides
+ * overflow-x, and found only by measuring the document.
  */
 .stage {
   position: relative;
@@ -194,35 +200,6 @@
   justify-content: center;
   padding-block: var(--space-7) var(--space-9);
   isolation: isolate;
-  /*
-   * The light layer below is deliberately wider than the stage (inset -20%
-   * either side) so the glow has somewhere to fall off. Nothing clipped it, so
-   * <html> gained up to 155px of horizontal scroll — invisible on the page
-   * because body already hides overflow-x, and caught only by measuring the
-   * document. `clip` rather than `hidden`: it must not create a scroll
-   * container of its own.
-   */
-  overflow: clip;
-}
-
-.stageSky {
-  position: absolute;
-  inset: -10% -20% 40%;
-  z-index: -1;
-  overflow: clip;
-  pointer-events: none;
-}
-
-.stageGlow {
-  position: absolute;
-  inset-block-start: -30%;
-  inset-inline-start: 50%;
-  translate: -50% 0;
-  inline-size: min(680px, 90%);
-  block-size: 420px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgb(var(--a-glow-rgb) / 34%), transparent 68%);
-  filter: blur(64px);
 }
 
 /* The panel lifts off the stage. A shadow this size would be wrong on a page
@@ -271,7 +248,8 @@
   place-items: center;
   inline-size: 34px;
   block-size: 34px;
-  border-radius: 11px;
+  /* The shell's brand radius, not an 11px one of its own. */
+  border-radius: var(--radius-lg);
   background: var(--accent-pastel);
   border: 0;
   color: var(--accent-pastel-ink);
