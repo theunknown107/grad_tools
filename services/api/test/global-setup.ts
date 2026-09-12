@@ -71,8 +71,31 @@ async function resetCloudDatabase(): Promise<void> {
     const directory = fileURLToPath(new URL('../src/db/supabase/', import.meta.url));
     const files = (await readdir(directory)).filter((name) => name.endsWith('.sql')).sort();
     for (const file of files) {
-      await sql.unsafe(await readFile(new URL(file, new URL('../src/db/supabase/', import.meta.url)), 'utf8'));
+      await sql.unsafe(
+        await readFile(new URL(file, new URL('../src/db/supabase/', import.meta.url)), 'utf8'),
+      );
     }
+
+    /*
+     * THE MONITOR'S LOGIN ROLE (Phase 7B.3.1 §3, Supabase 0009).
+     *
+     * `gradtools_monitor` is NOLOGIN — a bag of privileges, created by the
+     * migration, carrying no password anybody could commit. A deployment makes
+     * its own login role and grants this one into it; so does the suite, here,
+     * for the same reason CI creates `authenticator`.
+     *
+     * NOINHERIT matters: the login role holds nothing until the worker
+     * explicitly SET ROLEs, so a connection that forgets to can read nothing
+     * rather than quietly inheriting the monitor's rights.
+     */
+    await sql.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'monitor_login') THEN
+          CREATE ROLE monitor_login LOGIN NOINHERIT NOBYPASSRLS PASSWORD 'monitor_login';
+        END IF;
+      END $$;
+      GRANT gradtools_monitor TO monitor_login;
+    `);
   } finally {
     await sql.end();
   }

@@ -63,6 +63,7 @@ function profile(): StudentProfile {
     displayName: 'Demo',
     usn: null,
     collegeName: null,
+    programme: null,
     schemeId: 'vtu-2022',
     branch: null,
     currentSemester: 5,

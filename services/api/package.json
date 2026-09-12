@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
-    "worker": "tsx src/jobs/main.ts",
+    "worker": "tsx scripts/vtu-monitor.ts --fanout --watch",
     "migrate": "tsx src/db/migrate.ts",
     "seed": "tsx src/db/seed.ts",
     "seed:demo": "tsx src/db/seed-demo.ts",

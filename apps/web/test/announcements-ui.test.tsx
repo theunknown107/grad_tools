@@ -59,6 +59,7 @@ function profile(overrides: Partial<StudentProfile> = {}): StudentProfile {
     usn: null,
     collegeName: 'Demo Engineering College',
     schemeId: 'vtu-2022',
+    programme: null,
     branch: 'Computer Science and Engineering',
     currentSemester: 5,
     createdAt: '2026-01-01T00:00:00Z',

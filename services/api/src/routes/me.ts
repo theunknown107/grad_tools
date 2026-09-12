@@ -28,6 +28,7 @@
 
 import { Router, type Request, type Response } from 'express';
 import express from 'express';
+import { z } from 'zod';
 import {
   STUDENT_ROUTES,
   profileInputSchema,
@@ -38,6 +39,13 @@ import {
 } from '@gradtools/shared-types';
 import type { Sql } from '../db/client.js';
 import { withUser } from '../db/cloud.js';
+import {
+  markAllRead,
+  NOTIFICATION_STATES,
+  readInbox,
+  setNotificationState,
+  unreadCount,
+} from '../monitor/inbox.js';
 import { requireSession, sessionOf, type Verifier } from '../auth/session.js';
 import { ApiError, notFound } from '../http/errors.js';
 import {
@@ -270,6 +278,67 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
    * says so: it is the student's copy, on their machine, and deleting the cloud
    * account is not consent to wipe their phone (M9 §36).
    */
+  /* ---------------------------------------------------------------------- */
+  /* Notifications                                                          */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * What the monitor decided this student should know about.
+   *
+   * The rows were created by a background run, through a role that cannot read
+   * them back (Supabase 0009). This is the only path that reads them, and it
+   * runs inside `withUser` — so "only their own" is the database's answer, not
+   * a filter written here (§47, §79).
+   */
+  router.get(STUDENT_ROUTES.meNotifications, guard, async (req: Request, res: Response) => {
+    const session = sessionOf(req);
+    const payload = await withUser(deps.cloud, session, async (tx) => ({
+      notifications: await readInbox(tx),
+      unread: await unreadCount(tx),
+    }));
+    res.json(payload);
+  });
+
+  /**
+   * Mark one read or dismissed.
+   *
+   * A NOT-FOUND FOR SOMEBODY ELSE'S ID, and the same not-found for an id that
+   * never existed (§48). RLS scopes the UPDATE to the caller's rows, so the
+   * distinction is invisible here — which is exactly what stops this route
+   * confirming that a given notification belongs to someone.
+   */
+  router.patch(
+    STUDENT_ROUTES.meNotification,
+    guard,
+    express.json({ limit: '4kb' }),
+    async (req: Request, res: Response) => {
+      const session = sessionOf(req);
+      const body = z.object({ state: z.enum(NOTIFICATION_STATES) }).parse(req.body);
+
+      /*
+       * Express types a route parameter as possibly repeated. A UUID that is
+       * not a UUID is a not-found rather than a 500 from the database, and
+       * checking the shape here is what keeps it that way.
+       */
+      const raw = req.params['id'];
+      const id = typeof raw === 'string' ? raw : '';
+      if (!/^[0-9a-f-]{36}$/i.test(id)) throw notFound('notification');
+
+      const updated = await withUser(deps.cloud, session, (tx) =>
+        setNotificationState(tx, id, body.state),
+      );
+      if (updated === null) throw notFound('notification');
+      res.json({ notification: updated });
+    },
+  );
+
+  /** §83. Everything unread becomes read, in one statement, for this student. */
+  router.post(STUDENT_ROUTES.meNotificationsRead, guard, async (req: Request, res: Response) => {
+    const session = sessionOf(req);
+    const marked = await withUser(deps.cloud, session, (tx) => markAllRead(tx));
+    res.json({ marked });
+  });
+
   router.delete(STUDENT_ROUTES.me, guard, async (req: Request, res: Response) => {
     const session = sessionOf(req);
     const deleteAccount = deps.deleteAccount;
