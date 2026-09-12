@@ -156,6 +156,16 @@
 }
 
 /*
+ * A flush body bleeds its bottom edge out by the panel's padding so a list's
+ * last divider reaches the corner. An empty state is not a list — it is one
+ * self-contained panel of its own — so it takes the inset back, or its dashed
+ * border lands on top of the panel's.
+ */
+.panelBodyFlush:has(> .empty) {
+  margin-block-end: 0;
+}
+
+/*
  * The approved design's section heading: 13px, semibold, uppercase, widely
  * tracked, and set in the SECONDARY ink.
  *
@@ -491,13 +501,37 @@
 }
 
 /* --- Empty state ----------------------------------------------------------- */
+
+/*
+ * THE DESIGN'S EmptyState, which is a CENTRED, DASHED, RECESSED PANEL.
+ *
+ * This was left-aligned with no container of its own, on the strength of a
+ * note that an empty state is "a sentence, not a bordered card with a
+ * paragraph and a large button". That note was written against an older
+ * reference; the current design's EmptyState is precisely a dashed bordered
+ * panel with a tile, a heading, a paragraph and its actions, centred — and
+ * left-aligned in a full-width card it left a short message sitting in several
+ * hundred pixels of void.
+ *
+ * The one-line inline absence still exists and is still a sentence: that is
+ * `Empty` in layout.tsx, which is a different component for a different job.
+ *
+ * Recessed rather than raised: the design puts this on `panel` inside a
+ * `raised` card, which is one step down from its surroundings.
+ */
 .empty {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-3);
-  padding: var(--space-6) var(--space-4);
+  /* The design's `px-6 py-14`. */
+  padding: 56px var(--space-6);
+  text-align: center;
   color: var(--text-muted);
+  background: var(--bg-sunken);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-xl);
 }
 
 /* Quiet, and quieter than the sentence under it. An empty state is not a
@@ -510,7 +544,10 @@
 .emptyText {
   font-size: var(--text-small);
   line-height: var(--text-small-lh);
-  max-width: 52ch;
+  /* The design's `max-w-sm`. 52ch was a reading measure for a left-aligned
+     paragraph; centred, it has to be a short block or the last line drifts. */
+  max-width: 24rem;
+  color: var(--text-subtle);
 }
 
 /* --- Table ----------------------------------------------------------------- */
@@ -781,11 +818,13 @@
 }
 
 .emptyTitle {
-  font-size: var(--text-h3);
-  line-height: var(--text-h3-lh);
+  /* 15px in the design, not a heading step: it names the absence, it does not
+     open a section. */
+  font-size: 15px;
+  line-height: 1.35;
   font-weight: var(--weight-semibold);
   color: var(--text);
-  margin-block-end: var(--space-1);
+  margin: 0;
 }
 
 /* ========================================================================== */
