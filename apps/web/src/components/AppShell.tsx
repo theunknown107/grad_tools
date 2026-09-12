@@ -40,6 +40,8 @@ import { Sheet } from './ui/Sheet.js';
 import { TooltipProvider } from './ui/Tooltip.js';
 import { ToastProvider } from './ui/Toast.js';
 import { useAnnouncements, useNotifications } from '../hooks/useAnnouncements.js';
+import { useProfile } from '../hooks/useCollection.js';
+import { Avatar } from './ui/Avatar.js';
 import styles from './AppShell.module.css';
 
 interface Destination {
@@ -143,6 +145,17 @@ const DESTINATIONS: readonly Destination[] = [
 const GROUPS = ['Overview', 'Academics', 'Account'] as const;
 
 /**
+ * The modifier the search shortcut actually uses on this machine.
+ *
+ * Read once at module load from the platform string. `navigator.platform` is
+ * deprecated but is the only thing that distinguishes an Apple keyboard
+ * reliably in every browser this ships to; a wrong guess here is a label that
+ * tells somebody to press a key they do not have.
+ */
+const MODIFIER_KEY =
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
+
+/**
  * The mobile bar, CHOSEN rather than truncated (M9.3 §18). Five is the ceiling:
  * past that, labels stop being legible at 320px.
  */
@@ -194,6 +207,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { items: announcements } = useAnnouncements();
   const { notifications, unread, setState, readAll } = useNotifications(announcements);
 
+  /*
+   * The shell reads the profile for one thing: who to show in the sidebar
+   * footer and the top-right avatar. It is the same hook every page uses, so
+   * the name in the chrome and the name on the Profile page cannot disagree.
+   */
+  const { profile } = useProfile();
+
   return (
     /*
      * ONE TOOLTIP CLOCK FOR THE WHOLE APP.
@@ -225,8 +245,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             {/* Named explicitly: the wordmark is hidden in the icon rail, and
             without this the brand link announces nothing there. */}
             <NavLink to="/" className={styles.brand ?? ''} aria-label="GradTools home">
+              {/*
+                THE MARK IS THE MORTARBOARD, not a letter. The design puts the
+                same glyph here that "My degree" uses in the navigation below —
+                a lettermark reads as a placeholder that nobody got round to
+                replacing, and this product is about a degree.
+              */}
               <span className={styles.brandMark} aria-hidden="true">
-                G
+                <Icon name="degree" size="large" />
               </span>
               <span className={styles.brandText}>
                 <span className={styles.brandWord}>GradTools</span>
@@ -263,7 +289,28 @@ export function AppShell({ children }: { children: ReactNode }) {
               ))}
             </nav>
 
-            <p className={styles.sideFoot}>Independent student project. Not affiliated with VTU.</p>
+            {/*
+              THE FOOTER IS THE STUDENT, not a disclaimer.
+              
+              The design ends the sidebar with who is signed in — avatar, name,
+              register number — and makes the whole block the way to Profile.
+              The "not affiliated with VTU" line that used to sit here is not
+              lost: the dashboard footer carries the full version of it, which
+              is where a disclaimer belongs, rather than repeated in the chrome
+              of every screen.
+            */}
+            <NavLink to="/profile" className={styles.sideIdentity ?? ''}>
+              <Avatar name={profile?.displayName ?? null} size={32} />
+              <span className={styles.sideIdentityText}>
+                <span className={styles.sideIdentityName}>
+                  {profile?.displayName ?? 'Your profile'}
+                </span>
+                {/* Only where the student actually gave one (§24). */}
+                {profile?.usn !== null && profile?.usn !== undefined && profile.usn !== '' ? (
+                  <span className={styles.sideIdentityUsn}>{profile.usn}</span>
+                ) : null}
+              </span>
+            </NavLink>
           </aside>
 
           <div className={styles.workspace}>
@@ -276,8 +323,22 @@ export function AppShell({ children }: { children: ReactNode }) {
                 aria-keyshortcuts="Control+K"
               >
                 <Icon name="search" size="nav" />
-                <span className={styles.searchLabel}>Search</span>
-                <kbd className={styles.searchKbd}>Ctrl K</kbd>
+                {/*
+                  The design's own placeholder. "Search" alone does not say what
+                  is searchable, and this field reaches results, courses and
+                  actions — so it says so.
+                */}
+                <span className={styles.searchLabel}>Search results, courses, actions…</span>
+                {/*
+                  TWO CHIPS, as the design draws it — and the modifier is the
+                  one this keyboard actually has. The design hardcodes ⌘; the
+                  hotkey handler accepts either, so showing ⌘ to someone on
+                  Windows would be telling them the wrong key.
+                */}
+                <span className={styles.searchKeys}>
+                  <kbd className={styles.searchKbd}>{MODIFIER_KEY}</kbd>
+                  <kbd className={styles.searchKbd}>K</kbd>
+                </span>
               </button>
 
               <div className={styles.topActions}>
@@ -292,8 +353,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                 destination. Settings > Appearance remains its home. */}
                 <ThemeControl />
 
-                <NavLink to="/account" className={styles.topAction ?? ''} aria-label="Account">
-                  <Icon name="account" size="medium" />
+                {/*
+                  The design's top-right identity is the AVATAR and it goes to
+                  Profile. Account keeps its sidebar destination; what the top
+                  bar offers is "me", which is the thing people reach for up
+                  there.
+                */}
+                <NavLink
+                  to="/profile"
+                  className={styles.topIdentity ?? ''}
+                  aria-label="Open profile"
+                >
+                  <Avatar name={profile?.displayName ?? null} size={34} />
                 </NavLink>
               </div>
             </header>
