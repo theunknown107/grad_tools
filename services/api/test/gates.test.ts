@@ -16,6 +16,11 @@ import type { Express } from 'express';
 import { loadConfig } from '../src/config.js';
 import { createClient, type Sql } from '../src/db/client.js';
 import { runMigrations } from '../src/db/migrate.js';
+import {
+  acquisitionMode,
+  requireFetchPermission,
+  SourceNotAuthorized,
+} from '../src/sources/acquire.js';
 import { seed } from '../src/db/seed.js';
 import { createApp } from '../src/http/app.js';
 import { createLogger } from '../src/observability/logger.js';
@@ -265,6 +270,54 @@ describeDb('M5 gates', () => {
      * refuses it a second time. Both refusals are asserted, because a guard
      * with one reason left is a guard that can be argued away.
      */
+    /*
+     * THE DOOR, NOT THE RULE (§87).
+     *
+     * `checkSourcePermission` was written, documented and tested — and an
+     * audit found its only callers were its own tests, while discover, sync
+     * and smoke each reached vtu.ac.in directly. These assert that the
+     * acquisition boundary refuses, because the rule was never what failed.
+     */
+    it('refuses every VTU source while its terms are unknown', async () => {
+      /* All six families of §103, plus the two the project already had. */
+      for (const id of [
+        'vtu-scheme-syllabus',
+        'vtu-announcements',
+        'vtu-exam-timetable',
+        'vtu-administration',
+        'vtu-examination',
+        'vtu-academic-calendar',
+        'vtu-pg-scheme-syllabus',
+        'vtu-regulations',
+      ]) {
+        const mode = await acquisitionMode(sql, id);
+        expect(mode.mode).toBe('supplied');
+        await expect(requireFetchPermission(sql, id)).rejects.toThrow(SourceNotAuthorized);
+      }
+    });
+
+    it('refuses a source the registry has never heard of', async () => {
+      const mode = await acquisitionMode(sql, 'some-source-nobody-registered');
+      expect(mode).toMatchObject({ mode: 'supplied', refusal: 'unregistered_source' });
+    });
+
+    it('cannot be opened by clearing one gate', async () => {
+      /*
+       * Permission is every gate at once. Marking the terms permitted while
+       * the row stays disabled must still refuse, or one well-meaning UPDATE
+       * becomes a crawl.
+       */
+      await sql`
+        UPDATE sources SET terms_status = 'permitted', terms_reviewed_at = now()
+        WHERE id = 'vtu-scheme-syllabus'
+      `;
+      expect((await acquisitionMode(sql, 'vtu-scheme-syllabus')).mode).toBe('supplied');
+      await sql`
+        UPDATE sources SET terms_status = 'unknown', terms_reviewed_at = NULL
+        WHERE id = 'vtu-scheme-syllabus'
+      `;
+    });
+
     it('records exam time tables as user-supplied, and refuses to make them a crawl', async () => {
       const res = await request(app).get('/api/v1/sources/vtu-exam-timetable');
       expect(res.status).toBe(200);
