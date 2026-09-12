@@ -16,6 +16,9 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { vtuSchemeAdapter, VTU_SCHEME_PARSER_VERSION } from '../src/sources/vtu-scheme.js';
+import postgres from 'postgres';
+import { requireFetchPermission } from '../src/sources/acquire.js';
+import { VTU_SCHEME_SOURCE_ID } from '../src/sources/vtu-scheme.js';
 import { checkDestination, USER_AGENT } from '../src/sources/fetch.js';
 
 const ROOT = 'https://vtu.ac.in/b-e-scheme-syllabus/';
@@ -37,13 +40,26 @@ async function loadPage(): Promise<{ body: string; from: string }> {
   if (file !== null) return { body: await readFile(file, 'utf8'), from: file };
 
   /*
-   * THE SAME GUARDS AS EVERY OTHER FETCH (§34). `checkDestination` refuses a
-   * private or unresolvable address before a socket is opened. The source
-   * registry's robots and terms gates apply to a REGISTERED source; this
-   * script is a developer tool reading one public listing page, and it still
-   * announces itself and still refuses anything that is not VTU over HTTPS.
+   * THE REGISTRY DECIDES, AND "IT IS ONLY A DEVELOPER TOOL" IS NOT A REASON.
+   *
+   * This comment used to end by explaining that the registry's robots and
+   * terms gates "apply to a REGISTERED source" and that this script was a
+   * developer tool reading one public page. That is the rationalisation the
+   * gate exists to refuse: a developer tool fetching vtu.ac.in is an automated
+   * fetch of vtu.ac.in, and the terms of use do not distinguish.
+   *
+   * `checkDestination` still refuses a private or unresolvable address before
+   * a socket is opened. The registry now runs first.
    */
   if (!/^https:\/\/vtu\.ac\.in\//.test(ROOT)) throw new Error('The root must be VTU over HTTPS.');
+  const registry = process.env['DATABASE_URL'] ?? process.env['TEST_DATABASE_URL'] ?? null;
+  const sql = registry === null ? null : postgres(registry, { max: 1 });
+  try {
+    await requireFetchPermission(sql, VTU_SCHEME_SOURCE_ID);
+  } finally {
+    await sql?.end();
+  }
+
   const destination = await checkDestination(ROOT);
   if (!destination.allowed) {
     throw new Error(`Refused before fetching: ${destination.refusal} — ${destination.detail}`);

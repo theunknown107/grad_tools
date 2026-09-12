@@ -18,6 +18,9 @@ import { createHash } from 'node:crypto';
 import { vtuSchemeAdapter } from '../src/sources/vtu-scheme.js';
 import { fetchDocument, isFetchableUrl } from '../src/sources/vtu-download.js';
 import { USER_AGENT } from '../src/sources/fetch.js';
+import postgres from 'postgres';
+import { requireFetchPermission } from '../src/sources/acquire.js';
+import { VTU_SCHEME_SOURCE_ID } from '../src/sources/vtu-scheme.js';
 
 const ROOT = 'https://vtu.ac.in/b-e-scheme-syllabus/';
 
@@ -37,6 +40,24 @@ async function check(name: string, fn: () => Promise<string>): Promise<void> {
 
 let body = '';
 let firstPdfUrl = '';
+
+/*
+ * THE GATE COMES FIRST, EVEN HERE (§1, §87).
+ *
+ * A smoke test that reaches vtu.ac.in is an automated fetch of vtu.ac.in. If
+ * the registry does not permit it, the honest result is a refusal that names
+ * the gate — not a green tick obtained by going around it.
+ */
+await check('the source registry permits fetching this source', async () => {
+  const registry = process.env['DATABASE_URL'] ?? process.env['TEST_DATABASE_URL'] ?? null;
+  const sql = registry === null ? null : postgres(registry, { max: 1 });
+  try {
+    await requireFetchPermission(sql, VTU_SCHEME_SOURCE_ID);
+    return 'authorized';
+  } finally {
+    await sql?.end();
+  }
+});
 
 await check('the official listing is reachable', async () => {
   const response = await fetch(ROOT, {
