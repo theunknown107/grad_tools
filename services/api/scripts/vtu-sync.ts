@@ -51,7 +51,8 @@ import {
   type DownloadState,
   type Manifest,
 } from '../src/sources/vtu-download.js';
-import { vtuSchemeAdapter, type SchemeDocument } from '../src/sources/vtu-scheme.js';
+import { vtuSchemeAdapter, VTU_SCHEME_SOURCE_ID, type SchemeDocument } from '../src/sources/vtu-scheme.js';
+import { requireFetchPermission } from '../src/sources/acquire.js';
 import { resolveProgramme } from '../src/sources/programme-aliases.js';
 import {
   upsertApplicability,
@@ -354,7 +355,24 @@ async function main(): Promise<void> {
 
   /* ---- 1. Discover ----------------------------------------------------- */
 
+  const url = process.env['DATABASE_URL'] ?? process.env['TEST_DATABASE_URL'] ?? null;
+  const sql = dryRun || url === null ? null : postgres(url, { max: 2 });
+
   const capture = flag('from');
+
+  /*
+   * THE GATE, BEFORE THE FETCH (§1, §4, §87).
+   *
+   * `--from` is Mode B: a listing somebody supplied, already on disk, and
+   * nothing goes out over the network for it. Without it this reaches
+   * vtu.ac.in, and reaching vtu.ac.in requires the registry to say so.
+   *
+   * It used to just fetch. `checkSourcePermission` was written and tested for
+   * exactly this and had no callers outside its own test file.
+   */
+  if (capture === null) {
+    await requireFetchPermission(sql, VTU_SCHEME_SOURCE_ID);
+  }
   const body =
     capture !== null
       ? await readFile(capture, 'utf8')
@@ -462,8 +480,7 @@ async function main(): Promise<void> {
   const documents: Catalogue['documents'] = [];
   const now = new Date().toISOString();
 
-  const url = process.env['DATABASE_URL'] ?? process.env['TEST_DATABASE_URL'] ?? null;
-  const sql = dryRun || url === null ? null : postgres(url, { max: 2 });
+  /* Opened at the top now: the gate is consulted BEFORE anything is fetched. */
   if (!dryRun && sql === null) {
     console.log('\n  NOT PERSISTING: no DATABASE_URL. The catalogue file is still written.');
   }

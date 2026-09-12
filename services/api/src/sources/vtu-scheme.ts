@@ -25,6 +25,12 @@
  * by `checkSourcePermission` against the source registry, where an unknown
  * robots status is not permission (§34). This module never bypasses that.
  *
+ * That last sentence was true of this module and false of the product. The
+ * gate had no callers outside its own tests, and every script that fetched
+ * vtu.ac.in — discover, sync, smoke — went straight to `fetch`. They go
+ * through `sources/acquire` now, which is the door this comment always
+ * implied existed.
+ *
  * ---------------------------------------------------------------------------
  * WHAT IS CLASSIFIED, AND WHAT IS LEFT ALONE
  * ---------------------------------------------------------------------------
