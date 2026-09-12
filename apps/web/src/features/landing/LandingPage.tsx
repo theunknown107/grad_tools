@@ -68,7 +68,7 @@ function MiniNavbar(): ReactNode {
       >
         <Link to="/welcome" className={styles.navBrand ?? ''}>
           <span className={styles.navMark} aria-hidden="true">
-            G
+            <Icon name="degree" size="nav" />
           </span>
           <span>GradTools</span>
         </Link>
@@ -700,7 +700,7 @@ function Footer(): ReactNode {
         <div className={styles.footerBrand}>
           <Link to="/welcome" className={styles.navBrand ?? ''}>
             <span className={styles.navMark} aria-hidden="true">
-              G
+              <Icon name="degree" size="nav" />
             </span>
             <span>GradTools</span>
           </Link>
