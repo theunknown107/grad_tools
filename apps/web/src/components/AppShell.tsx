@@ -223,6 +223,22 @@ export function AppShell({ children }: { children: ReactNode }) {
    */
   const { profile } = useProfile();
 
+  /*
+   * AN EMPTY STRING IS NOT A NAME.
+   *
+   * This read `profile?.displayName ?? 'Your profile'`, and `??` does not
+   * catch `''` — so a profile saved with a blank name rendered a link whose
+   * only child was an aria-hidden avatar. axe called it correctly:
+   * `link-name`, on every page, at every width where the sidebar is laid out.
+   * The register-number line beside it had always tested for `''` explicitly;
+   * the name had not.
+   */
+  const displayName =
+    profile?.displayName !== undefined && profile.displayName !== null && profile.displayName !== ''
+      ? profile.displayName
+      : null;
+  const identityName = displayName ?? 'Your profile';
+
   return (
     /*
      * ONE TOOLTIP CLOCK FOR THE WHOLE APP.
@@ -335,13 +351,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               <NavLink
                 to="/profile"
                 className={styles.sideIdentity ?? ''}
-                {...(collapsed ? { title: profile?.displayName ?? 'Your profile' } : {})}
+                {...(collapsed ? { title: identityName } : {})}
               >
-                <Avatar name={profile?.displayName ?? null} size={32} />
+                <Avatar name={displayName} size={32} />
                 <span className={styles.sideIdentityText}>
-                  <span className={styles.sideIdentityName}>
-                    {profile?.displayName ?? 'Your profile'}
-                  </span>
+                  <span className={styles.sideIdentityName}>{identityName}</span>
                   {/* Only where the student actually gave one (§24). */}
                   {profile?.usn !== null && profile?.usn !== undefined && profile.usn !== '' ? (
                     <span className={styles.sideIdentityUsn}>{profile.usn}</span>
@@ -418,7 +432,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     className={styles.topIdentity ?? ''}
                     aria-label="Open profile"
                   >
-                    <Avatar name={profile?.displayName ?? null} size={34} />
+                    <Avatar name={displayName} size={34} />
                   </NavLink>
                 </div>
               </header>
