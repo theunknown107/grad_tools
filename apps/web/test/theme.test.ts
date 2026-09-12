@@ -55,7 +55,7 @@ describe('reading a stored preference', () => {
 
   it('round-trips a written preference', () => {
     const storage = memoryStorage();
-    const preference: ThemePreference = { appearance: 'dark', accent: 'turquoise' };
+    const preference: ThemePreference = { appearance: 'dark', accent: 'turquoise', reducedMotion: false };
     writeStoredTheme(storage, preference);
     expect(readStoredTheme(storage)).toEqual(preference);
   });
@@ -74,14 +74,24 @@ describe('reading a stored preference', () => {
     const stored = readStoredTheme(
       memoryStorage(JSON.stringify({ appearance: 'sideways', accent: 'rose' })),
     );
-    expect(stored).toEqual({ appearance: DEFAULT_THEME.appearance, accent: 'rose' });
+    // `reducedMotion` absent from storage reads as off, which is the whole
+    // contract for a preference added after people already had stored ones.
+    expect(stored).toEqual({
+      appearance: DEFAULT_THEME.appearance,
+      accent: 'rose',
+      reducedMotion: false,
+    });
   });
 
   it('rejects an accent outside the curated set', () => {
     const stored = readStoredTheme(
       memoryStorage(JSON.stringify({ appearance: 'dark', accent: '#ff0000' })),
     );
-    expect(stored).toEqual({ appearance: 'dark', accent: DEFAULT_THEME.accent });
+    expect(stored).toEqual({
+      appearance: 'dark',
+      accent: DEFAULT_THEME.accent,
+      reducedMotion: false,
+    });
   });
 
   it('survives storage that throws, rather than taking the page down with it', () => {
@@ -96,7 +106,7 @@ describe('reading a stored preference', () => {
 
     expect(readStoredTheme(hostile)).toEqual(DEFAULT_THEME);
     expect(() =>
-      writeStoredTheme(hostile, { appearance: 'dark', accent: 'emerald' }),
+      writeStoredTheme(hostile, { appearance: 'dark', accent: 'emerald', reducedMotion: false }),
     ).not.toThrow();
   });
 });
@@ -108,7 +118,7 @@ describe('reading a stored preference', () => {
 describe('applying a preference to the document', () => {
   it('stamps data-theme for an explicit choice', () => {
     const root = document.createElement('html');
-    applyTheme(root, { appearance: 'dark', accent: 'amber' });
+    applyTheme(root, { appearance: 'dark', accent: 'amber', reducedMotion: false });
     expect(root.getAttribute('data-theme')).toBe('dark');
     expect(root.getAttribute('data-accent')).toBe('amber');
     expect(root.style.colorScheme).toBe('dark');
@@ -119,8 +129,8 @@ describe('applying a preference to the document', () => {
     // control to the media query. Setting data-theme="system" would match no
     // block in tokens.css and silently strand the page on the dark defaults.
     const root = document.createElement('html');
-    applyTheme(root, { appearance: 'dark', accent: 'violet' });
-    applyTheme(root, { appearance: 'system', accent: 'violet' });
+    applyTheme(root, { appearance: 'dark', accent: 'violet', reducedMotion: false });
+    applyTheme(root, { appearance: 'system', accent: 'violet', reducedMotion: false });
     expect(root.hasAttribute('data-theme')).toBe(false);
     expect(root.style.colorScheme).toBe('light dark');
   });
