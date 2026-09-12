@@ -322,6 +322,15 @@
    * corner as the buttons beside it.
    */
   border-radius: var(--radius-lg);
+  /*
+   * ITS OWN SURFACE AND HAIRLINE. The design's `gt-glass` is a raised ground
+   * plus a thin edge, and the control needs both: dropped, the placeholder sat
+   * straight on the navigation panel and failed contrast in dark mode at every
+   * width — axe caught it, and it was a real regression rather than a
+   * borderline one.
+   */
+  background: var(--surface);
+  border: 1px solid var(--border);
   color: var(--text-subtle);
   font: inherit;
   font-size: var(--text-body);
@@ -331,9 +340,15 @@
     background var(--motion-fast) var(--ease-glide);
 }
 
+.searchTrigger:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .searchTrigger:hover {
   border-color: var(--border-strong);
-  background: var(--surface);
+  background: var(--surface-raised);
+  color: var(--text);
 }
 
 .searchLabel {
@@ -552,7 +567,33 @@
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--touch-target-min);
-  color: var(--text-muted);
+  /*
+   * A BUTTON RESET, because one of these five is a <button>.
+   *
+   * Four tabs are links and one — "More", which opens the navigation sheet —
+   * is a button, and it was inheriting the browser's own control appearance.
+   * In dark mode Chromium's `buttonface` is a mid-grey, so that single tab
+   * rendered on a #6b6b6b plate in a near-black bar and axe measured its label
+   * at 1.63:1. It looked like a pressed key sitting in the nav.
+   *
+   * Diagnosed by walking the computed style up the ancestor chain: the grey
+   * was on the button itself, not on any parent, which is what ruled out a
+   * scrim or an opacity and pointed at the UA default.
+   */
+  appearance: none;
+  background: none;
+  border: 0;
+  /*
+   * `--text-subtle`, not `--text-muted`.
+   *
+   * The design sets the inactive tab to `ink-3`, which is this system's
+   * `--text-muted` — and at 11px on the dark navigation panel that is about
+   * 3.5:1. Fidelity does not get to override legibility, so this takes the
+   * next token up the same neutral ramp: same hue, same role, one step
+   * readable. The active tab still carries the accent, so the distinction the
+   * design draws is intact.
+   */
+  color: var(--text-subtle);
   text-decoration: none;
   font-size: var(--text-micro);
   line-height: var(--text-micro-lh);
@@ -710,68 +751,45 @@
  * what tells someone it accepts typing. It collapses to a circle on a phone,
  * where a 200px affordance would crowd out the destinations.
  */
-.searchTrigger {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  block-size: 36px;
-  padding-inline: var(--space-3);
-  border-radius: var(--radius-pill);
-  color: var(--text-subtle);
-  font-family: inherit;
-  font-size: var(--text-small);
-  cursor: pointer;
-  transition:
-    color var(--motion-fast) var(--ease-enter),
-    border-color var(--motion-fast) var(--ease-enter);
-}
-
-.searchTrigger:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-
-.searchTrigger:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.searchLabel,
-.searchKbd {
-  display: none;
-}
-
-.searchKbd {
-  padding: 2px 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: 5px;
-  color: var(--text-subtle);
-  font-family: var(--font-mono);
-  font-size: 10px;
-}
-
-@media (min-width: 768px) {
-  .searchTrigger {
-    inline-size: 208px;
-    justify-content: flex-start;
-  }
-
-  .searchLabel {
-    display: block;
-    flex: 1;
-    text-align: start;
-  }
-
-  .searchKbd {
-    display: block;
-  }
-}
+/*
+ * ==========================================================================
+ * THE SEARCH CONTROL IS DEFINED ONCE, ABOVE.
+ * ==========================================================================
+ *
+ * A SECOND, COMPLETE `.searchTrigger` used to live here — a pill at 36px with
+ * no surface, its own hover, its own `.searchKbd`, and rules that hid the
+ * label by default. It came from an earlier generation of this bar, it won on
+ * source order, and it silently undid most of the port: the corner went back
+ * to 999px, the height to 36, and the placeholder lost its background.
+ *
+ * Two definitions of one control in one file is the competing-design-system
+ * problem in miniature, so this is the deletion rather than a third override.
+ * Only the width behaviour below is genuinely responsive.
+ */
 
 @media (max-width: 767px) {
+  /*
+   * AN ICON BUTTON, NOT AN EMPTY FIELD. The design hides the search field
+   * below its `sm` breakpoint and offers a compact control instead; a
+   * full-width box containing only a magnifier looks like an input a student
+   * can type into, and it cannot be.
+   *
+   * `flex: 0 0 auto` is the load-bearing part: with the grow the field takes
+   * from `.searchTrigger`, a 36px `inline-size` is only a basis and the
+   * control stretched the width of the bar anyway.
+   */
   .searchTrigger {
+    flex: 0 0 auto;
     inline-size: 36px;
+    max-inline-size: 36px;
     justify-content: center;
     padding-inline: 0;
+  }
+
+  /* Nothing but the glyph fits in 36px. */
+  .searchLabel,
+  .searchKeys {
+    display: none;
   }
 }
 
