@@ -22,6 +22,7 @@ import {
   isPrivateAddress,
 } from '../src/sources/fetch.js';
 import { vtuAnnouncementsAdapter } from '../src/sources/vtu-announcements.js';
+import { acquisitionMode, requireFetchPermission } from '../src/sources/acquire.js';
 import {
   ANNOUNCEMENTS_FIXTURE,
   ANNOUNCEMENTS_FIXTURE_HOSTILE,
@@ -383,5 +384,30 @@ describe('change detection', () => {
     const changes = detectChanges(before, []);
     expect(changes).toHaveLength(3);
     expect(changes.every((c) => c.changeType === 'removed')).toBe(true);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The acquisition boundary                                                   */
+/* -------------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------- */
+
+describe('the door every outbound fetch goes through', () => {
+  /*
+   * §87, and the reason it is mandatory: `checkSourcePermission` was written,
+   * documented and tested, and an audit found its only callers were its own
+   * tests. Every VTU script reached the network directly. This asserts the
+   * DOOR rather than the rule, because the rule was never the problem.
+   *
+   * The registry-backed cases live in `gates.test.ts`, which has a database.
+   */
+  it('refuses when there is no registry to consult', async () => {
+    /* An unreachable registry is not permission. It fails closed. */
+    const mode = await acquisitionMode(null, 'vtu-scheme-syllabus');
+    expect(mode).toMatchObject({ mode: 'supplied', refusal: 'no_registry' });
+    await expect(requireFetchPermission(null, 'vtu-scheme-syllabus')).rejects.toThrow(
+      /not permission/i,
+    );
   });
 });
