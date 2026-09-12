@@ -27,6 +27,14 @@ const OUT = resolve('.qa/accent');
 const PORT = 4322;
 
 const ACCENTS = ['violet', 'cyan', 'amber', 'rose', 'green'];
+
+/*
+ * What each must RESOLVE to. `cyan` and `green` were renamed, so a stored one
+ * comes back as its successor. Asserting self-identity made the rename working
+ * correctly read as 20 failures here (and 120 in theme-qa); asserting the
+ * successor tests the migration, and a wrong one still fails.
+ */
+const RESOLVES_TO = { cyan: 'turquoise', green: 'emerald' };
 const ROUTES = [
   ['/welcome', 'welcome'],
   ['/', 'dashboard'],
@@ -186,7 +194,11 @@ const run = async () => {
             glow: style.getPropertyValue('--a-glow-rgb').trim(),
           };
         });
-        if (applied.accent !== accent) problems.push(`ACCENT ${label}: ${String(applied.accent)}`);
+        const expectedAccent = RESOLVES_TO[accent] ?? accent;
+        if (applied.accent !== expectedAccent)
+          problems.push(
+            `ACCENT ${label}: ${String(applied.accent)}, expected ${String(expectedAccent)}`,
+          );
         if (applied.theme !== appearance) problems.push(`THEME ${label}: ${String(applied.theme)}`);
         if (!applied.accentColour) problems.push(`TOKEN ${label}: --accent empty`);
         if (!applied.glow) problems.push(`TOKEN ${label}: --a-glow-rgb empty`);
