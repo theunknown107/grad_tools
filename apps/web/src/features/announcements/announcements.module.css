@@ -386,6 +386,17 @@
   overflow-x: auto;
   padding-block-end: 2px;
   scrollbar-width: none;
+  /*
+   * A FADE AT THE TRAILING EDGE, so a half-chip reads as "there is more" and
+   * not as a rendering fault.
+   *
+   * The scrollbar is hidden — the design's own quiet scroller — which left the
+   * clipped twelfth category as the only cue that the row scrolls at all, and
+   * a chip sliced down the middle beside a search field reads as a layout bug
+   * rather than as an affordance. 24px is enough to see through and not enough
+   * to hide a label.
+   */
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
 }
 
 .chips::-webkit-scrollbar {

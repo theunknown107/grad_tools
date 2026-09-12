@@ -79,11 +79,19 @@
   place-items: center;
   inline-size: 26px;
   block-size: 26px;
-  border-radius: 9px;
+  /* The shell's brand radius, not a 9px one of its own. */
+  border-radius: var(--radius-md);
   background: var(--action-bg);
   color: var(--action-fg);
   font-size: var(--text-caption);
   font-weight: var(--weight-semibold);
+}
+
+/* The mark is the mortarboard now, like the rest of the product. It was the
+   letter G here and on both auth cards, so GradTools had two logos. */
+.navMark svg {
+  inline-size: 15px;
+  block-size: 15px;
 }
 
 .navLinks {
