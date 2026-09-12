@@ -145,8 +145,57 @@ function seedData() {
       conducted: 48,
       updatedAt: '2026-09-01T00:00:00.000Z',
     })),
-    timetable: [],
+    /*
+     * A WEEK, because an empty one is not a composition.
+     *
+     * The timetable page had never been screenshotted with anything in it —
+     * the harness seeded `[]`, so every pass photographed its empty state and
+     * the week grid, the day view, the lab batches and the non-teaching hours
+     * went unlooked-at.
+     *
+     * Shaped like a real VTU week — six days, theory hours, a break and a
+     * lunch, a lab in two batches, a non-teaching block — with the harness's
+     * own synthetic codes. The real figures live in the academic regression;
+     * §5 and §24 keep them out of a screenshot fixture.
+     */
+    timetable: week(),
   };
+}
+
+function week() {
+  const hours = ['09:00', '10:00', '11:15', '12:15', '14:00', '15:00'];
+  const ends = ['10:00', '11:00', '12:15', '13:15', '15:00', '16:00'];
+  const slots = [];
+  const push = (day, hour, slot) => {
+    slots.push({
+      id: `t-${day}-${String(hour)}`,
+      profileId: 'p1',
+      day,
+      startTime: hours[hour] ?? '09:00',
+      endTime: ends[hour] ?? '10:00',
+      room: null,
+      faculty: null,
+      subjectCode: null,
+      activity: null,
+      ...slot,
+    });
+  };
+
+  for (const [index, day] of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].entries()) {
+    push(day, 0, { subjectCode: 'BXXX501', room: 'A-204' });
+    push(day, 1, { subjectCode: 'BXXX502', room: 'A-204' });
+    /* The two non-teaching hours every day has. */
+    push(day, 2, { activity: 'BREAK' });
+    push(day, 3, { activity: 'LUNCH' });
+    if (index % 2 === 0) {
+      /* A lab, in the batch the division splits into. */
+      push(day, 4, { subjectCode: 'BXXL504', room: 'Lab 3', faculty: 'B1' });
+    } else {
+      push(day, 4, { subjectCode: 'BXXX503', room: 'A-206' });
+    }
+    if (index === 5) push(day, 5, { activity: 'Placement & Training' });
+  }
+  return slots;
 }
 
 async function seed(page, payload) {
