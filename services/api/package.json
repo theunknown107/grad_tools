@@ -18,6 +18,7 @@
     "source:inventory": "tsx scripts/source-inventory.ts",
     "vtu:discover": "tsx scripts/vtu-discover.ts",
     "vtu:download": "tsx scripts/vtu-download.ts",
+    "vtu:monitor": "tsx scripts/vtu-monitor.ts",
     "vtu:normalize": "tsx scripts/vtu-normalize.ts",
     "vtu:smoke": "tsx scripts/vtu-smoke.ts",
     "vtu:sync": "tsx scripts/vtu-sync.ts",

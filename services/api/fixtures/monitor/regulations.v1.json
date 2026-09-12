@@ -1,0 +1,49 @@
+{
+  "family": "regulations",
+  "capturedAt": "2026-09-01",
+  "note": "Synthetic. One regulation with a course-level audience, and one item that says nothing a classifier can key on.",
+  "items": [
+    {
+      "externalId": "reg-2026-014",
+      "url": "https://vtu.ac.in/category/vtu-regulation/reg-2026-014/",
+      "title": "Regulations governing the award of credits for the internship course",
+      "body": "These regulations apply to candidates registered for BCSI586 and BAII586 under the 2022 scheme.",
+      "publishedAt": "2026-08-11",
+      "updatedAt": null,
+      "supersedes": null,
+      "audience": {
+        "scheme": "2022",
+        "programme": "B.E.",
+        "branch": null,
+        "department": null,
+        "stream": null,
+        "college": null,
+        "semester": null,
+        "courses": ["BCSI586", "BAII586"],
+        "examCycle": null,
+        "unresolvedScope": false
+      }
+    },
+    {
+      "externalId": "reg-2026-011",
+      "url": "https://vtu.ac.in/category/vtu-regulation/reg-2026-011/",
+      "title": "Corrigendum to the earlier communication",
+      "body": "Please read the third paragraph as amended. The rest stands.",
+      "publishedAt": "2026-08-04",
+      "updatedAt": null,
+      "supersedes": null,
+      "audience": {
+        "scheme": null,
+        "programme": null,
+        "branch": null,
+        "department": null,
+        "stream": null,
+        "college": null,
+        "semester": null,
+        "courses": [],
+        "examCycle": null,
+        "unresolvedScope": false
+      }
+    }
+  ]
+}

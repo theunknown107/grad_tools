@@ -1,0 +1,28 @@
+{
+  "family": "pg_scheme_syllabus",
+  "capturedAt": "2026-09-12",
+  "note": "Synthetic. Identical to v1: a family whose source has not moved. A run over it must report UNCHANGED and notify nobody a second time.",
+  "items": [
+    {
+      "externalId": "pg-2024-mtech-cse-i",
+      "url": "https://vtu.ac.in/en/pg-scheme-syllabus/pg-2024-mtech-cse-i/",
+      "title": "Scheme and Syllabus - M.Tech. Computer Science and Engineering I Semester",
+      "body": "The scheme and syllabus for the first semester of the 2024 postgraduate scheme.",
+      "publishedAt": "2026-07-30",
+      "updatedAt": null,
+      "supersedes": null,
+      "audience": {
+        "scheme": "2024",
+        "programme": "M.Tech.",
+        "branch": "Computer Science and Engineering",
+        "department": null,
+        "stream": null,
+        "college": null,
+        "semester": 1,
+        "courses": [],
+        "examCycle": null,
+        "unresolvedScope": false
+      }
+    }
+  ]
+}
