@@ -24,6 +24,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { Icon } from '../../components/icons.js';
 import { ThemeControl } from '../../components/ThemeControl.js';
 import { Button, Notice, TextField } from '../../components/ui/index.js';
 import { useAuth } from './AuthContext.js';
@@ -64,14 +65,11 @@ export function SignInPage() {
      */
     return (
       <div className={styles.stage}>
-        <div className={styles.stageSky} aria-hidden="true">
-          <span className={styles.stageGlow} />
-        </div>
 
         <div className={styles.authCard}>
           <div className={styles.authTop}>
             <span className={styles.authMark} aria-hidden="true">
-              G
+              <Icon name="degree" size="medium" />
             </span>
             <ThemeControl />
           </div>
@@ -141,7 +139,7 @@ export function SignInPage() {
     /*
      * M9.6B References 11 + 12, as ONE design (M9.6 §21).
      *
-     * Reference 12 brings the atmosphere: a lit stage behind a floating panel.
+     * A single card on a quiet ground.
      * Reference 11 brings the restraint: a single centred column, dark, with
      * the form as the only object on screen. Taken together — Ref 12's light,
      * Ref 11's discipline.
@@ -156,9 +154,6 @@ export function SignInPage() {
      * is a container and a stylesheet.
      */
     <div className={styles.stage}>
-      <div className={styles.stageSky} aria-hidden="true">
-        <span className={styles.stageGlow} />
-      </div>
 
       <div className={styles.authCard}>
         {/*
@@ -172,7 +167,7 @@ export function SignInPage() {
         */}
         <div className={styles.authTop}>
           <span className={styles.authMark} aria-hidden="true">
-            G
+            <Icon name="degree" size="medium" />
           </span>
           <ThemeControl />
         </div>
