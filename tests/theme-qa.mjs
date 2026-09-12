@@ -33,7 +33,50 @@ const OUT = resolve(process.env.OUT ?? '.qa/theme');
 const PORT = 4322; // the origin the API allows (tests/README) — an ad-hoc port fails CORS
 
 const APPEARANCES = ['light', 'dark'];
+
+/*
+ * WHAT THE SWEEP DRIVES: a sample, including two names the product has since
+ * RENAMED. `cyan` and `green` are no longer accents; storing one must still
+ * resolve to its successor, and driving the sweep with them is what proves the
+ * migration map is wired to the pixels rather than only to a unit test.
+ */
 const ACCENTS = ['violet', 'cyan', 'amber', 'rose', 'green'];
+
+/*
+ * What each of those must RESOLVE to once stored.
+ *
+ * `cyan` and `green` were renamed; a stored one has to come back as its
+ * successor. This used to assert that every accent resolved to ITSELF, so the
+ * rename working correctly was reported as 120 failures — 60 for each of the
+ * two renamed names, across every page, width and appearance. Asserting the
+ * successor tests the migration instead of complaining about it, and a rename
+ * that resolved to the WRONG accent still fails.
+ */
+const RESOLVES_TO = { cyan: 'turquoise', green: 'emerald' };
+
+/*
+ * WHAT THE PRODUCT SHIPS, which is the design's own twelve.
+ *
+ * The swatch count used to be asserted against the drive list above, so a
+ * settings page offering twelve accents was reported as wrong for not offering
+ * five. That is the harness being out of date, not the product — but the
+ * assertion is worth keeping and worth making stricter, so it now names every
+ * accent that ships and requires a distinct swatch for each.
+ */
+const SHIPPED_ACCENTS = [
+  'mono',
+  'violet',
+  'matrix',
+  'crimson',
+  'turquoise',
+  'ocean',
+  'amber',
+  'rose',
+  'indigo',
+  'emerald',
+  'solar',
+  'slate',
+];
 
 /*
  * The widths a student actually uses: the narrowest phone the product supports,
@@ -142,8 +185,11 @@ const run = async () => {
           if (applied.theme !== appearance) {
             problems.push(`THEME ${label}: data-theme=${applied.theme}`);
           }
-          if (applied.accent !== accent) {
-            problems.push(`ACCENT ${label}: data-accent=${applied.accent}`);
+          const expectedAccent = RESOLVES_TO[accent] ?? accent;
+          if (applied.accent !== expectedAccent) {
+            problems.push(
+              `ACCENT ${label}: data-accent=${applied.accent}, expected ${expectedAccent}`,
+            );
           }
           // A blank --accent means the accent block never matched.
           if (!applied.accentColor) problems.push(`TOKEN ${label}: --accent resolved empty`);
@@ -239,10 +285,15 @@ const run = async () => {
       );
 
       checks += 1;
-      if (colours.length !== ACCENTS.length) {
+      if (colours.length !== SHIPPED_ACCENTS.length) {
         problems.push(
-          `ACCENTS: found ${String(colours.length)} swatches, expected ${String(ACCENTS.length)}`,
+          `ACCENTS: found ${String(colours.length)} swatches, expected ${String(SHIPPED_ACCENTS.length)}`,
         );
+      }
+      /* Every shipped accent has a swatch, and it is the one it says it is. */
+      const offered = new Set(colours.map((entry) => entry.accent));
+      for (const accent of SHIPPED_ACCENTS) {
+        if (!offered.has(accent)) problems.push(`ACCENTS: no swatch offers ${accent}`);
       }
       const distinct = new Set(colours.map((entry) => entry.fill));
       if (distinct.size !== colours.length) {
