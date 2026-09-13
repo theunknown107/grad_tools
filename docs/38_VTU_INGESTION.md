@@ -271,6 +271,23 @@ un-ingested scheme otherwise finished with zero failures and printed
 
 See [47_VTU_2025_COVERAGE.md](47_VTU_2025_COVERAGE.md) for the 2025 position.
 
+### Supplying a document (Mode B)
+
+```
+pnpm vtu:supply --file <path> --url <the official VTU URL>
+```
+
+For a document somebody already holds, when the registry does not permit
+fetching it. It never fetches — the URL is a provenance claim, recorded so the
+document can be cited and later compared against the official copy — and it
+writes the same store and manifest the downloader writes, so extraction,
+normalization and validation cannot tell the difference except by reading the
+`acquisition` field that says so.
+
+`acquisition` is `live` or `supplied`, and ABSENT on entries written before the
+field existed. Absent is read as neither: stamping old rows `live` would invent
+a provenance claim about bytes nobody can re-examine.
+
 ## vtu:sync
 
 ```
