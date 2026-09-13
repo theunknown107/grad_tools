@@ -58,7 +58,24 @@ describe('notices waiting from VTU', () => {
     );
   });
 
+  /*
+   * EXPLICIT CLEANUP HERE TOO — the block below already knew to do this.
+   *
+   * This project does not enable Testing Library's automatic unmount
+   * (`globals: false`), so a `renderHook` stays mounted after its test ends.
+   * `useSourceNotifications` keeps a stream open and RETRIES it on failure, so
+   * three leaked hooks went on calling `fetch` for the rest of the file — and
+   * `vi.unstubAllGlobals()` had already taken the stub away, so those calls
+   * went to jsdom's real fetch and failed in a loop.
+   *
+   * That background work is what made "lets the student mark it read" flaky:
+   * the assertion and the component were both correct, and the mark simply did
+   * not land inside the wait while the event loop was busy failing requests
+   * nobody was waiting for. Unmounting aborts the loops, which is what the
+   * hook's own cleanup is there for.
+   */
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
   });
 
