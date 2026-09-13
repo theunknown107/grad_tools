@@ -79,14 +79,6 @@ export const DialogContent = forwardRef<
         ref={ref}
         className={`${styles.panel ?? ''} surfacePanel`}
         data-size={size}
-        /*
-          EXPLICIT, because Radix does not add it. Its Content renders
-          role="dialog" and hides the rest of the tree with aria-hidden, which
-          is the older mechanism; without aria-modal a screen reader is not
-          told the dialog is modal. The hand-rolled command palette already set
-          this, so the app's own overlays disagreed with each other.
-        */
-        aria-modal="true"
         {...rest}
       >
         <div className={styles.head}>
