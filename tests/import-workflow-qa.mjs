@@ -41,6 +41,7 @@
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { isApiDown } from './lib/console.mjs';
+import { openReviewRow, reviewField } from './lib/review.mjs';
 import { createServer } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -328,9 +329,19 @@ const run = async () => {
     `MULTIPAGE: two pages became ${String(await groupCount())} semesters instead of one`,
   );
   expect(/Semester 5\b/.test(text), 'MULTIPAGE: the semester on page one was lost');
+  /*
+   * COUNT THE ROWS, don't match a sentence.
+   *
+   * The review step reports "N rows read" per file; it never said "N subjects",
+   * so this could only ever have failed. Counting the course rows it drew is
+   * the thing the check is actually about — three from page one plus two from
+   * page two, in one semester — and it stays true whatever the wording does
+   * next.
+   */
+  const reviewRows = await page.locator('#main button[aria-expanded]').count();
   expect(
-    /5 subjects/.test(text),
-    `MULTIPAGE: page two's rows did not join the semester — "${/\d+ subjects/.exec(text)?.[0] ?? 'none'}"`,
+    reviewRows === 5,
+    `MULTIPAGE: page two's rows did not join the semester — ${String(reviewRows)} row(s) in review`,
   );
   await page.screenshot({ path: join(OUT, 'multi-page-1280.png'), fullPage: true });
 
@@ -363,7 +374,7 @@ const run = async () => {
    * rows and arithmetic that adds up; only a person can tell them apart.
    */
   const confirmDisabled = await page
-    .getByRole('button', { name: /confirm and save result/i })
+    .getByRole('button', { name: /confirm and save \d+ courses?/i })
     .first()
     .isDisabled()
     .catch(() => false);
@@ -405,13 +416,19 @@ const run = async () => {
       },
     ]);
     for (let index = 1; index <= rows.length; index += 1) {
-      const credits = page.getByLabel(new RegExp(`^Credits ${String(index)}$`, 'i')).first();
+      /*
+       * The row has to be OPENED first. The review step draws each course as a
+       * collapsed disclosure now, so `Credits 3` does not exist in the document
+       * until row three is open — which is why this timed out rather than
+       * failing an assertion.
+       */
+      const credits = await reviewField(page, 'Credits', index);
       await credits.scrollIntoViewIfNeeded();
       await credits.fill('4');
-      const grade = page.getByLabel(new RegExp(`^Grade ${String(index)}$`, 'i')).first();
+      const grade = await reviewField(page, 'Grade', index);
       await grade.selectOption('A');
     }
-    const confirm = page.getByRole('button', { name: /confirm and save result/i }).first();
+    const confirm = page.getByRole('button', { name: /confirm and save \d+ courses?/i }).first();
     await confirm.scrollIntoViewIfNeeded();
     const started = Date.now();
     await confirm.click();
@@ -518,8 +535,19 @@ const run = async () => {
    * student takes, rather than a control the harness knows about and a person
    * would have to hunt for.
    */
+  /*
+   * The menu belongs to an OPENED record. The Semesters tab lists semester
+   * cards in the current design, and the actions live inside the record a card
+   * opens — so the card is pressed first, exactly as a student would.
+   */
+  const card = page.getByRole('button', { name: /Semester 1.*open the full record/i }).first();
+  expect((await card.count()) > 0, 'EDIT: the Semesters tab offered no semester 1 to open');
+  await card.scrollIntoViewIfNeeded();
+  await card.click();
+  await page.waitForTimeout(600);
+
   const actions = page.getByRole('button', { name: /Actions for semester 1/i }).first();
-  expect((await actions.count()) > 0, 'EDIT: the saved semester had no actions menu');
+  expect((await actions.count()) > 0, 'EDIT: the opened record had no actions menu');
   await actions.scrollIntoViewIfNeeded();
   await actions.click();
   await page.waitForTimeout(300);
@@ -529,7 +557,7 @@ const run = async () => {
     .click();
   await page.waitForTimeout(600);
 
-  const field = page.getByLabel(/^Internal 1$/i).first();
+  const field = await reviewField(page, 'Internal', 1);
   expect((await field.count()) > 0, 'EDIT: the editor opened without an internal-marks field');
   await field.scrollIntoViewIfNeeded();
   await field.fill('47');
@@ -559,7 +587,7 @@ const run = async () => {
   );
 
   /* Correct the total as well, as a student reading their card would. */
-  const totalField = page.getByLabel(/^Total 1$/i).first();
+  const totalField = await reviewField(page, 'Total', 1);
   await totalField.scrollIntoViewIfNeeded();
   await totalField.fill('77');
   await save.scrollIntoViewIfNeeded();
@@ -601,8 +629,24 @@ const run = async () => {
     await reloadedTab.first().click();
     await page.waitForTimeout(400);
   }
+  /*
+   * The Semesters tab lists semester CARDS, and a card carries the semester's
+   * headline figures — not its individual marks. The corrected mark is inside
+   * the record a card opens, so the record is opened to look for it.
+   *
+   * The card's label is set in uppercase by the design, and `innerText` returns
+   * text as rendered — so a case-sensitive /Semester 1\b/ could never have
+   * matched "SEMESTER 1", however long it waited.
+   */
+  const reloadedCards = await mainText();
+  expect(/semester 1\b/i.test(reloadedCards), 'EDIT: the edited semester vanished after a reload');
+
+  await page
+    .getByRole('button', { name: /Semester 1.*open the full record/i })
+    .first()
+    .click();
+  await page.waitForTimeout(600);
   const reloaded = await mainText();
-  expect(/Semester 1\b/.test(reloaded), 'EDIT: the edited semester vanished after a reload');
   expect(/47/.test(reloaded), 'EDIT: the corrected mark is not shown after a reload');
 
   /* The change must reach the calculated figures too, not just the record. */
@@ -1064,7 +1108,7 @@ const run = async () => {
    * gets pressed. Always take the first one still offering to save.
    */
   for (let guard = 0; guard < 6; guard += 1) {
-    const confirm = page.getByRole('button', { name: /confirm and save result/i }).first();
+    const confirm = page.getByRole('button', { name: /confirm and save \d+ courses?/i }).first();
     if ((await confirm.count()) === 0) break;
     await confirm.scrollIntoViewIfNeeded();
     await confirm.click();
@@ -1089,7 +1133,16 @@ const run = async () => {
 
   const classes = await surface('/timetable');
   expect(/BQATS101|BQHYS102|BQSCK104B/.test(classes), 'SEMESTER: the week view has no classes');
-  /* Attendance is markable from the classes themselves, not a second screen. */
+  /*
+   * Attendance is markable from the classes themselves, not a second screen —
+   * and from the DAY agenda, which is where a student marks one. The page
+   * opens on the week grid, so the day has to be opened first.
+   */
+  const dayTab = page.getByRole('tab', { name: /^Day/ });
+  if ((await dayTab.count()) > 0) {
+    await dayTab.first().click();
+    await page.waitForTimeout(500);
+  }
   expect(
     (await page.getByRole('button', { name: /attended|missed/i }).count()) > 0,
     'SEMESTER: today’s classes offer no way to record attendance',
@@ -1188,6 +1241,17 @@ const run = async () => {
   const openToday = async () => {
     await daily.goto(`${ORIGIN}/timetable`);
     await daily.waitForTimeout(800);
+    /*
+     * TODAY'S AGENDA IS THE DAY TAB. The page opens on the week grid, and
+     * marking a class is offered from the day view — which is where a student
+     * goes to mark one. The harness used to land on the week and look for a
+     * control that is not drawn there.
+     */
+    const day = daily.getByRole('tab', { name: /^Day/ });
+    if ((await day.count()) > 0) {
+      await day.first().click();
+      await daily.waitForTimeout(500);
+    }
   };
 
   await openToday();

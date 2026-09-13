@@ -35,6 +35,7 @@
  * Skips, loudly, when `.qa/real/truth.json` names no document on this machine.
  */
 import { chromium } from '@playwright/test';
+import { openReviewRow } from './lib/review.mjs';
 import { createServer } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -48,6 +49,9 @@ const ORIGIN = `http://localhost:${PORT}`;
 
 /** What the harness types where the card prints nothing. Not the student's. */
 const HARNESS_CREDITS = '4';
+
+/* How many credits the harness had to supply because nothing else could. */
+let suppliedCredits = 0;
 
 const MIME = {
   '.html': 'text/html',
@@ -178,12 +182,62 @@ async function main() {
 
     const semester = document.semester;
 
-    /* Every credits field, filled the way a student would fill them. */
+    /*
+     * EVERY ROW IS OPENED FIRST.
+     *
+     * The review draws each course as a collapsed row and opens only the ones
+     * that still need an answer, so on a card the catalogue fully resolves
+     * there is no open row and therefore no `Credits 1` in the document. That
+     * is the step being right, not wrong — but it meant this harness saw no
+     * credits fields at all on semesters 1 and 2 and typed into nothing.
+     *
+     * Opening them all is also what makes the count below mean what it says.
+     */
+    /*
+     * Open every row that CAN be opened.
+     *
+     * A row missing the one fact no card prints cannot be collapsed — it
+     * renders no toggle and is permanently open — so the toggles are a subset
+     * of the rows, not a count of them.
+     *
+     * For the count itself the step states its own answer: the confirm control
+     * reads "Confirm and save N courses", which is the product saying how many
+     * rows it is about to write. Asserting the credits fields against that
+     * number is asserting against the thing that actually matters.
+     */
+    const toggles = await page.locator('#main button[aria-expanded]').count();
+    for (let index = 1; index <= toggles; index += 1) await openReviewRow(page, index);
+
+    const confirmLabel = await page
+      .getByRole('button', { name: /confirm and save \d+ courses?/i })
+      .first()
+      .innerText()
+      .catch(() => '');
+    const rowCount = Number(/(\d+)/.exec(confirmLabel)?.[1] ?? '0');
+
+    /*
+     * ONLY THE EMPTY ONES.
+     *
+     * This overwrote every credits field with the harness's placeholder, even
+     * where the catalogue had already resolved the real figure — so the SGPA
+     * it produced could only ever be a pipeline check, never the student's.
+     *
+     * A student fills what the card and the catalogue between them do not
+     * supply, and leaves the rest alone. With no catalogue reachable every
+     * field is empty and the placeholder still goes in everywhere, so the
+     * offline behaviour is unchanged; with one reachable, the real credits
+     * survive and the figures downstream become the real ones.
+     */
     const credits = page.getByLabel(/^Credits \d+$/);
     const creditCount = await credits.count();
+    let typed = 0;
     for (let index = 0; index < creditCount; index += 1) {
-      await credits.nth(index).fill(HARNESS_CREDITS);
+      const field = credits.nth(index);
+      if (((await field.inputValue()).trim()) !== '') continue;
+      await field.fill(HARNESS_CREDITS);
+      typed += 1;
     }
+    suppliedCredits += typed;
 
     /*
      * Any row the card cannot answer for. The harness answers "no", which is
@@ -204,10 +258,14 @@ async function main() {
     }
 
     await check(`semester ${semester}: the review shows a credits field per subject`, () => {
-      expect(creditCount > 0, 'no credits fields in the review');
+      expect(rowCount > 0, 'the review drew no course rows at all');
+      expect(
+        creditCount === rowCount,
+        `${String(creditCount)} credits field(s) for ${String(rowCount)} course row(s)`,
+      );
     });
 
-    const confirm = page.getByRole('button', { name: /confirm and save result/i });
+    const confirm = page.getByRole('button', { name: /confirm and save \d+ courses?/i });
     await check(`semester ${semester}: it can be confirmed and saved`, async () => {
       expect((await confirm.count()) > 0, 'no confirm control');
       await confirm.first().click();
@@ -432,6 +490,16 @@ async function main() {
   console.log(
     `  stored: ${String(stored.semesters)} semesters, ${String(stored.subjects)} subjects, ` +
       `${String(stored.withCredits)} with credits`,
+  );
+  /*
+   * WHOSE FIGURES ARE THESE? The run has to say. Every credit the harness had
+   * to supply is one the documents and the catalogue could not, and each one
+   * moves the SGPA away from the student's own.
+   */
+  console.log(
+    suppliedCredits === 0
+      ? '  credits: every one came from the record or the catalogue — the figures above are the student’s'
+      : `  credits: ${String(suppliedCredits)} of ${String(stored.subjects)} typed by the harness — the figures above are a pipeline check, not the student’s`,
   );
 
   await writeFile(
