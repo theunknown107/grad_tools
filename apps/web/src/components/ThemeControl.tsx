@@ -32,7 +32,11 @@ import { ACCENTS, APPEARANCES, type Accent, type Appearance } from '../lib/theme
 import { useTheme } from '../hooks/useTheme.js';
 import styles from './ThemeControl.module.css';
 
-const APPEARANCE_META: Record<Appearance, { readonly label: string; readonly icon: IconName }> = {
+/** Exported so the mobile sheet's appearance row is the same list, not a copy. */
+export const APPEARANCE_META: Record<
+  Appearance,
+  { readonly label: string; readonly icon: IconName }
+> = {
   light: { label: 'Light', icon: 'sun' },
   dark: { label: 'Dark', icon: 'moon' },
   system: { label: 'System', icon: 'system' },
