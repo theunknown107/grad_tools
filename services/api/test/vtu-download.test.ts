@@ -361,6 +361,73 @@ describe('a document somebody supplied', () => {
     expect(second.manifest.entries[0]?.lastSeen).toBe('2026-09-14T00:00:00.000Z');
   });
 
+  it('does not relabel a live acquisition when the same bytes are supplied', () => {
+    /*
+     * THE REGRESSION. Every document in the real store arrived by live fetch,
+     * so supplying one — an ordinary thing to do with a copy you happen to
+     * hold — went through the merge path. That path rebuilt the entry from
+     * scratch and stamped it `supplied` with `etag` and `lastModified` nulled.
+     *
+     * Two losses in one. A live acquisition was restated as a supplied one,
+     * which is false about the past; and the validators a conditional request
+     * needs were destroyed, so `--changed-only` would re-download a document
+     * the server would have reported unchanged.
+     */
+    const live: Manifest = {
+      version: 1,
+      entries: [
+        {
+          sha256: supplied.sha256,
+          byteSize: supplied.byteSize,
+          mimeType: 'application/pdf',
+          urls: ['https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf'],
+          firstSeen: '2026-01-01T00:00:00.000Z',
+          lastSeen: '2026-01-01T00:00:00.000Z',
+          etag: 'W/"abc123"',
+          lastModified: 'Tue, 30 May 2023 04:39:28 GMT',
+          acquisition: 'live',
+          pageCount: 14,
+        },
+      ],
+      urlHistory: { 'https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf': [supplied.sha256] },
+    };
+
+    const { manifest, state } = recordSupplied(live, supplied);
+    const entry = manifest.entries[0];
+
+    expect(state).toBe('already_present');
+    expect(entry?.acquisition).toBe('live');
+    expect(entry?.etag).toBe('W/"abc123"');
+    expect(entry?.lastModified).toBe('Tue, 30 May 2023 04:39:28 GMT');
+    expect(entry?.firstSeen).toBe('2026-01-01T00:00:00.000Z');
+    /* What supplying it legitimately does: advance lastSeen. */
+    expect(entry?.lastSeen).toBe(supplied.capturedAt);
+  });
+
+  it('fills in a page count that was never recorded, and overwrites none', () => {
+    const withoutPages: Manifest = {
+      version: 1,
+      entries: [
+        {
+          sha256: supplied.sha256,
+          byteSize: supplied.byteSize,
+          mimeType: 'application/pdf',
+          urls: ['https://vtu.ac.in/pdf/x.pdf'],
+          firstSeen: now(),
+          lastSeen: now(),
+          etag: null,
+          lastModified: null,
+        },
+      ],
+      urlHistory: {},
+    };
+    expect(recordSupplied(withoutPages, supplied).manifest.entries[0]?.pageCount).toBe(14);
+
+    const withPages = recordSupplied(withoutPages, supplied).manifest;
+    const again = recordSupplied(withPages, { ...supplied, pageCount: 999 });
+    expect(again.manifest.entries[0]?.pageCount).toBe(14);
+  });
+
   it('keeps both binaries when a URL serves different bytes', () => {
     /*
      * §27, and the reason it is in this phase at all: VTU's September 2025
