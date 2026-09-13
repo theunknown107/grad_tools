@@ -76,7 +76,7 @@ await check('scheme documents are discoverable', () => {
 });
 
 await check('a 2022 scheme document is present', () => {
-  const graph = vtuSchemeAdapter.describe(vtuSchemeAdapter.parse(body));
+  const graph = vtuSchemeAdapter.describe(vtuSchemeAdapter.parse(body), body);
   const found = graph.filter((doc) => doc.schemeYear === '2022' && doc.kind === 'scheme');
   if (found.length === 0) throw new Error('No 2022 scheme document in the graph.');
   firstPdfUrl = found[0]?.url ?? '';

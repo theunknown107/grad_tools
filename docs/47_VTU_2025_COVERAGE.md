@@ -6,8 +6,9 @@ Authority: measured at `1b31892` · raw 2022 evidence in
 
 ## The headline
 
-**No 2025 document has been acquired, so there is no 2025 catalogue — not a
-published one, and not a candidate one.**
+**The 2025 discovery graph is now real and complete. The scheme PDFs are still
+not acquired, so there is no 2025 catalogue — not a published one, and not a
+candidate one.**
 
 The acquisition gate refuses vtu.ac.in, and refusing it is the correct
 behaviour rather than a fault to be worked around. What this phase delivered is
@@ -96,6 +97,122 @@ says first-year 2025 files were updated *by replacing* earlier ones. Two
 binaries at one URL are two `source_document_versions` under the existing
 content-addressed model (§17), and the older one is not overwritten. That
 behaviour already exists and is tested; it simply has no 2025 rows to exercise.
+
+## The discovery graph, from the supplied listing page
+
+**SUPPLIED OFFICIAL DOCUMENT** — the listing page saved from
+`https://vtu.ac.in/b-e-scheme-syllabus/`, sha256
+`c99d2b62db0af9108a4cbae56d691488cb93a9af71f08559d8e38eb9162b40ac`. Nothing
+fetched it.
+
+`#menu11`, `#menu12` and `#menu13` are anchors into that one page, not three
+sources. They are three logical SECTIONS of one HTML document, and the registry
+holds one entry for it.
+
+| Section | Heading as printed | Links | Scheme | Syllabus | Other |
+| --- | --- | --- | --- | --- | --- |
+| `#menu11` | UG Engineering Scheme and Syllabus 2025 (1st & 2nd semesters) | 87 | 4 | 71 | 12 |
+| `#menu12` | UG 3rd to 8th semesters Scheme and Syllabus (2025)(Engg) | 93 | 55 | 37 | 1 |
+| `#menu13` | 3rd to 8th semester Common Courses 2025 scheme | 12 | 0 | 12 | 0 |
+
+**192 links, 192 distinct URLs, 0 duplicates, 0 unresolved scheme years.**
+Scope, exactly as the page states it and not inferred: `#menu11` carries
+**17 stream labels and no programme** — first year is stream-scoped; `#menu12`
+carries **51 programme labels and no stream** — programme-scoped; `#menu13`
+carries neither, being common courses.
+
+Duplicate BINARIES cannot be reported: that needs the bytes, and none of these
+192 documents has been retrieved.
+
+### The CSBS 2025 documents, exactly as the page links them
+
+| Document | URL |
+| --- | --- |
+| CSBS 2025 scheme, sem 3–8 | `https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf` |
+| CSBS 2025 syllabus, sem 3 | `https://vtu.ac.in/pdf/2025syll3to8/34cscommsyll.pdf` |
+
+The scheme URL the brief named is confirmed by the page itself. The syllabus is
+**shared**: the same `34cscommsyll.pdf` is linked from all eighteen programmes
+of the Computer Science & Engineering Board of Studies, CSBS among them. It is
+one binary with eighteen source references, which is the case §6 of the
+ingestion model already handles.
+
+### A defect this page exposed: 87 documents were invisible
+
+The reader took the scheme year from a link's own text or its URL path. Run
+over the real page, `#menu11` produced **86 of 87 links with `schemeYear:
+null`** — because VTU files the 2025 first-year material under `/pdf/UG2024/`,
+a path naming the year *before* the scheme, and the links themselves say only
+"Syllabus".
+
+So `vtu:sync --scheme 2025` selected **none** of those 87 documents, and said
+nothing: a section whose documents all fail the year filter looks exactly like
+a section with no documents.
+
+The heading is the only thing on the page that states their year. The reader
+now takes a section heading as a FALLBACK — never an override — and the whole
+page measures:
+
+| | Before | After |
+| --- | --- | --- |
+| Documents attributed to 2025 | 105 | **192** |
+| Documents with no year at all | 355 | **28** |
+| Years overridden | — | **0** |
+
+Zero overridden is the property that matters: a document that states its own
+year keeps it, so this can fill a null and can never contradict a source.
+
+It is the HEADING and not the `#menuNN` wrapper, because one wrapper can hold
+several: `#menu07` carries the 2022 first-year listing, the 2022 3-to-8 listing
+and the 2022 common-course listing — three different semester scopes under one
+anchor.
+
+Two smaller findings from the same page: a heading naming several years
+("2002 2006 2010 2014 2015 2017 and 2018 scheme…") establishes none, and the
+semester-range reader could not read "3rd to 8**th** Semester" because it
+required a word boundary immediately after the digit.
+
+### A second gate hole: `--from` disabled the only check
+
+`vtu:sync --from page.html` skips the acquisition gate, which is right for the
+LISTING — nothing is fetched to read a file on disk. It was also the script's
+only gate call, and the step after it downloads every PDF the listing names.
+
+So `pnpm vtu:sync --scheme 2025 --from page.html` — the exact command this
+phase calls for — would have fetched **179 documents** from vtu.ac.in with no
+permission check, through the flag whose entire purpose is not fetching. The
+download step is now gated independently. A dry run stays exempt because it
+opens no socket, which is what makes building this graph offline possible.
+
+```
+$ pnpm vtu:sync --scheme 2025 --from <page.html>
+  selected        59 scheme, 120 syllabus documents
+SourceNotAuthorized: … access method "none" … refusal: 'not_permitted'
+
+$ pnpm vtu:sync --scheme 2025 --from <page.html> --dry-run
+  discovered      1142 PDF URLs on 1 page
+  selected        59 scheme, 120 syllabus documents
+  download          179 · "Would download."
+```
+
+### What is in the store now
+
+The September 2025 circular is linked from `#menu11`, so its official URL is
+established by the page rather than guessed, and it has been supplied:
+
+| | |
+| --- | --- |
+| URL | `https://vtu.ac.in/wp-content/uploads/2025/09/2975.-2025-scheme-n-syllabus-updated-cir.pdf` |
+| sha256 | `1494e1c17f84d8fe379d9f08e4d9b3f532ea6dfb8a9c48b58a49fcc878df838e` |
+| bytes / pages | 253 036 / 1 |
+| acquisition | `supplied` |
+
+It is an image-only scan with no text layer, and it is a circular rather than a
+scheme: it carries **no course rows**. What it establishes is supersession —
+VTU's own words that the first-year 2025 files were "uploaded by replacing the
+earlier files".
+
+The store now holds **290 documents, 1 of them `supplied`**.
 
 ## What 2025 material is actually here
 
@@ -446,13 +563,20 @@ defaults to 2025.
 The door now exists, so each of these is one `vtu:supply` away. None of them is
 present on this machine, and none may be fetched.
 
+The listing page is supplied, so every URL below is now the page's own, not an
+inferred one. **179 documents are selected for 2025** (59 scheme, 120
+syllabus); the minimum CSBS target is the first two rows.
+
 | Document | Official URL | Needed for |
 | --- | --- | --- |
-| CSBS 2025 scheme, sem 3–8 | `https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf` | every CSBS 2025 course, credit and option group |
-| 2025 first-year scheme(s) | from `https://vtu.ac.in/b-e-scheme-syllabus/` (1st & 2nd sem 2025) | semesters 1–2, and the stream scope CSBS inherits |
-| 2025 3–8 common courses | same listing | courses shared across programmes |
-| CSBS 2025 syllabi | same listing | modules and topics |
-| The listing page itself | `https://vtu.ac.in/b-e-scheme-syllabus/` | the discovery graph (`vtu:sync --from`) |
+| **CSBS 2025 scheme, sem 3–8** | `https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf` | every CSBS 2025 course, credit and option group |
+| **CSBS 2025 syllabus, sem 3** | `https://vtu.ac.in/pdf/2025syll3to8/34cscommsyll.pdf` | modules and topics (shared across the CSE board) |
+| 2025 first-year, `#menu11` | 87 documents under `/pdf/UG2024/` | semesters 1–2, stream-scoped |
+| 2025 common courses, `#menu13` | 12 documents under `/pdf/2025commsyll3to8/` | courses shared across programmes |
+| The listing page | `https://vtu.ac.in/b-e-scheme-syllabus/` | **supplied** ✓ |
+
+The complete graph — every URL with its section, kind, year, programme and
+stream — is written to `apps/web/.qa/vtu/graph-2025.json` by the dry run.
 
 For each, supply the file and its official URL:
 
