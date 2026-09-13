@@ -675,7 +675,104 @@ async function probeGeometry(browser) {
     problems.push(`geometry: main max-width is ${String(measured.mainMax)}, expected 1180px`);
   }
 
+  /*
+   * The radius scale, at the three steps the design actually uses. 2xl sits
+   * between lg and xl on purpose — see the note in tokens.css — and the hero
+   * is the surface that shows whether that step exists at all.
+   */
+  const radii = await page.evaluate(() => {
+    const root = getComputedStyle(document.documentElement);
+    const hero = document.querySelector('#main section');
+    return {
+      lg: root.getPropertyValue('--radius-lg').trim(),
+      xl: root.getPropertyValue('--radius-xl').trim(),
+      xxl: root.getPropertyValue('--radius-2xl').trim(),
+      hero: hero === null ? null : getComputedStyle(hero).borderRadius,
+    };
+  });
+  for (const [key, want, from] of [
+    ['lg', '14px', 'rounded-lg'],
+    ['xl', '18px', 'rounded-xl'],
+    ['xxl', '16px', 'rounded-2xl'],
+    ['hero', '16px', 'dashboard hero rounded-2xl'],
+  ]) {
+    checks += 1;
+    if (radii[key] !== want) {
+      problems.push(`radius: ${key} is ${String(radii[key])}, the design says ${want} (${from})`);
+    }
+  }
+
   await context.close();
+}
+
+/**
+ * Density, measured rather than asserted to exist.
+ *
+ * A density control that changes one margin is worse than no density control,
+ * so this compares the two states on a real page: spacing has to tighten
+ * ACROSS the board, and the things a thumb has to hit must not move at all.
+ */
+async function probeDensity(browser, dist) {
+  const read = async (density) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.addInitScript(
+      (mode) =>
+        window.localStorage.setItem(
+          'gradtools:v1:theme',
+          JSON.stringify({ appearance: 'light', accent: 'mono', density: mode }),
+        ),
+      density,
+    );
+    const page = await context.newPage();
+    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+    await seed(page, dist);
+    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(400);
+    const out = await page.evaluate(() => {
+      const n = (v) => Math.round(parseFloat(v) * 100) / 100;
+      const main = document.querySelector('#main');
+      const hero = document.querySelector('#main section');
+      const metrics = document.querySelector('#main dl, #main ul');
+      const nav = document.querySelector('aside nav a');
+      const button = [...document.querySelectorAll('#main button, #main a')].find((e) =>
+        /Add result/i.test(e.textContent ?? ''),
+      );
+      return {
+        mainPadTop: main === null ? null : n(getComputedStyle(main).paddingTop),
+        heroPad: hero === null ? null : n(getComputedStyle(hero).padding),
+        metricGap: metrics === null ? null : n(getComputedStyle(metrics).gap),
+        navHeight: nav === null ? null : Math.round(nav.getBoundingClientRect().height),
+        buttonHeight: button === null ? null : Math.round(button.getBoundingClientRect().height),
+      };
+    });
+    await context.close();
+    return out;
+  };
+
+  const roomy = await read('comfortable');
+  const tight = await read('compact');
+
+  /* Spacing tightens — in more than one place, and by a real amount. */
+  for (const key of ['mainPadTop', 'heroPad', 'metricGap']) {
+    checks += 1;
+    const before = roomy[key];
+    const after = tight[key];
+    if (before === null || after === null) {
+      problems.push(`density: could not measure ${key}`);
+    } else if (!(after < before)) {
+      problems.push(`density: ${key} did not tighten (${String(before)} → ${String(after)})`);
+    }
+  }
+
+  /* And the things you press do not move, which is the deliberate deviation. */
+  for (const key of ['navHeight', 'buttonHeight']) {
+    checks += 1;
+    if (roomy[key] !== tight[key]) {
+      problems.push(
+        `density: ${key} changed (${String(roomy[key])} → ${String(tight[key])}); controls must keep their size`,
+      );
+    }
+  }
 }
 
 async function main() {
@@ -747,6 +844,7 @@ async function main() {
     await probeStates(browser, data);
     await probeFonts(browser);
     await probeGeometry(browser);
+    await probeDensity(browser, data);
   } finally {
     await browser.close();
     server.close();
