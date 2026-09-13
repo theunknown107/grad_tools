@@ -79,7 +79,7 @@ async function main(): Promise<void> {
   const raw = vtuSchemeAdapter.parse(body);
   const verdict = vtuSchemeAdapter.validate(vtuSchemeAdapter.normalize(raw));
   const graph = vtuSchemeAdapter
-    .describe(raw)
+    .describe(raw, body)
     .filter((doc) => verdict.valid.some((item) => item.externalId === doc.url));
 
   const wantYear = flag('scheme');
