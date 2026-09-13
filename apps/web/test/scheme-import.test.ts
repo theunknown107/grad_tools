@@ -837,6 +837,40 @@ describe('the 2025 scheme generation', () => {
     expect(parsed.rejected).toHaveLength(0);
   });
 
+  it('reads the 2025 codes found on real documents held locally', () => {
+    /*
+     * A SECOND, INDEPENDENT SOURCE OF EVIDENCE.
+     *
+     * The codes in the test above are quoted from VTU's published CSBS 2025
+     * scheme. These were read off the PAGES of seven 2025-family documents
+     * that exist on this machine, by `scripts/source-inventory.ts` — two of
+     * which declare a different code than their own filename claims, which is
+     * why the page rather than the filename is what is trusted here.
+     *
+     * They are question papers, not schemes. That matters and is the point:
+     * `source-scan.ts` says a question paper "NEVER carries credits, L/T/P,
+     * scheme membership", so these establish the CODE GRAMMAR and nothing
+     * else. They are used here for exactly the one thing they are evidence of.
+     *
+     * `BEE105` is in the list deliberately: one of the seven declares a
+     * 2022-family code, and the grammar must keep reading those too.
+     */
+    const observed = [
+      'BEE105',
+      '1BECHE105',
+      '1BESC104C',
+      '1BMATC101',
+      '1BMATC201',
+      '1BPHYS102',
+      '1BPLC105E',
+    ];
+
+    const parsed = parseScheme(
+      page2025(...observed.map((code, index) => row(322 - index * 22, code, 'Invented Title', 3))),
+    );
+    expect(parsed.courses.map((course) => course.code)).toEqual(observed);
+  });
+
   it('takes the scheme year from the document rather than from the code', () => {
     /*
      * §68: the year is stored at normalization time from what the document
