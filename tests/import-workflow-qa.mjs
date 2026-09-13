@@ -41,7 +41,7 @@
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { isApiDown } from './lib/console.mjs';
-import { openReviewRow, reviewField } from './lib/review.mjs';
+import { reviewField } from './lib/review.mjs';
 import { createServer } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
