@@ -142,6 +142,32 @@ describeDb('validating the catalogue', () => {
     expect(result.passed).toBe(true);
   });
 
+  it('fails a scheme year the catalogue holds no courses for', async () => {
+    /*
+     * §39 asks for `--scheme 2025` to run beside `--scheme 2022`. Run against a
+     * catalogue that has never ingested 2025, every scheme-scoped check had
+     * nothing to look at and stayed quiet, so the run finished with no
+     * failures and the terminal printed VALIDATION PASSED.
+     *
+     * §48 and §74 gate publication on that verdict, which made "no data at
+     * all" indistinguishable from "validated clean" at exactly the moment the
+     * distinction matters.
+     */
+    if (sql === null) return;
+    const result = await validateCatalogue(sql, { schemeYear: '2025' });
+
+    expect(result.passed).toBe(false);
+    expect(failures(result.findings).join(' ')).toMatch(/no courses are stored for the 2025/);
+  });
+
+  it('still passes the scheme it does hold', async () => {
+    // The guard above must be about the REQUESTED scheme, not about any scheme
+    // being absent: 2022 is ingested and validates exactly as before (§52).
+    if (sql === null) return;
+    const result = await validateCatalogue(sql, { schemeYear: '2022' });
+    expect(result.passed).toBe(true);
+  });
+
   it('fails a course whose provenance points at nothing', async () => {
     // §25. A value with no traceable source is indistinguishable from one
     // somebody typed.
