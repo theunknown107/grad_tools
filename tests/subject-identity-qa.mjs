@@ -334,7 +334,21 @@ const run = async () => {
   await page2.getByRole('tab', { name: /semesters/i }).click();
   await page2.waitForTimeout(400);
 
-  const row = page2.locator('section[aria-labelledby="sem-1"] button', { hasText: TITLE_RESULT });
+  /*
+   * The subject rows are inside the record a semester card opens — the tab
+   * itself lists cards in the current design. And `:visible`, because the
+   * record draws a wide table and a narrow list and hides one with CSS, so an
+   * unqualified `.first()` can pick the row that has no box.
+   */
+  await page2
+    .getByRole('button', { name: /Semester 1.*open the full record/i })
+    .first()
+    .click();
+  await page2.waitForTimeout(600);
+
+  const row = page2.locator('section[aria-labelledby="sem-1"] button:visible', {
+    hasText: TITLE_RESULT,
+  });
   await row.first().scrollIntoViewIfNeeded();
   await page2.waitForTimeout(300);
   await row.first().click();
@@ -357,7 +371,8 @@ const run = async () => {
   await page2.waitForTimeout(300);
 
   /* ---- a subject with one wording gets no "also recorded as" ---------- */
-  const plain = page2.locator('section[aria-labelledby="sem-1"] button', {
+  /* `:visible`, for the same reason as the row above it. */
+  const plain = page2.locator('section[aria-labelledby="sem-1"] button:visible', {
     hasText: 'APPLIED PHYSICS FOR QA STREAM',
   });
   await plain.first().scrollIntoViewIfNeeded();
