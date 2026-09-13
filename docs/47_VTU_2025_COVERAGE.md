@@ -1,6 +1,6 @@
 # VTU 2025 coverage audit
 
-Authority: this phase · measured at `7a63350` · raw 2022 evidence in
+Authority: measured at `1b31892` · raw 2022 evidence in
 `.vtu-store/last-sync-documents.json` · companion to
 [39_VTU_2022_COVERAGE.md](39_VTU_2022_COVERAGE.md)
 
@@ -19,10 +19,16 @@ than assumed.
 
 | | 2022 | 2025 |
 | --- | --- | --- |
-| Source documents acquired | 288 | **0** |
+| Scheme documents acquired | 288 | **0** |
 | Course readings | 3603 | **0** |
 | Published catalogue rows | 187 | **0** |
 | Publish state | `PUBLISHED` | **`NO SOURCE`** |
+
+Seven real 2025-scheme documents DO exist on this machine. They are question
+papers, and a question paper carries no credits, no L/T/P and no scheme
+membership — so they establish the code grammar and cannot produce a single
+catalogue row. See [What 2025 material is actually
+here](#what-2025-material-is-actually-here).
 
 `NO SOURCE` is deliberately not `CANDIDATE`. A candidate is data that has been
 through the pipeline and failed, or that awaits review. Nothing has been
@@ -86,6 +92,103 @@ says first-year 2025 files were updated *by replacing* earlier ones. Two
 binaries at one URL are two `source_document_versions` under the existing
 content-addressed model (§17), and the older one is not overwritten. That
 behaviour already exists and is tested; it simply has no 2025 rows to exercise.
+
+## What 2025 material is actually here
+
+`scripts/source-inventory.ts`, run over the 2025-family documents held locally,
+reads this off their pages. **SUPPLIED, not fetched** — these were already on
+the machine, and nothing in this phase retrieved them.
+
+| Code declared on the page | Model paper | Effect from | Semester | File |
+| --- | --- | --- | --- | --- |
+| `BEE105` | yes | — | first | `1BBEE105.pdf` ⚠ |
+| `1BECHE105` | yes | — | first | `1BECHE105.pdf` |
+| `1BESC104C` | yes | — | first | `1BESC104C.pdf` |
+| `1BMATC101` | yes | 2025 | first | `1BMATC101.pdf` |
+| `1BMATC201` | yes | 2025-26 | second | `1BMATC201.pdf` |
+| `1BPHYS102` | yes | — | first | `1BPHYS102.pdf` |
+| `1BPLC105E` | yes | — | first | `1BPLC205E.pdf` ⚠ |
+
+⚠ The filename claims a code the page does not carry. The page is what is
+trusted; a filename is not a document's statement about itself.
+
+All seven have a text layer. Six declare a 2025-family code. Two carry an
+explicit 2025 effect date, which is independent confirmation that the scheme is
+real and in circulation.
+
+**What they establish:** the course-code grammar, on real printed pages rather
+than on codes quoted into a brief. The parser is tested against these codes
+directly.
+
+**What they cannot establish, at any quality:** credits, L/T/P, category,
+option groups, semester membership, printed totals, applicability — anything
+that makes a catalogue a catalogue. `source-scan.ts` states the limit
+plainly: *"A question paper NEVER carries credits, L/T/P, scheme membership."*
+They are also MODEL papers, which show an intended examination rather than a
+sitting that happened.
+
+They are therefore **not** supplied into the catalogue store. They are not
+scheme or syllabus documents, their official URLs are not known here, and
+`vtu:supply` requires a URL as a provenance claim rather than accepting a blank
+one. Storing them would put rows in the catalogue's provenance chain that
+cannot answer the questions the catalogue is asked.
+
+## Mode B had no door for documents
+
+The previous phase reported 2025 as blocked on bytes. Investigating how those
+bytes would actually arrive turned up something worse: **there was no way to
+hand one over.**
+
+`acquire.ts` has described two acquisition modes since it was written and says
+the difference is "ACQUISITION ONLY. What happens to the bytes afterwards —
+hash, version, extract, normalize, validate, applicability — is identical."
+That was true of the listing PAGE, which `vtu:sync --from` accepts. It was
+false of the documents: `store.put` had exactly one caller in the repository,
+inside the live downloader. So the only route to a document was the one the
+registry refuses, and a person holding the official PDF was stuck.
+
+`pnpm vtu:supply` is that door:
+
+```bash
+pnpm vtu:supply --file ./34csbssch.pdf                 --url https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf
+```
+
+It never fetches, and contains no `fetch` — a test asserts that. The `--url` is
+a provenance CLAIM about bytes somebody already holds, recorded so the document
+can be cited and later compared against the official copy. It writes the same
+content-addressed store and the same manifest the downloader writes, so
+everything downstream cannot tell the difference except by reading the
+provenance that says so.
+
+Verified against a real official VTU PDF (the 2022 CSBS scheme, already held):
+246 571 bytes, 14 pages, hash `60ed0ab331251d52…`, outcome `already_present` —
+the content-addressed identity recognises bytes it already has.
+
+The manifest now records `acquisition: 'live' | 'supplied'`, `capturedAt`,
+`sourceFilename` and `pageCount`. **Absent means not recorded.** The 289
+documents already in the store predate the field, and stamping them `live` now
+would invent a provenance claim about bytes nobody can re-examine.
+
+## The acquisition gate had a hole
+
+`vtu:discover`, `vtu:smoke` and `vtu:sync` each consult the source registry
+before reaching vtu.ac.in. **`vtu:download` did not** — the one script whose
+entire purpose is retrieving documents.
+
+Its only check was `isFetchableUrl`, which verifies the protocol and that the
+host **is** vtu.ac.in. That is the opposite of a permission check: it confirms
+the target is the very source the registry has not authorised. So
+`pnpm vtu:download --graph graph.json` would have fetched every PDF in the
+graph with no permission check at all — not by subverting anything, by running
+the documented command.
+
+It now calls `requireFetchPermission` before it even reads the graph, `--dry-run`
+included. And the audit that found this is now a test rather than a one-off
+reading: every script containing `fetch(` or `downloadAll(` must also contain
+`requireFetchPermission`. Removing the gate from `vtu:download` fails it —
+checked by mutation, because the first version of that test could not fail at
+all (a `` written as a literal backspace byte meant its pattern matched
+nothing).
 
 ## What the discovery layer would do with 2025, unchanged
 
@@ -272,15 +375,44 @@ defaults to 2025.
 
 **2022 remains `PUBLISHED`. 2025 is `NO SOURCE` and must not be published.**
 
-Blocking items, in the order they must be cleared:
+### The exact bytes still required
 
-1. Terms review (OQ-006), or supply the 2025 documents through the Mode B path.
-2. Verify `34csbssch.pdf` per §64 — SHA, pages, programme, semesters, totals.
-3. Measure 2025 layout against the known PDF hazards before trusting any
-   extracted row.
-4. Establish first-year 2025 applicability from the documents' own headers.
-5. Re-run `vtu:validate --scheme 2025`; it will now fail honestly until there
-   is something to validate.
+The door now exists, so each of these is one `vtu:supply` away. None of them is
+present on this machine, and none may be fetched.
+
+| Document | Official URL | Needed for |
+| --- | --- | --- |
+| CSBS 2025 scheme, sem 3–8 | `https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf` | every CSBS 2025 course, credit and option group |
+| 2025 first-year scheme(s) | from `https://vtu.ac.in/b-e-scheme-syllabus/` (1st & 2nd sem 2025) | semesters 1–2, and the stream scope CSBS inherits |
+| 2025 3–8 common courses | same listing | courses shared across programmes |
+| CSBS 2025 syllabi | same listing | modules and topics |
+| The listing page itself | `https://vtu.ac.in/b-e-scheme-syllabus/` | the discovery graph (`vtu:sync --from`) |
+
+For each, supply the file and its official URL:
+
+```bash
+pnpm vtu:supply --file <the document> --url <the official VTU URL>
+```
+
+Then the rest of the pipeline runs unchanged — extract, normalize,
+applicability, validate — because the only thing Mode B changes is how the
+bytes arrived.
+
+### Then, and only then
+
+1. Verify `34csbssch.pdf` against its own pages: SHA, page count, programme,
+   effective academic year, semester coverage, printed totals. Not the
+   filename.
+2. **Measure the 2025 layout before trusting a single extracted row.** This is
+   the one thing that cannot be prepared in advance. The 2022 corpus taught
+   that visually plausible PDFs carry hostile structure — codes split across
+   text runs, credits displaced a full line, compound codes broken mid-code —
+   and each cost real courses. Nothing here has seen a 2025 scheme table.
+3. Establish first-year 2025 applicability from the documents' own headers,
+   never from the fact that CSBS is an engineering programme.
+4. Compare each printed semester total against deduplicated course identities.
+5. Re-run `vtu:validate --scheme 2025`, which fails honestly until there is
+   something to validate.
 
 ## Reproducing this
 
