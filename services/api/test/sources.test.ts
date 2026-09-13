@@ -12,6 +12,7 @@
  * tempt someone into fetching during a test run.
  */
 
+import { readdir, readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import type { Source } from '@gradtools/shared-types';
 import { detectChanges, hashItem, type NormalizedItem } from '../src/sources/adapter.js';
@@ -409,5 +410,46 @@ describe('the door every outbound fetch goes through', () => {
     await expect(requireFetchPermission(null, 'vtu-scheme-syllabus')).rejects.toThrow(
       /not permission/i,
     );
+  });
+
+  it('is called by every script that reaches the network', async () => {
+    /*
+     * THE AUDIT, AS A TEST INSTEAD OF AS A ONE-OFF.
+     *
+     * The original defect was never a wrong rule — it was four scripts that
+     * did not consult it, found by reading them once. Reading them once does
+     * not keep them read, and `vtu:download` was still ungated long after the
+     * other three were fixed: the one script whose entire purpose is
+     * retrieving documents. `isFetchableUrl` looks like a guard and is the
+     * opposite of one, since it confirms the host IS vtu.ac.in.
+     *
+     * So the audit runs on every suite. A new script that fetches and forgets
+     * the door fails here rather than in somebody's traffic logs.
+     */
+    const dir = new URL('../scripts/', import.meta.url);
+    const names = (await readdir(dir)).filter((name) => name.endsWith('.ts'));
+    expect(names.length).toBeGreaterThan(5);
+
+    const ungated: string[] = [];
+    for (const name of names) {
+      const source = await readFile(new URL(name, dir), 'utf8');
+      /* `downloadAll` is a fetch too — it is where the requests actually go. */
+      const reaches = /\bfetch\(|\bdownloadAll\(/.test(source);
+      if (reaches && !source.includes('requireFetchPermission')) ungated.push(name);
+    }
+    expect(ungated).toEqual([]);
+  });
+
+  it('leaves the supplied-document door with no network access at all', async () => {
+    /*
+     * Mode B's whole value is that it does not fetch. A `--url` on
+     * `vtu:supply` is a provenance CLAIM about bytes somebody already holds;
+     * the day it becomes something the script goes and retrieves, the gate has
+     * been routed around by the one tool written to make routing around it
+     * unnecessary.
+     */
+    const source = await readFile(new URL('../scripts/vtu-supply.ts', import.meta.url), 'utf8');
+    expect(source).not.toMatch(/\bfetch\(/);
+    expect(source).not.toMatch(/\bdownloadAll\(/);
   });
 });
