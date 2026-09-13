@@ -428,7 +428,7 @@ function YourFigures() {
         them out would make the columns not add up to the courses on screen.
       */}
       {statistics.grades.total > 0 && (
-        <Panel title="Grades" material="quiet">
+        <Panel title="Grades">
           <GradeDistributionRows grades={statistics.grades} />
         </Panel>
       )}
@@ -439,7 +439,7 @@ function YourFigures() {
         re-sit something they did not fail.
       */}
       {OUTCOME_ORDER.some((key) => statistics.outcomes[key] > 0) && (
-        <Panel title="Course outcomes" material="quiet">
+        <Panel title="Course outcomes">
           <dl className={styles.derived}>
             {OUTCOME_ORDER.filter((key) => statistics.outcomes[key] > 0).map((key) => (
               <div className={styles.derivedItem} key={key}>
@@ -456,7 +456,7 @@ function YourFigures() {
         courses good and one course short should not read a screen that looks
         like a failure.
       */}
-      <Panel title="Academic data" material="quiet">
+      <Panel title="Academic data">
         <dl className={styles.derived}>
           <div className={styles.derivedItem}>
             <dt className={styles.derivedLabel}>Courses imported</dt>
