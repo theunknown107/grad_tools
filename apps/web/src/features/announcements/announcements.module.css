@@ -328,6 +328,20 @@
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1.55;
+  /*
+   * CLAMPED, like the announcement body it is the same text as.
+   *
+   * The feed is a list of things that happened, and one long circular rendered
+   * eleven lines of itself and buried the nine notices under it. Announcements
+   * already collapses the same body to three lines; the inbox did not, so the
+   * same notice was short on one page and a wall on the other. The notice is
+   * one press away on Announcements, which is where its full text belongs.
+   */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .notificationMeta {
