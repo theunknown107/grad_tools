@@ -571,6 +571,57 @@ async function probeStates(browser, dist) {
   await context.close();
 }
 
+/**
+ * The type stack, and where it comes from.
+ *
+ * The faces used to be fetched from Google on every page load. They are served
+ * from this origin now, and both halves of that are worth holding: the files
+ * have to actually arrive — a self-hosted face that 404s silently falls back
+ * to a system one and nothing looks obviously wrong — and nothing may go out
+ * to a font CDN again.
+ */
+async function probeFonts(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const requests = [];
+  context.on('request', (request) => requests.push(request.url()));
+  const page = await context.newPage();
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  /* Give the faces a moment to be requested and decoded. */
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(400);
+
+  const loaded = await page.evaluate(() => {
+    const families = ['IBM Plex Sans', 'Space Grotesk', 'JetBrains Mono'];
+    const seen = new Set();
+    document.fonts.forEach((face) => {
+      if (face.status === 'loaded') seen.add(face.family.replace(/^['"]|['"]$/g, ''));
+    });
+    return families.map((family) => ({ family, loaded: seen.has(family) }));
+  });
+
+  for (const face of loaded) {
+    checks += 1;
+    if (!face.loaded) problems.push(`fonts: "${face.family}" never loaded from this origin`);
+  }
+
+  /*
+   * Nothing may leave the origin. GradTools' own API on 3001 is not "away" —
+   * it is the other half of the product, and the harnesses that assert this
+   * elsewhere allow it for the same reason. `data:` and `blob:` are the page's
+   * own bytes rather than a request to anyone.
+   */
+  const own = [`http://localhost:${String(PORT)}`, 'http://localhost:3001', 'data:', 'blob:'];
+  const offOrigin = requests.filter((url) => !own.some((prefix) => url.startsWith(prefix)));
+  checks += 1;
+  if (offOrigin.length > 0) {
+    problems.push(
+      `fonts: ${String(offOrigin.length)} request(s) left the origin: ${offOrigin.slice(0, 3).join(', ')}`,
+    );
+  }
+
+  await context.close();
+}
+
 async function main() {
   if (!existsSync(DIST)) {
     console.error('apps/web/dist is missing. Run: pnpm --filter @gradtools/web build');
@@ -638,6 +689,7 @@ async function main() {
     await probeRail(browser, data);
     await probeOverlays(browser, data);
     await probeStates(browser, data);
+    await probeFonts(browser);
   } finally {
     await browser.close();
     server.close();
