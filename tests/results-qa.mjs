@@ -357,6 +357,22 @@ const run = async () => {
   /* ---- what the seeded data must already show ------------------------ */
   const overviewText = await page.locator('#main').innerText();
   expect(/CGPA/.test(overviewText), 'INTERACTION: no CGPA on the overview');
+  /*
+   * THIS ONE FAILS, AND IT IS NOT A STALE TEST.
+   *
+   * The seed carries BQA456D with `hasSee: null` — a row whose SEE
+   * applicability is unknown, so its pass state cannot be worked out and the
+   * backlog count should read as a floor. The overview reports "1 backlog"
+   * with no qualification at all.
+   *
+   * `semesterBacklogs` counts a row as undetermined only when
+   * `evaluateResultSubject(...).backlog` is null, and for this row it is not.
+   * Whether that is right is a question about the results domain, not about
+   * this harness, so the assertion stays as written and failing rather than
+   * being softened to match.
+   *
+   * Measured identical at 3770594, so it predates the Figma port.
+   */
   expect(
     /could not be checked for a backlog/i.test(overviewText),
     'INTERACTION: an unknown-SEE row did not qualify the backlog count',
@@ -364,25 +380,68 @@ const run = async () => {
 
   await page.getByRole('tab', { name: /semesters/i }).click();
   await page.waitForTimeout(350);
-  const semesterText = await page.locator('#main').innerText();
+  /*
+   * A SEMESTER'S TABLE EXISTS ONLY WHEN ITS RECORD IS OPEN.
+   *
+   * The Semesters tab lists semester cards in the current design, and a card
+   * opens that semester's full record. The tables these checks read are inside
+   * the record, so each one is opened first — which is also the route a
+   * student takes to them.
+   */
+  const openRecord = async (semester) => {
+    /*
+     * Close whatever record is open first. The tab shows EITHER the grid of
+     * semester cards or one open record, so opening a second semester means
+     * going back to the cards — which is the only route a student has too.
+     */
+    const back = page.getByRole('button', { name: /back to results/i }).first();
+    if ((await back.count()) > 0) {
+      await back.click();
+      await page.waitForTimeout(400);
+    }
+    const card = page
+      .getByRole('button', { name: new RegExp(`Semester ${String(semester)}.*open the full record`, 'i') })
+      .first();
+    if ((await card.count()) > 0) {
+      await card.click();
+      await page.waitForTimeout(500);
+    }
+    return page.locator(`section[aria-labelledby="sem-${String(semester)}"] table tbody tr`);
+  };
 
+  /* Nine rows in S4 and eight in S1, neither padded nor truncated. */
+  const s4RowsLocator = await openRecord(4);
+
+  /*
+   * Why S4 has no SGPA, and which subject is the reason — both are properties
+   * of the RECORD, and the record is what a semester card opens. These used to
+   * be read off the tab itself, which now lists cards.
+   */
+  const semesterText = await page.locator('#main').innerText();
   expect(/No SGPA yet/i.test(semesterText), 'INTERACTION: provisional S4 did not explain its SGPA');
   expect(
     /BQA405B/.test(semesterText),
     'INTERACTION: the subject missing credits was not named as the reason',
   );
-  /* Nine rows in S4 and eight in S1, neither padded nor truncated. */
-  const s4Rows = await page.locator('section[aria-labelledby="sem-4"] table tbody tr').count();
-  const s1Rows = await page.locator('section[aria-labelledby="sem-1"] table tbody tr').count();
+
+  const s4Rows = await s4RowsLocator.count();
   expect(s4Rows === 9, `INTERACTION: semester 4 rendered ${s4Rows} rows, expected 9`);
-  expect(s1Rows === 8, `INTERACTION: semester 1 rendered ${s1Rows} rows, expected 8`);
 
   /* ---- the CIE-only course reads as not applicable, not as a backlog -- */
-  const peRow = page.locator('section[aria-labelledby="sem-4"] table tbody tr', {
-    hasText: 'Physical Education',
-  });
-  const peText = await peRow.innerText();
-  expect(!/Backlog/i.test(peText), `INTERACTION: CIE-only course marked a backlog — "${peText}"`);
+  const peRow = s4RowsLocator.filter({ hasText: 'Physical Education' });
+  expect(
+    (await peRow.count()) > 0,
+    'INTERACTION: semester 4 did not list the CIE-only course at all',
+  );
+  if ((await peRow.count()) > 0) {
+    const peText = await peRow.first().innerText();
+    expect(!/Backlog/i.test(peText), `INTERACTION: CIE-only course marked a backlog — "${peText}"`);
+  }
+
+  const s1Rows = await (await openRecord(1)).count();
+  expect(s1Rows === 8, `INTERACTION: semester 1 rendered ${s1Rows} rows, expected 8`);
+  await page.getByRole('button', { name: /back to results/i }).first().click();
+  await page.waitForTimeout(400);
 
   /* ---- a second result for a semester that has one is refused --------- */
   await page.getByRole('button', { name: /add a semester/i }).click();
@@ -421,6 +480,8 @@ const run = async () => {
 
   await page.getByRole('tab', { name: /semesters/i }).click();
   await page.waitForTimeout(350);
+  /* The subject rows are inside the record the new semester's card opens. */
+  await openRecord(5);
   expect(
     (await page.getByText('BQA999').count()) > 0,
     'INTERACTION: the saved row did not appear in the semester list',
@@ -434,7 +495,18 @@ const run = async () => {
    * AFTER the click that opened it. Letting the click do the scrolling opens
    * the menu and closes it again in the same gesture.
    */
-  const menuTrigger = page.getByRole('button', { name: /actions for semester 3/i });
+  /* The menu is inside the record, so the record is opened first. */
+  await openRecord(3);
+  /*
+   * A CSS SELECTOR, not getByRole, for the trigger.
+   *
+   * Opening the menu marks the rest of the tree `aria-hidden` — that is how
+   * Radix makes it modal — and the trigger is part of "the rest". An
+   * ARIA-aware locator therefore stops resolving the very element it just
+   * clicked, so reading `aria-expanded` back off it timed out. The attribute
+   * is still there; only the accessibility tree has moved on.
+   */
+  const menuTrigger = page.locator('button[aria-label="Actions for semester 3"]');
   await menuTrigger.scrollIntoViewIfNeeded();
   await page.waitForTimeout(400);
   await menuTrigger.click();
@@ -472,8 +544,20 @@ const run = async () => {
   await phone.getByRole('tab', { name: /semesters/i }).click();
   await phone.waitForTimeout(350);
 
+  /* The subject rows live inside the record a semester card opens. */
   await phone
-    .locator('section[aria-labelledby="sem-4"] button', { hasText: 'Physical Education' })
+    .getByRole('button', { name: /Semester 4.*open the full record/i })
+    .first()
+    .click();
+  await phone.waitForTimeout(600);
+
+  /*
+   * `:visible`. The record draws a wide table AND a narrow list and hides one
+   * with CSS, so on a phone an unqualified `.first()` picks the row that has
+   * no box and waits for it to become visible until it gives up.
+   */
+  await phone
+    .locator('section[aria-labelledby="sem-4"] button:visible', { hasText: 'Physical Education' })
     .first()
     .click();
   await phone.waitForTimeout(400);
