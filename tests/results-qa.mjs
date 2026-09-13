@@ -34,6 +34,7 @@
  * values do not, and no real academic record is used for QA.
  */
 import { chromium } from '@playwright/test';
+import { splitConsole } from './lib/console.mjs';
 import AxeBuilder from '@axe-core/playwright';
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
@@ -183,8 +184,19 @@ function seedData() {
       ['BQAK459', 'Physical Education', 96, 0, 96, 'P', 0, false],
       /* A missing credit: the subject is not in the catalogue. */
       ['BQA405B', 'Graph Theory', 44, 22, 66, 'P', null, true],
-      /* SEE applicability unknown: the backlog state must read "not known". */
-      ['BQA456D', 'Business Communication', 46, 39, 85, null, 3, null],
+      /*
+       * SEE applicability unknown: the backlog state must read "not known".
+       *
+       * THE EXTERNAL HAS TO BE ZERO FOR THAT TO BE TRUE. This row carried an
+       * external of 39, and a positive external is proof the examination
+       * happened — `resolveCourseKind` reads it as SEE-bearing by a documented
+       * one-way rule, so the row was never unknown and the check below could
+       * not pass. The fixture now says what its own comment always claimed.
+       *
+       * The internal stays inside the CIE maximum on purpose: an internal
+       * ABOVE it would resolve the row the other way, to CIE-only.
+       */
+      ['BQA456D', 'Business Communication', 46, 0, 46, null, 3, null],
     ].map(([code, title, internal, external, total, status, credits, hasSee], i) => ({
       id: `res-4-s${i}`,
       subjectCode: code,
@@ -254,6 +266,7 @@ const run = async () => {
   const scheme = process.env.SCHEME === 'light' ? 'light' : 'dark';
   let checks = 0;
 
+  let apiDown = 0;
   const fail = (message) => problems.push(message);
   const expect = (condition, message) => {
     checks += 1;
@@ -330,7 +343,15 @@ const run = async () => {
     }
     await page.screenshot({ path: join(OUT, `editor-${vp.name}.png`), fullPage: true });
 
-    if (errors.length) fail(`CONSOLE @${vp.name}: ${errors.slice(0, 3).join(' | ')}`);
+    /*
+     * The API being unreachable is this harness's own environment, not a
+     * frontend defect — it serves a built bundle with no server behind it.
+     * Counted and reported rather than failed, which is what every other
+     * harness here already does.
+     */
+    const split = splitConsole(errors);
+    apiDown += split.apiDown;
+    if (split.real.length) fail(`CONSOLE @${vp.name}: ${split.real.slice(0, 3).join(' | ')}`);
     await context.close();
   }
 
@@ -587,12 +608,18 @@ const run = async () => {
     fail(`AXE sheet@390: ${v.id} (${v.nodes.length}) ${v.help}`);
   }
 
-  if (errors.length) fail(`CONSOLE interaction: ${errors.slice(0, 3).join(' | ')}`);
+  const interactionConsole = splitConsole(errors);
+  apiDown += interactionConsole.apiDown;
+  if (interactionConsole.real.length)
+    fail(`CONSOLE interaction: ${interactionConsole.real.slice(0, 3).join(' | ')}`);
   await narrow.close();
 
   await browser.close();
   server.close();
 
+  if (apiDown > 0) {
+    console.log(`${apiDown} API-unavailable console message(s) (not frontend defects)`);
+  }
   console.log(
     problems.length === 0
       ? `CLEAN (${scheme}): ${checks} interaction checks, 0 axe, 0 overflow, 0 console errors`
