@@ -27,7 +27,8 @@
   gap: var(--space-2);
   padding: var(--space-8) var(--space-6);
   border: 2px dashed var(--border-strong);
-  border-radius: var(--radius-xl);
+  /* `rounded-2xl`, as the design draws the drop surface. */
+  border-radius: var(--radius-2xl);
   background: var(--nav-bg);
   text-align: center;
   transition:

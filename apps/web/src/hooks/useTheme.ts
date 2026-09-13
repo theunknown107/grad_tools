@@ -18,6 +18,7 @@ import {
   resolveAppearance,
   type Accent,
   type Appearance,
+  type Density,
   type ThemePreference,
 } from '../lib/theme.js';
 
@@ -36,6 +37,7 @@ export interface UseThemeResult {
   readonly setAppearance: (appearance: Appearance) => void;
   readonly setAccent: (accent: Accent) => void;
   readonly setReducedMotion: (reducedMotion: boolean) => void;
+  readonly setDensity: (density: Density) => void;
 }
 
 export function useTheme(): UseThemeResult {
@@ -83,6 +85,7 @@ export function useTheme(): UseThemeResult {
     (reducedMotion: boolean) => update({ reducedMotion }),
     [update],
   );
+  const setDensity = useCallback((density: Density) => update({ density }), [update]);
 
   return {
     preference,
@@ -90,5 +93,6 @@ export function useTheme(): UseThemeResult {
     setAppearance,
     setAccent,
     setReducedMotion,
+    setDensity,
   };
 }

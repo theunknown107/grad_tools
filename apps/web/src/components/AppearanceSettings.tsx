@@ -32,7 +32,7 @@ import { ACCENTS, APPEARANCES, type Accent, type Appearance } from '../lib/theme
 import { Icon, type IconName } from './icons.js';
 import { Button, StatusPill, TextField } from './ui/index.js';
 import { IslandTabGroup, IslandTabPanel, IslandTabs } from './ui/IslandTabs.js';
-import { Switch } from './ui/Controls.js';
+import { Switch, ToggleGroup } from './ui/Controls.js';
 import styles from './AppearanceSettings.module.css';
 
 const APPEARANCE_LABEL: Record<Appearance, string> = {
@@ -70,7 +70,8 @@ const ACCENT_LABEL: Record<Accent, string> = {
 };
 
 export function AppearanceSettings() {
-  const { preference, resolved, setAppearance, setAccent, setReducedMotion } = useTheme();
+  const { preference, resolved, setAppearance, setAccent, setReducedMotion, setDensity } =
+    useTheme();
 
   return (
     <div className={styles.stack}>
@@ -153,19 +154,44 @@ export function AppearanceSettings() {
         </div>
       </section>
 
-      {/*
-        INTERFACE, from the design's own Appearance section.
-        
-        The design puts Density beside this. There is no Density control here:
-        this product has no compact spacing scale, so the switch would change
-        the page gutter and nothing else — a control that looks like it does
-        something and very nearly does not is worse than its absence. Noted
-        rather than faked.
-      */}
+      {/* INTERFACE, from the design's own Appearance section. */}
       <section className={styles.card} aria-labelledby="appearance-interface">
         <h3 className={styles.heading} id="appearance-interface">
           Interface
         </h3>
+        {/*
+          DENSITY, and what it does here.
+
+          The design expresses this by moving Tailwind's spacing base; this
+          product has its own spacing scale, and one multiplier on it does the
+          same job — every padding, margin and gap that reads a `--space-*`
+          token tightens together, which is 660 of them.
+
+          What it does NOT do is shrink controls. The design's density takes a
+          44px target down to 39px, and that is below the floor docs/27 §27.6
+          sets for something a thumb has to hit. Density here is the room
+          BETWEEN things, not the size of the things you press.
+        */}
+        <div className={styles.densityRow}>
+          <div className={styles.densityText}>
+            <span className={styles.densityLabel}>Density</span>
+            <span className={styles.explain}>
+              Comfortable spacing, or compact to fit more on screen. Controls stay the same size
+              either way.
+            </span>
+          </div>
+          <ToggleGroup
+            label="Interface density"
+            value={preference.density}
+            onValueChange={(value) => {
+              setDensity(value === 'compact' ? 'compact' : 'comfortable');
+            }}
+            options={[
+              { value: 'comfortable', label: 'Comfortable', icon: 'rowsComfortable' },
+              { value: 'compact', label: 'Compact', icon: 'rowsCompact' },
+            ]}
+          />
+        </div>
         <Switch
           label="Reduced motion"
           hint="Minimise animations and transitions across the product. Your device's own setting is already respected; this asks for it here as well."

@@ -25,6 +25,16 @@
  */
 
 export const APPEARANCES = ['light', 'dark', 'system'] as const;
+
+/**
+ * How much room the interface gives itself.
+ *
+ * The design offers the same pair. `compact` tightens the spacing scale by the
+ * ratio its own density uses; it deliberately does not shrink controls — see
+ * the note beside the scale in tokens.css.
+ */
+export const DENSITIES = ['comfortable', 'compact'] as const;
+export type Density = (typeof DENSITIES)[number];
 export type Appearance = (typeof APPEARANCES)[number];
 
 /**
@@ -77,6 +87,7 @@ export interface ThemePreference {
    * DOWN: there is no value here that overrides the system asking for less.
    */
   readonly reducedMotion: boolean;
+  readonly density: Density;
 }
 
 /**
@@ -93,6 +104,8 @@ export const DEFAULT_THEME: ThemePreference = {
   /* Off by default: the system preference is already being honoured, and this
      is an addition to it rather than a replacement for it. */
   reducedMotion: false,
+  /* The roomier of the two, which is what every screen was designed against. */
+  density: 'comfortable',
 };
 
 /** Device-scoped on purpose — see the header. */
@@ -136,6 +149,7 @@ export function readStoredTheme(storage: Pick<Storage, 'getItem'>): ThemePrefere
       : DEFAULT_THEME.appearance,
     accent: accentFrom(record['accent']),
     reducedMotion: record['reducedMotion'] === true,
+    density: record['density'] === 'compact' ? 'compact' : DEFAULT_THEME.density,
   };
 }
 
@@ -187,6 +201,10 @@ export function applyTheme(root: HTMLElement, preference: ThemePreference): void
    */
   if (preference.reducedMotion) root.setAttribute('data-motion', 'reduced');
   else root.removeAttribute('data-motion');
+  /* Absent rather than 'comfortable', for the same reason as the line above:
+     the stylesheet's compact block is then a plain selector. */
+  if (preference.density === 'compact') root.setAttribute('data-density', 'compact');
+  else root.removeAttribute('data-density');
 }
 
 /** Which appearance `system` currently resolves to. */

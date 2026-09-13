@@ -289,3 +289,50 @@
   color: var(--text-muted);
   font-size: 13px;
 }
+
+/* --- Density ---------------------------------------------------------------- */
+
+/*
+ * The design lays this out as a label and its explanation on the left with the
+ * control on the right, dropping to a stack when there is not room for both.
+ */
+.densityRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-block-end: var(--space-5);
+}
+
+/*
+ * Side by side only where both halves genuinely fit.
+ *
+ * At 640 the card is narrow enough that the control ran past its edge and the
+ * second option was clipped in half. The row wraps instead, and the text is
+ * the half that yields — the control has a fixed size and nothing to give.
+ */
+@media (min-width: 900px) {
+  .densityRow {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .densityText {
+    flex: 1 1 16rem;
+  }
+}
+
+.densityText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.densityLabel {
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}

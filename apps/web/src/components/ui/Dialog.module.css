@@ -29,7 +29,8 @@
   flex-direction: column;
   inline-size: min(560px, calc(100vw - var(--space-6)));
   max-block-size: min(86vh, 760px);
-  border-radius: var(--radius-xl);
+  /* `rounded-2xl`, the design's radius for an overlay. */
+  border-radius: var(--radius-2xl);
   animation: dialogIn var(--motion-base) var(--ease-spring);
 }
 

@@ -25,7 +25,8 @@
   place-items: center;
   inline-size: 80px;
   block-size: 80px;
-  border-radius: var(--radius-xl);
+  /* `size-20 rounded-2xl`, from the design. */
+  border-radius: var(--radius-2xl);
   background: var(--accent-pastel);
   color: var(--accent-pastel-ink);
 }
