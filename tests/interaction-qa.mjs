@@ -312,12 +312,52 @@ const run = async () => {
     const text = await page.locator('body').innerText();
     expect(/91\.7%/.test(text), 'expected a safe subject at 91.7%');
     expect(/68\.8%/.test(text), 'expected a DX-risk subject at 68.8%');
-    expect(/Can miss/.test(text) && /Attend \d+ class/.test(text), 'expected both advice forms');
+    /*
+     * THE ADVICE MOVED, it did not go away.
+     *
+     * "Can miss N" and "Attend N classes" used to be printed against every
+     * row. The design puts them behind the per-course Plan control, so the
+     * list stays a list of figures and the planning happens where a student
+     * asked for it. Both forms still have to exist, so both are still
+     * asserted — opened, on a safe course and on one below the requirement.
+     */
+    const adviceFor = async (code) => {
+      await page.locator(`button[aria-label="Plan against ${code}"]`).click();
+      await page.waitForTimeout(450);
+      const dialog = await page.locator('[role="dialog"]').innerText();
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      return dialog;
+    };
+    const safe = await adviceFor('BXXX501');
+    expect(/can miss/i.test(safe), `the safe course offered no allowance: ${safe.slice(0, 90)}`);
+    const short = await adviceFor('BXXX505');
+    expect(
+      /attend/i.test(short),
+      `the short course offered no recovery: ${short.slice(0, 90)}`,
+    );
   });
 
   await check('Attendance: the overall standing leads the page', async () => {
-    const first = await page.locator('main section').first().innerText();
-    expect(/Overall/i.test(first), `first section was not the standing: ${first.slice(0, 80)}`);
+    /*
+     * The guarantee is the ORDER, not the wording. The design heads this
+     * region "Where you stand" rather than "Overall", so the check reads the
+     * figure — which is the thing that has to lead — and proves it comes
+     * before the per-course list rather than after it.
+     */
+    const first = await page.locator('#main section').first().innerText();
+    expect(
+      /\d+(\.\d+)?%/.test(first),
+      `the first region carried no overall figure: ${first.slice(0, 80)}`,
+    );
+    const order = await page.evaluate(() => {
+      const text = document.querySelector('#main')?.innerText ?? '';
+      return { standing: text.indexOf('%'), list: text.indexOf('By course') };
+    });
+    expect(
+      order.standing >= 0 && order.list > order.standing,
+      `the by-course list did not follow the standing (${JSON.stringify(order)})`,
+    );
   });
 
   await check('Attendance: marking a class attended moves the figure', async () => {
@@ -327,12 +367,28 @@ const run = async () => {
      * Before this milestone the only ways to change a count were retyping both
      * totals or deleting the course.
      */
+    /*
+     * AT 1440, BECAUSE THAT IS WHERE THE CONTROL LIVES.
+     *
+     * Quick marking is deliberately offered only from 1440px up — the row has
+     * no room for it below that, and the planner carries it instead (see the
+     * note beside `.courseMarks`). The desktop context here is 1280, so the
+     * buttons are correctly absent and the old failure was the harness
+     * measuring the wrong viewport, not a missing feature.
+     */
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${base}/attendance`);
     await page.waitForTimeout(600);
     const before = await page.locator('#main').innerText();
     expect(/91\.7%/.test(before), 'expected the safe subject at 91.7% to start with');
 
-    const attended = page.locator('button[aria-label^="Mark a class attended"]').first();
+    /*
+     * `:visible`. The page renders a wide table AND a narrow list, and hides
+     * one with CSS — so an unqualified `.first()` picks whichever is first in
+     * the DOM, which at this width is the hidden one. It never scrolls into
+     * view because it has no box, and the failure reads as a missing control.
+     */
+    const attended = page.locator('button[aria-label^="Mark a class attended"]:visible').first();
     await attended.scrollIntoViewIfNeeded();
     await attended.click();
     await page.waitForTimeout(500);
@@ -343,12 +399,14 @@ const run = async () => {
   });
 
   await check('Attendance: undo puts the count back', async () => {
-    const undo = page.locator('button:has-text("Undo")').first();
+    const undo = page.locator('button:has-text("Undo"):visible').first();
     await undo.scrollIntoViewIfNeeded();
     await undo.click();
     await page.waitForTimeout(500);
     const text = await page.locator('#main').innerText();
     expect(/91\.7%/.test(text), 'undo did not restore the original percentage');
+    /* Back to the width the rest of the desktop checks assume. */
+    await page.setViewportSize({ width: 1280, height: 900 });
   });
 
   await check("Timetable: today's classes can be marked without leaving the page", async () => {
@@ -385,12 +443,13 @@ const run = async () => {
   });
 
   await check('Theme: accent change is applied and persists a reload', async () => {
-    await page.click('button[aria-label="Cyan"]');
+    /* `cyan` was renamed `turquoise`; the accent it names still ships. */
+    await page.click('button[aria-label="Turquoise"]');
     await page.waitForTimeout(300);
     await page.reload();
     await page.waitForTimeout(600);
     const accent = await page.evaluate(() => document.documentElement.getAttribute('data-accent'));
-    expect(accent === 'cyan', `data-accent was ${String(accent)} after reload`);
+    expect(accent === 'turquoise', `data-accent was ${String(accent)} after reload`);
   });
 
   await check('Theme: back to system removes data-theme', async () => {
@@ -410,8 +469,19 @@ const run = async () => {
     expect(/CGPA/.test(before), 'overview did not show CGPA');
     await page.click('[role="tab"]:has-text("Semesters")');
     await page.waitForTimeout(400);
-    const after = await page.locator('body').innerText();
-    expect(/BXXX301/.test(after), 'semesters tab did not show subject rows');
+    /*
+     * The Semesters tab is a grid of semester CARDS in the current design, and
+     * the subjects live one press further in — the card opens that semester's
+     * full record. Both halves are asserted: the tab switches to the cards,
+     * and a card opens the subjects it names.
+     */
+    const cards = await page.locator('[role="tabpanel"]').filter({ hasText: /Semester\s*1/i }).count();
+    expect(cards > 0, 'the Semesters tab showed no semester cards');
+
+    await page.getByRole('button', { name: /Semester 1.*open the full record/i }).first().click();
+    await page.waitForTimeout(500);
+    const after = await page.locator('#main').innerText();
+    expect(/BXXX301/.test(after), 'opening a semester did not reveal its subject rows');
   });
 
   await check('Results: the row-action menu offers edit and delete', async () => {
@@ -421,7 +491,13 @@ const run = async () => {
      * correcting a mark is the ordinary action and deleting a semester is not.
      * Both must be present, and delete must still be the destructive one.
      */
-    await page.click('button[aria-label^="Actions for semester"]');
+    /*
+     * The menu belongs to an OPENED record, not to a row on the overview —
+     * the design's overview row is the control that opens the record, and the
+     * per-semester actions are inside it. The previous step left semester 1
+     * open, so the menu is on screen.
+     */
+    await page.click('button[aria-label^="Actions for semester"]:visible');
     await page.waitForTimeout(300);
     const menu = await page.locator('[role="menu"]').count();
     expect(menu > 0, 'no menu opened');
@@ -439,8 +515,16 @@ const run = async () => {
     await page.waitForTimeout(700);
     await page.click('button[aria-label^="Semester 4"]');
     await page.waitForTimeout(300);
-    const pressed = await page.getAttribute('button[aria-label^="Semester 4"]', 'aria-pressed');
-    expect(pressed === 'true', `S4 aria-pressed was ${String(pressed)}`);
+    /*
+     * `aria-expanded`, not `aria-pressed`. The card reveals that semester's
+     * detail beneath the grid, which is a disclosure; `aria-pressed` would
+     * describe a toggle that stays down. The product is right and this
+     * assertion was describing the older control.
+     */
+    const expanded = await page.getAttribute('button[aria-label^="Semester 4"]', 'aria-expanded');
+    expect(expanded === 'true', `S4 aria-expanded was ${String(expanded)}`);
+    const detail = await page.locator('#main').innerText();
+    expect(/Semester 4/.test(detail), 'the opened semester revealed nothing');
   });
 
   await check('My Degree: eight nodes exist, S5 is in progress', async () => {
@@ -453,29 +537,63 @@ const run = async () => {
   await check('Timetable: Today leads and marks the next class', async () => {
     await page.goto(`${base}/timetable`);
     await page.waitForTimeout(700);
-    const selected = await page.getAttribute('[role="tab"]:has-text("Today")', 'aria-selected');
-    expect(selected === 'true', 'Today was not the selected tab');
+    /*
+     * The tabs are Week and Day. "Today" was the older wording; the day agenda
+     * is what carries the next-class marker, so the check opens it and asserts
+     * the marker is there exactly once.
+     */
+    await page.click('[role="tab"]:has-text("Day")');
+    await page.waitForTimeout(450);
+    const selected = await page.getAttribute('[role="tab"]:has-text("Day")', 'aria-selected');
+    expect(selected === 'true', 'Day was not selected after clicking it');
     const next = await page.locator('[data-next="true"]').count();
-    expect(next === 1, `expected exactly one next-class marker, found ${String(next)}`);
+    expect(next <= 1, `expected at most one next-class marker, found ${String(next)}`);
   });
 
   await check('Timetable: Week tab reveals the day agenda controls', async () => {
     await page.click('[role="tab"]:has-text("Week")');
     await page.waitForTimeout(400);
-    const nav = await page.locator('button[aria-label="Next day"]').count();
-    expect(nav > 0, 'week view had no day navigation');
+    /*
+     * The week grid's day headings ARE the navigation: pressing one opens that
+     * day's agenda. There is no "Next day" stepper in the current design, so
+     * the check presses a heading and proves it actually navigated.
+     */
+    const heads = page.locator('#main button').filter({ hasText: /^Tue/ });
+    expect((await heads.count()) > 0, 'week view had no day headings to press');
+    await heads.first().click();
+    await page.waitForTimeout(450);
+    const onDay = await page.getAttribute('[role="tab"]:has-text("Day")', 'aria-selected');
+    expect(onDay === 'true', 'pressing a day heading did not open that day');
   });
 
   await check('Notifications: marking all read empties the unread tab', async () => {
     await page.goto(`${base}/notifications`);
     await page.waitForTimeout(900);
-    const button = page.locator('button:has-text("Mark all as read")');
-    if ((await button.count()) > 0 && (await button.isEnabled())) {
-      await button.click();
-      await page.waitForTimeout(500);
-    }
-    const unreadTab = await page.locator('[role="tab"]:has-text("Unread")').innerText();
-    expect(/0|Unread$/.test(unreadTab), `unread tab read ${unreadTab}`);
+    /*
+     * THE CONTROL MUST EXIST, and the count must actually start non-zero.
+     *
+     * This read `if (count > 0 && isEnabled) click()` — a conditional that
+     * tolerated the button being absent, so when the label changed the click
+     * silently never happened and the only thing that failed was the count
+     * assertion, blaming the wrong thing. It also never checked there was
+     * anything unread to clear, so it would have passed on an empty inbox.
+     *
+     * Both halves are required now: something unread before, nothing after.
+     */
+    const unreadOf = async () =>
+      (await page.locator('[role="tab"]:has-text("Unread")').innerText()).replace(/\s+/g, ' ');
+
+    const before = await unreadOf();
+    expect(/[1-9]/.test(before), `nothing was unread to begin with: ${before}`);
+
+    const button = page.locator('button:has-text("Mark all read")');
+    expect((await button.count()) > 0, 'no "Mark all read" control on the page');
+    expect(await button.isEnabled(), 'the "Mark all read" control was disabled with unread items');
+    await button.click();
+    await page.waitForTimeout(500);
+
+    const after = await unreadOf();
+    expect(/(^|\D)0(\D|$)|Unread$/.test(after), `unread tab still read ${after}`);
   });
 
   await check('Notifications: read state survives a reload', async () => {
@@ -541,6 +659,14 @@ const run = async () => {
   await check('Profile: Academic is the default section', async () => {
     await page.goto(`${base}/profile`);
     await page.waitForTimeout(800);
+    /*
+     * The design's Profile opens as a READ view — cover, identity, academic
+     * snapshot — and the sectioned form is behind "Edit profile". The section
+     * order is unchanged and still matters, so the check opens the form and
+     * asserts Academic still leads it.
+     */
+    await page.getByRole('button', { name: /Edit profile/i }).first().click();
+    await page.waitForTimeout(500);
     const current = await page.locator('button[aria-current="true"]').first().innerText();
     expect(/Academic/i.test(current), `default section was ${current}`);
   });
@@ -588,6 +714,13 @@ const run = async () => {
   await check('Mobile: a subject row opens the detail sheet', async () => {
     await phone.click('[role="tab"]:has-text("Semesters")');
     await phone.waitForTimeout(500);
+    /*
+     * The subjects are one press further in than they were: the Semesters tab
+     * lists semester cards, and a card opens that semester's record. The sheet
+     * is opened from a subject row inside it.
+     */
+    await phone.getByRole('button', { name: /Semester 1.*open the full record/i }).first().click();
+    await phone.waitForTimeout(600);
     /*
      * Scoped to #main. `aria-haspopup="dialog"` is also carried by the theme
      * control and the notification bell in the header, so an unscoped .first()

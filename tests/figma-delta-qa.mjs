@@ -403,10 +403,24 @@ async function probeOverlays(browser, dist) {
       const dialog = document.querySelector('[role="dialog"]');
       if (dialog === null) return null;
       const focused = document.activeElement;
+      /*
+       * MODAL BY EITHER TECHNIQUE.
+       *
+       * The overlays here are modal in two different ways and both are
+       * correct. The Radix ones mark the rest of the tree `aria-hidden` and
+       * deliberately do NOT set `aria-modal`, because `aria-modal` has known
+       * problems in some screen readers; the hand-rolled command palette is
+       * not Radix and sets `aria-modal` instead. Asserting one technique
+       * would have forced the other overlay to adopt it — which is what this
+       * check did on its first version, and it was wrong to.
+       */
+      const hiddenBehind = [...document.body.children].some(
+        (node) => node.getAttribute('aria-hidden') === 'true' && node.contains(document.querySelector('#main')),
+      );
       return {
         tag: dialog.tagName + ' ' + String(dialog.className).slice(0, 40),
         count: document.querySelectorAll('[role="dialog"]').length,
-        modal: dialog.getAttribute('aria-modal'),
+        modal: dialog.getAttribute('aria-modal') === 'true' || hiddenBehind,
         named:
           dialog.getAttribute('aria-label') !== null ||
           dialog.getAttribute('aria-labelledby') !== null,
@@ -419,8 +433,10 @@ async function probeOverlays(browser, dist) {
     if (shape === null) {
       problems.push(`${name} ${appearance} ${String(width)}: nothing opened`);
     } else {
-      if (shape.modal !== 'true')
-        problems.push(`${name}: not aria-modal (${shape.tag}, ${String(shape.count)} dialogs)`);
+      if (!shape.modal)
+        problems.push(
+          `${name}: neither aria-modal nor hiding the page behind it (${shape.tag})`,
+        );
       if (!shape.named) problems.push(`${name}: the dialog has no accessible name`);
       if (!shape.focusInside) problems.push(`${name}: focus stayed outside the overlay`);
     }
