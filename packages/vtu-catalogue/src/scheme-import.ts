@@ -143,11 +143,36 @@ export interface ParsedScheme {
  * short of the total its own document prints, and the code was not missing
  * from the PDF at all — only from the pattern.
  *
- * Still anchored at `B`, so the 2025 family's `1BMATC101` does not match here.
- * That one-character difference is a different scheme, not a variant of this
- * one, and reading it as one would reattribute a course to the wrong year.
+ * THE LEADING DIGIT IS THE SCHEME GENERATION, AND IT IS OPTIONAL.
+ *
+ * This was anchored at `B`, with a comment saying the 2025 family's `1BMATC101`
+ * deliberately did not match because "that one-character difference is a
+ * different scheme, not a variant of this one". The first half of that is
+ * right and the second half does not follow. The 2025 scheme prints
+ *
+ *     1BCS301  1BCS302  1BCS303  1BCSL306  1BCSL307A  1BCP308  1BNSS309
+ *     1BMATDIP310
+ *
+ * which is this very shape with a generation digit in front of it — the same
+ * `B`, the same 2-to-7-letter department segment, the same three digits, the
+ * same optional suffix. It is one grammar with a generation marker, not two
+ * grammars, and `vtu-scheme.ts` has recognised it as one (`^1?B…`) since it
+ * was written.
+ *
+ * What actually keeps a 2025 course out of a 2022 student's catalogue is
+ * `scheme_year`, which is part of the identity (§18) and is read from the
+ * document's own heading. Refusing to READ the code never provided that
+ * separation; it only meant a 2025 document parsed to nothing at all, which
+ * looks exactly like a document with no courses in it.
+ *
+ * WHAT THIS DOES NOT CLAIM. That the 2025 codes are equivalent to any 2022
+ * code, that a 2025 document's LAYOUT is understood, or that any credit or
+ * applicability can be read from a document nobody has supplied. This is the
+ * code shape and nothing else.
  */
-const COURSE_CODE = /^B[A-Z]{2,7}\d{3}[A-Za-z]?$/;
+const GENERATION = String.raw`1?`;
+const CODE_SHAPE = String.raw`${GENERATION}B[A-Z]{2,7}\d{3}[A-Za-z]?`;
+const COURSE_CODE = new RegExp(`^${CODE_SHAPE}$`);
 
 /**
  * A CODE CELL THAT NAMES MORE THAN ONE CODE.
@@ -173,8 +198,10 @@ const COURSE_CODE = /^B[A-Z]{2,7}\d{3}[A-Za-z]?$/;
  * document actually prints. The row is read; the unprinted twin is not
  * invented (§1, §7).
  */
-const COMPOUND_CODES = /^B[A-Z]{2,7}\d{3}[A-Za-z]?(?:\/B[A-Z]{2,7}\d{3}[A-Za-z]?)+$/;
-const SHARED_TAIL = /^B([A-Z]{2,6})((?:\/[A-Z]{2,6})+)(\d{3}[A-Za-z]?)$/;
+const COMPOUND_CODES = new RegExp(`^${CODE_SHAPE}(?:/${CODE_SHAPE})+$`);
+const SHARED_TAIL = new RegExp(
+  String.raw`^(${GENERATION})B([A-Z]{2,6})((?:/[A-Z]{2,6})+)(\d{3}[A-Za-z]?)$`,
+);
 
 /**
  * THE RUNS A PDF EMITS ARE NOT THE CELLS A TABLE HAS.
@@ -350,7 +377,7 @@ const CODE_PIECE_GAP = 0.5;
  * against the compound grammar before it is believed — so a head that happens
  * to end in a slash joins nothing unless the result is two whole codes.
  */
-const WRAPPED_CODE_HEAD = /^B[A-Z]{2,7}\d{3}[A-Za-z]?\/[A-Z]{0,7}$/;
+const WRAPPED_CODE_HEAD = new RegExp(`^${CODE_SHAPE}/[A-Z]{0,7}$`);
 /** How many lines down its continuation may sit. */
 const WRAPPED_CODE_LINES = 1.6;
 
@@ -377,8 +404,16 @@ function codesIn(cell: string): string[] {
   if (COMPOUND_CODES.test(cell)) return cell.split('/');
   const shared = SHARED_TAIL.exec(cell);
   if (shared === null) return [];
-  const [, head, , tail] = shared as unknown as [string, string, string, string];
-  return [`B${head}${tail}`];
+  const [, generation, head, , tail] = shared as unknown as [
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
+  /* The generation digit travels with the code it belongs to, or the rebuilt
+   * code would name a different scheme's course than the cell printed. */
+  return [`${generation}B${head}${tail}`];
 }
 
 /*

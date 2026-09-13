@@ -428,14 +428,28 @@ describe('a course code longer than four letters', () => {
     expect(parsed.courses.reduce((sum, course) => sum + course.credits, 0)).toBe(7);
   });
 
-  it('still refuses the LATER scheme family, which differs by one character', () => {
+  it('keeps the LATER scheme family distinct instead of collapsing it onto this one', () => {
     /*
-     * `1BMATC101` contains `BMATC101`. Widening the letter count must not
-     * widen this: the leading digit is a different scheme year, and reading it
-     * as this one would reattribute a course to the wrong year (docs/22).
+     * THIS TEST USED TO ASSERT THAT THE ROW WAS DISCARDED, and the reason it
+     * gave was that "the leading digit is a different scheme year, and reading
+     * it as this one would reattribute a course to the wrong year".
+     *
+     * The danger is real and refusing to read the row never addressed it. A
+     * discarded row is not a row filed under the right year; it is a course
+     * missing from the catalogue, and a whole 2025 document parsed to nothing
+     * at all — which looks exactly like a document containing no courses.
+     *
+     * What actually prevents reattribution is that `scheme_year` is part of a
+     * course's identity, read from the document's own heading, so `BQQMAT101`
+     * and `1BQQMAT101` are two codes in two schemes and neither can overwrite
+     * the other. So the property worth asserting is the one below: the code is
+     * read EXACTLY as printed. The digit is never dropped, and never grown.
      */
-    const parsed = parseScheme(page(row(322, '1BQQMAT101', 'Invented Later-Scheme Course', 3)));
-    expect(parsed.courses).toHaveLength(0);
+    const later = parseScheme(page(row(322, '1BQQMAT101', 'Invented Later-Scheme Course', 3)));
+    expect(later.courses.map((course) => course.code)).toEqual(['1BQQMAT101']);
+
+    const earlier = parseScheme(page(row(322, 'BQQMAT101', 'Invented Course', 3)));
+    expect(earlier.courses.map((course) => course.code)).toEqual(['BQQMAT101']);
   });
 });
 
@@ -756,5 +770,114 @@ describe('the shapes a VTU code column actually prints', () => {
       ]),
     );
     expect(parsed.courses).toHaveLength(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+
+describe('the 2025 scheme generation', () => {
+  /*
+   * -------------------------------------------------------------------------
+   * WHAT IS REAL HERE, AND WHAT IS NOT
+   * -------------------------------------------------------------------------
+   *
+   * THE COURSE CODES ARE REAL. `1BCS301`, `1BCSL306`, `1BCSL307A`, `1BCP308`,
+   * `1BNSS309` and `1BMATDIP310` are printed in VTU's own CSBS 2025 scheme,
+   * https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf, and are reproduced here
+   * exactly as printed (§50). They are the evidence this grammar was measured
+   * against rather than reasoned toward.
+   *
+   * THE LAYOUT IS NOT. The x-positions below are the 2022 document's, because
+   * that is the layout this repository has 288 real documents of. No 2025 PDF
+   * has been supplied, so no claim is made here about 2025 column geometry,
+   * wrapped titles, option groups, or printed totals — the assertions are
+   * about which code shapes the reader RECOGNISES, which is the one thing the
+   * printed codes are evidence for.
+   *
+   * Titles and credits are invented, and are asserted only to show the row was
+   * read as a row. Nothing in this file should be read as a statement about
+   * what any 2025 course is worth.
+   */
+
+  const heading2025 = [
+    at('B.E. in Invented Studies', 313, 491),
+    at('Scheme of Teaching and Examinations 2025', 319, 477),
+    at('III SEMESTER', 56, 435),
+  ];
+
+  const page2025 = (...rows: readonly PositionedText[][]): SchemePage[] => [
+    { page: 1, items: [...heading2025, ...rows.flat()] },
+  ];
+
+  it('reads the codes VTU actually prints in the 2025 scheme', () => {
+    /*
+     * Before the generation digit was part of the grammar every one of these
+     * failed to match, so a 2025 document parsed to zero courses — which is
+     * indistinguishable from a document that contains none.
+     */
+    const parsed = parseScheme(
+      page2025(
+        row(322, '1BCS301', 'Invented Course One', 4),
+        row(300, '1BCSL306', 'Invented Laboratory', 1),
+        row(278, '1BCSL307A', 'Invented Optional Laboratory', 1),
+        row(256, '1BCP308', 'Invented Project', 2),
+        row(234, '1BNSS309', 'Invented Activity', 0),
+        row(212, '1BMATDIP310', 'Invented Bridge Course', 0),
+      ),
+    );
+
+    expect(parsed.courses.map((course) => course.code)).toEqual([
+      '1BCS301',
+      '1BCSL306',
+      '1BCSL307A',
+      '1BCP308',
+      '1BNSS309',
+      '1BMATDIP310',
+    ]);
+    expect(parsed.rejected).toHaveLength(0);
+  });
+
+  it('takes the scheme year from the document rather than from the code', () => {
+    /*
+     * §68: the year is stored at normalization time from what the document
+     * says, never inferred later from a filename or a leading digit. The
+     * digit marks a generation; the HEADING states the year.
+     */
+    const parsed = parseScheme(page2025(row(322, '1BCS301', 'Invented Course One', 4)));
+    expect(parsed.schemeYear).toBe('2025');
+  });
+
+  it('keeps a zero-credit row rather than dropping it', () => {
+    // Non-credit and mandatory-activity rows are part of the scheme (§9).
+    const parsed = parseScheme(page2025(row(322, '1BNSS309', 'Invented Activity', 0)));
+    expect(parsed.courses[0]).toMatchObject({ code: '1BNSS309', credits: 0 });
+  });
+
+  it('still reads a 2022 code, and does not grow a digit reading one', () => {
+    /*
+     * The regression that matters. `BCS301` and `1BCS301` are codes in two
+     * different schemes, and the generation digit is optional precisely so
+     * that neither is rewritten into the other.
+     */
+    const parsed = parseScheme(page(row(322, 'BQQ401', 'Invented Course One', 4)));
+    expect(parsed.courses[0]?.code).toBe('BQQ401');
+  });
+
+  it('carries the generation digit through a shared-tail code cell', () => {
+    /*
+     * `BTX/ST306x` is VTU's way of printing one row offered under two
+     * prefixes, and the reader rebuilds the first code from the parts. Rebuilt
+     * WITHOUT the generation it would name a 2022 course that the 2025 cell
+     * never printed.
+     */
+    const parsed = parseScheme(
+      page2025([
+        ...row(322, 'PLACEHOLDER', 'Invented Course', 4).filter(
+          (item) => item.text !== 'PLACEHOLDER',
+        ),
+        at('1BQX/ST306x', COL.code, 322),
+      ]),
+    );
+    expect(parsed.courses[0]?.code).toBe('1BQX306x');
   });
 });

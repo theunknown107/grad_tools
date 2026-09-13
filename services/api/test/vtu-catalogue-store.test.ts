@@ -184,6 +184,152 @@ describeDb('persisting the catalogue', () => {
     expect(rows).toHaveLength(2);
   });
 
+  /* ------------------------------------------------------------------ */
+  /* Two scheme years in one catalogue                                    */
+  /* ------------------------------------------------------------------ */
+
+  it('gives two scheme years their own namespace for the same course code', async () => {
+    /*
+     * §11: a code collision ACROSS scheme years must be legal. The same
+     * programme, the same semester, the same printed code, two schemes — two
+     * rows. Without the year in the key the second would overwrite the first,
+     * which is the stream defect above repeated one dimension over.
+     */
+    if (sql === null) return;
+    await upsertDocumentVersion(sql, version('a'));
+
+    const earlier = await upsertCourse(sql, course({ schemeYear: '2022', credits: 4 }));
+    const later = await upsertCourse(sql, course({ schemeYear: '2025', credits: 3 }));
+
+    expect([earlier, later]).toEqual(['inserted', 'inserted']);
+    const rows = await sql<{ scheme_year: string; credits: string }[]>`
+      SELECT scheme_year, credits FROM catalogue_courses
+      WHERE code = 'BQQ101' ORDER BY scheme_year`;
+    expect(rows.map((row) => row.scheme_year)).toEqual(['2022', '2025']);
+  });
+
+  it('stores the course codes VTU prints in the 2025 scheme', async () => {
+    /*
+     * The codes are real, from https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf
+     * — `1BCSL307A` and `1BMATDIP310` are the extremes of the shape. The
+     * column's CHECK constraint was written for the 2022 family and this is
+     * what proves it did not need widening for the 2025 one: the leading digit
+     * and the eleven-character form both already satisfy it.
+     *
+     * Titles and credits below are invented. No 2025 document has been
+     * supplied, so nothing here asserts what any of these courses is worth.
+     */
+    if (sql === null) return;
+    await upsertDocumentVersion(sql, version('a'));
+
+    const codes = ['1BCS301', '1BCSL306', '1BCSL307A', '1BCP308', '1BNSS309', '1BMATDIP310'];
+    for (const code of codes) {
+      const outcome = await upsertCourse(
+        sql,
+        course({ schemeYear: '2025', semester: 3, code, title: 'Invented Course', credits: 0 }),
+      );
+      expect(outcome).toBe('inserted');
+    }
+
+    const rows = await sql<{ code: string }[]>`
+      SELECT code FROM catalogue_courses WHERE scheme_year = '2025' ORDER BY code`;
+    expect(rows.map((row) => row.code)).toEqual([...codes].sort());
+  });
+
+  it('leaves the earlier scheme untouched when a later one is added', async () => {
+    /*
+     * §5 and §43, as something the database can be asked. The 2022 rows are
+     * written, photographed including `updated_at`, and then a whole 2025
+     * scheme is written beside them. If adding a scheme could disturb an
+     * existing one, this is where it would show.
+     */
+    if (sql === null) return;
+    await upsertDocumentVersion(sql, version('a'));
+    for (const semester of [1, 2, 3]) {
+      await upsertCourse(sql, course({ schemeYear: '2022', semester, code: `BQQ10${semester}` }));
+    }
+
+    const before = await sql`
+      SELECT id, code, credits, title, updated_at FROM catalogue_courses
+      WHERE scheme_year = '2022' ORDER BY code`;
+
+    for (const semester of [1, 2, 3]) {
+      await upsertCourse(
+        sql,
+        course({ schemeYear: '2025', semester, code: `1BQQ10${semester}`, credits: 2 }),
+      );
+    }
+
+    const after = await sql`
+      SELECT id, code, credits, title, updated_at FROM catalogue_courses
+      WHERE scheme_year = '2022' ORDER BY code`;
+    expect(after).toEqual(before);
+  });
+
+  it('answers a scheme-scoped query with only that scheme’s rows', async () => {
+    /*
+     * §80. The isolation the application relies on is a WHERE clause over a
+     * column, so it is worth one assertion that the column actually separates
+     * the two sets rather than merely existing.
+     */
+    if (sql === null) return;
+    await upsertDocumentVersion(sql, version('a'));
+    await upsertCourse(sql, course({ schemeYear: '2022', code: 'BQQ101' }));
+    await upsertCourse(sql, course({ schemeYear: '2025', code: '1BQQ101' }));
+
+    const earlier = await sql<{ code: string }[]>`
+      SELECT code FROM catalogue_courses WHERE scheme_year = '2022'`;
+    const later = await sql<{ code: string }[]>`
+      SELECT code FROM catalogue_courses WHERE scheme_year = '2025'`;
+
+    expect(earlier.map((row) => row.code)).toEqual(['BQQ101']);
+    expect(later.map((row) => row.code)).toEqual(['1BQQ101']);
+  });
+
+  it('writes a second scheme year idempotently', async () => {
+    /*
+     * §46/§76: a second identical run inserts nothing. Asserted for the NEW
+     * scheme specifically, because the identity index is the thing that had to
+     * accommodate it and an index that is subtly wrong reports every row as
+     * new on every run.
+     */
+    if (sql === null) return;
+    await upsertDocumentVersion(sql, version('a'));
+    const row = course({ schemeYear: '2025', code: '1BCS301', semester: 3 });
+
+    expect(await upsertCourse(sql, row)).toBe('inserted');
+    expect(await upsertCourse(sql, row)).toBe('unchanged');
+
+    const count = await sql<{ n: string }[]>`
+      SELECT count(*)::text AS n FROM catalogue_courses WHERE code = '1BCS301'`;
+    expect(count[0]?.n).toBe('1');
+  });
+
+  it('survives two normalizations racing on one course identity', async () => {
+    /*
+     * §77. Two sync invocations can reach the same row at the same time —
+     * the same document is linked from several programme rows, and the
+     * pipeline is not serialised. The guarantee has to come from the unique
+     * index and `ON CONFLICT`, not from the application happening to be
+     * single-threaded: one of the two writers must lose the insert and take
+     * the update path instead of raising a duplicate-key error.
+     */
+    if (sql === null) return;
+    await upsertDocumentVersion(sql, version('a'));
+    const row = course({ schemeYear: '2025', code: '1BCS302', semester: 3 });
+
+    const outcomes = await Promise.all([
+      upsertCourse(sql, row),
+      upsertCourse(sql, row),
+      upsertCourse(sql, row),
+    ]);
+
+    expect(outcomes.filter((outcome) => outcome === 'inserted')).toHaveLength(1);
+    const count = await sql<{ n: string }[]>`
+      SELECT count(*)::text AS n FROM catalogue_courses WHERE code = '1BCS302'`;
+    expect(count[0]?.n).toBe('1');
+  });
+
   it('reports a rewrite of identical values as unchanged', async () => {
     // §19 asks for zero unwanted catalogue changes, which is only checkable if
     // the writer can tell "same" from "written again".
