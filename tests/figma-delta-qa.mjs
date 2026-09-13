@@ -622,6 +622,62 @@ async function probeFonts(browser) {
   await context.close();
 }
 
+/**
+ * The shell's geometry, against the numbers the design states.
+ *
+ * These are the measurements a screenshot comparison keeps missing: a bar
+ * seven pixels too tall and a content inset with its two values the wrong way
+ * round both look fine in isolation and are wrong on every screen. Each number
+ * below is quoted from the Figma source beside it, so a future change to
+ * either side shows up here rather than in someone's eye.
+ */
+async function probeGeometry(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+
+  const measured = await page.evaluate(() => {
+    const header = document.querySelector('header');
+    const aside = document.querySelector('aside');
+    const main = document.querySelector('#main');
+    const nav = document.querySelector('aside nav a');
+    const style = main === null ? null : getComputedStyle(main);
+    return {
+      topbar: header === null ? null : Math.round(header.getBoundingClientRect().height),
+      sidebar: aside === null ? null : Math.round(aside.getBoundingClientRect().width),
+      mainMax: style?.maxWidth ?? null,
+      padTop: style === null ? null : Math.round(parseFloat(style.paddingTop)),
+      padLeft: style === null ? null : Math.round(parseFloat(style.paddingLeft)),
+      navHeight: nav === null ? null : Math.round(nav.getBoundingClientRect().height),
+    };
+  });
+
+  /* [what the design says] -> [what it should measure] */
+  const expected = [
+    ['topbar', 64, 'header h-16'],
+    ['sidebar', 256, 'aside w-[256px]'],
+    ['padTop', 32, 'main sm:py-8'],
+    ['padLeft', 40, 'main lg:px-10'],
+    ['navHeight', 40, 'nav row h-10'],
+  ];
+  for (const [key, want, from] of expected) {
+    checks += 1;
+    if (measured[key] !== want) {
+      problems.push(
+        `geometry: ${key} is ${String(measured[key])}, the design says ${String(want)} (${from})`,
+      );
+    }
+  }
+
+  checks += 1;
+  if (measured.mainMax !== '1180px') {
+    problems.push(`geometry: main max-width is ${String(measured.mainMax)}, expected 1180px`);
+  }
+
+  await context.close();
+}
+
 async function main() {
   if (!existsSync(DIST)) {
     console.error('apps/web/dist is missing. Run: pnpm --filter @gradtools/web build');
@@ -690,6 +746,7 @@ async function main() {
     await probeOverlays(browser, data);
     await probeStates(browser, data);
     await probeFonts(browser);
+    await probeGeometry(browser);
   } finally {
     await browser.close();
     server.close();

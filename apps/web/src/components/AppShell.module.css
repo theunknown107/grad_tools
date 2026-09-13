@@ -307,7 +307,20 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-6);
+  /*
+   * A FIXED 64px BAR, which is what the design draws (`h-16`).
+   *
+   * This was 16px of padding above and below whatever the tallest control
+   * happened to be — a 38px search field — so the bar came out at 71px and
+   * every page below it started 7px lower than the design puts it. The height
+   * is the measurement; the padding was only ever a way of guessing at it.
+   *
+   * `--header-height` already existed and already said 64px. Nothing had been
+   * using it.
+   */
+  block-size: var(--header-height);
+  flex: 0 0 auto;
+  padding-inline: var(--space-6);
   background: var(--surface);
   border-block-end: 1px solid var(--border);
 }
@@ -436,7 +449,16 @@
   inline-size: 100%;
   max-inline-size: 1180px;
   margin-inline: auto;
-  padding: var(--space-6);
+  /*
+   * The design's own inset, which is TALLER than it is wide until the widest
+   * breakpoint: `px-4 py-6`, then `sm:px-6 sm:py-8`, then `lg:px-10`.
+   *
+   * This was one uniform value at each width, and at 1024 and up it was the
+   * design's numbers the wrong way round — 40px above and below, 32px either
+   * side, where the design has 32 above and below and 40 either side. Every
+   * page on every wide screen sat in the wrong box.
+   */
+  padding: var(--space-7) var(--space-6);
 }
 
 /* Tablet: the sidebar becomes the reference's icon rail. */
@@ -495,7 +517,8 @@
   }
 
   .main {
-    padding: var(--space-4);
+    /* `px-4 py-6`, plus room for the bottom navigation. */
+    padding: var(--space-6) var(--space-4);
     padding-block-end: calc(var(--space-8) + 56px);
   }
 
@@ -675,8 +698,8 @@
 
 @media (min-width: 1024px) {
   .main {
-    padding: var(--space-8) var(--gutter);
-    padding-bottom: var(--space-8);
+    /* `lg:px-10` — the horizontal inset grows; the vertical one does not. */
+    padding: var(--space-7) var(--space-8);
   }
 
   .footer {
