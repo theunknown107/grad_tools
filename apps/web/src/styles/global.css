@@ -5,6 +5,8 @@
  * Everything here references tokens.css. No raw values.
  */
 
+/* The faces themselves, served from this origin. See fonts.css. */
+@import './fonts.css';
 @import './tokens.css';
 
 *,
