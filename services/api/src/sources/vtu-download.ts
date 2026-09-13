@@ -125,20 +125,47 @@ export function recordSupplied(
         ? 'changed'
         : 'supplied';
 
-  const entry: ManifestEntry = {
-    sha256: input.sha256,
-    byteSize: input.byteSize,
-    mimeType: 'application/pdf',
-    urls: known === null ? [input.url] : [...new Set([...known.urls, input.url])],
-    firstSeen: known?.firstSeen ?? input.capturedAt,
-    lastSeen: input.capturedAt,
-    etag: null,
-    lastModified: null,
-    acquisition: 'supplied',
-    capturedAt: known?.capturedAt ?? input.capturedAt,
-    sourceFilename: known?.sourceFilename ?? input.sourceFilename,
-    ...(input.pageCount === null ? {} : { pageCount: input.pageCount }),
-  };
+  /*
+   * SUPPLYING BYTES THAT ARE ALREADY HELD ADDS A REFERENCE. IT DOES NOT
+   * RESTATE WHERE THEY CAME FROM.
+   *
+   * This built one entry for both cases and stamped it `acquisition:
+   * 'supplied'` with `etag` and `lastModified` nulled. Every one of the 289
+   * documents in the store arrived by live fetch, so supplying any of them —
+   * an ordinary thing to do with a document you happen to hold — silently
+   * relabelled a live acquisition as a supplied one, and threw away the
+   * validators the conditional request depends on. `--changed-only` would then
+   * re-download a document the server would have said was unchanged.
+   *
+   * The bytes were acquired however they were FIRST acquired. That is a fact
+   * about the past and handing over an identical copy does not alter it.
+   */
+  const entry: ManifestEntry =
+    known === null
+      ? {
+          sha256: input.sha256,
+          byteSize: input.byteSize,
+          mimeType: 'application/pdf',
+          urls: [input.url],
+          firstSeen: input.capturedAt,
+          lastSeen: input.capturedAt,
+          etag: null,
+          lastModified: null,
+          acquisition: 'supplied',
+          capturedAt: input.capturedAt,
+          sourceFilename: input.sourceFilename,
+          ...(input.pageCount === null ? {} : { pageCount: input.pageCount }),
+        }
+      : {
+          ...known,
+          /* One document, several source references (§6). */
+          urls: [...new Set([...known.urls, input.url])],
+          lastSeen: input.capturedAt,
+          /* Filled in only where it was never recorded; never overwritten. */
+          ...(known.pageCount === undefined && input.pageCount !== null
+            ? { pageCount: input.pageCount }
+            : {}),
+        };
 
   return {
     state,
