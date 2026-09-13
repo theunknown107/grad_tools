@@ -348,6 +348,112 @@ async function probeRail(browser, dist) {
   await context.close();
 }
 
+/**
+ * The two overlays (Figma-port §24, §25).
+ *
+ * The command menu and the mobile More sheet are compositions the design
+ * specifies and no screenshot had ever contained, because both are closed
+ * until something opens them. Same rule as everywhere else in this file: it
+ * measures what can be measured and photographs the rest.
+ */
+async function probeOverlays(browser, dist) {
+  for (const [appearance, width, name, open] of [
+    ['light', 1280, 'command-menu', 'command'],
+    ['dark', 1280, 'command-menu', 'command'],
+    ['light', 390, 'more-sheet', 'more'],
+    ['dark', 390, 'more-sheet', 'more'],
+  ]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 900 },
+      colorScheme: appearance,
+      deviceScaleFactor: 1,
+    });
+    await context.addInitScript(
+      (mode) =>
+        window.localStorage.setItem(
+          'gradtools:v1:theme',
+          JSON.stringify({ appearance: mode, accent: 'mono' }),
+        ),
+      appearance,
+    );
+    const page = await context.newPage();
+    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+    await seed(page, dist);
+    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+
+    if (open === 'command') {
+      /* The shortcut, not the button: the shortcut is the thing the design
+         prints on the trigger, so it is the thing worth testing. */
+      await page.keyboard.press('Control+k');
+    } else {
+      await page.getByRole('button', { name: 'More' }).click();
+    }
+    await page.waitForTimeout(400);
+
+    const shape = await page.evaluate(() => {
+      const dialog = document.querySelector('[role="dialog"]');
+      if (dialog === null) return null;
+      const focused = document.activeElement;
+      return {
+        tag: dialog.tagName + ' ' + String(dialog.className).slice(0, 40),
+        count: document.querySelectorAll('[role="dialog"]').length,
+        modal: dialog.getAttribute('aria-modal'),
+        named:
+          dialog.getAttribute('aria-label') !== null ||
+          dialog.getAttribute('aria-labelledby') !== null,
+        /* Focus has to be INSIDE the overlay, or Tab walks the page behind it. */
+        focusInside: focused !== null && dialog.contains(focused),
+      };
+    });
+
+    checks += 1;
+    if (shape === null) {
+      problems.push(`${name} ${appearance} ${String(width)}: nothing opened`);
+    } else {
+      if (shape.modal !== 'true')
+        problems.push(`${name}: not aria-modal (${shape.tag}, ${String(shape.count)} dialogs)`);
+      if (!shape.named) problems.push(`${name}: the dialog has no accessible name`);
+      if (!shape.focusInside) problems.push(`${name}: focus stayed outside the overlay`);
+    }
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    checks += 1;
+    if (overflow > 0) problems.push(`${name} ${appearance}: horizontal overflow ${String(overflow)}px`);
+
+    await page.screenshot({ path: join(OUT, `${appearance}-${String(width)}-${name}.png`) });
+
+    /*
+     * §24: the control that opens this promises "results, courses, actions".
+     * Typing a course code the seeded student actually has must find it, or
+     * the promise on the trigger is one the palette does not keep.
+     */
+    if (open === 'command') {
+      await page.keyboard.type('BXXL504');
+      await page.waitForTimeout(250);
+      const hits = await page
+        .locator('[role="option"]')
+        .filter({ hasText: 'BXXL504' })
+        .count();
+      checks += 1;
+      if (hits === 0) problems.push(`${name}: searching a course code found nothing`);
+      for (let i = 0; i < 7; i += 1) await page.keyboard.press('Backspace');
+      await page.waitForTimeout(200);
+    }
+
+    /* Escape closes it, and closing is not optional. */
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    checks += 1;
+    if ((await page.locator('[role="dialog"]').count()) > 0) {
+      problems.push(`${name}: Escape did not close it`);
+    }
+
+    await context.close();
+  }
+}
+
 async function main() {
   if (!existsSync(DIST)) {
     console.error('apps/web/dist is missing. Run: pnpm --filter @gradtools/web build');
@@ -413,6 +519,7 @@ async function main() {
     }
 
     await probeRail(browser, data);
+    await probeOverlays(browser, data);
   } finally {
     await browser.close();
     server.close();
