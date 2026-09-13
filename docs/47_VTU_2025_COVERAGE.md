@@ -225,11 +225,11 @@ Credit basis across the 187 published rows: 63 `table`, 108 `slot`,
 | Extracted | — | 280 | 0 |
 | Course readings | — | 3603 | 0 |
 | Distinct published rows | 187 | — | 0 |
-| Distinct course codes | — | 2085 | 0 |
+| Distinct course codes | — | 2085 *(per [39](39_VTU_2022_COVERAGE.md), not re-measured here)* | 0 |
 | Syllabi / modules / topics | — | 2014 / 8002 / 9065 | 0 / 0 / 0 |
 | Option groups / memberships | — | 493 / 1919 | 0 / 0 |
 | Aliases | 1 | 1 | 0 |
-| Conflicts | 0 | 12 open | 0 |
+| Conflicts | 0 | 12 open *(per the sync ledger)* | 0 |
 | Semester coverage | 1–8 across three scopes | — | none |
 
 Four numbers that are not the same number, kept apart deliberately: documents,
