@@ -349,37 +349,6 @@
   line-height: var(--text-caption-lh);
 }
 
-.semesterFigures {
-  display: flex;
-  gap: var(--space-5);
-  margin: 0;
-}
-
-.semesterFigures div {
-  display: grid;
-  gap: 1px;
-}
-
-.semesterFigures dt {
-  color: var(--text-subtle);
-  font-size: var(--text-micro);
-  line-height: var(--text-micro-lh);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
-.semesterFigures dd {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--text-h3);
-  line-height: var(--text-h3-lh);
-  font-variant-numeric: tabular-nums;
-}
-
-.semesterFigures dd[data-muted='true'] {
-  color: var(--text-muted);
-}
-
 /* --- Table vs rows -------------------------------------------------------- */
 
 .tableWide {
