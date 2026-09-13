@@ -209,7 +209,12 @@
   padding: 0 14px;
   border: 1px solid transparent;
   border-radius: var(--radius-lg);
-  font-size: var(--text-small);
+  /*
+   * 14px, which is the design's `text-sm` on its medium button. This read
+   * `--text-small` — 13px — so every button in the product sat one step below
+   * the label beside it.
+   */
+  font-size: var(--text-body);
   font-weight: var(--weight-medium);
   cursor: pointer;
   white-space: nowrap;
