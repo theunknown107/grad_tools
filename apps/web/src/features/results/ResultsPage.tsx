@@ -1213,23 +1213,6 @@ function SavedResult({
           </span>
         </div>
 
-        <dl className={styles.semesterFigures}>
-          <div>
-            <dt>SGPA</dt>
-            <dd>{sgpa === null ? '—' : formatGpa(sgpa)}</dd>
-          </div>
-          {asserted !== null ? (
-            <div>
-              <dt>Grade card</dt>
-              <dd data-muted="true">{formatGpa(asserted)}</dd>
-            </div>
-          ) : null}
-          <div>
-            <dt>Backlogs</dt>
-            <dd>{undetermined > 0 ? `${String(backlogs)}+` : String(backlogs)}</dd>
-          </div>
-        </dl>
-
         <DropdownMenu
           label={`Actions for semester ${String(result.semester)}`}
           items={[
@@ -1238,6 +1221,44 @@ function SavedResult({
           ]}
         />
       </div>
+
+      {/*
+        THE DESIGN'S METRIC GRID, where a cramped figure strip used to be.
+        
+        The record's headline figures were three `dt`/`dd` pairs wedged into
+        the heading row beside a kebab menu. The design gives a semester's
+        detail a row of instrument tiles, which is the same treatment every
+        other summary in this product gets — and the heading stops competing
+        with the numbers for the same line.
+        
+        The design's third tile is "Grade points". This product does not state
+        a credit-weighted grade-point total anywhere: the figure exists per
+        course, attributed, in the row you expand, and summing it here would
+        re-implement what `calculateSGPA` owns. Subjects takes that slot —
+        a figure this record can state exactly.
+      */}
+      <MetricStrip
+        metrics={[
+          {
+            label: 'SGPA',
+            value: sgpa === null ? 'Unavailable' : formatGpa(sgpa),
+            /* The printed figure, where it differs from the calculated one. */
+            ...(asserted !== null ? { note: `Grade card ${formatGpa(asserted)}` } : {}),
+          },
+          {
+            label: 'Credits',
+            value: credits > 0 ? String(credits) : 'Not recorded',
+          },
+          { label: 'Subjects', value: String(result.subjects.length) },
+          {
+            label: 'Backlogs',
+            value: undetermined > 0 ? `${String(backlogs)}+` : String(backlogs),
+            ...(undetermined > 0
+              ? { note: `${String(undetermined)} could not be checked`, tone: 'warning' as const }
+              : {}),
+          },
+        ]}
+      />
 
       {discrepancy ? (
         <p className={styles.mismatch}>

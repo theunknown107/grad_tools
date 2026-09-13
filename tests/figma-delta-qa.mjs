@@ -131,6 +131,15 @@ function seedData() {
       sgpaAsserted: null,
       updatedAt: '2026-09-01T00:00:00.000Z',
       subjects: subjects.map(([code, title, credits], i) => ({
+        /*
+         * `id` IS THE IDENTITY, and it was missing.
+         *
+         * ResultSubject requires one; this fixture left it out, so every row
+         * compared `undefined === undefined` when the table asked which row is
+         * expanded — and opening one course opened all of them. A defect in
+         * the fixture that looked exactly like a defect in the page.
+         */
+        id: `${String(n)}-${code}`,
         subjectCode: code,
         subjectTitle: title,
         credits,
@@ -454,6 +463,98 @@ async function probeOverlays(browser, dist) {
   }
 }
 
+/**
+ * States that only exist after a click.
+ *
+ * A tab nobody switches to and a row nobody expands are compositions the
+ * design specifies and no screenshot contains. Same contract as the rest of
+ * this file: measure the measurable, photograph the rest.
+ */
+async function probeStates(browser, dist) {
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    colorScheme: 'light',
+    deviceScaleFactor: 1,
+  });
+  await context.addInitScript(() =>
+    window.localStorage.setItem(
+      'gradtools:v1:theme',
+      JSON.stringify({ appearance: 'light', accent: 'mono' }),
+    ),
+  );
+  const page = await context.newPage();
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await seed(page, dist);
+
+  /* Results → Semesters tab. */
+  await page.goto(`http://localhost:${PORT}/results`, { waitUntil: 'networkidle' });
+  await page.getByRole('tab', { name: /Semesters/ }).click();
+  await page.waitForTimeout(300);
+  /*
+   * The tab's own panel has semester cards in it. Counted by their heading
+   * text rather than by tag: the card is whatever element it needs to be, and
+   * a selector that guesses at the tag reports the page broken when it is the
+   * selector that is wrong.
+   */
+  checks += 1;
+  const semesterCards = await page
+    .locator('[role="tabpanel"]')
+    .filter({ hasText: /Semester\s*\d/i })
+    .count();
+  if (semesterCards === 0) {
+    const seen = await page.locator('[role="tabpanel"]').count();
+    problems.push(
+      `results: the Semesters tab rendered no semester cards (${String(seen)} panels)`,
+    );
+  }
+  await page.screenshot({ path: join(OUT, 'light-1280-results-semesters.png'), fullPage: true });
+
+  /*
+   * Results → a semester opened → a course expanded.
+   *
+   * This product's result detail is not a route: pressing a semester row on
+   * Overview switches to the Semesters tab and opens that record there. So the
+   * drill-in has to be driven, not navigated to.
+   */
+  await page.getByRole('tab', { name: /Overview/ }).click();
+  await page.waitForTimeout(250);
+  await page.getByRole('button', { name: /^S\d\s*Semester \d/ }).first().click();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: join(OUT, 'light-1280-results-open.png'), fullPage: true });
+
+  /* Inside the table: the topbar's rail toggle is also an [aria-expanded]. */
+  const subject = page.locator('table [aria-expanded]').first();
+  checks += 1;
+  if ((await subject.count()) === 0) {
+    problems.push('results: an opened semester offers no course to expand');
+  } else {
+    await subject.click();
+    await page.waitForTimeout(350);
+    checks += 1;
+    if ((await subject.getAttribute('aria-expanded')) !== 'true') {
+      problems.push('results: expanding a course did not mark it expanded');
+    }
+    /* ONE row, not all of them. */
+    checks += 1;
+    const openRows = await page.locator('table [aria-expanded="true"]').count();
+    if (openRows !== 1) {
+      problems.push(`results: expanding one course opened ${String(openRows)} of them`);
+    }
+    await page.screenshot({ path: join(OUT, 'light-1280-results-course.png'), fullPage: true });
+  }
+
+  /* SGPA → the calculator tab. */
+  await page.goto(`http://localhost:${PORT}/academics`, { waitUntil: 'networkidle' });
+  const calc = page.getByRole('tab', { name: /Calculator/i });
+  if ((await calc.count()) > 0) {
+    await calc.first().click();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(OUT, 'light-1280-sgpa-calculator.png'), fullPage: true });
+  }
+
+  await context.close();
+}
+
 async function main() {
   if (!existsSync(DIST)) {
     console.error('apps/web/dist is missing. Run: pnpm --filter @gradtools/web build');
@@ -520,6 +621,7 @@ async function main() {
 
     await probeRail(browser, data);
     await probeOverlays(browser, data);
+    await probeStates(browser, data);
   } finally {
     await browser.close();
     server.close();
