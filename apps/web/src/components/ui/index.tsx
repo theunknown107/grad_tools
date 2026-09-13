@@ -32,7 +32,6 @@ export function Panel({
   children,
   flush = false,
   tone = 'default',
-  material = 'glass',
 }: {
   title?: string | undefined;
   /**
@@ -49,14 +48,6 @@ export function Panel({
   flush?: boolean | undefined;
   /** `attention` tints the heading. At most one per screen. */
   tone?: 'default' | 'attention' | undefined;
-  /**
-   * `quiet` drops the surface entirely and keeps only a hairline (M9.6C §7).
-   *
-   * Glass has to MARK hierarchy, which it cannot do if everything is glass. An
-   * ordinary list — a set of links, a schedule — is quiet; a group that owns
-   * its content and should read as elevated stays glass.
-   */
-  material?: 'glass' | 'quiet' | undefined;
 }) {
   /*
    * A FLUSH panel gets a banded heading, because it draws its own rows.
@@ -73,7 +64,6 @@ export function Panel({
     <section
       className={styles.panel}
       data-tone={tone}
-      data-material={material}
       data-banded={banded ? 'true' : undefined}
     >
       {title !== undefined && (

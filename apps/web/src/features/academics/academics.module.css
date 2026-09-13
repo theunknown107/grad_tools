@@ -120,6 +120,13 @@
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+  /*
+   * The design sets this figure in the accent's own ink, on the accent-tinted
+   * block it sits in. It was inheriting the body colour, so the one surface on
+   * this page that carries the accent had a figure that did not — under Mono
+   * identical, under every colour theme a tinted box with a black number in it.
+   */
+  color: var(--accent-pastel-ink);
 }
 
 .answerPlaceholder {
