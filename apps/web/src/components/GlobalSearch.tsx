@@ -36,6 +36,7 @@
 
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -47,6 +48,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Icon, type IconName } from './icons.js';
 import { useDismissable, useFocusTrap } from '../hooks/useDismissable.js';
+import { useSubjectIndex } from '../hooks/useSubjectIndex.js';
 import styles from './GlobalSearch.module.css';
 
 interface Destination {
@@ -148,12 +150,28 @@ const DESTINATIONS: readonly Destination[] = [
   },
 ];
 
-/** A flat row in the rendered list, so one index walks every group. */
-type Row = { readonly kind: 'destination'; readonly item: Destination };
+/**
+ * One row, whatever produced it.
+ *
+ * The list used to hold destinations and nothing else, while the control that
+ * opens it promised "results, courses, actions" — so a student who typed a
+ * course code got "Nothing matches". A course the student has a record for is
+ * now a row of its own.
+ *
+ * `key` rather than `to` as the identity: two rows can lead to the same page.
+ */
+interface Row {
+  readonly key: string;
+  readonly to: string;
+  readonly title: string;
+  readonly description: string;
+  readonly icon: IconName;
+  readonly group: string;
+  readonly keywords?: string | undefined;
+}
 
-function matches(destination: Destination, query: string): boolean {
-  const haystack =
-    `${destination.title} ${destination.description} ${destination.keywords ?? ''}`.toLowerCase();
+function matches(row: Row, query: string): boolean {
+  const haystack = `${row.title} ${row.description} ${row.keywords ?? ''}`.toLowerCase();
   return query
     .toLowerCase()
     .split(/\s+/)
@@ -187,22 +205,65 @@ export function GlobalSearch({
 
   const trimmed = query.trim();
 
-  const destinations = useMemo(
-    () => (trimmed === '' ? DESTINATIONS : DESTINATIONS.filter((d) => matches(d, trimmed))),
-    [trimmed],
-  );
+  /*
+   * THE STUDENT'S OWN COURSES, from their own records.
+   *
+   * The subject index is the product's one answer to "what is this code
+   * called" — built from results, attendance, the timetable, backlogs and the
+   * semester plan, all local. Nothing is fetched and nothing is invented: a
+   * course appears here only because the student's records mention it, and a
+   * code with no title anywhere is listed under its code, which is what every
+   * other screen does with it.
+   *
+   * They lead to Results, because that is where a course's marks are.
+   */
+  const { index: subjects } = useSubjectIndex();
+
+  const allRows = useMemo<readonly Row[]>(() => {
+    const destinations = DESTINATIONS.map(
+      (item): Row => ({
+        key: `page:${item.to}`,
+        to: item.to,
+        title: item.title,
+        description: item.description,
+        icon: item.icon,
+        group: item.group,
+        keywords: item.keywords,
+      }),
+    );
+
+    const courses = [...subjects.values()]
+      .map((identity): Row => {
+        const title = identity.canonicalTitle ?? identity.titles[0]?.title ?? null;
+        return {
+          key: `course:${identity.code}`,
+          to: '/results',
+          title: identity.code,
+          description: title ?? 'Recorded in your own results',
+          icon: 'results',
+          group: 'Courses',
+          ...(title === null ? {} : { keywords: title }),
+        };
+      })
+      .sort((a, b) => a.title.localeCompare(b.title));
+
+    return [...destinations, ...courses];
+  }, [subjects]);
 
   const rows = useMemo<readonly Row[]>(
-    () => destinations.map((item): Row => ({ kind: 'destination', item })),
-    [destinations],
+    () => (trimmed === '' ? allRows : allRows.filter((row) => matches(row, trimmed))),
+    [allRows, trimmed],
   );
+
+  /* The groups, in the order their first row appears. */
+  const groups = useMemo(() => [...new Set(rows.map((row) => row.group))], [rows]);
 
   useEffect(() => setActive(0), [rows.length]);
 
   const go = useCallback(
     (row: Row) => {
       onClose();
-      navigate(row.item.to);
+      navigate(row.to);
     },
     [navigate, onClose],
   );
@@ -241,7 +302,7 @@ export function GlobalSearch({
             ref={inputRef}
             type="search"
             className={styles.input}
-            placeholder="Search pages…"
+            placeholder="Search or jump to…"
             value={query}
             role="combobox"
             aria-expanded="true"
@@ -261,35 +322,46 @@ export function GlobalSearch({
             </p>
           ) : null}
 
-          {destinations.length > 0 ? <p className={styles.group}>Go to</p> : null}
-          {destinations.map((item) => {
-            index += 1;
-            const rowIndex = index;
-            return (
-              <div
-                key={item.to}
-                id={`search-row-${String(rowIndex)}`}
-                role="option"
-                aria-selected={rowIndex === active}
-                data-active={rowIndex === active}
-                className={styles.row}
-                onPointerEnter={() => setActive(rowIndex)}
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  go({ kind: 'destination', item });
-                }}
-              >
-                <span className={styles.rowIcon}>
-                  <Icon name={item.icon} size="nav" />
-                </span>
-                <span className={styles.rowText}>
-                  <span className={styles.rowTitle}>{item.title}</span>
-                  <span className={styles.rowHint}>{item.description}</span>
-                </span>
-                <span className={styles.rowGroup}>{item.group}</span>
-              </div>
-            );
-          })}
+          {/*
+            GROUPED, in the order the groups first appear — the design heads
+            each run of rows with its own label. One flat index still walks
+            every row, so the arrow keys cross a group boundary without
+            noticing it.
+          */}
+          {groups.map((group) => (
+            <Fragment key={group}>
+              <p className={styles.group}>{group}</p>
+              {rows
+                .filter((row) => row.group === group)
+                .map((row) => {
+                  index += 1;
+                  const rowIndex = index;
+                  return (
+                    <div
+                      key={row.key}
+                      id={`search-row-${String(rowIndex)}`}
+                      role="option"
+                      aria-selected={rowIndex === active}
+                      data-active={rowIndex === active}
+                      className={styles.row}
+                      onPointerEnter={() => setActive(rowIndex)}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        go(row);
+                      }}
+                    >
+                      <span className={styles.rowIcon}>
+                        <Icon name={row.icon} size="nav" />
+                      </span>
+                      <span className={styles.rowText}>
+                        <span className={styles.rowTitle}>{row.title}</span>
+                        <span className={styles.rowHint}>{row.description}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+            </Fragment>
+          ))}
         </div>
 
         <div className={styles.foot}>

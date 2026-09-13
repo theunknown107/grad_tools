@@ -72,7 +72,12 @@ export function Sheet({
     >
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={`${styles.overlay ?? ''} surfaceScrim`} />
-        <DialogPrimitive.Content className={`${styles.panel ?? ''} surfacePanel`} data-side={side}>
+        <DialogPrimitive.Content
+          className={`${styles.panel ?? ''} surfacePanel`}
+          data-side={side}
+          /* See the note in Dialog.tsx: Radix does not set this. */
+          aria-modal="true"
+        >
           <div className={styles.head}>
             <div className={styles.heading}>
               <DialogPrimitive.Title className={styles.title}>{title}</DialogPrimitive.Title>

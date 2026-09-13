@@ -33,7 +33,7 @@
 import { Icon, type IconName } from './icons.js';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ThemeControl } from './ThemeControl.js';
+import { APPEARANCE_META, ThemeControl } from './ThemeControl.js';
 import { GlobalSearch, OpenSearchProvider, useSearchHotkey } from './GlobalSearch.js';
 import { NotificationInbox } from './NotificationInbox.js';
 import { Sheet } from './ui/Sheet.js';
@@ -41,6 +41,8 @@ import { TooltipProvider } from './ui/Tooltip.js';
 import { ToastProvider } from './ui/Toast.js';
 import { useAnnouncements, useNotifications } from '../hooks/useAnnouncements.js';
 import { useProfile } from '../hooks/useCollection.js';
+import { useTheme } from '../hooks/useTheme.js';
+import { APPEARANCES } from '../lib/theme.js';
 import { Avatar } from './ui/Avatar.js';
 import styles from './AppShell.module.css';
 
@@ -222,6 +224,8 @@ export function AppShell({ children }: { children: ReactNode }) {
    * the name in the chrome and the name on the Profile page cannot disagree.
    */
   const { profile } = useProfile();
+  /* For the sheet's appearance row; the topbar's control reads the same hook. */
+  const { preference, setAppearance } = useTheme();
 
   /*
    * AN EMPTY STRING IS NOT A NAME.
@@ -524,6 +528,33 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </div>
                   </Fragment>
                 ))}
+
+                {/*
+                  APPEARANCE, at the foot of the sheet, as the design has it.
+                  The topbar's theme control is one tap away, but this sheet is
+                  where "everything else" lives on a phone, and a person who
+                  opened it looking for settings should not have to close it
+                  again to change the theme.
+                */}
+                <span className={styles.sideGroup}>Appearance</span>
+                <div className={styles.moreGrid}>
+                  {APPEARANCES.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={`${styles.moreLink ?? ''} ${
+                        preference.appearance === option ? (styles.moreLinkActive ?? '') : ''
+                      }`}
+                      aria-pressed={preference.appearance === option}
+                      onClick={() => {
+                        setAppearance(option);
+                      }}
+                    >
+                      <Icon name={APPEARANCE_META[option].icon} size="nav" />
+                      {APPEARANCE_META[option].label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </Sheet>
 
