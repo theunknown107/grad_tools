@@ -79,8 +79,9 @@
   inset-block-end: 0;
   inline-size: 100%;
   max-block-size: 86vh;
-  border-start-start-radius: var(--radius-xl);
-  border-start-end-radius: var(--radius-xl);
+  /* `rounded-t-2xl` on the design's bottom overlay. */
+  border-start-start-radius: var(--radius-2xl);
+  border-start-end-radius: var(--radius-2xl);
   /* Clear of the home indicator, so the footer action is reachable. */
   padding-block-end: env(safe-area-inset-bottom, 0px);
   animation: slideInBottom var(--motion-base) var(--ease-spring);

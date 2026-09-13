@@ -340,6 +340,20 @@ const SHAPES = {
    * rotated, so "collapse" and "expand" are visibly different actions rather
    * than the same arrow pointing two ways.
    */
+  /* The design's Rows3 and Rows4, on the density control. Three bands of air
+     against four of the same height: the glyph is the difference it makes. */
+  rowsComfortable: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M3 9.3h18M3 14.7h18" />
+    </>
+  ),
+  rowsCompact: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M3 8h18M3 12h18M3 16h18" />
+    </>
+  ),
   /* The design's Clock, on the card that says what is on today. */
   clock: (
     <>

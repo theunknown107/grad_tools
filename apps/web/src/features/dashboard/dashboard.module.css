@@ -271,7 +271,10 @@
   display: grid;
   gap: var(--space-6);
   padding: var(--space-6);
-  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  /* `rounded-2xl`, which the design reserves for surfaces like this one. */
+  border-radius: var(--radius-2xl);
 }
 
 @media (min-width: 640px) {

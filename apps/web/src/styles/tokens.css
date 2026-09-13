@@ -597,16 +597,41 @@
   --focus-ring-offset: 2px;
 
   /* --- Spacing (4px base scale) ------------------------------------------ */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-7: 32px;
-  --space-8: 40px;
-  --space-9: 48px;
-  --space-10: 64px;
+  /*
+   * ONE MULTIPLIER DRIVES THE WHOLE SCALE.
+   *
+   * The design expresses density by moving Tailwind's spacing base from
+   * 0.25rem to 0.222rem — one variable, and every padding, margin and gap in
+   * the system tightens by the same ratio. This is the same idea in this
+   * architecture's terms: 660 spacing declarations here already read a
+   * `--space-*` token, so scaling the scale scales all of them at once.
+   *
+   * 0.888 is that ratio (0.222 / 0.25).
+   *
+   * WHAT DELIBERATELY DOES NOT SCALE, and why this is not a partial job:
+   *
+   * Control HEIGHTS stay put. The design's density shrinks its sized
+   * utilities too, so a 40px row becomes 35px and a 44px target becomes 39px.
+   * That is below the minimum a thumb can reliably hit, and docs/27 §27.6
+   * treats 44px as a floor rather than a preference. Density here changes the
+   * space BETWEEN things, not the size of the things you press — which is the
+   * deviation §7 of the brief asks for rather than the one it forbids.
+   *
+   * Values below the scale's own base — hairlines, 2px nudges, the 6px gap
+   * between a label and its figure — are optical corrections rather than
+   * scale steps, and they stay put for the same reason a border does.
+   */
+  --density: 1;
+  --space-1: calc(4px * var(--density));
+  --space-2: calc(8px * var(--density));
+  --space-3: calc(12px * var(--density));
+  --space-4: calc(16px * var(--density));
+  --space-5: calc(20px * var(--density));
+  --space-6: calc(24px * var(--density));
+  --space-7: calc(32px * var(--density));
+  --space-8: calc(40px * var(--density));
+  --space-9: calc(48px * var(--density));
+  --space-10: calc(64px * var(--density));
 
   /* --- Layout ------------------------------------------------------------ */
   --gutter: var(--space-4);
@@ -752,6 +777,20 @@
      a document surface. */
   --radius-lg: 14px;
   --radius-xl: 18px;
+  /*
+   * 16px, and it sits BETWEEN the two above rather than past them.
+   *
+   * That looks like a mistake and is not one: the design overrides Tailwind's
+   * `lg` and `xl` to 14 and 18 and leaves `2xl` at its default 16, so its own
+   * scale runs 14, 18, 16. What `rounded-2xl` marks there is not "a larger
+   * card" — it is a different KIND of surface: the dashboard hero, the command
+   * palette, dialogs, the bottom sheet, the drop target, the 404 tile. Things
+   * that float or that you drop onto, rather than things that sit in the page.
+   *
+   * Without it every one of those was 2px out, in one direction or the other,
+   * depending on which of the two existing steps had been reached for.
+   */
+  --radius-2xl: 16px;
   --radius-pill: 999px;
 
   /* --- Shadows ------------------------------------------------------------ */
@@ -1049,6 +1088,21 @@
 
   --shadow-sm: 0 1px 2px rgb(16 24 44 / 8%), 0 2px 6px -2px rgb(16 24 44 / 11%);
   --shadow-md: 0 12px 32px -16px rgb(16 24 44 / 26%);
+}
+
+/* ========================================================================== */
+/* Density, by choice                                                         */
+/* ========================================================================== */
+
+/*
+ * The compact state. One declaration, because one multiplier drives the scale.
+ *
+ * Set by `applyTheme` from the stored preference, the same way the appearance
+ * and the accent are, so it survives a reload and is applied before first
+ * paint rather than after React has mounted.
+ */
+:root[data-density='compact'] {
+  --density: 0.888;
 }
 
 /* ========================================================================== */

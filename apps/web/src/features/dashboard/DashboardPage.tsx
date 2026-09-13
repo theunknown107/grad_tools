@@ -240,7 +240,12 @@ export function DashboardPage() {
             counts semesters the rules engine has actually graded — there is
             no credit requirement in the domain, so none is invented here.
           */}
-          <section className={`${styles.hero ?? ''} surfaceCard`} aria-labelledby="brief-title">
+          {/*
+            NOT `surfaceCard`. That utility carries its own radius, and the
+            hero carries a different one — so the two fought and whichever
+            loaded last won. The hero states its whole material itself.
+          */}
+          <section className={styles.hero} aria-labelledby="brief-title">
             <div className={styles.heroMain}>
               <div className={styles.heroBadges}>
                 {profile?.branch !== undefined && profile.branch !== '' && (
