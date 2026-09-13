@@ -30,6 +30,10 @@ membership — so they establish the code grammar and cannot produce a single
 catalogue row. See [What 2025 material is actually
 here](#what-2025-material-is-actually-here).
 
+The 2025 SCHEME documents are absent under any name: 288 cached extractions,
+72 local PDFs and 11 archives were searched by CONTENT rather than by filename,
+and none is a 2025 scheme. See [The local search](#the-local-search-by-content-rather-than-by-filename).
+
 `NO SOURCE` is deliberately not `CANDIDATE`. A candidate is data that has been
 through the pipeline and failed, or that awaits review. Nothing has been
 through the pipeline, and calling an empty set a candidate would misrepresent
@@ -133,6 +137,34 @@ scheme or syllabus documents, their official URLs are not known here, and
 one. Storing them would put rows in the catalogue's provenance chain that
 cannot answer the questions the catalogue is asked.
 
+## The local search, by content rather than by filename
+
+Asked again whether the 2025 scheme bytes are anywhere on this machine, and
+this time not trusting filenames:
+
+| Where | Scanned | 2025-scheme documents |
+| --- | --- | --- |
+| `.vtu-store` cached extractions | 288 | **0** |
+| Downloads, OneDrive, repository | 72 PDFs | **0** |
+| Local archives (`.zip`) | 11 | **0** |
+
+**The store.** Four of the 288 mention 2025 in a scheme context. All four are
+2022-scheme documents whose "2025" is a `DDMMYYYY` revision stamp —
+`05052025`, `26062025` — printed in a page footer. Each states *"Scheme of
+Teaching and Examinations 2022"* in its own heading. None contains a `1B…`
+code. A scan keyed on the digits alone would have called all four 2025 material.
+
+**The filesystem.** Eight of the 72 PDFs carry a 2025 marker. Six are the
+question papers listed above. Two are personal tax documents whose only match
+is an assessment year; they were identified as unrelated private material and
+not examined further.
+
+**The archives.** `CSBS22 Docs.zip` holds the same eight 2022 documents as the
+unpacked folder. No other archive contains VTU scheme material.
+
+So the conclusion of the previous phase survives a much stricter test: the 2025
+scheme documents are not here under any name.
+
 ## Mode B had no door for documents
 
 The previous phase reported 2025 as blocked on bytes. Investigating how those
@@ -160,9 +192,43 @@ content-addressed store and the same manifest the downloader writes, so
 everything downstream cannot tell the difference except by reading the
 provenance that says so.
 
-Verified against a real official VTU PDF (the 2022 CSBS scheme, already held):
-246 571 bytes, 14 pages, hash `60ed0ab331251d52…`, outcome `already_present` —
-the content-addressed identity recognises bytes it already has.
+Verified end to end against a real official VTU PDF (the 2022 CSBS scheme,
+already held): 246 571 bytes, 14 pages, hash `60ed0ab331251d52…`, outcome
+`already_present` — the content-addressed identity recognises bytes it already
+has, and the run added no duplicate row. The manifest was restored afterwards,
+so the store is byte-identical to before the check.
+
+### A bug that run found
+
+Supplying bytes the store ALREADY HOLDS went through a merge path that rebuilt
+the entry from scratch: it stamped `acquisition: 'supplied'` and set `etag` and
+`lastModified` to null.
+
+Every one of the 289 documents in the store arrived by live fetch, so supplying
+any of them — an ordinary thing to do with a copy you happen to hold — would
+have relabelled a live acquisition as a supplied one, which is false about the
+past, and destroyed the validators a conditional request depends on, so
+`--changed-only` would re-download a document the server would have reported
+unchanged.
+
+The bytes were acquired however they were FIRST acquired, and handing over an
+identical copy does not alter that. Supplying known bytes now adds a source
+reference and advances `lastSeen`; it fills in a page count only where none was
+recorded, and overwrites nothing. Covered by a regression test, checked by
+mutation.
+
+### The Mode B bargain, concretely
+
+That verification run supplied the URL `…/pdf/2022syll/38csbssch.pdf`. The
+manifest records the document's real URL as `…/pdf/2022_3to8/38csbssch.pdf` —
+the one it was actually fetched from. Both were then attached to the same
+document, because one binary legitimately has many source references (§6) and
+nothing here can tell a correct URL from a plausible one.
+
+That is the bargain working as designed rather than a defect: the human asserts
+where the bytes came from, and the software never goes and gets them. It is
+also a warning worth stating — **supply the URL you actually obtained the file
+from, not the one that looks right.**
 
 The manifest now records `acquisition: 'live' | 'supplied'`, `capturedAt`,
 `sourceFilename` and `pageCount`. **Absent means not recorded.** The 289
