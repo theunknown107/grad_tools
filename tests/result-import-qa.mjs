@@ -195,7 +195,7 @@ const run = async () => {
   await firstInternal.scrollIntoViewIfNeeded();
   await firstInternal.fill('45');
 
-  const confirm = page.getByRole('button', { name: /confirm and save result/i }).first();
+  const confirm = page.getByRole('button', { name: /confirm and save \d+ courses?/i }).first();
   await confirm.scrollIntoViewIfNeeded();
   await confirm.click();
   await page.waitForTimeout(700);
