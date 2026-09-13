@@ -386,7 +386,7 @@ async function main(): Promise<void> {
 
   const raw = vtuSchemeAdapter.parse(body);
   report.discovered_pdf_urls = raw.length;
-  const graph = vtuSchemeAdapter.describe(raw);
+  const graph = vtuSchemeAdapter.describe(raw, body);
 
   const selected = graph.filter(
     (doc) =>
@@ -413,6 +413,25 @@ async function main(): Promise<void> {
   );
 
   /* ---- 2. Download ----------------------------------------------------- */
+
+  /*
+   * THE GATE AGAIN, BECAUSE `--from` TURNED THE FIRST ONE OFF.
+   *
+   * The check above is skipped when a captured listing is supplied, which is
+   * right for the LISTING — nothing is fetched to read it. It was also the
+   * script's only gate call, and the step below fetches every PDF the listing
+   * names. So `vtu:sync --scheme 2025 --from page.html` would have downloaded
+   * 192 documents from vtu.ac.in with no permission check at all, through the
+   * flag whose whole purpose is not fetching.
+   *
+   * A dry run is exempt because it genuinely fetches nothing: `downloadAll`
+   * reports what it WOULD do and opens no socket. That is what makes building
+   * the discovery graph offline possible without asking for permission the run
+   * does not need.
+   */
+  if (!dryRun) {
+    await requireFetchPermission(sql, VTU_SCHEME_SOURCE_ID);
+  }
 
   const store = createLocalDocumentStore(STORE_ROOT);
   const manifest: Manifest = await readFile(MANIFEST_PATH, 'utf8')
