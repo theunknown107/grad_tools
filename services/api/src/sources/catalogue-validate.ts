@@ -320,6 +320,33 @@ async function checkCourses(sql: Sql, schemeYear: string | null): Promise<Findin
     WHERE ${schemeYear === null ? sql`TRUE` : sql`scheme_year = ${schemeYear}`}
     GROUP BY 1 ORDER BY 2 DESC
   `) as unknown as { what: string; n: string }[];
+
+  /*
+   * A SCHEME THE CATALOGUE DOES NOT HOLD IS A FAILURE, NOT A CLEAN RUN.
+   *
+   * Every check below is written to be quiet when it has nothing to look at,
+   * which is right for an OPTIONAL part of a catalogue and wrong for the whole
+   * of one. Asked to validate a scheme year with no courses in it, this
+   * reported no failures — and `passed` is `failures === 0`, so the terminal
+   * printed VALIDATION PASSED for a scheme that had never been ingested.
+   *
+   * That verdict is load-bearing: the publish rules gate on it, so a scheme
+   * nobody has any data for could be read as one that is ready to ship. An
+   * empty result is evidence that the ingestion did not happen, and saying so
+   * is the whole job of this file.
+   *
+   * Only when a scheme was ASKED for. With no filter this is a catalogue-wide
+   * run, and an empty catalogue is already reported by the count above.
+   */
+  if (schemeYear !== null && total === 0) {
+    return [
+      fail(
+        area,
+        `no courses are stored for the ${schemeYear} scheme, so there is nothing to validate ` +
+          '— an empty result is not a passing one',
+      ),
+    ];
+  }
   const borrowed = basis
     .filter((row) => row.what !== 'table')
     .reduce((sum, row) => sum + Number(row.n), 0);
