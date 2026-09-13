@@ -514,7 +514,14 @@ describe('results', () => {
     // The computed figure now also appears in the Overview ledger, so both
     // views can show it; what matters is that BOTH figures are present.
     expect((await screen.findAllByText('8.50')).length).toBeGreaterThan(0);
-    expect(screen.getByText('9.10')).toBeTruthy();
+    /*
+     * The grade card's figure now sits in the SGPA tile's note rather than as
+     * a bare `dd` of its own, so it is matched where it lives — and matched
+     * WITH its label, which is a stronger assertion than the loose one it
+     * replaces: a 9.10 appearing anywhere no longer satisfies this.
+     */
+    // Both layouts render in jsdom, as elsewhere in this file.
+    expect(screen.getAllByText(/Grade card\s+9\.10/).length).toBeGreaterThan(0);
     /*
      * BOTH figures are still shown and the disagreement is still flagged; the
      * flag is now one line per semester with the reason stated once on the page
