@@ -16,7 +16,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseScheme, semesterTotalsOf, type SchemePage } from '@gradtools/vtu-catalogue';
+import {
+  parseScheme,
+  semesterTotalsOf,
+  supersedingPairIn,
+  type SchemePage,
+} from '@gradtools/vtu-catalogue';
 import type { PositionedText } from '../src/domain/pdf-layout.js';
 
 /** Column x-positions, in the proportions the scheme prints them. */
@@ -1228,5 +1233,202 @@ describe('the total a semester table prints', () => {
     ]);
 
     expect(totals).toEqual([{ semester: 3, credits: 21, page: 1 }]);
+  });
+});
+
+describe('a row that prints two codes, each with the code it supersedes', () => {
+  /*
+   * The first-year Kannada row, in both cycles:
+   *
+   *     1BKSK109(BKSK107)/1BKBK109(BKBK107)
+   *     Samskrutika Kannada / Balake Kannada          1 credit
+   *
+   * One row, one credit, two named alternatives, each carrying the 2022 code
+   * it replaces. It is the only shape in the corpus that brackets a superseded
+   * code — four cells across 290 documents, being these two rows each wrapped
+   * over two lines — and until it was read, both cycles came up exactly one
+   * credit short of the twenty their own documents print.
+   */
+
+  /** The row as the document sets it: the cell WRAPS after the slash. */
+  const kannadaRow = (
+    heading: string,
+    head: string,
+    tail: string,
+    title: string,
+  ): SchemePage[] => [
+    {
+      page: 1,
+      items: [
+        at('B.E. in Invented Studies', 313, 491),
+        at('Scheme of Teaching and Examinations 2025', 319, 477),
+        at(heading, 56, 435),
+        /* The two halves of the code, one column, two lines. */
+        at(head, 140, 328),
+        at(tail, 140, 314),
+        /* The row itself is the line between them. */
+        at('9', 61, 321),
+        at('HSMC', 93, 321),
+        at(title, 195, 321),
+        at('1', 493, 321),
+        at('0', 526, 321),
+        at('0', 559, 321),
+        at('01', 632, 321),
+        at('50', 670, 321),
+        at('50', 711, 321),
+        at('100', 750, 327),
+        at('1', 789, 327),
+      ],
+    },
+  ];
+
+  const physics = () =>
+    parseScheme(
+      kannadaRow(
+        'I SEMESTER',
+        '1BKSK109(BKSK107)/',
+        '1BKBK109(BKBK107)',
+        'Samskrutika Kannada/ Balake Kannada',
+      ),
+    );
+  const chemistry = () =>
+    parseScheme(
+      kannadaRow(
+        'II SEMESTER',
+        '1BKSK209(BKSK107)/',
+        '1BKBK209(BKBK107)',
+        'Samskrutika Kannada/ Balake Kannada',
+      ),
+    );
+
+  it('reads both alternatives and the code each of them supersedes', () => {
+    expect(supersedingPairIn('1BKSK109(BKSK107)/1BKBK109(BKBK107)')).toEqual([
+      { code: '1BKSK109', supersedes: 'BKSK107' },
+      { code: '1BKBK109', supersedes: 'BKBK107' },
+    ]);
+  });
+
+  it('joins the halves the document wraps after the slash', () => {
+    /*
+     * The cell is too wide for its column, so the document breaks it after the
+     * slash and sets the row on the line between the two halves.
+     */
+    const parsed = physics();
+
+    expect(parsed.courses.map((course) => course.code).sort()).toEqual([
+      '1BKBK109',
+      '1BKSK109',
+    ]);
+  });
+
+  it('charges the semester once, not once per code', () => {
+    /*
+     * THE WHOLE POINT. Two codes on one printed row are one credit, and a
+     * reader that gave each of them the row's credits would put two into a
+     * semester that prints one — and into the SGPA that weights by them.
+     */
+    const parsed = physics();
+    const charged = parsed.courses.filter(
+      (course) => course.viaElectiveSlot === null && course.viaAlternativeTo === null,
+    );
+
+    expect(charged).toHaveLength(1);
+    expect(charged[0]?.code).toBe('1BKSK109');
+    expect(charged.reduce((total, course) => total + course.credits, 0)).toBe(1);
+  });
+
+  it('keeps the second code as an alternative TO the first, not as a separate course', () => {
+    /*
+     * A student takes Samskrutika Kannada OR Balake Kannada. Both must stay
+     * searchable — a student looking up the code on their card has to find it —
+     * and neither may become a second requirement.
+     */
+    const parsed = physics();
+    const balake = parsed.courses.find((course) => course.code === '1BKBK109');
+
+    expect(balake).toMatchObject({ viaAlternativeTo: '1BKSK109', credits: 1 });
+  });
+
+  it('gives each alternative the title printed against it', () => {
+    /*
+     * The row writes the names in parallel with the codes — "Samskrutika
+     * Kannada / Balake Kannada" against `1BKSK.../1BKBK...` — so they belong to
+     * them one for one. Only taken when the counts match: a compound like
+     * `BCH358x/BCHL358x` names ONE course under two codes, and splitting its
+     * title would hand each half a fragment of a name.
+     */
+    const parsed = chemistry();
+
+    expect(parsed.courses.find((c) => c.code === '1BKSK209')?.title).toBe('Samskrutika Kannada');
+    expect(parsed.courses.find((c) => c.code === '1BKBK209')?.title).toBe('Balake Kannada');
+  });
+
+  it('records the superseded code against the course that prints it', () => {
+    /*
+     * Carried, not discarded — and deliberately not written to the alias table.
+     * Both cycles print `(BKSK107)`: the physics cycle against `1BKSK109` in
+     * semester I and the chemistry cycle against `1BKSK209` in semester II. One
+     * superseded code with two superseding ones is not an alias, and the alias
+     * table's own invariant would reject it.
+     */
+    expect(physics().courses.find((c) => c.code === '1BKSK109')?.supersedes).toBe('BKSK107');
+    expect(chemistry().courses.find((c) => c.code === '1BKSK209')?.supersedes).toBe('BKSK107');
+    expect(physics().courses.find((c) => c.code === '1BKBK109')?.supersedes).toBe('BKBK107');
+  });
+
+  it('reads the row in both first-year cycles', () => {
+    /*
+     * The physics cycle prints it in semester I and the chemistry cycle in
+     * semester II. Same rule, both documents, and the cycles stay apart.
+     */
+    expect(physics().courses.every((course) => course.semester === 1)).toBe(true);
+    expect(chemistry().courses.every((course) => course.semester === 2)).toBe(true);
+    expect(chemistry().courses.map((c) => c.code).sort()).toEqual(['1BKBK209', '1BKSK209']);
+  });
+
+  it('refuses a half-written pair rather than reading one side of it', () => {
+    /*
+     * A cell where only one half brackets its superseded code is not a pair
+     * this reader understands. Taking the half it can parse would put one
+     * Kannada course in the semester and drop the choice silently, so the whole
+     * cell is refused.
+     */
+    expect(supersedingPairIn('1BKSK109(BKSK107)/1BKBK109')).toBeNull();
+    expect(supersedingPairIn('1BKSK109(not a code)/1BKBK109(BKBK107)')).toBeNull();
+    expect(supersedingPairIn('1BKSK109(BKSK107)')).toBeNull();
+  });
+
+  it('does not split the title of an ordinary compound cell', () => {
+    /*
+     * A compound names ONE course under two codes — the theory variant and the
+     * laboratory one, or one table serving two programmes — so its title
+     * belongs whole to both. The parallel-title rule is restricted to
+     * superseding pairs for exactly this reason: a compound whose name happens
+     * to carry a slash would otherwise have it torn in half, and each code
+     * would be listed under a fragment.
+     */
+    const parsed = parseScheme(
+      page([
+        ...row(322, 'BQQIGNORED', 'Invented Aerodynamics/ Flight Mechanics', 4).filter(
+          (item) => item.text !== 'BQQIGNORED',
+        ),
+        at('BQQ402/', COL.code, 329),
+        at('BQS402', COL.code + 2, 315),
+      ]),
+    );
+
+    for (const course of parsed.courses) {
+      expect(course.title).toBe('Invented Aerodynamics/ Flight Mechanics');
+    }
+  });
+
+  it('leaves an ordinary compound cell alone', () => {
+    /*
+     * `BCH358x/BCHL358x` has no brackets and must keep going through the rule
+     * it always did. This change is additive: a cell that did not match the
+     * superseding shape before still does not.
+     */
+    expect(supersedingPairIn('BCH358x/BCHL358x')).toBeNull();
+    expect(supersedingPairIn('BTX/ST306x')).toBeNull();
   });
 });

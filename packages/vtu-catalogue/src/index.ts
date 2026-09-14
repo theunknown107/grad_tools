@@ -11,6 +11,8 @@ export {
   parseScheme,
   schemePages,
   semesterTotalsOf,
+  supersedingPairIn,
+  type SupersedingCode,
   type ParsedScheme,
   type SchemeCourse,
   type SchemePage,
