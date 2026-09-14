@@ -6,6 +6,14 @@ Authority: measured at `1b31892` · raw 2022 evidence in
 
 ## The headline
 
+> **Superseded below.** Two official CSBS documents have since been supplied
+> and have been through the whole pipeline. 2025 is now a **`CANDIDATE`** with
+> 87 course identities and 9 syllabi; 2022 remains `PUBLISHED` and
+> byte-unchanged. See [the update](#update--two-official-csbs-documents-supplied-and-what-they-proved).
+> The sections between here and there record the position when the scheme PDFs
+> were still absent, and are kept because the acquisition reasoning is what
+> made the supplied route legitimate.
+
 **The 2025 discovery graph is now real and complete. The scheme PDFs are still
 not acquired, so there is no 2025 catalogue — not a published one, and not a
 candidate one.**
@@ -18,12 +26,12 @@ scheme actually prints, the validator no longer reports a scheme it has no data
 for as passing, and the isolation between two scheme years is asserted rather
 than assumed.
 
-| | 2022 | 2025 |
-| --- | --- | --- |
-| Scheme documents acquired | 288 | **0** |
-| Course readings | 3603 | **0** |
-| Published catalogue rows | 187 | **0** |
-| Publish state | `PUBLISHED` | **`NO SOURCE`** |
+| | 2022 | 2025 (then) | 2025 (now) |
+| --- | --- | --- | --- |
+| Scheme documents acquired | 288 | **0** | **1** (supplied) |
+| Course readings | 3603 | **0** | **109** |
+| Stored catalogue rows | 187 | **0** | **87** |
+| Publish state | `PUBLISHED` | **`NO SOURCE`** | **`CANDIDATE`** |
 
 Seven real 2025-scheme documents DO exist on this machine. They are question
 papers, and a question paper carries no credits, no L/T/P and no scheme
@@ -39,6 +47,182 @@ and none is a 2025 scheme. See [The local search](#the-local-search-by-content-r
 through the pipeline and failed, or that awaits review. Nothing has been
 through the pipeline, and calling an empty set a candidate would misrepresent
 the position.
+
+---
+
+## Update — two official CSBS documents supplied, and what they proved
+
+Two official 2025 documents were handed over by a person and entered through
+Mode B. Nothing was fetched: the registry row is unchanged, and
+`pnpm vtu:supply` contains no `fetch` (asserted by test).
+
+| | file | sha-256 | bytes | pages |
+| --- | --- | --- | --- | --- |
+| Scheme, CSBS, sem III-VIII | `34csbssch.pdf` | `10943b44d287deb3...` | 483 778 | 30 |
+| Syllabus, CS common | `34cscommsyll.pdf` | `86437482987bbf10...` | 1 522 031 | 59 |
+
+Both were verified by CONTENT before being supplied, not by filename. The
+scheme prints "B.E. in Computer Science and Business System - Scheme of
+Teaching and Examinations - 2025 - (Effective from the academic year 2025-26)"
+and heads six tables, III to VIII. The syllabus stamps every course "Scheme
+2025 / Semester 3".
+
+### The 2025 catalogue, as read
+
+| | |
+| --- | --- |
+| Course readings | 109 |
+| Stored course identities | **87** |
+| Option groups / memberships | 10 / 47 |
+| Syllabi / modules / topics | **9 / 25 / 47** |
+| Conflicts | 0 |
+| Publish state | **`CANDIDATE`** - see below |
+
+Every printed semester total is reconciled by the deduplicated table rows:
+
+| Semester | Printed | Table rows read |
+| --- | --- | --- |
+| III | 21 | 21 |
+| IV | 21 | 21 |
+| V | 22 | 22 |
+| VI | 21 | 21 |
+| VII | 20 | 20 |
+| VIII | 15 | 15 |
+
+The nine syllabus courses state credits of 4, 4, 4, 3, 3, 1, 1, 1, 1, which is
+what the scheme's own third-semester table states for the same codes - two
+documents agreeing without either being consulted for the other.
+
+### Six defects the real documents exposed, all in shared code
+
+None of these was a 2025-only patch; each was a reader that had been wrong for
+both schemes and had nowhere to show it.
+
+1. **A quarter of the scheme was invisible.** Semester headings were taken only
+   from runs of 24 characters or fewer. The 2025 scheme heads its last two
+   tables `VII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)` - 57
+   characters - so semesters VII and VIII produced no courses at all. The
+   length limit now says what it meant: the heading may be followed by
+   bracketed qualifiers and nothing else. **The same limit was dropping 19
+   headings across the 2022 corpus**, including 2022's own swappable pages and
+   the first-year stream tables.
+2. **The eighth-semester table read as empty.** Its placeholder codes are typed
+   in lower case - `1Bxx801x`, `1Bxx802x`, `1Bxx803x`, worth 3, 3 and 9 of that
+   table's 15 credits - while the same document types them upper case
+   elsewhere. Only the discipline segment is case-folded; the trailing letter
+   is left exactly as printed, because `BXX515x` is a slot and `BXX515A` is one
+   of its options.
+3. **Titles carried the department column.** The cell is split at its colon
+   into `"TD/PSB"` and `": CS Allied"`, so neither half matched a pattern that
+   requires both, and every row on four pages read as "TD/PSB : CS Allied
+   Machine Learning". The halves are rejoined by adjacency - they meet at
+   exactly 0.0 - which is the rule already used for codes broken across runs.
+4. **The syllabus produced nothing.** Its code grammar was a narrower copy of
+   the scheme reader's and the two had drifted: `1BMATCS301` has a generation
+   digit that pattern had no room for and six department letters where five
+   were allowed. The document extracted cleanly and reported "syllabi 0", which
+   is indistinguishable from a syllabus with no courses in it.
+5. **Courses were titled from page furniture.** This template prints the name
+   above the header table rather than labelling it, so the title came from the
+   cell beside the semester - `1BMATCS301` was titled "Type of Course ASC", and
+   marked `resolved`. Reading upward instead then found the running header
+   (`IPCC (4 Credits) template30.03.2026`), so the search now starts at the
+   course code and works back.
+6. **Credits were read off that same running header.** "Credits" there is
+   followed by `) template30`, and the first line carrying the label won - so
+   seven of nine courses reported 30, 20 or 300 while `Credits 4` sat in the
+   table below. A labelled number now prefers a reading inside its plausible
+   range; an out-of-range one is still reported, still `ambiguous`, when it is
+   the only one.
+
+Measured over the 2022 corpus, these strictly recover more and lose nothing:
+**193 -> 197** documents yielding syllabi, **2025 -> 2195** syllabi, **8042 ->
+8759** modules, **9130 -> 10081** topics, **2010 -> 2167** credits resolved, and
+zero new ambiguous readings.
+
+### Mode B had no door for the pipeline either
+
+`vtu:supply` could put an official document in the store, and nothing could use
+one: the only route from the store to the database ran through `vtu:sync`,
+whose gate stands in front of the downloader unconditionally. `--supplied-only`
+is that door, and it works by **not calling the downloader at all** - so there
+is no option it can pass wrongly and no socket it can open. The listing keeps
+its own gate; a document that was never supplied is reported as such, never
+fetched.
+
+### The validator was mixing scheme years
+
+`vtu:validate --scheme 2025` named the scheme and only two of its eight checks
+listened. The first real 2025 run failed on a 2022 alias and two 2022
+conflicts - rows no 2025 run can do anything about. Twenty-two queries are now
+scoped, which is what makes the isolation claim checkable rather than asserted:
+with 87 2025 courses stored, `--scheme 2022` reports **zero** courses and says
+so, rather than borrowing any.
+
+### Why 2025 is `CANDIDATE` and not published
+
+`vtu:validate --scheme 2025` passes every course, syllabus, option, alias,
+provenance and conflict check, and fails one: **semester totals, 2 of 2**.
+
+Both are misreadings of the PRINTED figure, not of the catalogue:
+
+- *sem 7, "printed 15"* - page 7's `Total` is a column header in the vertical
+  header stack, not a totals row, and a stray `15` shares its baseline. The
+  page's real total is 20, which is what the catalogue holds.
+- *sem 8, "printed 20"* - read from page 11, the Scheme-B two-semester
+  internship variant, which carries no heading of its own and so inherits
+  semester 8. Scheme-A's VIII total is 15, which is what the catalogue holds.
+
+The check was deliberately left alone. Loosening it to go green would remove
+the only cross-check that compares the reader against the document's own
+arithmetic, and the reader here is what is wrong. A one-number `Total` row
+cannot simply be rejected either: **37 valid 2022 totals have exactly that
+shape.**
+
+### What is still missing, from the scheme's own contents
+
+Determined by reading `34csbssch.pdf`, not guessed:
+
+1. **The first-year (I & II semester) 2025 scheme.** The CSBS document opens at
+   III SEMESTER, so semesters I and II are absent from the catalogue entirely.
+   The listing offers three under "UG Engineering Scheme and Syllabus 2025 (1st
+   & 2nd semesters)":
+   `https://vtu.ac.in/pdf/UG2024/phycyc.pdf`,
+   `https://vtu.ac.in/pdf/UG2024/chemcyc.pdf`,
+   `https://vtu.ac.in/pdf/UG2024/4065.pdf`.
+2. **Syllabi for CSBS semesters IV-VIII.** `34cscommsyll.pdf` is the only
+   syllabus the CS family has in the 3-to-8 listing and it covers semester 3
+   only - nine courses. No document in the discovery graph carries the rest.
+
+Nothing else is required for the credits. `1BMATDIP310` and `1BMATDIP410`
+(lateral-entry mathematics) and the NCMC activity rows are printed in the CSBS
+scheme itself as non-credit (`PP`), and every elective option it offers carries
+its credits from the slot row in that same document.
+
+### Known limitation, unchanged
+
+Option-list rows in two-column layouts still absorb the neighbouring column's
+title - `1BIS505A` reads "Digital Image Processing Business Strategy". Codes,
+credits, semesters and slot membership are unaffected, and the same limitation
+is visible in the published 2022 catalogue (`BSFHK158`, "Scientific Foundations
+of Health AnyDept"). Not introduced here and not fixed here.
+
+### 2022, re-proved
+
+The published artifact `packages/vtu-catalogue/data/vtu-2022.json` is
+byte-unchanged:
+`d1081e8621852e4a92f3e4521383e16ac1ee8ab14f1a0604fed8aedff74e9065`,
+187 courses, 0 conflicts, 1 alias, 19 documents. It was **not** regenerated.
+
+Rebuilding it from its own recorded provenance now reads MORE than it
+publishes: `cvsch.pdf` goes 57 -> 121 courses, because the heading fix recovers
+the Civil first-year tables it had been skipping. That is a decision to take
+separately - whether to republish 2022 at 251 rows - and is not taken here. The
+one row that appears to have been lost is not: `BSFHK158` is still read, with
+the same credits, semester and basis, now from its real first-year table with a
+clean title. It pairs with `BIDTK158` where the published row says `BITDK158`;
+the document contains BOTH spellings, on different pages, so each reading is
+faithful to the page it came from and neither is a parser fault.
 
 ## Why acquisition is blocked
 
@@ -607,8 +791,17 @@ bytes arrived.
 ## Reproducing this
 
 ```bash
-pnpm vtu:validate --scheme 2022      # the published catalogue
-pnpm vtu:validate --scheme 2025      # fails: no courses stored
-pnpm vtu:sync     --scheme 2025      # refuses at the acquisition gate
+# Supply the official documents somebody already holds (nothing is fetched)
+pnpm vtu:supply --file ./34csbssch.pdf \
+                --url https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf
+pnpm vtu:supply --file ./34cscommsyll.pdf \
+                --url https://vtu.ac.in/pdf/2025syll3to8/34cscommsyll.pdf
+
+# Run the pipeline over held bytes only - the downloader is never called
+pnpm vtu:sync --scheme 2025 --from ./listing.html --supplied-only
+
+pnpm vtu:validate --scheme 2025      # fails only on the printed semester totals
+pnpm vtu:validate --scheme 2022      # reports zero 2022 rows; never borrows 2025's
+pnpm vtu:sync     --scheme 2025      # without --supplied-only: refuses at the gate
 pnpm test                            # includes every isolation assertion above
 ```
