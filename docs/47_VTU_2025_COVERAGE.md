@@ -199,6 +199,150 @@ Nothing else is required for the credits. `1BMATDIP310` and `1BMATDIP410`
 scheme itself as non-credit (`PP`), and every elective option it offers carries
 its credits from the slot row in that same document.
 
+---
+
+## Update - the three first-year documents supplied, and what they settle
+
+All three documents named as missing above have since been supplied through
+Mode B. Nothing was fetched; the registry row is unchanged. The store now holds
+**five** supplied 2025 documents.
+
+| file | sha-256 | bytes | pages | extraction | role |
+| --- | --- | --- | --- | --- | --- |
+| `34csbssch.pdf` | `10943b44d287deb3...` | 483 778 | 30 | text | CSBS scheme, III-VIII |
+| `34cscommsyll.pdf` | `86437482987bbf10...` | 1 522 031 | 59 | text | CS shared syllabus, sem 3 |
+| `phycyc.pdf` | `65f59c35d320bb91...` | 253 595 | 6 | text | first year, Physics group |
+| `chemcyc.pdf` | `b14c96ee5d5e05f6...` | 333 316 | 6 | text | first year, Chemistry group |
+| `4065.pdf` | `788fa3034caa67bf...` | 7 488 583 | 17 | **no_text_layer** | SEE/assessment circular |
+
+### menu12 and menu13 are different sections and it matters
+
+The listing carries three anchors, and conflating them would misattribute
+documents:
+
+| anchor | title | documents |
+| --- | --- | --- |
+| `menu11` | UG Engineering Scheme and Syllabus 2025 (1st & 2nd semesters) | 87 |
+| `menu12` | UG 3rd to 8th semesters Scheme and Syllabus (2025)(Engg) | 93 |
+| `menu13` | 3rd to 8th semester Common Courses 2025 scheme | 12 |
+
+**`menu13` is CSBS-relevant and was nearly missed.** Its twelve documents are
+shared course syllabi, and four of them are courses the CSBS scheme itself
+prints: `1BMATDIP310` and `1BMATDIP410` (the lateral-entry bridge, NCMC/`PP` in
+CSBS III and IV), and `1BPE309` / `1BYOG309` (two of the four NCMC activity
+options in CSBS III). None carries credit, so none changes a semester total.
+
+`menu13` also shows what CSBS does NOT take from it: its third-semester
+mathematics documents are `1BMATCV301`, `1BMATME301`, `1BMATEC301` and
+`1BMATEE301` - the CV, ME, EC and EE streams. There is no `1BMATCS301` there,
+because the CS-stream mathematics syllabus is inside `34cscommsyll.pdf`. The
+shared section is shared without being universal.
+
+`1BPE409` and `1BYOG409` are in `menu13` too, but the CSBS fourth-semester rows
+are coded `1BPEK409` and `1BYOK409`. A filename is not a course code and the
+bytes are not held, so no equivalence is recorded.
+
+### Syllabus coverage, CSBS III-VIII
+
+| Semester | State | Evidence |
+| --- | --- | --- |
+| III | **Covered** | `34cscommsyll.pdf`, 9 syllabi / 25 modules / 47 topics |
+| IV | **Genuinely unavailable** | no 2025 CS syllabus document exists in the listing |
+| V | **Genuinely unavailable** | as above |
+| VI | **Genuinely unavailable** | as above |
+| VII | **Genuinely unavailable** | as above |
+| VIII | **Genuinely unavailable** | as above |
+
+`34cscommsyll.pdf` is filed under a "34" prefix that reads as "semesters 3 and
+4". It is not: every one of its nine courses is stamped `Semester 3`. Content
+decides, not the filename.
+
+Of the 37 syllabus documents in `menu12`, exactly one belongs to the CS family -
+`34cscommsyll.pdf`. There is no `34cbsyll`, no per-semester CS syllabus, and
+nothing else in the 2025 graph carries CSBS IV-VIII. This is a **source
+availability** state, not a reading failure: the scheme rows for IV-VIII are
+read, validated and unaffected.
+
+### First-year applicability is NOT resolved, and is not guessed
+
+`phycyc.pdf` and `chemcyc.pdf` both head themselves "Common to all Engineering
+Programmes", so both are recorded with `scope: common`. That is faithful to the
+page, and it is not enough to place a CSBS student.
+
+Each document prints a first-year CYCLE: a student takes Physics group in
+semester I and Chemistry in II, or the reverse. The two documents therefore
+describe alternatives, not a single first year. Within each, the core courses
+are STREAM-DETERMINED rather than chosen - the scheme prints them as
+placeholders (`1BMATx101`, `1BPHYx102`, `1BCEDx103`, `1Bxxx105x`,
+`1BxxxL107x`) and resolves them in an options table where a CSBS student, being
+CSE stream, must take `1BMATS101`, `1BPHYS102`, `1BCEDS103`.
+
+Those placeholder forms carry a lowercase stream marker inside the discipline
+segment, which the code grammar does not match, so **those rows are not read at
+all**. The consequence is visible and is reported by the validator rather than
+hidden:
+
+| document | semester | printed | catalogue |
+| --- | --- | --- | --- |
+| `phycyc.pdf` | I | 20 | 4 |
+| `phycyc.pdf` | II | 20 | 12 |
+| `chemcyc.pdf` | I | 20 | 12 |
+| `chemcyc.pdf` | II | 20 | 1 |
+
+What IS stored from these documents is true: 25 rows that are genuinely common
+or genuinely elective, including the `1BESC104A`-`E` engineering-science options
+and the `1BPLC105B`/`105E` programming options, each carrying its credits from
+the slot row that prints them.
+
+**Nothing false is stored, and nothing is complete.** Reading the missing rows
+would require resolving a stream marker to a stream, and presenting a
+stream-determined course as a free elective would be exactly the guessed
+applicability this phase forbids. First-year coverage is therefore an open
+blocker, named, not worked around.
+
+The first-year SYLLABUS dependencies are already stream-scoped in the graph and
+simply not supplied: `UG2024/1BMATS101.pdf`, `UG2024/1BPHYS102.pdf`,
+`UG2024/1BCHES102.pdf`, `UG2024/1BCEDS103.pdf`, `UG2024/1BESC104E.pdf`,
+`UG2024/1BPLC105B.pdf` (plus their `bs`-prefixed variants).
+
+### `4065.pdf` contributes provenance and no course data
+
+It is a 17-page image-only circular - **zero** text-layer characters - whose
+first page states that SEE details for 2025-scheme B.E./B.Tech programmes were
+prepared and published. It is held, hashed and recorded with
+`extraction: no_text_layer`, `lostAt: the PDF carries no text layer`,
+`scope: unknown`, **0 courses, 0 syllabi**.
+
+That is the whole of its contribution and it is the correct one. The catalogue
+has no assessment/regulation entity for it to populate, and manufacturing
+course or module rows from an unreadable scan would be invention. It stands as
+evidence that the document exists and was obtained, nothing more.
+
+### Sources deliberately rejected
+
+No 2022 document was used as a 2025 substitute. Specifically refused:
+`cb4sem`, `cb5sem`, `cb6sem`, `cb7sem`, `cb8sem` and every other 2022 CSBS
+syllabus. A 2022 document is a different scheme: `scheme_year` is part of a
+course identity, the 2025 codes carry a generation digit the 2022 codes do not,
+and the credit figures are not transferable. Filename similarity between a 2022
+and a 2025 document is not evidence of anything.
+
+### State after this phase
+
+| | |
+| --- | --- |
+| Supplied documents | **5** (store holds 295 total) |
+| Course identities | **112** - 87 CSBS III-VIII, 25 first-year |
+| Option groups / memberships | 15 / 66 |
+| Syllabi / modules / topics | 9 / 25 / 47 |
+| Conflicts | 0 |
+| `vtu:validate --scheme 2025` | **FAILED** - 1 failure, the four first-year totals |
+| Publish state | **`CANDIDATE`** - not published |
+
+2022 is untouched: `d1081e8621852e4a92f3e4521383e16ac1ee8ab14f1a0604fed8aedff74e9065`,
+187 courses, and `--scheme 2022` against a database holding 112 2025 rows still
+reports zero 2022 courses, zero syllabi and zero option groups.
+
 ### Known limitation, unchanged
 
 Option-list rows in two-column layouts still absorb the neighbouring column's
