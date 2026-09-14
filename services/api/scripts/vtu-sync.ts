@@ -35,8 +35,13 @@ import postgres from 'postgres';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
   COURSE_ALIASES,
+  cycleGroupOf,
   optionGroupsOf,
   parseScheme,
+  resolveFirstYearForStream,
+  streamForProgramme,
+  streamMembershipOf,
+  type ParsedScheme,
   parseSyllabusDocument,
   type ParsedSyllabus,
   type Catalogue,
@@ -63,6 +68,7 @@ import {
   upsertDocumentVersion,
   upsertSourceReference,
   upsertStream,
+  upsertStreamProgramme,
   upsertAlias,
   upsertOptionGroup,
   upsertSyllabus,
@@ -352,6 +358,10 @@ async function main(): Promise<void> {
     option_memberships: 0,
     conflicts_opened: 0,
     conflicts_existing: 0,
+    /* The first year, resolved from the stream a programme is declared to be in. */
+    first_year_resolved: 0,
+    first_year_unresolved: 0,
+    first_year_unmapped: 0,
     aliases_persisted: 0,
     conflicts: 0,
   };
@@ -540,6 +550,25 @@ async function main(): Promise<void> {
 
   const courses: CatalogueCourse[] = [];
   const ledger: DocumentLedgerRow[] = [];
+
+  /*
+   * THE FIRST YEAR IS RESOLVED AFTER THE LOOP, BECAUSE IT TAKES TWO DOCUMENTS.
+   *
+   * A first-year document prints a template — `1BMATx101` — and the tables that
+   * resolve it, but it never says which PROGRAMME is reading it. The programme
+   * comes from the scheme documents processed alongside it. So the evidence is
+   * gathered here and the resolution runs once both halves are in hand.
+   */
+  const firstYearDocuments: {
+    readonly sha256: string;
+    readonly url: string;
+    readonly schemeYear: string;
+    readonly pages: readonly SchemePage[];
+    readonly parsed: ParsedScheme;
+    readonly cycle: string | null;
+  }[] = [];
+  const programmesSeen = new Set<string>();
+  const firstYearUnresolved: string[] = [];
   const documents: Catalogue['documents'] = [];
   const now = new Date().toISOString();
 
@@ -831,6 +860,26 @@ async function main(): Promise<void> {
         }
       }
 
+      if (where.scope === 'programme' && where.programmeName !== null && doc.kind === 'scheme') {
+        programmesSeen.add(where.programmeName);
+      }
+      /*
+       * A first-year document is one that declares which programmes each stream
+       * contains. That table is the thing this resolution turns on, so its
+       * presence is what marks the document rather than a filename or a
+       * semester number.
+       */
+      if (readable && doc.kind === 'scheme' && streamMembershipOf(extraction.pages).length > 0) {
+        firstYearDocuments.push({
+          sha256,
+          url: doc.url,
+          schemeYear: doc.schemeYear ?? 'unknown',
+          pages: extraction.pages,
+          parsed,
+          cycle: cycleGroupOf(extraction.pages),
+        });
+      }
+
       for (const course of parsed.courses) {
         courses.push({
           schemeYear: doc.schemeYear ?? 'unknown',
@@ -863,6 +912,100 @@ async function main(): Promise<void> {
         programme: where.programmeName ?? where.streamName,
         courses: parsed.courses.length,
       });
+    }
+
+    /* ---- 3b. The first year, resolved per programme --------------------- */
+
+    /*
+     * A FIRST-YEAR DOCUMENT DESCRIBES A TEMPLATE; A PROGRAMME READS IT.
+     *
+     * The placeholder rows (`1BMATx101`) carry the credits, the options table
+     * names a stream against each concrete code, and the membership table says
+     * which programmes each stream contains. None of that is a guess and all of
+     * it is printed, so the chain is walked end to end:
+     *
+     *     programme  ->  stream  ->  concrete code  ->  credits from the slot
+     *
+     * THE CYCLE IS PART OF THE IDENTITY. Both first-year documents resolve
+     * semester I's mathematics to the same course and its science to different
+     * ones, because they describe the two alternative cycles a student picks
+     * between. Stored under one stream they would make a semester that requires
+     * both physics AND chemistry, so each cycle gets its own stream identity
+     * and a caller is told which it is looking at.
+     */
+    for (const firstYear of firstYearDocuments) {
+      const memberships = streamMembershipOf(firstYear.pages);
+      for (const programmeName of programmesSeen) {
+        const membership = streamForProgramme(memberships, programmeName);
+        if (membership === null) {
+          report.first_year_unmapped += 1;
+          continue;
+        }
+        const resolution = resolveFirstYearForStream(
+          firstYear.pages,
+          firstYear.parsed,
+          membership,
+        );
+        report.first_year_resolved += resolution.resolved.length;
+        report.first_year_unresolved += resolution.unresolved.length;
+        for (const slot of resolution.unresolved) {
+          firstYearUnresolved.push(
+            `${firstYear.url.split('/').pop() ?? ''} ${membership.abbreviation} sem ${String(slot.semester)} ${slot.slotCode}: ${slot.reason}`,
+          );
+        }
+        if (sql === null || resolution.resolved.length === 0) continue;
+
+        const streamId = streamIdFor(
+          `${membership.abbreviation} ${firstYear.cycle ?? 'first year'}`,
+        );
+        await upsertStream(sql, {
+          id: streamId,
+          name:
+            firstYear.cycle === null
+              ? membership.streamName
+              : `${membership.streamName} — ${firstYear.cycle}`,
+          sourceUrl: firstYear.url,
+        });
+        for (const programme of membership.programmes) {
+          await upsertStreamProgramme(sql, {
+            streamId,
+            programmeCode: programme.code,
+            programmeName: programme.name,
+            sourceUrl: firstYear.url,
+          });
+        }
+
+        for (const resolved of resolution.resolved) {
+          const key = [
+            firstYear.schemeYear,
+            '',
+            streamId,
+            String(resolved.semester),
+            resolved.code,
+          ].join('|');
+          if (written.has(key)) continue;
+          written.set(key, { credits: resolved.credits, sha256: firstYear.sha256 });
+
+          const action = await upsertCourse(sql, {
+            schemeYear: firstYear.schemeYear,
+            programmeName: null,
+            streamId,
+            semester: resolved.semester,
+            code: resolved.code,
+            title: resolved.title,
+            credits: resolved.credits,
+            /* The placeholder row is where the figure is printed. */
+            creditBasis: 'slot',
+            relatedCode: resolved.slotCode,
+            category: null,
+            sha256: firstYear.sha256,
+            sourcePage: resolved.page,
+          });
+          if (action === 'inserted') report.persisted_courses_inserted += 1;
+          else if (action === 'updated') report.persisted_courses_updated += 1;
+          else report.persisted_courses_unchanged += 1;
+        }
+      }
     }
 
     /*
@@ -1009,6 +1152,11 @@ async function main(): Promise<void> {
     console.log(`    courses inserted ${String(report.persisted_courses_inserted)}`);
     console.log(`    courses updated  ${String(report.persisted_courses_updated)}`);
     console.log(`    courses same     ${String(report.persisted_courses_unchanged)}`);
+    console.log('  first year');
+    console.log(`    resolved         ${String(report.first_year_resolved)}`);
+    console.log(`    unresolved       ${String(report.first_year_unresolved)}`);
+    console.log(`    programme unmapped ${String(report.first_year_unmapped)}`);
+    for (const line of firstYearUnresolved.slice(0, 12)) console.log(`      ${line}`);
   }
 
   /*
