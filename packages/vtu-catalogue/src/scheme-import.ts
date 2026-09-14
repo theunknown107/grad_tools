@@ -1185,6 +1185,18 @@ export interface SemesterTotal {
  * seventeen real documents is verified, and a validation aid has no business
  * changing what it returns.
  */
+/**
+ * The masthead a scheme re-prints above every table it starts.
+ *
+ * Continuation pages carry the table's rows and no masthead, which is what
+ * makes this usable as the boundary between "still the same table" and "a new
+ * one whose semester has not been stated".
+ */
+const TABLE_TITLE_BLOCK = /Scheme\s+of\s+Teaching\s+and\s+Examinations/i;
+
+const startsATable = (items: readonly PositionedText[]): boolean =>
+  items.some((item) => TABLE_TITLE_BLOCK.test(item.text));
+
 export function semesterTotalsOf(pages: readonly SchemePage[]): SemesterTotal[] {
   const totals: SemesterTotal[] = [];
   /*
@@ -1194,7 +1206,28 @@ export function semesterTotalsOf(pages: readonly SchemePage[]): SemesterTotal[] 
    */
   let semester: number | null = null;
   for (const { page, items } of pages) {
-    semester = semesterOf(items) ?? semester;
+    const stated = semesterOf(items);
+    /*
+     * A PAGE THAT RE-PRINTS THE TITLE BLOCK IS STARTING A TABLE, NOT
+     * CONTINUING ONE — so if it does not say which semester, the previous
+     * page's semester is not the answer and nothing here is attributable.
+     *
+     * The carry-forward above exists because a table runs across pages and
+     * only its first page prints the heading. That is true of CONTINUATION
+     * pages, which print no masthead. It is not true of the 2025 scheme's
+     * eleventh page, which re-prints "B.E. in … / Scheme of Teaching and
+     * Examinations - 2025" and opens a different table entirely: the Scheme-B
+     * variant for candidates taking a two-semester internship, whose own
+     * caption says it covers "VII and VIII semesters". Inheriting semester
+     * eight from page nine filed that table's 20 credits as an eighth-semester
+     * total, against a table that states 15.
+     *
+     * Checked against the whole corpus this drops four readings and every one
+     * of them was attributed to the wrong semester: a sixth-semester table
+     * filed under the eighth, a second table filed under the fifth beside the
+     * fifth's own total, and a "Total" deep inside a syllabus section.
+     */
+    semester = stated ?? (startsATable(items) ? null : semester);
     if (semester === null) continue;
 
     for (const row of rowsOf(items)) {
@@ -1225,17 +1258,69 @@ export function semesterTotalsOf(pages: readonly SchemePage[]): SemesterTotal[] 
   return totals;
 }
 
-/** The page's text clustered onto printed rows, left to right. */
+/**
+ * The largest baseline drift that still belongs to one printed row.
+ *
+ * MEASURED, not chosen. The cells of a single TOTAL row in these documents do
+ * not share an exact y: the 2025 scheme's seventh-semester total is typeset
+ * with `Total` and one figure at y 105 and the rest of the row — including its
+ * credits cell — at y 104. One point.
+ *
+ * Two points covers that with margin and stays far below the gap between
+ * distinct printed rows, which is about twelve. Across the 290 cached
+ * documents, tolerances of 2, 3 and 5 produce identical readings; at 8 rows
+ * that are genuinely separate begin to merge.
+ */
+const TOTAL_ROW_BAND = 2;
+
+/**
+ * The page's text clustered onto printed rows, left to right.
+ *
+ * THE ROWS ARE FOUND BY PROXIMITY, NOT BY AN EXACT KEY. This used to bucket on
+ * `Math.round(item.y)`, which puts a hard boundary between two cells one point
+ * apart and tears a printed row in half wherever the typesetter's baseline
+ * drifts across it.
+ *
+ * That is how both 2025 semester-total disagreements happened, and they were
+ * one defect rather than two. The seventh-semester row is
+ *
+ *     Total | 628 | 15 | 400 | 300 | 700 | 20
+ *
+ * with `Total` and `15` at y 105 and everything else at y 104. Split there,
+ * the `Total` fragment kept exactly one number — `15` — and the reader
+ * reported the semester as printing 15 credits against a catalogue holding
+ * 20. The eighth-semester row tore the same way at y 272/271, keeping `9` and
+ * losing the `15` that is the table's actual total.
+ *
+ * Neither figure was ever "a nearby numeric token": both rows state their
+ * credits in the credits column, and the reader was not seeing the whole row.
+ *
+ * The band is anchored on the row's FIRST cell rather than its most recent, so
+ * a long row cannot creep: every cell lies within `TOTAL_ROW_BAND` of where
+ * that row started, not of its neighbour.
+ */
 function rowsOf(items: readonly PositionedText[]): PositionedText[][] {
-  const rows = new Map<number, PositionedText[]>();
-  for (const item of items) {
-    if (item.text.trim() === '') continue;
-    const key = Math.round(item.y);
-    const bucket = rows.get(key);
-    if (bucket === undefined) rows.set(key, [item]);
-    else bucket.push(item);
+  const descending = items
+    .filter((item) => item.text.trim() !== '')
+    .slice()
+    .sort((a, b) => b.y - a.y);
+
+  const rows: PositionedText[][] = [];
+  let current: PositionedText[] = [];
+  let baseline = 0;
+  for (const item of descending) {
+    if (current.length === 0) {
+      baseline = item.y;
+      current = [item];
+    } else if (baseline - item.y <= TOTAL_ROW_BAND) {
+      current.push(item);
+    } else {
+      rows.push(current);
+      baseline = item.y;
+      current = [item];
+    }
   }
-  return [...rows.entries()]
-    .sort((a, b) => b[0] - a[0])
-    .map(([, cells]) => cells.sort((a, b) => a.x - b.x));
+  if (current.length > 0) rows.push(current);
+
+  return rows.map((cells) => cells.sort((a, b) => a.x - b.x));
 }
