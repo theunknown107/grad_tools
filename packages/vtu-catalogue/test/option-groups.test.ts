@@ -14,6 +14,7 @@ const course = (over: Partial<SchemeCourse> & Pick<SchemeCourse, 'code'>): Schem
   semester: 3,
   page: 1,
   viaElectiveSlot: null,
+  supersedes: null,
   viaAlternativeTo: null,
   ...over,
 });

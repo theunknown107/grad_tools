@@ -68,6 +68,17 @@ export interface SchemeCourse {
    * Both options are worth what that row says. Null for an ordinary course.
    */
   readonly viaAlternativeTo: string | null;
+  /**
+   * The code this one replaces, when the row prints it in brackets beside it.
+   *
+   *     1BKSK109(BKSK107)
+   *
+   * Carried rather than discarded, and deliberately NOT written to the alias
+   * table: both first-year cycles print `(BKSK107)`, one against `1BKSK109`
+   * and the other against `1BKSK209`, so one superseded code has two
+   * superseding ones and an alias would have to claim otherwise.
+   */
+  readonly supersedes: string | null;
 }
 
 export interface SchemeRejection {
@@ -199,6 +210,69 @@ const COURSE_CODE = new RegExp(`^${CODE_SHAPE}$`);
  * invented (§1, §7).
  */
 const COMPOUND_CODES = new RegExp(`^${CODE_SHAPE}(?:/${CODE_SHAPE})+$`);
+
+/**
+ * A CODE PRINTED WITH THE CODE IT SUPERSEDES BESIDE IT.
+ *
+ *     1BKSK109(BKSK107)/1BKBK109(BKBK107)
+ *     Samskrutika Kannada / Balake Kannada
+ *
+ * One row, one credit, two named alternatives, and each of them carrying the
+ * 2022 code it replaces in brackets. It is the only shape in the corpus that
+ * does this: across the 290 cached documents the bracketed form appears in
+ * exactly four cells, which are these two rows, each wrapped over two lines.
+ *
+ * THESE ARE SEPARATE PATTERNS ON PURPOSE. Folding the brackets into
+ * `COMPOUND_CODES` would widen a rule that every other row in every other
+ * document goes through, to serve two of them. Everything here is additive: a
+ * cell that did not match before still does not, and a cell that matched
+ * before is untouched.
+ *
+ * THE BRACKETED CODE IS NOT AN ALIAS, and must not be recorded as one. Both
+ * documents print `(BKSK107)`, but the physics cycle puts the course in
+ * semester I as `1BKSK109` and the chemistry cycle in semester II as
+ * `1BKSK209`. One superseded code, two different superseding ones — so the
+ * alias table's "no code aliased to two different canonical codes" invariant
+ * would reject it, and would be right to. It is carried on the course that
+ * prints it instead.
+ */
+const SUPERSEDING_CODE = new RegExp(`^(${CODE_SHAPE})\\(\\s*(${CODE_SHAPE})\\s*\\)$`);
+
+/** The same, wrapped: the head keeps the slash the document breaks after. */
+const SUPERSEDING_HEAD = new RegExp(`^${CODE_SHAPE}\\(\\s*${CODE_SHAPE}\\s*\\)/$`);
+
+export interface SupersedingCode {
+  readonly code: string;
+  /** The code this one replaces, as printed in brackets beside it. */
+  readonly supersedes: string;
+}
+
+/**
+ * The alternatives a superseding pair names, or null when the cell is not one.
+ *
+ * Every part must carry its own bracketed code. A cell where only one half
+ * does, or where a bracket holds something that is not a course code, is
+ * refused ENTIRELY rather than half-read: there is no honest way to say what
+ * the other half was meant to be, and a half-read pair would put one Kannada
+ * course in a student's semester and silently drop the choice.
+ */
+export function supersedingPairIn(cell: string): SupersedingCode[] | null {
+  const parts = cell
+    .split('/')
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+  if (parts.length < 2) return null;
+
+  const pair: SupersedingCode[] = [];
+  for (const part of parts) {
+    const match = SUPERSEDING_CODE.exec(part);
+    const code = match?.[1];
+    const supersedes = match?.[2];
+    if (code === undefined || supersedes === undefined) return null;
+    pair.push({ code, supersedes });
+  }
+  return pair;
+}
 const SHARED_TAIL = new RegExp(
   String.raw`^(${GENERATION})B([A-Z]{2,6})((?:/[A-Z]{2,6})+)(\d{3}[A-Za-z]?)$`,
 );
@@ -282,7 +356,7 @@ function joinCodeCells(items: readonly PositionedText[]): PositionedText[] {
   for (const head of usable) {
     if (consumed.has(head)) continue;
     const text = head.text.trim();
-    if (!WRAPPED_CODE_HEAD.test(text)) continue;
+    if (!WRAPPED_CODE_HEAD.test(text) && !SUPERSEDING_HEAD.test(text)) continue;
     const tail = usable
       .filter(
         (candidate) =>
@@ -290,7 +364,8 @@ function joinCodeCells(items: readonly PositionedText[]): PositionedText[] {
           candidate.y < head.y &&
           head.y - candidate.y <= line * WRAPPED_CODE_LINES &&
           Math.abs(candidate.x - head.x) <= line &&
-          COMPOUND_CODES.test(`${text}${candidate.text.trim()}`),
+          (COMPOUND_CODES.test(`${text}${candidate.text.trim()}`) ||
+            supersedingPairIn(`${text}${candidate.text.trim()}`) !== null),
       )
       .sort((a, b) => b.y - a.y)[0];
     if (tail === undefined) continue;
@@ -475,6 +550,14 @@ function codesIn(raw: string): string[] {
   const tight = cell.replace(/\s+/g, '');
   if (tight !== cell && COURSE_CODE.test(tight)) return [tight];
   if (COMPOUND_CODES.test(cell)) return cell.split('/');
+  /*
+   * A superseding pair names its alternatives in order. The FIRST carries the
+   * row, exactly as a compound cell's first code does; the second is attached
+   * to it as an alternative below, so one printed row stays one credit however
+   * many codes it prints.
+   */
+  const superseding = supersedingPairIn(cell);
+  if (superseding !== null) return superseding.map((entry) => entry.code);
   const shared = SHARED_TAIL.exec(cell);
   if (shared === null) return [];
   const [, generation, head, , tail] = shared as unknown as [
@@ -843,15 +926,38 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
        * two courses either side of a marker and neither is the row; here it
        * draws one row and writes more than one code against it.
        */
+      /*
+       * TITLES WRITTEN IN PARALLEL WITH THE CODES BELONG TO THEM ONE FOR ONE.
+       *
+       *     1BKSK109(BKSK107)/1BKBK109(BKBK107)
+       *     Samskrutika Kannada / Balake Kannada
+       *
+       * Two codes, two names, in the order the row prints them. Only taken
+       * when the counts match and only for a superseding pair: a compound like
+       * `BCH358x/BCHL358x` names ONE course under two codes, and splitting its
+       * title would hand each half a fragment of a name.
+       */
+      const parallel =
+        supersedingPairIn(cell) === null
+          ? null
+          : (() => {
+              const parts = title
+                .split('/')
+                .map((part) => part.trim())
+                .filter((part) => part !== '');
+              return parts.length === named.length ? parts : null;
+            })();
+
       for (const [index, alternative] of named.entries()) {
         courses.push({
           code: alternative,
-          title,
+          title: parallel?.[index] ?? title,
           credits,
           semester,
           page,
           viaElectiveSlot: null,
           viaAlternativeTo: index === 0 ? heads : code,
+          supersedes: supersedingPairIn(cell)?.[index]?.supersedes ?? null,
         });
       }
     }
@@ -923,6 +1029,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
           page,
           viaElectiveSlot: null,
           viaAlternativeTo: partner.text.trim(),
+          supersedes: null,
         });
       }
     }
@@ -1014,6 +1121,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
       page: rejection.page,
       viaElectiveSlot: slot.code,
       viaAlternativeTo: null,
+      supersedes: null,
     });
   }
 
