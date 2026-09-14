@@ -47,3 +47,16 @@ export {
   type CourseProvenance,
   type CreditBasis,
 } from './types.js';
+
+export {
+  cycleGroupOf,
+  optionCellsOf,
+  streamMembershipOf,
+  streamForProgramme,
+  resolveFirstYearForStream,
+  type StreamMembership,
+  type ResolvedFirstYearCourse,
+  type UnresolvedFirstYearSlot,
+  type FirstYearResolution,
+  type OptionCell,
+} from './first-year-streams.js';
