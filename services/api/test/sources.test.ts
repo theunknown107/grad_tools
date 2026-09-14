@@ -452,4 +452,28 @@ describe('the door every outbound fetch goes through', () => {
     expect(source).not.toMatch(/\bfetch\(/);
     expect(source).not.toMatch(/\bdownloadAll\(/);
   });
+
+  it('reaches the downloader from exactly one place in the sync', async () => {
+    /*
+     * `vtu:supply` gives a person a way to put an official document into the
+     * store without fetching it, and for a while nothing could USE one: the
+     * only route from the store to the database ran through `vtu:sync`, whose
+     * gate stands in front of the downloader unconditionally. A supplied
+     * document could be stored, hashed and extracted and never reach a
+     * catalogue. The gate was right; the pipeline had no door.
+     *
+     * `--supplied-only` is that door, and it works by NOT CALLING the
+     * downloader — there is then no option it can pass wrongly and no socket
+     * it can open. That is only true while the call site stays single: a
+     * second `downloadAll(` reachable from another branch would mean the flag
+     * no longer describes what the run does, which is the failure this
+     * catches.
+     */
+    const source = await readFile(new URL('../scripts/vtu-sync.ts', import.meta.url), 'utf8');
+
+    expect(source.match(/\bdownloadAll\(/g)).toHaveLength(1);
+    expect(source).toMatch(/suppliedOnly/);
+    /* And the listing it replaces keeps its own gate. */
+    expect(source).toMatch(/requireFetchPermission/);
+  });
 });

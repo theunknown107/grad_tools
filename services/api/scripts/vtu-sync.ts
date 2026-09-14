@@ -8,6 +8,7 @@
  *   pnpm vtu:sync --scheme 2022 --dry-run
  *   pnpm vtu:sync --scheme 2022 --changed-only
  *   pnpm vtu:sync --scheme 2022 --from page.html    # a captured listing
+ *   pnpm vtu:sync --scheme 2025 --from page.html --supplied-only  # no fetching
  *   pnpm vtu:sync --scheme 2022 --emit ../../packages/vtu-catalogue/data/vtu-2022.json
  *
  * ---------------------------------------------------------------------------
@@ -49,6 +50,7 @@ import {
   DEFAULT_DELAY_MS,
   EMPTY_MANIFEST,
   type DownloadState,
+  type DownloadOutcome,
   type Manifest,
 } from '../src/sources/vtu-download.js';
 import { vtuSchemeAdapter, VTU_SCHEME_SOURCE_ID, type SchemeDocument } from '../src/sources/vtu-scheme.js';
@@ -315,6 +317,7 @@ async function main(): Promise<void> {
   }
   const wantProgramme = resolved === null ? null : resolved.match;
   const dryRun = has('dry-run');
+  const suppliedOnly = has('supplied-only');
   const report = {
     startedAt: new Date().toISOString(),
     scheme: wantYear,
@@ -429,7 +432,7 @@ async function main(): Promise<void> {
    * the discovery graph offline possible without asking for permission the run
    * does not need.
    */
-  if (!dryRun) {
+  if (!dryRun && !suppliedOnly) {
     await requireFetchPermission(sql, VTU_SCHEME_SOURCE_ID);
   }
 
@@ -438,17 +441,58 @@ async function main(): Promise<void> {
     .then((text) => JSON.parse(text) as Manifest)
     .catch(() => EMPTY_MANIFEST);
 
-  const { outcomes, manifest: nextManifest } = await downloadAll(
-    selected.map((doc) => doc.url),
-    store,
-    manifest,
-    {
-      dryRun,
-      changedOnly: has('changed-only'),
-      delayMs: Number(flag('delay') ?? DEFAULT_DELAY_MS),
-      limit: null,
-    },
+  /*
+   * MODE B FOR THE PIPELINE, NOT JUST FOR THE BYTES.
+   *
+   * `pnpm vtu:supply` gives a person a way to put an official document into
+   * the store without fetching it. Nothing could then USE it: the only route
+   * from the store to the database ran through here, and the gate above stands
+   * in front of the downloader unconditionally, so a supplied document could
+   * be stored, hashed and extracted and never reach a catalogue. The gate was
+   * right and the pipeline had no door.
+   *
+   * `--supplied-only` is that door. It does not weaken the gate — it removes
+   * the reason for one, by not calling the downloader at all. Every document
+   * is taken from the manifest and the store as they already stand, and one
+   * that was never supplied is reported as such rather than fetched.
+   *
+   * THE STRUCTURE IS THE GUARANTEE. This branch does not reach `downloadAll`,
+   * so there is no option it could pass wrongly and no socket it could open;
+   * the only fetch in this file is the listing, which `--from` replaces and
+   * which keeps its own gate above.
+   */
+  const held = new Map(
+    manifest.entries.flatMap((entry) => entry.urls.map((url) => [url, entry] as const)),
   );
+  const { outcomes, manifest: nextManifest } = suppliedOnly
+    ? {
+        manifest,
+        outcomes: selected.map((doc): DownloadOutcome => {
+          const entry = held.get(doc.url);
+          return entry === undefined
+            ? {
+                url: doc.url,
+                state: 'failed',
+                sha256: null,
+                byteSize: null,
+                reason:
+                  'No bytes for this URL have been supplied. `pnpm vtu:supply --file <path> --url <this url>` puts an official document into the store without fetching it.',
+              }
+            : {
+                url: doc.url,
+                state: 'already_present',
+                sha256: entry.sha256,
+                byteSize: entry.byteSize,
+                reason: null,
+              };
+        }),
+      }
+    : await downloadAll(selected.map((doc) => doc.url), store, manifest, {
+        dryRun,
+        changedOnly: has('changed-only'),
+        delayMs: Number(flag('delay') ?? DEFAULT_DELAY_MS),
+        limit: null,
+      });
   const downloadByUrl = new Map<string, (typeof outcomes)[number]>();
   for (const outcome of outcomes) {
     report.download[outcome.state] = (report.download[outcome.state] ?? 0) + 1;
