@@ -45,6 +45,7 @@ import {
   parseSyllabusDocument,
   type ParsedSyllabus,
   type Catalogue,
+  courseKey,
   type CatalogueCourse,
   type PositionedText,
   type SchemePage,
@@ -60,6 +61,7 @@ import {
 } from '../src/sources/vtu-download.js';
 import { vtuSchemeAdapter, VTU_SCHEME_SOURCE_ID, type SchemeDocument } from '../src/sources/vtu-scheme.js';
 import { requireFetchPermission } from '../src/sources/acquire.js';
+import { validateCatalogue } from '../src/sources/catalogue-validate.js';
 import { resolveProgramme } from '../src/sources/programme-aliases.js';
 import {
   upsertApplicability,
@@ -111,7 +113,12 @@ const EXTRACTOR_VERSION = '1.0.0';
  * carry a programme. Both change what a document normalizes TO, which is what
  * this version is recorded beside every row for.
  */
-const NORMALIZATION_VERSION = '1.1.0';
+/*
+ * 1.2.0 adds `streamId` to every course and `schemeYear` to every alias. Both
+ * are additive, so a reader of the older shape still works — a minor bump, by
+ * the semver this field has used since it was introduced.
+ */
+const NORMALIZATION_VERSION = '1.2.0';
 
 const flag = (name: string): string | null => {
   const index = process.argv.indexOf(`--${name}`);
@@ -246,6 +253,64 @@ interface DocumentLedgerRow {
 }
 
 /** A stable slug for a stream, from the label the source prints. */
+/**
+ * Whether an artifact for this scheme may be written.
+ *
+ * Opens a connection of its own rather than reusing the run's, because the run
+ * closes its handle before the artifact is built and because the verdict must
+ * come from the catalogue AS STORED — the same rows `vtu:validate` reads, not
+ * whatever the in-memory pass happened to produce.
+ *
+ * WITHOUT A DATABASE THERE IS NO VERDICT, and no verdict is not a pass. A run
+ * with no `DATABASE_URL` cannot check the thing it is about to publish, so it
+ * refuses unless a human says otherwise.
+ */
+async function gateEmission(
+  schemeYear: string | null,
+  forced: boolean,
+): Promise<{ allowed: boolean; reason: string }> {
+  const url = process.env['DATABASE_URL'] ?? process.env['TEST_DATABASE_URL'] ?? null;
+  if (url === null) {
+    return forced
+      ? { allowed: true, reason: 'FORCED: no database, so the catalogue was not validated' }
+      : {
+          allowed: false,
+          reason:
+            'no DATABASE_URL, so the catalogue this would publish cannot be validated. ' +
+            'Set one, or pass --force to write it unvalidated.',
+        };
+  }
+
+  const sql = postgres(url, { max: 1 });
+  try {
+    const result = await validateCatalogue(sql, { schemeYear });
+    if (result.passed) {
+      return {
+        allowed: true,
+        reason: `validation of the ${schemeYear ?? 'whole'} catalogue passed`,
+      };
+    }
+    const failures = result.findings
+      .filter((finding) => finding.severity === 'fail')
+      .map((finding) => finding.message);
+    const listed = failures.slice(0, 5).join('; ');
+    return forced
+      ? {
+          allowed: true,
+          reason: `FORCED past ${String(result.failures)} validation failure(s): ${listed}`,
+        }
+      : {
+          allowed: false,
+          reason:
+            `validation of the ${schemeYear ?? 'whole'} catalogue FAILED with ` +
+            `${String(result.failures)} failure(s): ${listed}. ` +
+            'Fix them, or pass --force to publish a catalogue known to be wrong.',
+        };
+  } finally {
+    await sql.end();
+  }
+}
+
 function streamIdFor(label: string): string {
   return (
     label
@@ -323,6 +388,8 @@ async function main(): Promise<void> {
   }
   const wantProgramme = resolved === null ? null : resolved.match;
   const dryRun = has('dry-run');
+  let emitRefused = false;
+  let emitVerdict = '';
   const suppliedOnly = has('supplied-only');
   const report = {
     startedAt: new Date().toISOString(),
@@ -362,6 +429,8 @@ async function main(): Promise<void> {
     first_year_resolved: 0,
     first_year_unresolved: 0,
     first_year_unmapped: 0,
+    /* 'written' | 'forced' | 'refused' | 'not requested' */
+    emit: 'not requested' as string,
     aliases_persisted: 0,
     conflicts: 0,
   };
@@ -574,7 +643,17 @@ async function main(): Promise<void> {
 
   /* Opened at the top now: the gate is consulted BEFORE anything is fetched. */
   if (!dryRun && sql === null) {
-    console.log('\n  NOT PERSISTING: no DATABASE_URL. The catalogue file is still written.');
+    /*
+     * The artifact is no longer written regardless: `--emit` is gated on the
+     * requested scheme validating, and with no database there is nothing to
+     * validate it against.
+     */
+    console.log(
+      '\n  NOT PERSISTING: no DATABASE_URL.' +
+        (flag('emit') === null
+          ? ''
+          : ' --emit will refuse too, since the catalogue cannot be validated.'),
+    );
   }
 
   try {
@@ -884,6 +963,7 @@ async function main(): Promise<void> {
         courses.push({
           schemeYear: doc.schemeYear ?? 'unknown',
           programme: where.programmeName ?? where.streamName,
+          streamId: where.streamId,
           semester: course.semester,
           code: course.code,
           title: course.title,
@@ -953,26 +1033,33 @@ async function main(): Promise<void> {
             `${firstYear.url.split('/').pop() ?? ''} ${membership.abbreviation} sem ${String(slot.semester)} ${slot.slotCode}: ${slot.reason}`,
           );
         }
-        if (sql === null || resolution.resolved.length === 0) continue;
+        if (resolution.resolved.length === 0) continue;
 
         const streamId = streamIdFor(
           `${membership.abbreviation} ${firstYear.cycle ?? 'first year'}`,
         );
-        await upsertStream(sql, {
-          id: streamId,
-          name:
-            firstYear.cycle === null
-              ? membership.streamName
-              : `${membership.streamName} — ${firstYear.cycle}`,
-          sourceUrl: firstYear.url,
-        });
-        for (const programme of membership.programmes) {
-          await upsertStreamProgramme(sql, {
-            streamId,
-            programmeCode: programme.code,
-            programmeName: programme.name,
+        /*
+         * The stream and its programmes are DATABASE records; the artifact
+         * carries the id on each course instead. A run with no database still
+         * emits a correct catalogue, which is what `--emit` is for.
+         */
+        if (sql !== null) {
+          await upsertStream(sql, {
+            id: streamId,
+            name:
+              firstYear.cycle === null
+                ? membership.streamName
+                : `${membership.streamName} — ${firstYear.cycle}`,
             sourceUrl: firstYear.url,
           });
+          for (const programme of membership.programmes) {
+            await upsertStreamProgramme(sql, {
+              streamId,
+              programmeCode: programme.code,
+              programmeName: programme.name,
+              sourceUrl: firstYear.url,
+            });
+          }
         }
 
         for (const resolved of resolution.resolved) {
@@ -986,6 +1073,37 @@ async function main(): Promise<void> {
           if (written.has(key)) continue;
           written.set(key, { credits: resolved.credits, sha256: firstYear.sha256 });
 
+          /*
+           * THE SHIPPED ARTIFACT GETS THE SAME ROW THE DATABASE DOES.
+           *
+           * This used to write only to the database, and the emitted catalogue
+           * was built from a separate collection the resolution never reached.
+           * So the artifact carried the first-year PLACEHOLDERS — `1BMATX101`,
+           * which no student's result card ever prints — and not the concrete
+           * courses they resolve to. A 2025 first-year card would have matched
+           * nothing at all, against a catalogue that appeared to cover the
+           * semester.
+           */
+          courses.push({
+            schemeYear: firstYear.schemeYear,
+            programme: null,
+            streamId,
+            semester: resolved.semester,
+            code: resolved.code,
+            title: resolved.title,
+            credits: resolved.credits,
+            creditBasis: 'slot',
+            relatedCode: resolved.slotCode,
+            provenance: {
+              documentSha256: firstYear.sha256,
+              sourceUrl: firstYear.url,
+              sourcePage: resolved.page,
+              parserVersion: EXTRACTOR_VERSION,
+              retrievedAt: now,
+            },
+          });
+
+          if (sql === null) continue;
           const action = await upsertCourse(sql, {
             schemeYear: firstYear.schemeYear,
             programmeName: null,
@@ -1074,17 +1192,59 @@ async function main(): Promise<void> {
 
   /* ---- 5. The artifact the app ships ------------------------------------ */
 
+  /*
+   * THE ARTIFACT'S IDENTITY MUST BE THE DATABASE'S IDENTITY.
+   *
+   * `catalogue_courses` is unique on (scheme, programme, stream, semester,
+   * code) and this map was unique on the same thing WITHOUT the stream — so
+   * the two first-year cycles, which differ only by stream, collapsed into one
+   * another here. The physics cycle's `1BMATS101` and the chemistry cycle's
+   * are two rows in the database and were one row in the artifact, and the
+   * science that differs between them landed in a single semester-I namespace
+   * that demanded both.
+   */
   const seen = new Map<string, CatalogueCourse>();
   for (const course of courses) {
-    const key = [course.schemeYear, course.programme ?? '(common)', course.semester, course.code]
-      .map(String)
-      .join(' ');
+    const key = courseKey(
+      course.schemeYear,
+      course.programme,
+      course.semester,
+      course.code,
+      course.streamId ?? null,
+    );
     if (!seen.has(key)) seen.set(key, course);
   }
   report.normalized_courses = seen.size;
 
   const emit = flag('emit');
   if (emit !== null && !dryRun) {
+    /*
+     * AN ARTIFACT IS A PUBLICATION, AND IT IS GATED ON THE SCHEME IT CLAIMS.
+     *
+     * Writing one used to need nothing but the flag. A catalogue that fails
+     * its own validation could be emitted, committed and shipped, and the
+     * failure lived only in a terminal nobody kept — which is the exact shape
+     * of defect this pipeline exists to prevent.
+     *
+     * The scheme VALIDATED IS THE SCHEME REQUESTED. Not "the last run", not
+     * "the database as a whole": `--scheme 2025 --emit` validates 2025, and a
+     * 2022 catalogue passing tells it nothing.
+     *
+     * `--force` exists because a human may have a reason, and it is loud,
+     * deliberate, and recorded in the run report. It overrides the validation
+     * verdict and NOTHING else — the source gate above is not reachable from
+     * here and is not affected by it.
+     */
+    const verdict = await gateEmission(wantYear, has('force'));
+    emitVerdict = verdict.reason;
+    if (!verdict.allowed) {
+      console.error(`\n  REFUSING TO EMIT — ${verdict.reason}\n`);
+      report.emit = 'refused';
+      process.exitCode = 1;
+      emitRefused = true;
+    }
+  }
+  if (emit !== null && !dryRun && !emitRefused) {
     const catalogue: Catalogue = {
       normalizationVersion: NORMALIZATION_VERSION,
       generatedAt: now,
@@ -1111,7 +1271,23 @@ async function main(): Promise<void> {
        * resolves BCSL358D without a database and without a copy of the table
        * of its own (§11, §38).
        */
-      aliases: COURSE_ALIASES.map((alias) => ({
+      /*
+       * ONLY THIS SCHEME'S ALIASES, AND EACH ONE SAYS WHICH SCHEME.
+       *
+       * This emitted the whole table regardless of `--scheme`, and
+       * `CatalogueAlias` had no year to put on them, so a 2025 artifact
+       * carried the 2022 equivalence `BCSL358D` -> `BCS358D` — whose own
+       * evidence line cites the 2022 CSBS syllabus — with nothing downstream
+       * able to tell it did not belong. An alias is a statement about one
+       * scheme's codes; it travels with its year or it does not travel.
+       *
+       * A run with no `--scheme` is asking for everything, and gets it: the
+       * year on each row is what keeps that honest.
+       */
+      aliases: COURSE_ALIASES.filter(
+        (alias) => wantYear === null || alias.schemeYear === wantYear,
+      ).map((alias) => ({
+        schemeYear: alias.schemeYear,
         variant: alias.variant,
         canonical: alias.canonical,
         title: alias.title,
@@ -1122,7 +1298,9 @@ async function main(): Promise<void> {
     const path = resolve(emit);
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, JSON.stringify(catalogue, null, 2), 'utf8');
+    report.emit = has('force') ? 'forced' : 'written';
     console.log(`\n  catalogue file  ${path}`);
+    console.log(`  emit            ${report.emit} — ${emitVerdict}`);
   }
 
   /* ---- 6. Report -------------------------------------------------------- */
