@@ -385,7 +385,59 @@ const WRAPPED_CODE_LINES = 1.6;
  * Every code a cell names, in the order printed. One entry for an ordinary
  * cell, and an empty list for a cell that names none.
  */
-function codesIn(cell: string): string[] {
+/**
+ * THE PLACEHOLDER LETTERS, IN WHICHEVER CASE THE TYPIST USED.
+ *
+ * `BXX515x` is not a department segment that happens to spell XX — it is the
+ * document writing "whichever discipline this is", and the row it names is the
+ * elective SLOT that carries the credits. The 2022 catalogue ships six of them
+ * as courses for that reason: until a student picks an option, the slot is the
+ * thing they are enrolled in.
+ *
+ * The 2025 CSBS scheme prints those same placeholders in BOTH cases, and not
+ * consistently within one page. Its fourth-semester table row says
+ * `1BXXL406x` while the heading of the option list directly above it says
+ * `1BxxL406x`; the whole of the eighth-semester table is lowercase —
+ * `1Bxx801x`, `1Bxx802x`, `1Bxx803x`, worth 3, 3 and 9 of the 15 credits that
+ * table totals.
+ *
+ * With the letters required to be capitals, that entire semester read as zero
+ * courses. Not refused with a reason — INVISIBLE, because a cell that is not a
+ * code is not a row, so nothing was there to refuse. The scheme reported
+ * semesters III to VII and looked complete.
+ *
+ * Only the placeholder is case-folded, and only to the spelling the rest of
+ * the document uses. Accepting lowercase generally would make `1Bcs302` a
+ * second identity for `1BCS302` and admit prose fragments as codes; this
+ * accepts one token whose letters are `xx` because in that one position the
+ * case carries no meaning to lose.
+ */
+const PLACEHOLDER_CODE = /^(1?)B(XX)(L?)(\d{3}[A-Z]?)$/i;
+
+function canonicalCode(cell: string): string {
+  const placeholder = PLACEHOLDER_CODE.exec(cell);
+  if (placeholder === null) return cell;
+  const [, generation, , lab, tail] = placeholder as unknown as [
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
+  /*
+   * THE TAIL IS LEFT EXACTLY AS PRINTED. Only the discipline segment is
+   * case-free. The trailing letter is not: a lowercase `x` marks the slot
+   * itself — "whichever option is chosen" — and a capital `A`, `B`, `C` names
+   * one of those options, so `BXX515x` and `BXX515A` are different rows.
+   * Folding the tail too turned the six placeholder slots the 2022 catalogue
+   * has shipped since it was published into `BXX515X`, renaming published
+   * courses to fix a different scheme's typography.
+   */
+  return `${generation}BXX${lab.toUpperCase()}${tail}`;
+}
+
+function codesIn(raw: string): string[] {
+  const cell = canonicalCode(raw.trim());
   if (COURSE_CODE.test(cell)) return [cell];
   /*
    * A SPACE INSIDE THE CELL IS STILL INSIDE THE CELL.
@@ -452,6 +504,35 @@ const ROMAN: Readonly<Record<string, number>> = {
  * department VALUE always names a department after a colon; a header does not.
  */
 const DEPARTMENT_CELL = /^(TD|PSB)\b[^:]{0,14}:/i;
+
+/**
+ * THE SAME CELL, ARRIVING IN TWO PIECES.
+ *
+ * `DEPARTMENT_CELL` requires the colon because that is what separates a
+ * department VALUE from the bare `TD/PSB` column HEADER, and matching the
+ * header would drag the department column's left edge out to it and clip every
+ * title on the page to nothing.
+ *
+ * The 2025 scheme splits the cell at exactly that colon:
+ *
+ *     "TD/PSB"(x 377)   ": CS Allied"(x 404)
+ *
+ * so neither half matches — the first carries no colon, the second opens with
+ * one instead of a label — and both were assembled into the course name. Every
+ * row on those pages read as "TD/PSB : CS Allied Machine Learning".
+ *
+ * THIS PATTERN IS FOR TITLES ONLY, and is deliberately not used to place the
+ * department column. Keeping a bare `TD/PSB` run out of a course NAME is right
+ * whether the run is a header or half a value; letting one set the column edge
+ * is the bug the colon was guarding against. So both halves are refused here,
+ * and only the colon-bearing form is trusted there.
+ */
+const DEPARTMENT_PIECE = /^(TD|PSB)(\s*\/\s*(TD|PSB))?$|^:/i;
+
+/** Text belonging to the department column rather than to a course name. */
+function isDepartmentText(text: string): boolean {
+  return DEPARTMENT_CELL.test(text) || DEPARTMENT_PIECE.test(text);
+}
 
 /**
  * A whole number as the scheme prints one: `3`, `03`, `100`.
@@ -581,7 +662,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
       const nearbyTitle = row
         .filter(
           (cell) =>
-            !DEPARTMENT_CELL.test(cell.text.trim()) &&
+            !isDepartmentText(cell.text.trim()) &&
             !WHOLE_NUMBER.test(cell.text.trim()) &&
             !COURSE_CODE.test(cell.text.trim()),
         )
@@ -680,7 +761,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
             cell.y >= titleFloor &&
             cell.x > item.x &&
             cell.x < Math.min(departmentX, numbers[0]?.x ?? Number.POSITIVE_INFINITY) &&
-            !DEPARTMENT_CELL.test(cell.text.trim()) &&
+            !isDepartmentText(cell.text.trim()) &&
             !WHOLE_NUMBER.test(cell.text.trim()) &&
             !COURSE_CODE.test(cell.text.trim()),
         )
@@ -929,17 +1010,37 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
 /**
  * The semester a page's table is for.
  *
- * Taken from the page's own heading, and only from a SHORT one. The body text
- * on the notes pages opens with "III semester to the VI semester (for 4
- * semesters)…", which matches the heading shape and would file a page of prose
- * under semester three.
+ * Taken from the page's own heading, and only where the run is a heading
+ * rather than the opening of a sentence. The body text on the notes pages
+ * begins "III semester to the VI semester (for 4 semesters)…", which matches
+ * the heading shape and would file a page of prose under semester three.
+ *
+ * What separates the two is what FOLLOWS the heading: a heading is either the
+ * whole run or the heading plus bracketed qualifiers, while the prose carries
+ * straight on in open text. So the tail is allowed to be parenthesised and
+ * nothing else.
+ *
+ * THIS USED TO BE A LENGTH LIMIT — runs longer than 24 characters were skipped
+ * — and the 2025 scheme is where that proxy broke. It heads its last two
+ * tables "VII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)", 57
+ * characters, so BOTH of those semesters were dropped: every seventh- and
+ * eighth-semester row came back refused with "This page states no semester"
+ * while the first four semesters imported cleanly. A scheme missing a quarter
+ * of its courses still looks like a working import.
+ *
+ * The bracket rule is not case-sensitive on purpose. The first-year CSE-stream
+ * tables head themselves "ISemester (CSE" — mixed case, and truncated mid-
+ * qualifier by the run boundary — so requiring capitals would trade this bug
+ * for that one.
  */
 function semesterOf(pageItems: readonly PositionedText[]): number | null {
   for (const item of pageItems) {
     const text = item.text.trim();
-    if (text.length > 24) continue;
     const match = SEMESTER_HEADING.exec(text);
-    const roman = match?.[1]?.toUpperCase();
+    if (match === null) continue;
+    /* Words before any opening bracket mean the run kept talking: prose. */
+    if (/^[^(]*[A-Za-z0-9]/.test(text.slice(match[0].length))) continue;
+    const roman = match[1]?.toUpperCase();
     if (roman !== undefined && roman in ROMAN) return ROMAN[roman] ?? null;
   }
   return null;
@@ -963,10 +1064,47 @@ function headingMatch(items: readonly PositionedText[], pattern: RegExp): string
  * bound the title instead.
  */
 function departmentColumn(pageItems: readonly PositionedText[]): number {
-  const labelled = pageItems.filter((item) => DEPARTMENT_CELL.test(item.text.trim()));
+  const labelled = pageItems.filter(
+    (item) => DEPARTMENT_CELL.test(item.text.trim()) || completesADepartmentCell(item, pageItems),
+  );
   return labelled.length === 0
     ? Number.POSITIVE_INFINITY
     : Math.min(...labelled.map((item) => item.x));
+}
+
+/**
+ * A LABEL RUN WHOSE COLON ARRIVED SEPARATELY IS STILL A LABELLED CELL.
+ *
+ * `DEPARTMENT_CELL` wants `TD/PSB: CS Allied` in one run. The 2025 scheme emits
+ * the label and its value as two runs that meet at the colon, so no cell on
+ * those pages was labelled, the column had NO left edge, and every run to the
+ * right of a course name — the department, the setting board, whatever else
+ * the row carried — was assembled into the title.
+ *
+ * ADJACENCY IS WHAT MAKES THIS SAFE, and it is the rule this reader already
+ * uses to rejoin a course code split across runs: the pieces must touch. The
+ * bare `TD/PSB` COLUMN HEADER is the thing the colon was guarding against, and
+ * a header is not followed by `: something` on its own baseline — it sits alone
+ * above the column. Measured on this document the two halves meet exactly, gap
+ * 0.0, so nothing here is a tolerance dressed up as a rule.
+ *
+ * The edge returned is the LABEL's x, not the colon's, because the label is
+ * where the cell starts and therefore where the title has to stop.
+ */
+function completesADepartmentCell(
+  item: PositionedText,
+  pageItems: readonly PositionedText[],
+): boolean {
+  if (!DEPARTMENT_PIECE.test(item.text.trim())) return false;
+  if (item.text.trim().startsWith(':')) return false;
+  const ends = item.x + item.width;
+  return pageItems.some(
+    (other) =>
+      other !== item &&
+      Math.abs(other.y - item.y) <= 2 &&
+      Math.abs(other.x - ends) <= 1 &&
+      other.text.trim().startsWith(':'),
+  );
 }
 
 /**
@@ -1006,7 +1144,7 @@ function titleBeside(
         Math.abs(cell.y - code.y) <= band &&
         cell.x > code.x &&
         cell.x < departmentX &&
-        !DEPARTMENT_CELL.test(cell.text.trim()) &&
+        !isDepartmentText(cell.text.trim()) &&
         !WHOLE_NUMBER.test(cell.text.trim()) &&
         !COURSE_CODE.test(cell.text.trim()) &&
         !ALTERNATIVE_MARKER.test(cell.text.trim()),
