@@ -16,7 +16,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseScheme, type SchemePage } from '@gradtools/vtu-catalogue';
+import { parseScheme, semesterTotalsOf, type SchemePage } from '@gradtools/vtu-catalogue';
 import type { PositionedText } from '../src/domain/pdf-layout.js';
 
 /** Column x-positions, in the proportions the scheme prints them. */
@@ -1089,5 +1089,144 @@ describe('a department cell that arrives in two runs', () => {
 
     expect(parsed.courses).toHaveLength(1);
     expect(parsed.courses[0]?.title).toBe('Invented Course One');
+  });
+});
+
+describe('the total a semester table prints', () => {
+  /*
+   * The printed total is the cross-check on everything else here: it is the
+   * document's own arithmetic, and comparing it against the rows read is what
+   * catches a reader that has quietly lost one. So it has to be attributed to
+   * the table that printed it, and read whole.
+   *
+   * Both fixtures below are the layout of `34csbssch.pdf`, at the coordinates
+   * it actually uses.
+   */
+
+  const TITLE_BLOCK = at('Scheme of Teaching and Examinations - 2025', 319, 477);
+
+  it('reads a total row whose cells straddle two baselines', () => {
+    /*
+     * THE ROW IS NOT ONE BASELINE. The seventh-semester total is typeset with
+     * `Total` and one figure at y 105 and the whole rest of the row — its
+     * credits cell included — at y 104.
+     *
+     * Bucketing on `Math.round(y)` put a hard boundary through it. The `Total`
+     * fragment kept exactly one number, the 15 that happened to share its
+     * baseline, and the reader reported this semester as printing 15 credits
+     * against a catalogue holding 20. The 15 was never a stray token from
+     * elsewhere on the page: it is this row's own term-work column, and the
+     * reader was seeing a seventh of the row.
+     */
+    const totals = semesterTotalsOf([
+      {
+        page: 1,
+        items: [
+          TITLE_BLOCK,
+          at('VII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)', 48, 404),
+          at('Total', 439, 105),
+          at('15', 653, 105),
+          at('628', 617, 104),
+          at('400', 687, 104),
+          at('300', 725, 104),
+          at('700', 760, 104),
+          at('20', 795, 104),
+        ],
+      },
+    ]);
+
+    expect(totals).toEqual([{ semester: 7, credits: 20, page: 1 }]);
+  });
+
+  it('does not give a new table the previous table’s semester', () => {
+    /*
+     * The semester heading carries across pages because a table runs across
+     * pages and only its first page prints one. That holds for CONTINUATION
+     * pages, which carry rows and no masthead.
+     *
+     * The eleventh page of the 2025 scheme is not one. It re-prints the title
+     * block and opens a different table — the Scheme-B variant for candidates
+     * taking a two-semester internship, which its own caption says covers
+     * "VII and VIII semesters" — and states no semester of its own. Inheriting
+     * eight from the page before filed that table's 20 credits as an
+     * eighth-semester total, against a table that prints 15.
+     */
+    const totals = semesterTotalsOf([
+      {
+        page: 1,
+        items: [
+          TITLE_BLOCK,
+          at('VIII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)', 43, 458),
+          at('Total', 439, 272),
+          at('540', 606, 272),
+          at('9', 644, 272),
+          at('200', 676, 271),
+          at('200', 715, 271),
+          at('400', 756, 271),
+          at('15', 794, 271),
+        ],
+      },
+      {
+        page: 2,
+        items: [
+          TITLE_BLOCK,
+          at('VII and VIII semesters for the candidates who opt for a two-semesters', 18, 458),
+          at('Total', 560, 164),
+          at('6', 644, 164),
+          at('400', 678, 164),
+          at('300', 720, 164),
+          at('700', 763, 164),
+          at('20', 800, 164),
+        ],
+      },
+    ]);
+
+    expect(totals).toEqual([{ semester: 8, credits: 15, page: 1 }]);
+  });
+
+  it('still carries the heading onto a continuation page', () => {
+    /*
+     * The reason the carry-forward exists, asserted so that narrowing it
+     * cannot quietly remove it. This page prints no masthead, so it continues
+     * the table above rather than starting one.
+     */
+    const totals = semesterTotalsOf([
+      { page: 1, items: [TITLE_BLOCK, at('V SEMESTER', 48, 380)] },
+      {
+        page: 2,
+        items: [
+          at('Total', 485, 132),
+          at('658', 648, 132),
+          at('500', 704, 132),
+          at('400', 732, 132),
+          at('900', 768, 132),
+          at('22', 806, 132),
+        ],
+      },
+    ]);
+
+    expect(totals).toEqual([{ semester: 5, credits: 22, page: 2 }]);
+  });
+
+  it('still reads a total row that prints one number', () => {
+    /*
+     * Thirty-seven totals in the 2022 corpus have exactly this shape — the
+     * label and the credits, the rest of the columns on baselines of their
+     * own. Rejecting a one-number row would have been the cheap way to throw
+     * out the 15 above, and it would have thrown out these with it.
+     */
+    const totals = semesterTotalsOf([
+      {
+        page: 1,
+        items: [
+          TITLE_BLOCK,
+          at('III SEMESTER', 56, 435),
+          at('Total', 485, 132),
+          at('21', 806, 132),
+        ],
+      },
+    ]);
+
+    expect(totals).toEqual([{ semester: 3, credits: 21, page: 1 }]);
   });
 });
