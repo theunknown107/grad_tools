@@ -412,18 +412,39 @@ const WRAPPED_CODE_LINES = 1.6;
  * accepts one token whose letters are `xx` because in that one position the
  * case carries no meaning to lose.
  */
-const PLACEHOLDER_CODE = /^(1?)B(XX)(L?)(\d{3}[A-Z]?)$/i;
+const PLACEHOLDER_CODE = /^(1?)B([A-Za-z]{2,7})(\d{3}[A-Za-z]?)$/;
+
+/**
+ * A DISCIPLINE SEGMENT THAT STANDS FOR SOMETHING RATHER THAN NAMING IT.
+ *
+ * VTU prints real course codes in capitals — across the 290 cached documents
+ * there is no real code with a lowercase letter in its discipline segment — so
+ * a lowercase letter there is a MARKER, not part of a name. That is the whole
+ * rule, and it is measured rather than assumed.
+ *
+ * It covers both families the 2025 documents use:
+ *
+ *     1BXX505x   1Bxx801x    the elective slot, discipline unspecified
+ *     1BMATx101  1BCEDx103   the STREAM marker: "whichever stream's maths"
+ *     1Bxxx105x  1BxxxL207x  the programme marker, discipline unspecified
+ *
+ * `XX` is included in upper case as well because the same document prints the
+ * elective placeholder both ways, and both are the same slot.
+ */
+function isPlaceholderSegment(segment: string): boolean {
+  return /[a-z]/.test(segment) || segment.includes('XX');
+}
 
 function canonicalCode(cell: string): string {
   const placeholder = PLACEHOLDER_CODE.exec(cell);
   if (placeholder === null) return cell;
-  const [, generation, , lab, tail] = placeholder as unknown as [
-    string,
+  const [, generation, segment, tail] = placeholder as unknown as [
     string,
     string,
     string,
     string,
   ];
+  if (!isPlaceholderSegment(segment)) return cell;
   /*
    * THE TAIL IS LEFT EXACTLY AS PRINTED. Only the discipline segment is
    * case-free. The trailing letter is not: a lowercase `x` marks the slot
@@ -433,7 +454,7 @@ function canonicalCode(cell: string): string {
    * has shipped since it was published into `BXX515X`, renaming published
    * courses to fix a different scheme's typography.
    */
-  return `${generation}BXX${lab.toUpperCase()}${tail}`;
+  return `${generation}B${segment.toUpperCase()}${tail}`;
 }
 
 function codesIn(raw: string): string[] {
