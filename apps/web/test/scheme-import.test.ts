@@ -915,3 +915,179 @@ describe('the 2025 scheme generation', () => {
     expect(parsed.courses[0]?.code).toBe('1BQX306x');
   });
 });
+
+describe('headings the 2025 scheme prints, and the prose it also prints', () => {
+  /*
+   * The reader used to take a semester heading only from a run of 24
+   * characters or fewer. That length was standing in for "a heading, not a
+   * sentence", and the 2025 scheme is where the proxy broke: it heads its last
+   * two tables
+   *
+   *     VII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)
+   *
+   * at 57 characters, so BOTH semesters were dropped — every seventh- and
+   * eighth-semester row refused for "This page states no semester" while the
+   * first four semesters imported cleanly. A scheme missing a quarter of its
+   * courses still looks like a working import, which is why this is asserted
+   * rather than left to the eye.
+   */
+  const headed = (heading: string, code: string): SchemePage[] => [
+    {
+      page: 1,
+      items: [
+        at('B.E. in Invented Studies', 313, 491),
+        at('Scheme of Teaching and Examinations 2025', 319, 477),
+        at(heading, 56, 435),
+        ...row(322, code, 'Invented Course One', 4),
+      ],
+    },
+  ];
+
+  it('reads a heading carrying bracketed qualifiers, however long', () => {
+    const parsed = parseScheme(
+      headed('VII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)', 'BQQ401'),
+    );
+
+    expect(parsed.semesters).toEqual([7]);
+    expect(parsed.courses[0]).toMatchObject({ code: 'BQQ401', semester: 7 });
+  });
+
+  it('takes the heading’s own numeral, not one from inside the qualifier', () => {
+    /*
+     * Both roman numerals appear in that heading and only the first is the
+     * page's. Reading the other swaps the two tables — which is exactly what
+     * the printed VII and VIII totals would then disagree about.
+     */
+    const parsed = parseScheme(
+      headed('VIII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)', 'BQQ401'),
+    );
+
+    expect(parsed.semesters).toEqual([8]);
+  });
+
+  it('still refuses a sentence that opens the same way', () => {
+    /*
+     * The notes pages begin "III semester to the VI semester (for 4
+     * semesters)…". It matches the heading shape, and filing a page of prose
+     * under semester three is what the length limit was there to prevent.
+     * Words before any bracket are what separate the two.
+     */
+    const parsed = parseScheme([
+      {
+        page: 1,
+        items: [
+          at('B.E. in Invented Studies', 313, 491),
+          at('III semester to the VI semester (for 4 semesters) shall be', 56, 435),
+          ...row(322, 'BQQ401', 'Invented Course One', 4),
+        ],
+      },
+    ]);
+
+    expect(parsed.semesters).toEqual([]);
+    expect(parsed.rejected.map((r) => r.reason)).toContain('This page states no semester.');
+  });
+});
+
+describe('the placeholder letters, in whichever case the typist used', () => {
+  /*
+   * `BXX515x` is the document writing "whichever discipline this is", and the
+   * row it names carries the elective slot's credits — the 2022 catalogue has
+   * shipped six such rows since it was published.
+   *
+   * The 2025 scheme prints them in BOTH cases, inconsistently within one page:
+   * its fourth-semester table row says `1BXXL406x` while the option list
+   * directly above says `1BxxL406x`, and its whole eighth-semester table is
+   * lowercase — `1Bxx801x`, `1Bxx802x`, `1Bxx803x`, worth 3, 3 and 9 of the
+   * 15 credits that table totals. With capitals required, that semester read
+   * as zero courses: not refused with a reason, INVISIBLE, because a cell that
+   * is not a code is not a row.
+   */
+  const eighth = (code: string): SchemePage[] => [
+    {
+      page: 1,
+      items: [
+        at('B.E. in Invented Studies', 313, 491),
+        at('Scheme of Teaching and Examinations 2025', 319, 477),
+        at('VIII SEMESTER', 56, 435),
+        ...row(322, code, 'Invented Elective Slot', 3),
+      ],
+    },
+  ];
+
+  it('reads a lowercase placeholder as the slot it is', () => {
+    const parsed = parseScheme(eighth('1Bxx801x'));
+
+    expect(parsed.courses).toHaveLength(1);
+    expect(parsed.courses[0]).toMatchObject({ credits: 3, semester: 8 });
+  });
+
+  it('files both spellings under one identity', () => {
+    /*
+     * Two spellings of one slot would otherwise be two courses, and the
+     * document uses both. The canonical form is the one the table itself
+     * prints.
+     */
+    const lower = parseScheme(eighth('1Bxx801x')).courses[0]?.code;
+    const upper = parseScheme(eighth('1BXX801x')).courses[0]?.code;
+
+    expect(lower).toBe('1BXX801x');
+    expect(upper).toBe('1BXX801x');
+  });
+
+  it('leaves the trailing letter exactly as printed', () => {
+    /*
+     * Only the discipline segment is case-free. A lowercase `x` marks the slot
+     * — "whichever option is chosen" — and a capital names one of the options,
+     * so `BXX515x` and `BXX515A` are different rows. Folding the tail as well
+     * renamed the six placeholder slots the 2022 catalogue publishes.
+     */
+    expect(parseScheme(eighth('BXX515x')).courses[0]?.code).toBe('BXX515x');
+    expect(parseScheme(eighth('BXX515A')).courses[0]?.code).toBe('BXX515A');
+  });
+});
+
+describe('a department cell that arrives in two runs', () => {
+  /*
+   * The department cell is excluded from course titles by a pattern that
+   * requires the colon, because the bare `TD/PSB` COLUMN HEADER must not match
+   * — matching it drags the department column's left edge out to the header
+   * and clips every title on the page to nothing.
+   *
+   * The 2025 scheme splits the cell at exactly that colon, into `"TD/PSB"` and
+   * `": CS Allied"` with no gap between them, so neither half matched and both
+   * were read as part of the course name. Every row on those pages came out
+   * titled "TD/PSB : CS Allied Machine Learning".
+   */
+  const split = (): SchemePage[] => [
+    {
+      page: 1,
+      items: [
+        at('B.E. in Invented Studies', 313, 491),
+        at('Scheme of Teaching and Examinations 2025', 319, 477),
+        at('V SEMESTER', 56, 435),
+        at('1', COL.serial, 322),
+        at('PCC', COL.category, 322),
+        at('BQQ501', COL.code, 322),
+        at('Invented Course One', COL.title, 322),
+        /* The two halves meet exactly, which is what marks them one cell. */
+        { text: 'TD/PSB', x: COL.department, y: 322, width: 27, height: HEIGHT },
+        { text: ': CS Allied', x: COL.department + 27, y: 322, width: 40, height: HEIGHT },
+        at('100', COL.total, 328),
+        at('3', COL.credits, 328),
+        at('3', COL.lecture, 322),
+        at('0', COL.tutorial, 322),
+        at('0', COL.practical, 322),
+        at('03', COL.duration, 322),
+        at('50', COL.cie, 322),
+        at('50', COL.see, 322),
+      ],
+    },
+  ];
+
+  it('keeps both halves out of the course name', () => {
+    const parsed = parseScheme(split());
+
+    expect(parsed.courses).toHaveLength(1);
+    expect(parsed.courses[0]?.title).toBe('Invented Course One');
+  });
+});
