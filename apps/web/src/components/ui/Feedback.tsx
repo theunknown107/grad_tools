@@ -1,166 +1,295 @@
 /**
- * Alert, Spinner and Scroll Area.
- *
- * Authority: Phase 7B §2, §12 · docs/27 §27.6, §27.9
- * Provenance: behaviourally faithful shadcn implementation adapted to the
- * GradTools styling architecture. Alert and Spinner have no Radix primitive —
- * they are markup and ARIA — and Scroll Area is
- * `@radix-ui/react-scroll-area`.
+ * Feedback — empty states, callouts, error panels, "Unavailable" values and
+ * toasts, each in the design's form.
  */
 
-import type { ReactNode } from 'react';
-import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
-import { Icon, type IconName } from '../icons.js';
-import styles from './Feedback.module.css';
+import { AlertTriangle, CircleCheck, Info, OctagonAlert, RotateCcw, X } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { cn } from '../../lib/cn.js';
+import { Button } from './button.js';
+import { Tooltip } from './tooltip.js';
 
-/* -------------------------------------------------------------------------- */
-/* Alert                                                                      */
-/* -------------------------------------------------------------------------- */
+/* ------------------------------------------------------------ Empty state */
 
-export type AlertTone = 'info' | 'success' | 'warning' | 'danger';
-
-const ALERT_ICON: Record<AlertTone, IconName> = {
-  info: 'info',
-  success: 'success',
-  warning: 'warning',
-  danger: 'danger',
-};
-
-/**
- * A message about the page, not about a field.
- *
- * `Notice` (ui/index.tsx) already existed and is this component's ancestor. The
- * two differences that earned a new one:
- *
- *   - a TITLE. "Semester 3 already has a result" followed by what to do about
- *     it reads as one message; the same text as an undifferentiated paragraph
- *     reads as a wall,
- *   - LIVENESS. An alert that appears in response to something the person just
- *     did must be announced. One that was on the page when it loaded must not
- *     be, or every visit begins with the app talking over itself.
- *
- * `live` is therefore explicit and defaults to off. `assertive` is reserved for
- * something that has already gone wrong; `polite` waits for a pause, which is
- * correct for everything else.
- */
-export function Alert({
-  tone = 'info',
+export function EmptyState({
+  icon,
   title,
-  children,
-  live = false,
-  action,
+  description,
+  actions,
+  className,
+  compact = false,
 }: {
-  readonly tone?: AlertTone;
-  readonly title?: string | undefined;
-  readonly children: ReactNode;
-  /** True for a message that appeared in response to an action. */
-  readonly live?: boolean | 'assertive';
-  readonly action?: ReactNode;
-}): ReactNode {
+  readonly icon: ReactNode;
+  readonly title: string;
+  readonly description?: ReactNode;
+  readonly actions?: ReactNode;
+  readonly className?: string;
+  /** Inside a card: no dashed frame, less padding. */
+  readonly compact?: boolean;
+}) {
   return (
     <div
-      className={styles.alert}
-      data-tone={tone}
-      /*
-       * `role="alert"` is implicitly assertive and cannot be made polite, so a
-       * polite live region is expressed as `role="status"` instead. Neither is
-       * set at all when the message is not live.
-       */
-      role={live === 'assertive' ? 'alert' : live === true ? 'status' : undefined}
+      className={cn(
+        'flex flex-col items-center justify-center text-center',
+        compact
+          ? 'px-5 py-8'
+          : 'rounded-xl border border-dashed border-line-strong bg-panel px-6 py-14',
+        className,
+      )}
     >
-      <Icon name={ALERT_ICON[tone]} size="nav" className={styles.alertIcon} />
-      <div className={styles.alertBody}>
-        {title !== undefined && <p className={styles.alertTitle}>{title}</p>}
-        <div className={styles.alertText}>{children}</div>
+      <div
+        className={cn(
+          'mb-4 grid place-items-center rounded-2xl bg-sunken text-ink-2',
+          compact ? 'size-11 [&_svg]:size-5' : 'size-14 [&_svg]:size-6',
+        )}
+        aria-hidden="true"
+      >
+        {icon}
       </div>
-      {action !== undefined && <div className={styles.alertAction}>{action}</div>}
+      <h3 className="text-[15px] font-semibold text-ink">{title}</h3>
+      {description !== undefined && (
+        <p className="mt-1 max-w-sm text-[13px] text-ink-2">{description}</p>
+      )}
+      {actions !== undefined && (
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{actions}</div>
+      )}
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Spinner                                                                    */
-/* -------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------- Callout */
 
-/**
- * Work is happening and its duration is unknown.
- *
- * Used ONLY where a skeleton cannot be: OCR on a scanned page has no shape to
- * stand in for, because nothing is known about what it will produce. Where the
- * shape of the result IS known — a list, a table, a card — `Skeleton` is the
- * right component and this one is a downgrade.
- *
- * The label is not optional. A spinner with no accessible name announces
- * nothing at all, which is the same as showing nothing.
- */
-export function Spinner({
-  label,
-  size = 'default',
+const calloutTone = {
+  warning: {
+    box: 'border-warning/30 bg-warning-weak/40',
+    icon: 'text-warning',
+    Icon: AlertTriangle,
+  },
+  danger: { box: 'border-danger/30 bg-danger-weak/40', icon: 'text-danger', Icon: OctagonAlert },
+  success: { box: 'border-success/30 bg-success-weak/40', icon: 'text-success', Icon: CircleCheck },
+  info: { box: 'border-line bg-panel', icon: 'text-ink-2', Icon: Info },
+} as const;
+
+/** The design's tinted inline notice ("Partial result. …"). */
+export function Callout({
+  tone = 'info',
+  title,
+  children,
+  action,
+  className,
+  role,
 }: {
-  /** What is being waited for: "Reading the result card". */
-  readonly label: string;
-  readonly size?: 'small' | 'default';
-}): ReactNode {
+  readonly tone?: keyof typeof calloutTone;
+  readonly title?: ReactNode;
+  readonly children?: ReactNode;
+  readonly action?: ReactNode;
+  readonly className?: string;
+  readonly role?: 'status' | 'alert';
+}) {
+  const style = calloutTone[tone];
+  const Icon = style.Icon;
   return (
-    <span className={styles.spinnerWrap} role="status" aria-label={label} data-size={size}>
-      <span className={styles.spinner} aria-hidden="true" />
-      {/*
-        The label appears TWICE on purpose, and they do different jobs.
-        `aria-label` is the region's NAME, which is what a screen reader reads
-        when a person navigates onto it; the hidden text is the region's
-        CONTENT, which is what a live region announces when it appears. A
-        `role="status"` with a name and no content announces nothing at the
-        moment that matters most.
-      */}
-      <span className={styles.spinnerLabel}>{label}</span>
-    </span>
+    <div
+      {...(role === undefined ? {} : { role })}
+      className={cn('flex items-start gap-3 rounded-xl border p-4', style.box, className)}
+    >
+      <Icon aria-hidden="true" className={cn('mt-0.5 size-4.5 shrink-0', style.icon)} />
+      <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-ink-2">
+        {title !== undefined && <span className="font-medium text-ink">{title} </span>}
+        {children}
+      </div>
+      {action !== undefined && <div className="shrink-0">{action}</div>}
+    </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Scroll area                                                                */
-/* -------------------------------------------------------------------------- */
+/** A failed load, with a way to try again. */
+export function ErrorState({
+  title = 'Something went wrong',
+  message,
+  onRetry,
+  className,
+}: {
+  readonly title?: string;
+  readonly message: ReactNode;
+  readonly onRetry?: () => void;
+  readonly className?: string;
+}) {
+  return (
+    <div
+      role="alert"
+      className={cn(
+        'flex flex-col items-center rounded-xl border border-line bg-raised px-6 py-12 text-center',
+        className,
+      )}
+    >
+      <span className="mb-4 grid size-14 place-items-center rounded-full bg-danger-weak text-danger">
+        <AlertTriangle className="size-6" aria-hidden="true" />
+      </span>
+      <h3 className="text-[15px] font-semibold text-ink">{title}</h3>
+      <p className="mt-1 max-w-md text-[13px] text-ink-2">{message}</p>
+      {onRetry !== undefined && (
+        <Button className="mt-5" icon={<RotateCcw />} onClick={onRetry}>
+          Try again
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ Unavailable */
 
 /**
- * A region that scrolls, with a scrollbar that is visible on every platform.
- *
- * macOS hides overlay scrollbars until something moves, so a scrolling panel on
- * a Mac looks like a truncated one. Radix renders its own bar, which is present
- * whenever there is overflow.
- *
- * `tabIndex={0}` on the viewport, because a region that scrolls must be
- * reachable by keyboard — without it everything past the fold is unreachable
- * for anyone not using a pointer, which axe reports as
- * `scrollable-region-focusable` and which is a genuine dead end.
+ * The design's "Unavailable" value with a dashed underline and its reason in a
+ * tooltip. Focusable, so the reason reaches a keyboard user too.
  */
-export function ScrollArea({
-  children,
-  label,
-  maxHeight,
-  orientation = 'vertical',
+export function Unavailable({
+  reason,
+  label = 'Unavailable',
+  className,
 }: {
-  readonly children: ReactNode;
-  /** Names the region, since it becomes a keyboard stop. */
-  readonly label: string;
-  /** CSS length. Omit where the parent already constrains the height. */
-  readonly maxHeight?: string | undefined;
-  readonly orientation?: 'vertical' | 'horizontal';
-}): ReactNode {
+  readonly reason?: string | null | undefined;
+  readonly label?: string;
+  readonly className?: string;
+}) {
+  if (reason === undefined || reason === null || reason === '') {
+    return <span className={cn('text-[13px] text-ink-3', className)}>{label}</span>;
+  }
   return (
-    <ScrollAreaPrimitive.Root className={styles.scrollRoot} type="auto">
-      <ScrollAreaPrimitive.Viewport
-        className={styles.scrollViewport}
+    <Tooltip content={reason}>
+      <span
         tabIndex={0}
-        role="group"
-        aria-label={label}
-        style={maxHeight === undefined ? undefined : { maxBlockSize: maxHeight }}
+        aria-label={`${label}: ${reason}`}
+        className={cn(
+          'cursor-help border-b border-dashed border-ink-3 text-[13px] text-ink-3',
+          className,
+        )}
       >
-        {children}
-      </ScrollAreaPrimitive.Viewport>
-      <ScrollAreaPrimitive.Scrollbar className={styles.scrollbar} orientation={orientation}>
-        <ScrollAreaPrimitive.Thumb className={styles.scrollThumb} />
-      </ScrollAreaPrimitive.Scrollbar>
-      <ScrollAreaPrimitive.Corner />
-    </ScrollAreaPrimitive.Root>
+        {label}
+      </span>
+    </Tooltip>
+  );
+}
+
+/* ------------------------------------------------------------------ Toast */
+
+export type ToastTone = 'neutral' | 'success' | 'warning' | 'danger' | 'accent';
+
+export interface ToastAction {
+  readonly label: string;
+  readonly onClick: () => void;
+}
+
+interface ToastPayload {
+  readonly id: number;
+  readonly message: string;
+  readonly description?: string | undefined;
+  readonly tone: ToastTone;
+  readonly action?: ToastAction | undefined;
+}
+
+const TOAST_EVENT = 'gt-toast';
+let nextToastId = 1;
+
+/**
+ * Shows a transient confirmation. Decoupled from React context so any module
+ * can call it; the one `<Toaster />` in the shell renders the stack.
+ */
+export function toast(
+  message: string,
+  options?: {
+    readonly description?: string;
+    readonly tone?: ToastTone;
+    readonly action?: ToastAction;
+  },
+): void {
+  window.dispatchEvent(
+    new CustomEvent<ToastPayload>(TOAST_EVENT, {
+      detail: {
+        id: nextToastId++,
+        message,
+        description: options?.description,
+        tone: options?.tone ?? 'neutral',
+        action: options?.action,
+      },
+    }),
+  );
+}
+
+const toastDot: Record<ToastTone, string> = {
+  neutral: 'bg-ink-3',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+  accent: 'bg-accent',
+};
+
+export function Toaster() {
+  const [items, setItems] = useState<readonly ToastPayload[]>([]);
+  useEffect(() => {
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const onToast = (event: Event): void => {
+      const item = (event as CustomEvent<ToastPayload>).detail;
+      setItems((previous) => [...previous, item].slice(-4));
+      const timer = setTimeout(
+        () => {
+          timers.delete(timer);
+          setItems((previous) => previous.filter((entry) => entry.id !== item.id));
+        },
+        item.action === undefined ? 3600 : 6000,
+      );
+      timers.add(timer);
+    };
+    window.addEventListener(TOAST_EVENT, onToast);
+    return () => {
+      window.removeEventListener(TOAST_EVENT, onToast);
+      timers.forEach(clearTimeout);
+    };
+  }, []);
+
+  return (
+    <div
+      aria-live="polite"
+      className="pointer-events-none fixed right-4 bottom-20 z-[90] flex flex-col items-end gap-2 max-sm:inset-x-4 max-sm:items-stretch lg:bottom-4"
+    >
+      {items.map((item) => (
+        <div
+          key={item.id}
+          role="status"
+          className="pointer-events-auto flex max-w-sm animate-toast-in items-start gap-2.5 rounded-xl border border-line bg-raised px-3.5 py-3 shadow-e3"
+        >
+          <span
+            aria-hidden="true"
+            className={cn('mt-1.5 size-2 shrink-0 rounded-full', toastDot[item.tone])}
+          />
+          <div className="min-w-0">
+            <div className="text-[13px] font-medium text-ink">{item.message}</div>
+            {item.description !== undefined && (
+              <div className="mt-0.5 text-[12px] text-ink-2">{item.description}</div>
+            )}
+          </div>
+          {item.action !== undefined && (
+            <button
+              type="button"
+              onClick={() => {
+                item.action?.onClick();
+                setItems((previous) => previous.filter((entry) => entry.id !== item.id));
+              }}
+              className="ml-1 shrink-0 rounded-md px-2 py-1 text-[12px] font-semibold text-accent-ink transition-colors hover:bg-sunken"
+            >
+              {item.action.label}
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => setItems((previous) => previous.filter((entry) => entry.id !== item.id))}
+            className="-mt-0.5 -mr-1 ml-1 grid size-6 place-items-center rounded-md text-ink-3 transition-colors hover:bg-sunken hover:text-ink"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
   );
 }

@@ -1,71 +1,52 @@
-/**
- * Loading placeholder.
- *
- * Authority: docs/05 §5.25 (M9.6D §31)
- * Provenance: SHADCN SOURCE. Ported from
- * `registry/bases/base/ui/skeleton.tsx`, retrieved via the shadcn skill.
- *
- * The shadcn original is four lines and has no dependencies at all:
- *
- *     function Skeleton({ className, ...props }) {
- *       return <div data-slot="skeleton" className={cn("cn-skeleton animate-pulse", ...)} />
- *     }
- *
- * Everything portable was kept — the single element, the `data-slot` hook, the
- * pass-through props, the pulse. What was replaced is the styling layer:
- * `cn()` and Tailwind's `animate-pulse` need Tailwind, which GradTools does
- * not use, and docs/05 §9 requires every imported component to be restyled to
- * GradTools tokens regardless. So the pulse is a local keyframe over the glass
- * surface token.
- *
- * A SKELETON MUST MATCH THE SHAPE IT REPLACES or it is worse than a spinner:
- * the layout shifts when the real content lands, which is the jank the
- * skeleton existed to prevent. Hence `lines` and `width` rather than a single
- * grey slab.
- */
+import { cn } from '../../lib/cn.js';
 
-import type { CSSProperties, ReactNode } from 'react';
-import styles from './Skeleton.module.css';
-
-export interface SkeletonProps {
-  /** Rows to draw. Match the row count of the content being awaited. */
-  readonly lines?: number;
-  /** Height of one row. Defaults to a line of body text. */
-  readonly height?: string;
-  /** Width of the last row, so a paragraph does not end square. */
-  readonly lastWidth?: string;
-  readonly radius?: 'sm' | 'md' | 'pill';
-  /** Describes what is loading, for assistive technology. */
-  readonly label?: string;
+export function Skeleton({ className }: { readonly className?: string }) {
+  return <div aria-hidden="true" className={cn('gt-skeleton rounded-md', className)} />;
 }
 
-export function Skeleton({
-  lines = 1,
-  height,
-  lastWidth = '62%',
-  radius = 'sm',
-  label = 'Loading',
-}: SkeletonProps): ReactNode {
+/**
+ * A page-shaped loading state — title, metric row, list card — so the layout
+ * does not jump when data arrives. Announced once, politely.
+ */
+export function PageSkeleton({ label = 'Loading' }: { readonly label?: string }) {
   return (
-    /*
-     * `role="status"` with `aria-busy`, not `aria-hidden`. A screen reader
-     * user needs to know something is coming; hiding the placeholder leaves
-     * them on a silent empty region wondering whether the page is broken.
-     */
-    <div className={styles.stack} role="status" aria-busy="true" aria-label={label}>
-      {Array.from({ length: lines }, (_, index) => (
-        <span
-          key={index}
-          data-slot="skeleton"
-          className={styles.bar}
-          data-radius={radius}
-          style={
-            {
-              ...(height === undefined ? {} : { blockSize: height }),
-              ...(index === lines - 1 && lines > 1 ? { inlineSize: lastWidth } : {}),
-            } as CSSProperties
-          }
-        />
+    <div role="status" aria-live="polite" className="flex flex-col gap-6">
+      <span className="sr-only">{label}…</span>
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-8 w-64 max-w-full" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((key) => (
+          <Skeleton key={key} className="h-[92px] rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-64 rounded-xl" />
+    </div>
+  );
+}
+
+/** Rows of a list while it loads. */
+export function RowsSkeleton({
+  rows = 4,
+  label = 'Loading',
+}: {
+  readonly rows?: number;
+  readonly label?: string;
+}) {
+  return (
+    <div role="status" aria-live="polite" className="divide-y divide-line">
+      <span className="sr-only">{label}…</span>
+      {Array.from({ length: rows }, (_, index) => (
+        <div key={index} className="flex items-center gap-3 px-4 py-3">
+          <Skeleton className="size-8 rounded-lg" />
+          <div className="flex flex-1 flex-col gap-1.5">
+            <Skeleton className="h-3.5 w-1/2" />
+            <Skeleton className="h-3 w-1/4" />
+          </div>
+          <Skeleton className="h-4 w-10" />
+        </div>
       ))}
     </div>
   );

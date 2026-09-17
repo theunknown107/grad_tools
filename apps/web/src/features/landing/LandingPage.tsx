@@ -1,772 +1,415 @@
 /**
- * The public front door.
+ * The public front door (/welcome) — outside the app shell.
  *
- * Authority: docs/05 §5.24 (M9.6B) · docs/28 (copy) · docs/27
- * References: 21st.dev @sensewood8/responsive-hero-banner (14),
- * @aghasisahakyan1/mini-navbar (15), @designali-in/footer (16) — all RECREATED.
- *
- * ---------------------------------------------------------------------------
- * WHAT IS TRUE ON THIS PAGE
- * ---------------------------------------------------------------------------
- *
- * Every capability named below exists and is reachable. There are no
- * testimonials, no user counts, no partner logos, no pricing, no "AI-powered"
- * claim and no institutional endorsement, because GradTools has none of those
- * things (M9.6 §10, §21). The product preview is rendered from SYNTHETIC data
- * that is visibly synthetic — it is a drawing of the interface, not a
- * screenshot of anybody's record.
- *
- * The reference hero sells space tourism with a photograph. GradTools has no
- * photograph to use and would be lying if it borrowed one, so the cinematic
- * layer is built from light: layered radial gradients in the current accent,
- * an aurora that drifts slowly, and a grid that fades out. That is the
- * reference's ATMOSPHERE — depth, glow, a bright object floating over a dark
- * field — without pretending to a photograph the product does not own.
+ * The same design system as the app: canvas, raised cards, the monochrome
+ * accent. No marketing furniture the design bans (glow, gradients, fake
+ * figures): the examples are labelled as worked examples of the regulation,
+ * not as anybody's record.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  ArrowRight,
+  Bell,
+  Calculator,
+  CalendarCheck2,
+  CalendarDays,
+  ClipboardList,
+  FilePlus2,
+  GraduationCap,
+  Lock,
+  Megaphone,
+  type LucideIcon,
+} from 'lucide-react';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Icon, type IconName } from '../../components/icons.js';
-import { ThemeControl } from '../../components/ThemeControl.js';
-import { DropdownNavigation } from '../../components/ui/DropdownNavigation.js';
-import styles from './LandingPage.module.css';
+import { ThemeToggle } from '../../components/navigation/ThemeToggle.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Card } from '../../components/ui/card.js';
+import { Toaster } from '../../components/ui/feedback.js';
+import { IconTile } from '../../components/ui/page.js';
+import { Progress } from '../../components/ui/progress.js';
+import { TooltipProvider } from '../../components/ui/tooltip.js';
 
-/* -------------------------------------------------------------------------- */
-/* Mini navbar — Reference 15                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A floating pill header.
- *
- * The reference is a rounded translucent bar inset from the top edge. Kept:
- * the pill, the inset, the hairline, the blur. Added: it only gains its
- * material once the page has scrolled, so at the top of a cinematic hero the
- * navigation floats over the artwork rather than cutting a bar across it.
- */
-function MiniNavbar(): ReactNode {
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const onScroll = (): void => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  const links = [
-    { href: '#what', label: 'What it does' },
-    { href: '#degree', label: 'Your degree' },
-    { href: '#papers', label: 'Papers' },
-  ];
-
-  return (
-    <header className={styles.navWrap}>
-      <nav
-        className={`${styles.nav ?? ''} ${scrolled ? (styles.navScrolled ?? '') : ''} ${scrolled ? 'surfaceNav' : ''}`}
-        aria-label="Site"
-      >
-        <Link to="/welcome" className={styles.navBrand ?? ''}>
-          <span className={styles.navMark} aria-hidden="true">
-            <Icon name="degree" size="nav" />
-          </span>
-          <span>GradTools</span>
-        </Link>
-
-        {/*
-          M9.6F: Reference 06, and the only place it belongs.
-
-          The public header had three flat anchors. A visitor scanning them
-          learns where a link goes and nothing about what is there, which is
-          exactly the gap the reference's descriptions fill. The application's
-          own navigation stays the two-tier bar and the limelight — adding a
-          third system inside the app would be the competing-navigation problem
-          the milestone warns about.
-        */}
-        <div className={styles.navNav}>
-          <DropdownNavigation
-            label="Site"
-            entries={[
-              {
-                id: 'product',
-                label: 'What it does',
-                groups: [
-                  {
-                    title: 'Your record',
-                    items: [
-                      {
-                        label: 'Results',
-                        description: 'Marks read against the three passing heads',
-                        to: '#what',
-                        icon: 'results',
-                      },
-                      {
-                        label: 'SGPA & CGPA',
-                        description: 'Every figure shows its clause',
-                        to: '#what',
-                        icon: 'gpa',
-                      },
-                      {
-                        label: 'My degree',
-                        description: 'Eight semesters, end to end',
-                        to: '#degree',
-                        icon: 'degree',
-                      },
-                    ],
-                  },
-                  {
-                    title: 'Day to day',
-                    items: [
-                      {
-                        label: 'Attendance',
-                        description: 'How many classes you can still miss',
-                        to: '#what',
-                        icon: 'attendance',
-                      },
-                      {
-                        label: 'Question papers',
-                        description: 'Searchable down to a single question',
-                        to: '#papers',
-                        icon: 'papers',
-                      },
-                      {
-                        label: 'Announcements',
-                        description: 'Notices that carry their provenance',
-                        to: '#what',
-                        icon: 'announcements',
-                      },
-                    ],
-                  },
-                ],
-              },
-              { id: 'degree', label: 'Your degree', to: '#degree' },
-              { id: 'papers', label: 'Papers', to: '#papers' },
-            ]}
-          />
-        </div>
-
-        <div className={styles.navActions}>
-          <ThemeControl />
-          <Link to="/" className={styles.navCta ?? ''}>
-            Open GradTools
-          </Link>
-          <button
-            type="button"
-            className={styles.navToggle}
-            aria-expanded={menuOpen}
-            aria-controls="site-menu"
-            aria-label="Menu"
-            onClick={() => setMenuOpen((value) => !value)}
-          >
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-              <path
-                d={menuOpen ? 'M6 6l12 12M18 6 6 18' : 'M4 8h16M4 16h16'}
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                fill="none"
-              />
-            </svg>
-          </button>
-        </div>
-      </nav>
-
-      {menuOpen ? (
-        <div id="site-menu" className={`${styles.navMenu ?? ''} surfacePanel`}>
-          {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className={styles.navMenuLink}
-              onClick={() => setMenuOpen(false)}
-            >
-              {link.label}
-            </a>
-          ))}
-          <Link to="/" className={styles.navMenuCta ?? ''}>
-            Open GradTools
-          </Link>
-        </div>
-      ) : null}
-    </header>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Hero — Reference 14                                                         */
-/* -------------------------------------------------------------------------- */
-
-function Hero(): ReactNode {
-  return (
-    <section className={styles.hero}>
-      {/* The cinematic layer. Three stacked lights plus a fading grid; all
-          decorative, all aria-hidden, none of it intercepting a pointer. */}
-      <div className={styles.heroSky} aria-hidden="true">
-        <span className={styles.aurora} data-layer="1" />
-        <span className={styles.aurora} data-layer="2" />
-        <span className={styles.grid} />
-      </div>
-
-      <div className={styles.heroInner}>
-        <p className={styles.badge}>
-          <span className={styles.badgeDot} aria-hidden="true" />
-          Built for the VTU 2022 scheme
-        </p>
-
-        <h1 className={styles.heroTitle}>
-          Your academic life,
-          <br />
-          <em>organized.</em>
-        </h1>
-
-        <p className={styles.heroLead}>
-          Track your degree, understand your results, and stay ahead of your semester — with every
-          figure showing the regulation it came from.
-        </p>
-
-        <div className={styles.heroActions}>
-          <Link to="/" className={styles.primaryCta ?? ''}>
-            Get started
-            <Icon name="chevronRight" size="small" />
-          </Link>
-          <a href="#what" className={styles.secondaryCta}>
-            Explore GradTools
-          </a>
-        </div>
-
-        <p className={styles.heroNote}>
-          Works without an account. Your data stays on your device until you choose otherwise.
-        </p>
-      </div>
-
-      <ProductPreview />
-    </section>
-  );
-}
-
-/**
- * The floating product preview.
- *
- * A DRAWING of the interface, built from the same tokens as the real thing —
- * not a screenshot. A screenshot would either show a real student's record
- * (forbidden, docs/12 §12.16) or become stale the moment the UI moves.
- *
- * The figures are invented and the subject codes are the synthetic BXXX form
- * used throughout the test suite, so nothing here can be mistaken for a record.
- */
-function ProductPreview(): ReactNode {
-  const metrics = [
-    { label: 'CGPA', value: '8.24' },
-    { label: 'Last SGPA', value: '8.6' },
-    { label: 'Attendance', value: '88%' },
-    { label: 'Backlogs', value: '0' },
-  ];
-  const rows = [
-    { code: 'BXXX401', title: 'Core course one', total: '82', tone: 'ok' },
-    { code: 'BXXX403', title: 'Core course three', total: '74', tone: 'ok' },
-    { code: 'BXXL404', title: 'Laboratory course', total: '91', tone: 'good' },
-  ];
-
-  return (
-    <div className={styles.previewWrap} aria-hidden="true">
-      <div className={`${styles.preview ?? ''} surfacePanel`}>
-        <div className={styles.previewBar}>
-          <span className={styles.previewDots}>
-            <i />
-            <i />
-            <i />
-          </span>
-          <span className={styles.previewTitle}>Dashboard</span>
-        </div>
-
-        <div className={styles.previewMetrics}>
-          {metrics.map((metric) => (
-            <div key={metric.label} className={styles.previewMetric}>
-              <span className={styles.previewMetricLabel}>{metric.label}</span>
-              <span className={styles.previewMetricValue}>{metric.value}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className={styles.previewRows}>
-          {rows.map((row) => (
-            <div key={row.code} className={styles.previewRow}>
-              <span className={styles.previewCode}>{row.code}</span>
-              <span className={styles.previewName}>{row.title}</span>
-              <span className={styles.previewTotal} data-tone={row.tone}>
-                {row.total}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <p className={styles.previewCaption}>Illustration — figures are synthetic.</p>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Story sections                                                              */
-/* -------------------------------------------------------------------------- */
-
-interface Capability {
-  readonly icon: IconName;
-  readonly title: string;
-  readonly body: string;
-}
-
-const CAPABILITIES: readonly Capability[] = [
+const CAPABILITIES: readonly { icon: LucideIcon; title: string; body: string }[] = [
   {
-    icon: 'degree',
-    title: 'Eight semesters, end to end',
-    body: 'Every semester of the degree in one place, each marked completed, in progress or still ahead of you.',
+    icon: ClipboardList,
+    title: 'Results you can read',
+    body: 'Internal, external and total against the three passing heads of the regulation — and the reason whenever a figure is unavailable.',
   },
   {
-    icon: 'results',
-    title: 'Results you entered, read properly',
-    body: 'Internal, external and total against the three passing heads of 22OB 6.3 — including the courses assessed on internals alone.',
+    icon: Calculator,
+    title: 'SGPA & CGPA that show their working',
+    body: 'Credit-weighted exactly as VTU defines it. Every figure opens to its formula, inputs and clause.',
   },
   {
-    icon: 'gpa',
-    title: 'SGPA and CGPA, with the clause',
-    body: 'Every figure can show the regulation it came from, so you can check it rather than trust it.',
-  },
-  {
-    icon: 'attendance',
-    title: 'Attendance, and what it costs',
+    icon: CalendarCheck2,
+    title: 'Attendance, per course',
     body: 'How many classes you can still miss before the 85% requirement bites, and when a subject has already slipped.',
   },
   {
-    icon: 'papers',
-    title: 'A searchable paper library',
-    body: 'Question papers with their text extracted, searchable down to individual questions.',
+    icon: CalendarDays,
+    title: 'Timetable and exam dates',
+    body: 'Your week, today’s classes, and the examination papers that apply to you — marked as they happen.',
   },
   {
-    icon: 'announcements',
-    title: 'Announcements with provenance',
-    body: 'Each notice carries where it came from and when it was checked. Nothing is invented.',
+    icon: FilePlus2,
+    title: 'Documents, read on your device',
+    body: 'Result cards, calendars, schemes and timetables are parsed locally and saved only after you confirm.',
+  },
+  {
+    icon: Megaphone,
+    title: 'Notices with provenance',
+    body: 'Every announcement carries its publisher and where it came from. Nothing is invented to fill a quiet week.',
   },
 ];
 
-function Capabilities(): ReactNode {
-  return (
-    <section className={styles.section} id="what">
-      <SectionHead
-        eyebrow="What it does"
-        title="Everything a semester actually asks of you"
-        lead="No dashboards for their own sake. Each of these exists because a student has to do it anyway."
-      />
-      <ul className={styles.cards}>
-        {CAPABILITIES.map((capability) => (
-          <li key={capability.title} className={`${styles.card ?? ''} surfaceCard`}>
-            <span className={styles.cardIcon}>
-              <Icon name={capability.icon} size="medium" />
-            </span>
-            <h3 className={styles.cardTitle}>{capability.title}</h3>
-            <p className={styles.cardBody}>{capability.body}</p>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
+const FOOTER: readonly { title: string; links: readonly { to: string; label: string }[] }[] = [
+  {
+    title: 'Product',
+    links: [
+      { to: '/', label: 'Dashboard' },
+      { to: '/results', label: 'Results' },
+      { to: '/attendance', label: 'Attendance' },
+      { to: '/import', label: 'Add a document' },
+    ],
+  },
+  {
+    title: 'Academics',
+    links: [
+      { to: '/semesters', label: 'My Degree' },
+      { to: '/academics', label: 'SGPA & CGPA' },
+      { to: '/timetable', label: 'Timetable' },
+      { to: '/exams', label: 'Exam timetable' },
+      { to: '/announcements', label: 'Announcements' },
+    ],
+  },
+  {
+    title: 'Account',
+    links: [
+      { to: '/account', label: 'Your account' },
+      { to: '/profile', label: 'Profile' },
+      { to: '/sign-in', label: 'Sign in' },
+    ],
+  },
+];
 
-/** The eight-semester spine, as the product actually models it. */
-/**
- * Results, shown rather than described.
- *
- * M9.6F §19 asks for a product STORY with varied compositions, and rules out
- * the hero-plus-three-cards shape. So each of the next sections shows the
- * thing it is about instead of describing it in another identical card: this
- * one is a mark row and the reading of it, side by side.
- *
- * Every figure below is invented and the codes are the synthetic BXXX form
- * used across the test suite.
- */
-function ResultsStory(): ReactNode {
-  return (
-    <section className={styles.section}>
-      <div className={styles.storySplit}>
-        <div className={styles.storyText}>
-          <p className={styles.eyebrow}>Results</p>
-          <h2 className={styles.splitTitle}>A mark row, read the way VTU reads it</h2>
-          <p className={styles.splitLead}>
-            Internal, external and total against the three passing heads of 22OB 6.3 — not one
-            threshold applied to everything. A course assessed on internals alone has no SEE to fall
-            short of, and GradTools says so instead of calling it a backlog.
-          </p>
-        </div>
+const SEMESTERS = [
+  { n: 1, label: 'Completed', tone: 'success' },
+  { n: 2, label: 'Completed', tone: 'success' },
+  { n: 3, label: 'Completed', tone: 'success' },
+  { n: 4, label: 'Completed', tone: 'success' },
+  { n: 5, label: 'In progress', tone: 'schedule' },
+  { n: 6, label: 'Planned', tone: 'neutral' },
+  { n: 7, label: 'Planned', tone: 'neutral' },
+  { n: 8, label: 'Planned', tone: 'neutral' },
+] as const;
 
-        <div className={`${styles.storyDemo ?? ''} surfaceCard`} aria-hidden="true">
-          <div className={styles.markRow}>
-            <span className={styles.markCode}>BXXX401</span>
-            <span className={styles.markCell}>
-              <em>Internal</em>40
-            </span>
-            <span className={styles.markCell}>
-              <em>External</em>21
-            </span>
-            <span className={styles.markCell}>
-              <em>Total</em>61
-            </span>
-            <span className={styles.markVerdict} data-tone="ok">
-              Pass
-            </span>
-          </div>
-          <ul className={styles.markHeads}>
-            <li>
-              <span>CIE</span> 40 of 50 &middot; needs 20
-            </li>
-            <li>
-              <span>SEE</span> 21 of 50 &middot; needs 17.5
-            </li>
-            <li>
-              <span>Total</span> 61 of 100 &middot; needs 40
-            </li>
-          </ul>
-          <p className={styles.storyCaption}>Illustration — figures are synthetic.</p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/** Attendance, as the question a student actually asks. */
-function AttendanceStory(): ReactNode {
-  const rows = [
-    { code: 'BXXX501', pct: 91, tone: 'ok', note: 'Can miss 3' },
-    { code: 'BXXX503', pct: 79, tone: 'warn', note: 'Attend 4 in a row' },
-    { code: 'BXXX505', pct: 69, tone: 'bad', note: 'Below the 75% floor' },
-  ] as const;
-
-  return (
-    <section className={styles.section}>
-      <div className={`${styles.storyWide ?? ''} surfaceCard`}>
-        <div className={styles.storyWideHead}>
-          <p className={styles.eyebrow}>Attendance</p>
-          <h2 className={styles.splitTitle}>&ldquo;Can I miss this one?&rdquo;</h2>
-          <p className={styles.splitLead}>
-            The requirement is 85% per course and below 75% the course is marked DX. GradTools turns
-            that into the only number that helps: how many classes you have left.
-          </p>
-        </div>
-
-        <ul className={styles.attnRows} aria-hidden="true">
-          {rows.map((row) => (
-            <li key={row.code}>
-              <span className={styles.attnCode}>{row.code}</span>
-              <span className={styles.attnTrack}>
-                <span data-tone={row.tone} style={{ inlineSize: `${String(row.pct)}%` }} />
-              </span>
-              <span className={styles.attnPct} data-tone={row.tone}>
-                {row.pct}%
-              </span>
-              <span className={styles.attnNote}>{row.note}</span>
-            </li>
-          ))}
-        </ul>
-        <p className={styles.storyCaption}>Illustration — figures are synthetic.</p>
-      </div>
-    </section>
-  );
-}
-
-/** Announcements, and the provenance that travels with them. */
-function AnnouncementsStory(): ReactNode {
-  return (
-    <section className={styles.section}>
-      <div className={styles.storySplit} data-reverse="true">
-        <div className={styles.storyText}>
-          <p className={styles.eyebrow}>Announcements</p>
-          <h2 className={styles.splitTitle}>Every notice says where it came from</h2>
-          <p className={styles.splitLead}>
-            A notice carries its publisher and the moment it was checked. GradTools shows notices;
-            it does not issue them, and it never invents one to fill a quiet week.
-          </p>
-        </div>
-
-        <div className={styles.noticeStack} aria-hidden="true">
-          {[
-            { title: 'Semester 4 results announced', meta: 'Results · checked 2h ago' },
-            { title: 'Revised examination timetable', meta: 'Exams · checked today' },
-          ].map((notice) => (
-            <div key={notice.title} className={`${styles.notice ?? ''} surfaceCard`}>
-              <span className={styles.noticeTitle}>{notice.title}</span>
-              <span className={styles.noticeMeta}>{notice.meta}</span>
-            </div>
-          ))}
-          <p className={styles.storyCaption}>Illustration — notices are synthetic.</p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function DegreeStory(): ReactNode {
-  const semesters = [
-    { n: 1, state: 'done' },
-    { n: 2, state: 'done' },
-    { n: 3, state: 'done' },
-    { n: 4, state: 'done' },
-    { n: 5, state: 'current' },
-    { n: 6, state: 'ahead' },
-    { n: 7, state: 'ahead' },
-    { n: 8, state: 'ahead' },
-  ] as const;
-
-  return (
-    <section className={styles.section} id="degree">
-      <SectionHead
-        eyebrow="Your degree"
-        title="Where you are, at a glance"
-        lead="Eight semesters, each with its own state. GradTools never guesses one — a semester with no data says so."
-      />
-      <ol className={styles.spine}>
-        {semesters.map((semester) => (
-          <li key={semester.n} className={styles.spineItem} data-state={semester.state}>
-            <span className={styles.spineNode} aria-hidden="true" />
-            <span className={styles.spineLabel}>S{semester.n}</span>
-            <span className={styles.spineState}>
-              {semester.state === 'done'
-                ? 'Completed'
-                : semester.state === 'current'
-                  ? 'In progress'
-                  : 'Ahead'}
-            </span>
-          </li>
-        ))}
-      </ol>
-      <p className={styles.spineNote}>Illustration — states shown are synthetic.</p>
-    </section>
-  );
-}
-
-/**
- * What the product actually does now.
- *
- * This section used to sell a question-paper library. That is no longer part
- * of GradTools, and a landing page that advertises a feature the application
- * does not have is the worst kind of copy — it is a promise nobody can keep.
- * What replaced it is the thing the last several milestones built.
- */
-function ImportStory(): ReactNode {
-  return (
-    <section className={styles.section} id="import">
-      <div className={`${styles.split ?? ''} surfaceCard`}>
-        <div className={styles.splitText}>
-          <p className={styles.eyebrow}>Academic documents</p>
-          <h2 className={styles.splitTitle}>Give it the documents you already have</h2>
-          <p className={styles.splitLead}>
-            A result card, your semester&apos;s academic calendar, your class timetable. GradTools
-            works out which is which, reads it on your device, shows you what it read, and keeps
-            only what you confirm. The file is never uploaded.
-          </p>
-          <Link to="/import" className={styles.textCta ?? ''}>
-            Add a document
-            <Icon name="chevronRight" size="small" />
-          </Link>
-        </div>
-        <div className={styles.splitDemo} aria-hidden="true">
-          {[
-            ['results', 'Result card — 9 subjects read'],
-            ['calendar', 'Academic calendar — 4 dates read'],
-            ['timetable', 'Class timetable — 25 classes read'],
-          ].map(([icon, text]) => (
-            <div key={text} className={styles.demoRow}>
-              <span className={styles.demoIcon}>
-                <Icon name={icon as 'results'} size="small" />
-              </span>
-              <span>{text}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function SectionHead({
-  eyebrow,
-  title,
-  lead,
-}: {
-  readonly eyebrow: string;
-  readonly title: string;
-  readonly lead: string;
-}): ReactNode {
-  return (
-    <div className={styles.sectionHead}>
-      <p className={styles.eyebrow}>{eyebrow}</p>
-      <h2 className={styles.sectionTitle}>{title}</h2>
-      <p className={styles.sectionLead}>{lead}</p>
-    </div>
-  );
-}
-
-function ClosingCta(): ReactNode {
-  return (
-    <section className={`${styles.closing ?? ''} surfaceCard`}>
-      <h2 className={styles.closingTitle}>Start with one semester</h2>
-      <p className={styles.closingLead}>
-        No account, no setup. Add a result and GradTools will do the rest of the arithmetic — and
-        show you the clause behind it.
-      </p>
-      <Link to="/" className={styles.primaryCta ?? ''}>
-        Open GradTools
-        <Icon name="chevronRight" size="small" />
-      </Link>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Footer — Reference 16                                                       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The reference's column structure, with two deliberate omissions.
- *
- * No social row: GradTools has no accounts, and the reference's nine icons
- * would each have to point somewhere. Inventing them is exactly the "startup
- * theater" M9.6 §21 rules out. The markup is here for when real links exist.
- *
- * No newsletter: there is no mailing list, and a form that silently discards an
- * address is worse than no form.
- *
- * Every link below resolves to a real route.
- */
-function Footer(): ReactNode {
-  const columns = [
-    {
-      title: 'Product',
-      links: [
-        { to: '/', label: 'Dashboard' },
-        { to: '/results', label: 'Results' },
-        { to: '/attendance', label: 'Attendance' },
-        { to: '/import', label: 'Add a document' },
-      ],
-    },
-    {
-      title: 'Academics',
-      links: [
-        { to: '/semesters', label: 'My degree' },
-        { to: '/academics', label: 'SGPA & CGPA' },
-        { to: '/timetable', label: 'Timetable' },
-        { to: '/announcements', label: 'Announcements' },
-      ],
-    },
-    {
-      title: 'Account',
-      links: [
-        { to: '/account', label: 'Your account' },
-        { to: '/profile', label: 'Profile' },
-        { to: '/sign-in', label: 'Sign in' },
-      ],
-    },
-  ];
-
-  return (
-    /*
-      -------------------------------------------------------------------------
-      M9.6G: THE FOOTER IS A CLOSING SURFACE, NOT A LIST OF LISTS
-      -------------------------------------------------------------------------
-
-      M9.6F repaired its dead links but left the composition: a brand block
-      beside three equal columns, then a legal line. Everything had the same
-      weight, so the disclaimer that actually matters — GradTools is not VTU —
-      read as small print rather than as the point.
-
-      Reference 16's real contribution is the SHAPE: a wide brand column,
-      grouped link columns, and a distinct bottom bar. Taken, with the
-      hierarchy corrected:
-
-        - the brand column carries the disclaimer, so it sits at full size
-          beside the navigation instead of below it in grey
-        - the columns are grouped by what a person is trying to do
-        - the bottom bar is reduced to the copyright and the build state
-
-      NOT taken: the reference's nine social icon links. GradTools has no social
-      accounts, and the milestone forbids inventing them. The markup for that
-      row is deliberately absent rather than stubbed with dead anchors — an
-      inactive icon that goes nowhere is worse than no icon.
-
-      Privacy, Terms and Contact are likewise ABSENT rather than linked: those
-      routes do not exist, and adding them would reproduce exactly the dead-link
-      defect fixed in M9.6F. They belong to a content milestone, not a styling
-      one.
-    */
-    <footer className={styles.footer}>
-      <div className={styles.footerTop}>
-        <div className={styles.footerBrand}>
-          <Link to="/welcome" className={styles.navBrand ?? ''}>
-            <span className={styles.navMark} aria-hidden="true">
-              <Icon name="degree" size="nav" />
-            </span>
-            <span>GradTools</span>
-          </Link>
-          <p className={styles.footerBlurb}>
-            An independent student project for keeping a VTU degree in one place. Every academic
-            figure follows the VTU 2022 regulations and can show the clause it came from.
-          </p>
-          <p className={styles.footerDisclaimer}>
-            Not affiliated with, endorsed by, or connected to Visvesvaraya Technological University.
-          </p>
-        </div>
-
-        <nav className={styles.footerCols} aria-label="Footer">
-          {columns.map((column) => (
-            <div key={column.title} className={styles.footerCol}>
-              <h2 className={styles.footerColTitle}>{column.title}</h2>
-              <ul>
-                {column.links.map((link) => (
-                  <li key={link.to}>
-                    <Link to={link.to} className={styles.footerLink ?? ''}>
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </nav>
-      </div>
-
-      <div className={styles.footerBottom}>
-        <p className={styles.footerYear}>&copy; {new Date().getFullYear()} GradTools</p>
-        <p className={styles.footerBuild}>
-          Experimental version &middot; data stays on your device
-        </p>
-      </div>
-    </footer>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-
-export function LandingPage(): ReactNode {
-  const mainRef = useRef<HTMLElement>(null);
-
+export function LandingPage() {
   useEffect(() => {
     document.title = 'GradTools — your academic life, organized';
+    return () => {
+      document.title = 'GradTools';
+    };
   }, []);
 
   return (
-    <div className={styles.page}>
-      <a className={styles.skipLink} href="#main">
-        Skip to content
-      </a>
-      <MiniNavbar />
-      <main id="main" ref={mainRef}>
-        <Hero />
-        <Capabilities />
-        <ResultsStory />
-        <AttendanceStory />
-        <DegreeStory />
-        <ImportStory />
-        <AnnouncementsStory />
-        <ClosingCta />
-      </main>
-      <Footer />
-    </div>
+    <TooltipProvider>
+      <div className="min-h-full bg-canvas text-ink">
+        <a
+          href="#welcome-main"
+          className="sr-only z-[100] rounded-lg bg-raised px-3 py-2 text-sm font-medium shadow-e2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        >
+          Skip to content
+        </a>
+        <header className="sticky top-0 z-40 border-b border-line bg-panel/95 backdrop-blur-sm">
+          <nav
+            aria-label="Site"
+            className="mx-auto flex h-16 max-w-[1180px] items-center gap-3 px-4 sm:px-6 lg:px-10"
+          >
+            <Link
+              to="/welcome"
+              className="flex items-center gap-2.5 rounded-lg"
+              aria-label="GradTools"
+            >
+              <span className="grid size-8 place-items-center rounded-lg bg-accent text-on-accent">
+                <GraduationCap className="size-5" aria-hidden="true" />
+              </span>
+              <span className="leading-tight">
+                <span className="block text-[15px] font-semibold tracking-[-0.01em]">
+                  GradTools
+                </span>
+                <span className="hidden font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase sm:block">
+                  Academic OS
+                </span>
+              </span>
+            </Link>
+            <div className="ml-6 hidden items-center gap-1 md:flex">
+              {[
+                ['#what', 'What it does'],
+                ['#degree', 'Your degree'],
+                ['#privacy', 'Privacy'],
+              ].map(([href, label]) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:bg-sunken hover:text-ink"
+                >
+                  {label}
+                </a>
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-1">
+              <ThemeToggle />
+              <Button asChild variant="primary" size="sm" className="ml-1">
+                <Link to="/">Open GradTools</Link>
+              </Button>
+            </div>
+          </nav>
+        </header>
+
+        <main
+          id="welcome-main"
+          className="mx-auto flex max-w-[1180px] flex-col gap-20 px-4 py-12 sm:px-6 sm:py-16 lg:px-10"
+        >
+          <section
+            aria-labelledby="welcome-title"
+            className="grid animate-rise items-center gap-10 lg:grid-cols-[1.15fr_1fr]"
+          >
+            <div>
+              <Badge tone="accent" icon={<GraduationCap />}>
+                Built for the VTU 2022 scheme
+              </Badge>
+              <h1
+                id="welcome-title"
+                className="mt-5 font-display text-[40px] leading-[1.02] font-semibold tracking-[-0.03em] sm:text-[56px]"
+              >
+                Your academic life, organized.
+              </h1>
+              <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-ink-2">
+                Track your degree, understand your results and stay ahead of your semester — with
+                every figure showing the regulation it came from.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-2">
+                <Button asChild variant="glass-primary" size="lg">
+                  <Link to="/">
+                    Get started <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+                <Button asChild variant="glass" size="lg">
+                  <a href="#what">Explore GradTools</a>
+                </Button>
+              </div>
+              <p className="mt-4 text-[12px] text-ink-3">
+                Works without an account. Your data stays on your device until you choose otherwise.
+              </p>
+            </div>
+
+            <Card
+              className="p-5 sm:p-6"
+              aria-label="Worked example: one course against the three passing heads"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="font-mono text-[11px] tracking-[0.16em] text-ink-3 uppercase">
+                  Worked example · 22OB 6.3
+                </div>
+                <Badge tone="success">Pass</Badge>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                {[
+                  ['Internal', '40', '50'],
+                  ['External', '21', '50'],
+                  ['Total', '61', '100'],
+                ].map(([label, value, max]) => (
+                  <div key={label} className="gt-metric rounded-xl p-3">
+                    <div className="text-[11px] font-medium text-ink-2">{label}</div>
+                    <div className="tnum mt-1 text-2xl font-semibold">
+                      {value}
+                      <span className="text-sm text-ink-3">/{max}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <ul className="mt-4 divide-y divide-line rounded-xl border border-line text-[13px]">
+                {[
+                  ['CIE', '40 of 50', 'needs 20'],
+                  ['SEE', '21 of 50', 'needs 17.5'],
+                  ['Total', '61 of 100', 'needs 40'],
+                ].map(([head, got, needs]) => (
+                  <li key={head} className="flex items-center gap-3 px-4 py-2.5">
+                    <span className="w-12 font-mono text-[11px] text-ink-3">{head}</span>
+                    <span className="tnum flex-1 font-medium">{got}</span>
+                    <span className="text-[12px] text-ink-3">{needs}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-[12px] text-ink-3">
+                Three heads, three thresholds — not one pass mark applied to everything. A course
+                assessed on internals alone has no SEE to fall short of.
+              </p>
+            </Card>
+          </section>
+
+          <section id="what" aria-labelledby="what-title" className="scroll-mt-24">
+            <div className="max-w-2xl">
+              <div className="mb-2 font-mono text-[11px] tracking-[0.16em] text-ink-3 uppercase">
+                What it does
+              </div>
+              <h2
+                id="what-title"
+                className="font-display text-[28px] leading-tight font-semibold tracking-[-0.02em] sm:text-[34px]"
+              >
+                Everything a semester actually asks of you
+              </h2>
+              <p className="mt-2 text-sm text-ink-2">
+                No dashboards for their own sake. Each of these exists because a student has to do
+                it anyway.
+              </p>
+            </div>
+            <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {CAPABILITIES.map((capability) => (
+                <li key={capability.title}>
+                  <Card className="h-full p-5">
+                    <IconTile tone="accent">
+                      <capability.icon />
+                    </IconTile>
+                    <h3 className="mt-4 text-[15px] font-semibold">{capability.title}</h3>
+                    <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{capability.body}</p>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section
+            id="degree"
+            aria-labelledby="degree-title"
+            className="grid scroll-mt-24 items-center gap-8 lg:grid-cols-[1fr_1.2fr]"
+          >
+            <div>
+              <div className="mb-2 font-mono text-[11px] tracking-[0.16em] text-ink-3 uppercase">
+                Your degree
+              </div>
+              <h2
+                id="degree-title"
+                className="font-display text-[28px] leading-tight font-semibold tracking-[-0.02em] sm:text-[34px]"
+              >
+                Where you are, at a glance
+              </h2>
+              <p className="mt-2 text-sm text-ink-2">
+                Eight semesters, each with its own state. GradTools never guesses one — a semester
+                with no data says so.
+              </p>
+              <Card className="mt-6 p-5" aria-label="Worked example: attendance">
+                <div className="flex items-center justify-between gap-2 text-[13px]">
+                  <span className="font-medium">Attendance, worked example</span>
+                  <Badge tone="warning">Attend 4 in a row</Badge>
+                </div>
+                <div className="tnum mt-2 text-3xl font-semibold text-warning">79%</div>
+                <Progress value={79} tone="warning" className="mt-3" />
+                <p className="mt-2 text-[12px] text-ink-3">
+                  The requirement is 85% per course; below 75% a course is marked DX.
+                </p>
+              </Card>
+            </div>
+            <ol
+              className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+              aria-label="Example semester states"
+            >
+              {SEMESTERS.map((semester) => (
+                <li key={semester.n}>
+                  <Card
+                    className={semester.tone === 'schedule' ? 'p-4 ring-1 ring-schedule/40' : 'p-4'}
+                  >
+                    <div className="font-mono text-[12px] font-semibold text-ink-2">
+                      S{semester.n}
+                    </div>
+                    <Badge tone={semester.tone} className="mt-3">
+                      {semester.label}
+                    </Badge>
+                  </Card>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section id="privacy" aria-labelledby="privacy-title" className="scroll-mt-24">
+            <Card className="flex flex-col items-start gap-6 p-6 sm:p-10 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-xl">
+                <IconTile tone="solid" size="lg">
+                  <Lock />
+                </IconTile>
+                <h2
+                  id="privacy-title"
+                  className="mt-4 font-display text-[26px] leading-tight font-semibold tracking-[-0.02em]"
+                >
+                  Start in a minute. Keep it on your device.
+                </h2>
+                <p className="mt-2 text-sm text-ink-2">
+                  No account, no setup. Add a result and GradTools does the arithmetic — and shows
+                  you the clause behind it. Sign in only if you want your records on another device.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="primary" size="lg">
+                  <Link to="/">
+                    Open GradTools <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" icon={<Bell />}>
+                  <Link to="/announcements">See notices</Link>
+                </Button>
+              </div>
+            </Card>
+          </section>
+        </main>
+
+        <footer className="border-t border-line bg-panel">
+          <div className="mx-auto grid max-w-[1180px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.4fr_2fr] lg:px-10">
+            <div>
+              <Link to="/welcome" className="inline-flex items-center gap-2.5 rounded-lg">
+                <span className="grid size-8 place-items-center rounded-lg bg-accent text-on-accent">
+                  <GraduationCap className="size-5" aria-hidden="true" />
+                </span>
+                <span className="text-[15px] font-semibold">GradTools</span>
+              </Link>
+              <p className="mt-3 max-w-sm text-[13px] text-ink-2">
+                An independent student project for keeping a VTU degree in one place. Every academic
+                figure follows the VTU 2022 regulations and can show the clause it came from.
+              </p>
+              <p className="mt-2 max-w-sm text-[12px] text-ink-3">
+                Not affiliated with, endorsed by, or connected to Visvesvaraya Technological
+                University.
+              </p>
+            </div>
+            <nav aria-label="Footer" className="grid grid-cols-2 gap-6 sm:grid-cols-3">
+              {FOOTER.map((column) => (
+                <div key={column.title}>
+                  <h2 className="mb-2 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase">
+                    {column.title}
+                  </h2>
+                  <ul className="space-y-1.5">
+                    {column.links.map((link) => (
+                      <li key={link.to}>
+                        <Link
+                          to={link.to}
+                          className="text-[13px] text-ink-2 transition-colors hover:text-ink"
+                        >
+                          {link.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </nav>
+          </div>
+          <div className="border-t border-line px-4 py-4 text-center text-[12px] text-ink-3">
+            Experimental version · data stays on your device
+          </div>
+        </footer>
+        <Toaster />
+      </div>
+    </TooltipProvider>
   );
 }
