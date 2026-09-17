@@ -17,7 +17,7 @@
  * sweep cannot: it visits routes directly rather than following links. Unit
  * tests did not, because each component was tested against its own list.
  *
- * So this compares the two hand-written lists against the ROUTE TABLE itself.
+ * So this compares the hand-written lists against the ROUTE TABLE itself.
  * It is a cheap test for a whole class of defect that is invisible until a
  * person clicks something.
  */
@@ -49,11 +49,18 @@ function declaredRoutes(): ReadonlySet<string> {
   return found;
 }
 
-/** Every `to: '/…'` a module hard-codes as a navigation target. */
-function linkedRoutes(relative: string): readonly string[] {
+/**
+ * Every quoted `'/…'` path a module hard-codes as a navigation target, with
+ * its query string dropped: `/academics?tab=calculator` must still resolve to
+ * `/academics`.
+ */
+function linkedRoutes(relative: string, pattern: RegExp): readonly string[] {
   const source = read(relative);
-  return [...source.matchAll(/to:\s*'(\/[^']*)'/g)].map((match) => match[1] as string);
+  return [...source.matchAll(pattern)].map((match) => (match[1] as string).split('?')[0] as string);
 }
+
+const OBJECT_TO = /to:\s*'(\/[^']*)'/g;
+const ANY_PATH = /'(\/[a-z-]*(?:\?[^']*)?)'/g;
 
 describe('internal links resolve to real routes', () => {
   const routes = declaredRoutes();
@@ -64,10 +71,12 @@ describe('internal links resolve to real routes', () => {
   });
 
   it.each([
-    ['the global search', 'src/components/GlobalSearch.tsx'],
-    ['the public footer', 'src/features/landing/LandingPage.tsx'],
-  ])('%s links only to declared routes', (_label, file) => {
-    const links = linkedRoutes(file);
+    ['the navigation list', 'src/components/layout/nav.ts', OBJECT_TO],
+    ['the public footer', 'src/features/landing/LandingPage.tsx', OBJECT_TO],
+    ['the command menu', 'src/components/navigation/CommandMenu.tsx', ANY_PATH],
+    ['the app shell', 'src/components/layout/AppShell.tsx', ANY_PATH],
+  ])('%s links only to declared routes', (_label, file, pattern) => {
+    const links = linkedRoutes(file, pattern);
     expect(links.length).toBeGreaterThan(0);
 
     const dead = links.filter((link) => !routes.has(link));
