@@ -12,10 +12,8 @@ import { cleanup } from '@testing-library/react';
 import { screen, waitFor, within } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import type { Announcement } from '@gradtools/shared-types';
-import {
-  AnnouncementsPage,
-  LatestAnnouncements,
-} from '../src/features/announcements/AnnouncementsPage.js';
+import { AnnouncementsPage } from '../src/features/announcements/AnnouncementsPage.js';
+import { DashboardPage } from '../src/features/dashboard/DashboardPage.js';
 import { NotificationsPage } from '../src/features/announcements/NotificationsPage.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
 import type { StudentProfile } from '../src/domain/types.js';
@@ -233,7 +231,7 @@ describe('relevance on screen', () => {
      * is a VIEW of the feed rather than a setting. The assertion is unchanged:
      * asking for "what applies to me" must filter the feed.
      */
-    await userEvent.click(screen.getByRole('tab', { name: /applies to me/i }));
+    await userEvent.click(screen.getByRole('radio', { name: /applies to me/i }));
 
     await waitFor(() => {
       expect(screen.queryByText('Civil Engineering department meeting')).toBeNull();
@@ -261,21 +259,21 @@ describe('relevance on screen', () => {
 /* The dashboard summary                                                      */
 /* -------------------------------------------------------------------------- */
 
-describe('latest announcements on the dashboard', () => {
+describe('what changed, on the dashboard', () => {
   it('shows a compact list with a way to see everything', async () => {
     mockFeed([announcement(), announcement({ id: 'a2', title: 'Second notice' })]);
-    renderWith(<LatestAnnouncements />);
+    renderWith(<DashboardPage />);
 
-    expect(await screen.findByText('Semester 4 results announced')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'All announcements' })).toBeTruthy();
+    const title = await screen.findByText('Semester 4 results announced');
+    // The category is shown by its label, never the stored key.
+    expect(title.closest('a')?.textContent).toMatch(/Results ·/);
+    expect(screen.getByRole('link', { name: 'All' }).getAttribute('href')).toBe('/notifications');
   });
 
-  it('shows nothing at all rather than an empty box', async () => {
+  it('says there is nothing new rather than showing an empty box', async () => {
     mockFeed([]);
-    const { container } = renderWith(<LatestAnnouncements />);
-    await waitFor(() => {
-      expect(container.textContent).not.toContain('Latest');
-    });
+    renderWith(<DashboardPage />);
+    expect(await screen.findByText('Nothing new')).toBeTruthy();
   });
 });
 
@@ -292,8 +290,10 @@ describe('the notification centre', () => {
      * The count moved off a panel heading and onto the Unread tab, where it
      * says what that view holds. Still counted, still shown in words nearby.
      */
-    const unreadTab = await screen.findByRole('tab', { name: /unread/i });
-    expect(unreadTab.textContent).toContain('2');
+    const unreadTab = await screen.findByRole('radio', { name: /unread/i });
+    await waitFor(() => {
+      expect(unreadTab.textContent).toContain('2');
+    });
   });
 
   /* UNREAD IS A WORD, NOT ONLY A COLOUR (M7 §27). */
@@ -301,7 +301,8 @@ describe('the notification centre', () => {
     mockFeed([announcement()]);
     renderWith(<NotificationsPage />);
 
-    expect(await screen.findByText('Unread')).toBeTruthy();
+    // A dot, named for assistive technology — the word, not only the colour.
+    expect(await screen.findByRole('img', { name: 'Unread' })).toBeTruthy();
   });
 
   it('marks one as read and keeps it', async () => {
@@ -337,7 +338,7 @@ describe('the notification centre', () => {
     });
     // Nothing unread: the tab count drops to zero and the action disables.
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /unread/i }).textContent).toContain('0');
+      expect(screen.getByRole('radio', { name: /unread/i }).textContent).toContain('0');
     });
     expect(screen.getByRole('button', { name: 'Mark all read' }).hasAttribute('disabled')).toBe(
       true,
@@ -362,7 +363,7 @@ describe('the notification centre', () => {
     renderWith(<NotificationsPage />, { repositories: bundle });
 
     await screen.findByText('Already read');
-    await userEvent.click(screen.getByRole('tab', { name: /unread/i }));
+    await userEvent.click(screen.getByRole('radio', { name: /unread/i }));
 
     await waitFor(() => {
       expect(screen.queryByText('Already read')).toBeNull();
@@ -392,8 +393,10 @@ describe('the notification centre', () => {
     renderWith(<NotificationsPage />, { repositories: bundle });
 
     await screen.findByText('Holiday notice');
-    const checkbox = screen.getByRole('checkbox', { name: 'Holiday' });
-    await userEvent.click(checkbox);
+    // On means it may interrupt; switching it off mutes the category.
+    const toggle = screen.getByRole('switch', { name: 'Holiday' });
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    await userEvent.click(toggle);
 
     await waitFor(() => {
       expect(peek.notificationPreferences()?.muted).toContain('holiday');

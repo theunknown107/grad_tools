@@ -15,7 +15,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FileDropzone } from '../src/components/ui/FileDropzone.js';
+import { FileDropzone } from '../src/components/forms/FileDropzone.js';
 
 afterEach(cleanup);
 
@@ -50,7 +50,7 @@ describe('FileDropzone', () => {
     const user = userEvent.setup();
     render(<FileDropzone onFiles={vi.fn()} />);
 
-    const choose = screen.getByRole('button', { name: 'Choose a file' });
+    const choose = screen.getByRole('button', { name: 'Browse files' });
     const clicked = vi.fn();
     /*
      * The button opens the native picker, which jsdom cannot show — so the
@@ -82,7 +82,7 @@ describe('FileDropzone', () => {
     render(<FileDropzone onFiles={onFiles} />);
 
     const pdf = makeFile('sem3.pdf', 'application/pdf');
-    dropFiles(screen.getByText(/Drop a document here/i).parentElement as Element, [pdf]);
+    dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [pdf]);
 
     expect(onFiles).toHaveBeenCalledOnce();
     expect(onFiles.mock.calls[0]?.[0]).toEqual([pdf]);
@@ -92,7 +92,7 @@ describe('FileDropzone', () => {
     const onFiles = vi.fn();
     render(<FileDropzone onFiles={onFiles} />);
 
-    dropFiles(screen.getByText(/Drop a document here/i).parentElement as Element, [
+    dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
       makeFile('timetable.docx', 'application/vnd.openxmlformats'),
     ]);
 
@@ -107,7 +107,7 @@ describe('FileDropzone', () => {
     render(<FileDropzone onFiles={onFiles} />);
 
     const pdf = makeFile('sem3.pdf', 'application/pdf');
-    dropFiles(screen.getByText(/Drop a document here/i).parentElement as Element, [
+    dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
       pdf,
       makeFile('notes.docx', 'application/vnd.openxmlformats'),
     ]);
@@ -124,7 +124,7 @@ describe('FileDropzone', () => {
 
   it('announces the refusal rather than only drawing it', () => {
     render(<FileDropzone onFiles={vi.fn()} />);
-    dropFiles(screen.getByText(/Drop a document here/i).parentElement as Element, [
+    dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
       makeFile('marks.docx', 'application/vnd.openxmlformats'),
     ]);
 
@@ -135,7 +135,7 @@ describe('FileDropzone', () => {
 
   it('says what to do about a Word document instead of only refusing it', () => {
     render(<FileDropzone onFiles={vi.fn()} />);
-    dropFiles(screen.getByText(/Drop a document here/i).parentElement as Element, [
+    dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
       makeFile('timetable.docx', 'application/vnd.openxmlformats'),
     ]);
 
@@ -149,7 +149,7 @@ describe('FileDropzone', () => {
     render(<FileDropzone onFiles={onFiles} busy />);
 
     expect(screen.getByText(/Reading your document…/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Choose a file' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: 'Browse files' })).toHaveProperty('disabled', true);
 
     dropFiles(screen.getByText(/Reading your document…/i).parentElement as Element, [
       makeFile('sem3.pdf', 'application/pdf'),
@@ -161,7 +161,7 @@ describe('FileDropzone', () => {
   it('lets a refusal be dismissed', async () => {
     const user = userEvent.setup();
     render(<FileDropzone onFiles={vi.fn()} />);
-    dropFiles(screen.getByText(/Drop a document here/i).parentElement as Element, [
+    dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
       makeFile('marks.docx', 'application/vnd.openxmlformats'),
     ]);
 
