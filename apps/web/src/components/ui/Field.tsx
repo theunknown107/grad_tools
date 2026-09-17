@@ -1,169 +1,332 @@
 /**
- * Field and Input Group.
+ * Form controls — label, input, textarea, select, switch, checkbox.
  *
- * Authority: Phase 7B §2 · docs/27 §27.11
- * Provenance: behaviourally faithful shadcn implementation adapted to the
- * GradTools styling architecture. shadcn's Field and Input Group have NO Radix
- * primitive behind them — they are composition, markup and ARIA wiring — so
- * what is reproduced here is that wiring, exactly, rather than a dependency.
- *
- * ---------------------------------------------------------------------------
- * WHAT A FIELD IS FOR
- * ---------------------------------------------------------------------------
- *
- * `TextField` and `SelectField` in ui/index.tsx each do their own label, hint,
- * error and `aria-describedby` bookkeeping. That was fine while every field in
- * the product was one of those two. It stops being fine the moment a field
- * holds a Combobox, a Slider, a Radio Group or a Date Picker — none of which is
- * an `<input>`, and each of which would otherwise re-implement the same four
- * lines and get one of them subtly wrong.
- *
- * So `Field` owns the parts that are easy to get wrong and hands the control
- * what it needs:
- *
- *   - a `<label>` bound by `htmlFor`, or `aria-labelledby` where the control is
- *     not a labelable element,
- *   - `aria-describedby` composed from the hint AND the error, in that order,
- *     because a screen reader reads them in DOM order and the error must not
- *     replace the instruction that would have prevented it,
- *   - `aria-invalid` only when there IS an error,
- *   - `role="alert"` on the error so it is announced when it appears.
- *
- * Placeholder-as-label stays prohibited: it disappears on input and fails
- * contrast (docs/27 §27.11).
+ * Heights, radii and focus treatment are the design's `Input`/`Select`/`Switch`.
+ * The select is Radix, not a native `<select>`: the design's dropdown surface
+ * is a raised popup, and a native list cannot be styled to match it.
  */
 
-import { useId, type ReactNode } from 'react';
-import { Icon, type IconName } from '../icons.js';
-import styles from './Field.module.css';
+import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
+import * as LabelPrimitive from '@radix-ui/react-label';
+import * as SelectPrimitive from '@radix-ui/react-select';
+import * as SwitchPrimitive from '@radix-ui/react-switch';
+import { Check, ChevronDown } from 'lucide-react';
+import {
+  cloneElement,
+  forwardRef,
+  isValidElement,
+  useId,
+  type InputHTMLAttributes,
+  type ReactElement,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+} from 'react';
+import { cn } from '../../lib/cn.js';
 
-export interface FieldControlProps {
-  readonly id: string;
-  readonly 'aria-describedby': string | undefined;
-  readonly 'aria-invalid': true | undefined;
-}
+export const controlClass = cn(
+  'w-full rounded-lg border border-line bg-panel text-sm text-ink transition-[border-color,box-shadow]',
+  'placeholder:text-ink-3 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25',
+  'disabled:cursor-not-allowed disabled:opacity-60',
+  'aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger/25',
+);
 
+export const Label = forwardRef<
+  HTMLLabelElement,
+  LabelPrimitive.LabelProps & { readonly className?: string }
+>(function Label({ className, ...props }, ref) {
+  return (
+    <LabelPrimitive.Root
+      ref={ref}
+      className={cn('text-[13px] font-medium text-ink-2', className)}
+      {...props}
+    />
+  );
+});
+
+/**
+ * A labelled control. Wires `id`, `aria-describedby` and `aria-invalid` onto
+ * its single child, so every field is announced with its hint or error.
+ */
 export function Field({
   label,
   hint,
   error,
   children,
-  /**
-   * `group` for a control that is not a labelable element — a radio set, a
-   * segmented control, a combobox built from a button and a listbox. The label
-   * then names a group rather than pointing at an input that does not exist.
-   */
-  as = 'field',
+  className,
+  optional = false,
 }: {
-  readonly label: string;
-  readonly hint?: string | undefined;
-  readonly error?: string | undefined;
-  /** Receives the id and ARIA attributes the control must carry. */
-  readonly children: (control: FieldControlProps) => ReactNode;
-  readonly as?: 'field' | 'group';
-}): ReactNode {
-  const id = useId();
-  const labelId = `${id}-label`;
-  const hintId = `${id}-hint`;
-  const errorId = `${id}-error`;
-
-  /*
-   * Hint FIRST, then error. Both are referenced at once when both exist —
-   * replacing the hint with the error is how a person loses the very sentence
-   * that told them what the field wanted.
-   */
-  const describedBy =
-    [hint === undefined ? null : hintId, error === undefined ? null : errorId]
-      .filter((value): value is string => value !== null)
-      .join(' ') || undefined;
-
-  const control: FieldControlProps = {
+  readonly label: ReactNode;
+  readonly hint?: ReactNode;
+  readonly error?: string | null | undefined;
+  readonly children: ReactElement<Record<string, unknown>>;
+  readonly className?: string;
+  readonly optional?: boolean;
+}) {
+  const generated = useId();
+  const childId = isValidElement(children)
+    ? (children.props['id'] as string | undefined)
+    : undefined;
+  const id = childId ?? generated;
+  const describedBy = `${id}-note`;
+  const hasNote = (error !== undefined && error !== null && error !== '') || hint !== undefined;
+  const control = cloneElement(children, {
     id,
-    'aria-describedby': describedBy,
-    'aria-invalid': error === undefined ? undefined : true,
-  };
-
+    ...(hasNote ? { 'aria-describedby': describedBy } : {}),
+    ...(error ? { 'aria-invalid': true } : {}),
+  });
   return (
-    <div className={styles.field} data-invalid={error === undefined ? undefined : true}>
-      {as === 'group' ? (
-        <span className={styles.label} id={labelId}>
-          {label}
-        </span>
-      ) : (
-        <label className={styles.label} htmlFor={id}>
-          {label}
-        </label>
-      )}
-
-      {as === 'group' ? (
-        <div role="group" aria-labelledby={labelId} aria-describedby={describedBy}>
-          {children(control)}
-        </div>
-      ) : (
-        children(control)
-      )}
-
-      {hint !== undefined && (
-        <span className={styles.hint} id={hintId}>
-          {hint}
-        </span>
-      )}
-      {error !== undefined && (
-        <span className={styles.error} id={errorId} role="alert">
+    <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
+      <Label htmlFor={id}>
+        {label}
+        {optional && <span className="ml-1 font-normal text-ink-3">(optional)</span>}
+      </Label>
+      {control}
+      {error ? (
+        <span id={describedBy} role="alert" className="text-[12px] text-danger">
           {error}
         </span>
-      )}
+      ) : hint !== undefined ? (
+        <span id={describedBy} className="text-[12px] text-ink-3">
+          {hint}
+        </span>
+      ) : null}
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Input group                                                                */
-/* -------------------------------------------------------------------------- */
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function Input({ className, type, ...props }, ref) {
+    return (
+      <input
+        ref={ref}
+        type={type ?? 'text'}
+        className={cn(
+          controlClass,
+          'h-9.5 px-3',
+          'file:mr-3 file:rounded-md file:border-0 file:bg-sunken file:px-2 file:py-1 file:text-[12px] file:font-medium file:text-ink',
+          className,
+        )}
+        {...props}
+      />
+    );
+  },
+);
+
+export const Textarea = forwardRef<
+  HTMLTextAreaElement,
+  TextareaHTMLAttributes<HTMLTextAreaElement>
+>(function Textarea({ className, ...props }, ref) {
+  return (
+    <textarea
+      ref={ref}
+      className={cn(controlClass, 'min-h-24 px-3 py-2 leading-relaxed', className)}
+      {...props}
+    />
+  );
+});
+
+/* ------------------------------------------------------------------ Select */
+
+export interface SelectOption {
+  readonly value: string;
+  readonly label: ReactNode;
+  readonly disabled?: boolean;
+}
 
 /**
- * An input with something fixed attached to it — a unit, a prefix, a shortcut.
- *
- * The attached part is INSIDE the field's border, so the whole thing reads as
- * one control. That is the point: "50" beside a separate grey box saying "/100"
- * is two objects; "50 /100" in one bordered field is a mark out of a hundred.
- *
- * The addon is `aria-hidden` when it is a unit, because the field's own label
- * should already say what the unit is — "Internal marks (out of 50)" — and a
- * screen reader announcing "slash one hundred" after every keystroke is noise.
- * When the addon is a CONTROL rather than a label, pass it as `action` instead
- * and it stays in the accessibility tree.
+ * A single-value select. Radix Select cannot hold an empty-string value, so
+ * "nothing chosen" is `value === ''` here and shows the placeholder.
  */
-export function InputGroup({
-  children,
-  prefix,
-  suffix,
-  action,
-  icon,
-}: {
-  /** The `<input>` itself, already carrying the Field's ARIA props. */
-  readonly children: ReactNode;
-  readonly prefix?: string | undefined;
-  readonly suffix?: string | undefined;
-  /** An interactive trailing element — a clear button, a picker trigger. */
-  readonly action?: ReactNode;
-  readonly icon?: IconName | undefined;
-}): ReactNode {
+export const Select = forwardRef<
+  HTMLButtonElement,
+  {
+    readonly value: string;
+    readonly onValueChange: (value: string) => void;
+    readonly options: readonly SelectOption[];
+    readonly placeholder?: string;
+    readonly disabled?: boolean;
+    readonly className?: string;
+    readonly id?: string;
+    readonly name?: string;
+    readonly 'aria-label'?: string;
+    readonly 'aria-describedby'?: string;
+    readonly 'aria-invalid'?: boolean;
+    readonly size?: 'sm' | 'md';
+  }
+>(function Select(
+  {
+    value,
+    onValueChange,
+    options,
+    placeholder = 'Select…',
+    disabled,
+    className,
+    size = 'md',
+    name,
+    ...aria
+  },
+  ref,
+) {
   return (
-    <div className={styles.group}>
-      {icon !== undefined && <Icon name={icon} size="nav" className={styles.groupIcon} />}
-      {prefix !== undefined && (
-        <span className={styles.addon} aria-hidden="true">
-          {prefix}
+    <SelectPrimitive.Root
+      {...(value === '' ? {} : { value })}
+      onValueChange={onValueChange}
+      {...(disabled === true ? { disabled: true } : {})}
+      {...(name === undefined ? {} : { name })}
+    >
+      <SelectPrimitive.Trigger
+        ref={ref}
+        {...aria}
+        className={cn(
+          controlClass,
+          'flex items-center justify-between gap-2 px-3 text-left data-[placeholder]:text-ink-3',
+          size === 'sm' ? 'h-8 text-[13px]' : 'h-9.5',
+          className,
+        )}
+      >
+        <span className="min-w-0 truncate">
+          <SelectPrimitive.Value placeholder={placeholder} />
         </span>
+        <SelectPrimitive.Icon asChild>
+          <ChevronDown className="size-4 shrink-0 text-ink-3" />
+        </SelectPrimitive.Icon>
+      </SelectPrimitive.Trigger>
+      <SelectPrimitive.Portal>
+        <SelectPrimitive.Content
+          position="popper"
+          sideOffset={6}
+          collisionPadding={8}
+          data-slot="popup"
+          className="z-[95] max-h-(--radix-select-content-available-height) min-w-[var(--radix-select-trigger-width)] animate-pop overflow-hidden rounded-xl border border-line bg-raised shadow-e3"
+        >
+          <SelectPrimitive.Viewport className="p-1">
+            {options.map((option) => (
+              <SelectPrimitive.Item
+                key={option.value}
+                value={option.value}
+                {...(option.disabled === true ? { disabled: true } : {})}
+                className={cn(
+                  'relative flex cursor-pointer select-none items-center rounded-lg py-2 pr-8 pl-2.5 text-[13px] text-ink outline-none',
+                  'data-[highlighted]:bg-sunken data-[state=checked]:font-medium',
+                  'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+                )}
+              >
+                <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+                <SelectPrimitive.ItemIndicator className="absolute right-2.5">
+                  <Check className="size-3.5 text-accent-ink" />
+                </SelectPrimitive.ItemIndicator>
+              </SelectPrimitive.Item>
+            ))}
+          </SelectPrimitive.Viewport>
+        </SelectPrimitive.Content>
+      </SelectPrimitive.Portal>
+    </SelectPrimitive.Root>
+  );
+});
+
+/* ------------------------------------------------------------------ Switch */
+
+export function Switch({
+  checked,
+  onCheckedChange,
+  label,
+  disabled,
+  id,
+}: {
+  readonly checked: boolean;
+  readonly onCheckedChange: (checked: boolean) => void;
+  /** Accessible name when no visible label is associated. */
+  readonly label?: string;
+  readonly disabled?: boolean;
+  readonly id?: string;
+}) {
+  return (
+    <SwitchPrimitive.Root
+      checked={checked}
+      onCheckedChange={onCheckedChange}
+      {...(label === undefined ? {} : { 'aria-label': label })}
+      {...(disabled === true ? { disabled: true } : {})}
+      {...(id === undefined ? {} : { id })}
+      className={cn(
+        'relative inline-flex h-6 w-10 shrink-0 items-center rounded-full transition-colors duration-200',
+        'bg-line-strong data-[state=checked]:bg-accent disabled:opacity-50',
       )}
-      {children}
-      {suffix !== undefined && (
-        <span className={styles.addon} aria-hidden="true">
-          {suffix}
-        </span>
-      )}
-      {action !== undefined && <span className={styles.groupAction}>{action}</span>}
+    >
+      <SwitchPrimitive.Thumb className="block size-5 translate-x-0.5 rounded-full bg-raised shadow-e1 transition-transform duration-200 data-[state=checked]:translate-x-[18px]" />
+    </SwitchPrimitive.Root>
+  );
+}
+
+/** A labelled row with a switch — the design's settings toggle row. */
+export function SwitchRow({
+  title,
+  description,
+  checked,
+  onCheckedChange,
+  disabled,
+}: {
+  readonly title: string;
+  readonly description?: ReactNode;
+  readonly checked: boolean;
+  readonly onCheckedChange: (checked: boolean) => void;
+  readonly disabled?: boolean;
+}) {
+  const id = useId();
+  return (
+    <div className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
+      <div className="min-w-0">
+        <label htmlFor={id} className="text-[13px] font-medium text-ink">
+          {title}
+        </label>
+        {description !== undefined && <div className="text-[12px] text-ink-3">{description}</div>}
+      </div>
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        {...(disabled === undefined ? {} : { disabled })}
+      />
     </div>
   );
+}
+
+/* ---------------------------------------------------------------- Checkbox */
+
+export function Checkbox({
+  checked,
+  onCheckedChange,
+  label,
+  id,
+  disabled,
+}: {
+  readonly checked: boolean;
+  readonly onCheckedChange: (checked: boolean) => void;
+  readonly label?: string;
+  readonly id?: string;
+  readonly disabled?: boolean;
+}) {
+  return (
+    <CheckboxPrimitive.Root
+      checked={checked}
+      onCheckedChange={(state) => onCheckedChange(state === true)}
+      {...(label === undefined ? {} : { 'aria-label': label })}
+      {...(id === undefined ? {} : { id })}
+      {...(disabled === true ? { disabled: true } : {})}
+      className={cn(
+        'grid size-4.5 shrink-0 place-items-center rounded-[5px] border border-line-strong bg-panel transition-colors',
+        'data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-on-accent',
+        'disabled:opacity-50',
+      )}
+    >
+      <CheckboxPrimitive.Indicator>
+        <Check className="size-3" strokeWidth={3} />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  );
+}
+
+/** Adapts an `<input>` change handler to a plain value callback. */
+export function valueOf(handler: (value: string) => void) {
+  return (event: { readonly target: { readonly value: string } }): void =>
+    handler(event.target.value);
 }

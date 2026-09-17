@@ -1,237 +1,173 @@
-/**
- * Backlogs — subjects not yet cleared.
- *
- * Authority: docs/08 §8.13 · M6 §10
- *
- * NO EXAM DATE FIELD, and none may be added. A re-sit date is a university
- * fact that has to come from a verified source; a student-entered one would
- * look identical on screen and be trusted the same way (M6 §10).
- *
- * `attempted` is deliberately not `cleared`: it means the exam was sat and the
- * result is not known. Folding the two together would quietly turn a hope into
- * a pass.
- */
-
-import { useState } from 'react';
-import type { BacklogRecord, BacklogStatus } from '../../domain/types.js';
-import type { StudentProfileId } from '../../domain/identity.js';
-import { Icon } from '../../components/icons.js';
+import { CircleCheck, Plus, Trash2 } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { Badge, type Tone } from '../../components/ui/badge.js';
+import { Button, IconButton } from '../../components/ui/button.js';
+import { Card } from '../../components/ui/card.js';
+import { EmptyState } from '../../components/ui/feedback.js';
+import { Field, Input, Select } from '../../components/ui/field.js';
+import { SectionTitle } from '../../components/ui/page.js';
 import {
-  Button,
-  EmptyState,
-  Panel,
-  SelectField,
-  StatusPill,
-  TextField,
-  numericClass,
-  tableClass,
-  TableScroll,
-} from '../../components/ui/index.js';
-import { newId, nowIso } from '../../lib/id.js';
-import { PastelCard, Rail } from '../../components/ui/tone.js';
-import { formatCount } from '../../lib/format.js';
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableRowHead,
+  numeric,
+} from '../../components/ui/table.js';
+import type { StudentProfileId } from '../../domain/identity.js';
+import type { BacklogRecord, BacklogStatus } from '../../domain/types.js';
 import { useBacklogs } from '../../hooks/useCollection.js';
-import styles from './semesters.module.css';
+import { newId, nowIso } from '../../lib/id.js';
+import { SEMESTER_OPTIONS } from '../import/CalendarReview.js';
 
 const STATUS_LABEL: Record<BacklogStatus, string> = {
   active: 'Not cleared',
   attempted: 'Sat, awaiting result',
   cleared: 'Cleared',
 };
-
-const STATUS_TONE: Record<BacklogStatus, 'warning' | 'accent' | 'success'> = {
+const STATUS_TONE: Record<BacklogStatus, Tone> = {
   active: 'warning',
   attempted: 'accent',
   cleared: 'success',
 };
 
+/** The backlogs a student records themselves — their own list of what to clear. */
 export function BacklogPanel({ profileId }: { readonly profileId: StudentProfileId }) {
   const { items, save, remove } = useBacklogs();
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
   const [semester, setSemester] = useState('1');
 
-  async function add(event: React.FormEvent) {
+  const add = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
-    if (code.trim() === '') return;
-
-    const record: BacklogRecord = {
+    const cleaned = code.trim().toUpperCase();
+    if (cleaned === '') return;
+    await save({
       id: newId(),
       profileId,
-      subjectCode: code.trim().toUpperCase(),
-      subjectTitle: title.trim() === '' ? code.trim().toUpperCase() : title.trim(),
+      subjectCode: cleaned,
+      subjectTitle: title.trim() === '' ? cleaned : title.trim(),
       originSemester: Number(semester),
       status: 'active',
       attempts: 0,
       clearedInSemester: null,
       updatedAt: nowIso(),
-    };
-    await save(record);
+    });
     setCode('');
     setTitle('');
-  }
+  };
 
-  async function setStatus(record: BacklogRecord, status: BacklogStatus) {
+  const setStatus = async (record: BacklogRecord, status: BacklogStatus): Promise<void> => {
     await save({
       ...record,
       status,
-      // Sitting the exam is what increments attempts; clearing it does not.
       attempts: status === 'attempted' ? record.attempts + 1 : record.attempts,
       clearedInSemester: status === 'cleared' ? record.clearedInSemester : null,
       updatedAt: nowIso(),
     });
-  }
+  };
 
   return (
-    <Panel title="Backlogs">
-      <p className={styles.note}>
+    <Card className="p-5" aria-labelledby="backlogs-title">
+      <SectionTitle id="backlogs-title">Backlogs</SectionTitle>
+      <p className="mb-4 text-[13px] text-ink-2">
         Subjects you still have to clear. GradTools does not know when the exams are — those come
         from official notices, not from here.
       </p>
-
-      {/*
-        THE TONE IS THE STATUS, not a rotation. A backlog still open takes the
-        attention tone and a cleared one takes the progress tone, so the state
-        of the degree is legible before a single row is read. Nothing here is
-        alarming red: the reference's palette says "deal with this", not
-        "something has gone wrong".
-      */}
-      {items.length > 0 && (
-        <Rail label="Backlogs">
-          {items.map((record) => {
-            const cleared = record.status === 'cleared';
-            return (
-              <PastelCard
-                key={record.id}
-                tone={cleared ? 'lime' : 'peach'}
-                pill={cleared ? 'Cleared' : 'Open'}
-                title={record.subjectCode}
-                body={
-                  cleared
-                    ? `Cleared${record.clearedInSemester === null ? '' : ` in semester ${String(record.clearedInSemester)}`}.`
-                    : `Carried from semester ${String(record.originSemester)}${
-                        record.attempts > 0 ? `, ${formatCount(record.attempts, 'attempt')}` : ''
-                      }.`
-                }
-              />
-            );
-          })}
-        </Rail>
-      )}
-
-      <form className={styles.backlogForm} onSubmit={(event) => void add(event)}>
-        {/*
-          REQUIRED, SO THE BROWSER SAYS SO. `add` returns early on an empty
-          code, which made "Add backlog" a control that could be pressed and
-          did nothing at all — no message, no focus move, nothing. A browser
-          sweep flagged it as a dead control, and it was one.
-
-          The constraint is declared rather than hand-written: the platform
-          already blocks the submit, moves focus to the field and announces
-          why, in the viewer's own language.
-        */}
-        <TextField
-          label="Subject code"
-          value={code}
-          onChange={(event) => {
-            setCode(event.target.value);
-          }}
-          placeholder="BCS301"
-          required
-        />
-        <TextField
-          label="Subject name"
-          value={title}
-          onChange={(event) => {
-            setTitle(event.target.value);
-          }}
-          placeholder="Optional"
-        />
-        <SelectField
-          label="From semester"
-          value={semester}
-          onChange={(event) => {
-            setSemester(event.target.value);
-          }}
-        >
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((number) => (
-            <option key={number} value={String(number)}>
-              Semester {number}
-            </option>
-          ))}
-        </SelectField>
-        <Button type="submit" variant="secondary">
-          <Icon name="plus" size="nav" />
+      <form
+        onSubmit={(event) => void add(event)}
+        className="mb-4 grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1.6fr_10rem_auto]"
+        aria-label="Add a backlog"
+      >
+        <Field label="Subject code">
+          <Input
+            className="font-mono"
+            placeholder="BCS301"
+            required
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+          />
+        </Field>
+        <Field label="Subject name" optional>
+          <Input value={title} onChange={(event) => setTitle(event.target.value)} />
+        </Field>
+        <Field label="From semester">
+          <Select value={semester} onValueChange={setSemester} options={SEMESTER_OPTIONS} />
+        </Field>
+        <Button type="submit" icon={<Plus />} disabled={code.trim() === ''}>
           Add backlog
         </Button>
       </form>
-
       {items.length === 0 ? (
-        <EmptyState>No backlogs recorded. Nothing to clear.</EmptyState>
+        <EmptyState
+          compact
+          icon={<CircleCheck />}
+          title="No backlogs recorded"
+          description="Nothing to clear."
+        />
       ) : (
-        <TableScroll>
-          <table className={tableClass}>
-            <caption className={styles.caption}>Subjects carried from earlier semesters.</caption>
-            <thead>
+        <div className="overflow-hidden rounded-xl border border-line">
+          <Table>
+            <TableCaption>Subjects carried from earlier semesters.</TableCaption>
+            <TableHeader>
               <tr>
-                <th scope="col">Subject</th>
-                <th scope="col">From</th>
-                <th scope="col">Attempts</th>
-                <th scope="col">Status</th>
-                <th scope="col">Change</th>
-                <th scope="col">
-                  <span className={styles.visuallyHidden}>Remove</span>
-                </th>
+                <TableHead>Subject</TableHead>
+                <TableHead className="text-right">From</TableHead>
+                <TableHead className="text-right">Attempts</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Change</TableHead>
+                <TableHead>
+                  <span className="sr-only">Remove</span>
+                </TableHead>
               </tr>
-            </thead>
-            <tbody>
+            </TableHeader>
+            <TableBody>
               {items.map((record) => (
-                <tr key={record.id}>
-                  {/* Student-entered text, rendered as text. Never markup. */}
-                  <th scope="row">
-                    {record.subjectCode}
+                <TableRow key={record.id}>
+                  <TableRowHead>
+                    <span className="font-mono text-[12px]">{record.subjectCode}</span>
                     {record.subjectTitle !== record.subjectCode && (
-                      <span className={styles.subjectTitle}> {record.subjectTitle}</span>
+                      <span className="block text-[12px] font-normal text-ink-3">
+                        {record.subjectTitle}
+                      </span>
                     )}
-                  </th>
-                  <td className={numericClass}>S{record.originSemester}</td>
-                  <td className={numericClass}>{record.attempts}</td>
-                  <td>
-                    <StatusPill tone={STATUS_TONE[record.status]}>
-                      {STATUS_LABEL[record.status]}
-                    </StatusPill>
-                  </td>
-                  <td>
-                    <SelectField
-                      label={`Status for ${record.subjectCode}`}
+                  </TableRowHead>
+                  <TableCell className={numeric}>S{record.originSemester}</TableCell>
+                  <TableCell className={numeric}>{record.attempts}</TableCell>
+                  <TableCell>
+                    <Badge tone={STATUS_TONE[record.status]}>{STATUS_LABEL[record.status]}</Badge>
+                  </TableCell>
+                  <TableCell className="min-w-44">
+                    <Select
+                      size="sm"
+                      aria-label={`Status for ${record.subjectCode}`}
                       value={record.status}
-                      onChange={(event) => {
-                        void setStatus(record, event.target.value as BacklogStatus);
-                      }}
+                      onValueChange={(value) => void setStatus(record, value as BacklogStatus)}
+                      options={(Object.keys(STATUS_LABEL) as BacklogStatus[]).map((status) => ({
+                        value: status,
+                        label: STATUS_LABEL[status],
+                      }))}
+                    />
+                  </TableCell>
+                  <TableCell className="w-12 text-right">
+                    <IconButton
+                      size="sm"
+                      label={`Remove ${record.subjectCode}`}
+                      className="hover:text-danger"
+                      onClick={() => void remove(record.id)}
                     >
-                      <option value="active">Not cleared</option>
-                      <option value="attempted">Sat, awaiting result</option>
-                      <option value="cleared">Cleared</option>
-                    </SelectField>
-                  </td>
-                  <td>
-                    <Button
-                      variant="danger"
-                      iconOnly
-                      aria-label={`Remove ${record.subjectCode}`}
-                      onClick={() => {
-                        void remove(record.id);
-                      }}
-                    >
-                      <Icon name="trash" size="nav" />
-                    </Button>
-                  </td>
-                </tr>
+                      <Trash2 />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </TableScroll>
+            </TableBody>
+          </Table>
+        </div>
       )}
-    </Panel>
+    </Card>
   );
 }
