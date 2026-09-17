@@ -1,684 +1,702 @@
 /**
- * Academic profile.
+ * Profile — the design's profile hero, identity and academic snapshot, with
+ * the sections that shape the rest of the app: academic details, personal
+ * details, Appearance, and what happens to the data.
  *
- * Authority: docs/03 UF-02, docs/11, docs/12, M3 continuation §8-§9.
- *
- * ---------------------------------------------------------------------------
- * WHAT IS AND IS NOT COLLECTED
- * ---------------------------------------------------------------------------
- * Everything here is OPTIONAL and stored on this device only. No network call
- * is made when saving a profile — a fact worth stating in the UI, because the
- * student has no way to verify it otherwise.
- *
- * There is NO date-of-birth field, and none may be added: DOB has no approved
- * product requirement (docs/32 DEC-008). Reintroducing it requires a new,
- * explicit product decision.
- *
- * USN is an academic identifier, not an identity key (domain/identity.ts).
- *
- * ---------------------------------------------------------------------------
- * FUTURE ONBOARDING ORDER
- * ---------------------------------------------------------------------------
- * When authentication arrives the order becomes:
- *     Welcome -> sign in -> identity established -> academic profile -> dashboard
- * NOT profile-then-auth. Collecting academic metadata before an identity
- * exists creates duplicate profiles and complicates recovery. Stage 1 sits at
- * the "try it without an account" branch of that flow, which is why the
- * profile is local and skippable.
+ * Every field is optional and stored only on this device. Nothing here is
+ * needed to calculate anything.
  */
 
-import { useEffect, useState } from 'react';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
+import {
+  Building2,
+  CalendarDays,
+  Database,
+  ExternalLink,
+  FileText,
+  GraduationCap,
+  Hash,
+  LayoutDashboard,
+  Palette,
+  Pencil,
+  RotateCcw,
+  UserRound,
+  type LucideIcon,
+} from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Card } from '../../components/ui/card.js';
+import { ConfirmDialog } from '../../components/ui/dialog.js';
+import { Callout, EmptyState, ErrorState, toast } from '../../components/ui/feedback.js';
+import { Field, Input, Select } from '../../components/ui/field.js';
+import { MiniStat } from '../../components/ui/metric.js';
+import { Avatar, PageHeader, SectionTitle, initialsOf } from '../../components/ui/page.js';
+import { Segmented } from '../../components/ui/segmented.js';
+import { PageSkeleton, Skeleton } from '../../components/ui/skeleton.js';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  numeric,
+} from '../../components/ui/table.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import type { StudentProfile } from '../../domain/types.js';
-import { Link } from 'react-router-dom';
-import { AsyncSection } from '../../components/AsyncSection.js';
-import { Icon, type IconName } from '../../components/icons.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
-import { formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
-import { PageHeader } from '../../components/AppShell.js';
-
-import { SectionedForm } from '../../components/ui/SectionedForm.js';
-import { ThemeControl } from '../../components/ThemeControl.js';
-import {
-  Button,
-  buttonClassName,
-  EmptyState,
-  Notice,
-  Panel,
-  SelectField,
-  StatusPill,
-  TextField,
-  monoClass,
-  numericClass,
-  TableScroll,
-  tableClass,
-} from '../../components/ui/index.js';
-import { AlertDialog, AlertDialogContent, AlertDialogTrigger } from '../../components/ui/Dialog.js';
-import { newId, nowIso } from '../../lib/id.js';
 import { useProfile, useResults, useTimetable } from '../../hooks/useCollection.js';
 import { useBranches, useSchemes, useSubjects } from '../../hooks/useReference.js';
+import { cn } from '../../lib/cn.js';
+import { formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
+import { newId, nowIso } from '../../lib/id.js';
 import { isStorageAvailable } from '../../repositories/local/store.js';
-import styles from './profile.module.css';
+import { SEMESTER_OPTIONS } from '../import/CalendarReview.js';
+import { AppearanceSettings } from './AppearanceSettings.js';
 
-/**
- * The programmes VTU awards, as VTU writes them.
- *
- * A FIXED LIST, and the punctuation is part of it. Matching against a source
- * notice is exact (§76, §77) — no edit distance, no "close enough" — so "B.E."
- * and "BE" are different answers and only one of them is the one VTU prints.
- *
- * There is no "not applicable" option because there is no such student: every
- * person VTU examines is on some programme. What a student who does not want
- * to say has is "Not set", which resolves to `unresolved` and interrupts them
- * about nothing (§11, §12).
- */
 const PROGRAMMES = ['B.E.', 'B.Tech.', 'B.Arch.', 'M.Tech.', 'M.Arch.', 'MBA', 'MCA'] as const;
+const NOT_SET = '__not_set__';
+
+const SECTIONS = [
+  { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { key: 'academic', label: 'Academic', icon: GraduationCap },
+  { key: 'identity', label: 'You', icon: UserRound },
+  { key: 'appearance', label: 'Appearance', icon: Palette },
+  { key: 'data', label: 'Your data', icon: Database },
+] as const satisfies readonly { key: string; label: string; icon: LucideIcon }[];
+type Section = (typeof SECTIONS)[number]['key'];
+
+function isSection(value: string | null): value is Section {
+  return SECTIONS.some((section) => section.key === value);
+}
 
 export function ProfilePage() {
   const { profile, loading, save } = useProfile();
-
-  /*
-   * Reference data comes from the server; the student's SELECTION stays local.
-   * That split is the whole point of this milestone: the list of schemes is
-   * public academic fact, the choice of one is personal data (M5a §20).
-   */
-  const schemes = useSchemes();
-  const branches = useBranches();
-
-  const [displayName, setDisplayName] = useState('');
-  const [usn, setUsn] = useState('');
-  const [collegeName, setCollegeName] = useState('');
-  const [branch, setBranch] = useState('');
-  const [programme, setProgramme] = useState('');
-  const [semester, setSemester] = useState('3');
-  const [saved, setSaved] = useState(false);
+  const [params, setParams] = useSearchParams();
   const [storageOk, setStorageOk] = useState(true);
-  /**
-   * Whether the form is open.
-   *
-   * The approved design shows a profile before it offers to change one: a
-   * student opens this page to check their USN far more often than to edit it.
-   * A profile with nothing in it opens straight into the form, because there
-   * is nothing to read yet.
-   */
-  const [editing, setEditing] = useState(false);
+  const requested = params.get('section');
+  const section: Section = isSection(requested) ? requested : 'overview';
+  const go = (next: Section): void =>
+    setParams(next === 'overview' ? {} : { section: next }, { replace: true });
 
   useEffect(() => {
     void isStorageAvailable().then(setStorageOk);
   }, []);
 
-  useEffect(() => {
-    if (!profile) return;
-    setDisplayName(profile.displayName ?? '');
-    setUsn(profile.usn ?? '');
-    setCollegeName(profile.collegeName ?? '');
-    setBranch(profile.branch ?? '');
-    setProgramme(profile.programme ?? '');
-    setSemester(profile.currentSemester === null ? '' : String(profile.currentSemester));
-  }, [profile]);
-
-  const commit = () => {
-    const next: StudentProfile = {
-      id: profile?.id ?? asStudentProfileId(newId()),
-      // Always null in Stage 1: no authentication is implemented.
-      authUserId: null,
-      displayName: displayName.trim() === '' ? null : displayName.trim(),
-      usn: usn.trim() === '' ? null : usn.trim().toUpperCase(),
-      collegeName: collegeName.trim() === '' ? null : collegeName.trim(),
-      schemeId: vtu2022RuleSet.schemeId,
-      /*
-       * BLANK STAYS NULL. "Not set" is a real answer — it means the student has
-       * not told us — and turning it into a guess is what §13 forbids.
-       */
-      programme: programme.trim() === '' ? null : programme.trim(),
-      branch: branch.trim() === '' ? null : branch.trim(),
-      currentSemester: semester === '' ? null : Number(semester),
-      createdAt: profile?.createdAt ?? nowIso(),
-      updatedAt: nowIso(),
-    };
-    void save(next);
-    setSaved(true);
-  };
-
-  /*
-   * Something to read, or nothing yet. A profile where every field is blank
-   * has no overview worth showing, so the form opens directly.
-   */
-  const hasProfile =
-    profile !== null &&
-    profile !== undefined &&
-    [profile.displayName, profile.usn, profile.collegeName, profile.branch].some(
-      (value) => value !== null && value !== '',
-    );
-
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <PageSkeleton label="Loading your profile" />;
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Account"
         title="Profile"
-        subtitle="Optional, and stored only in this browser. Every field can be left blank."
-        /* Only what the student actually filled in. A blank profile shows no
-           pills rather than a row of placeholders. */
-        action={
-          <Button
-            onClick={() => {
-              setEditing((current) => !current);
-            }}
-          >
-            <Icon name={editing ? 'check' : 'edit'} size="nav" />
-            {editing ? 'Done editing' : 'Edit profile'}
-          </Button>
+        description="Optional, and stored only on this device. Every field can be left blank."
+        actions={
+          section === 'overview' ? (
+            <Button icon={<Pencil />} onClick={() => go('academic')}>
+              Edit profile
+            </Button>
+          ) : undefined
         }
       />
 
-      <div className={styles.stack}>
-        {!storageOk && (
-          <Notice tone="warning">
-            Your browser is blocking storage, so nothing will be saved between visits. The
-            calculators still work.
-          </Notice>
-        )}
+      {!storageOk && (
+        <Callout tone="warning">
+          Your browser is blocking storage, so nothing will be saved between visits. The calculators
+          still work.
+        </Callout>
+      )}
 
-        {/*
-        -------------------------------------------------------------------
-        M9.6G: PROFILE IS FOUR CONCERNS, NOT ONE LONG FORM
-        -------------------------------------------------------------------
-
-        M9.6F only de-emphasised the USN, which was a field change and not a
-        composition. The page was still one "Academic profile" panel holding
-        name, USN, college, branch, semester and scheme in a single grid, with
-        two explanatory panels stacked under it.
-
-        Split along the lines a person actually thinks in — who I am, what I am
-        studying, how it looks, where it lives — using the same SectionedForm
-        the Account page uses, so the two settings surfaces are one pattern
-        rather than two.
-
-        Appearance is a real section here for the same reason it is on Account:
-        the theme control existed only in a header popover, which is right for
-        a quick switch and wrong as the only home for a preference.
-      */}
-        {!editing && hasProfile ? (
-          <ProfileOverview profile={profile ?? null} />
-        ) : (
-          <SectionedForm
-            label="Profile settings"
-            sections={[
-              /*
-               * Academic leads, and that is a product decision rather than an
-               * ordering accident: branch, scheme and semester drive every figure
-               * GradTools computes, while name and USN are decorative and
-               * optional. The first section should be the one that matters.
-               */
-              {
-                id: 'academic',
-                label: 'Academic',
-                icon: 'degree',
-                children: (
-                  <>
-                    <div className={styles.grid}>
-                      <TextField
-                        label="College"
-                        value={collegeName}
-                        onChange={(event) => {
-                          setCollegeName(event.target.value);
-                          setSaved(false);
-                        }}
-                      />
-                      <div className={styles.referenceField}>
-                        <AsyncSection
-                          state={branches.state}
-                          retry={branches.retry}
-                          label="branches"
-                          isEmpty={(list) => list.length === 0}
-                          empty={
-                            <TextField
-                              label="Branch"
-                              hint="No branches available from the server; type yours instead."
-                              placeholder="Computer Science"
-                              value={branch}
-                              onChange={(event) => {
-                                setBranch(event.target.value);
-                                setSaved(false);
-                              }}
-                            />
-                          }
-                        >
-                          {(list) => (
-                            <SelectField
-                              label="Branch"
-                              hint="From the GradTools reference data."
-                              value={branch}
-                              onChange={(event) => {
-                                setBranch(event.target.value);
-                                setSaved(false);
-                              }}
-                            >
-                              <option value="">Not set</option>
-                              {list.map((item) => (
-                                <option key={item.id} value={item.name}>
-                                  {item.name}
-                                </option>
-                              ))}
-                            </SelectField>
-                          )}
-                        </AsyncSection>
-                      </div>
-                      {/*
-                       * WHY THIS IS ASKED (Phase 7B.3.1 §6, §10). VTU names the
-                       * programme on nearly every notice it publishes — "Time
-                       * Table for B.E. V Semester Examination" — so without it a
-                       * programme-scoped notice matches nobody. The hint says
-                       * that in the student's terms; "applicability engine" is
-                       * our word for it, not theirs.
-                       *
-                       * A SELECT RATHER THAN A TEXT FIELD, because matching is on
-                       * exact values and a free-text box invites "be" and "BE."
-                       * and "Bachelor of Engineering" — three spellings that
-                       * would each silently fail to match.
-                       */}
-                      <SelectField
-                        label="Programme"
-                        hint="Helps GradTools show you VTU notices meant for your programme."
-                        value={programme}
-                        onChange={(event) => {
-                          setProgramme(event.target.value);
-                          setSaved(false);
-                        }}
-                      >
-                        <option value="">Not set</option>
-                        {PROGRAMMES.map((value) => (
-                          <option key={value} value={value}>
-                            {value}
-                          </option>
-                        ))}
-                      </SelectField>
-                      <SelectField
-                        label="Current semester"
-                        value={semester}
-                        onChange={(event) => {
-                          setSemester(event.target.value);
-                          setSaved(false);
-                        }}
-                      >
-                        <option value="">Not set</option>
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((value) => (
-                          <option key={value} value={value}>
-                            Semester {value}
-                          </option>
-                        ))}
-                      </SelectField>
-                      <div className={styles.referenceField}>
-                        <AsyncSection
-                          state={schemes.state}
-                          retry={schemes.retry}
-                          label="schemes"
-                          isEmpty={(list) => list.length === 0}
-                        >
-                          {(list) => (
-                            <SelectField
-                              label="Scheme"
-                              hint="Only verified schemes are offered."
-                              value={vtu2022RuleSet.schemeId}
-                              disabled={list.length <= 1}
-                            >
-                              {list.map((item) => (
-                                <option key={item.id} value={item.id}>
-                                  {item.name} ({item.regulationCode})
-                                </option>
-                              ))}
-                            </SelectField>
-                          )}
-                        </AsyncSection>
-                      </div>
-                    </div>
-
-                    <div className={styles.actions}>
-                      <Button variant="primary" onClick={commit}>
-                        Save profile
-                      </Button>
-                      {saved && (
-                        <span className={styles.savedNote} role="status">
-                          Saved on this device.
-                        </span>
-                      )}
-                    </div>
-                    <SubjectsPanel semester={semester === '' ? null : Number(semester)} />
-                    <MyRecordsPanel />
-                  </>
-                ),
-              },
-              {
-                id: 'identity',
-                label: 'You',
-                icon: 'profile',
-                children: (
-                  <>
-                    <p className={styles.note}>
-                      Everything on this page is optional and stored only in this browser. GradTools
-                      never needs any of it to calculate anything.
-                    </p>
-                    <p className={styles.note}>
-                      Your name is used only to greet you on the dashboard. The USN is only used to
-                      label a result you export &mdash; leaving it blank costs nothing.
-                    </p>
-
-                    {/*
-                    Name and USN live HERE, not under Academic. The rail said
-                    "You" while the name field sat in the academic section,
-                    which is the kind of incoherence a split like this exists
-                    to remove rather than introduce.
-                  */}
-                    <div className={styles.grid}>
-                      <TextField
-                        label="Name"
-                        hint="Only used to greet you."
-                        value={displayName}
-                        onChange={(event) => {
-                          setDisplayName(event.target.value);
-                          setSaved(false);
-                        }}
-                      />
-                      {/*
-                  -----------------------------------------------------------------
-                  M9.6F: THE USN IS OPTIONAL AND SAYS SO ON ITS FACE
-                  -----------------------------------------------------------------
-
-                  It sat second in the form, styled identically to Name and College,
-                  with a hint explaining what it is NOT. Presented that way it reads
-                  as required — and a seat number is the single most identifying
-                  thing a student could type into this app (docs/12 §12.16). §16 of
-                  this milestone rules out requiring one.
-
-                  So it moves below the fields that are actually used, is labelled
-                  optional in its own label rather than in a hint, and the hint now
-                  leads with the fact that leaving it blank costs nothing.
-                */}
-                      <TextField
-                        label="USN (optional)"
-                        hint="GradTools never needs it. Leave it blank and everything works the same; it is only used to label a result you export."
-                        mono
-                        placeholder="1XX22CS001"
-                        value={usn}
-                        onChange={(event) => {
-                          setUsn(event.target.value);
-                          setSaved(false);
-                        }}
-                      />
-                    </div>
-                  </>
-                ),
-              },
-              {
-                id: 'appearance',
-                label: 'Appearance',
-                icon: 'sun',
-                children: (
-                  <>
-                    <p className={styles.note}>
-                      Light, dark or whatever this device is set to, and the accent used for
-                      selected items and highlights. Saved on this device only &mdash; never synced,
-                      and it can never affect an academic figure.
-                    </p>
-                    <div className={styles.themeRow}>
-                      <ThemeControl />
-                    </div>
-                  </>
-                ),
-              },
-              {
-                id: 'data',
-                label: 'Your data',
-                icon: 'shield',
-                children: (
-                  <>
-                    <div className={styles.prose}>
-                      <p>
-                        Everything you enter (profile, attendance, results and timetable) is stored
-                        in this browser. GradTools has no account system yet and sends none of it to
-                        a server.
-                      </p>
-                      <p>
-                        Clearing your browser data removes it. There is no sync between devices at
-                        this stage.
-                      </p>
-                      <p className={styles.muted}>
-                        GradTools does not collect your date of birth, phone number, or any login
-                        details for a university system, and never asks for a university password.
-                      </p>
-                    </div>
-                    <div className={styles.prose}>
-                      <p>
-                        This experimental version supports the{' '}
-                        <strong>VTU 2022 scheme (22OB)</strong> for B.E./B.Tech at non-autonomous
-                        affiliated colleges.
-                      </p>
-                      <p className={styles.muted}>
-                        Autonomous colleges set their own internal rules, so these figures may not
-                        apply there. Other schemes are not supported yet.
-                      </p>
-                    </div>
-                  </>
-                ),
-              },
-            ]}
-          />
-        )}
-      </div>
-    </>
-  );
-}
-
-/**
- * The profile as it is READ, from the approved design.
- *
- * ---------------------------------------------------------------------------
- * EVERY VALUE IS THE STUDENT'S OWN, AND NOTHING IS INVENTED TO FILL A CARD
- * ---------------------------------------------------------------------------
- *
- * The design's sample profile carries a name, an email and a date of birth.
- * This product stores no email and no date of birth — DOB has no approved
- * requirement and may not be added (DEC-008) — so those rows do not exist here
- * rather than being invented for symmetry. A field the student has not filled
- * in says "Not set", which is the truth and is also the invitation to set it.
- */
-function ProfileOverview({ profile }: { readonly profile: StudentProfile | null }) {
-  const { statistics } = useAcademicState();
-
-  const name = profile?.displayName ?? null;
-  const usn = profile?.usn ?? null;
-  /* The one letter a person recognises themselves by. Never a stock avatar. */
-  const initial = (name ?? usn ?? '').trim().slice(0, 1).toUpperCase();
-
-  const fields: readonly { icon: IconName; label: string; value: string | null; mono?: boolean }[] =
-    [
-      { icon: 'profile', label: 'USN', value: usn, mono: true },
-      { icon: 'degree', label: 'College', value: profile?.collegeName ?? null },
-      { icon: 'degree', label: 'Branch', value: profile?.branch ?? null },
-      {
-        icon: 'papers',
-        label: 'Scheme',
-        value: profile?.schemeId === 'vtu-2022' ? 'VTU 2022' : null,
-      },
-      {
-        icon: 'timetable',
-        label: 'Current semester',
-        value:
-          profile?.currentSemester === null || profile?.currentSemester === undefined
-            ? null
-            : `Semester ${String(profile.currentSemester)}`,
-      },
-    ];
-
-  return (
-    <div className={styles.overview}>
-      <section className={styles.identity} aria-label="Who you are">
-        <div className={styles.cover} aria-hidden="true" />
-        <div className={styles.identityBody}>
-          <div className={styles.identityHead}>
-            <span className={styles.avatar} aria-hidden="true">
-              {initial === '' ? <Icon name="account" size="large" /> : initial}
-            </span>
-            <div className={styles.identityWho}>
-              <h2 className={styles.identityName}>{name ?? 'Name not set'}</h2>
-              <p className={`${styles.identityUsn ?? ''} ${monoClass}`}>
-                {usn ?? 'No USN recorded'}
-              </p>
-            </div>
-          </div>
-          <div className={styles.identityBadges}>
-            {profile?.branch !== null && profile?.branch !== undefined && profile.branch !== '' && (
-              <StatusPill tone="accent">{profile.branch}</StatusPill>
-            )}
-            {profile?.currentSemester !== null && profile?.currentSemester !== undefined && (
-              <StatusPill tone="neutral">Semester {profile.currentSemester}</StatusPill>
-            )}
-            {profile?.schemeId === 'vtu-2022' && (
-              <StatusPill tone="neutral">2022 scheme</StatusPill>
-            )}
-            {/*
-              THE BACKLOG BADGE IS DERIVED, not decorative: it is the same
-              figure the degree page reports, and it says "unavailable" rather
-              than "clear" when the record cannot answer.
-            */}
-            {statistics.backlogsFromResults.value === 0 ? (
-              <StatusPill tone="success">No backlogs</StatusPill>
-            ) : statistics.backlogsFromResults.value !== null ? (
-              <StatusPill tone="warning">
-                {formatCount(statistics.backlogsFromResults.value, 'backlog')}
-              </StatusPill>
-            ) : null}
-          </div>
-        </div>
-      </section>
-
-      <div className={styles.overviewRow}>
-        <Panel title="Identity">
-          {/*
-            A LIST, NOT A DEFINITION LIST. The design's row is an icon beside a
-            label above a value, which needs a wrapper around the two lines —
-            and a `<dl>` may only ever hold `dt`/`dd` (directly, or inside one
-            plain `div`). A third level makes every pair invalid, which is what
-            axe reported. A labelled list says the same thing and is valid.
-          */}
-          <ul className={styles.fields}>
-            {fields.map((field) => (
-              <li className={styles.field} key={field.label}>
-                <span className={styles.fieldMark} aria-hidden="true">
-                  <Icon name={field.icon} size="nav" />
-                </span>
-                <span className={styles.fieldText}>
-                  <span className={styles.fieldLabel}>{field.label}</span>
-                  <span
-                    className={`${styles.fieldValue ?? ''} ${
-                      field.mono === true && field.value !== null ? monoClass : ''
-                    }`}
-                    data-absent={field.value === null ? 'true' : undefined}
+      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+        <nav aria-label="Profile sections" className="h-fit min-w-0 lg:sticky lg:top-6">
+          <ul className="relative -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scroll-quiet lg:flex-col">
+            {SECTIONS.map((item) => {
+              const active = section === item.key;
+              return (
+                <li key={item.key} className="shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => go(item.key)}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium whitespace-nowrap transition-colors',
+                      active
+                        ? 'bg-accent-weak text-accent-ink'
+                        : 'text-ink-2 hover:bg-sunken hover:text-ink',
+                    )}
                   >
-                    {field.value ?? 'Not set'}
-                  </span>
-                </span>
-              </li>
-            ))}
+                    <item.icon className="size-4" aria-hidden="true" /> {item.label}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
-          {/* The page header already carries this action, where the design
-              puts it. Two identical buttons on one screen make a reader stop
-              and work out whether they do the same thing. */}
-        </Panel>
+        </nav>
 
-        <Panel title="Academic snapshot">
-          {/*
-            THE SAME READING EVERY OTHER SCREEN USES. Nothing is computed here:
-            an unavailable figure says so rather than showing a zero (§1).
-          */}
-          <dl className={styles.snapshot}>
-            <div>
-              <dt>{statistics.cgpaBasis.pending.length > 0 ? 'Average so far' : 'CGPA'}</dt>
-              <dd data-absent={statistics.cgpa.value === null ? 'true' : undefined}>
-                {statistics.cgpaBasis.pending.length > 0
-                  ? metricDisplay(statistics.provisionalCgpa, formatGpa).value
-                  : metricDisplay(statistics.cgpa, formatGpa).value}
-              </dd>
-            </div>
-            <div>
-              <dt>Credits</dt>
-              <dd data-absent={statistics.creditsEarned.value === null ? 'true' : undefined}>
-                {metricDisplay(statistics.creditsEarned).value}
-              </dd>
-            </div>
-            <div>
-              <dt>Semesters</dt>
-              <dd>
-                {statistics.semestersGraded.value ?? 0}
-                <span className={styles.snapshotOf}>/8</span>
-              </dd>
-            </div>
-            <div>
-              <dt>Backlogs</dt>
-              <dd data-absent={statistics.backlogsFromResults.value === null ? 'true' : undefined}>
-                {metricDisplay(statistics.backlogsFromResults).value}
-              </dd>
-            </div>
-          </dl>
-          <div className={styles.fieldsAction}>
-            <Link className={buttonClassName()} to="/semesters">
-              View degree progress
-            </Link>
-          </div>
-        </Panel>
+        <div key={section} className="min-w-0 animate-rise">
+          {section === 'overview' && (
+            <Overview profile={profile ?? null} onEdit={() => go('academic')} />
+          )}
+          {section === 'academic' && <AcademicForm profile={profile ?? null} save={save} />}
+          {section === 'identity' && <IdentityForm profile={profile ?? null} save={save} />}
+          {section === 'appearance' && <AppearanceSettings />}
+          {section === 'data' && <DataNotes />}
+        </div>
       </div>
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* What the student added themselves                                          */
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------- Overview */
 
-/**
- * The other half of "what subjects does this product know about for me".
- *
- * ---------------------------------------------------------------------------
- * WHY IT LIVES HERE AND NOT BEHIND A NAVIGATION ITEM OF ITS OWN
- * ---------------------------------------------------------------------------
- *
- * The panel above this one lists subjects the UNIVERSITY published. This one
- * lists the ones the student put in. Same page, same question, opposite
- * provenance — so it needs no route, no eleventh destination, and nothing
- * added to a navigation the design froze.
- *
- * ---------------------------------------------------------------------------
- * DISCOVERY AND ACTIONS, NOT A SECOND EDITOR
- * ---------------------------------------------------------------------------
- *
- * Results and the timetable remain the editors. What a student cannot do from
- * either is see everything they have entered in one place — which is the whole
- * problem this solves — so this lists, and then hands over: Open goes to the
- * page that already knows how to edit the record, and the two actions that are
- * complete in themselves happen here.
- *
- * Unlink is one of those. It clears a single field and needs no catalogue, no
- * picker and no second relationship model; LINKING needs all three, so it
- * stays where the picker is and this offers Open instead.
- *
- * ---------------------------------------------------------------------------
- * WHAT "MINE" MEANS, HONESTLY, IN TWO DIFFERENT MODELS
- * ---------------------------------------------------------------------------
- *
- * A result row RECORDS how it came to be: `provenance` is `manual` when the
- * student typed it. A timetable slot does not — nothing distinguishes an hour
- * they added from one an import produced. So this does not claim to: the
- * timetable section lists hours that carry NO COURSE CODE, which is the honest
- * thing the model can answer and is exactly the set a student has to manage by
- * hand. Labelling them "manual" would assert something nobody recorded.
- */
+function Overview({
+  profile,
+  onEdit,
+}: {
+  readonly profile: StudentProfile | null;
+  readonly onEdit: () => void;
+}) {
+  const { statistics } = useAcademicState();
+  const name = profile?.displayName ?? null;
+  const usn = profile?.usn ?? null;
+  const provisional = statistics.cgpaBasis.pending.length > 0;
+  const backlogs = statistics.backlogsFromResults.value;
+  const fields: readonly {
+    icon: LucideIcon;
+    label: string;
+    value: string | null;
+    mono?: boolean;
+  }[] = [
+    { icon: Hash, label: 'USN', value: usn, mono: true },
+    { icon: Building2, label: 'College', value: profile?.collegeName ?? null },
+    { icon: GraduationCap, label: 'Branch', value: profile?.branch ?? null },
+    { icon: GraduationCap, label: 'Programme', value: profile?.programme ?? null },
+    {
+      icon: FileText,
+      label: 'Scheme',
+      value: profile?.schemeId === 'vtu-2022' ? 'VTU 2022 (22OB)' : null,
+    },
+    {
+      icon: CalendarDays,
+      label: 'Current semester',
+      value:
+        profile?.currentSemester === null || profile?.currentSemester === undefined
+          ? null
+          : `Semester ${String(profile.currentSemester)}`,
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card className="relative overflow-hidden" aria-label="Who you are">
+        <div aria-hidden="true" className="h-24 bg-linear-to-r from-accent to-accent-ink" />
+        <div className="px-6 pb-6">
+          <div className="-mt-9 flex items-end gap-4">
+            <span className="rounded-full ring-4 ring-raised">
+              <Avatar initials={initialsOf(name ?? usn)} size={72} />
+            </span>
+            <div className="min-w-0 pb-1">
+              <h2
+                className={cn(
+                  'truncate text-[20px] leading-tight font-semibold',
+                  name === null && 'text-ink-3',
+                )}
+              >
+                {name ?? 'Name not set'}
+              </h2>
+              <div className="font-mono text-[12px] text-ink-3">{usn ?? 'No USN recorded'}</div>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {profile?.branch !== null && profile?.branch !== undefined && profile.branch !== '' && (
+              <Badge tone="accent">{profile.branch}</Badge>
+            )}
+            {profile?.currentSemester !== null && profile?.currentSemester !== undefined && (
+              <Badge>Semester {profile.currentSemester}</Badge>
+            )}
+            {profile?.schemeId === 'vtu-2022' && <Badge>2022 scheme</Badge>}
+            {backlogs === 0 ? (
+              <Badge tone="success">No backlogs</Badge>
+            ) : backlogs !== null ? (
+              <Badge tone="warning">{formatCount(backlogs, 'backlog')}</Badge>
+            ) : null}
+          </div>
+          {profile === null && (
+            <Button variant="primary" size="sm" className="mt-4" icon={<Pencil />} onClick={onEdit}>
+              Add your details
+            </Button>
+          )}
+        </div>
+      </Card>
+
+      <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <Card className="p-6">
+          <SectionTitle>Identity</SectionTitle>
+          <ul className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+            {fields.map((field) => (
+              <li key={field.label} className="flex items-start gap-3">
+                <span
+                  aria-hidden="true"
+                  className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-sunken text-ink-3"
+                >
+                  <field.icon className="size-4" />
+                </span>
+                <dl className="min-w-0">
+                  <dt className="text-[11px] tracking-wide text-ink-3 uppercase">{field.label}</dt>
+                  <dd
+                    className={cn(
+                      'truncate text-[13px] font-medium',
+                      field.mono === true && field.value !== null && 'font-mono',
+                      field.value === null && 'font-normal text-ink-3',
+                    )}
+                  >
+                    {field.value ?? 'Not set'}
+                  </dd>
+                </dl>
+              </li>
+            ))}
+          </ul>
+        </Card>
+        <Card className="p-6">
+          <SectionTitle>Academic snapshot</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <MiniStat
+              label={provisional ? 'Average so far' : 'CGPA'}
+              value={
+                metricDisplay(provisional ? statistics.provisionalCgpa : statistics.cgpa, formatGpa)
+                  .value
+              }
+              valueClassName={cn(
+                'text-2xl',
+                (provisional ? statistics.provisionalCgpa : statistics.cgpa).value === null
+                  ? 'text-base text-ink-3'
+                  : 'text-accent-ink',
+              )}
+            />
+            <MiniStat
+              label="Credits"
+              value={metricDisplay(statistics.creditsEarned).value}
+              valueClassName={cn(
+                'text-2xl',
+                statistics.creditsEarned.value === null && 'text-base text-ink-3',
+              )}
+            />
+            <MiniStat
+              label="Semesters"
+              value={`${String(statistics.semestersGraded.value ?? 0)}/8`}
+              valueClassName="text-2xl"
+            />
+            <MiniStat
+              label="Backlogs"
+              value={metricDisplay(statistics.backlogsFromResults).value}
+              valueClassName={cn(
+                'text-2xl',
+                backlogs === 0 && 'text-success',
+                backlogs === null && 'text-base text-ink-3',
+                (backlogs ?? 0) > 0 && 'text-warning',
+              )}
+            />
+          </div>
+          <Button asChild className="mt-4 w-full">
+            <Link to="/semesters">View degree progress</Link>
+          </Button>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- Forms */
+
+type SaveProfile = (profile: StudentProfile) => Promise<void>;
+
+function withChanges(
+  profile: StudentProfile | null,
+  patch: Partial<StudentProfile>,
+): StudentProfile {
+  return {
+    id: profile?.id ?? asStudentProfileId(newId()),
+    authUserId: null,
+    displayName: profile?.displayName ?? null,
+    usn: profile?.usn ?? null,
+    collegeName: profile?.collegeName ?? null,
+    schemeId: vtu2022RuleSet.schemeId,
+    programme: profile?.programme ?? null,
+    branch: profile?.branch ?? null,
+    currentSemester: profile?.currentSemester ?? null,
+    createdAt: profile?.createdAt ?? nowIso(),
+    ...patch,
+    updatedAt: nowIso(),
+  };
+}
+
+const blankToNull = (value: string): string | null => (value.trim() === '' ? null : value.trim());
+
+function FormCard({
+  title,
+  children,
+  note,
+}: {
+  readonly title: string;
+  readonly children: ReactNode;
+  readonly note?: ReactNode;
+}) {
+  return (
+    <Card className="p-6">
+      <SectionTitle>{title}</SectionTitle>
+      {note !== undefined && <div className="mb-5 space-y-1 text-[13px] text-ink-2">{note}</div>}
+      {children}
+    </Card>
+  );
+}
+
+function AcademicForm({
+  profile,
+  save,
+}: {
+  readonly profile: StudentProfile | null;
+  readonly save: SaveProfile;
+}) {
+  const schemes = useSchemes();
+  const branches = useBranches();
+  const [collegeName, setCollegeName] = useState(profile?.collegeName ?? '');
+  const [branch, setBranch] = useState(profile?.branch ?? '');
+  const [programme, setProgramme] = useState(profile?.programme ?? '');
+  const [semester, setSemester] = useState(
+    profile?.currentSemester === null || profile?.currentSemester === undefined
+      ? ''
+      : String(profile.currentSemester),
+  );
+  const dirty =
+    collegeName !== (profile?.collegeName ?? '') ||
+    branch !== (profile?.branch ?? '') ||
+    programme !== (profile?.programme ?? '') ||
+    semester !==
+      (profile?.currentSemester === null || profile?.currentSemester === undefined
+        ? ''
+        : String(profile.currentSemester));
+
+  const reset = (): void => {
+    setCollegeName(profile?.collegeName ?? '');
+    setBranch(profile?.branch ?? '');
+    setProgramme(profile?.programme ?? '');
+    setSemester(
+      profile?.currentSemester === null || profile?.currentSemester === undefined
+        ? ''
+        : String(profile.currentSemester),
+    );
+  };
+  const commit = (): void => {
+    void save(
+      withChanges(profile, {
+        collegeName: blankToNull(collegeName),
+        branch: blankToNull(branch),
+        programme: blankToNull(programme),
+        currentSemester: semester === '' ? null : Number(semester),
+      }),
+    ).then(() => toast('Saved on this device.', { tone: 'success' }));
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <FormCard
+        title="Academic configuration"
+        note="These values shape how results, notices, credits and the timetable are interpreted."
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            commit();
+          }}
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="College">
+              <Input value={collegeName} onChange={(event) => setCollegeName(event.target.value)} />
+            </Field>
+            {branches.state.status === 'loading' ? (
+              <Field label="Branch" hint="Loading branches…">
+                <Input disabled value={branch} />
+              </Field>
+            ) : branches.state.status === 'ready' && branches.state.data.length > 0 ? (
+              <Field label="Branch" hint="From the GradTools reference data.">
+                <Select
+                  value={branch === '' ? NOT_SET : branch}
+                  onValueChange={(value) => setBranch(value === NOT_SET ? '' : value)}
+                  options={[
+                    { value: NOT_SET, label: 'Not set' },
+                    ...branches.state.data.map((item) => ({ value: item.name, label: item.name })),
+                    ...(branch !== '' && !branches.state.data.some((item) => item.name === branch)
+                      ? [{ value: branch, label: branch }]
+                      : []),
+                  ]}
+                />
+              </Field>
+            ) : (
+              <Field
+                label="Branch"
+                hint={
+                  branches.state.status === 'error'
+                    ? 'Branches could not be loaded; type yours instead.'
+                    : 'No branches available from the server; type yours instead.'
+                }
+              >
+                <Input
+                  placeholder="Computer Science"
+                  value={branch}
+                  onChange={(event) => setBranch(event.target.value)}
+                />
+              </Field>
+            )}
+            <Field
+              label="Programme"
+              hint="Helps GradTools show you VTU notices meant for your programme."
+            >
+              <Select
+                value={programme === '' ? NOT_SET : programme}
+                onValueChange={(value) => setProgramme(value === NOT_SET ? '' : value)}
+                options={[
+                  { value: NOT_SET, label: 'Not set' },
+                  ...PROGRAMMES.map((value) => ({ value, label: value })),
+                ]}
+              />
+            </Field>
+            <Field label="Current semester">
+              <Select
+                value={semester === '' ? NOT_SET : semester}
+                onValueChange={(value) => setSemester(value === NOT_SET ? '' : value)}
+                options={[{ value: NOT_SET, label: 'Not set' }, ...SEMESTER_OPTIONS]}
+              />
+            </Field>
+            <Field
+              label="Scheme"
+              hint={
+                schemes.state.status === 'error'
+                  ? 'Schemes could not be loaded from the server.'
+                  : 'Only verified schemes are offered.'
+              }
+            >
+              <Select
+                value={vtu2022RuleSet.schemeId}
+                onValueChange={() => undefined}
+                disabled={schemes.state.status !== 'ready' || schemes.state.data.length <= 1}
+                options={
+                  schemes.state.status === 'ready' && schemes.state.data.length > 0
+                    ? schemes.state.data.map((item) => ({
+                        value: item.id,
+                        label: `${item.name} (${item.regulationCode})`,
+                      }))
+                    : [{ value: vtu2022RuleSet.schemeId, label: 'VTU 2022 (22OB)' }]
+                }
+              />
+            </Field>
+          </div>
+          <div className="mt-6 flex justify-end gap-2">
+            <Button variant="ghost" icon={<RotateCcw />} onClick={reset} disabled={!dirty}>
+              Reset
+            </Button>
+            <Button type="submit" variant="primary">
+              Save profile
+            </Button>
+          </div>
+        </form>
+      </FormCard>
+      <SubjectsPanel semester={semester === '' ? null : Number(semester)} />
+      <MyRecordsPanel />
+    </div>
+  );
+}
+
+function IdentityForm({
+  profile,
+  save,
+}: {
+  readonly profile: StudentProfile | null;
+  readonly save: SaveProfile;
+}) {
+  const [displayName, setDisplayName] = useState(profile?.displayName ?? '');
+  const [usn, setUsn] = useState(profile?.usn ?? '');
+  const commit = (): void => {
+    void save(
+      withChanges(profile, {
+        displayName: blankToNull(displayName),
+        usn: usn.trim() === '' ? null : usn.trim().toUpperCase(),
+      }),
+    ).then(() => toast('Saved on this device.', { tone: 'success' }));
+  };
+  return (
+    <FormCard
+      title="You"
+      note={
+        <>
+          <p>
+            Everything here is optional and stored only in this browser. GradTools never needs any
+            of it to calculate anything.
+          </p>
+          <p>
+            Your name is used only to greet you. The USN only labels a result you export — leaving
+            it blank costs nothing.
+          </p>
+        </>
+      }
+    >
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          commit();
+        }}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Name" hint="Only used to greet you.">
+            <Input
+              autoComplete="name"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+            />
+          </Field>
+          <Field label="USN" optional hint="Only used to label a result you export.">
+            <Input
+              className="font-mono"
+              placeholder="1XX22CS001"
+              value={usn}
+              onChange={(event) => setUsn(event.target.value)}
+            />
+          </Field>
+        </div>
+        <div className="mt-6 flex justify-end">
+          <Button type="submit" variant="primary">
+            Save
+          </Button>
+        </div>
+      </form>
+    </FormCard>
+  );
+}
+
+function DataNotes() {
+  return (
+    <div className="flex flex-col gap-4">
+      <FormCard title="Where your data lives">
+        <div className="space-y-3 text-[13px] leading-relaxed text-ink-2">
+          <p>
+            Everything you enter (profile, attendance, results and timetable) is stored in this
+            browser. If you sign in on the Account page, a copy is kept in your account so another
+            device can restore it.
+          </p>
+          <p>Clearing your browser data removes the local copy.</p>
+          <p className="text-ink-3">
+            GradTools does not collect your date of birth, phone number, or any login details for a
+            university system, and never asks for a university password.
+          </p>
+        </div>
+        <Button asChild className="mt-4">
+          <Link to="/account">Sync, export and deletion</Link>
+        </Button>
+      </FormCard>
+      <FormCard title="What is supported">
+        <div className="space-y-3 text-[13px] leading-relaxed text-ink-2">
+          <p>
+            This experimental version supports the{' '}
+            <strong className="font-semibold text-ink">VTU 2022 scheme (22OB)</strong> for
+            B.E./B.Tech at non-autonomous affiliated colleges.
+          </p>
+          <p className="text-ink-3">
+            Autonomous colleges set their own internal rules, so these figures may not apply there.
+            Other schemes are not supported yet.
+          </p>
+        </div>
+      </FormCard>
+    </div>
+  );
+}
+
+/* --------------------------------------------------- Reference subjects */
+
+function SubjectsPanel({ semester }: { readonly semester: number | null }) {
+  const subjects = useSubjects('vtu-2022', 'cse', semester === null ? undefined : semester);
+  return (
+    <Card className="overflow-hidden">
+      <div className="px-6 pt-6">
+        <SectionTitle>Subjects in the reference data</SectionTitle>
+      </div>
+      {subjects.state.status === 'loading' ? (
+        <div role="status" className="space-y-2 px-6 pb-6">
+          <span className="sr-only">Loading subjects…</span>
+          <Skeleton className="h-8" />
+          <Skeleton className="h-8" />
+        </div>
+      ) : subjects.state.status === 'error' ? (
+        <ErrorState
+          className="m-6 mt-0"
+          title="Subjects are unavailable"
+          message={`${subjects.state.message} Your own data is stored on this device and is unaffected.`}
+          onRetry={subjects.retry}
+        />
+      ) : subjects.state.data.length === 0 ? (
+        <div className="space-y-1 px-6 pb-6 text-[13px] text-ink-2">
+          <p>
+            No verified subjects for{' '}
+            {semester === null ? 'this selection' : `semester ${String(semester)}`} yet.
+          </p>
+          <p className="text-ink-3">
+            GradTools only publishes subject data it has verified against a VTU source document;
+            unverified semesters are absent rather than guessed.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="border-t border-line">
+            <Table>
+              <TableCaption>Verified subjects from the GradTools reference data</TableCaption>
+              <TableHeader>
+                <tr>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead className="text-right">Credits</TableHead>
+                </tr>
+              </TableHeader>
+              <TableBody>
+                {subjects.state.data.map((subject) => (
+                  <TableRow key={subject.id}>
+                    <TableCell className="font-mono text-[12px]">{subject.code}</TableCell>
+                    <TableCell className="text-ink-2">{subject.title}</TableCell>
+                    <TableCell className={numeric}>{subject.credits ?? '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="flex flex-wrap items-center gap-2 border-t border-line px-6 py-3 text-[12px] text-ink-3">
+            {formatCount(subjects.state.data.length, 'verified subject')} ·
+            <a
+              href={subjects.state.data[0]?.provenance.sourceUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1 font-medium text-accent-ink underline-offset-4 hover:underline"
+            >
+              View the source document <ExternalLink className="size-3" aria-hidden="true" />
+            </a>
+          </p>
+        </>
+      )}
+    </Card>
+  );
+}
+
+/* --------------------------------------------- What you added yourself */
+
+type Scope = 'all' | 'results' | 'timetable';
+type Pending =
+  | { kind: 'subject'; resultId: string; subjectId: string; name: string; semester: number }
+  | { kind: 'slot'; id: string; name: string; when: string };
+
 function MyRecordsPanel() {
   const results = useResults();
   const timetable = useTimetable();
-  const [scope, setScope] = useState<'all' | 'results' | 'timetable'>('all');
+  const [scope, setScope] = useState<Scope>('all');
+  const [pending, setPending] = useState<Pending | null>(null);
 
   const rows = results.items.flatMap((result) =>
     result.subjects
@@ -686,268 +704,186 @@ function MyRecordsPanel() {
       .map((subject) => ({ result, subject })),
   );
   const activities = timetable.items.filter((slot) => slot.subjectCode === null);
-
-  const showResults = scope !== 'timetable';
-  const showTimetable = scope !== 'results';
   const total = rows.length + activities.length;
 
-  /** Remove one subject from its result, by the path the editor itself uses. */
-  const removeSubject = (resultId: string, subjectId: string) => {
+  const updateResult = (
+    resultId: string,
+    change: (subjects: (typeof rows)[number]['subject'][]) => (typeof rows)[number]['subject'][],
+  ): void => {
     const result = results.items.find((entry) => entry.id === resultId);
     if (result === undefined) return;
-    void results.save({
-      ...result,
-      subjects: result.subjects.filter((subject) => subject.id !== subjectId),
-      updatedAt: nowIso(),
-    });
-  };
-
-  /** Take back the declaration, and nothing else (Phase 7B.1-final §9, §14). */
-  const unlinkSubject = (resultId: string, subjectId: string) => {
-    const result = results.items.find((entry) => entry.id === resultId);
-    if (result === undefined) return;
-    void results.save({
-      ...result,
-      subjects: result.subjects.map((subject) =>
-        subject.id === subjectId ? { ...subject, catalogueCode: null } : subject,
-      ),
-      updatedAt: nowIso(),
-    });
+    void results.save({ ...result, subjects: change([...result.subjects]), updatedAt: nowIso() });
   };
 
   return (
-    <Panel title="What you added yourself">
-      {results.loading || timetable.loading ? null : total === 0 ? (
-        <EmptyState title="Nothing added by hand yet" icons={['papers']}>
-          Subjects you type into a result, and hours your timetable schedules without a course code,
-          appear here so you can find them again. Nothing is added for you.
-        </EmptyState>
-      ) : (
-        <>
-          <div className={styles.actions}>
-            <SelectField
-              label="Show"
-              value={scope}
-              onChange={(event) => {
-                setScope(event.target.value as 'all' | 'results' | 'timetable');
-              }}
-            >
-              <option value="all">Everything ({total})</option>
-              <option value="results">Results ({rows.length})</option>
-              <option value="timetable">Timetable ({activities.length})</option>
-            </SelectField>
-          </div>
-
-          {showResults && rows.length > 0 && (
-            <TableScroll>
-              <table className={tableClass}>
-                <caption className="visually-hidden">Subjects you entered into a result</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Subject</th>
-                    <th scope="col">Where</th>
-                    <th scope="col">How it is recorded</th>
-                    <th scope="col">
-                      <span className="visually-hidden">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(({ result, subject }) => (
-                    <tr key={subject.id}>
-                      <td>
-                        {subject.subjectTitle}
-                        {subject.subjectCode !== null && (
-                          <>
-                            {' · '}
-                            <span className={monoClass}>{subject.subjectCode}</span>
-                          </>
-                        )}
-                      </td>
-                      <td>Result · semester {result.semester}</td>
-                      <td>
-                        {/*
-                          BOTH FACTS (§6). A row the student typed is still a
-                          row they typed after they say what it corresponds to,
-                          and "Official VTU" is never what this says.
-                        */}
-                        <StatusPill tone="neutral">
-                          {subject.catalogueCode === null
-                            ? 'Entered by you'
-                            : `Entered by you · linked to ${subject.catalogueCode}`}
-                        </StatusPill>
-                      </td>
-                      <td>
-                        <div className={styles.recordActions}>
-                          <Link className={buttonClassName()} to="/results">
-                            Open
-                          </Link>
-                          {subject.catalogueCode !== null && (
-                            <Button
-                              small
-                              onClick={() => {
-                                unlinkSubject(result.id, subject.id);
-                              }}
-                            >
-                              Unlink
-                            </Button>
-                          )}
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button small variant="danger">
-                                Delete
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent
-                              title="Delete this subject?"
-                              description={`${subject.subjectTitle} leaves your semester ${String(result.semester)} result. The rest of the result stays as it is.`}
-                              confirmLabel="Delete"
-                              onConfirm={() => {
-                                removeSubject(result.id, subject.id);
-                              }}
-                            />
-                          </AlertDialog>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableScroll>
-          )}
-
-          {showTimetable && activities.length > 0 && (
-            <TableScroll>
-              <table className={tableClass}>
-                <caption className="visually-hidden">
-                  Hours your timetable schedules without a course code
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Activity</th>
-                    <th scope="col">Where</th>
-                    <th scope="col">How it is recorded</th>
-                    <th scope="col">
-                      <span className="visually-hidden">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activities.map((slot) => (
-                    <tr key={slot.id}>
-                      <td>{slot.activity ?? 'Unnamed'}</td>
-                      <td>
-                        Timetable · {slot.day} {slot.startTime}
-                      </td>
-                      <td>
-                        <StatusPill tone="neutral">No course code</StatusPill>
-                      </td>
-                      <td>
-                        <div className={styles.recordActions}>
-                          <Link className={buttonClassName()} to="/timetable">
-                            Open
-                          </Link>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button small variant="danger">
-                                Delete
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent
-                              title="Delete this activity?"
-                              description={`${slot.activity ?? 'This hour'} leaves your ${slot.day} timetable at ${slot.startTime}.`}
-                              confirmLabel="Delete"
-                              onConfirm={() => {
-                                void timetable.remove(slot.id);
-                              }}
-                            />
-                          </AlertDialog>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableScroll>
-          )}
-        </>
-      )}
-    </Panel>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Subjects for the selected semester                                         */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The first screen to read real reference data over HTTP.
- *
- * It is deliberately honest about incompleteness: GradTools has verified
- * semester-1 CSE subjects and nothing beyond that, so a student on semester 3
- * is told the data is missing rather than shown an empty table that looks like
- * a bug (M5a §16, §21).
- */
-function SubjectsPanel({ semester }: { semester: number | null }) {
-  const subjects = useSubjects('vtu-2022', 'cse', semester === null ? undefined : semester);
-
-  return (
-    <Panel title="Subjects in the reference data">
-      <AsyncSection
-        state={subjects.state}
-        retry={subjects.retry}
-        label="subjects"
-        isEmpty={(list) => list.length === 0}
-        empty={
-          <div className={styles.prose}>
-            <p>
-              No verified subjects for
-              {semester === null ? ' this selection' : ` semester ${String(semester)}`} yet.
-            </p>
-            <p className={styles.muted}>
-              GradTools only publishes subject data it has verified against a VTU source document.
-              Semester 1 for Computer Science is verified; the remaining semesters are not yet, so
-              they are absent rather than guessed.
-            </p>
-          </div>
-        }
-      >
-        {(list) => (
-          <>
-            <TableScroll>
-              <table className={tableClass}>
-                <caption className="visually-hidden">
-                  Verified subjects from the GradTools reference data
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Code</th>
-                    <th scope="col">Title</th>
-                    <th scope="col" className={numericClass}>
-                      Credits
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.map((subject) => (
-                    <tr key={subject.id}>
-                      <td className={monoClass}>{subject.code}</td>
-                      <td>{subject.title}</td>
-                      <td className={numericClass}>{subject.credits}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableScroll>
-            <p className={styles.provenance}>
-              {list.length} verified {list.length === 1 ? 'subject' : 'subjects'} ·{' '}
-              <a href={list[0]?.provenance.sourceUrl} target="_blank" rel="noreferrer noopener">
-                View the source document
-              </a>
-            </p>
-          </>
+    <Card className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-6">
+        <SectionTitle className="mb-0">What you added yourself</SectionTitle>
+        {total > 0 && (
+          <Segmented<Scope>
+            size="sm"
+            label="Show"
+            value={scope}
+            onChange={setScope}
+            options={[
+              { value: 'all', label: `All · ${String(total)}` },
+              { value: 'results', label: `Results · ${String(rows.length)}` },
+              { value: 'timetable', label: `Timetable · ${String(activities.length)}` },
+            ]}
+          />
         )}
-      </AsyncSection>
-    </Panel>
+      </div>
+      {results.loading || timetable.loading ? (
+        <div className="p-6">
+          <Skeleton className="h-16" />
+        </div>
+      ) : total === 0 ? (
+        <EmptyState
+          compact
+          icon={<FileText />}
+          title="Nothing added by hand yet"
+          description="Subjects you type into a result, and hours your timetable schedules without a course code, appear here so you can find them again."
+        />
+      ) : (
+        <div className="mt-4 border-t border-line">
+          <Table>
+            <TableCaption>Records you entered yourself</TableCaption>
+            <TableHeader>
+              <tr>
+                <TableHead>Record</TableHead>
+                <TableHead>Where</TableHead>
+                <TableHead>How it is recorded</TableHead>
+                <TableHead>
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </tr>
+            </TableHeader>
+            <TableBody>
+              {scope !== 'timetable' &&
+                rows.map(({ result, subject }) => (
+                  <TableRow key={subject.id}>
+                    <TableCell>
+                      {subject.subjectTitle}
+                      {subject.subjectCode !== null && (
+                        <span className="ml-1 font-mono text-[12px] text-ink-3">
+                          {subject.subjectCode}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-ink-2">
+                      Result · semester {result.semester}
+                    </TableCell>
+                    <TableCell>
+                      <Badge>
+                        {subject.catalogueCode === null
+                          ? 'Entered by you'
+                          : `Entered by you · linked to ${subject.catalogueCode}`}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Button asChild size="sm" variant="ghost">
+                          <Link to={`/results/${String(result.semester)}`}>Open</Link>
+                        </Button>
+                        {subject.catalogueCode !== null && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              updateResult(result.id, (subjects) =>
+                                subjects.map((entry) =>
+                                  entry.id === subject.id
+                                    ? { ...entry, catalogueCode: null }
+                                    : entry,
+                                ),
+                              )
+                            }
+                          >
+                            Unlink
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-danger hover:text-danger"
+                          onClick={() =>
+                            setPending({
+                              kind: 'subject',
+                              resultId: result.id,
+                              subjectId: subject.id,
+                              name: subject.subjectTitle,
+                              semester: result.semester,
+                            })
+                          }
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              {scope !== 'results' &&
+                activities.map((slot) => (
+                  <TableRow key={slot.id}>
+                    <TableCell>{slot.activity ?? 'Unnamed'}</TableCell>
+                    <TableCell className="text-ink-2">
+                      Timetable · {slot.day} {slot.startTime}
+                    </TableCell>
+                    <TableCell>
+                      <Badge>No course code</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Button asChild size="sm" variant="ghost">
+                          <Link to="/timetable">Open</Link>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-danger hover:text-danger"
+                          onClick={() =>
+                            setPending({
+                              kind: 'slot',
+                              id: slot.id,
+                              name: slot.activity ?? 'This hour',
+                              when: `${slot.day} at ${slot.startTime}`,
+                            })
+                          }
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(open) => !open && setPending(null)}
+        destructive
+        title={pending?.kind === 'slot' ? 'Delete this activity?' : 'Delete this subject?'}
+        description={
+          pending === null
+            ? ''
+            : pending.kind === 'subject'
+              ? `${pending.name} leaves your semester ${String(pending.semester)} result. The rest of the result stays as it is.`
+              : `${pending.name} leaves your timetable (${pending.when}).`
+        }
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (pending?.kind === 'subject') {
+            updateResult(pending.resultId, (subjects) =>
+              subjects.filter((entry) => entry.id !== pending.subjectId),
+            );
+          } else if (pending?.kind === 'slot') {
+            void timetable.remove(pending.id);
+          }
+          setPending(null);
+        }}
+      />
+    </Card>
   );
 }

@@ -1,18 +1,12 @@
 /**
- * SGPA and CGPA calculators.
+ * SGPA & CGPA — the design's "Your figures" (hero CGPA, progression chart,
+ * SGPA history) and "Calculator" (SGPA, CGPA, required SGPA, required marks).
  *
- * Authority: docs/03 UF-04/UF-05, docs/16 §16.8, M3 continuation §15-§16.
- *
- * ---------------------------------------------------------------------------
- * NO ACADEMIC ARITHMETIC EXISTS IN THIS FILE.
- * ---------------------------------------------------------------------------
- * Every displayed number comes from @gradtools/academic-rules, resolved
- * against an explicit RuleSet. In particular the percentage conversion is NOT
- * implemented here: `calculatePercentage` applies the rule set's
- * `cgpa_x_10` formula (22OB 6.7). React never multiplies a CGPA by anything.
+ * Every figure, on both tabs, is computed by @gradtools/academic-rules against
+ * the VTU 2022 regulation and can show its working. The calculators save
+ * nothing.
  */
 
-import { useMemo, useState, type ReactNode } from 'react';
 import {
   calculateCGPA,
   calculateClass,
@@ -26,138 +20,68 @@ import {
   type MarksTarget,
   type SemesterSummary,
 } from '@gradtools/academic-rules';
-import { Link } from 'react-router-dom';
-import { PageHeader } from '../../components/AppShell.js';
-import { MetaPill } from '../../components/ui/tone.js';
-import { Tooltip } from '../../components/ui/Tooltip.js';
-import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
-import { MetricStrip } from '../../components/ui/layout.js';
-import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
-import { GradeDistributionRows } from '../../components/GradeDistribution.js';
+import { Info, Plus, RotateCcw, Sigma, Trash2, TriangleAlert } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ExplanationDisclosure } from '../../components/academic/ExplanationDisclosure.js';
+import { GradeDistributionChart, SgpaTrendChart } from '../../components/charts/lazy.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button, IconButton } from '../../components/ui/button.js';
+import { Card, CardHeader, CardRows } from '../../components/ui/card.js';
+import { Callout, EmptyState } from '../../components/ui/feedback.js';
+import { Field, Input, Select } from '../../components/ui/field.js';
+import { Metric, MetricGrid, MiniStat } from '../../components/ui/metric.js';
+import { PageHeader, Row, SectionTitle } from '../../components/ui/page.js';
+import { Progress } from '../../components/ui/progress.js';
+import { Segmented } from '../../components/ui/segmented.js';
+import { PageSkeleton } from '../../components/ui/skeleton.js';
+import { Tooltip } from '../../components/ui/tooltip.js';
 import { dataCompleteness } from '../../domain/academics.js';
-import { Icon } from '../../components/icons.js';
-import {
-  EmptyState,
-  Button,
-  buttonClassName,
-  ExplanationDisclosure,
-  Notice,
-  Panel,
-  SelectField,
-  StatusPill,
-  TextField,
-} from '../../components/ui/index.js';
+import { semesterSgpa } from '../../domain/results.js';
+import { OUTCOME_LABEL, type CourseOutcome } from '../../domain/statistics.js';
+import { useAcademicState } from '../../hooks/useAcademicState.js';
+import { useResults } from '../../hooks/useCollection.js';
+import { cn } from '../../lib/cn.js';
 import { formatCount, formatGpa, formatPercent, metricDisplay } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
-import { semesterSgpa } from '../../domain/results.js';
-import { useAcademicState } from '../../hooks/useAcademicState.js';
-import { OUTCOME_LABEL, type CourseOutcome } from '../../domain/statistics.js';
-import { metricStripEntry } from '../../lib/format.js';
-import { useResults } from '../../hooks/useCollection.js';
-import styles from './academics.module.css';
+import { SEMESTER_OPTIONS } from '../import/CalendarReview.js';
 
 const ruleSet = vtu2022RuleSet;
 
-/** Which of 22OB 6.3's three simultaneous thresholds decides the answer. */
-const BINDING_LABEL: Record<BindingConstraint, string> = {
-  see_minimum: 'the minimum mark the exam head itself requires',
-  overall_target: 'the total the course needs overall',
-};
-
-/** Credit values a VTU course can carry. A select, not free text. */
-const CREDIT_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5] as const;
-
-interface CourseRow {
-  readonly id: string;
-  readonly subjectCode: string;
-  readonly credits: string;
-  readonly gradeLetter: string;
-}
-
-function blankRow(): CourseRow {
-  return { id: newId(), subjectCode: '', credits: '4', gradeLetter: 'A' };
-}
+type Tab = 'figures' | 'calculator';
 
 export function AcademicsPage() {
-  const [view, setView] = useState('yours');
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = params.get('tab') === 'calculator' ? 'calculator' : 'figures';
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Academic performance"
         title="SGPA & CGPA"
-        subtitle="Every figure is computed by the shared rules engine against the VTU 2022 regulation, and every one can show its working."
-        /* The regulation is a fact about the page; the figures belong to the
-           panels below, which own the data. No count is invented here. */
-        pills={<MetaPill>VTU 2022 regulation</MetaPill>}
-        /*
-          The design gives this page one action, and it is the action that
-          makes the figures exist. A student whose CGPA is unavailable is one
-          result away from having one.
-        */
-        action={
-          <Link className={buttonClassName('primary')} to="/import">
-            <Icon name="plus" size="nav" />
-            Add result
-          </Link>
+        description="Your credit-weighted academic standing, and the tools to plan ahead."
+        actions={
+          <Button asChild variant="primary" icon={<Plus />}>
+            <Link to="/import">Add result</Link>
+          </Button>
         }
       />
-      {/*
-        -------------------------------------------------------------------
-        M9.6F: YOUR FIGURES FIRST, THE CALCULATOR SECOND
-        -------------------------------------------------------------------
-
-        The page was two blank calculators stacked on top of each other. But a
-        student who has entered their results already HAS an SGPA and a CGPA —
-        and this page, named after those two figures, made them type everything
-        again to see one.
-
-        So the page leads with what GradTools already knows: cumulative
-        standing, the trend across eight semesters, and what those figures rest
-        on. The calculators remain, one tab away, because they answer a
-        different and still-real question — "what would I get if…" — for a
-        semester that has not happened yet.
-      */}
-      {/*
-        ONE RADIX ROOT OVER THE LIST AND ITS PANELS.
-        
-        The panels are no longer chosen by a ternary: `Tabs.Content` mounts only
-        the active one itself, and it is what generates the matching
-        `aria-controls` / `aria-labelledby` pair. Selecting by hand meant the
-        inactive panel's id was referenced by a tab pointing at nothing.
-      */}
-      <IslandTabGroup value={view} onChange={setView}>
-        <IslandTabs
-          label="Figures"
-          value={view}
-          onChange={setView}
-          tabs={[
-            { id: 'yours', label: 'Your figures' },
-            { id: 'calculator', label: 'Calculator' },
-          ]}
-        />
-
-        <IslandTabPanel id="yours">
-          <YourFigures />
-        </IslandTabPanel>
-        <IslandTabPanel id="calculator">
-          <CalculatorPanel />
-        </IslandTabPanel>
-      </IslandTabGroup>
-    </>
+      <Segmented<Tab>
+        label="SGPA and CGPA view"
+        value={tab}
+        onChange={(next) => setParams(next === 'figures' ? {} : { tab: next }, { replace: true })}
+        options={[
+          { value: 'figures', label: 'Your figures' },
+          { value: 'calculator', label: 'Calculator' },
+        ]}
+        className="self-start"
+      />
+      {tab === 'figures' ? <Figures /> : <CalculatorPanel />}
+    </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Rendering a derived figure                                                 */
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------- Figures */
 
-/**
- * The outcomes worth a row, in the order a student would read them.
- *
- * `unresolved` comes last because it is a task rather than a result, and
- * every one of the seven between "failed" and it is a state the regulation
- * names that is neither a pass nor a failure (8).
- */
 const OUTCOME_ORDER: readonly CourseOutcome[] = [
   'passed',
   'failed',
@@ -171,651 +95,427 @@ const OUTCOME_ORDER: readonly CourseOutcome[] = [
   'unresolved',
 ];
 
-/**
- * The hero figure, as the approved design sets it.
- *
- * ONE CARD, THREE STATES, AND THEY ARE NOT THE SAME SENTENCE (§5):
- *
- *   complete     the CGPA, credit-weighted across every completed semester;
- *   partial      "Average so far", said explicitly not to be the CGPA, with
- *                the semesters that are holding it back named;
- *   unavailable  the word, and the reason, and never a figure.
- *
- * The distinction is the domain's, not this component's: `statistics.cgpa` is
- * unresolved the moment a semester that ought to count cannot, and
- * `provisionalCgpa` is the figure over what HAS resolved. Nothing here decides
- * which is which, and nothing here averages anything.
- */
-function StandingHero() {
-  const { statistics } = useAcademicState();
-  const pending = statistics.cgpaBasis.pending;
-  const partial = pending.length > 0;
-  const figure = partial ? statistics.provisionalCgpa : statistics.cgpa;
-  const shown = metricDisplay(figure, formatGpa);
+function Figures() {
+  const { statistics, loading } = useAcademicState();
+  const completeness = useMemo(() => dataCompleteness(statistics.views), [statistics.views]);
 
-  return (
-    <section className={styles.hero} aria-label={partial ? 'Average so far' : 'Cumulative CGPA'}>
-      <span className={styles.heroBadge}>
-        {partial ? (
-          <StatusPill tone="warning">Not your CGPA</StatusPill>
-        ) : (
-          <StatusPill tone="success">Credit-weighted</StatusPill>
-        )}
-      </span>
+  if (loading) return <PageSkeleton label="Loading your figures" />;
 
-      {/*
-        THE UNAVAILABLE CGPA IS STATED, NOT IMPLIED. The design puts this above
-        the figure that CAN be computed, so a student never reads the smaller
-        number as the bigger one.
-      */}
-      {partial && (
-        <p className={styles.heroPending}>
-          <Icon name="warning" size="small" />
-          Cumulative CGPA unavailable
-        </p>
-      )}
-
-      <p className={styles.heroLabel}>{partial ? 'Average so far' : 'Cumulative CGPA'}</p>
-      {/* A word is not a figure: "Unavailable" is set as a sentence, not at
-          68px where a number belongs. The shape of the value decides. */}
-      <p className={styles.heroValue} data-absent={/\d/.test(shown.value) ? undefined : 'true'}>
-        {shown.value}
-      </p>
-
-      <p className={styles.heroNote}>
-        <Icon name="info" size="small" />
-        <span>
-          {partial ? (
-            <>
-              Across {String(statistics.cgpaBasis.counted)} of{' '}
-              {String(statistics.cgpaBasis.counted + pending.length)} completed semesters — a
-              credit-weighted average of what has resolved, which is not the same figure as your
-              CGPA.
-            </>
-          ) : (
-            <>
-              CGPA is calculated across every completed semester.{' '}
-              <Tooltip content="Σ(SGPA × credits) ÷ Σ credits — weighted by the credits each semester carried. Clause 22OB 6.6.">
-                <span className={styles.formula} tabIndex={0}>
-                  formula
-                </span>
-              </Tooltip>
-            </>
-          )}
-        </span>
-      </p>
-
-      {/* The reason, verbatim from the domain — it names the semesters. */}
-      {figure.reason !== null && <p className={styles.heroReason}>{figure.reason}</p>}
-
-      <dl className={styles.heroStats}>
-        <MiniStat
-          label="Latest SGPA"
-          value={
-            statistics.latestSgpa.value === null
-              ? 'Unavailable'
-              : formatGpa(statistics.latestSgpa.value.sgpa)
-          }
-        />
-        <MiniStat label="Credits" value={metricDisplay(statistics.creditsEarned).value} />
-        <MiniStat label="Backlogs" value={metricDisplay(statistics.backlogsFromResults).value} />
-      </dl>
-    </section>
-  );
-}
-
-/** One of the three small figures under the hero. */
-function MiniStat({ label, value }: { readonly label: string; readonly value: string }) {
-  return (
-    <div className={styles.miniStat}>
-      <dt>{label}</dt>
-      <dd data-absent={/\d/.test(value) ? undefined : 'true'}>{value}</dd>
-    </div>
-  );
-}
-
-/**
- * Every graded semester, largest figure last — the design's SGPA history.
- *
- * The bar is the SGPA against the ten-point scale, which is what the design
- * draws. A semester with no computable SGPA keeps its row and says so, because
- * dropping it would make the history look shorter than the degree.
- */
-function SgpaHistory() {
-  const { statistics } = useAcademicState();
-  const entries = statistics.semesters.filter((entry) => entry.hasResult);
-  if (entries.length === 0) return null;
-
-  return (
-    <Panel title="SGPA history" flush>
-      <ol className={styles.history}>
-        {entries.map((entry) => {
-          const sgpa = entry.sgpa.value;
-          return (
-            <li className={styles.historyRow} key={entry.number}>
-              <span className={styles.historyTile}>S{entry.number}</span>
-              <span className={styles.historyBody}>
-                <span className={styles.historyName}>Semester {entry.number}</span>
-                <span className={styles.historyMeta}>
-                  {formatCount(entry.courseCount, 'course')}
-                  {(entry.creditsAttempted.value ?? 0) > 0
-                    ? ` · ${String(entry.creditsAttempted.value ?? 0)} credits`
-                    : ''}
-                </span>
-              </span>
-              <span className={styles.historyBar} aria-hidden="true">
-                <span style={{ inlineSize: `${String(((sgpa ?? 0) / 10) * 100)}%` }} />
-              </span>
-              <span
-                className={styles.historyFigure}
-                data-absent={sgpa === null ? 'true' : undefined}
-                title={entry.sgpa.reason ?? undefined}
-              >
-                {sgpa === null ? 'Unavailable' : formatGpa(sgpa)}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </Panel>
-  );
-}
-
-function YourFigures() {
-  /*
-   * THE SHARED READING (18). This component used to build its own semester
-   * views and its own standing, which is how the analytics page and the degree
-   * page came to be two answers to one question.
-   */
-  const { statistics } = useAcademicState();
-  const views = statistics.views;
-  const completeness = useMemo(() => dataCompleteness(views), [views]);
-
-  const points: readonly SemesterPoint[] = useMemo(
-    () =>
-      statistics.trend.map((point) => ({
-        semester: point.semester,
-        sgpa: point.sgpa,
-        /* The second series the design draws, from the rules engine (§11). */
-        cgpaSoFar: point.cgpaSoFar,
-        state:
-          point.sgpa !== null
-            ? ('graded' as const)
-            : views.find((view) => view.number === point.semester)?.status === 'in_progress'
-              ? ('in_progress' as const)
-              : ('planned' as const),
-      })),
-    [statistics.trend, views],
-  );
-
-  /*
-   * EMPTY AND UNGRADEABLE ARE DIFFERENT (17).
-   *
-   * This page used to show "No figures yet — save a semester result" whenever
-   * nothing was graded. A student who HAD saved four semesters, none of which
-   * could be graded because their subjects carried no credits, was told to do
-   * the thing they had already done, and never learnt what was actually
-   * missing. Only a genuinely empty record gets the invitation; a record that
-   * exists gets its figures and its reasons, however few of each there are.
-   */
   if (!statistics.hasAnyResult) {
     return (
       <EmptyState
+        icon={<Sigma />}
         title="No calculated figures yet"
-        icons={['gpa', 'results', 'degree']}
-        action={
-          <div className={styles.emptyActions}>
-            <Link className={buttonClassName('primary')} to="/import">
-              <Icon name="plus" size="nav" />
-              Add result
-            </Link>
-            <Link className={buttonClassName()} to="/results">
-              Enter one by hand
-            </Link>
-          </div>
+        description="Add a semester result to calculate SGPA and CGPA. Your figures update as records are confirmed, and the calculator works without any saved data."
+        actions={
+          <>
+            <Button asChild variant="primary" icon={<Plus />}>
+              <Link to="/import">Add result</Link>
+            </Button>
+            <Button asChild>
+              <Link to="/academics?tab=calculator">Open calculator</Link>
+            </Button>
+          </>
         }
-      >
-        Add a semester result to calculate SGPA and CGPA. Your figures update as records are
-        confirmed, and the calculator tab works without any saved data.
-      </EmptyState>
+      />
     );
   }
 
+  const partial = statistics.cgpaBasis.pending.length > 0;
+  const figure = partial ? statistics.provisionalCgpa : statistics.cgpa;
+  const graded = statistics.semesters.filter((entry) => entry.hasResult);
+
   return (
-    <div className={styles.stack}>
-      {/*
-        THE STANDING AND ITS SHAPE, SIDE BY SIDE — the design's two-column
-        opening. The hero answers "where am I"; the chart answers "how did I
-        get here", and the two are read together.
-      */}
-      <div className={styles.figuresTop}>
-        <StandingHero />
-        <Panel title="CGPA progression">
-          <SgpaTrend points={points} size="tall" />
-        </Panel>
+    <div className="flex flex-col gap-6">
+      {partial && (
+        <Card className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden="true"
+              className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-warning-weak text-warning"
+            >
+              <TriangleAlert className="size-5" />
+            </span>
+            <div>
+              <div className="text-[12px] font-medium text-ink-2">Cumulative CGPA</div>
+              <div className="text-[26px] leading-tight font-semibold text-ink-3">Unavailable</div>
+              <p className="mt-1 text-[13px] text-ink-2">
+                {formatCount(statistics.cgpaBasis.pending.length, 'completed semester')} (
+                {statistics.cgpaBasis.pending.map((semester) => `S${String(semester)}`).join(', ')})
+                still {statistics.cgpaBasis.pending.length === 1 ? 'needs' : 'need'} academic data
+                before CGPA can be computed.
+              </p>
+            </div>
+          </div>
+          <Button asChild>
+            <Link to="/results">Resolve on Results</Link>
+          </Button>
+        </Card>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <Card
+          className="relative overflow-hidden p-6"
+          aria-label={partial ? 'Average so far' : 'Cumulative CGPA'}
+        >
+          <span className="absolute top-5 right-5">
+            {partial ? (
+              <Badge tone="warning">Not your CGPA</Badge>
+            ) : (
+              <Badge tone="success">Credit-weighted</Badge>
+            )}
+          </span>
+          <div className="text-[12px] font-medium text-ink-2">
+            {partial ? 'Average so far' : 'Cumulative CGPA'}
+          </div>
+          {figure.value === null ? (
+            <div className="mt-3 text-[40px] leading-none font-semibold text-ink-3">
+              Unavailable
+            </div>
+          ) : (
+            <div className="tnum mt-1 text-[56px] leading-none font-semibold tracking-[-0.03em] sm:text-[68px]">
+              {formatGpa(figure.value)}
+            </div>
+          )}
+          <div className="mt-3 flex items-center gap-2 text-[13px] text-ink-2">
+            <Info className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+            {partial ? (
+              <span>
+                Across {statistics.cgpaBasis.counted} of{' '}
+                {statistics.cgpaBasis.counted + statistics.cgpaBasis.pending.length} completed
+                semesters — a credit-weighted average of what has resolved, which is not your CGPA.
+              </span>
+            ) : (
+              <>
+                <span>CGPA is calculated across every completed semester.</span>
+                <Tooltip content="Σ(SGPA × credits) ÷ Σ credits — weighted by the credits each semester carried. Clause 22OB 6.6.">
+                  <button
+                    type="button"
+                    className="cursor-help border-b border-dashed border-accent-ink font-mono text-[11px] text-accent-ink"
+                  >
+                    formula
+                  </button>
+                </Tooltip>
+              </>
+            )}
+          </div>
+          {figure.reason !== null && <p className="mt-2 text-[12px] text-ink-3">{figure.reason}</p>}
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            <MiniStat
+              label="Latest SGPA"
+              value={
+                statistics.latestSgpa.value === null
+                  ? '—'
+                  : formatGpa(statistics.latestSgpa.value.sgpa)
+              }
+            />
+            <MiniStat
+              label="Credits"
+              value={
+                metricDisplay(statistics.creditsEarned).value === 'Unavailable'
+                  ? '—'
+                  : metricDisplay(statistics.creditsEarned).value
+              }
+            />
+            <MiniStat
+              label="Backlogs"
+              value={
+                metricDisplay(statistics.backlogsFromResults).value === 'Unavailable'
+                  ? '—'
+                  : metricDisplay(statistics.backlogsFromResults).value
+              }
+            />
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <SectionTitle>CGPA progression</SectionTitle>
+          {(statistics.semestersGraded.value ?? 0) >= 2 ? (
+            <SgpaTrendChart points={statistics.trend} variant="line" height={208} />
+          ) : (
+            <EmptyState
+              compact
+              icon={<Sigma />}
+              title="Not enough to draw a trend"
+              description="A trend needs at least two graded semesters. One reading is a point, not a direction."
+            />
+          )}
+        </Card>
       </div>
 
-      <SgpaHistory />
-
-      {/*
-        EVERY OTHER FIGURE THE RECORDS SUPPORT, and each one on its own inputs
-        (4). An unresolved CGPA no longer takes the credits, the passes and the
-        grade distribution down with it — which is what emptied this page.
-      */}
-      {/*
-        CREDITS AND BACKLOGS ARE NOT REPEATED HERE. They are on the hero, three
-        inches above, and a figure printed twice on one screen invites a reader
-        to check whether the two agree.
-      */}
-      <MetricStrip
-        metrics={[
-          metricStripEntry('Percentage', statistics.percentage, formatPercent),
-          metricStripEntry('Semesters graded', statistics.semestersGraded),
-          {
-            label: 'Passed',
-            value: String(statistics.outcomes.passed),
-            ...(statistics.outcomes.unresolved > 0
-              ? { note: `${String(statistics.outcomes.unresolved)} still to review` }
-              : {}),
-          },
-          metricStripEntry('Backlogs recorded', statistics.backlogs),
-        ]}
-      />
-
-      {/*
-        THE GRADE DISTRIBUTION (7). Unresolved courses are counted in their own
-        row and in no band: adding them to F would invent failures, and leaving
-        them out would make the columns not add up to the courses on screen.
-      */}
-      {statistics.grades.total > 0 && (
-        <Panel title="Grades">
-          <GradeDistributionRows grades={statistics.grades} />
-        </Panel>
+      {graded.length > 0 && (
+        <Card className="overflow-hidden">
+          <CardHeader title="SGPA history" />
+          <CardRows>
+            {graded.map((entry) => {
+              const sgpa = entry.sgpa.value;
+              return (
+                <Row key={entry.number} asChild className="gap-4 px-5 py-3.5">
+                  <Link to={`/results/${String(entry.number)}`}>
+                    <span
+                      aria-hidden="true"
+                      className="grid size-9 place-items-center rounded-lg bg-sunken font-mono text-[13px] font-semibold"
+                    >
+                      S{entry.number}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-medium">Semester {entry.number}</span>
+                      <span className="block text-[11px] text-ink-3">
+                        {formatCount(entry.courseCount, 'course')}
+                        {(entry.creditsAttempted.value ?? 0) > 0
+                          ? ` · ${String(entry.creditsAttempted.value ?? 0)} credits`
+                          : ''}
+                      </span>
+                    </span>
+                    <span className="hidden w-28 sm:block" aria-hidden="true">
+                      <Progress value={((sgpa ?? 0) / 10) * 100} />
+                    </span>
+                    {sgpa === null ? (
+                      <span
+                        className="w-24 text-right text-[13px] font-medium text-ink-3"
+                        title={entry.sgpa.reason ?? undefined}
+                      >
+                        Unavailable
+                      </span>
+                    ) : (
+                      <span className="tnum w-14 text-right text-lg font-semibold">
+                        {formatGpa(sgpa)}
+                      </span>
+                    )}
+                  </Link>
+                </Row>
+              );
+            })}
+          </CardRows>
+        </Card>
       )}
 
-      {/*
-        AND WHAT IS NOT A PASS OR A FAIL (8). An audited course and an absence
-        are neither, and reporting them as failures would tell a student to
-        re-sit something they did not fail.
-      */}
-      {OUTCOME_ORDER.some((key) => statistics.outcomes[key] > 0) && (
-        <Panel title="Course outcomes">
-          <dl className={styles.derived}>
-            {OUTCOME_ORDER.filter((key) => statistics.outcomes[key] > 0).map((key) => (
-              <div className={styles.derivedItem} key={key}>
-                <dt className={styles.derivedLabel}>{OUTCOME_LABEL[key]}</dt>
-                <dd>{statistics.outcomes[key]}</dd>
-              </div>
-            ))}
+      <MetricGrid>
+        <Metric
+          label="Percentage"
+          value={metricDisplay(statistics.percentage, formatPercent).value}
+          state={statistics.percentage.value === null ? 'unavailable' : 'resolved'}
+          sub={
+            statistics.percentage.value === null
+              ? (statistics.percentage.reason ?? undefined)
+              : 'CGPA × 10 (22OB 6.7)'
+          }
+        />
+        <Metric label="Semesters graded" value={metricDisplay(statistics.semestersGraded).value} />
+        <Metric
+          label="Courses passed"
+          value={statistics.outcomes.passed}
+          sub={
+            statistics.outcomes.unresolved > 0
+              ? `${String(statistics.outcomes.unresolved)} still to review`
+              : undefined
+          }
+        />
+        <Metric
+          label="Backlogs recorded"
+          value={metricDisplay(statistics.backlogs).value}
+          emphasis={(statistics.backlogs.value ?? 0) > 0 ? 'warning' : undefined}
+        />
+      </MetricGrid>
+
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        {statistics.grades.total > 0 && (
+          <Card className="p-5">
+            <SectionTitle>Grade distribution</SectionTitle>
+            <GradeDistributionChart grades={statistics.grades} height={200} />
+          </Card>
+        )}
+        <Card className="p-5">
+          <SectionTitle>Academic data</SectionTitle>
+          <dl className="grid grid-cols-2 gap-3">
+            <DataStat
+              label="Courses imported"
+              value={String(statistics.dataQuality.coursesImported)}
+            />
+            <DataStat
+              label="Credits resolved"
+              value={`${String(statistics.dataQuality.creditsResolved)} of ${String(statistics.dataQuality.coursesImported)}`}
+            />
+            <DataStat
+              label="Need review"
+              value={String(statistics.dataQuality.coursesNeedingReview)}
+            />
+            <DataStat
+              label="Fully resolved"
+              value={`${String(statistics.semesters.filter((entry) => entry.completeness === 'fully_resolved').length)} of ${String(graded.length)} semesters`}
+            />
           </dl>
-        </Panel>
-      )}
+          {OUTCOME_ORDER.some((key) => statistics.outcomes[key] > 0) && (
+            <>
+              <h3 className="mt-5 mb-2 text-[12px] font-semibold tracking-[0.08em] text-ink-2 uppercase">
+                Course outcomes
+              </h3>
+              <ul className="flex flex-wrap gap-2">
+                {OUTCOME_ORDER.filter((key) => statistics.outcomes[key] > 0).map((key) => (
+                  <li key={key}>
+                    <Badge
+                      tone={
+                        key === 'passed' ? 'success' : key === 'unresolved' ? 'neutral' : 'warning'
+                      }
+                    >
+                      {OUTCOME_LABEL[key]} · {statistics.outcomes[key]}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {statistics.dataQuality.notes.length > 0 && (
+            <ul className="mt-4 space-y-1 text-[12px] text-ink-2">
+              {statistics.dataQuality.notes.map((note) => (
+                <li key={note}>• {note}</li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
 
-      {/*
-        DATA QUALITY (29). Reassurance first: a student whose records are 34
-        courses good and one course short should not read a screen that looks
-        like a failure.
-      */}
-      <Panel title="Academic data">
-        <dl className={styles.derived}>
-          <div className={styles.derivedItem}>
-            <dt className={styles.derivedLabel}>Courses imported</dt>
-            <dd>{statistics.dataQuality.coursesImported}</dd>
-          </div>
-          <div className={styles.derivedItem}>
-            <dt className={styles.derivedLabel}>Credits resolved</dt>
-            <dd>
-              {statistics.dataQuality.creditsResolved} of {statistics.dataQuality.coursesImported}
-            </dd>
-          </div>
-          <div className={styles.derivedItem}>
-            <dt className={styles.derivedLabel}>Need review</dt>
-            <dd>{statistics.dataQuality.coursesNeedingReview}</dd>
-          </div>
-          {/*
-            AVAILABLE AND UNRESOLVED, SIDE BY SIDE (§13). "4 completed" and
-            "1 fully resolved" are different facts, and showing only the first
-            implies all four carry valid SGPA and CGPA inputs.
-          */}
-          <div className={styles.derivedItem}>
-            <dt className={styles.derivedLabel}>Fully resolved</dt>
-            <dd>
-              {
-                statistics.semesters.filter((entry) => entry.completeness === 'fully_resolved')
-                  .length
-              }{' '}
-              of {statistics.semesters.filter((entry) => entry.hasResult).length} imported
-            </dd>
-          </div>
-        </dl>
-        {statistics.dataQuality.notes.map((note) => (
-          <p className={styles.gap} key={note}>
-            {note}
-          </p>
+      <div className="text-[12px] leading-relaxed text-ink-3">
+        <p>{completeness.basis}</p>
+        {completeness.gaps.map((gap) => (
+          <p key={gap}>{gap}</p>
         ))}
-      </Panel>
-
-      {/*
-        WHAT THE FIGURES REST ON. A CGPA of 7.85 means something different
-        across four semesters than across one, and a student cannot tell which
-        they are looking at unless the page says (M10A §19).
-      */}
-      <p className={styles.basis}>{completeness.basis}</p>
-      {completeness.gaps.map((gap) => (
-        <p className={styles.gap} key={gap}>
-          {gap}
-        </p>
-      ))}
+      </div>
     </div>
   );
 }
 
-/**
- * The answer, in the box the approved design gives it.
- *
- * Every calculator ends the same way — a label, the figure, and one line
- * saying what it rests on — so they share the block rather than each drawing
- * their own. A calculator that cannot answer says why in the caption and shows
- * a dash where the figure would be, never a zero.
- */
-function AnswerBlock({
+function DataStat({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div className="rounded-lg border border-line bg-panel p-3">
+      <dt className="text-[11px] text-ink-3">{label}</dt>
+      <dd className="tnum mt-0.5 text-[15px] font-semibold text-ink">{value}</dd>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ Calculator */
+
+type CalcMode = 'sgpa' | 'cgpa' | 'required-sgpa' | 'required-marks';
+
+function CalculatorPanel() {
+  const [mode, setMode] = useState<CalcMode>('sgpa');
+  const points = ruleSet.gradeBands
+    .filter((band) => band.points !== null)
+    .map((band) => `${band.letter}=${String(band.points)}`)
+    .join(' · ');
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <Card className="min-w-0 p-5">
+        <Segmented<CalcMode>
+          size="sm"
+          label="Calculator"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'sgpa', label: 'SGPA' },
+            { value: 'cgpa', label: 'CGPA' },
+            { value: 'required-sgpa', label: 'Required SGPA' },
+            { value: 'required-marks', label: 'Required marks' },
+          ]}
+        />
+        <div className="mt-5">
+          {mode === 'sgpa' && <SgpaCalculator />}
+          {mode === 'cgpa' && <CgpaCalculator />}
+          {mode === 'required-sgpa' && <RequiredSgpaCalculator />}
+          {mode === 'required-marks' && <RequiredMarksCalculator />}
+        </div>
+      </Card>
+      <Card className="h-fit p-5">
+        <SectionTitle>How it works</SectionTitle>
+        <p className="text-[13px] leading-relaxed text-ink-2">
+          Every figure is credit-weighted, exactly as the regulation defines it. The engine that
+          computes them is the same one your saved results go through.
+        </p>
+        <dl className="mt-4 space-y-3 text-[12px]">
+          <FormulaLine label="SGPA" formula="Σ(GPᵢ × Cᵢ) ÷ Σ Cᵢ" />
+          <FormulaLine label="CGPA" formula="Σ(SGPAₛ × Cₛ) ÷ Σ Cₛ" />
+          <FormulaLine label="Percentage" formula="CGPA × 10 (22OB 6.7)" />
+          <FormulaLine label="Grade points" formula={points} />
+        </dl>
+        <p className="mt-4 text-[12px] text-ink-3">
+          Figures here are estimates. Nothing is saved to your record — a result becomes part of it
+          only when you confirm one on Results or Add document.
+        </p>
+      </Card>
+    </div>
+  );
+}
+
+function FormulaLine({ label, formula }: { readonly label: string; readonly formula: string }) {
+  return (
+    <div className="rounded-lg border border-line bg-panel px-3 py-2">
+      <dt className="text-[11px] font-medium text-ink-2">{label}</dt>
+      <dd className="mt-0.5 font-mono text-[12px] text-accent-ink">{formula}</dd>
+    </div>
+  );
+}
+
+function ResultBlock({
   label,
   value,
   caption,
   children,
 }: {
   readonly label: string;
-  /** Null when the inputs do not support an answer. */
   readonly value: string | null;
   readonly caption: string;
   readonly children?: ReactNode;
 }) {
   return (
-    <div className={styles.answer}>
-      <p className={styles.answerLabel}>{label}</p>
-      {value === null ? (
-        <p className={styles.answerPlaceholder}>—</p>
-      ) : (
-        <p className={styles.answerValue}>{value}</p>
-      )}
-      <p className={styles.answerCaption}>{caption}</p>
+    <div
+      aria-live="polite"
+      className="mt-6 rounded-xl border border-accent/30 bg-accent-weak/50 p-5"
+    >
+      <div className="text-[12px] font-medium text-ink-2">{label}</div>
+      <div className="mt-1 flex items-baseline gap-1.5">
+        <span
+          className={cn(
+            'tnum text-[40px] leading-none font-semibold',
+            value === null ? 'text-ink-3' : 'text-accent-ink',
+          )}
+        >
+          {value ?? '—'}
+        </span>
+      </div>
+      <p className="mt-2 text-[12px] text-ink-2">{caption}</p>
       {children}
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* The calculator, and how it works                                           */
-/* -------------------------------------------------------------------------- */
+const CREDIT_OPTIONS = ['0.5', '1', '1.5', '2', '3', '4', '5'].map((value) => ({
+  value,
+  label: value,
+}));
+const GRADE_OPTIONS = [...ruleSet.gradeBands, ...ruleSet.specialGrades].map((grade) => ({
+  value: grade.letter,
+  label:
+    'points' in grade && grade.points !== null
+      ? `${grade.letter} (${String(grade.points)} points)`
+      : grade.letter,
+}));
 
-const CALC_MODES = [
-  { id: 'sgpa', label: 'SGPA' },
-  { id: 'cgpa', label: 'CGPA' },
-  { id: 'required-sgpa', label: 'Required SGPA' },
-  { id: 'required-marks', label: 'Required marks' },
-] as const;
-
-type CalcMode = (typeof CALC_MODES)[number]['id'];
-
-/**
- * The calculator, as the approved design composes it: one card carrying the
- * mode switch and the active calculator, and a companion card that states the
- * formulas the whole thing runs on.
- *
- * The four modes are the four the rules engine already answers —
- * `calculateSGPA`, `calculateCGPA`, `calculateRequiredSGPA` and
- * `calculateRequiredMarks`. Nothing was added to the engine to fill the row,
- * and no arithmetic happens in this file.
- */
-function CalculatorPanel() {
-  const [mode, setMode] = useState<CalcMode>('sgpa');
-
-  return (
-    <div className={styles.calcLayout}>
-      {/*
-        ITS OWN TAB ROOT, and it has to be. `IslandTabs` renders a bare list
-        when a group is already above it, so these four would have become
-        triggers of the PAGE's tab group — pressing "CGPA" switched the page
-        back to Your figures and unmounted the calculator. Caught in the
-        browser, not by a type.
-      */}
-      <IslandTabGroup
-        value={mode}
-        onChange={(next) => {
-          setMode(next as CalcMode);
-        }}
-      >
-        <div className={styles.calcMain}>
-          <IslandTabs
-            label="Calculator"
-            value={mode}
-            onChange={(next) => {
-              setMode(next as CalcMode);
-            }}
-            tabs={CALC_MODES.map((entry) => ({ id: entry.id, label: entry.label }))}
-          />
-          <IslandTabPanel id="sgpa">
-            <SgpaCalculator />
-          </IslandTabPanel>
-          <IslandTabPanel id="cgpa">
-            <CgpaCalculator />
-          </IslandTabPanel>
-          <IslandTabPanel id="required-sgpa">
-            <RequiredSgpaCalculator />
-          </IslandTabPanel>
-          <IslandTabPanel id="required-marks">
-            <RequiredMarksCalculator />
-          </IslandTabPanel>
-        </div>
-      </IslandTabGroup>
-
-      <aside className={styles.calcAside}>
-        <Panel title="How it works">
-          <p className={styles.asideBody}>
-            Every figure is credit-weighted, exactly as the regulation defines it. The engine that
-            computes them is the same one your saved results go through.
-          </p>
-          <dl className={styles.formulaList}>
-            <div className={styles.formulaLine}>
-              <dt>SGPA</dt>
-              <dd>Σ(grade point × credits) ÷ Σ credits</dd>
-            </div>
-            <div className={styles.formulaLine}>
-              <dt>CGPA</dt>
-              <dd>Σ(SGPA × semester credits) ÷ Σ credits</dd>
-            </div>
-            <div className={styles.formulaLine}>
-              <dt>Percentage</dt>
-              <dd>CGPA × 10 (22OB 6.7)</dd>
-            </div>
-            <div className={styles.formulaLine}>
-              <dt>Grade points</dt>
-              <dd>
-                {[...ruleSet.gradeBands]
-                  .filter((band) => band.points !== null)
-                  .map((band) => `${band.letter}=${String(band.points)}`)
-                  .join(' · ')}
-              </dd>
-            </div>
-          </dl>
-          <p className={styles.asideNote}>
-            Figures here are estimates. Nothing is saved to your record — a result becomes part of
-            it only when you confirm one on Results or Add document.
-          </p>
-        </Panel>
-      </aside>
-    </div>
-  );
+interface CourseRow {
+  readonly id: string;
+  readonly subjectCode: string;
+  readonly credits: string;
+  readonly gradeLetter: string;
 }
-
-/**
- * The SGPA a coming semester would need for a target CGPA.
- *
- * Every input defaults to what the student's own record already says, so the
- * common case is "type the target, read the answer". `calculateRequiredSGPA`
- * does the arithmetic and reports unreachable targets itself — this never
- * decides that a target is out of range.
- */
-function RequiredSgpaCalculator() {
-  const { statistics } = useAcademicState();
-  const currentCgpa = statistics.cgpa.value ?? statistics.provisionalCgpa.value;
-  const creditsDone = statistics.creditsEarned.value;
-
-  const [target, setTarget] = useState('8.00');
-  const [current, setCurrent] = useState(currentCgpa === null ? '' : currentCgpa.toFixed(2));
-  const [done, setDone] = useState(creditsDone === null ? '' : String(creditsDone));
-  const [next, setNext] = useState('21');
-
-  const result = useMemo(
-    () =>
-      calculateRequiredSGPA(Number(current), Number(done), Number(next), Number(target), ruleSet),
-    [current, done, next, target],
-  );
-
-  return (
-    <Panel title="Required SGPA for a target CGPA">
-      <div className={styles.calcFields}>
-        <TextField
-          label="Target CGPA"
-          inputMode="decimal"
-          value={target}
-          onChange={(event) => {
-            setTarget(event.target.value);
-          }}
-        />
-        <TextField
-          label="Current CGPA"
-          hint={currentCgpa === null ? 'No CGPA in your record yet.' : 'From your record.'}
-          inputMode="decimal"
-          value={current}
-          onChange={(event) => {
-            setCurrent(event.target.value);
-          }}
-        />
-        <TextField
-          label="Credits completed"
-          hint={creditsDone === null ? undefined : 'From your record.'}
-          inputMode="numeric"
-          value={done}
-          onChange={(event) => {
-            setDone(event.target.value);
-          }}
-        />
-        <TextField
-          label="Credits next semester"
-          inputMode="numeric"
-          value={next}
-          onChange={(event) => {
-            setNext(event.target.value);
-          }}
-        />
-      </div>
-
-      {/* The engine's own words when it cannot answer: it knows when a target
-          is unreachable and by how much, and rewording that here would lose
-          the figure it quotes. */}
-      <AnswerBlock
-        label="Required SGPA next semester"
-        value={result.ok ? formatGpa(result.value) : null}
-        caption={
-          result.ok
-            ? `Score at least this across ${next} credits to reach a CGPA of ${target}.`
-            : result.detail
-        }
-      />
-
-      <ExplanationDisclosure explanation={result.explanation} />
-    </Panel>
-  );
-}
-
-/**
- * What the semester-end exam has to carry.
- *
- * The three thresholds of 22OB 6.3 apply at once, and the engine names which
- * one binds — that is the part a student can act on, so it is shown rather
- * than reduced to a single number.
- */
-function RequiredMarksCalculator() {
-  const [internal, setInternal] = useState('28');
-  const [targetKind, setTargetKind] = useState('pass');
-
-  const target: MarksTarget = useMemo(
-    () => (targetKind === 'pass' ? { kind: 'pass' } : { kind: 'grade', letter: targetKind }),
-    [targetKind],
-  );
-  const result = useMemo(
-    () => calculateRequiredMarks(Number(internal), target, ruleSet),
-    [internal, target],
-  );
-
-  return (
-    <Panel title="Marks needed in the exam">
-      <div className={styles.calcFields}>
-        <TextField
-          label={`Internal / CIE (of ${String(ruleSet.cieMax)})`}
-          inputMode="numeric"
-          value={internal}
-          onChange={(event) => {
-            setInternal(event.target.value);
-          }}
-        />
-        <SelectField
-          label="Target"
-          value={targetKind}
-          onChange={(event) => {
-            setTargetKind(event.target.value);
-          }}
-        >
-          <option value="pass">Pass the course</option>
-          {ruleSet.gradeBands
-            .filter((band) => band.points !== null)
-            .map((band) => (
-              <option key={band.letter} value={band.letter}>
-                Grade {band.letter}
-              </option>
-            ))}
-        </SelectField>
-      </div>
-
-      <AnswerBlock
-        label="Required in the semester-end exam"
-        value={
-          result.ok
-            ? `${String(result.value.rawSeeRequired)} / ${String(result.value.rawSeeMaximum)}`
-            : null
-        }
-        caption={
-          result.ok
-            ? `On the exam script. That is ${result.value.printedExternalEquivalent.toFixed(1)} of ${String(result.value.printedExternalMaximum)} in the card's External column — the two scales are different, and confusing them halves or doubles the answer.`
-            : result.detail
-        }
-      >
-        {result.ok && (
-          <p className={styles.answerCaption}>
-            What decides it: {BINDING_LABEL[result.value.bindingConstraint]}.
-          </p>
-        )}
-      </AnswerBlock>
-
-      <ExplanationDisclosure explanation={result.explanation} />
-    </Panel>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* SGPA                                                                       */
-/* -------------------------------------------------------------------------- */
+const blankCourse = (): CourseRow => ({
+  id: newId(),
+  subjectCode: '',
+  credits: '4',
+  gradeLetter: 'A',
+});
 
 function SgpaCalculator() {
-  const [rows, setRows] = useState<CourseRow[]>(() => [
-    blankRow(),
-    blankRow(),
-    blankRow(),
-    blankRow(),
-    blankRow(),
-  ]);
-
+  const [rows, setRows] = useState<CourseRow[]>(() => Array.from({ length: 5 }, blankCourse));
   const courses: CourseGrade[] = useMemo(
     () =>
       rows
@@ -827,123 +527,113 @@ function SgpaCalculator() {
         })),
     [rows],
   );
-
   const result = useMemo(() => calculateSGPA(courses, ruleSet), [courses]);
-
-  const update = (id: string, patch: Partial<CourseRow>) => {
+  const update = (id: string, patch: Partial<CourseRow>): void =>
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
-  };
-
-  const gradeOptions = [...ruleSet.gradeBands, ...ruleSet.specialGrades];
 
   return (
-    <Panel
-      title="SGPA for one semester"
-      action={
-        <Button small onClick={() => setRows((current) => [...current, blankRow()])}>
-          <Icon name="plus" size="nav" />
-          Add course
+    <section aria-labelledby="sgpa-calc">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 id="sgpa-calc" className="text-sm font-semibold">
+          SGPA for one semester
+        </h3>
+        <Button
+          size="sm"
+          variant="ghost"
+          icon={<RotateCcw />}
+          onClick={() => setRows([blankCourse()])}
+        >
+          Reset
         </Button>
-      }
-      flush
-    >
-      <div className={styles.rowsHeader} aria-hidden="true">
+      </div>
+      <div
+        aria-hidden="true"
+        className="mb-1.5 hidden grid-cols-[1fr_1fr_1.4fr_auto] gap-2 text-[11px] font-medium text-ink-3 sm:grid"
+      >
         <span>Subject code</span>
         <span>Credits</span>
         <span>Grade</span>
-        <span />
+        <span className="w-9" />
       </div>
-
-      <ul className={styles.rows}>
-        {rows.map((row, index) => (
-          <li className={styles.row} key={row.id}>
-            <TextField
-              label={`Subject code, course ${String(index + 1)}`}
-              placeholder="BCS301"
-              value={row.subjectCode}
-              mono
-              onChange={(event) => {
-                update(row.id, { subjectCode: event.target.value });
-              }}
-            />
-            <SelectField
-              label={`Credits, course ${String(index + 1)}`}
-              value={row.credits}
-              onChange={(event) => {
-                update(row.id, { credits: event.target.value });
-              }}
+      <ul className="space-y-2">
+        {rows.map((row, index) => {
+          const n = String(index + 1);
+          return (
+            <li
+              key={row.id}
+              className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 sm:grid-cols-[1fr_1fr_1.4fr_auto]"
             >
-              {CREDIT_OPTIONS.map((credit) => (
-                <option key={credit} value={credit}>
-                  {credit}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField
-              label={`Grade, course ${String(index + 1)}`}
-              value={row.gradeLetter}
-              onChange={(event) => {
-                update(row.id, { gradeLetter: event.target.value });
-              }}
-            >
-              {gradeOptions.map((grade) => (
-                <option key={grade.letter} value={grade.letter}>
-                  {'points' in grade && grade.points !== null
-                    ? `${grade.letter} (${String(grade.points)} points)`
-                    : grade.letter}
-                </option>
-              ))}
-            </SelectField>
-            <Button
-              variant="danger"
-              iconOnly
-              aria-label={`Remove course ${String(index + 1)}`}
-              disabled={rows.length === 1}
-              onClick={() => {
-                setRows((current) => current.filter((candidate) => candidate.id !== row.id));
-              }}
-            >
-              <Icon name="trash" size="nav" />
-            </Button>
-          </li>
-        ))}
+              <Input
+                aria-label={`Subject code, course ${n}`}
+                placeholder="BCS301"
+                className="col-span-3 font-mono sm:col-span-1"
+                value={row.subjectCode}
+                onChange={(event) => update(row.id, { subjectCode: event.target.value })}
+              />
+              <Select
+                aria-label={`Credits, course ${n}`}
+                value={row.credits}
+                onValueChange={(value) => update(row.id, { credits: value })}
+                options={CREDIT_OPTIONS}
+              />
+              <Select
+                aria-label={`Grade, course ${n}`}
+                value={row.gradeLetter}
+                onValueChange={(value) => update(row.id, { gradeLetter: value })}
+                options={GRADE_OPTIONS}
+              />
+              <IconButton
+                label={`Remove course ${n}`}
+                disabled={rows.length === 1}
+                className="hover:text-danger"
+                onClick={() =>
+                  setRows((current) => current.filter((candidate) => candidate.id !== row.id))
+                }
+              >
+                <Trash2 />
+              </IconButton>
+            </li>
+          );
+        })}
       </ul>
-
-      <AnswerBlock
+      <Button
+        size="sm"
+        className="mt-2"
+        icon={<Plus />}
+        onClick={() => setRows((current) => [...current, blankCourse()])}
+      >
+        Add course
+      </Button>
+      <ResultBlock
         label="Estimated SGPA"
         value={result.ok ? formatGpa(result.value) : null}
         caption={
           result.ok
-            ? `${String(courses.length)} courses · ${String(result.explanation.inputs.totalCredits ?? 0)} credits entered`
+            ? `${formatCount(courses.length, 'course')} · ${String(result.explanation.inputs['totalCredits'] ?? 0)} credits entered`
             : result.detail
         }
       />
-
-      <ExplanationDisclosure explanation={result.explanation} />
-    </Panel>
+      <ExplanationDisclosure explanation={result.explanation} className="mt-3" />
+    </section>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* CGPA                                                                       */
-/* -------------------------------------------------------------------------- */
-
-interface SemesterRow {
+interface SemesterRowDraft {
   readonly id: string;
   readonly semester: string;
   readonly credits: string;
   readonly sgpa: string;
 }
-
-function blankSemester(index: number): SemesterRow {
-  return { id: newId(), semester: String(index + 1), credits: '', sgpa: '' };
-}
+const blankSemester = (index: number): SemesterRowDraft => ({
+  id: newId(),
+  semester: String(Math.min(index + 1, 8)),
+  credits: '',
+  sgpa: '',
+});
 
 function CgpaCalculator() {
   const { items: savedResults } = useResults();
-
-  const [rows, setRows] = useState<SemesterRow[]>(() => [blankSemester(0), blankSemester(1)]);
-
+  const [rows, setRows] = useState<SemesterRowDraft[]>(() => [blankSemester(0), blankSemester(1)]);
   const semesters: SemesterSummary[] = useMemo(
     () =>
       rows
@@ -955,7 +645,6 @@ function CgpaCalculator() {
         })),
     [rows],
   );
-
   const cgpa = useMemo(() => calculateCGPA(semesters, ruleSet), [semesters]);
   const percentage = useMemo(
     () => (cgpa.ok ? calculatePercentage(cgpa.value, ruleSet) : null),
@@ -965,43 +654,25 @@ function CgpaCalculator() {
     () => (percentage?.ok === true ? calculateClass(percentage.value, ruleSet) : null),
     [percentage],
   );
-
-  const update = (id: string, patch: Partial<SemesterRow>) => {
+  const update = (id: string, patch: Partial<SemesterRowDraft>): void =>
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
-  };
 
   return (
-    <Panel
-      title="CGPA across semesters"
-      action={
-        <Button
-          small
-          onClick={() => {
-            setRows((current) => [...current, blankSemester(current.length)]);
-          }}
-        >
-          <Icon name="plus" size="nav" />
-          Add semester
-        </Button>
-      }
-      flush
-    >
+    <section aria-labelledby="cgpa-calc">
+      <h3 id="cgpa-calc" className="mb-3 text-sm font-semibold">
+        CGPA across semesters
+      </h3>
       {savedResults.length > 0 && (
-        <div className={styles.panelNotice}>
-          <Notice>
-            You have {String(savedResults.length)} saved semester result
-            {savedResults.length === 1 ? '' : 's'}. Use <strong>Fill from saved results</strong> to
-            load them.
-            <div className={styles.noticeAction}>
-              <Button
-                small
-                onClick={() => {
-                  setRows(
-                    savedResults.map((saved) => {
-                      // Through `semesterSgpa`, so an incomplete semester fills
-                      // in its credits and leaves the SGPA box empty for the
-                      // student rather than arriving with a partial figure
-                      // already typed in (OQ-049 §16).
+        <Callout
+          className="mb-3"
+          action={
+            <Button
+              size="sm"
+              onClick={() =>
+                setRows(
+                  [...savedResults]
+                    .sort((a, b) => a.semester - b.semester)
+                    .map((saved) => {
                       const { sgpa, credits } = semesterSgpa(saved, ruleSet);
                       return {
                         id: saved.id,
@@ -1010,115 +681,233 @@ function CgpaCalculator() {
                         sgpa: sgpa === null ? '' : sgpa.toFixed(2),
                       };
                     }),
-                  );
-                }}
-              >
-                Fill from saved results
-              </Button>
-            </div>
-          </Notice>
-        </div>
+                )
+              }
+            >
+              Fill from saved results
+            </Button>
+          }
+        >
+          You have {formatCount(savedResults.length, 'saved semester result')}.
+        </Callout>
       )}
-
-      <div className={styles.semesterHeader} aria-hidden="true">
+      <div
+        aria-hidden="true"
+        className="mb-1.5 grid grid-cols-[1.2fr_1fr_1fr_auto] gap-2 text-[11px] font-medium text-ink-3"
+      >
         <span>Semester</span>
         <span>Total credits</span>
         <span>SGPA</span>
-        <span />
+        <span className="w-9" />
       </div>
-
-      <ul className={styles.rows}>
-        {rows.map((row, index) => (
-          <li className={styles.semesterRow} key={row.id}>
-            <SelectField
-              label={`Semester number, row ${String(index + 1)}`}
-              value={row.semester}
-              onChange={(event) => {
-                update(row.id, { semester: event.target.value });
-              }}
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((semester) => (
-                <option key={semester} value={semester}>
-                  Semester {semester}
-                </option>
-              ))}
-            </SelectField>
-            <TextField
-              label={`Total credits, row ${String(index + 1)}`}
-              inputMode="numeric"
-              placeholder="22"
-              value={row.credits}
-              onChange={(event) => {
-                update(row.id, { credits: event.target.value });
-              }}
-            />
-            <TextField
-              label={`SGPA, row ${String(index + 1)}`}
-              inputMode="decimal"
-              placeholder="8.43"
-              value={row.sgpa}
-              onChange={(event) => {
-                update(row.id, { sgpa: event.target.value });
-              }}
-            />
-            <Button
-              variant="danger"
-              iconOnly
-              aria-label={`Remove semester row ${String(index + 1)}`}
-              disabled={rows.length === 1}
-              onClick={() => {
-                setRows((current) => current.filter((candidate) => candidate.id !== row.id));
-              }}
-            >
-              <Icon name="trash" size="nav" />
-            </Button>
-          </li>
-        ))}
+      <ul className="space-y-2">
+        {rows.map((row, index) => {
+          const n = String(index + 1);
+          return (
+            <li key={row.id} className="grid grid-cols-[1.2fr_1fr_1fr_auto] items-center gap-2">
+              <Select
+                aria-label={`Semester number, row ${n}`}
+                value={row.semester}
+                onValueChange={(value) => update(row.id, { semester: value })}
+                options={SEMESTER_OPTIONS}
+              />
+              <Input
+                aria-label={`Total credits, row ${n}`}
+                inputMode="numeric"
+                placeholder="22"
+                value={row.credits}
+                onChange={(event) => update(row.id, { credits: event.target.value })}
+              />
+              <Input
+                aria-label={`SGPA, row ${n}`}
+                inputMode="decimal"
+                placeholder="8.43"
+                value={row.sgpa}
+                onChange={(event) => update(row.id, { sgpa: event.target.value })}
+              />
+              <IconButton
+                label={`Remove semester row ${n}`}
+                disabled={rows.length === 1}
+                className="hover:text-danger"
+                onClick={() =>
+                  setRows((current) => current.filter((candidate) => candidate.id !== row.id))
+                }
+              >
+                <Trash2 />
+              </IconButton>
+            </li>
+          );
+        })}
       </ul>
-
-      <AnswerBlock
+      <Button
+        size="sm"
+        className="mt-2"
+        icon={<Plus />}
+        onClick={() => setRows((current) => [...current, blankSemester(current.length)])}
+      >
+        Add semester
+      </Button>
+      <ResultBlock
         label="Estimated CGPA"
         value={cgpa.ok ? formatGpa(cgpa.value) : null}
         caption={
           cgpa.ok
-            ? `Credit-weighted across ${String(semesters.length)} entered semesters`
+            ? `Credit-weighted across ${formatCount(semesters.length, 'entered semester')}.`
             : cgpa.detail
         }
       >
         {cgpa.ok && (
-          <>
-            <div className={styles.derived}>
-              {percentage?.ok === true && (
-                <span className={styles.derivedItem}>
-                  <span className={styles.derivedLabel}>Percentage</span>
-                  <span className="tabular">{formatPercent(percentage.value)}</span>
-                </span>
-              )}
-              {classBand?.ok === true && (
-                <span className={styles.derivedItem}>
-                  <span className={styles.derivedLabel}>Class</span>
-                  <StatusPill tone="accent">{classBand.value.label}</StatusPill>
-                </span>
-              )}
-            </div>
-          </>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {percentage?.ok === true && (
+              <Badge>Percentage · {formatPercent(percentage.value)}</Badge>
+            )}
+            {classBand?.ok === true && <Badge tone="accent">{classBand.value.label}</Badge>}
+          </div>
         )}
-      </AnswerBlock>
-
-      <ExplanationDisclosure explanation={cgpa.explanation} />
-
+      </ResultBlock>
+      <ExplanationDisclosure explanation={cgpa.explanation} className="mt-3" />
       {percentage?.ok === true && (
-        <div className={styles.percentageNote}>
-          <Notice>
-            <strong>Percentage = CGPA × 10</strong>, per clause 22OB 6.7 of the VTU 2022 regulation,
-            which gives this worked example: CGPA 8.20 → 82.0%.
-            <br />
-            Many other calculators subtract 0.75 before multiplying, which returns a figure exactly
-            7.5 percentage points lower. That formula does not appear in the 2022 regulation.
-            GradTools follows the regulation.
-          </Notice>
-        </div>
+        <Callout className="mt-3" title="Percentage = CGPA × 10,">
+          per clause 22OB 6.7 of the VTU 2022 regulation, which gives this worked example: CGPA 8.20
+          → 82.0%. Many other calculators subtract 0.75 before multiplying, which returns a figure
+          exactly 7.5 percentage points lower. That formula does not appear in the 2022 regulation.
+          GradTools follows the regulation.
+        </Callout>
       )}
-    </Panel>
+    </section>
+  );
+}
+
+function RequiredSgpaCalculator() {
+  const { statistics } = useAcademicState();
+  const currentCgpa = statistics.cgpa.value ?? statistics.provisionalCgpa.value;
+  const creditsDone = statistics.creditsEarned.value;
+  const [target, setTarget] = useState('8.00');
+  const [current, setCurrent] = useState(currentCgpa === null ? '' : currentCgpa.toFixed(2));
+  const [done, setDone] = useState(creditsDone === null ? '' : String(creditsDone));
+  const [next, setNext] = useState('21');
+  const result = useMemo(
+    () =>
+      calculateRequiredSGPA(Number(current), Number(done), Number(next), Number(target), ruleSet),
+    [current, done, next, target],
+  );
+  return (
+    <section aria-labelledby="req-sgpa">
+      <h3 id="req-sgpa" className="mb-3 text-sm font-semibold">
+        Required SGPA for a target CGPA
+      </h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Target CGPA">
+          <Input
+            inputMode="decimal"
+            value={target}
+            onChange={(event) => setTarget(event.target.value)}
+          />
+        </Field>
+        <Field
+          label="Current CGPA"
+          hint={currentCgpa === null ? 'No CGPA in your record yet.' : 'From your record.'}
+        >
+          <Input
+            inputMode="decimal"
+            value={current}
+            onChange={(event) => setCurrent(event.target.value)}
+          />
+        </Field>
+        <Field
+          label="Credits completed"
+          {...(creditsDone === null ? {} : { hint: 'From your record.' })}
+        >
+          <Input
+            inputMode="numeric"
+            value={done}
+            onChange={(event) => setDone(event.target.value)}
+          />
+        </Field>
+        <Field label="Credits next semester">
+          <Input
+            inputMode="numeric"
+            value={next}
+            onChange={(event) => setNext(event.target.value)}
+          />
+        </Field>
+      </div>
+      <ResultBlock
+        label="Required SGPA next semester"
+        value={result.ok ? formatGpa(result.value) : null}
+        caption={
+          result.ok
+            ? `Score at least this across ${next} credits to reach a CGPA of ${target}.`
+            : result.detail
+        }
+      />
+      <ExplanationDisclosure explanation={result.explanation} className="mt-3" />
+    </section>
+  );
+}
+
+const BINDING_LABEL: Record<BindingConstraint, string> = {
+  see_minimum: 'the minimum mark the exam head itself requires',
+  overall_target: 'the total the course needs overall',
+};
+
+function RequiredMarksCalculator() {
+  const [internal, setInternal] = useState('28');
+  const [targetKind, setTargetKind] = useState('pass');
+  const target: MarksTarget = useMemo(
+    () => (targetKind === 'pass' ? { kind: 'pass' } : { kind: 'grade', letter: targetKind }),
+    [targetKind],
+  );
+  const result = useMemo(
+    () => calculateRequiredMarks(Number(internal), target, ruleSet),
+    [internal, target],
+  );
+  return (
+    <section aria-labelledby="req-marks">
+      <h3 id="req-marks" className="mb-3 text-sm font-semibold">
+        Marks needed in the exam
+      </h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label={`Internal / CIE (of ${String(ruleSet.cieMax)})`}>
+          <Input
+            inputMode="numeric"
+            value={internal}
+            onChange={(event) => setInternal(event.target.value)}
+          />
+        </Field>
+        <Field label="Target">
+          <Select
+            value={targetKind}
+            onValueChange={setTargetKind}
+            options={[
+              { value: 'pass', label: 'Pass the course' },
+              ...ruleSet.gradeBands
+                .filter((band) => band.points !== null)
+                .map((band) => ({ value: band.letter, label: `Grade ${band.letter}` })),
+            ]}
+          />
+        </Field>
+      </div>
+      <ResultBlock
+        label="Required in the semester-end exam"
+        value={
+          result.ok
+            ? `${String(result.value.rawSeeRequired)} / ${String(result.value.rawSeeMaximum)}`
+            : null
+        }
+        caption={
+          result.ok
+            ? `On the exam script. That is ${result.value.printedExternalEquivalent.toFixed(1)} of ${String(result.value.printedExternalMaximum)} in the card's External column — the two scales differ, and confusing them halves or doubles the answer.`
+            : result.detail
+        }
+      >
+        {result.ok && (
+          <p className="mt-1 text-[12px] text-ink-2">
+            What decides it: {BINDING_LABEL[result.value.bindingConstraint]}.
+          </p>
+        )}
+      </ResultBlock>
+      <ExplanationDisclosure explanation={result.explanation} className="mt-3" />
+    </section>
   );
 }

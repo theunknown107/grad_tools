@@ -1,77 +1,36 @@
 /**
- * Dashboard.
+ * Dashboard — the design's hero, academic-standing row, two charts, and the
+ * attention / today / what-changed row.
  *
- * Authority: docs/05 §5.12 · docs/03 UF-03 · M9.3 §9, §10, §11, §12, §13
- *
- * ---------------------------------------------------------------------------
- * FIVE QUESTIONS, IN THIS ORDER
- * ---------------------------------------------------------------------------
- *
- *   1. What semester am I in?          the header
- *   2. Where do I stand?               the snapshot strip
- *   3. What do I have today?           today
- *   4. What needs me?                  attention — and ONLY when it does
- *   5. What has changed?               latest
- *
- * Resources come last, as links. A question-paper list is not the point of the
- * dashboard, and before M9.3 it occupied the entire first screen on a phone.
- *
- * ---------------------------------------------------------------------------
- * WHAT THIS SCREEN IS NOT
- * ---------------------------------------------------------------------------
- *
- * Not a wall of equal cards. Before M9.3 this page used seven bordered panels
- * of identical weight, which meant nothing could be more important than
- * anything else — a screen of equal boxes has no hierarchy, only boxes.
- *
- * No invented metrics: no productivity score, no streak, no projected SGPA, no
- * chart drawn from three points. Every figure is real or an em dash.
- *
- * THE ATTENTION SECTION IS ABSENT WHEN THERE IS NOTHING TO ATTEND TO. A student
- * with full attendance and no backlogs should not see a section congratulating
- * them on it (M9.3 §14).
+ * Every figure is real: the rules engine's statistics, the stored timetable,
+ * attendance counts and backlogs, the academic calendar and the verified
+ * notices. Where a figure is not known the tile says so, with the reason.
  */
 
-import { Link } from 'react-router-dom';
 import { calculateAttendance, vtu2022RuleSet } from '@gradtools/academic-rules';
 import {
-  WEEKDAYS,
-  type AttendanceRecord,
-  type BacklogRecord,
-  type ClassMark,
-  type SemesterSubject,
-  type TimetableSlot,
-  type Weekday,
-} from '../../domain/types.js';
-import { markFor } from '../../domain/attendance.js';
-import { timetableEntry } from '../../domain/timetable-import.js';
-import {
-  Bar,
-  Empty,
-  MetricStrip,
-  Row,
-  Rows,
-  SectionHeading,
-  Skeleton,
-} from '../../components/ui/layout.js';
-import { Panel, StatusPill, buttonClassName } from '../../components/ui/index.js';
-import { SgpaTrend, type SemesterPoint } from '../../components/SgpaTrend.js';
-import { GradeDistributionRows } from '../../components/GradeDistribution.js';
-import { formatCount, formatGpa, formatPercent, formatTime, localDay } from '../../lib/format.js';
-import {
-  useAttendance,
-  useBacklogs,
-  useCalendars,
-  useClassMarks,
-  useProfile,
-  useResults,
-  useSemesterSubjects,
-  useTimetable,
-} from '../../hooks/useCollection.js';
+  Activity,
+  AlertTriangle,
+  CalendarRange,
+  ChevronRight,
+  Clock,
+  FileCheck2,
+  GraduationCap,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { GradeDistributionChart, SgpaTrendChart } from '../../components/charts/lazy.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Card, CardHeader, CardRows, headerActionClass } from '../../components/ui/card.js';
+import { Callout, EmptyState } from '../../components/ui/feedback.js';
+import { Metric, MetricGrid } from '../../components/ui/metric.js';
+import { Dot, Row, RowText, SectionTitle } from '../../components/ui/page.js';
+import { Progress } from '../../components/ui/progress.js';
+import { PageSkeleton, RowsSkeleton } from '../../components/ui/skeleton.js';
 import { currentSemester } from '../../domain/academics.js';
-import { useAcademicState } from '../../hooks/useAcademicState.js';
-import type { AcademicStatistics } from '../../domain/statistics.js';
-import { metricDisplay } from '../../lib/format.js';
+import { markFor } from '../../domain/attendance.js';
 import {
   activeCalendars,
   calendarConflicts,
@@ -82,8 +41,40 @@ import {
   type CalendarEvent,
   type SavedCalendar,
 } from '../../domain/calendar-import.js';
-import { LatestAnnouncements } from '../announcements/AnnouncementsPage.js';
-import styles from './dashboard.module.css';
+import type { AcademicStatistics } from '../../domain/statistics.js';
+import { timetableEntry } from '../../domain/timetable-import.js';
+import {
+  WEEKDAYS,
+  type AttendanceRecord,
+  type BacklogRecord,
+  type ClassMark,
+  type SemesterSubject,
+  type TimetableSlot,
+  type Weekday,
+} from '../../domain/types.js';
+import { useAcademicState } from '../../hooks/useAcademicState.js';
+import { useAnnouncements, useNotifications } from '../../hooks/useAnnouncements.js';
+import { CATEGORY_LABEL } from '../announcements/AnnouncementCard.js';
+import {
+  useAttendance,
+  useBacklogs,
+  useCalendars,
+  useClassMarks,
+  useProfile,
+  useResults,
+  useSemesterSubjects,
+  useTimetable,
+} from '../../hooks/useCollection.js';
+import { cn } from '../../lib/cn.js';
+import {
+  formatCount,
+  formatGpa,
+  formatPercent,
+  formatTime,
+  localDay,
+  metricDisplay,
+} from '../../lib/format.js';
+import { relativeTime } from '../../lib/time.js';
 
 const ruleSet = vtu2022RuleSet;
 
@@ -92,16 +83,6 @@ function todayWeekday(): Weekday {
   return WEEKDAYS[index === 0 ? 0 : index - 1] ?? 'Mon';
 }
 
-/* -------------------------------------------------------------------------- */
-/* The hero's words                                                           */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Morning, afternoon or evening, from the device clock.
- *
- * The approved design greets by time of day. It is the one thing on this page
- * that is not academic state, and it is deliberately the only one.
- */
 function greeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
@@ -109,54 +90,24 @@ function greeting(): string {
   return 'Good evening';
 }
 
-/**
- * The standing figure, and NEVER a figure called something it is not.
- *
- * When a completed semester is still missing credit or grade data, no
- * cumulative figure can honestly be called the CGPA — so the label above this
- * says "Average so far" and this returns the provisional reading. The domain
- * decides which case applies; this only renders it.
- */
-function standingFigure(stats: AcademicStatistics): string {
-  const provisional = stats.cgpaBasis.pending.length > 0;
-  const metric = provisional ? stats.provisionalCgpa : stats.cgpa;
-  return metric.value === null ? 'Unavailable' : formatGpa(metric.value);
+function nameFor(code: string, subjects: readonly SemesterSubject[]): string | null {
+  return subjects.find((subject) => subject.code === code)?.title ?? null;
 }
 
-/** Why the figure is what it is, in the domain's own words. */
-function standingNote(stats: AcademicStatistics): string {
-  const provisional = stats.cgpaBasis.pending.length > 0;
-  const metric = provisional ? stats.provisionalCgpa : stats.cgpa;
-  if (metric.reason !== null && metric.reason !== undefined) return metric.reason;
-  const graded = stats.semestersGraded.value ?? 0;
-  if (graded === 0) return 'No semester has been graded yet.';
-  return `Credit-weighted across ${formatCount(graded, 'graded semester')}.`;
-}
-
-/**
- * One sentence about where the student stands.
- *
- * Assembled from figures the domain has already established — never a claim
- * the data does not support, and never an invented trend.
- */
 function standingSentence(stats: AcademicStatistics, semester: number | null): string {
-  const graded = stats.semestersGraded.value ?? 0;
   if (!stats.hasAnyResult) {
     return 'No results are saved yet. Add a result card and your figures appear here.';
   }
-  const parts: string[] = [];
-  parts.push(graded === 1 ? '1 semester graded' : `${String(graded)} semesters graded`);
+  const graded = stats.semestersGraded.value ?? 0;
+  const parts: string[] = [
+    graded === 1 ? '1 semester graded' : `${String(graded)} semesters graded`,
+  ];
   if (stats.creditsEarned.value !== null) {
-    parts.push(formatCount(stats.creditsEarned.value, 'credit') + ' earned');
+    parts.push(`${formatCount(stats.creditsEarned.value, 'credit')} earned`);
   }
-  if (stats.backlogs.value === 0 && !stats.backlogsUndetermined) parts.push('no backlogs');
+  if (stats.backlogs.value === 0 && stats.backlogsUndetermined === 0) parts.push('no backlogs');
   const where = semester === null ? '' : ` You are in semester ${String(semester)}.`;
   return `${parts.join(', ')}.${where}`;
-}
-
-/** The subject's real name, or its code when nobody has entered one. */
-function nameFor(code: string, subjects: readonly SemesterSubject[]): string | null {
-  return subjects.find((subject) => subject.code === code)?.title ?? null;
 }
 
 export function DashboardPage() {
@@ -168,222 +119,187 @@ export function DashboardPage() {
   const { items: semesterSubjects } = useSemesterSubjects();
   const { items: backlogs } = useBacklogs();
   const { items: calendars } = useCalendars();
-
-  /*
-   * ONE READING FOR THE WHOLE PAGE (18, 30). `buildSemesterViews` was called
-   * twice in this component alone — once for the current semester and once for
-   * the rail — and neither call was memoised, so both re-ran on every render.
-   */
   const { statistics } = useAcademicState();
 
-  const loading = attendanceLoading || resultsLoading || timetableLoading;
+  if (attendanceLoading || resultsLoading || timetableLoading) {
+    return <PageSkeleton label="Loading your dashboard" />;
+  }
+
   const current = currentSemester(statistics.views);
   const semesterNumber = current?.number ?? profile?.currentSemester ?? null;
-  const name = profile?.displayName?.trim();
-
   const thisSemester = attendance.filter(
     (record) => semesterNumber === null || record.semester === semesterNumber,
   );
-
-  /*
-   * The calendar reaches the day view here rather than inside `Today`, so the
-   * two panels that read calendar data both take it from one place and cannot
-   * disagree about which calendars are in force.
-   */
   const inForce = activeCalendars(calendars);
   const holiday = holidayOn(inForce, localDay());
   const conflicts = calendarConflicts(calendars);
 
   return (
-    <div className={styles.page}>
-      {/*
-        THE SEMESTER IS THE CONTEXT, not the student's name. A student knows who
-        they are; what they open the app to check is where they are (M9.3 §11).
-      */}
-      {loading ? (
-        <Skeleton rows={4} />
-      ) : (
-        /*
-          -------------------------------------------------------------------
-          M9.6F: ONE PRIMARY SURFACE, THEN QUIET ROWS
-          -------------------------------------------------------------------
+    <div className="flex flex-col gap-8">
+      <Hero
+        stats={statistics}
+        semester={semesterNumber}
+        name={profile?.displayName?.trim() ?? ''}
+        branch={profile?.branch ?? null}
+        schemeId={profile?.schemeId ?? null}
+      />
 
-          The page was five glass panels of equal weight — snapshot, chart,
-          today, attention, latest — so nothing led and the eye had no entry
-          point. M9.6F §6 asks for "one strong glass composition + quiet rows +
-          one major visualization", and that is the change:
+      <Standing stats={statistics} attendance={thisSemester} />
 
-            THE BRIEF   a single glass surface carrying the three things that
-                        answer "how am I doing" — which semester this is, the
-                        five figures, and the trend behind them. Context and
-                        the numbers it explains now share one object instead of
-                        being a header floating above two separate boxes.
-
-            EVERYTHING  quiet. Today, Attention, Latest and Quick access are
-            ELSE        hairline-separated regions over the environment. They
-                        are things you scan, not things you study.
-
-          The rail is gone. Two columns split the reading order in half and put
-          "what changed" beside "where you stand" as though they were peers;
-          they are not, and on a phone the split did not exist anyway.
-        */
-        <>
-          {/*
-            THE HERO, from the approved design.
-            
-            Two columns above 1024: the greeting and its actions on the left,
-            and the ONE figure a student opens the app for on the right, set
-            large on its own panel. Below that width it stacks, greeting first.
-            
-            Everything in it is real. The badges are the stored profile, the
-            standing is the domain's own CGPA reading, and the progress bar
-            counts semesters the rules engine has actually graded — there is
-            no credit requirement in the domain, so none is invented here.
-          */}
-          {/*
-            NOT `surfaceCard`. That utility carries its own radius, and the
-            hero carries a different one — so the two fought and whichever
-            loaded last won. The hero states its whole material itself.
-          */}
-          <section className={styles.hero} aria-labelledby="brief-title">
-            <div className={styles.heroMain}>
-              <div className={styles.heroBadges}>
-                {profile?.branch !== undefined && profile.branch !== '' && (
-                  <StatusPill tone="accent">{profile.branch}</StatusPill>
-                )}
-                {profile?.schemeId === 'vtu-2022' && (
-                  <StatusPill tone="neutral">2022 scheme</StatusPill>
-                )}
-                {semesterNumber !== null && (
-                  <StatusPill tone="neutral">Semester {semesterNumber}</StatusPill>
-                )}
-              </div>
-              <h1 className={styles.heroTitle} id="brief-title">
-                {name !== undefined && name !== ''
-                  ? `${greeting()}, ${name.split(' ')[0] ?? name}.`
-                  : greeting() + '.'}
-              </h1>
-              <p className={styles.heroLede}>{standingSentence(statistics, semesterNumber)}</p>
-              <div className={styles.heroActions}>
-                <Link to="/import" className={buttonClassName('primary')}>
-                  Add result
-                </Link>
-                <Link to="/results" className={buttonClassName()}>
-                  View results
-                </Link>
-              </div>
-            </div>
-
-            {/* The standing block: one figure, and what it is made of. */}
-            <div className={styles.standing}>
-              <p className={styles.standingLabel}>
-                {statistics.cgpaBasis.pending.length > 0 ? 'Average so far' : 'Cumulative CGPA'}
+      {(statistics.semestersGraded.value ?? 0) >= 2 && (
+        <section aria-label="Trends" className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <Card className="p-5">
+            <SectionTitle
+              action={
+                statistics.cgpa.value !== null ? (
+                  <Badge>CGPA {formatGpa(statistics.cgpa.value)}</Badge>
+                ) : undefined
+              }
+            >
+              SGPA progression
+            </SectionTitle>
+            <SgpaTrendChart points={statistics.trend} />
+          </Card>
+          {statistics.grades.total > 0 && (
+            <Card className="p-5">
+              <SectionTitle>Grade distribution</SectionTitle>
+              <GradeDistributionChart grades={statistics.grades} />
+              <p className="mt-2 text-[12px] text-ink-3">
+                {formatCount(statistics.outcomes.passed, 'course')} passed across{' '}
+                {formatCount(statistics.semestersGraded.value ?? 0, 'graded semester')}.
               </p>
-              <p
-                className={styles.standingValue}
-                data-absent={/\d/.test(standingFigure(statistics)) ? undefined : 'true'}
-              >
-                {standingFigure(statistics)}
-              </p>
-              <p className={styles.standingNote}>{standingNote(statistics)}</p>
-              <div className={styles.standingProgress}>
-                <div className={styles.standingProgressHead}>
-                  <span>Semesters graded</span>
-                  <span className={styles.standingProgressCount}>
-                    {statistics.semestersGraded.value ?? 0}/{statistics.views.length}
-                  </span>
-                </div>
-                <Bar
-                  value={
-                    statistics.views.length === 0
-                      ? 0
-                      : ((statistics.semestersGraded.value ?? 0) / statistics.views.length) * 100
-                  }
-                  label="Semesters graded"
-                />
-              </div>
-            </div>
-          </section>
-
-          {/*
-            THE FIGURES ARE THEIR OWN SECTION, not contents of the header card.
-            The approved design puts the standing tiles directly on the canvas:
-            each one carries its own material, and nesting them inside another
-            surface makes a card full of cards — the "giant stat card" this
-            product has twice removed.
-          */}
-          <Snapshot stats={statistics} attendance={thisSemester} />
-
-
-          {/*
-            THE DESIGN'S ORDER: what needs attention, then what is on today,
-            then what changed. It ran Today, calendar, attention — which opens
-            the row with a schedule and buries the one card that is asking the
-            student to do something.
-          */}
-          <div className={styles.quietStack}>
-            <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
-            <Today
-              timetable={timetable}
-              subjects={semesterSubjects}
-              holiday={holiday}
-              marks={marks}
-            />
-            <LatestAnnouncements />
-            <NextDate calendars={inForce} conflicts={conflicts} />
-            <Resources />
-          </div>
-        </>
+            </Card>
+          )}
+        </section>
       )}
+
+      <section aria-label="Today" className="grid items-start gap-6 lg:grid-cols-3">
+        <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
+        <Today timetable={timetable} subjects={semesterSubjects} holiday={holiday} marks={marks} />
+        <WhatChanged />
+        <NextDate calendars={inForce} conflicts={conflicts} />
+      </section>
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Where the student stands                                                   */
-/* -------------------------------------------------------------------------- */
+/* ------------------------------------------------------------------- Hero */
 
-/**
- * Four figures, in one strip.
- *
- * CGPA and the last SGPA are the two numbers a student actually quotes; the
- * attendance figure is the one that changes weekly. All four are computed by
- * `@gradtools/academic-rules` — nothing here re-implements a formula (M9.3 §44).
- */
-function Snapshot({
+function Hero({
+  stats,
+  semester,
+  name,
+  branch,
+  schemeId,
+}: {
+  readonly stats: AcademicStatistics;
+  readonly semester: number | null;
+  readonly name: string;
+  readonly branch: string | null;
+  readonly schemeId: string | null;
+}) {
+  const provisional = stats.cgpaBasis.pending.length > 0;
+  const standing = provisional ? stats.provisionalCgpa : stats.cgpa;
+  const graded = stats.semestersGraded.value ?? 0;
+  const note =
+    standing.reason ??
+    (graded === 0
+      ? 'No semester has been graded yet.'
+      : `Credit-weighted across ${formatCount(graded, 'graded semester')}.`);
+  const trend = stats.trend.filter((point) => point.sgpa !== null);
+  const first = trend[0]?.sgpa ?? null;
+  const last = trend[trend.length - 1]?.sgpa ?? null;
+  const delta = trend.length >= 2 && first !== null && last !== null ? last - first : null;
+
+  return (
+    <section
+      aria-labelledby="dashboard-title"
+      className="relative overflow-hidden rounded-2xl border border-line bg-raised"
+    >
+      <div className="relative grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.4fr_1fr]">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {branch !== null && branch !== '' && (
+              <Badge tone="accent" icon={<GraduationCap />}>
+                {branch}
+              </Badge>
+            )}
+            {schemeId === 'vtu-2022' && <Badge>2022 scheme</Badge>}
+            {semester !== null && <Badge>Semester {semester}</Badge>}
+          </div>
+          <h1
+            id="dashboard-title"
+            className="mt-4 font-display text-[28px] leading-[1.08] font-semibold tracking-[-0.02em] sm:text-[34px]"
+          >
+            {name !== '' ? `${greeting()}, ${name.split(' ')[0] ?? name}.` : `${greeting()}.`}
+          </h1>
+          <p className="mt-2 max-w-md text-sm text-ink-2">{standingSentence(stats, semester)}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button asChild variant="glass-primary" icon={<FileCheck2 />}>
+              <Link to="/import">Add result</Link>
+            </Button>
+            <Button asChild variant="glass">
+              <Link to="/results">View results</Link>
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-center gap-3 rounded-xl border border-line bg-panel p-5">
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[12px] font-medium text-ink-2">
+                {provisional ? 'Average so far' : 'Cumulative CGPA'}
+              </div>
+              {standing.value === null ? (
+                <div className="mt-1.5 text-[26px] leading-none font-semibold text-ink-3">
+                  Unavailable
+                </div>
+              ) : (
+                <div className="tnum mt-0.5 text-[44px] leading-none font-semibold tracking-[-0.03em]">
+                  {formatGpa(standing.value)}
+                </div>
+              )}
+            </div>
+            {delta !== null && Math.abs(delta) >= 0.005 && (
+              <Badge
+                tone={delta > 0 ? 'success' : 'warning'}
+                icon={delta > 0 ? <TrendingUp /> : <TrendingDown />}
+              >
+                {delta > 0 ? '+' : '−'}
+                {Math.abs(delta).toFixed(2)} SGPA vs Sem {trend[0]?.semester}
+              </Badge>
+            )}
+          </div>
+          <p className="text-[12px] text-ink-3">{note}</p>
+          <div>
+            <div className="mb-1.5 flex justify-between text-[12px] text-ink-2">
+              <span>Semesters graded</span>
+              <span className="tnum font-medium text-ink">
+                {graded}/{Math.max(stats.views.length, 8)}
+              </span>
+            </div>
+            <Progress
+              value={(graded / Math.max(stats.views.length, 8)) * 100}
+              label="Semesters graded"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------- Academic standing */
+
+function Standing({
   stats,
   attendance,
 }: {
-  /*
-   * THE SHARED READING, not a local one. Every figure below used to be
-   * recomputed here — a second `semesterSgpa` loop, a second `calculateCGPA`
-   * call — which is how the dashboard and the degree page came to disagree
-   * about what "completed" counted (Phase 7C 18).
-   */
   readonly stats: AcademicStatistics;
   readonly attendance: readonly AttendanceRecord[];
 }) {
-  /*
-   * All eight semesters, always. A semester with no computable SGPA carries a
-   * null so the chart shows it as a GAP; dropping it would let the line join
-   * across a semester the student has no result for (13).
-   */
-  const trendPoints: readonly SemesterPoint[] = stats.trend.map((point) => ({
-    semester: point.semester,
-    sgpa: point.sgpa,
-    /* The cumulative standing after each semester — the design's second,
-       dashed series. From the rules engine, never computed here. */
-    cgpaSoFar: point.cgpaSoFar,
-    state:
-      point.sgpa !== null
-        ? ('graded' as const)
-        : stats.views.find((view) => view.number === point.semester)?.status === 'in_progress'
-          ? ('in_progress' as const)
-          : ('planned' as const),
-  }));
-
-  const cgpa = metricDisplay(stats.cgpa, formatGpa);
-  const percentage = metricDisplay(stats.percentage, formatPercent);
+  const provisional = stats.cgpaBasis.pending.length > 0;
+  const cgpa = metricDisplay(provisional ? stats.provisionalCgpa : stats.cgpa, formatGpa);
   const credits = metricDisplay(stats.creditsEarned);
   const backlogs = metricDisplay(stats.backlogs);
   const latest = stats.latestSgpa.value;
@@ -391,399 +307,127 @@ function Snapshot({
   const attended = attendance.reduce((total, record) => total + record.attended, 0);
   const conducted = attendance.reduce((total, record) => total + record.conducted, 0);
   const overall = conducted > 0 ? calculateAttendance(attended, conducted, ruleSet) : null;
+  const short = attendance.filter((record) => {
+    const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
+    return verdict.ok && verdict.value.status !== 'safe';
+  }).length;
+
+  const cgpaNote = provisional
+    ? (stats.provisionalCgpa.reason ?? undefined)
+    : (cgpa.note ??
+      (stats.percentage.value !== null ? formatPercent(stats.percentage.value) : undefined));
 
   return (
-    <>
-      {/*
-        THE DESIGN NAMES THIS ROW, and gives it a way out.
-        
-        Six figures used to sit straight under the hero with nothing saying
-        what they were collectively, so the eye read them as loose chrome
-        rather than as one section called "academic standing". The action is
-        the design's own: the place to go when the summary is not enough.
-      */}
-      <SectionHeading
+    <section aria-labelledby="standing-title">
+      <SectionTitle
+        id="standing-title"
         action={
-          <Link to="/academics" className={styles.sectionAction ?? ''}>
+          <Link to="/academics" className={headerActionClass}>
             Open SGPA &amp; CGPA
           </Link>
         }
       >
         Academic standing
-      </SectionHeading>
-      <MetricStrip
-        metrics={[
-          /*
-            NO BARE EM DASHES (1). A figure with no value says "Unavailable"
-            and carries its reason underneath, because a dash cannot tell "you
-            have not entered this" from "one of your courses needs review" —
-            and only one of those is the student's to fix.
-          */
-          {
-            /*
-              THE CGPA, OR THE FIGURE THAT IS NOT IT (Phase 7C.1 §1, §10).
-              When a completed semester is still missing its credit or grade
-              data, no cumulative figure can honestly be called the CGPA — so
-              the label changes with the meaning rather than the meaning
-              quietly changing under a fixed label.
-            */
-            label: stats.cgpaBasis.pending.length > 0 ? 'Average so far' : 'CGPA',
-            value:
-              stats.cgpaBasis.pending.length > 0
-                ? metricDisplay(stats.provisionalCgpa, formatGpa).value
-                : cgpa.value,
-            ...(stats.cgpaBasis.pending.length > 0
-              ? { note: stats.provisionalCgpa.reason ?? undefined }
-              : cgpa.note !== undefined
-                ? { note: cgpa.note }
-                : stats.percentage.value !== null
-                  ? { note: percentage.value }
-                  : {}),
-          },
-          {
-            label: 'Latest SGPA',
-            value: latest === null ? 'Unavailable' : formatGpa(latest.sgpa),
-            ...(latest !== null
-              ? { note: `Semester ${String(latest.semester)}` }
-              : stats.latestSgpa.reason === null
-                ? {}
-                : { note: stats.latestSgpa.reason }),
-          },
-          {
-            label: 'Credits earned',
-            value: credits.value,
-            ...(credits.note === undefined ? {} : { note: credits.note }),
-          },
-          {
-            /*
-              A backlog count that could not be determined is NOT zero, and the
-              two must not render alike — zero backlogs is the best news the
-              page carries (1).
-            */
-            label: 'Backlogs',
-            value: backlogs.value,
-            ...(backlogs.note === undefined ? {} : { note: backlogs.note }),
-            ...((stats.backlogs.value ?? 0) > 0 || stats.backlogsUndetermined > 0
-              ? { tone: 'warning' as const }
-              : {}),
-          },
-          {
-            /*
-              THESE TWO WERE THE LAST BARE DASHES ON THE PAGE (§1), and a real
-              import found them: beside a resolved CGPA sat two em dashes that
-              could not say whether the figure was missing, zero, or waiting on
-              something the student had to do. Both now say which.
-            */
-            label: 'Attendance',
-            value: overall?.ok === true ? formatPercent(overall.value.percentage) : 'Not recorded',
-            ...(overall?.ok === true
-              ? overall.value.status !== 'safe'
-                ? {
-                    tone:
-                      overall.value.status === 'dx_risk'
-                        ? ('danger' as const)
-                        : ('warning' as const),
-                  }
-                : {}
-              : { note: 'No classes have been marked for this semester yet.' }),
-          },
-          {
-            /*
-              SIX TILES, AS THE DESIGN LAYS THEM OUT — and six is the point:
-              the grid is six across on a wide screen, and a seventh tile
-              wrapped alone onto a second row. "Passed" and "Subjects" were the
-              two the design does not carry; both are still a click away, on
-              SGPA & CGPA and on My degree respectively.
-            */
-            label: 'Semesters',
-            value: `${String(stats.semestersGraded.value ?? 0)}/8`,
-            ...(stats.semestersCompleted.value !== null &&
+      </SectionTitle>
+      <MetricGrid columns={6}>
+        <Metric
+          label={provisional ? 'Average so far' : 'CGPA'}
+          value={cgpa.value}
+          state={cgpa.value === 'Unavailable' ? 'unavailable' : 'resolved'}
+          sub={cgpaNote}
+        />
+        <Metric
+          label="Latest SGPA"
+          value={latest === null ? 'Unavailable' : formatGpa(latest.sgpa)}
+          state={latest === null ? 'unavailable' : 'resolved'}
+          sub={
+            latest !== null
+              ? `Semester ${String(latest.semester)}`
+              : (stats.latestSgpa.reason ?? undefined)
+          }
+        />
+        <Metric
+          label="Credits earned"
+          value={credits.value}
+          state={credits.value === 'Unavailable' ? 'unavailable' : 'resolved'}
+          sub={credits.note}
+        />
+        <Metric
+          label="Backlogs"
+          value={backlogs.value}
+          state={backlogs.value === 'Unavailable' ? 'unavailable' : 'resolved'}
+          emphasis={(stats.backlogs.value ?? 0) > 0 ? 'warning' : undefined}
+          sub={
+            backlogs.note ??
+            (stats.backlogs.value === 0 && stats.backlogsUndetermined === 0
+              ? 'All cleared'
+              : undefined)
+          }
+        />
+        <Metric
+          label="Attendance"
+          value={overall?.ok === true ? overall.value.percentage.toFixed(1) : 'Not recorded'}
+          unit={overall?.ok === true ? '%' : undefined}
+          state={overall?.ok === true ? 'resolved' : 'unavailable'}
+          emphasis={
+            overall?.ok === true && overall.value.status !== 'safe'
+              ? overall.value.status === 'dx_risk'
+                ? 'danger'
+                : 'warning'
+              : undefined
+          }
+          sub={
+            overall?.ok === true
+              ? short > 0
+                ? `${String(short)} below ${String(ruleSet.attendanceRequiredPct)}%`
+                : `Threshold ${String(ruleSet.attendanceRequiredPct)}%`
+              : 'No classes have been marked for this semester yet.'
+          }
+        />
+        <Metric
+          label="Semesters"
+          value={`${String(stats.semestersGraded.value ?? 0)}/8`}
+          sub={
+            stats.semestersCompleted.value !== null &&
             stats.semestersCompleted.value !== (stats.semestersGraded.value ?? 0)
-              ? { note: `${String(stats.semestersCompleted.value)} marked complete` }
-              : {}),
-          },
-        ]}
-      />
-      {/*
-        Said only when it is true and useful. A student with results but no
-        usable ones needs to know WHY the figures are blank rather than being
-        left with four em dashes and no explanation.
-      */}
-      {/*
-        THE REASON, NOT A GUESS AT IT. This used to say "a grade letter may not
-        be one the 2022 scheme uses", which was one possible cause stated as
-        though it were the finding. The derived state knows the actual reason
-        for each semester, so it says that instead (17).
-      */}
+              ? `${String(stats.semestersCompleted.value)} marked complete`
+              : 'Graded'
+          }
+        />
+      </MetricGrid>
+
       {stats.hasAnyResult && stats.semestersGraded.value === 0 && (
-        <Empty action={<Link to="/results">Check your results</Link>}>
+        <Callout
+          tone="warning"
+          className="mt-3"
+          action={
+            <Button asChild size="sm">
+              <Link to="/results">Check your results</Link>
+            </Button>
+          }
+        >
           {stats.dataQuality.notes[0] ??
             'Your saved results could not be graded yet. Open Results to see what each one needs.'}
-        </Empty>
+        </Callout>
       )}
       {!stats.hasAnyResult && (
-        <Empty action={<Link to="/results">Add a result</Link>}>
+        <Callout
+          className="mt-3"
+          action={
+            <Button asChild size="sm" variant="primary">
+              <Link to="/import">Add a result</Link>
+            </Button>
+          }
+        >
           No results yet, so there is no CGPA to show.
-        </Empty>
+        </Callout>
       )}
-
-      {/*
-        The trend is shown only once there are at least two graded semesters.
-        A "trend" through a single point is a dot, and dressing one reading up
-        as a direction is exactly the invented insight docs/37 forbids.
-      */}
-      {(stats.semestersGraded.value ?? 0) >= 2 && (
-        /*
-          TWO CHARTS SIDE BY SIDE, as the design lays the row out: the shape of
-          the degree beside what it is made of. The distribution is the shared
-          component the SGPA & CGPA page uses — one chart, two screens.
-        */
-        <div className={styles.charts}>
-          {/*
-            ON A CARD, not loose on the canvas. These were `material="quiet"`,
-            which drops the surface and keeps a hairline — right for a plain
-            list, wrong here: the design puts each chart in a raised card with
-            its own border, which is what separates the plot area from the page
-            behind it. A chart drawn straight onto the canvas has no edge, so
-            its gridlines read as page furniture.
-          */}
-          <Panel title="SGPA by semester">
-            <SgpaTrend points={trendPoints} />
-            <p className={styles.chartLegend}>
-              <span data-series="sgpa" />
-              SGPA per semester
-              <span data-series="cgpa" />
-              CGPA so far
-            </p>
-          </Panel>
-          {stats.grades.total > 0 && (
-            <Panel title="Grade distribution">
-              <GradeDistributionRows grades={stats.grades} />
-              <p className={styles.chartNote}>
-                {formatCount(stats.outcomes.passed, 'course')} passed across{' '}
-                {formatCount(stats.semestersGraded.value ?? 0, 'graded semester')}.
-              </p>
-            </Panel>
-          )}
-        </div>
-      )}
-    </>
+    </section>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* The semester rail                                                          */
-/* -------------------------------------------------------------------------- */
+/* ------------------------------------------------------------ Attention */
 
-/**
- * Eight semesters as the reference's pastel cards.
- *
- * REAL DATA ONLY. A semester shows the SGPA it actually has and the progress
- * its own record reports; one with nothing saved says so rather than being
- * given an invented percentage to make the row look fuller.
- */
-/* -------------------------------------------------------------------------- */
-/* Today                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The day's classes, as a timeline.
- *
- * The time leads because that is what a student scans for. The subject NAME is
- * shown, not only its code — `BCS502` means nothing at a glance and
- * "Computer Networks" means everything (M9.3 §12).
- */
-function Today({
-  timetable,
-  subjects,
-  holiday,
-  marks,
-}: {
-  readonly timetable: readonly TimetableSlot[];
-  readonly subjects: readonly SemesterSubject[];
-  /** The calendar's own holiday covering today, where it printed one (§18). */
-  readonly holiday: CalendarEvent | null;
-  /** What the student has already answered for today's classes (M10A.11 §35). */
-  readonly marks: readonly ClassMark[];
-}) {
-  const day = todayWeekday();
-  const slots = timetable
-    .filter((slot) => slot.day === day)
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
-
-  /*
-   * The next class that has not finished yet. Compared as "HH:MM" strings,
-   * which sort correctly because the format is zero-padded and 24-hour — no
-   * date arithmetic, and no timezone to get wrong.
-   *
-   * `undefined` once the day is over, and then nothing is highlighted, which is
-   * the honest answer at 9pm.
-   */
-  const now = new Date();
-  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const nextSlot = slots.find((slot) => slot.endTime > clock);
-
-  return (
-    <Panel
-      title={`Today · ${day}`}
-      icon="clock"
-      flush
-      action={
-        <Link className={styles.quietLink} to="/timetable">
-          Full week
-        </Link>
-      }
-    >
-      {holiday !== null ? (
-        /*
-         * THE CALENDAR SAID SO, and nothing else did. This appears only for a
-         * row the document printed and the parser categorised as a holiday —
-         * no inference from the day of the week, and no guess from a gap
-         * between events (§18). The week's classes are unchanged; today simply
-         * is not one of the days they happen.
-         */
-        <Empty>{holiday.title} — no classes today. From your academic calendar.</Empty>
-      ) : slots.length === 0 ? (
-        <Empty action={<Link to="/timetable">Add your timetable</Link>}>
-          Nothing scheduled today.
-        </Empty>
-      ) : (
-        <Rows>
-          {slots.map((slot) => {
-            /*
-             * Through `timetableEntry`, which knows that an hour the timetable
-             * schedules without a course shows the name the document printed
-             * and nothing beside it.
-             */
-            const entry = timetableEntry(
-              slot,
-              slot.subjectCode === null ? null : nameFor(slot.subjectCode, subjects),
-            );
-            /*
-             * WHAT DID I MARK? (§35). Read-only here: the actions live on the
-             * timetable's Today, and answering the same question twice in two
-             * places is how the two come to disagree.
-             */
-            const marked = markFor(marks, localDay(), slot.id);
-            return (
-              <Row
-                key={slot.id}
-                lead={formatTime(slot.startTime)}
-                title={entry.name}
-                meta={entry.detail ?? undefined}
-                trailing={
-                  [slot.room, marked === null ? null : marked.outcome]
-                    .filter(Boolean)
-                    .join(' · ') || undefined
-                }
-                current={slot.id === nextSlot?.id}
-              />
-            );
-          })}
-        </Rows>
-      )}
-    </Panel>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* The next thing the calendar says                                           */
-/* -------------------------------------------------------------------------- */
-
-/**
- * ONE upcoming date from the imported academic calendar.
- *
- * One, not ten (M10A.7 §32, §54). The student already has a calendar; what the
- * dashboard can add is the next thing on it. A list of every date would be a
- * worse copy of the document they uploaded.
- *
- * RENDERS NOTHING WHEN THERE IS NOTHING — no calendar imported, or every date
- * on it already past. A panel that says "no upcoming dates" trains people to
- * stop reading the region, exactly as `Attention` explains.
- *
- * The countdown is computed here and stored nowhere: "in 3 days" is true for
- * one day, and a saved copy would be wrong by morning (§22).
- */
-function NextDate({
-  calendars,
-  conflicts,
-}: {
-  readonly calendars: readonly SavedCalendar[];
-  readonly conflicts: readonly CalendarConflict[];
-}) {
-  const today = new Date().toISOString().slice(0, 10);
-  /*
-   * ONLY THE CALENDARS IN FORCE. Reading every saved one meant a calendar a
-   * later revision had replaced kept producing events, so a student who
-   * imported a corrected calendar was still shown the old date beside the new
-   * one with nothing to say which was which (M10A.10 §13, §45).
-   */
-  /* Already narrowed to the calendars in force by the page (§13, §45). */
-  const events = calendars.flatMap((calendar) => calendar.events);
-  const next = nextEvent(events, today);
-  if (next === null && conflicts.length === 0) return null;
-
-  const days = next === null ? 0 : daysUntil(next, today);
-  const when =
-    days > 1
-      ? `in ${String(days)} days`
-      : days === 1
-        ? 'tomorrow'
-        : days === 0
-          ? 'today'
-          : 'under way';
-
-  return (
-    <Panel title="Next on the calendar" icon="timetable" flush>
-      {conflicts.length > 0 && (
-        /*
-         * SHOWN, NEVER RESOLVED. Two calendars for one term disagree about a
-         * date, and a reissue and a wrong upload look identical from here — so
-         * the student is told rather than quietly given one of the two (§12).
-         */
-        <div className={styles.conflict}>
-          <strong>Two calendars for this term disagree.</strong>{' '}
-          {conflicts.flatMap((conflict) => conflict.differences).join('; ')}
-        </div>
-      )}
-      {next !== null && (
-        <Rows>
-          <Row
-            title={next.title}
-            meta={
-              next.endDate === null
-                ? formatDay(next.startDate)
-                : `${formatDay(next.startDate)} – ${formatDay(next.endDate)}`
-            }
-            trailing={when}
-          />
-        </Rows>
-      )}
-    </Panel>
-  );
-}
-
-/** `2026-09-07` as `7 Sep`. The year is noise when the date is weeks away. */
-function formatDay(iso: string): string {
-  const date = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-}
-
-/* -------------------------------------------------------------------------- */
-/* Attention                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The things that need doing something about.
- *
- * RENDERS NOTHING WHEN THERE IS NOTHING. A section headed "Attention" that says
- * "all clear" is a section that trains students to ignore the heading, so on a
- * good week this simply is not on the page (M9.3 §14).
- *
- * Which subjects are short is decided by the rules engine, never by a threshold
- * written in this file.
- */
 function Attention({
   attendance,
   subjects,
@@ -793,11 +437,6 @@ function Attention({
   readonly subjects: readonly SemesterSubject[];
   readonly backlogs: readonly BacklogRecord[];
 }) {
-  /*
-   * Which subjects are short is the rules engine's verdict, never a threshold
-   * written here. `dx_risk` outranks `below_requirement`, and both sort worst
-   * first so the subject in most trouble leads (M9.3 §44).
-   */
   const short = attendance
     .flatMap((record) => {
       const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
@@ -805,101 +444,291 @@ function Attention({
       return [{ record, verdict: verdict.value }];
     })
     .sort((a, b) => a.verdict.percentage - b.verdict.percentage);
-
   const outstanding = backlogs.filter((backlog) => backlog.status !== 'cleared');
-
-  if (short.length === 0 && outstanding.length === 0) return null;
+  const count = short.length + outstanding.length;
 
   return (
-    <Panel
-      title="Needs attention"
-      icon="warning"
-      tone="attention"
-      flush
-      action={
-        short.length > 0 ? (
-          <Link className={styles.quietLink} to="/attendance">
-            All subjects
-          </Link>
-        ) : undefined
-      }
-    >
-      <Rows>
-        {short.map(({ record, verdict }) => {
-          const title = nameFor(record.subjectCode, subjects);
-          return (
-            <Row
-              key={record.id}
-              title={title ?? record.subjectCode}
-              meta={
-                <>
-                  {title === null ? '' : `${record.subjectCode} · `}
-                  {record.attended}/{record.conducted} classes
-                </>
-              }
-              trailing={
-                <span className={styles.attendanceCell}>
-                  <span data-tone={verdict.status === 'dx_risk' ? 'danger' : 'warning'}>
+    <Card className="overflow-hidden">
+      <CardHeader
+        icon={
+          <AlertTriangle className={count > 0 ? 'text-warning' : 'text-ink-2'} aria-hidden="true" />
+        }
+        title="Needs attention"
+        action={<Badge tone={count > 0 ? 'warning' : 'success'}>{count}</Badge>}
+      />
+      {count === 0 ? (
+        <EmptyState
+          compact
+          icon={<AlertTriangle />}
+          title="Nothing needs attention"
+          description="No subject is below the attendance requirement and no backlog is outstanding."
+        />
+      ) : (
+        <CardRows>
+          {short.map(({ record, verdict }) => {
+            const title = nameFor(record.subjectCode, subjects);
+            const danger = verdict.status === 'dx_risk';
+            return (
+              <Row key={record.id} asChild>
+                <Link to="/attendance">
+                  <Dot tone={danger ? 'danger' : 'warning'} />
+                  <RowText
+                    title={title ?? record.subjectCode}
+                    meta={`${title === null ? '' : `${record.subjectCode} · `}${String(record.attended)}/${String(record.conducted)} classes`}
+                  />
+                  <span
+                    className={cn(
+                      'tnum text-sm font-semibold',
+                      danger ? 'text-danger' : 'text-warning',
+                    )}
+                  >
                     {formatPercent(verdict.percentage)}
                   </span>
-                  <Bar
-                    value={verdict.percentage}
-                    tone={verdict.status === 'dx_risk' ? 'danger' : 'warning'}
-                    label={title ?? record.subjectCode}
-                  />
-                </span>
-              }
-            />
-          );
-        })}
-        {outstanding.map((backlog) => (
-          <Row
-            key={backlog.id}
-            title={backlog.subjectTitle}
-            meta={`${backlog.subjectCode} · from semester ${String(backlog.originSemester)}`}
-            trailing="Backlog"
-          />
-        ))}
-      </Rows>
-    </Panel>
+                  <ChevronRight className="size-4 text-ink-3" aria-hidden="true" />
+                </Link>
+              </Row>
+            );
+          })}
+          {outstanding.map((backlog) => (
+            <Row key={backlog.id} asChild>
+              <Link to="/semesters">
+                <Dot tone="danger" />
+                <RowText
+                  title={backlog.subjectTitle}
+                  meta={`${backlog.subjectCode} · from semester ${String(backlog.originSemester)}`}
+                />
+                <Badge tone="danger">Backlog</Badge>
+                <ChevronRight className="size-4 text-ink-3" aria-hidden="true" />
+              </Link>
+            </Row>
+          ))}
+        </CardRows>
+      )}
+    </Card>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Resources                                                                  */
-/* -------------------------------------------------------------------------- */
+/* ----------------------------------------------------------------- Today */
 
-/**
- * Where to go next.
- *
- * Links, not a feature-card row (M9.3 §16). These are destinations a student
- * already knows exist; they need a way in, not an advertisement.
- */
-function Resources() {
+function Today({
+  timetable,
+  subjects,
+  holiday,
+  marks,
+}: {
+  readonly timetable: readonly TimetableSlot[];
+  readonly subjects: readonly SemesterSubject[];
+  readonly holiday: CalendarEvent | null;
+  readonly marks: readonly ClassMark[];
+}) {
+  const day = todayWeekday();
+  const slots = timetable
+    .filter((slot) => slot.day === day)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const now = new Date();
+  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const nextSlot = slots.find((slot) => slot.endTime > clock);
+
   return (
-    /* Navigation, not an owned group — quiet, so the elevated surfaces on
-       this page stay meaningful (M9.6C §7). */
-    <Panel title="Go to" icon="compass" flush>
-      <nav className={styles.resources} aria-label="Other areas">
-        {/*
-          IMPORT LEADS, because giving GradTools a document is the primary way
-          to get information in and typing it is the fallback (M10A.9 §1, §15).
-          It is a row in a quiet list rather than a banner: the dashboard
-          answers "where am I", and an upload portal would answer a question
-          nobody opened it to ask (§12).
-        */}
-        <Link to="/import">Add academic document</Link>
-        {/*
-          Question papers is no longer a product feature and is no longer
-          offered here. It was the FIRST link on this list, which made the one
-          scrapped area the most prominent thing a student was pointed at. The
-          route still exists; nothing advertises it.
-        */}
-        <Link to="/results">Results</Link>
-        <Link to="/academics">SGPA &amp; CGPA</Link>
-        <Link to="/attendance">Attendance</Link>
-        <Link to="/semesters">My degree</Link>
-      </nav>
-    </Panel>
+    <Card className="overflow-hidden">
+      <CardHeader
+        icon={<Clock className="text-ink-2" aria-hidden="true" />}
+        title={`Today · ${day}`}
+        action={
+          <Link to="/timetable" className={headerActionClass}>
+            Full week
+          </Link>
+        }
+      />
+      {holiday !== null ? (
+        <EmptyState
+          compact
+          icon={<CalendarRange />}
+          title={`${holiday.title} — no classes today`}
+          description="From your academic calendar."
+        />
+      ) : slots.length === 0 ? (
+        <EmptyState
+          compact
+          icon={<Clock />}
+          title="Nothing scheduled today."
+          actions={
+            <Button asChild size="sm">
+              <Link to="/timetable">Add your timetable</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <CardRows
+          tabIndex={0}
+          role="region"
+          aria-label={`Classes on ${day}`}
+          className="max-h-[248px] overflow-y-auto scroll-quiet focus-visible:outline-offset-[-2px]"
+        >
+          {slots.map((slot) => {
+            const entry = timetableEntry(
+              slot,
+              slot.subjectCode === null ? null : nameFor(slot.subjectCode, subjects),
+            );
+            const marked = markFor(marks, localDay(), slot.id);
+            const isNext = slot.id === nextSlot?.id;
+            return (
+              <Row
+                key={slot.id}
+                aria-current={isNext ? 'true' : undefined}
+                className={cn(isNext && 'bg-accent-weak/40')}
+              >
+                <span className="w-14 shrink-0 font-mono text-[11px] text-ink-3 tabular-nums">
+                  {formatTime(slot.startTime)}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'h-8 w-[3px] shrink-0 rounded-full',
+                    entry.isCourse ? 'bg-accent' : 'bg-line-strong',
+                  )}
+                />
+                <RowText
+                  title={entry.name}
+                  meta={[entry.detail, slot.room].filter(Boolean).join(' · ') || undefined}
+                />
+                {marked !== null && (
+                  <Badge tone={marked.outcome === 'attended' ? 'success' : 'warning'}>
+                    {marked.outcome === 'attended' ? 'Attended' : 'Missed'}
+                  </Badge>
+                )}
+                {isNext && marked === null && <Badge tone="accent">Next</Badge>}
+              </Row>
+            );
+          })}
+        </CardRows>
+      )}
+    </Card>
+  );
+}
+
+/* ---------------------------------------------------------- What changed */
+
+function WhatChanged() {
+  const { items, loading, error, reload } = useAnnouncements();
+  const { notifications } = useNotifications(items);
+  const shown = notifications.filter((item) => item.state !== 'dismissed').slice(0, 4);
+  const now = Date.now();
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader
+        icon={<Activity className="text-ink-2" aria-hidden="true" />}
+        title="What changed"
+        action={
+          <Link to="/notifications" className={headerActionClass}>
+            All
+          </Link>
+        }
+      />
+      {loading ? (
+        <RowsSkeleton rows={3} label="Loading notices" />
+      ) : error !== null ? (
+        <EmptyState
+          compact
+          icon={<Activity />}
+          title="Notices are unavailable"
+          description={error}
+          actions={
+            <Button size="sm" onClick={reload}>
+              Try again
+            </Button>
+          }
+        />
+      ) : shown.length === 0 ? (
+        <EmptyState
+          compact
+          icon={<Activity />}
+          title="Nothing new"
+          description="Verified notices will appear here."
+        />
+      ) : (
+        <CardRows>
+          {shown.map((item) => (
+            <Row key={item.announcement.id} asChild className="items-start">
+              <Link to="/announcements">
+                <Dot
+                  tone="accent"
+                  hollow={item.state !== 'unread'}
+                  className="mt-1.5"
+                  {...(item.state === 'unread' ? { label: 'Unread' } : {})}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] leading-snug font-medium">
+                    {item.announcement.title}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-ink-3">
+                    {CATEGORY_LABEL[item.announcement.category]} ·{' '}
+                    {relativeTime(item.announcement.updatedAt, now)}
+                  </span>
+                </span>
+              </Link>
+            </Row>
+          ))}
+        </CardRows>
+      )}
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------- Next date */
+
+function formatDay(iso: string): string {
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+function NextDate({
+  calendars,
+  conflicts,
+}: {
+  readonly calendars: readonly SavedCalendar[];
+  readonly conflicts: readonly CalendarConflict[];
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const next = nextEvent(
+    calendars.flatMap((calendar) => calendar.events),
+    today,
+  );
+  if (next === null && conflicts.length === 0) return null;
+  const days = next === null ? 0 : daysUntil(next, today);
+  const when =
+    days > 1
+      ? `in ${String(days)} days`
+      : days === 1
+        ? 'tomorrow'
+        : days === 0
+          ? 'today'
+          : 'under way';
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader
+        icon={<CalendarRange className="text-ink-2" aria-hidden="true" />}
+        title="Next on the calendar"
+      />
+      {conflicts.length > 0 && (
+        <Callout tone="warning" className="m-4" title="Two calendars for this term disagree.">
+          {conflicts.flatMap((conflict) => conflict.differences).join('; ')}
+        </Callout>
+      )}
+      {next !== null && (
+        <Row>
+          <RowText
+            title={next.title}
+            meta={
+              next.endDate === null
+                ? formatDay(next.startDate)
+                : `${formatDay(next.startDate)} – ${formatDay(next.endDate)}`
+            }
+          />
+          <Badge tone="schedule">{when}</Badge>
+        </Row>
+      )}
+    </Card>
   );
 }
