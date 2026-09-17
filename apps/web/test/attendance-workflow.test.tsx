@@ -89,15 +89,22 @@ function slot(subjectCode: string): TimetableSlot {
   };
 }
 
+/** A course row records a class through its ⋯ menu. */
+async function recordClass(outcome: 'attended' | 'missed'): Promise<void> {
+  await userEvent.click(await screen.findByRole('button', { name: /record a class for/i }));
+  await userEvent.click(
+    await screen.findByRole('menuitem', { name: new RegExp(`mark a class ${outcome}`, 'i') }),
+  );
+}
+
 describe('recording a class from the attendance page', () => {
   it('raises both counts when the class was attended', async () => {
-    const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories({
       attendance: [attendance('BCS501', 30, 40)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
 
-    await user.click(await screen.findByRole('button', { name: /mark a class attended/i }));
+    await recordClass('attended');
 
     expect(peek.attendance()[0]).toMatchObject({ attended: 31, conducted: 41 });
   });
@@ -105,13 +112,12 @@ describe('recording a class from the attendance page', () => {
   it('raises only the classes held when it was missed', async () => {
     // A missed class still HAPPENED. Leaving `conducted` alone would quietly
     // preserve the percentage, which treats attendance as a score.
-    const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories({
       attendance: [attendance('BCS501', 30, 40)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
 
-    await user.click(await screen.findByRole('button', { name: /mark a class missed/i }));
+    await recordClass('missed');
 
     expect(peek.attendance()[0]).toMatchObject({ attended: 30, conducted: 41 });
   });
@@ -128,7 +134,7 @@ describe('recording a class from the attendance page', () => {
     });
     renderWith(<AttendancePage />, { repositories: bundle });
 
-    await user.click(await screen.findByRole('button', { name: /mark a class attended/i }));
+    await recordClass('attended');
     expect(peek.attendance()[0]).toMatchObject({ attended: 31, conducted: 41 });
 
     await user.click(await screen.findByRole('button', { name: /^undo$/i }));
@@ -138,12 +144,11 @@ describe('recording a class from the attendance page', () => {
   it('updates the figure the student came to read', async () => {
     // 30 of 40 is 75%; 31 of 41 is above it. The percentage comes from the
     // rules engine, so the row and the marking cannot disagree.
-    const user = userEvent.setup();
     const { bundle } = createMemoryRepositories({ attendance: [attendance('BCS501', 30, 40)] });
     renderWith(<AttendancePage />, { repositories: bundle });
 
     expect((await screen.findAllByText('75.0%')).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('button', { name: /mark a class attended/i }));
+    await recordClass('attended');
     expect(screen.queryByText('75.0%')).toBeNull();
     // 31 of 41 is 75.6%, still from calculateAttendance rather than from here.
     expect(screen.getAllByText('75.6%').length).toBeGreaterThan(0);
@@ -158,7 +163,7 @@ describe('recording a class from the attendance page', () => {
  * student is looking at is one click; every guarantee below is unchanged.
  */
 async function openToday(): Promise<void> {
-  await userEvent.click(await screen.findByRole('tab', { name: /^day/i }));
+  await userEvent.click(await screen.findByRole('radio', { name: /^day$/i }));
 }
 
 describe("recording a class from today's timetable", () => {
@@ -446,7 +451,10 @@ describe('which timetable am I looking at', () => {
     renderWith(<TimetablePage />, { repositories: bundle });
     await openToday();
 
-    expect(await screen.findByText(/5 SEM CSE A · R2 · from 15 Jul 2026/)).toBeTruthy();
+    // Class, revision and start date, each as its own label.
+    expect(await screen.findByText('5 SEM CSE A')).toBeTruthy();
+    expect(screen.getByText('R2')).toBeTruthy();
+    expect(screen.getByText('from 15 Jul 2026')).toBeTruthy();
   });
 
   it('says so when a later revision is also stored', async () => {
@@ -557,7 +565,7 @@ describe('what did I mark, seen from the dashboard', () => {
     });
     renderWith(<DashboardPage />, { repositories: bundle });
 
-    expect(await screen.findByText(/attended/)).toBeTruthy();
+    expect(await screen.findByText(/^attended$/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /mark BCS501 attended/i })).toBeNull();
   });
 });

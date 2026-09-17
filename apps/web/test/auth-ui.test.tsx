@@ -137,7 +137,7 @@ describe('the sign-in screen', () => {
     const adapter = fakeAdapter();
     renderAuth(<SignInPage />, adapter);
 
-    await userEvent.click(await screen.findByRole('button', { name: /Forgotten your password/ }));
+    await userEvent.click(await screen.findByRole('radio', { name: 'Recover' }));
     await userEvent.type(screen.getByLabelText('Email'), 'nobody@example.test');
     await userEvent.click(screen.getByRole('button', { name: 'Recover your account' }));
 
@@ -148,7 +148,7 @@ describe('the sign-in screen', () => {
 
   it('asks for a new password when creating an account', async () => {
     renderAuth(<SignInPage />, fakeAdapter());
-    await userEvent.click(await screen.findByRole('button', { name: 'Create an account' }));
+    await userEvent.click(await screen.findByRole('radio', { name: 'Create' }));
 
     const password = screen.getByLabelText('Password');
     expect(password.getAttribute('autocomplete')).toBe('new-password');
@@ -189,7 +189,7 @@ describe('the account screen', () => {
    */
   it('says signing out keeps local records', async () => {
     renderAuth(<AccountPage />, fakeAdapter(identity));
-    await openSection(/^Session$/);
+    // Signing out lives in the default section, beside who is signed in.
     const text = await screen.findByText(/records saved on this device stay here/i);
     expect(text).toBeTruthy();
   });
@@ -198,7 +198,7 @@ describe('the account screen', () => {
   it('requires a confirmation before deleting an account', async () => {
     renderAuth(<AccountPage />, fakeAdapter(identity));
 
-    await openSection(/^Delete account$/);
+    await openSection(/^Data & privacy$/);
     await userEvent.click(await screen.findByRole('button', { name: 'Delete my account' }));
 
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
@@ -207,13 +207,13 @@ describe('the account screen', () => {
 
   it('says deletion leaves the device copy alone', async () => {
     renderAuth(<AccountPage />, fakeAdapter(identity));
-    await openSection(/^Delete account$/);
+    await openSection(/^Data & privacy$/);
     expect(await screen.findByText(/copy on this device is not deleted/i)).toBeTruthy();
   });
 
   it('offers an export of the student’s own data', async () => {
     renderAuth(<AccountPage />, fakeAdapter(identity));
-    await openSection(/^Your data$/);
+    await openSection(/^Data & privacy$/);
     expect(await screen.findByRole('button', { name: 'Download my data' })).toBeTruthy();
     expect(screen.getByText(/nobody else/i)).toBeTruthy();
   });
@@ -300,7 +300,6 @@ describe('two accounts on one browser', () => {
 
     const adapter = fakeAdapter({ userId: 'user-a', email: null, provider: 'email' });
     renderAuth(<AccountPage />, adapter);
-    await userEvent.click(await screen.findByRole('button', { name: /^Session$/ }));
     await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
 
     await waitFor(() => {

@@ -22,7 +22,7 @@ import type {
   SemesterResult,
   SemesterStatus,
 } from '../src/domain/types.js';
-import { createMemoryRepositories, renderWith } from './helpers.js';
+import { choose, createMemoryRepositories, renderWith } from './helpers.js';
 
 const profileId = asStudentProfileId('11111111-1111-1111-1111-111111111111');
 
@@ -87,7 +87,9 @@ describe('the degree screen', () => {
     // option, and the card's label carries the state as well as the number.
     expect(await screen.findByRole('button', { name: /^Semester 1,/ })).toBeTruthy();
     for (const number of [2, 3, 4, 5, 6, 7, 8]) {
-      expect(screen.getByRole('button', { name: new RegExp(`^Semester ${String(number)},`) })).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: new RegExp(`^Semester ${String(number)},`) }),
+      ).toBeTruthy();
     }
   });
 
@@ -119,9 +121,7 @@ describe('the degree screen', () => {
      * exactly one semester carries each lifecycle state.
      */
     await screen.findByRole('button', { name: /^Semester 1,/ });
-    const panel = screen
-      .getByRole('heading', { name: 'Semester progression' })
-      .closest('section');
+    const panel = screen.getByRole('heading', { name: 'Semester progression' }).closest('section');
     expect(panel).not.toBeNull();
 
     const pills = (label: string) =>
@@ -139,8 +139,8 @@ describe('the degree screen', () => {
     renderWith(<SemestersPage />, { repositories: bundle });
 
     await openSemester(5);
-    const select = await screen.findByLabelText('Semester 5 status');
-    await userEvent.selectOptions(select, 'in_progress');
+    await screen.findByRole('combobox', { name: 'Semester 5 status' });
+    await choose('Semester 5 status', 'In progress');
 
     await waitFor(() => {
       expect(peek.semesters().find((s) => s.number === 5)?.status).toBe('in_progress');
@@ -153,7 +153,8 @@ describe('the degree screen', () => {
     renderWith(<SemestersPage />, { repositories: bundle });
 
     await openSemester(5);
-    await userEvent.selectOptions(await screen.findByLabelText('Semester 5 status'), 'in_progress');
+    await screen.findByRole('combobox', { name: 'Semester 5 status' });
+    await choose('Semester 5 status', 'In progress');
 
     await waitFor(() => {
       expect(peek.semesters().find((s) => s.number === 4)?.status).toBe('planned');
@@ -296,7 +297,8 @@ describe('backlogs', () => {
     const { bundle, peek } = createMemoryRepositories({ backlogs: [backlog] });
     renderWith(<SemestersPage />, { repositories: bundle });
 
-    await userEvent.selectOptions(await screen.findByLabelText('Status for BCS301'), 'attempted');
+    await screen.findByRole('combobox', { name: 'Status for BCS301' });
+    await choose('Status for BCS301', 'Sat, awaiting result');
 
     await waitFor(() => {
       expect(peek.backlogs()[0]?.status).toBe('attempted');
@@ -399,7 +401,8 @@ describe('persistence', () => {
     const first = renderWith(<SemestersPage />, { repositories: bundle });
 
     await openSemester(5);
-    await userEvent.selectOptions(await screen.findByLabelText('Semester 5 status'), 'in_progress');
+    await screen.findByRole('combobox', { name: 'Semester 5 status' });
+    await choose('Semester 5 status', 'In progress');
     await waitFor(() => {
       expect(peek.semesters().length).toBe(1);
     });
@@ -494,8 +497,11 @@ describe('current semester on the dashboard', () => {
      * Scoped to the snapshot strip: the attendance list further down shows the
      * same figure per subject, so an unscoped match would prove nothing.
      */
-    const strip = document.querySelector('dl') as HTMLElement;
-    expect(within(strip).getByText('86.0%')).toBeTruthy();
+    const strip = (await screen.findByRole('group', { name: 'Attendance' }))
+      .parentElement as HTMLElement;
+    expect(within(strip).getByRole('group', { name: 'Attendance' }).textContent).toMatch(
+      /86\.0\s*%/,
+    );
     /*
      * The strip carries the six figures the approved design lays out, and
      * "Subjects" is not among them — it lives on My degree, where the subject
@@ -521,7 +527,8 @@ describe('current semester on the dashboard', () => {
      * the semester, not which element does it.
      */
     expect((await screen.findAllByText(/Semester 5/)).length).toBeGreaterThan(0);
-    const strip = document.querySelector('dl') as HTMLElement;
+    const strip = (await screen.findByRole('group', { name: 'Attendance' }))
+      .parentElement as HTMLElement;
 
     /*
      * The only SGPA on the snapshot is labelled as a PAST semester's. With no
@@ -535,7 +542,7 @@ describe('current semester on the dashboard', () => {
     expect(within(strip).getByText('Latest SGPA')).toBeTruthy();
     expect(within(strip).queryByText('Current SGPA')).toBeNull();
 
-    const lastSgpa = within(strip).getByText('Latest SGPA').closest('div');
+    const lastSgpa = within(strip).getByRole('group', { name: 'Latest SGPA' });
     expect(lastSgpa?.textContent ?? '').toMatch(/Unavailable/);
     expect(lastSgpa?.textContent ?? '').not.toMatch(/\d\.\d\d/);
   });
