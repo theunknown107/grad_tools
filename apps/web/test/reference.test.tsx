@@ -291,6 +291,8 @@ describe('student data stays local', () => {
     await user.type(screen.getByLabelText(/^conducted$/i), '50');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
 
+    /* The per-course figures sit behind their own tab; Today is the default. */
+    await user.click(await screen.findByRole('radio', { name: /^courses$/i }));
     await screen.findAllByText('90.0%');
 
     // It was stored locally...
