@@ -30,7 +30,8 @@ import { Dot, Row, RowText, SectionTitle } from '../../components/ui/page.js';
 import { Progress } from '../../components/ui/progress.js';
 import { PageSkeleton, RowsSkeleton } from '../../components/ui/skeleton.js';
 import { currentSemester } from '../../domain/academics.js';
-import { markFor } from '../../domain/attendance.js';
+import { effectiveState, occurrenceFor, statusOf } from '../../domain/attendance.js';
+import { slotClassId } from '../../domain/timetable-identity.js';
 import {
   activeCalendars,
   calendarConflicts,
@@ -47,7 +48,8 @@ import {
   WEEKDAYS,
   type AttendanceRecord,
   type BacklogRecord,
-  type ClassMark,
+  type DayOverride,
+  type LedgerEntry,
   type SemesterSubject,
   type TimetableSlot,
   type Weekday,
@@ -57,13 +59,14 @@ import { useAnnouncements, useNotifications } from '../../hooks/useAnnouncements
 import { CATEGORY_LABEL } from '../announcements/AnnouncementCard.js';
 import {
   useAttendance,
+  useAttendanceLedger,
   useBacklogs,
   useCalendars,
-  useClassMarks,
   useProfile,
   useResults,
   useSemesterSubjects,
   useTimetable,
+  useTimetableOverrides,
 } from '../../hooks/useCollection.js';
 import { cn } from '../../lib/cn.js';
 import {
@@ -116,7 +119,8 @@ export function DashboardPage() {
   const { items: attendance, loading: attendanceLoading } = useAttendance();
   const { loading: resultsLoading } = useResults();
   const { items: timetable, loading: timetableLoading } = useTimetable();
-  const { items: marks } = useClassMarks();
+  const { items: ledger } = useAttendanceLedger();
+  const { items: overrides } = useTimetableOverrides();
   const { items: semesterSubjects } = useSemesterSubjects();
   const { items: backlogs } = useBacklogs();
   const { items: calendars } = useCalendars();
@@ -176,7 +180,13 @@ export function DashboardPage() {
 
       <section aria-label="Today" className="grid items-start gap-6 lg:grid-cols-3">
         <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
-        <Today timetable={timetable} subjects={semesterSubjects} holiday={holiday} marks={marks} />
+        <Today
+          timetable={timetable}
+          subjects={semesterSubjects}
+          holiday={holiday}
+          entries={ledger}
+          overrides={overrides}
+        />
         <WhatChanged />
         <NextDate calendars={inForce} conflicts={conflicts} />
       </section>
@@ -517,12 +527,14 @@ function Today({
   timetable,
   subjects,
   holiday,
-  marks,
+  entries,
+  overrides,
 }: {
   readonly timetable: readonly TimetableSlot[];
   readonly subjects: readonly SemesterSubject[];
   readonly holiday: CalendarEvent | null;
-  readonly marks: readonly ClassMark[];
+  readonly entries: readonly LedgerEntry[];
+  readonly overrides: readonly DayOverride[];
 }) {
   const day = todayWeekday();
   const slots = timetable
@@ -573,7 +585,17 @@ function Today({
               slot,
               slot.subjectCode === null ? null : nameFor(slot.subjectCode, subjects),
             );
-            const marked = markFor(marks, localDay(), slot.id);
+            /*
+             * What the student recorded, read from the LEDGER — the same row
+             * the figures are derived from, rather than the fortnightly guard
+             * `classMarks` used to be.
+             */
+            const date = localDay();
+            const classId = slotClassId(slot);
+            const marked = effectiveState(
+              occurrenceFor(entries, date, classId),
+              statusOf(overrides, date, classId),
+            );
             const isNext = slot.id === nextSlot?.id;
             return (
               <Row
@@ -595,12 +617,24 @@ function Today({
                   title={entry.name}
                   meta={[entry.detail, slot.room].filter(Boolean).join(' · ') || undefined}
                 />
-                {marked !== null && (
-                  <Badge tone={marked.outcome === 'attended' ? 'success' : 'warning'}>
-                    {marked.outcome === 'attended' ? 'Attended' : 'Missed'}
+                {marked !== 'unmarked' && (
+                  <Badge
+                    tone={
+                      marked === 'attended'
+                        ? 'success'
+                        : marked === 'missed'
+                          ? 'warning'
+                          : 'neutral'
+                    }
+                  >
+                    {marked === 'attended'
+                      ? 'Attended'
+                      : marked === 'missed'
+                        ? 'Missed'
+                        : 'Cancelled'}
                   </Badge>
                 )}
-                {isNext && marked === null && <Badge tone="accent">Next</Badge>}
+                {isNext && marked === 'unmarked' && <Badge tone="accent">Next</Badge>}
               </Row>
             );
           })}

@@ -53,7 +53,11 @@ export type StorageKey =
   | 'calendars'
   /** Which import produced the active timetable, and its revision (M10A.8). */
   | 'timetableImports'
-  /** What the student said happened to today's scheduled classes (M10A.11). */
+  /**
+   * LEGACY, READ ONCE. The pre-ledger duplicate guard (M10A.11). The v0 -> v1
+   * upgrade migrates whatever is here into the ledger and then deletes it;
+   * nothing in the app writes it any more.
+   */
   | 'classMarks'
   /** The attendance ledger: openings, class occurrences and adjustments (v1). */
   | 'attendanceLedger'

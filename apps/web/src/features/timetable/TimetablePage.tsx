@@ -31,6 +31,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/menu.js';
@@ -317,7 +318,8 @@ export function TimetablePage() {
                 onEdit={(slot) => setEditing(slot)}
                 onRemove={(slot) => {
                   void remove(slot.id);
-                  toast('Class removed', {
+                  toast('Class removed from every week', {
+                    description: 'Classes you already recorded for it are kept.',
                     action: { label: 'Undo', onClick: () => void save(slot) },
                   });
                 }}
@@ -624,21 +626,22 @@ function DayFocus({
                       </IconButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem
-                        icon={<Pencil />}
-                        label={`Edit ${label}`}
-                        onSelect={() => onEdit(slot)}
-                      >
-                        Edit
-                      </DropdownMenuItem>
+                      {/*
+                        WHICH ONE AM I CHANGING?
+                        Every item names its scope. "Today" was ambiguous — it
+                        reads as a time, not as which occurrence is affected —
+                        and a student who cancels one Tuesday must not find they
+                        have cancelled every Tuesday.
+                      */}
                       {onMark !== undefined && entry.isCourse && (
                         <>
+                          <DropdownMenuLabel>This date only</DropdownMenuLabel>
                           <DropdownMenuItem
                             icon={<Ban />}
                             label={
                               outcome === 'cancelled'
-                                ? `Restore ${label}`
-                                : `Mark ${label} cancelled today`
+                                ? `Restore ${label} for today`
+                                : `Cancel ${label} for today only`
                             }
                             onSelect={() =>
                               onMark(slot, outcome === 'cancelled' ? 'unmarked' : 'cancelled')
@@ -646,7 +649,7 @@ function DayFocus({
                           >
                             {outcome === 'cancelled'
                               ? 'Class was held after all'
-                              : 'Class cancelled'}
+                              : 'Cancel this class'}
                           </DropdownMenuItem>
                           {outcome !== 'unmarked' && outcome !== 'cancelled' && (
                             <DropdownMenuItem
@@ -660,13 +663,21 @@ function DayFocus({
                           <DropdownMenuSeparator />
                         </>
                       )}
+                      <DropdownMenuLabel>Every week</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        icon={<Pencil />}
+                        label={`Edit ${label} in every week`}
+                        onSelect={() => onEdit(slot)}
+                      >
+                        Edit this class
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         icon={<Trash2 />}
                         destructive
-                        label={`Remove ${label}`}
+                        label={`Remove ${label} from every week`}
                         onSelect={() => onRemove(slot)}
                       >
-                        Remove
+                        Remove from every week
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

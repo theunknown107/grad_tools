@@ -11,10 +11,30 @@
  * marking one would put an hour nobody taught into the denominator.
  */
 
-import { Ban, CalendarOff, Coffee, CircleAlert, Clock } from 'lucide-react';
+import {
+  Ban,
+  CalendarOff,
+  Coffee,
+  CircleAlert,
+  Clock,
+  Eraser,
+  MoreHorizontal,
+  Repeat,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react';
 import { Badge, type Tone } from '../../components/ui/badge.js';
+import { IconButton } from '../../components/ui/button.js';
 import { Card, CardHeader, CardRows } from '../../components/ui/card.js';
 import { Callout, EmptyState, toast } from '../../components/ui/feedback.js';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../components/ui/menu.js';
 import { Row } from '../../components/ui/page.js';
 import { effectiveDay, type EffectiveClass } from '../../domain/day-schedule.js';
 import { timetableEntry } from '../../domain/timetable-import.js';
@@ -53,6 +73,9 @@ export function DayView({
   showTiming = false,
   emptyTitle = 'Nothing scheduled',
   emptyDescription = 'There are no classes on your timetable for this day.',
+  onReplace,
+  onRestore,
+  onRemoveForDate,
 }: {
   readonly date: string;
   readonly time: string;
@@ -62,6 +85,10 @@ export function DayView({
   readonly showTiming?: boolean;
   readonly emptyTitle?: string;
   readonly emptyDescription?: string;
+  /* Supplied by the Date view. Every one of them changes THIS DATE only. */
+  readonly onReplace?: (entry: EffectiveClass) => void;
+  readonly onRestore?: (entry: EffectiveClass) => void;
+  readonly onRemoveForDate?: (entry: EffectiveClass) => void;
 }) {
   const classes = effectiveDay(date, slots, overrides);
 
@@ -94,7 +121,15 @@ export function DayView({
           {showTiming && <CardHeader title={TIMING_LABEL[group.timing]} />}
           <CardRows>
             {group.classes.map((entry) => (
-              <ClassRow key={entry.classId} entry={entry} date={date} titleFor={titleFor} />
+              <ClassRow
+                key={entry.classId}
+                entry={entry}
+                date={date}
+                titleFor={titleFor}
+                {...(onReplace === undefined ? {} : { onReplace })}
+                {...(onRestore === undefined ? {} : { onRestore })}
+                {...(onRemoveForDate === undefined ? {} : { onRemoveForDate })}
+              />
             ))}
           </CardRows>
         </Card>
@@ -107,10 +142,16 @@ function ClassRow({
   entry,
   date,
   titleFor,
+  onReplace,
+  onRestore,
+  onRemoveForDate,
 }: {
   readonly entry: EffectiveClass;
   readonly date: string;
   readonly titleFor: (code: string) => string | null;
+  readonly onReplace?: (entry: EffectiveClass) => void;
+  readonly onRestore?: (entry: EffectiveClass) => void;
+  readonly onRemoveForDate?: (entry: EffectiveClass) => void;
 }) {
   const { stateOf, set } = useMarkClass();
   const state = stateOf(date, entry.classId);
@@ -219,6 +260,73 @@ function ClassRow({
         <div className="w-full sm:w-auto">
           <AttendanceControl value={state} onChange={record} name={named.shortName} />
         </div>
+      )}
+
+      {onReplace !== undefined && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <IconButton size="sm" label={`More actions for ${named.shortName} on ${date}`}>
+              <MoreHorizontal />
+            </IconButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            {/*
+              SCOPED, AND SAYS SO. "Today" would be ambiguous — it reads as a
+              time rather than as which occurrence is being changed — so every
+              item here names the date it affects, and the recurring week is
+              edited on the timetable.
+            */}
+            <DropdownMenuLabel>This date only</DropdownMenuLabel>
+            {state !== 'unmarked' && state !== 'cancelled' && (
+              <DropdownMenuItem
+                icon={<Eraser />}
+                label={`Clear the mark on ${named.shortName}`}
+                onSelect={() => record('unmarked')}
+              >
+                Clear this mark
+              </DropdownMenuItem>
+            )}
+            {entry.status === 'scheduled' ? (
+              <DropdownMenuItem
+                icon={<Ban />}
+                label={`Cancel ${named.shortName} on this date`}
+                onSelect={() => record('cancelled')}
+              >
+                Cancel this class
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                icon={<RotateCcw />}
+                label={`Restore ${named.shortName} on this date`}
+                onSelect={() => onRestore?.(entry)}
+              >
+                Restore this class
+              </DropdownMenuItem>
+            )}
+            {entry.kind === 'course' && entry.status === 'scheduled' && (
+              <DropdownMenuItem
+                icon={<Repeat />}
+                label={`Replace ${named.shortName} on this date`}
+                onSelect={() => onReplace(entry)}
+              >
+                Replace with another class…
+              </DropdownMenuItem>
+            )}
+            {entry.status === 'scheduled' && onRemoveForDate !== undefined && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  icon={<Trash2 />}
+                  destructive
+                  label={`Remove ${named.shortName} from this date`}
+                  onSelect={() => onRemoveForDate(entry)}
+                >
+                  Remove from this date
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </Row>
   );

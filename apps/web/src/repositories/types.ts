@@ -38,7 +38,6 @@ import type { NotificationPreferences, NotificationRecord } from '../domain/noti
 import type {
   AttendanceRecord,
   BacklogRecord,
-  ClassMark,
   DayOverride,
   LedgerEntry,
   RemoteSnapshot,
@@ -173,20 +172,6 @@ export interface ExamEventRepository {
 }
 
 /**
- * What the student said happened to a scheduled class (M10A.11 §11-13).
- *
- * A GUARD, NOT A LEDGER. The attendance counts remain the only source of every
- * number; this exists so a class cannot be counted twice and a mis-tap can be
- * taken back, and it is pruned to a fortnight so it never becomes per-class
- * history the product has to keep true.
- */
-export interface ClassMarkRepository {
-  list(): Promise<ClassMark[]>;
-  upsert(mark: ClassMark): Promise<void>;
-  remove(id: string): Promise<void>;
-}
-
-/**
  * The attendance ledger: openings, per-class occurrences and adjustments.
  *
  * THE AUTHORITY, not a cache. `AttendanceRecord` is derived from this
@@ -195,7 +180,7 @@ export interface ClassMarkRepository {
  *
  * - a failed write THROWS rather than returning quietly. A dropped counter
  *   update is a stale number; a dropped ledger write is a class the student
- *   recorded and the product forgot;
+ *   recorded and the product then denies all knowledge of;
  * - a committed `AttendanceAdjustment` cannot be written or removed at all. Its
  *   undo window is a rollback, not an edit, and once it has closed the only way
  *   to correct the figure is another adjustment.
@@ -244,7 +229,6 @@ export interface RepositoryBundle {
   readonly notifications: NotificationRepository;
   readonly calendars: CalendarRepository;
   readonly timetableImports: TimetableImportRepository;
-  readonly classMarks: ClassMarkRepository;
   readonly attendanceLedger: AttendanceLedgerRepository;
   readonly timetableOverrides: DayOverrideRepository;
   readonly remoteSnapshots: RemoteSnapshotRepository;
