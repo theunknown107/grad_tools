@@ -103,6 +103,7 @@ function cancelled(date: string): DayOverride {
  */
 function server(row: { attended: number; conducted: number; revision: number }) {
   const pushed: unknown[] = [];
+  const deleted: string[] = [];
   const state = { ...row };
 
   vi.stubGlobal(
@@ -113,8 +114,15 @@ function server(row: { attended: number; conducted: number; revision: number }) 
         return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
       }
       if (init?.method === 'POST') {
-        const body = JSON.parse(String(init.body)) as { records: { collection: string }[] };
+        const body = JSON.parse(String(init.body)) as {
+          records: { collection: string; id: string; deleted?: boolean }[];
+        };
         pushed.push(...body.records);
+        /* A tombstone for the attendance row would remove it here. */
+        for (const record of body.records) {
+          if (record.collection === 'attendance' && record.deleted === true)
+            deleted.push(record.id);
+        }
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ outcomes: [] }),
@@ -150,6 +158,8 @@ function server(row: { attended: number; conducted: number; revision: number }) 
   return {
     state,
     pushed,
+    /** Attendance rows this device asked the server to delete. */
+    deletedRemotely: () => deleted,
     attendancePushes: () =>
       pushed.filter((entry) => (entry as { collection: string }).collection === 'attendance'),
   };
@@ -252,6 +262,9 @@ describe('a ledger-authoritative device', () => {
 
     expect(fake.attendancePushes()).toHaveLength(0);
     expect(fake.pushed.filter((entry) => (entry as { deleted?: boolean }).deleted)).toHaveLength(0);
+    /* And the row the other device is still using is exactly as it was. */
+    expect(fake.state).toEqual({ attended: 8, conducted: 11, revision: 4 });
+    expect(fake.deletedRemotely()).toHaveLength(0);
     unmount();
   });
 
