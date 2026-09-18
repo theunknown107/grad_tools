@@ -1,13 +1,13 @@
 /**
- * Account — the design's Settings layout (section rail + panels).
+ * Account → Settings — the design's settings page: Appearance, Academic,
+ * Data & privacy, Notifications and About, in the design's order.
  *
- * Sign-in and sync, data export and deletion, sync conflicts, and About.
- * Appearance lives in Profile → Appearance; the rail links there rather than
- * keeping a second copy of it.
+ * Data & privacy carries what an account does: sign-in, sync and its
+ * conflicts, export and deletion. Everything else is local to this device.
  */
 
 import {
-  AlertTriangle,
+  Bell,
   CloudUpload,
   Database,
   Download,
@@ -18,7 +18,6 @@ import {
   RefreshCw,
   ShieldCheck,
   Trash2,
-  UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -32,6 +31,9 @@ import { IconTile, PageHeader, SectionTitle } from '../../components/ui/page.js'
 import { PageSkeleton } from '../../components/ui/skeleton.js';
 import { SYNC_LABEL } from '../../domain/auth.js';
 import { cn } from '../../lib/cn.js';
+import { NotificationSettings } from '../announcements/NotificationsPage.js';
+import { AppearanceSettings } from '../profile/AppearanceSettings.js';
+import { AcademicSettings, SupportNote } from '../profile/ProfilePage.js';
 import { useAuth } from './AuthContext.js';
 import { useSync } from './useSync.js';
 
@@ -50,7 +52,14 @@ function summarise(data: Record<string, unknown> | null): string {
   return parts.length === 0 ? 'no details' : parts.join(', ');
 }
 
-type SectionKey = 'account' | 'data' | 'conflicts' | 'about';
+const SECTIONS = [
+  { key: 'appearance', label: 'Appearance', icon: Palette },
+  { key: 'academic', label: 'Academic', icon: GraduationCap },
+  { key: 'data', label: 'Data & privacy', icon: Database },
+  { key: 'notifications', label: 'Notifications', icon: Bell },
+  { key: 'about', label: 'About', icon: Info },
+] as const satisfies readonly { key: string; label: string; icon: LucideIcon }[];
+type SectionKey = (typeof SECTIONS)[number]['key'];
 
 export function AccountPage() {
   const { state, signOut } = useAuth();
@@ -64,33 +73,17 @@ export function AccountPage() {
 
   const signedIn = state.status === 'signed_in';
   const identity = signedIn ? state.identity : null;
-  const sections: { key: SectionKey; label: string; icon: LucideIcon; hidden?: boolean }[] = [
-    { key: 'account', label: signedIn ? 'Signed in' : 'Account', icon: UserRound },
-    { key: 'data', label: 'Data & privacy', icon: Database },
-    {
-      key: 'conflicts',
-      label: 'Needs attention',
-      icon: AlertTriangle,
-      hidden: !signedIn || sync.state.conflicts.length === 0,
-    },
-    { key: 'about', label: 'About', icon: Info },
-  ];
-  const visible = sections.filter((section) => section.hidden !== true);
   const requested = params.get('section');
-  const section: SectionKey = visible.some((entry) => entry.key === requested)
-    ? (requested as SectionKey)
-    : 'account';
+  const section: SectionKey =
+    SECTIONS.find((entry) => entry.key === requested)?.key ?? 'appearance';
+  const conflicts = signedIn ? sync.state.conflicts.length : 0;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Account"
         title="Settings"
-        description={
-          signedIn
-            ? 'Who you are signed in as, syncing, and your data.'
-            : 'You are not signed in. Everything you enter stays on this device.'
-        }
+        description="Manage appearance, academic configuration and your data."
         actions={
           signedIn ? (
             <Badge
@@ -113,7 +106,7 @@ export function AccountPage() {
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
         <nav aria-label="Settings sections" className="h-fit min-w-0 lg:sticky lg:top-6">
           <ul className="relative -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scroll-quiet lg:flex-col">
-            {visible.map((item) => {
+            {SECTIONS.map((item) => {
               const active = section === item.key;
               return (
                 <li key={item.key} className="shrink-0">
@@ -121,7 +114,7 @@ export function AccountPage() {
                     type="button"
                     aria-current={active ? 'page' : undefined}
                     onClick={() =>
-                      setParams(item.key === 'account' ? {} : { section: item.key }, {
+                      setParams(item.key === 'appearance' ? {} : { section: item.key }, {
                         replace: true,
                       })
                     }
@@ -133,36 +126,24 @@ export function AccountPage() {
                     )}
                   >
                     <item.icon className="size-4" aria-hidden="true" /> {item.label}
-                    {item.key === 'conflicts' && (
+                    {item.key === 'data' && conflicts > 0 && (
                       <Badge tone="warning" className="ml-auto">
-                        {sync.state.conflicts.length}
+                        {conflicts}
+                        <span className="sr-only"> records need attention</span>
                       </Badge>
                     )}
                   </button>
                 </li>
               );
             })}
-            <li className="shrink-0 lg:mt-2 lg:border-t lg:border-line lg:pt-2">
-              <Link
-                to="/profile?section=appearance"
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-sunken hover:text-ink"
-              >
-                <Palette className="size-4" aria-hidden="true" /> Appearance
-              </Link>
-            </li>
-            <li className="shrink-0">
-              <Link
-                to="/profile?section=academic"
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-sunken hover:text-ink"
-              >
-                <GraduationCap className="size-4" aria-hidden="true" /> Academic details
-              </Link>
-            </li>
           </ul>
         </nav>
 
         <div key={section} className="flex min-w-0 animate-rise flex-col gap-4">
-          {section === 'account' &&
+          {section === 'appearance' && <AppearanceSettings />}
+          {section === 'academic' && <AcademicSettings />}
+          {section === 'notifications' && <NotificationSettings />}
+          {section === 'data' &&
             (identity === null ? (
               <Card className="p-6">
                 <div className="flex items-start gap-3">
@@ -253,6 +234,34 @@ export function AccountPage() {
 
           {section === 'data' && (
             <>
+              {conflicts > 0 && (
+                <Card className="p-6">
+                  <SectionTitle>Needs your attention</SectionTitle>
+                  <p className="text-[13px] text-ink-2">
+                    These records changed in two places. Nothing has been overwritten, and both
+                    versions are still here.
+                  </p>
+                  <ul className="mt-4 flex flex-col gap-2">
+                    {sync.state.conflicts.map((conflict) => (
+                      <li
+                        key={`${conflict.collection}:${conflict.id}`}
+                        className="rounded-xl border border-warning/30 bg-warning-weak/30 p-4 text-[13px]"
+                      >
+                        <div className="font-semibold capitalize">{conflict.collection}</div>
+                        <div className="mt-0.5 text-ink-2">{conflict.reason}</div>
+                        <div className="mt-2 grid gap-1 font-mono text-[11px] text-ink-3">
+                          <span>On this device: {summarise(conflict.local)}</span>
+                          <span>In your account: {summarise(conflict.server)}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-4 text-[12px] text-ink-3">
+                    Edit the record on the device you want to keep, then sync again.
+                  </p>
+                </Card>
+              )}
+
               <Card className="p-6">
                 <div className="flex items-start gap-3">
                   <IconTile tone="success" size="lg">
@@ -261,9 +270,10 @@ export function AccountPage() {
                   <div>
                     <h2 className="text-[15px] font-semibold">Local-first by design</h2>
                     <p className="mt-1 max-w-xl text-[13px] text-ink-2">
-                      Your academic records, marks cards and timetable are stored on this device.
+                      Your academic records, marks cards and timetable are stored in this browser.
                       Documents are read locally, and nothing is uploaded unless you sign in and
-                      choose to sync.
+                      choose to sync. Clearing your browser data removes the local copy, and
+                      GradTools never asks for a university password.
                     </p>
                   </div>
                 </div>
@@ -333,34 +343,6 @@ export function AccountPage() {
             </>
           )}
 
-          {section === 'conflicts' && (
-            <Card className="p-6">
-              <SectionTitle>Needs your attention</SectionTitle>
-              <p className="text-[13px] text-ink-2">
-                These records changed in two places. Nothing has been overwritten, and both versions
-                are still here.
-              </p>
-              <ul className="mt-4 flex flex-col gap-2">
-                {sync.state.conflicts.map((conflict) => (
-                  <li
-                    key={`${conflict.collection}:${conflict.id}`}
-                    className="rounded-xl border border-warning/30 bg-warning-weak/30 p-4 text-[13px]"
-                  >
-                    <div className="font-semibold capitalize">{conflict.collection}</div>
-                    <div className="mt-0.5 text-ink-2">{conflict.reason}</div>
-                    <div className="mt-2 grid gap-1 font-mono text-[11px] text-ink-3">
-                      <span>On this device: {summarise(conflict.local)}</span>
-                      <span>In your account: {summarise(conflict.server)}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-4 text-[12px] text-ink-3">
-                Edit the record on the device you want to keep, then sync again.
-              </p>
-            </Card>
-          )}
-
           {section === 'about' && (
             <Card className="p-6">
               <div className="flex items-center gap-3">
@@ -386,6 +368,7 @@ export function AccountPage() {
               </div>
             </Card>
           )}
+          {section === 'about' && <SupportNote />}
         </div>
       </div>
 

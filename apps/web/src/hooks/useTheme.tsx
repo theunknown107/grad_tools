@@ -2,7 +2,7 @@
  * The one appearance state the whole app shares.
  *
  * A provider, not a hook each caller instantiates: the top-bar toggle, the
- * mobile sheet, the command menu and Profile → Appearance all change the same
+ * mobile sheet, the command menu and Settings → Appearance all change the same
  * preference, and separate `useState`s would each believe their own copy.
  *
  * Presentation only. No academic rule, repository read or API request may

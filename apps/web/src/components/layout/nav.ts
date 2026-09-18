@@ -138,8 +138,9 @@ export const DESTINATIONS: readonly Destination[] = [
     short: 'Account',
     icon: Settings2,
     group: 'Account',
-    description: 'Sign in, sync, data and privacy',
-    keywords: 'settings privacy delete export sync',
+    description: 'Settings: appearance, academic details, data and privacy',
+    keywords:
+      'settings appearance theme accent density motion branch scheme semester privacy delete export sync notifications',
   },
   {
     to: '/profile',
@@ -147,8 +148,8 @@ export const DESTINATIONS: readonly Destination[] = [
     short: 'Profile',
     icon: UserCircle,
     group: 'Account',
-    description: 'Identity, academic details and appearance',
-    keywords: 'branch scheme semester appearance theme accent',
+    description: 'Who you are and your academic snapshot',
+    keywords: 'name usn identity snapshot',
   },
 ];
 

@@ -41,6 +41,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/menu.js';
 import { Field, Input } from '../../components/ui/field.js';
@@ -218,6 +219,10 @@ export function AttendancePage() {
                     name={subjectName(record.subjectCode, semesterSubjects)}
                     onPlan={() => setPlanning(record)}
                     onMark={(outcome) => void mark(record, outcome)}
+                    onRemove={() => {
+                      void remove(record.id);
+                      toast(`Stopped tracking ${record.subjectCode}`);
+                    }}
                   />
                 ))}
               </CardRows>
@@ -249,12 +254,6 @@ export function AttendancePage() {
         record={planning}
         name={planning === null ? null : subjectName(planning.subjectCode, semesterSubjects)}
         onClose={() => setPlanning(null)}
-        onMark={(record, outcome) => setPlanning(mark(record, outcome))}
-        onRemove={(record) => {
-          setPlanning(null);
-          void remove(record.id);
-          toast(`Stopped tracking ${record.subjectCode}`);
-        }}
       />
     </div>
   );
@@ -346,11 +345,13 @@ function CourseRow({
   name,
   onMark,
   onPlan,
+  onRemove,
 }: {
   readonly record: AttendanceRecord;
   readonly name: string | null;
   readonly onMark: (outcome: ClassOutcome) => void;
   readonly onPlan: () => void;
+  readonly onRemove: () => void;
 }) {
   const attendance = calculateAttendance(record.attended, record.conducted, ruleSet);
   const title = name ?? record.subjectCode;
@@ -366,7 +367,7 @@ function CourseRow({
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <IconButton size="sm" label={`Record a class for ${record.subjectCode}`}>
+          <IconButton size="sm" label={`More actions for ${record.subjectCode}`}>
             <MoreHorizontal />
           </IconButton>
         </DropdownMenuTrigger>
@@ -385,6 +386,15 @@ function CourseRow({
             onSelect={() => onMark('missed')}
           >
             Missed
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            icon={<Trash2 />}
+            destructive
+            label={`Stop tracking ${record.subjectCode}`}
+            onSelect={onRemove}
+          >
+            Stop tracking
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -579,44 +589,17 @@ function BunkPlanner({
   record,
   name,
   onClose,
-  onRemove,
-  onMark,
 }: {
   readonly record: AttendanceRecord | null;
   readonly name: string | null;
   readonly onClose: () => void;
-  readonly onRemove: (record: AttendanceRecord) => void;
-  readonly onMark: (record: AttendanceRecord, outcome: ClassOutcome) => void;
 }) {
-  const [plannedClasses, setPlannedClasses] = useState('10');
-  const [classesToMiss, setClassesToMiss] = useState('2');
-
   const attendance =
     record === null ? null : calculateAttendance(record.attended, record.conducted, ruleSet);
   const canMiss =
     record === null ? null : calculateClassesCanMiss(record.attended, record.conducted, ruleSet);
   const mustAttend =
     record === null ? null : calculateClassesMustAttend(record.attended, record.conducted, ruleSet);
-  const planned = Number(plannedClasses);
-  const missed = Number(classesToMiss);
-  const inputsValid =
-    plannedClasses.trim() !== '' &&
-    classesToMiss.trim() !== '' &&
-    Number.isInteger(planned) &&
-    Number.isInteger(missed) &&
-    planned >= 0 &&
-    missed >= 0;
-  const missedExceedsPlanned = inputsValid && missed > planned;
-  const projectedAttended = (record?.attended ?? 0) + Math.max(0, planned - missed);
-  const projectedConducted = (record?.conducted ?? 0) + Math.max(0, planned);
-  const projection =
-    record !== null && inputsValid && !missedExceedsPlanned
-      ? calculateAttendance(projectedAttended, projectedConducted, ruleSet)
-      : null;
-  const recovery =
-    projection?.ok === true && projection.value.status !== 'safe'
-      ? calculateClassesMustAttend(projectedAttended, projectedConducted, ruleSet)
-      : null;
   const safe = attendance?.ok === true && attendance.value.status === 'safe';
 
   return (
@@ -630,7 +613,7 @@ function BunkPlanner({
               : `${name} · ${record.subjectCode}`
           }
         >
-          <DialogBody className="flex flex-col gap-4">
+          <DialogBody>
             {attendance?.ok === true ? (
               <>
                 <div className="grid grid-cols-2 gap-3">
@@ -653,16 +636,14 @@ function BunkPlanner({
                     <div className="tnum mt-1 text-3xl font-semibold">
                       {formatPercent(attendance.value.requiredPct)}
                     </div>
-                    <div className="mt-0.5 text-[12px] text-ink-3">
-                      University minimum, per course
-                    </div>
+                    <div className="mt-0.5 text-[12px] text-ink-3">University minimum</div>
                   </div>
                 </div>
 
                 <div
                   role="status"
                   className={cn(
-                    'rounded-xl border p-4',
+                    'mt-4 rounded-xl border p-4',
                     safe
                       ? 'border-success/30 bg-success-weak/40'
                       : 'border-danger/30 bg-danger-weak/40',
@@ -689,80 +670,21 @@ function BunkPlanner({
                   </div>
                   <p className="mt-1 text-[12px] text-ink-2">
                     {safe
-                      ? `Attendance stays at or above ${String(attendance.value.requiredPct)}% if you do.`
-                      : `Reaching ${String(attendance.value.requiredPct)}% is calculated from recorded classes only.`}{' '}
+                      ? `Attendance stays at or above ${String(attendance.value.requiredPct)}%.`
+                      : `Reaching ${String(attendance.value.requiredPct)}% requires attending ${
+                          mustAttend?.ok === true ? String(mustAttend.value) : 'the'
+                        } consecutive upcoming sessions.`}{' '}
                     <span className="text-ink-3">
-                      {safe ? 'Assumes no further classes beyond the ones counted here.' : ''}
+                      Calculated from recorded classes only (22OB 3.7).
                     </span>
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-line p-4">
-                  <div className="mb-3 text-[13px] font-semibold">What if?</div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Classes still to be held">
-                      <Input
-                        inputMode="numeric"
-                        value={plannedClasses}
-                        onChange={(event) => setPlannedClasses(event.target.value)}
-                      />
-                    </Field>
-                    <Field
-                      label="Of those, classes you would miss"
-                      error={
-                        missedExceedsPlanned
-                          ? 'Cannot miss more classes than will be held.'
-                          : undefined
-                      }
-                    >
-                      <Input
-                        inputMode="numeric"
-                        value={classesToMiss}
-                        onChange={(event) => setClassesToMiss(event.target.value)}
-                      />
-                    </Field>
-                  </div>
-                  {projection?.ok === true && (
-                    <div aria-live="polite" className="mt-3 rounded-lg bg-panel p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-[12px] text-ink-2">Attendance would become</span>
-                        <Badge tone={STATUS[projection.value.status].tone}>
-                          {STATUS[projection.value.status].label}
-                        </Badge>
-                      </div>
-                      <div
-                        className={cn(
-                          'tnum mt-1 text-2xl font-semibold',
-                          STATUS[projection.value.status].ink,
-                        )}
-                      >
-                        {formatPercent(projection.value.percentage)}
-                      </div>
-                      <div className="text-[12px] text-ink-3">
-                        {projectedAttended} of {projectedConducted} classes ·{' '}
-                        {projection.value.requiredPct}% required
-                      </div>
-                      {recovery?.ok === true && recovery.value > 0 && (
-                        <p className="mt-1 text-[12px] text-ink-2">
-                          Reaching {projection.value.requiredPct}% from there would take{' '}
-                          {formatCount(recovery.value, 'further class', 'further classes')} attended
-                          in a row.
-                        </p>
-                      )}
-                      <ExplanationDisclosure
-                        explanation={projection.explanation}
-                        className="mt-3"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-3">
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-ink-3">
                   <Badge tone={safe ? 'success' : 'danger'}>
                     {safe ? 'Calculated' : 'Recovery'}
                   </Badge>
                   <Badge>Assumption: fixed schedule</Badge>
-                  <Badge>VTU 2022 · 22OB 3.7</Badge>
                 </div>
               </>
             ) : (
@@ -771,26 +693,8 @@ function BunkPlanner({
               </Callout>
             )}
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] text-ink-2">Record a class</span>
-                <Button size="sm" onClick={() => onMark(record, 'attended')}>
-                  Attended
-                </Button>
-                <Button size="sm" onClick={() => onMark(record, 'missed')}>
-                  Missed
-                </Button>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-danger hover:text-danger"
-                icon={<Trash2 />}
-                aria-label={`Remove ${record.subjectCode}`}
-                onClick={() => onRemove(record)}
-              >
-                Stop tracking
-              </Button>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button onClick={onClose}>Close</Button>
             </div>
           </DialogBody>
         </DialogContent>

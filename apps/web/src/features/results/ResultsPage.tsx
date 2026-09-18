@@ -34,7 +34,7 @@ import type { SemesterStatistics } from '../../domain/statistics.js';
 import type { SemesterResult } from '../../domain/types.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
 import { useProfile, useResults } from '../../hooks/useCollection.js';
-import { formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
+import { branchCode, formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
 import { ResultEditor } from './ResultEditor.js';
 
 type View = 'overview' | 'semesters';
@@ -58,7 +58,10 @@ export function ResultsPage() {
   if (loading) return <PageSkeleton label="Loading your results" />;
 
   const eyebrow =
-    [profile?.branch, profile?.schemeId === 'vtu-2022' ? '2022 scheme' : null]
+    [
+      profile?.branch ? branchCode(profile.branch) : null,
+      profile?.schemeId === 'vtu-2022' ? '2022 scheme' : null,
+    ]
       .filter((part): part is string => part !== undefined && part !== null && part !== '')
       .join(' · ') || 'Academic record';
   const needle = query.trim().toLowerCase();
@@ -90,14 +93,6 @@ export function ResultsPage() {
           <>
             <Button asChild variant="secondary">
               <Link to="/academics">SGPA &amp; CGPA</Link>
-            </Button>
-            <Button
-              variant="secondary"
-              icon={<Plus />}
-              onClick={() => setParams({ new: '1' })}
-              disabled={editing}
-            >
-              Add semester
             </Button>
             <Button asChild variant="primary" icon={<Plus />}>
               <Link to="/import">Add result</Link>

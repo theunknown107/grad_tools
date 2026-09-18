@@ -14,7 +14,10 @@ import userEvent from '@testing-library/user-event';
 import type { Announcement } from '@gradtools/shared-types';
 import { AnnouncementsPage } from '../src/features/announcements/AnnouncementsPage.js';
 import { DashboardPage } from '../src/features/dashboard/DashboardPage.js';
-import { NotificationsPage } from '../src/features/announcements/NotificationsPage.js';
+import {
+  NotificationSettings,
+  NotificationsPage,
+} from '../src/features/announcements/NotificationsPage.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
 import type { StudentProfile } from '../src/domain/types.js';
 import { createMemoryRepositories, renderWith } from './helpers.js';
@@ -305,25 +308,23 @@ describe('the notification centre', () => {
     expect(await screen.findByRole('img', { name: 'Unread' })).toBeTruthy();
   });
 
-  it('marks one as read and keeps it', async () => {
+  it('marks one as read when it is opened, and keeps it', async () => {
     mockFeed([announcement()]);
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<NotificationsPage />, { repositories: bundle });
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Mark as read' }));
+    // As in the design, the row is one control: opening it reads it.
+    const row = await screen.findByRole('link', { name: /Semester 4 results announced/ });
+    expect(row.getAttribute('href')).toBe('/announcements');
+    await userEvent.click(row);
 
     await waitFor(() => {
       expect(peek.notificationState()[0]?.state).toBe('read');
     });
-    /*
-     * The approved design marks UNREAD rather than read: a dot, with the word
-     * beside it for a screen reader, and neither once it has been read. The
-     * guarantee is the same one — the state is stored AND is on screen.
-     */
     await waitFor(() => {
-      expect(document.querySelector('article[data-state="read"]')).not.toBeNull();
+      expect(document.querySelector('[data-state="read"]')).not.toBeNull();
     });
-    expect(document.querySelector('article[data-state="unread"]')).toBeNull();
+    expect(document.querySelector('[data-state="unread"]')).toBeNull();
   });
 
   it('marks everything as read at once', async () => {
@@ -371,16 +372,12 @@ describe('the notification centre', () => {
     expect(screen.getByText('New one')).toBeTruthy();
   });
 
-  it('dismisses a notification', async () => {
+  it('offers no per-row buttons the design does not have', async () => {
     mockFeed([announcement()]);
-    const { bundle, peek } = createMemoryRepositories();
-    renderWith(<NotificationsPage />, { repositories: bundle });
-
-    await userEvent.click(await screen.findByRole('button', { name: 'Dismiss' }));
-
-    await waitFor(() => {
-      expect(peek.notificationState()[0]?.state).toBe('dismissed');
-    });
+    renderWith(<NotificationsPage />);
+    await screen.findByRole('link', { name: /Semester 4 results announced/ });
+    expect(screen.queryByRole('button', { name: /mark as read|dismiss/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /open in announcements/i })).toBeNull();
   });
 
   /*
@@ -390,20 +387,24 @@ describe('the notification centre', () => {
   it('mutes a category locally', async () => {
     mockFeed([announcement({ category: 'holiday', title: 'Holiday notice' })]);
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<NotificationsPage />, { repositories: bundle });
-
+    const inbox = renderWith(<NotificationsPage />, { repositories: bundle });
     await screen.findByText('Holiday notice');
-    // On means it may interrupt; switching it off mutes the category.
-    const toggle = screen.getByRole('switch', { name: 'Holiday' });
+    inbox.unmount();
+
+    // Settings → Notifications: on means it may interrupt; switching it off mutes it.
+    const settings = renderWith(<NotificationSettings />, { repositories: bundle });
+    const toggle = await screen.findByRole('switch', { name: 'Holiday' });
     expect(toggle.getAttribute('aria-checked')).toBe('true');
     await userEvent.click(toggle);
-
     await waitFor(() => {
       expect(peek.notificationPreferences()?.muted).toContain('holiday');
     });
-    await waitFor(() => {
-      expect(screen.queryByText('Holiday notice')).toBeNull();
-    });
+    settings.unmount();
+
+    // Back in Notifications, the muted category no longer interrupts.
+    renderWith(<NotificationsPage />, { repositories: bundle });
+    expect(await screen.findByText(/No notifications yet/)).toBeTruthy();
+    expect(screen.queryByText('Holiday notice')).toBeNull();
   });
 
   /*
@@ -414,9 +415,9 @@ describe('the notification centre', () => {
     const requestPermission = vi.fn(() => Promise.resolve('granted'));
     vi.stubGlobal('Notification', { requestPermission, permission: 'default' });
     mockFeed([announcement()]);
-    renderWith(<NotificationsPage />);
+    renderWith(<NotificationSettings />);
 
-    await screen.findByText('Semester 4 results announced');
+    await screen.findByRole('button', { name: 'Turn on notifications' });
     expect(requestPermission).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Turn on notifications' }));
@@ -428,7 +429,7 @@ describe('the notification centre', () => {
   /* The limit is stated rather than implied: it cannot notify when closed. */
   it('says browser notifications only work while the app is open', async () => {
     mockFeed([announcement()]);
-    renderWith(<NotificationsPage />);
+    renderWith(<NotificationSettings />);
 
     expect(await screen.findByText(/cannot notify you when the app is closed/)).toBeTruthy();
   });
