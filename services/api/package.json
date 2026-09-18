@@ -21,6 +21,7 @@
     "vtu:monitor": "tsx scripts/vtu-monitor.ts",
     "vtu:normalize": "tsx scripts/vtu-normalize.ts",
     "vtu:smoke": "tsx scripts/vtu-smoke.ts",
+    "vtu:supply": "tsx scripts/vtu-supply.ts",
     "vtu:sync": "tsx scripts/vtu-sync.ts",
     "vtu:validate": "tsx scripts/vtu-validate.ts"
   },

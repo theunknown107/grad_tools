@@ -276,3 +276,118 @@ describe('reading the official listing', () => {
     expect(once[0]?.payloadHash).toMatch(/^[0-9a-f]{64}$/);
   });
 });
+
+describe('the listing section a link sits under', () => {
+  /*
+   * -------------------------------------------------------------------------
+   * MEASURED ON THE REAL PAGE, REPRODUCED AS SHAPE
+   * -------------------------------------------------------------------------
+   *
+   * The official listing groups its documents under headings and anchors those
+   * headings as `#menu11`, `#menu12`, `#menu13`. Running the reader over the
+   * real saved page found the defect these fixtures pin down:
+   *
+   *   #menu11  "UG Engineering Scheme and Syllabus 2025 (1st & 2nd semesters)"
+   *            87 links, filed under /pdf/UG2024/ — a path naming 2024
+   *
+   * Seventy-seven of those links stated no year in their own text either, so
+   * the reader produced `schemeYear: null` for eighty-six of eighty-seven and
+   * `--scheme 2025` selected NONE of them. Silently: a section whose documents
+   * all fail the year filter looks exactly like a section with no documents.
+   *
+   * The markup below is written here, in the shapes the page uses. The years,
+   * paths and heading wording are the real ones because they are the evidence;
+   * the course codes and programme names are invented.
+   */
+
+  const heading = (title: string) =>
+    `<div class="row zmodeltitle"><div class="col-md-12 mqtitle">${title}</div></div>`;
+  const section = (anchor: string, title: string, ...body: string[]) =>
+    `<div id="${anchor}" class="vc_row wpb_row vc_row-fluid">${heading(title)}` +
+    `<table>${PROGRAMME_HEADER}${body.join('')}</table></div>`;
+
+  it('takes the year from the heading when the link and its path do not state one', () => {
+    /*
+     * THE CASE THAT WAS LOSING 87 DOCUMENTS. The path says UG2024 and the link
+     * says only "Scheme"; the heading is the only thing on the page that says
+     * which scheme these belong to.
+     */
+    const html = section(
+      'menu11',
+      'UG Engineering Scheme and Syllabus 2025 (1st &amp; 2nd semesters)',
+      row('1', 'Invented Cycle', link('/pdf/UG2024/qqcyc.pdf', 'Scheme')),
+    );
+    const [doc] = vtuSchemeAdapter.describe(vtuSchemeAdapter.parse(html), html);
+
+    expect(doc?.schemeYear).toBe('2025');
+    expect(doc?.section).toEqual({
+      anchor: 'menu11',
+      title: 'UG Engineering Scheme and Syllabus 2025 (1st & 2nd semesters)',
+    });
+  });
+
+  it('never overrides a year the document itself states', () => {
+    /*
+     * The fallback fills a null and does nothing else. A 2022 document listed
+     * under a 2025 heading stays 2022 — which is not hypothetical, since the
+     * page keeps every scheme year it has ever published on one page.
+     */
+    const html = section(
+      'menu12',
+      'UG 3rd to 8th semesters Scheme and Syllabus (2025)(Engg)',
+      row('1', 'Invented Programme', link('/pdf/2022_3to8/qqsch.pdf', 'Scheme')),
+    );
+    const [doc] = vtuSchemeAdapter.describe(vtuSchemeAdapter.parse(html), html);
+    expect(doc?.schemeYear).toBe('2022');
+  });
+
+  it('establishes no year from a heading that names several', () => {
+    /*
+     * The listing carries "2002 2006 2010 2014 2015 2017 and 2018 scheme
+     * Common Syllabus for MATDip courses". Taking the first year would file
+     * every document under it as 2002. Several is not one (§7).
+     */
+    const html = section(
+      'menu10',
+      '2002 2006 2010 2014 2015 2017 and 2018 scheme Common Syllabus for MATDip courses',
+      row('1', 'Invented Course', link('/pdf/matdip/qq.pdf', 'Syllabus')),
+    );
+    const [doc] = vtuSchemeAdapter.describe(vtuSchemeAdapter.parse(html), html);
+    expect(doc?.schemeYear).toBeNull();
+  });
+
+  it('lets one anchor hold several headings, each governing its own links', () => {
+    /*
+     * `#menu07` on the real page carries the 2022 first-year listing, the 2022
+     * 3-to-8 listing and the 2022 common-course listing. The heading is the
+     * unit, not the wrapper — so a reader keyed on the anchor would give all
+     * three the same semester scope.
+     */
+    const html =
+      `<div id="menu07" class="vc_row wpb_row vc_row-fluid">` +
+      heading('UG Scheme and Syllabus (I&amp;II semesters) (2022 Scheme)') +
+      `<table>${PROGRAMME_HEADER}${row('1', 'Invented Stream', link('/pdf/qq/a.pdf', 'Scheme'))}</table>` +
+      heading('UG Scheme and Syllabus 3rd to 8th Semester (2022 Scheme)') +
+      `<table>${PROGRAMME_HEADER}${row('2', 'Invented Programme', link('/pdf/qq/b.pdf', 'Scheme'))}</table>` +
+      `</div>`;
+    const docs = vtuSchemeAdapter.describe(vtuSchemeAdapter.parse(html), html);
+
+    expect(docs.map((doc) => doc.section?.title)).toEqual([
+      'UG Scheme and Syllabus (I&II semesters) (2022 Scheme)',
+      'UG Scheme and Syllabus 3rd to 8th Semester (2022 Scheme)',
+    ]);
+    expect(docs[1]?.semesters).toEqual([3, 8]);
+  });
+
+  it('reports no section to a caller that does not hand over the page', () => {
+    /* The second argument is optional, so every existing caller is unchanged. */
+    const html = section(
+      'menu11',
+      'UG Engineering Scheme and Syllabus 2025 (1st &amp; 2nd semesters)',
+      row('1', 'Invented Cycle', link('/pdf/UG2024/qqcyc.pdf', 'Scheme')),
+    );
+    const [doc] = vtuSchemeAdapter.describe(vtuSchemeAdapter.parse(html));
+    expect(doc?.section).toBeNull();
+    expect(doc?.schemeYear).toBeNull();
+  });
+});

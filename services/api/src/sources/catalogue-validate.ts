@@ -320,6 +320,33 @@ async function checkCourses(sql: Sql, schemeYear: string | null): Promise<Findin
     WHERE ${schemeYear === null ? sql`TRUE` : sql`scheme_year = ${schemeYear}`}
     GROUP BY 1 ORDER BY 2 DESC
   `) as unknown as { what: string; n: string }[];
+
+  /*
+   * A SCHEME THE CATALOGUE DOES NOT HOLD IS A FAILURE, NOT A CLEAN RUN.
+   *
+   * Every check below is written to be quiet when it has nothing to look at,
+   * which is right for an OPTIONAL part of a catalogue and wrong for the whole
+   * of one. Asked to validate a scheme year with no courses in it, this
+   * reported no failures — and `passed` is `failures === 0`, so the terminal
+   * printed VALIDATION PASSED for a scheme that had never been ingested.
+   *
+   * That verdict is load-bearing: the publish rules gate on it, so a scheme
+   * nobody has any data for could be read as one that is ready to ship. An
+   * empty result is evidence that the ingestion did not happen, and saying so
+   * is the whole job of this file.
+   *
+   * Only when a scheme was ASKED for. With no filter this is a catalogue-wide
+   * run, and an empty catalogue is already reported by the count above.
+   */
+  if (schemeYear !== null && total === 0) {
+    return [
+      fail(
+        area,
+        `no courses are stored for the ${schemeYear} scheme, so there is nothing to validate ` +
+          '— an empty result is not a passing one',
+      ),
+    ];
+  }
   const borrowed = basis
     .filter((row) => row.what !== 'table')
     .reduce((sum, row) => sum + Number(row.n), 0);
@@ -416,11 +443,48 @@ async function checkCourses(sql: Sql, schemeYear: string | null): Promise<Findin
 /* Syllabus structure (§26)                                                   */
 /* -------------------------------------------------------------------------- */
 
-async function checkSyllabi(sql: Sql): Promise<Finding[]> {
+/**
+ * "…and only this scheme", as a clause any of these queries can drop in.
+ *
+ * `vtu:validate --scheme 2025` named the scheme and only two of the eight
+ * checks below listened. The rest counted and reported every row in the table,
+ * so a 2025 validation failed on a 2022 alias and two 2022 conflicts — rows
+ * that have nothing to do with the catalogue being validated and that no 2025
+ * run can do anything about.
+ *
+ * That is worse than a noisy report. §5's whole point is that adding a scheme
+ * must not disturb the one beside it, and a validator that mixes them cannot
+ * be the thing that proves it: a clean 2025 result would have been evidence
+ * about 2022 as well, and a failing one names a document the run never read.
+ *
+ * `prefix` is the table alias where the query uses one — `ofScheme(sql, year,
+ * 'a.')` — because these queries join tables that each carry the column.
+ */
+function ofScheme(sql: Sql, schemeYear: string | null, prefix = ''): ReturnType<Sql> {
+  return schemeYear === null
+    ? sql`TRUE`
+    : sql`${sql.unsafe(`${prefix}scheme_year`)} = ${schemeYear}`;
+}
+
+async function checkSyllabi(sql: Sql, schemeYear: string | null): Promise<Finding[]> {
   const area = 'syllabus';
-  const syllabi = await scalar(sql`SELECT count(*)::text AS n FROM catalogue_syllabi`);
-  const modules = await scalar(sql`SELECT count(*)::text AS n FROM catalogue_modules`);
-  const topics = await scalar(sql`SELECT count(*)::text AS n FROM catalogue_topics`);
+  const only = ofScheme(sql, schemeYear);
+  const syllabi = await scalar(
+    sql`SELECT count(*)::text AS n FROM catalogue_syllabi WHERE ${only}`,
+  );
+  /* Modules and topics carry no scheme year of their own; their syllabus does. */
+  const inScheme = sql`EXISTS (
+    SELECT 1 FROM catalogue_syllabi s
+    WHERE s.id = m.syllabus_id AND ${ofScheme(sql, schemeYear, 's.')}
+  )`;
+  const modules = await scalar(
+    sql`SELECT count(*)::text AS n FROM catalogue_modules m WHERE ${inScheme}`,
+  );
+  const topics = await scalar(
+    sql`SELECT count(*)::text AS n FROM catalogue_topics t
+        JOIN catalogue_modules m ON m.id = t.module_id
+        WHERE ${inScheme}`,
+  );
 
   const findings: Finding[] = [
     pass(area, `${String(syllabi)} syllabi, ${String(modules)} modules, ${String(topics)} topics`),
@@ -446,30 +510,35 @@ async function checkSyllabi(sql: Sql): Promise<Finding[]> {
       area,
       'modules or topics missing provenance',
       sql`SELECT what FROM (
-            SELECT 'module ' || id::text AS what FROM catalogue_modules
-            WHERE source_page IS NULL OR trim(parser_version) = ''
-               OR trim(extraction_method) = ''
+            SELECT 'module ' || m.id::text AS what FROM catalogue_modules m
+            WHERE (m.source_page IS NULL OR trim(m.parser_version) = ''
+               OR trim(m.extraction_method) = '') AND ${inScheme}
             UNION ALL
-            SELECT 'topic ' || id::text FROM catalogue_topics
-            WHERE source_page IS NULL OR trim(parser_version) = ''
-               OR trim(extraction_method) = ''
-          ) t`,
+            SELECT 'topic ' || t.id::text FROM catalogue_topics t
+            JOIN catalogue_modules m ON m.id = t.module_id
+            WHERE (t.source_page IS NULL OR trim(t.parser_version) = ''
+               OR trim(t.extraction_method) = '') AND ${inScheme}
+          ) found`,
     ),
     await mustBeEmpty(
       area,
       'modules whose provenance points at a document that is gone',
       sql`SELECT m.id::text AS what FROM catalogue_modules m
-          WHERE NOT EXISTS (SELECT 1 FROM source_document_versions v WHERE v.id = m.version_id)`,
+          WHERE NOT EXISTS (SELECT 1 FROM source_document_versions v WHERE v.id = m.version_id)
+            AND ${inScheme}`,
     ),
     await mustBeEmpty(
       area,
       'topics numbered from zero or below',
-      sql`SELECT id::text AS what FROM catalogue_topics WHERE position < 1`,
+      sql`SELECT t.id::text AS what FROM catalogue_topics t
+          JOIN catalogue_modules m ON m.id = t.module_id
+          WHERE t.position < 1 AND ${inScheme}`,
     ),
     await mustBeEmpty(
       area,
       'duplicate syllabus identities',
       sql`SELECT code AS what FROM catalogue_syllabi
+          WHERE ${only}
           GROUP BY scheme_year, coalesce(programme_name, ''), coalesce(stream_id, ''),
                    coalesce(semester, 0), code
           HAVING count(*) > 1`,
@@ -485,7 +554,7 @@ async function checkSyllabi(sql: Sql): Promise<Finding[]> {
    */
   const unmatched = (await sql<{ code: string }[]>`
     SELECT s.code FROM catalogue_syllabi s
-    WHERE NOT EXISTS (
+    WHERE ${ofScheme(sql, schemeYear, 's.')} AND NOT EXISTS (
       SELECT 1 FROM catalogue_courses c
       WHERE c.scheme_year = s.scheme_year
         AND (c.code = s.code OR c.code IN (
@@ -513,17 +582,27 @@ async function checkSyllabi(sql: Sql): Promise<Finding[]> {
 /* Option groups (§27)                                                        */
 /* -------------------------------------------------------------------------- */
 
-async function checkOptions(sql: Sql): Promise<Finding[]> {
+async function checkOptions(sql: Sql, schemeYear: string | null): Promise<Finding[]> {
   const area = 'options';
-  const groups = await scalar(sql`SELECT count(*)::text AS n FROM catalogue_option_groups`);
-  const members = await scalar(sql`SELECT count(*)::text AS n FROM catalogue_option_members`);
+  const only = ofScheme(sql, schemeYear);
+  const groupInScheme = sql`EXISTS (
+    SELECT 1 FROM catalogue_option_groups g
+    WHERE g.id = m.group_id AND ${ofScheme(sql, schemeYear, 'g.')}
+  )`;
+  const groups = await scalar(
+    sql`SELECT count(*)::text AS n FROM catalogue_option_groups WHERE ${only}`,
+  );
+  const members = await scalar(
+    sql`SELECT count(*)::text AS n FROM catalogue_option_members m WHERE ${groupInScheme}`,
+  );
   return [
     pass(area, `${String(groups)} groups, ${String(members)} memberships`),
     await mustBeEmpty(
       area,
       'option groups offering no choice at all',
       sql`SELECT g.slot_code AS what FROM catalogue_option_groups g
-          WHERE (SELECT count(*) FROM catalogue_option_members m WHERE m.group_id = g.id) < 2`,
+          WHERE (SELECT count(*) FROM catalogue_option_members m WHERE m.group_id = g.id) < 2
+            AND ${ofScheme(sql, schemeYear, 'g.')}`,
     ),
     /* A slot is not one of its own options; storing it says otherwise. */
     await mustBeEmpty(
@@ -531,12 +610,14 @@ async function checkOptions(sql: Sql): Promise<Finding[]> {
       'groups listing their own slot as an option',
       sql`SELECT g.slot_code AS what FROM catalogue_option_groups g
           JOIN catalogue_option_members m ON m.group_id = g.id
-          WHERE g.kind = 'elective_slot' AND m.code = g.slot_code`,
+          WHERE g.kind = 'elective_slot' AND m.code = g.slot_code
+            AND ${ofScheme(sql, schemeYear, 'g.')}`,
     ),
     await mustBeEmpty(
       area,
       'duplicate option group identities',
       sql`SELECT slot_code AS what FROM catalogue_option_groups
+          WHERE ${only}
           GROUP BY scheme_year, coalesce(programme_name, ''), coalesce(stream_id, ''),
                    semester, slot_code
           HAVING count(*) > 1`,
@@ -562,6 +643,7 @@ async function checkOptions(sql: Sql): Promise<Finding[]> {
       sql`SELECT m.code || ' sem ' || g.semester AS what
           FROM catalogue_option_members m
           JOIN catalogue_option_groups g ON g.id = m.group_id
+          WHERE ${ofScheme(sql, schemeYear, 'g.')}
           GROUP BY m.code, g.version_id, g.semester
           HAVING count(DISTINCT g.slot_code) > 1`,
     ),
@@ -569,7 +651,8 @@ async function checkOptions(sql: Sql): Promise<Finding[]> {
       area,
       'option groups whose source document is missing',
       sql`SELECT g.slot_code AS what FROM catalogue_option_groups g
-          WHERE NOT EXISTS (SELECT 1 FROM source_document_versions v WHERE v.id = g.version_id)`,
+          WHERE NOT EXISTS (SELECT 1 FROM source_document_versions v WHERE v.id = g.version_id)
+            AND ${ofScheme(sql, schemeYear, 'g.')}`,
     ),
   ];
 }
@@ -578,20 +661,25 @@ async function checkOptions(sql: Sql): Promise<Finding[]> {
 /* Aliases (§28)                                                              */
 /* -------------------------------------------------------------------------- */
 
-async function checkAliases(sql: Sql): Promise<Finding[]> {
+async function checkAliases(sql: Sql, schemeYear: string | null): Promise<Finding[]> {
   const area = 'aliases';
-  const total = await scalar(sql`SELECT count(*)::text AS n FROM catalogue_aliases`);
+  const only = ofScheme(sql, schemeYear);
+  const total = await scalar(
+    sql`SELECT count(*)::text AS n FROM catalogue_aliases WHERE ${only}`,
+  );
   return [
     pass(area, `${String(total)} aliases`),
     await mustBeEmpty(
       area,
       'aliases from a code to itself',
-      sql`SELECT variant_code AS what FROM catalogue_aliases WHERE variant_code = canonical_code`,
+      sql`SELECT variant_code AS what FROM catalogue_aliases
+          WHERE variant_code = canonical_code AND ${only}`,
     ),
     await mustBeEmpty(
       area,
       'codes aliased to two different canonical codes',
       sql`SELECT variant_code AS what FROM catalogue_aliases
+          WHERE ${only}
           GROUP BY scheme_year, variant_code HAVING count(DISTINCT canonical_code) > 1`,
     ),
     /*
@@ -604,18 +692,20 @@ async function checkAliases(sql: Sql): Promise<Finding[]> {
       sql`SELECT a.variant_code || ' -> ' || a.canonical_code AS what
           FROM catalogue_aliases a
           JOIN catalogue_aliases b
-            ON b.variant_code = a.canonical_code AND b.scheme_year = a.scheme_year`,
+            ON b.variant_code = a.canonical_code AND b.scheme_year = a.scheme_year
+          WHERE ${ofScheme(sql, schemeYear, 'a.')}`,
     ),
     await mustBeEmpty(
       area,
       'aliases with no evidence recorded',
-      sql`SELECT variant_code AS what FROM catalogue_aliases WHERE length(trim(reason)) < 20`,
+      sql`SELECT variant_code AS what FROM catalogue_aliases
+          WHERE length(trim(reason)) < 20 AND ${only}`,
     ),
     await mustBeEmpty(
       area,
       'aliases whose canonical code names nothing in the catalogue',
       sql`SELECT a.variant_code AS what FROM catalogue_aliases a
-          WHERE NOT EXISTS (
+          WHERE ${ofScheme(sql, schemeYear, 'a.')} AND NOT EXISTS (
             SELECT 1 FROM catalogue_syllabi s
             WHERE s.code = a.canonical_code AND s.scheme_year = a.scheme_year
           )
@@ -631,10 +721,11 @@ async function checkAliases(sql: Sql): Promise<Finding[]> {
 /* Conflicts (§29)                                                            */
 /* -------------------------------------------------------------------------- */
 
-async function checkConflicts(sql: Sql): Promise<Finding[]> {
+async function checkConflicts(sql: Sql, schemeYear: string | null): Promise<Finding[]> {
   const area = 'conflicts';
   const open = (await sql<{ entity_type: string; code: string; field: string }[]>`
-    SELECT entity_type, code, field FROM catalogue_conflicts WHERE status = 'open' ORDER BY code
+    SELECT entity_type, code, field FROM catalogue_conflicts
+    WHERE status = 'open' AND ${ofScheme(sql, schemeYear)} ORDER BY code
   `) as unknown as { entity_type: string; code: string; field: string }[];
 
   const findings: Finding[] = [
@@ -642,7 +733,7 @@ async function checkConflicts(sql: Sql): Promise<Finding[]> {
       area,
       'conflicts with no readings behind them',
       sql`SELECT c.code AS what FROM catalogue_conflicts c
-          WHERE NOT EXISTS (
+          WHERE ${ofScheme(sql, schemeYear, 'c.')} AND NOT EXISTS (
             SELECT 1 FROM catalogue_conflict_readings r WHERE r.conflict_id = c.id
           )`,
     ),
@@ -650,13 +741,16 @@ async function checkConflicts(sql: Sql): Promise<Finding[]> {
       area,
       'conflict readings pointing at a document that is gone',
       sql`SELECT r.value AS what FROM catalogue_conflict_readings r
-          WHERE NOT EXISTS (SELECT 1 FROM source_document_versions v WHERE v.id = r.version_id)`,
+          JOIN catalogue_conflicts c ON c.id = r.conflict_id
+          WHERE ${ofScheme(sql, schemeYear, 'c.')}
+            AND NOT EXISTS (SELECT 1 FROM source_document_versions v WHERE v.id = r.version_id)`,
     ),
     await mustBeEmpty(
       area,
       'resolved conflicts that do not say who resolved them or why',
       sql`SELECT code AS what FROM catalogue_conflicts
-          WHERE status <> 'open' AND (resolution IS NULL OR resolved_at IS NULL)`,
+          WHERE status <> 'open' AND (resolution IS NULL OR resolved_at IS NULL)
+            AND ${ofScheme(sql, schemeYear)}`,
     ),
   ];
 
@@ -833,10 +927,10 @@ export async function validateCatalogue(
     ...(await checkDocuments(sql)),
     ...(await checkApplicability(sql)),
     ...(await checkCourses(sql, schemeYear)),
-    ...(await checkSyllabi(sql)),
-    ...(await checkOptions(sql)),
-    ...(await checkAliases(sql)),
-    ...(await checkConflicts(sql)),
+    ...(await checkSyllabi(sql, schemeYear)),
+    ...(await checkOptions(sql, schemeYear)),
+    ...(await checkAliases(sql, schemeYear)),
+    ...(await checkConflicts(sql, schemeYear)),
     ...(await checkSemesterTotals(sql, schemeYear)),
   ];
   const failures = findings.filter((finding) => finding.severity === 'fail').length;

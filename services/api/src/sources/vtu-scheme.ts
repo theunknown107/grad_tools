@@ -88,6 +88,38 @@ export interface SchemeDocument {
    * other (§5, §7).
    */
   readonly streamLabel: string | null;
+  /**
+   * The listing SECTION this link sits under, where the page has one.
+   *
+   * Null when nothing on the page governs it, and null for every caller that
+   * does not hand `describe` the body it parsed.
+   */
+  readonly section: SchemeSection | null;
+}
+
+/**
+ * A heading on the listing, and everything printed beneath it until the next.
+ *
+ * THE YEAR IS SOMETIMES ONLY IN THE HEADING. Measured on the real page: the
+ * 2025 first-year section is headed "UG Engineering Scheme and Syllabus 2025
+ * (1st & 2nd semesters)" and its seventy-eight documents are filed under
+ * `/pdf/UG2024/` — a path naming the year BEFORE the scheme. Seventy-seven of
+ * them state no year in their own link text either, so reading links alone
+ * gives `schemeYear: null` and `--scheme 2025` selects none of them. Silently:
+ * a section with no matching documents looks exactly like a section that is
+ * empty.
+ *
+ * The heading governs the links below it until the next heading — the same
+ * rule the table-header reader above already follows, one level out. It is the
+ * HEADING rather than the `#menuNN` wrapper because a wrapper can hold several:
+ * `#menu07` carries the 2022 first-year listing, the 2022 3-to-8 listing and
+ * the 2022 common-course listing, which are three different semester scopes.
+ */
+export interface SchemeSection {
+  /** The anchor the page's own contents list links it by: `menu11`. */
+  readonly anchor: string | null;
+  /** The heading as printed. */
+  readonly title: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -154,7 +186,17 @@ function schemeYearOf(linkText: string, url: string): string | null {
 
 /** `[1, 2]`, `[3, 8]`, or null where the page states no span. */
 function semestersOf(linkText: string): readonly [number, number] | null {
-  const range = /\b([1-8])\s*(?:st|nd|rd|th)?\s*(?:-|to|–|—)\s*([1-8])\b/i.exec(linkText);
+  /*
+   * THE ORDINAL IS OPTIONAL ON BOTH ENDS. Link text writes the span as
+   * "3 - 8 Scheme", and the section HEADINGS write it as "3rd to 8th
+   * Semester" — where the trailing `th` sits between the digit and the
+   * word boundary this used to require, so the heading's own span was
+   * unreadable. `714 to 755` still matches nothing: 7 is followed by 5,
+   * which is neither an ordinal nor a boundary.
+   */
+  const range = /\b([1-8])\s*(?:st|nd|rd|th)?\s*(?:-|to|–|—)\s*([1-8])(?:st|nd|rd|th)?\b/i.exec(
+    linkText,
+  );
   if (range?.[1] !== undefined && range[2] !== undefined) {
     return [Number(range[1]), Number(range[2])];
   }
@@ -268,8 +310,76 @@ function labelFromRow(cells: readonly string[], column: number): string | null {
 
 const COMMON = /\bstream\b|\bcommon\b|\bcycle\b|\bI\s*(?:&|and)\s*II\b/i;
 
+/* -------------------------------------------------------------------------- */
+/* Sections                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** The heading of a listing section. */
+const SECTION_HEADING = /<div class="col-md-12 mqtitle"[^>]*>([\s\S]*?)<\/div>/gi;
+/** The wrapper the page's contents list anchors at, where a section has one. */
+const SECTION_ANCHOR = /<div id="(menu\d+)" class="[^"]*vc_row/gi;
+/** A year stated in a heading, with no `scheme`/`syllabus` word required. */
+const BARE_YEAR = /\b(20\d{2})\b/g;
+
+/**
+ * The year a heading states, or null where it states none — or several.
+ *
+ * SEVERAL IS NOT ONE. The listing carries "2002 2006 2010 2014 2015 2017 and
+ * 2018 scheme Common Syllabus for MATDip courses", and taking the first year
+ * out of that would file every document under it as 2002. A heading that names
+ * more than one year does not establish a year for anything (§7).
+ */
+function sectionYearOf(title: string): string | null {
+  const years = [...new Set([...title.matchAll(BARE_YEAR)].map((match) => match[1]))];
+  return years.length === 1 ? (years[0] ?? null) : null;
+}
+
+/**
+ * Which section each PDF link sits under, by position on the page.
+ *
+ * One linear pass: headings, anchors and links are collected with their offsets
+ * and read in document order, so a link takes the heading most recently opened
+ * above it. Nothing here needs the DOM to nest correctly, which matters because
+ * this page repeats an id — `#menu08` appears twice.
+ */
+export function sectionsByUrl(body: string): ReadonlyMap<string, SchemeSection> {
+  const marks: { at: number; kind: 'heading' | 'anchor' | 'link'; value: string }[] = [];
+  for (const match of body.matchAll(SECTION_HEADING)) {
+    marks.push({ at: match.index, kind: 'heading', value: textOf(match[1] ?? '') });
+  }
+  for (const match of body.matchAll(SECTION_ANCHOR)) {
+    marks.push({ at: match.index, kind: 'anchor', value: match[1] ?? '' });
+  }
+  for (const match of body.matchAll(PDF_LINK)) {
+    marks.push({ at: match.index, kind: 'link', value: match[1] ?? '' });
+  }
+  marks.sort((a, b) => a.at - b.at);
+
+  const found = new Map<string, SchemeSection>();
+  let anchor: string | null = null;
+  let title: string | null = null;
+  for (const mark of marks) {
+    if (mark.kind === 'anchor') {
+      anchor = mark.value;
+      continue;
+    }
+    if (mark.kind === 'heading') {
+      /* A blank heading governs nothing; the previous one keeps its scope. */
+      if (mark.value !== '') title = mark.value;
+      continue;
+    }
+    if (title === null) continue;
+    const url = mark.value.startsWith('http')
+      ? mark.value
+      : `https://vtu.ac.in${mark.value.replace(/^\/?/, '/')}`;
+    /* First heading above the FIRST appearance of a URL, as the page reads. */
+    if (!found.has(url)) found.set(url, { anchor, title });
+  }
+  return found;
+}
+
 export const vtuSchemeAdapter: SourceAdapter & {
-  readonly describe: (raw: readonly RawItem[]) => SchemeDocument[];
+  readonly describe: (raw: readonly RawItem[], body?: string) => SchemeDocument[];
 } = {
   sourceId: VTU_SCHEME_SOURCE_ID,
   parserVersion: VTU_SCHEME_PARSER_VERSION,
@@ -369,9 +479,15 @@ export const vtuSchemeAdapter: SourceAdapter & {
    * detection shape and must stay that shape. This is the academic reading of
    * the same items.
    */
-  describe(raw: readonly RawItem[]): SchemeDocument[] {
+  describe(raw: readonly RawItem[], body?: string): SchemeDocument[] {
+    /*
+     * The section map needs the page, not the items, so a caller that only has
+     * items still gets everything it got before and no section.
+     */
+    const sections = body === undefined ? new Map<string, SchemeSection>() : sectionsByUrl(body);
     return raw.map((item) => {
       const url = item.url ?? '';
+      const section = sections.get(url) ?? null;
       const [label, linkText] = item.title.includes(' — ')
         ? (item.title.split(' — ') as [string, string])
         : [null, item.title];
@@ -379,7 +495,15 @@ export const vtuSchemeAdapter: SourceAdapter & {
         url,
         linkText,
         kind: kindOf(item.title, url),
-        schemeYear: schemeYearOf(item.title, url),
+        /*
+         * THE SECTION IS A FALLBACK, NEVER AN OVERRIDE. A link that states its
+         * own year keeps it; only a link that states none inherits the
+         * heading's. So this can fill a null and can never change a value the
+         * document itself carries.
+         */
+        schemeYear:
+          schemeYearOf(item.title, url) ??
+          (section === null ? null : sectionYearOf(section.title)),
         /*
          * A label that opens with a course code names a course, never a
          * degree. It can still be read as a stream below, which is where a
@@ -387,7 +511,9 @@ export const vtuSchemeAdapter: SourceAdapter & {
          */
         programme:
           label !== null && !COMMON.test(label) && !LABEL_IS_A_COURSE.test(label) ? label : null,
-        semesters: semestersOf(linkText),
+        semesters:
+          semestersOf(linkText) ?? (section === null ? null : semestersOf(section.title)),
+        section,
         common: label === null ? COMMON.test(item.title) : COMMON.test(label),
         streamLabel: label !== null && /\bstream\b/i.test(label) ? label : null,
       };

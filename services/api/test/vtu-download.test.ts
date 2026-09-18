@@ -18,6 +18,7 @@ import {
   EMPTY_MANIFEST,
   isFetchableUrl,
   looksLikePdf,
+  recordSupplied,
   type Manifest,
 } from '../src/sources/vtu-download.js';
 
@@ -297,5 +298,195 @@ describe('a download run', () => {
       now,
     });
     expect(outcomes.map((o) => o.url)).toEqual(urls);
+  });
+});
+
+describe('a document somebody supplied', () => {
+  /*
+   * -------------------------------------------------------------------------
+   * MODE B HAD NO DOOR FOR DOCUMENTS
+   * -------------------------------------------------------------------------
+   *
+   * `acquire.ts` has always described two acquisition modes and said the
+   * difference is acquisition only. That held for the listing page, which
+   * `vtu:sync --from` accepts, and not for the documents: `store.put` had one
+   * caller in the repository, inside the live downloader. Somebody holding an
+   * official VTU PDF had no way to hand it over, so the only route to a
+   * document was the one the registry refuses.
+   */
+
+  const supplied = {
+    sha256: sha256Of(pdf('supplied')),
+    byteSize: pdf('supplied').byteLength,
+    url: 'https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf',
+    capturedAt: '2026-09-13T00:00:00.000Z',
+    sourceFilename: '34csbssch.pdf',
+    pageCount: 14,
+  };
+
+  it('records how the bytes arrived, and does not call it a fetch', () => {
+    /*
+     * §42: a supplied document must stay visibly distinguishable from a live
+     * automated fetch. The manifest is where that distinction has to live,
+     * because the manifest is what every later reader consults.
+     */
+    const { manifest, state } = recordSupplied(EMPTY_MANIFEST, supplied);
+
+    expect(state).toBe('supplied');
+    expect(manifest.entries[0]).toMatchObject({
+      sha256: supplied.sha256,
+      acquisition: 'supplied',
+      capturedAt: supplied.capturedAt,
+      sourceFilename: '34csbssch.pdf',
+      pageCount: 14,
+      urls: [supplied.url],
+    });
+    /* Nothing a server would have told us is invented. */
+    expect(manifest.entries[0]?.etag).toBeNull();
+    expect(manifest.entries[0]?.lastModified).toBeNull();
+  });
+
+  it('is idempotent: supplying the same bytes twice holds one document', () => {
+    // §33. The identity is the hash, exactly as it is for a fetched document.
+    const first = recordSupplied(EMPTY_MANIFEST, supplied);
+    const second = recordSupplied(first.manifest, {
+      ...supplied,
+      capturedAt: '2026-09-14T00:00:00.000Z',
+    });
+
+    expect(second.state).toBe('already_present');
+    expect(second.manifest.entries).toHaveLength(1);
+    /* First capture is when it first arrived, and does not drift forward. */
+    expect(second.manifest.entries[0]?.capturedAt).toBe(supplied.capturedAt);
+    expect(second.manifest.entries[0]?.lastSeen).toBe('2026-09-14T00:00:00.000Z');
+  });
+
+  it('does not relabel a live acquisition when the same bytes are supplied', () => {
+    /*
+     * THE REGRESSION. Every document in the real store arrived by live fetch,
+     * so supplying one — an ordinary thing to do with a copy you happen to
+     * hold — went through the merge path. That path rebuilt the entry from
+     * scratch and stamped it `supplied` with `etag` and `lastModified` nulled.
+     *
+     * Two losses in one. A live acquisition was restated as a supplied one,
+     * which is false about the past; and the validators a conditional request
+     * needs were destroyed, so `--changed-only` would re-download a document
+     * the server would have reported unchanged.
+     */
+    const live: Manifest = {
+      version: 1,
+      entries: [
+        {
+          sha256: supplied.sha256,
+          byteSize: supplied.byteSize,
+          mimeType: 'application/pdf',
+          urls: ['https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf'],
+          firstSeen: '2026-01-01T00:00:00.000Z',
+          lastSeen: '2026-01-01T00:00:00.000Z',
+          etag: 'W/"abc123"',
+          lastModified: 'Tue, 30 May 2023 04:39:28 GMT',
+          acquisition: 'live',
+          pageCount: 14,
+        },
+      ],
+      urlHistory: { 'https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf': [supplied.sha256] },
+    };
+
+    const { manifest, state } = recordSupplied(live, supplied);
+    const entry = manifest.entries[0];
+
+    expect(state).toBe('already_present');
+    expect(entry?.acquisition).toBe('live');
+    expect(entry?.etag).toBe('W/"abc123"');
+    expect(entry?.lastModified).toBe('Tue, 30 May 2023 04:39:28 GMT');
+    expect(entry?.firstSeen).toBe('2026-01-01T00:00:00.000Z');
+    /* What supplying it legitimately does: advance lastSeen. */
+    expect(entry?.lastSeen).toBe(supplied.capturedAt);
+  });
+
+  it('fills in a page count that was never recorded, and overwrites none', () => {
+    const withoutPages: Manifest = {
+      version: 1,
+      entries: [
+        {
+          sha256: supplied.sha256,
+          byteSize: supplied.byteSize,
+          mimeType: 'application/pdf',
+          urls: ['https://vtu.ac.in/pdf/x.pdf'],
+          firstSeen: now(),
+          lastSeen: now(),
+          etag: null,
+          lastModified: null,
+        },
+      ],
+      urlHistory: {},
+    };
+    expect(recordSupplied(withoutPages, supplied).manifest.entries[0]?.pageCount).toBe(14);
+
+    const withPages = recordSupplied(withoutPages, supplied).manifest;
+    const again = recordSupplied(withPages, { ...supplied, pageCount: 999 });
+    expect(again.manifest.entries[0]?.pageCount).toBe(14);
+  });
+
+  it('keeps both binaries when a URL serves different bytes', () => {
+    /*
+     * §27, and the reason it is in this phase at all: VTU's September 2025
+     * circular says the updated first-year files were uploaded BY REPLACING
+     * the earlier ones. One URL, two documents. Overwriting would destroy the
+     * evidence that the syllabus ever said something else.
+     */
+    const first = recordSupplied(EMPTY_MANIFEST, supplied);
+    const revised = {
+      ...supplied,
+      sha256: sha256Of(pdf('revised')),
+      byteSize: pdf('revised').byteLength,
+      capturedAt: '2026-09-20T00:00:00.000Z',
+    };
+    const second = recordSupplied(first.manifest, revised);
+
+    expect(second.state).toBe('changed');
+    expect(second.manifest.entries).toHaveLength(2);
+    expect(second.manifest.urlHistory[supplied.url]).toEqual([supplied.sha256, revised.sha256]);
+  });
+
+  it('adds a second URL to one document rather than a second document', () => {
+    // §6: the same PDF is linked from several rows of the listing. One
+    // binary, many references — supplied or fetched makes no difference.
+    const first = recordSupplied(EMPTY_MANIFEST, supplied);
+    const second = recordSupplied(first.manifest, {
+      ...supplied,
+      url: 'https://vtu.ac.in/pdf/2025syll3to8/common/34csbssch.pdf',
+    });
+
+    expect(second.manifest.entries).toHaveLength(1);
+    expect(second.manifest.entries[0]?.urls).toHaveLength(2);
+  });
+
+  it('leaves an entry that was never labelled unlabelled', () => {
+    /*
+     * The 289 documents already in the store predate this field. Stamping them
+     * `live` now would be inventing a provenance claim about bytes nobody can
+     * re-examine, so absent stays absent and is read as neither (§42).
+     */
+    const legacy: Manifest = {
+      version: 1,
+      entries: [
+        {
+          sha256: sha256Of(pdf('legacy')),
+          byteSize: 9,
+          mimeType: 'application/pdf',
+          urls: ['https://vtu.ac.in/pdf/2022syll/38csbssch.pdf'],
+          firstSeen: now(),
+          lastSeen: now(),
+          etag: null,
+          lastModified: null,
+        },
+      ],
+      urlHistory: {},
+    };
+    const { manifest } = recordSupplied(legacy, supplied);
+
+    expect(manifest.entries[0]?.acquisition).toBeUndefined();
+    expect(manifest.entries[1]?.acquisition).toBe('supplied');
   });
 });

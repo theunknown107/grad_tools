@@ -16,7 +16,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseScheme, type SchemePage } from '@gradtools/vtu-catalogue';
+import {
+  parseScheme,
+  semesterTotalsOf,
+  supersedingPairIn,
+  type SchemePage,
+} from '@gradtools/vtu-catalogue';
 import type { PositionedText } from '../src/domain/pdf-layout.js';
 
 /** Column x-positions, in the proportions the scheme prints them. */
@@ -428,14 +433,28 @@ describe('a course code longer than four letters', () => {
     expect(parsed.courses.reduce((sum, course) => sum + course.credits, 0)).toBe(7);
   });
 
-  it('still refuses the LATER scheme family, which differs by one character', () => {
+  it('keeps the LATER scheme family distinct instead of collapsing it onto this one', () => {
     /*
-     * `1BMATC101` contains `BMATC101`. Widening the letter count must not
-     * widen this: the leading digit is a different scheme year, and reading it
-     * as this one would reattribute a course to the wrong year (docs/22).
+     * THIS TEST USED TO ASSERT THAT THE ROW WAS DISCARDED, and the reason it
+     * gave was that "the leading digit is a different scheme year, and reading
+     * it as this one would reattribute a course to the wrong year".
+     *
+     * The danger is real and refusing to read the row never addressed it. A
+     * discarded row is not a row filed under the right year; it is a course
+     * missing from the catalogue, and a whole 2025 document parsed to nothing
+     * at all — which looks exactly like a document containing no courses.
+     *
+     * What actually prevents reattribution is that `scheme_year` is part of a
+     * course's identity, read from the document's own heading, so `BQQMAT101`
+     * and `1BQQMAT101` are two codes in two schemes and neither can overwrite
+     * the other. So the property worth asserting is the one below: the code is
+     * read EXACTLY as printed. The digit is never dropped, and never grown.
      */
-    const parsed = parseScheme(page(row(322, '1BQQMAT101', 'Invented Later-Scheme Course', 3)));
-    expect(parsed.courses).toHaveLength(0);
+    const later = parseScheme(page(row(322, '1BQQMAT101', 'Invented Later-Scheme Course', 3)));
+    expect(later.courses.map((course) => course.code)).toEqual(['1BQQMAT101']);
+
+    const earlier = parseScheme(page(row(322, 'BQQMAT101', 'Invented Course', 3)));
+    expect(earlier.courses.map((course) => course.code)).toEqual(['BQQMAT101']);
   });
 });
 
@@ -756,5 +775,660 @@ describe('the shapes a VTU code column actually prints', () => {
       ]),
     );
     expect(parsed.courses).toHaveLength(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+
+describe('the 2025 scheme generation', () => {
+  /*
+   * -------------------------------------------------------------------------
+   * WHAT IS REAL HERE, AND WHAT IS NOT
+   * -------------------------------------------------------------------------
+   *
+   * THE COURSE CODES ARE REAL. `1BCS301`, `1BCSL306`, `1BCSL307A`, `1BCP308`,
+   * `1BNSS309` and `1BMATDIP310` are printed in VTU's own CSBS 2025 scheme,
+   * https://vtu.ac.in/pdf/2025syll3to8/34csbssch.pdf, and are reproduced here
+   * exactly as printed (§50). They are the evidence this grammar was measured
+   * against rather than reasoned toward.
+   *
+   * THE LAYOUT IS NOT. The x-positions below are the 2022 document's, because
+   * that is the layout this repository has 288 real documents of. No 2025 PDF
+   * has been supplied, so no claim is made here about 2025 column geometry,
+   * wrapped titles, option groups, or printed totals — the assertions are
+   * about which code shapes the reader RECOGNISES, which is the one thing the
+   * printed codes are evidence for.
+   *
+   * Titles and credits are invented, and are asserted only to show the row was
+   * read as a row. Nothing in this file should be read as a statement about
+   * what any 2025 course is worth.
+   */
+
+  const heading2025 = [
+    at('B.E. in Invented Studies', 313, 491),
+    at('Scheme of Teaching and Examinations 2025', 319, 477),
+    at('III SEMESTER', 56, 435),
+  ];
+
+  const page2025 = (...rows: readonly PositionedText[][]): SchemePage[] => [
+    { page: 1, items: [...heading2025, ...rows.flat()] },
+  ];
+
+  it('reads the codes VTU actually prints in the 2025 scheme', () => {
+    /*
+     * Before the generation digit was part of the grammar every one of these
+     * failed to match, so a 2025 document parsed to zero courses — which is
+     * indistinguishable from a document that contains none.
+     */
+    const parsed = parseScheme(
+      page2025(
+        row(322, '1BCS301', 'Invented Course One', 4),
+        row(300, '1BCSL306', 'Invented Laboratory', 1),
+        row(278, '1BCSL307A', 'Invented Optional Laboratory', 1),
+        row(256, '1BCP308', 'Invented Project', 2),
+        row(234, '1BNSS309', 'Invented Activity', 0),
+        row(212, '1BMATDIP310', 'Invented Bridge Course', 0),
+      ),
+    );
+
+    expect(parsed.courses.map((course) => course.code)).toEqual([
+      '1BCS301',
+      '1BCSL306',
+      '1BCSL307A',
+      '1BCP308',
+      '1BNSS309',
+      '1BMATDIP310',
+    ]);
+    expect(parsed.rejected).toHaveLength(0);
+  });
+
+  it('reads the 2025 codes found on real documents held locally', () => {
+    /*
+     * A SECOND, INDEPENDENT SOURCE OF EVIDENCE.
+     *
+     * The codes in the test above are quoted from VTU's published CSBS 2025
+     * scheme. These were read off the PAGES of seven 2025-family documents
+     * that exist on this machine, by `scripts/source-inventory.ts` — two of
+     * which declare a different code than their own filename claims, which is
+     * why the page rather than the filename is what is trusted here.
+     *
+     * They are question papers, not schemes. That matters and is the point:
+     * `source-scan.ts` says a question paper "NEVER carries credits, L/T/P,
+     * scheme membership", so these establish the CODE GRAMMAR and nothing
+     * else. They are used here for exactly the one thing they are evidence of.
+     *
+     * `BEE105` is in the list deliberately: one of the seven declares a
+     * 2022-family code, and the grammar must keep reading those too.
+     */
+    const observed = [
+      'BEE105',
+      '1BECHE105',
+      '1BESC104C',
+      '1BMATC101',
+      '1BMATC201',
+      '1BPHYS102',
+      '1BPLC105E',
+    ];
+
+    const parsed = parseScheme(
+      page2025(...observed.map((code, index) => row(322 - index * 22, code, 'Invented Title', 3))),
+    );
+    expect(parsed.courses.map((course) => course.code)).toEqual(observed);
+  });
+
+  it('takes the scheme year from the document rather than from the code', () => {
+    /*
+     * §68: the year is stored at normalization time from what the document
+     * says, never inferred later from a filename or a leading digit. The
+     * digit marks a generation; the HEADING states the year.
+     */
+    const parsed = parseScheme(page2025(row(322, '1BCS301', 'Invented Course One', 4)));
+    expect(parsed.schemeYear).toBe('2025');
+  });
+
+  it('keeps a zero-credit row rather than dropping it', () => {
+    // Non-credit and mandatory-activity rows are part of the scheme (§9).
+    const parsed = parseScheme(page2025(row(322, '1BNSS309', 'Invented Activity', 0)));
+    expect(parsed.courses[0]).toMatchObject({ code: '1BNSS309', credits: 0 });
+  });
+
+  it('still reads a 2022 code, and does not grow a digit reading one', () => {
+    /*
+     * The regression that matters. `BCS301` and `1BCS301` are codes in two
+     * different schemes, and the generation digit is optional precisely so
+     * that neither is rewritten into the other.
+     */
+    const parsed = parseScheme(page(row(322, 'BQQ401', 'Invented Course One', 4)));
+    expect(parsed.courses[0]?.code).toBe('BQQ401');
+  });
+
+  it('carries the generation digit through a shared-tail code cell', () => {
+    /*
+     * `BTX/ST306x` is VTU's way of printing one row offered under two
+     * prefixes, and the reader rebuilds the first code from the parts. Rebuilt
+     * WITHOUT the generation it would name a 2022 course that the 2025 cell
+     * never printed.
+     */
+    const parsed = parseScheme(
+      page2025([
+        ...row(322, 'PLACEHOLDER', 'Invented Course', 4).filter(
+          (item) => item.text !== 'PLACEHOLDER',
+        ),
+        at('1BQX/ST306x', COL.code, 322),
+      ]),
+    );
+    expect(parsed.courses[0]?.code).toBe('1BQX306x');
+  });
+});
+
+describe('headings the 2025 scheme prints, and the prose it also prints', () => {
+  /*
+   * The reader used to take a semester heading only from a run of 24
+   * characters or fewer. That length was standing in for "a heading, not a
+   * sentence", and the 2025 scheme is where the proxy broke: it heads its last
+   * two tables
+   *
+   *     VII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)
+   *
+   * at 57 characters, so BOTH semesters were dropped — every seventh- and
+   * eighth-semester row refused for "This page states no semester" while the
+   * first four semesters imported cleanly. A scheme missing a quarter of its
+   * courses still looks like a working import, which is why this is asserted
+   * rather than left to the eye.
+   */
+  const headed = (heading: string, code: string): SchemePage[] => [
+    {
+      page: 1,
+      items: [
+        at('B.E. in Invented Studies', 313, 491),
+        at('Scheme of Teaching and Examinations 2025', 319, 477),
+        at(heading, 56, 435),
+        ...row(322, code, 'Invented Course One', 4),
+      ],
+    },
+  ];
+
+  it('reads a heading carrying bracketed qualifiers, however long', () => {
+    const parsed = parseScheme(
+      headed('VII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)', 'BQQ401'),
+    );
+
+    expect(parsed.semesters).toEqual([7]);
+    expect(parsed.courses[0]).toMatchObject({ code: 'BQQ401', semester: 7 });
+  });
+
+  it('takes the heading’s own numeral, not one from inside the qualifier', () => {
+    /*
+     * Both roman numerals appear in that heading and only the first is the
+     * page's. Reading the other swaps the two tables — which is exactly what
+     * the printed VII and VIII totals would then disagree about.
+     */
+    const parsed = parseScheme(
+      headed('VIII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)', 'BQQ401'),
+    );
+
+    expect(parsed.semesters).toEqual([8]);
+  });
+
+  it('still refuses a sentence that opens the same way', () => {
+    /*
+     * The notes pages begin "III semester to the VI semester (for 4
+     * semesters)…". It matches the heading shape, and filing a page of prose
+     * under semester three is what the length limit was there to prevent.
+     * Words before any bracket are what separate the two.
+     */
+    const parsed = parseScheme([
+      {
+        page: 1,
+        items: [
+          at('B.E. in Invented Studies', 313, 491),
+          at('III semester to the VI semester (for 4 semesters) shall be', 56, 435),
+          ...row(322, 'BQQ401', 'Invented Course One', 4),
+        ],
+      },
+    ]);
+
+    expect(parsed.semesters).toEqual([]);
+    expect(parsed.rejected.map((r) => r.reason)).toContain('This page states no semester.');
+  });
+});
+
+describe('the placeholder letters, in whichever case the typist used', () => {
+  /*
+   * `BXX515x` is the document writing "whichever discipline this is", and the
+   * row it names carries the elective slot's credits — the 2022 catalogue has
+   * shipped six such rows since it was published.
+   *
+   * The 2025 scheme prints them in BOTH cases, inconsistently within one page:
+   * its fourth-semester table row says `1BXXL406x` while the option list
+   * directly above says `1BxxL406x`, and its whole eighth-semester table is
+   * lowercase — `1Bxx801x`, `1Bxx802x`, `1Bxx803x`, worth 3, 3 and 9 of the
+   * 15 credits that table totals. With capitals required, that semester read
+   * as zero courses: not refused with a reason, INVISIBLE, because a cell that
+   * is not a code is not a row.
+   */
+  const eighth = (code: string): SchemePage[] => [
+    {
+      page: 1,
+      items: [
+        at('B.E. in Invented Studies', 313, 491),
+        at('Scheme of Teaching and Examinations 2025', 319, 477),
+        at('VIII SEMESTER', 56, 435),
+        ...row(322, code, 'Invented Elective Slot', 3),
+      ],
+    },
+  ];
+
+  it('reads a lowercase placeholder as the slot it is', () => {
+    const parsed = parseScheme(eighth('1Bxx801x'));
+
+    expect(parsed.courses).toHaveLength(1);
+    expect(parsed.courses[0]).toMatchObject({ credits: 3, semester: 8 });
+  });
+
+  it('files both spellings under one identity', () => {
+    /*
+     * Two spellings of one slot would otherwise be two courses, and the
+     * document uses both. The canonical form is the one the table itself
+     * prints.
+     */
+    const lower = parseScheme(eighth('1Bxx801x')).courses[0]?.code;
+    const upper = parseScheme(eighth('1BXX801x')).courses[0]?.code;
+
+    expect(lower).toBe('1BXX801x');
+    expect(upper).toBe('1BXX801x');
+  });
+
+  it('leaves the trailing letter exactly as printed', () => {
+    /*
+     * Only the discipline segment is case-free. A lowercase `x` marks the slot
+     * — "whichever option is chosen" — and a capital names one of the options,
+     * so `BXX515x` and `BXX515A` are different rows. Folding the tail as well
+     * renamed the six placeholder slots the 2022 catalogue publishes.
+     */
+    expect(parseScheme(eighth('BXX515x')).courses[0]?.code).toBe('BXX515x');
+    expect(parseScheme(eighth('BXX515A')).courses[0]?.code).toBe('BXX515A');
+  });
+});
+
+describe('a department cell that arrives in two runs', () => {
+  /*
+   * The department cell is excluded from course titles by a pattern that
+   * requires the colon, because the bare `TD/PSB` COLUMN HEADER must not match
+   * — matching it drags the department column's left edge out to the header
+   * and clips every title on the page to nothing.
+   *
+   * The 2025 scheme splits the cell at exactly that colon, into `"TD/PSB"` and
+   * `": CS Allied"` with no gap between them, so neither half matched and both
+   * were read as part of the course name. Every row on those pages came out
+   * titled "TD/PSB : CS Allied Machine Learning".
+   */
+  const split = (): SchemePage[] => [
+    {
+      page: 1,
+      items: [
+        at('B.E. in Invented Studies', 313, 491),
+        at('Scheme of Teaching and Examinations 2025', 319, 477),
+        at('V SEMESTER', 56, 435),
+        at('1', COL.serial, 322),
+        at('PCC', COL.category, 322),
+        at('BQQ501', COL.code, 322),
+        at('Invented Course One', COL.title, 322),
+        /* The two halves meet exactly, which is what marks them one cell. */
+        { text: 'TD/PSB', x: COL.department, y: 322, width: 27, height: HEIGHT },
+        { text: ': CS Allied', x: COL.department + 27, y: 322, width: 40, height: HEIGHT },
+        at('100', COL.total, 328),
+        at('3', COL.credits, 328),
+        at('3', COL.lecture, 322),
+        at('0', COL.tutorial, 322),
+        at('0', COL.practical, 322),
+        at('03', COL.duration, 322),
+        at('50', COL.cie, 322),
+        at('50', COL.see, 322),
+      ],
+    },
+  ];
+
+  it('keeps both halves out of the course name', () => {
+    const parsed = parseScheme(split());
+
+    expect(parsed.courses).toHaveLength(1);
+    expect(parsed.courses[0]?.title).toBe('Invented Course One');
+  });
+});
+
+describe('the total a semester table prints', () => {
+  /*
+   * The printed total is the cross-check on everything else here: it is the
+   * document's own arithmetic, and comparing it against the rows read is what
+   * catches a reader that has quietly lost one. So it has to be attributed to
+   * the table that printed it, and read whole.
+   *
+   * Both fixtures below are the layout of `34csbssch.pdf`, at the coordinates
+   * it actually uses.
+   */
+
+  const TITLE_BLOCK = at('Scheme of Teaching and Examinations - 2025', 319, 477);
+
+  it('reads a total row whose cells straddle two baselines', () => {
+    /*
+     * THE ROW IS NOT ONE BASELINE. The seventh-semester total is typeset with
+     * `Total` and one figure at y 105 and the whole rest of the row — its
+     * credits cell included — at y 104.
+     *
+     * Bucketing on `Math.round(y)` put a hard boundary through it. The `Total`
+     * fragment kept exactly one number, the 15 that happened to share its
+     * baseline, and the reader reported this semester as printing 15 credits
+     * against a catalogue holding 20. The 15 was never a stray token from
+     * elsewhere on the page: it is this row's own term-work column, and the
+     * reader was seeing a seventh of the row.
+     */
+    const totals = semesterTotalsOf([
+      {
+        page: 1,
+        items: [
+          TITLE_BLOCK,
+          at('VII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)', 48, 404),
+          at('Total', 439, 105),
+          at('15', 653, 105),
+          at('628', 617, 104),
+          at('400', 687, 104),
+          at('300', 725, 104),
+          at('700', 760, 104),
+          at('20', 795, 104),
+        ],
+      },
+    ]);
+
+    expect(totals).toEqual([{ semester: 7, credits: 20, page: 1 }]);
+  });
+
+  it('does not give a new table the previous table’s semester', () => {
+    /*
+     * The semester heading carries across pages because a table runs across
+     * pages and only its first page prints one. That holds for CONTINUATION
+     * pages, which carry rows and no masthead.
+     *
+     * The eleventh page of the 2025 scheme is not one. It re-prints the title
+     * block and opens a different table — the Scheme-B variant for candidates
+     * taking a two-semester internship, which its own caption says covers
+     * "VII and VIII semesters" — and states no semester of its own. Inheriting
+     * eight from the page before filed that table's 20 credits as an
+     * eighth-semester total, against a table that prints 15.
+     */
+    const totals = semesterTotalsOf([
+      {
+        page: 1,
+        items: [
+          TITLE_BLOCK,
+          at('VIII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)', 43, 458),
+          at('Total', 439, 272),
+          at('540', 606, 272),
+          at('9', 644, 272),
+          at('200', 676, 271),
+          at('200', 715, 271),
+          at('400', 756, 271),
+          at('15', 794, 271),
+        ],
+      },
+      {
+        page: 2,
+        items: [
+          TITLE_BLOCK,
+          at('VII and VIII semesters for the candidates who opt for a two-semesters', 18, 458),
+          at('Total', 560, 164),
+          at('6', 644, 164),
+          at('400', 678, 164),
+          at('300', 720, 164),
+          at('700', 763, 164),
+          at('20', 800, 164),
+        ],
+      },
+    ]);
+
+    expect(totals).toEqual([{ semester: 8, credits: 15, page: 1 }]);
+  });
+
+  it('still carries the heading onto a continuation page', () => {
+    /*
+     * The reason the carry-forward exists, asserted so that narrowing it
+     * cannot quietly remove it. This page prints no masthead, so it continues
+     * the table above rather than starting one.
+     */
+    const totals = semesterTotalsOf([
+      { page: 1, items: [TITLE_BLOCK, at('V SEMESTER', 48, 380)] },
+      {
+        page: 2,
+        items: [
+          at('Total', 485, 132),
+          at('658', 648, 132),
+          at('500', 704, 132),
+          at('400', 732, 132),
+          at('900', 768, 132),
+          at('22', 806, 132),
+        ],
+      },
+    ]);
+
+    expect(totals).toEqual([{ semester: 5, credits: 22, page: 2 }]);
+  });
+
+  it('still reads a total row that prints one number', () => {
+    /*
+     * Thirty-seven totals in the 2022 corpus have exactly this shape — the
+     * label and the credits, the rest of the columns on baselines of their
+     * own. Rejecting a one-number row would have been the cheap way to throw
+     * out the 15 above, and it would have thrown out these with it.
+     */
+    const totals = semesterTotalsOf([
+      {
+        page: 1,
+        items: [
+          TITLE_BLOCK,
+          at('III SEMESTER', 56, 435),
+          at('Total', 485, 132),
+          at('21', 806, 132),
+        ],
+      },
+    ]);
+
+    expect(totals).toEqual([{ semester: 3, credits: 21, page: 1 }]);
+  });
+});
+
+describe('a row that prints two codes, each with the code it supersedes', () => {
+  /*
+   * The first-year Kannada row, in both cycles:
+   *
+   *     1BKSK109(BKSK107)/1BKBK109(BKBK107)
+   *     Samskrutika Kannada / Balake Kannada          1 credit
+   *
+   * One row, one credit, two named alternatives, each carrying the 2022 code
+   * it replaces. It is the only shape in the corpus that brackets a superseded
+   * code — four cells across 290 documents, being these two rows each wrapped
+   * over two lines — and until it was read, both cycles came up exactly one
+   * credit short of the twenty their own documents print.
+   */
+
+  /** The row as the document sets it: the cell WRAPS after the slash. */
+  const kannadaRow = (
+    heading: string,
+    head: string,
+    tail: string,
+    title: string,
+  ): SchemePage[] => [
+    {
+      page: 1,
+      items: [
+        at('B.E. in Invented Studies', 313, 491),
+        at('Scheme of Teaching and Examinations 2025', 319, 477),
+        at(heading, 56, 435),
+        /* The two halves of the code, one column, two lines. */
+        at(head, 140, 328),
+        at(tail, 140, 314),
+        /* The row itself is the line between them. */
+        at('9', 61, 321),
+        at('HSMC', 93, 321),
+        at(title, 195, 321),
+        at('1', 493, 321),
+        at('0', 526, 321),
+        at('0', 559, 321),
+        at('01', 632, 321),
+        at('50', 670, 321),
+        at('50', 711, 321),
+        at('100', 750, 327),
+        at('1', 789, 327),
+      ],
+    },
+  ];
+
+  const physics = () =>
+    parseScheme(
+      kannadaRow(
+        'I SEMESTER',
+        '1BKSK109(BKSK107)/',
+        '1BKBK109(BKBK107)',
+        'Samskrutika Kannada/ Balake Kannada',
+      ),
+    );
+  const chemistry = () =>
+    parseScheme(
+      kannadaRow(
+        'II SEMESTER',
+        '1BKSK209(BKSK107)/',
+        '1BKBK209(BKBK107)',
+        'Samskrutika Kannada/ Balake Kannada',
+      ),
+    );
+
+  it('reads both alternatives and the code each of them supersedes', () => {
+    expect(supersedingPairIn('1BKSK109(BKSK107)/1BKBK109(BKBK107)')).toEqual([
+      { code: '1BKSK109', supersedes: 'BKSK107' },
+      { code: '1BKBK109', supersedes: 'BKBK107' },
+    ]);
+  });
+
+  it('joins the halves the document wraps after the slash', () => {
+    /*
+     * The cell is too wide for its column, so the document breaks it after the
+     * slash and sets the row on the line between the two halves.
+     */
+    const parsed = physics();
+
+    expect(parsed.courses.map((course) => course.code).sort()).toEqual([
+      '1BKBK109',
+      '1BKSK109',
+    ]);
+  });
+
+  it('charges the semester once, not once per code', () => {
+    /*
+     * THE WHOLE POINT. Two codes on one printed row are one credit, and a
+     * reader that gave each of them the row's credits would put two into a
+     * semester that prints one — and into the SGPA that weights by them.
+     */
+    const parsed = physics();
+    const charged = parsed.courses.filter(
+      (course) => course.viaElectiveSlot === null && course.viaAlternativeTo === null,
+    );
+
+    expect(charged).toHaveLength(1);
+    expect(charged[0]?.code).toBe('1BKSK109');
+    expect(charged.reduce((total, course) => total + course.credits, 0)).toBe(1);
+  });
+
+  it('keeps the second code as an alternative TO the first, not as a separate course', () => {
+    /*
+     * A student takes Samskrutika Kannada OR Balake Kannada. Both must stay
+     * searchable — a student looking up the code on their card has to find it —
+     * and neither may become a second requirement.
+     */
+    const parsed = physics();
+    const balake = parsed.courses.find((course) => course.code === '1BKBK109');
+
+    expect(balake).toMatchObject({ viaAlternativeTo: '1BKSK109', credits: 1 });
+  });
+
+  it('gives each alternative the title printed against it', () => {
+    /*
+     * The row writes the names in parallel with the codes — "Samskrutika
+     * Kannada / Balake Kannada" against `1BKSK.../1BKBK...` — so they belong to
+     * them one for one. Only taken when the counts match: a compound like
+     * `BCH358x/BCHL358x` names ONE course under two codes, and splitting its
+     * title would hand each half a fragment of a name.
+     */
+    const parsed = chemistry();
+
+    expect(parsed.courses.find((c) => c.code === '1BKSK209')?.title).toBe('Samskrutika Kannada');
+    expect(parsed.courses.find((c) => c.code === '1BKBK209')?.title).toBe('Balake Kannada');
+  });
+
+  it('records the superseded code against the course that prints it', () => {
+    /*
+     * Carried, not discarded — and deliberately not written to the alias table.
+     * Both cycles print `(BKSK107)`: the physics cycle against `1BKSK109` in
+     * semester I and the chemistry cycle against `1BKSK209` in semester II. One
+     * superseded code with two superseding ones is not an alias, and the alias
+     * table's own invariant would reject it.
+     */
+    expect(physics().courses.find((c) => c.code === '1BKSK109')?.supersedes).toBe('BKSK107');
+    expect(chemistry().courses.find((c) => c.code === '1BKSK209')?.supersedes).toBe('BKSK107');
+    expect(physics().courses.find((c) => c.code === '1BKBK109')?.supersedes).toBe('BKBK107');
+  });
+
+  it('reads the row in both first-year cycles', () => {
+    /*
+     * The physics cycle prints it in semester I and the chemistry cycle in
+     * semester II. Same rule, both documents, and the cycles stay apart.
+     */
+    expect(physics().courses.every((course) => course.semester === 1)).toBe(true);
+    expect(chemistry().courses.every((course) => course.semester === 2)).toBe(true);
+    expect(chemistry().courses.map((c) => c.code).sort()).toEqual(['1BKBK209', '1BKSK209']);
+  });
+
+  it('refuses a half-written pair rather than reading one side of it', () => {
+    /*
+     * A cell where only one half brackets its superseded code is not a pair
+     * this reader understands. Taking the half it can parse would put one
+     * Kannada course in the semester and drop the choice silently, so the whole
+     * cell is refused.
+     */
+    expect(supersedingPairIn('1BKSK109(BKSK107)/1BKBK109')).toBeNull();
+    expect(supersedingPairIn('1BKSK109(not a code)/1BKBK109(BKBK107)')).toBeNull();
+    expect(supersedingPairIn('1BKSK109(BKSK107)')).toBeNull();
+  });
+
+  it('does not split the title of an ordinary compound cell', () => {
+    /*
+     * A compound names ONE course under two codes — the theory variant and the
+     * laboratory one, or one table serving two programmes — so its title
+     * belongs whole to both. The parallel-title rule is restricted to
+     * superseding pairs for exactly this reason: a compound whose name happens
+     * to carry a slash would otherwise have it torn in half, and each code
+     * would be listed under a fragment.
+     */
+    const parsed = parseScheme(
+      page([
+        ...row(322, 'BQQIGNORED', 'Invented Aerodynamics/ Flight Mechanics', 4).filter(
+          (item) => item.text !== 'BQQIGNORED',
+        ),
+        at('BQQ402/', COL.code, 329),
+        at('BQS402', COL.code + 2, 315),
+      ]),
+    );
+
+    for (const course of parsed.courses) {
+      expect(course.title).toBe('Invented Aerodynamics/ Flight Mechanics');
+    }
+  });
+
+  it('leaves an ordinary compound cell alone', () => {
+    /*
+     * `BCH358x/BCHL358x` has no brackets and must keep going through the rule
+     * it always did. This change is additive: a cell that did not match the
+     * superseding shape before still does not.
+     */
+    expect(supersedingPairIn('BCH358x/BCHL358x')).toBeNull();
+    expect(supersedingPairIn('BTX/ST306x')).toBeNull();
   });
 });
