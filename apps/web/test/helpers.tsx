@@ -16,6 +16,9 @@ import type {
   AttendanceRecord,
   BacklogRecord,
   ClassMark,
+  DayOverride,
+  LedgerEntry,
+  RemoteSnapshot,
   SemesterRecord,
   SemesterResult,
   SchemeCourse,
@@ -43,6 +46,9 @@ export interface MemorySeed {
   backlogs?: BacklogRecord[];
   calendars?: SavedCalendar[];
   classMarks?: ClassMark[];
+  attendanceLedger?: LedgerEntry[];
+  timetableOverrides?: DayOverride[];
+  remoteSnapshots?: RemoteSnapshot[];
   schemeCourses?: SchemeCourse[];
   examTimetables?: SavedExamTimetable[];
   examEvents?: StoredExamEvent[];
@@ -78,6 +84,9 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
   const backlogs = listRepo<BacklogRecord>(seed.backlogs ?? []);
   const calendars = listRepo<SavedCalendar>(seed.calendars ?? []);
   const classMarks = listRepo<ClassMark>(seed.classMarks ?? []);
+  const attendanceLedger = listRepo<LedgerEntry>(seed.attendanceLedger ?? []);
+  const timetableOverrides = listRepo<DayOverride>(seed.timetableOverrides ?? []);
+  const remoteSnapshots = listRepo<RemoteSnapshot>(seed.remoteSnapshots ?? []);
   const schemeCourses = listRepo<SchemeCourse>(seed.schemeCourses ?? []);
   const timetableImports = listRepo<SavedTimetable>(seed.timetableImports ?? []);
   const examTimetables = listRepo<SavedExamTimetable>(seed.examTimetables ?? []);
@@ -107,6 +116,9 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
     calendars,
     timetableImports,
     classMarks,
+    attendanceLedger,
+    timetableOverrides,
+    remoteSnapshots,
     schemeCourses,
     examTimetables,
     examEvents,
@@ -139,6 +151,9 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
       calendars: calendars.peek,
       timetableImports: timetableImports.peek,
       classMarks: classMarks.peek,
+      attendanceLedger: attendanceLedger.peek,
+      timetableOverrides: timetableOverrides.peek,
+      remoteSnapshots: remoteSnapshots.peek,
       schemeCourses: schemeCourses.peek,
       examTimetables: examTimetables.peek,
       examEvents: examEvents.peek,

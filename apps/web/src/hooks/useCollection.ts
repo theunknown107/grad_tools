@@ -12,6 +12,9 @@ import type {
   AttendanceRecord,
   BacklogRecord,
   ClassMark,
+  DayOverride,
+  LedgerEntry,
+  RemoteSnapshot,
   SemesterRecord,
   SemesterResult,
   SchemeCourse,
@@ -144,6 +147,27 @@ export function useTimetableImports(): CollectionState<SavedTimetable> {
  */
 export function useClassMarks(): CollectionState<ClassMark> {
   return useCollection(useRepositories().classMarks);
+}
+
+/**
+ * The attendance ledger: openings, per-class occurrences and adjustments.
+ *
+ * THE AUTHORITY behind every attendance figure on a device that has upgraded.
+ * `useAttendance` above is the derived cache of this (domain/attendance
+ * `deriveCounts`), which is why nothing outside the marking path writes to it.
+ */
+export function useAttendanceLedger(): CollectionState<LedgerEntry> {
+  return useCollection(useRepositories().attendanceLedger);
+}
+
+/** What one date did to the recurring week. Device-local (see AccountPage). */
+export function useTimetableOverrides(): CollectionState<DayOverride> {
+  return useCollection(useRepositories().timetableOverrides);
+}
+
+/** Synced aggregates seen and not adopted. Never a fact until the student says. */
+export function useRemoteSnapshots(): CollectionState<RemoteSnapshot> {
+  return useCollection(useRepositories().remoteSnapshots);
 }
 
 /**

@@ -39,6 +39,9 @@ import type {
   AttendanceRecord,
   BacklogRecord,
   ClassMark,
+  DayOverride,
+  LedgerEntry,
+  RemoteSnapshot,
   SemesterRecord,
   SemesterResult,
   SchemeCourse,
@@ -183,6 +186,53 @@ export interface ClassMarkRepository {
   remove(id: string): Promise<void>;
 }
 
+/**
+ * The attendance ledger: openings, per-class occurrences and adjustments.
+ *
+ * THE AUTHORITY, not a cache. `AttendanceRecord` is derived from this
+ * (domain/attendance `deriveCounts`), which is why this repository is stricter
+ * than the others in two ways:
+ *
+ * - a failed write THROWS rather than returning quietly. A dropped counter
+ *   update is a stale number; a dropped ledger write is a class the student
+ *   recorded and the product forgot;
+ * - a committed `AttendanceAdjustment` cannot be written or removed at all. Its
+ *   undo window is a rollback, not an edit, and once it has closed the only way
+ *   to correct the figure is another adjustment.
+ *
+ * DEVICE-LOCAL in this phase: it is not part of `useSync.COLLECTIONS`.
+ */
+export interface AttendanceLedgerRepository {
+  list(): Promise<LedgerEntry[]>;
+  upsert(entry: LedgerEntry): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
+/**
+ * What one date did to the recurring week: cancelled, replaced, added, removed.
+ *
+ * Keyed `${date}:${classId}`, so one occurrence can never hold two
+ * contradictory instructions. DEVICE-LOCAL in this phase.
+ */
+export interface DayOverrideRepository {
+  list(): Promise<DayOverride[]>;
+  upsert(override: DayOverride): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
+/**
+ * Synced attendance aggregates this device has SEEN and not adopted.
+ *
+ * An observation, never a fact: nothing here changes a number until the student
+ * adopts it. DEVICE-LOCAL, and deliberately so — if it synced, two devices
+ * could take turns reacting to each other.
+ */
+export interface RemoteSnapshotRepository {
+  list(): Promise<RemoteSnapshot[]>;
+  upsert(snapshot: RemoteSnapshot): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
 export interface RepositoryBundle {
   readonly profile: StudentProfileRepository;
   readonly attendance: AttendanceRepository;
@@ -195,6 +245,9 @@ export interface RepositoryBundle {
   readonly calendars: CalendarRepository;
   readonly timetableImports: TimetableImportRepository;
   readonly classMarks: ClassMarkRepository;
+  readonly attendanceLedger: AttendanceLedgerRepository;
+  readonly timetableOverrides: DayOverrideRepository;
+  readonly remoteSnapshots: RemoteSnapshotRepository;
   readonly schemeCourses: SchemeCourseRepository;
   readonly examTimetables: ExamTimetableRepository;
   readonly examEvents: ExamEventRepository;
