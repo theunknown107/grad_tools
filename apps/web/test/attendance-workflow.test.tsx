@@ -17,7 +17,12 @@ import { AttendancePage } from '../src/features/attendance/AttendancePage.js';
 import { TimetablePage } from '../src/features/timetable/TimetablePage.js';
 import { DashboardPage } from '../src/features/dashboard/DashboardPage.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
-import type { AttendanceRecord, StudentProfile, TimetableSlot } from '../src/domain/types.js';
+import type {
+  AttendanceRecord,
+  LedgerEntry,
+  StudentProfile,
+  TimetableSlot,
+} from '../src/domain/types.js';
 import type { SavedCalendar } from '../src/domain/calendar-import.js';
 import { localDay } from '../src/lib/format.js';
 import { createMemoryRepositories, renderWith } from './helpers.js';
@@ -89,8 +94,14 @@ function slot(subjectCode: string): TimetableSlot {
   };
 }
 
-/** A course row records a class through its ⋯ menu. */
+/**
+ * A course row records a class through its ⋯ menu.
+ *
+ * The page opens on TODAY, where a class is marked against its date. This is
+ * the other path: the per-course list, for a class with no hour to point at.
+ */
 async function recordClass(outcome: 'attended' | 'missed'): Promise<void> {
+  await userEvent.click(await screen.findByRole('radio', { name: /^courses$/i }));
   await userEvent.click(await screen.findByRole('button', { name: /more actions for/i }));
   await userEvent.click(
     await screen.findByRole('menuitem', { name: new RegExp(`mark a class ${outcome}`, 'i') }),
@@ -146,9 +157,11 @@ describe('recording a class from the attendance page', () => {
     // rules engine, so the row and the marking cannot disagree.
     const { bundle } = createMemoryRepositories({ attendance: [attendance('BCS501', 30, 40)] });
     renderWith(<AttendancePage />, { repositories: bundle });
+    await userEvent.click(await screen.findByRole('radio', { name: /^courses$/i }));
 
     expect((await screen.findAllByText('75.0%')).length).toBeGreaterThan(0);
-    await recordClass('attended');
+    await userEvent.click(await screen.findByRole('button', { name: /more actions for/i }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /mark a class attended/i }));
     expect(screen.queryByText('75.0%')).toBeNull();
     // 31 of 41 is 75.6%, still from calculateAttendance rather than from here.
     expect(screen.getAllByText('75.6%').length).toBeGreaterThan(0);
@@ -236,6 +249,24 @@ describe("recording a class from today's timetable", () => {
 /* M10A.11 — the daily loop, and what must never happen twice                  */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The per-class rows the ledger holds.
+ *
+ * These assertions used to read `classMarks`, which was a 14-day duplicate
+ * guard rather than history. The guarantee is unchanged — one row per class per
+ * date, whatever the caller does — but the row is now the durable record the
+ * figures are derived from (domain/attendance).
+ */
+function occurrences(
+  peek: ReturnType<typeof createMemoryRepositories>['peek'],
+): readonly { date: string; classId: string; outcome: string }[] {
+  return peek
+    .attendanceLedger()
+    .filter(
+      (entry): entry is Extract<LedgerEntry, { kind: 'occurrence' }> => entry.kind === 'occurrence',
+    );
+}
+
 /** Today as the marks store it: the device's own day, not UTC's (§13). */
 const todayDate = localDay();
 
@@ -284,7 +315,7 @@ describe('a class cannot be counted twice', () => {
     await user.click(button);
 
     expect(peek.attendance()[0]).toMatchObject({ attended: 31, conducted: 41 });
-    expect(peek.classMarks()).toHaveLength(1);
+    expect(occurrences(peek)).toHaveLength(1);
   });
 
   it('still knows what was marked after the student walks away and comes back', async () => {
@@ -332,7 +363,7 @@ describe('a class cannot be counted twice', () => {
     await user.click(buttons[1] as HTMLElement);
 
     expect(peek.attendance()[0]).toMatchObject({ attended: 32, conducted: 42 });
-    expect(peek.classMarks()).toHaveLength(2);
+    expect(occurrences(peek)).toHaveLength(2);
   });
 });
 
@@ -352,7 +383,8 @@ describe('correcting what was marked', () => {
 
     // The class happened either way: `conducted` rose once, not twice.
     expect(peek.attendance()[0]).toMatchObject({ attended: 30, conducted: 41 });
-    expect(peek.classMarks()[0]).toMatchObject({ outcome: 'missed' });
+    expect(occurrences(peek)).toHaveLength(1);
+    expect(occurrences(peek)[0]).toMatchObject({ outcome: 'missed' });
   });
 
   it('takes the mark back entirely, counts and all', async () => {
@@ -374,7 +406,7 @@ describe('correcting what was marked', () => {
     await user.click(await screen.findByRole('button', { name: /^undo$/i }));
 
     expect(peek.attendance()[0]).toMatchObject({ attended: 30, conducted: 40 });
-    expect(peek.classMarks()).toHaveLength(0);
+    expect(occurrences(peek)).toHaveLength(0);
     expect(
       screen.getByRole('button', { name: /mark BCS501 attended/i }).getAttribute('aria-pressed'),
     ).toBe('false');

@@ -332,6 +332,17 @@ describe('CGPA calculator', () => {
  * planner the row's own button opens — the row carries the percentage, the
  * planner carries what to do about it. The guarantees below are unchanged.
  */
+/**
+ * The by-course list, which now sits behind its own tab.
+ *
+ * The screen opens on TODAY — the day's classes, ready to mark, which is what
+ * the product is opened for. The per-course figures are one click away, and
+ * every guarantee below is unchanged.
+ */
+async function openCourses(): Promise<void> {
+  await userEvent.click(await screen.findByRole('radio', { name: /^courses$/i }));
+}
+
 async function openAddCourse(): Promise<void> {
   const [button] = await screen.findAllByRole('button', { name: /add a course/i });
   await userEvent.click(button as HTMLElement);
@@ -339,6 +350,7 @@ async function openAddCourse(): Promise<void> {
 }
 
 async function openPlanner(): Promise<void> {
+  await openCourses();
   await userEvent.click(await screen.findByRole('button', { name: /plan against/i }));
 }
 
@@ -353,6 +365,7 @@ describe('attendance', () => {
     await user.type(screen.getByLabelText(/^attended$/i), '45');
     await user.type(screen.getByLabelText(/^conducted$/i), '50');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
+    await openCourses();
 
     /*
      * M9.6F added an OVERALL standing figure above the subject rows, so a
@@ -386,6 +399,7 @@ describe('attendance', () => {
       attendance: [attendance('a1', 'BCS301', 45, 50)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
 
     // The row carries the percentage; the planner behind it carries the answer.
     expect((await screen.findAllByText('90.0%')).length).toBeGreaterThan(0);
@@ -401,6 +415,7 @@ describe('attendance', () => {
       attendance: [attendance('a1', 'BCSL305', 30, 50)], // 60%
     });
     renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
 
     expect((await screen.findAllByText(/dx risk/i)).length).toBeGreaterThan(0);
     expect(screen.getByText(/discretionary, not\s+automatic/i)).toBeTruthy();
@@ -411,6 +426,7 @@ describe('attendance', () => {
       attendance: [attendance('a1', 'BCS301', 48, 50)],
     });
     const { container } = renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
     await screen.findAllByText('96.0%');
     const text = container.textContent ?? '';
     expect(text).not.toMatch(/you should (skip|bunk)/i);
@@ -786,11 +802,13 @@ describe('local persistence', () => {
     await user.type(screen.getByLabelText(/^attended$/i), '20');
     await user.type(screen.getByLabelText(/^conducted$/i), '20');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
+    await openCourses();
     await screen.findAllByText('100.0%');
     first.unmount();
 
     // A fresh mount reads from the same repository, exactly as a page reload would.
     renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
     /*
      * findAllByText, not findBy: the reference rebuild put a per-course card
      * above the list, so a saved course now legitimately appears twice — once
