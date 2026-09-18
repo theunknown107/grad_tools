@@ -91,7 +91,7 @@ function slot(subjectCode: string): TimetableSlot {
 
 /** A course row records a class through its ⋯ menu. */
 async function recordClass(outcome: 'attended' | 'missed'): Promise<void> {
-  await userEvent.click(await screen.findByRole('button', { name: /record a class for/i }));
+  await userEvent.click(await screen.findByRole('button', { name: /more actions for/i }));
   await userEvent.click(
     await screen.findByRole('menuitem', { name: new RegExp(`mark a class ${outcome}`, 'i') }),
   );

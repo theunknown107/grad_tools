@@ -1,5 +1,5 @@
 /**
- * Profile → Appearance — the design's Theme, Accent, Interface and Preview
+ * Account → Settings → Appearance — the design's Theme, Accent, Interface and Preview
  * cards.
  *
  * Light / Dark / System, one of twelve accents (Mono by default), density and

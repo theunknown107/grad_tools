@@ -41,7 +41,7 @@ export function Segmented<T extends string>({
         if (next !== '') onChange(next as T);
       }}
       className={cn(
-        'relative inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-line bg-sunken scroll-quiet',
+        'relative inline-flex max-w-full items-center gap-1 rounded-xl border border-line bg-sunken',
         size === 'sm' ? 'p-0.5' : 'p-1',
         className,
       )}
@@ -52,11 +52,11 @@ export function Segmented<T extends string>({
           value={option.value}
           {...(option.disabled === true ? { disabled: true } : {})}
           className={cn(
-            'relative inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg font-medium text-ink-2 transition-[color,background,box-shadow] duration-150',
+            'relative inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg text-center leading-tight font-medium text-ink-2 transition-[color,background,box-shadow] duration-150',
             'hover:text-ink disabled:pointer-events-none disabled:opacity-50',
             'data-[state=on]:bg-raised data-[state=on]:text-ink data-[state=on]:shadow-e1',
             '[&_svg]:size-3.5',
-            size === 'sm' ? 'h-7 px-2.5 text-[12px]' : 'h-8 px-3.5 text-[13px]',
+            size === 'sm' ? 'min-h-7 px-2.5 py-1 text-[12px]' : 'min-h-8 px-3.5 py-1 text-[13px]',
           )}
         >
           {option.label}

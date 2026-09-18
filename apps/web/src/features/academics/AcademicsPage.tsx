@@ -20,7 +20,7 @@ import {
   type MarksTarget,
   type SemesterSummary,
 } from '@gradtools/academic-rules';
-import { Info, Plus, RotateCcw, Sigma, Trash2, TriangleAlert } from 'lucide-react';
+import { Info, Plus, RotateCcw, Sigma, TriangleAlert, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ExplanationDisclosure } from '../../components/academic/ExplanationDisclosure.js';
@@ -503,19 +503,17 @@ const GRADE_OPTIONS = [...ruleSet.gradeBands, ...ruleSet.specialGrades].map((gra
 
 interface CourseRow {
   readonly id: string;
-  readonly subjectCode: string;
   readonly credits: string;
   readonly gradeLetter: string;
 }
 const blankCourse = (): CourseRow => ({
   id: newId(),
-  subjectCode: '',
   credits: '4',
   gradeLetter: 'A',
 });
 
 function SgpaCalculator() {
-  const [rows, setRows] = useState<CourseRow[]>(() => Array.from({ length: 5 }, blankCourse));
+  const [rows, setRows] = useState<CourseRow[]>(() => Array.from({ length: 3 }, blankCourse));
   const courses: CourseGrade[] = useMemo(
     () =>
       rows
@@ -523,7 +521,6 @@ function SgpaCalculator() {
         .map((row) => ({
           credits: Number(row.credits),
           gradeLetter: row.gradeLetter,
-          ...(row.subjectCode.trim() === '' ? {} : { subjectCode: row.subjectCode.trim() }),
         })),
     [rows],
   );
@@ -535,7 +532,7 @@ function SgpaCalculator() {
     <section aria-labelledby="sgpa-calc">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 id="sgpa-calc" className="text-sm font-semibold">
-          SGPA for one semester
+          Course grade points
         </h3>
         <Button
           size="sm"
@@ -546,30 +543,11 @@ function SgpaCalculator() {
           Reset
         </Button>
       </div>
-      <div
-        aria-hidden="true"
-        className="mb-1.5 hidden grid-cols-[1fr_1fr_1.4fr_auto] gap-2 text-[11px] font-medium text-ink-3 sm:grid"
-      >
-        <span>Subject code</span>
-        <span>Credits</span>
-        <span>Grade</span>
-        <span className="w-9" />
-      </div>
       <ul className="space-y-2">
         {rows.map((row, index) => {
           const n = String(index + 1);
           return (
-            <li
-              key={row.id}
-              className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 sm:grid-cols-[1fr_1fr_1.4fr_auto]"
-            >
-              <Input
-                aria-label={`Subject code, course ${n}`}
-                placeholder="BCS301"
-                className="col-span-3 font-mono sm:col-span-1"
-                value={row.subjectCode}
-                onChange={(event) => update(row.id, { subjectCode: event.target.value })}
-              />
+            <li key={row.id} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
               <Select
                 aria-label={`Credits, course ${n}`}
                 value={row.credits}
@@ -590,7 +568,7 @@ function SgpaCalculator() {
                   setRows((current) => current.filter((candidate) => candidate.id !== row.id))
                 }
               >
-                <Trash2 />
+                <X />
               </IconButton>
             </li>
           );
@@ -733,7 +711,7 @@ function CgpaCalculator() {
                   setRows((current) => current.filter((candidate) => candidate.id !== row.id))
                 }
               >
-                <Trash2 />
+                <X />
               </IconButton>
             </li>
           );

@@ -24,6 +24,7 @@ import {
   normalizeResultSubject,
   semesterBacklogs,
   resolveSubjectGrade,
+  semesterCsv,
   semesterSgpa,
   sgpaInputs,
   validateResultSubject,
@@ -732,5 +733,100 @@ describe('a link to the catalogue, and taking it back', () => {
       provenance: 'manual',
     });
     expect(row.catalogueCode).toBeNull();
+  });
+});
+
+describe('semesterCsv', () => {
+  const base = normalizeResultSubject({
+    id: 'x',
+    subjectCode: 'BCS401',
+    subjectTitle: 'Algorithms',
+  });
+  const result = (subjects: ReturnType<typeof normalizeResultSubject>[]) =>
+    ({
+      id: 'r4',
+      profileId: 'p',
+      semester: 4,
+      schemeId: 'vtu-2022',
+      ruleSetId: vtu2022RuleSet.id,
+      sgpaAsserted: null,
+      subjects,
+      createdAt: '',
+      updatedAt: '',
+    }) as unknown as SemesterResult;
+
+  it('writes the printed values and leaves the unknown ones empty', () => {
+    const csv = semesterCsv(
+      result([
+        {
+          ...base,
+          internal: 44,
+          external: 36,
+          total: 80,
+          credits: 4,
+          gradeLetter: 'A',
+          resultStatus: 'P',
+        },
+      ]),
+      vtu2022RuleSet,
+    );
+    expect(csv.split('\r\n')[0]).toBe(
+      'Semester,Code,Course,Internal,External,Total,Credits,Grade,Result',
+    );
+    expect(csv.split('\r\n')[1]).toBe('4,BCS401,Algorithms,44,36,80,4,A,P');
+    const blank = semesterCsv(result([base]), vtu2022RuleSet).split('\r\n')[1];
+    expect(blank).toBe('4,BCS401,Algorithms,,,,,,');
+  });
+
+  it('quotes commas and quotes, and never lets a title run as a formula', () => {
+    const csv = semesterCsv(
+      result([
+        { ...base, subjectTitle: 'Design, "Analysis"' },
+        { ...base, id: 'y', subjectTitle: '=HYPERLINK("http://x")' },
+      ]),
+      vtu2022RuleSet,
+    ).split('\r\n');
+    expect(csv[1]).toContain('"Design, ""Analysis"""');
+    expect(csv[2]).toContain(`"'=HYPERLINK(""http://x"")"`);
+  });
+});
+
+describe('semesterSgpa grade points', () => {
+  it('reports the credit-weighted sum behind the SGPA, and nothing when there is no SGPA', () => {
+    const subject = (id: string, credits: number | null, gradeLetter: string | null) =>
+      normalizeResultSubject({
+        id,
+        subjectCode: `BCS30${id}`,
+        subjectTitle: id,
+        credits,
+        gradeLetter,
+      });
+    const semester = (subjects: ReturnType<typeof normalizeResultSubject>[]) =>
+      ({
+        id: 'r',
+        profileId: 'p',
+        semester: 3,
+        schemeId: 'vtu-2022',
+        ruleSetId: vtu2022RuleSet.id,
+        sgpaAsserted: null,
+        subjects,
+        createdAt: '',
+        updatedAt: '',
+      }) as unknown as SemesterResult;
+
+    // 4 × A (8) + 3 × O (10) = 62.
+    const graded = semesterSgpa(
+      semester([subject('1', 4, 'A'), subject('2', 3, 'O')]),
+      vtu2022RuleSet,
+    );
+    expect(graded.gradePoints).toBe(62);
+    expect(graded.sgpa).toBeCloseTo(62 / 7, 2);
+
+    const partial = semesterSgpa(
+      semester([subject('1', 4, 'A'), subject('2', null, null)]),
+      vtu2022RuleSet,
+    );
+    expect(partial.sgpa).toBeNull();
+    expect(partial.gradePoints).toBeNull();
   });
 });

@@ -7,7 +7,7 @@
  * removed here, or imported from Add document.
  */
 
-import { Coffee, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, Coffee, MapPin, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
@@ -16,6 +16,12 @@ import { Card, CardHeader, CardRows } from '../../components/ui/card.js';
 import { Dialog, DialogBody, DialogContent } from '../../components/ui/dialog.js';
 import { Callout, EmptyState, toast } from '../../components/ui/feedback.js';
 import { Field, Input, Select } from '../../components/ui/field.js';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/menu.js';
 import { PageHeader } from '../../components/ui/page.js';
 import { ChipGroup, Segmented } from '../../components/ui/segmented.js';
 import { PageSkeleton } from '../../components/ui/skeleton.js';
@@ -49,7 +55,7 @@ import {
 } from '../../hooks/useCollection.js';
 import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
 import { cn } from '../../lib/cn.js';
-import { formatCount, formatDay, formatTime, localDay } from '../../lib/format.js';
+import { branchCode, formatCount, formatDay, formatTime, localDay } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
 
 const DAY_NAME: Record<Weekday, string> = {
@@ -193,7 +199,7 @@ export function TimetablePage() {
 
   const eyebrow =
     [
-      profile?.branch ?? null,
+      profile?.branch ? branchCode(profile.branch) : null,
       source?.active.semester !== null && source?.active.semester !== undefined
         ? `Semester ${String(source.active.semester)}`
         : profile?.currentSemester !== null && profile?.currentSemester !== undefined
@@ -539,17 +545,19 @@ function DayFocus({
                 key={slot.id}
                 aria-current={isNow ? 'time' : undefined}
                 className={cn(
-                  'flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5',
+                  'flex items-center gap-3 px-4 py-3.5 sm:gap-4 sm:px-5',
                   muted && 'bg-panel',
                   slot.id === next?.id && !muted && 'bg-accent-weak/30',
                 )}
               >
-                <div className="w-24 shrink-0 font-mono text-[11px] text-ink-3 tabular-nums">
-                  {formatTime(slot.startTime)}–{formatTime(slot.endTime)}
+                {/* The design's time column: one mono line, as the timetable prints it. */}
+                <div className="w-[4.75rem] shrink-0 font-mono text-[11px] whitespace-nowrap text-ink-3 tabular-nums sm:w-24">
+                  <time dateTime={slot.startTime}>{slot.startTime}</time>–
+                  <time dateTime={slot.endTime}>{slot.endTime}</time>
                   {isNow && (
-                    <Badge tone="accent" className="mt-1">
-                      Now
-                    </Badge>
+                    <div className="mt-1">
+                      <Badge tone="accent">Now</Badge>
+                    </div>
                   )}
                 </div>
                 <span
@@ -557,67 +565,90 @@ function DayFocus({
                   className={cn('h-10 w-[3px] shrink-0 rounded-full', KIND_BAR[kind])}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <span className={cn('truncate text-[14px] font-medium', muted && 'text-ink-3')}>
                       {entry.name}
                     </span>
-                    {!muted && <Badge>{KIND_LABEL[kind]}</Badge>}
+                    {!muted && <Badge className="shrink-0 max-sm:hidden">{KIND_LABEL[kind]}</Badge>}
                     {outcome !== null && (
-                      <Badge tone={outcome === 'attended' ? 'success' : 'warning'}>
+                      <Badge
+                        tone={outcome === 'attended' ? 'success' : 'warning'}
+                        className="shrink-0 max-sm:hidden"
+                      >
                         {outcome === 'attended' ? 'Attended' : 'Missed'}
                       </Badge>
                     )}
                   </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[12px] text-ink-3">
+                  <div className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-[12px] text-ink-3">
                     {entry.detail !== null && <span className="font-mono">{entry.detail}</span>}
                     {slot.room !== null && (
                       <>
                         {entry.detail !== null && <span aria-hidden="true">·</span>}
-                        <MapPin className="size-3" aria-hidden="true" /> {slot.room}
+                        <MapPin className="size-3 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{slot.room}</span>
                       </>
                     )}
-                    {slot.faculty !== null && <span>· {slot.faculty}</span>}
+                    {slot.faculty !== null && (
+                      <span className="truncate max-sm:hidden">· {slot.faculty}</span>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                   {onMark !== undefined && entry.isCourse && (
                     <>
                       <Button
                         size="sm"
+                        icon={<Check />}
                         aria-pressed={outcome === 'attended'}
                         aria-label={`Mark ${entry.shortName} attended`}
                         className={cn(
+                          'max-sm:w-8 max-sm:px-0',
                           outcome === 'attended' &&
                             'border-success/40 bg-success-weak text-success',
                         )}
                         onClick={() => onMark(slot, 'attended')}
                       >
-                        Attended
+                        <span className="max-sm:hidden">Attended</span>
                       </Button>
                       <Button
                         size="sm"
+                        icon={<X />}
                         aria-pressed={outcome === 'missed'}
                         aria-label={`Mark ${entry.shortName} missed`}
                         className={cn(
+                          'max-sm:w-8 max-sm:px-0',
                           outcome === 'missed' && 'border-warning/40 bg-warning-weak text-warning',
                         )}
                         onClick={() => onMark(slot, 'missed')}
                       >
-                        Missed
+                        <span className="max-sm:hidden">Missed</span>
                       </Button>
                     </>
                   )}
-                  <IconButton size="sm" label={`Edit ${label}`} onClick={() => onEdit(slot)}>
-                    <Pencil />
-                  </IconButton>
-                  <IconButton
-                    size="sm"
-                    label={`Remove ${label}`}
-                    className="hover:text-danger"
-                    onClick={() => onRemove(slot)}
-                  >
-                    <Trash2 />
-                  </IconButton>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <IconButton size="sm" label={`More actions for ${label}`}>
+                        <MoreHorizontal />
+                      </IconButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        icon={<Pencil />}
+                        label={`Edit ${label}`}
+                        onSelect={() => onEdit(slot)}
+                      >
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        icon={<Trash2 />}
+                        destructive
+                        label={`Remove ${label}`}
+                        onSelect={() => onRemove(slot)}
+                      >
+                        Remove
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             );
