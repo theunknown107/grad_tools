@@ -35,6 +35,7 @@ import { NotificationSettings } from '../announcements/NotificationsPage.js';
 import { AppearanceSettings } from '../profile/AppearanceSettings.js';
 import { AcademicSettings, SupportNote } from '../profile/ProfilePage.js';
 import { useAuth } from './AuthContext.js';
+import { DivergenceCard } from './DivergenceCard.js';
 import { useSync } from './useSync.js';
 
 const PROVIDER_LABEL: Record<string, string> = {
@@ -262,6 +263,8 @@ export function AccountPage() {
                 </Card>
               )}
 
+              <DivergenceCard />
+
               <Card className="p-6">
                 <div className="flex items-start gap-3">
                   <IconTile tone="success" size="lg">
@@ -274,6 +277,19 @@ export function AccountPage() {
                       Documents are read locally, and nothing is uploaded unless you sign in and
                       choose to sync. Clearing your browser data removes the local copy, and
                       GradTools never asks for a university password.
+                    </p>
+                    {/*
+                      SAID PLAINLY, BECAUSE IT IS NOT OBVIOUS.
+                      The weekly timetable syncs; per-class attendance and
+                      date-specific changes do not, in this version. A student
+                      who marks a class on their phone and then opens their
+                      laptop should not have to discover that for themselves.
+                    */}
+                    <p className="mt-3 max-w-xl text-[13px] text-ink-2">
+                      Per-class attendance history and date-specific timetable changes —
+                      cancellations, replacements and one-off classes — stay on this device. Your
+                      weekly timetable and your attendance totals sync as they always have. Syncing
+                      the per-class record is a later piece of work.
                     </p>
                   </div>
                 </div>

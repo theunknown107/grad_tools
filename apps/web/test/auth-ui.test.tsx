@@ -194,6 +194,19 @@ describe('the account screen', () => {
     expect(text).toBeTruthy();
   });
 
+  /*
+   * WHAT DOES NOT LEAVE THIS DEVICE, SAID ON THE SCREEN THAT PROMISES SYNC.
+   * The weekly timetable and the totals sync; the per-class record and
+   * date-specific changes do not, in this version.
+   */
+  it('says which records stay on this device', async () => {
+    renderAuth(<AccountPage />, fakeAdapter(identity), DATA);
+
+    expect(
+      await screen.findByText(/Per-class attendance history and date-specific timetable changes/i),
+    ).toBeTruthy();
+  });
+
   /* Deletion is never one click, and never the default (M9 §54). */
   it('requires a confirmation before deleting an account', async () => {
     renderAuth(<AccountPage />, fakeAdapter(identity), DATA);

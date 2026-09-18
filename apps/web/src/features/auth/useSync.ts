@@ -47,7 +47,7 @@ import {
   reconcile,
   type ObservedAggregate,
 } from '../../domain/attendance.js';
-import type { AttendanceRecord, ResultSubject } from '../../domain/types.js';
+import type { AttendanceRecord, RemoteSnapshot, ResultSubject } from '../../domain/types.js';
 import type { RepositoryBundle } from '../../repositories/types.js';
 
 /** Which local repository backs each synced collection (M9 §53). */
@@ -237,7 +237,7 @@ async function recordObservations(
 
   if (observed.length > 0) {
     const before = await repositories.remoteSnapshots.list();
-    let next = before as readonly (typeof before)[number][];
+    let next: readonly RemoteSnapshot[] = before;
     for (const aggregate of observed) {
       next = noteSnapshot(next, aggregate, derived.get(aggregate.subjectCode), now);
     }

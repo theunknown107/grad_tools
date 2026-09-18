@@ -40,21 +40,37 @@
 import { openingId } from '../../domain/attendance.js';
 import { slotClassId } from '../../domain/timetable-identity.js';
 import type {
+  AttendanceOutcome,
   AttendanceRecord,
-  ClassMark,
   ClassOccurrence,
   LedgerEntry,
   OpeningBalance,
   TimetableSlot,
   UnreconciledLegacyMark,
 } from '../../domain/types.js';
-import { readValue, writeValue, type AccountScope } from './store.js';
+import { deleteValue, readValue, writeValue, type AccountScope } from './store.js';
 
 export const SCHEMA_VERSION = 1;
 
+/**
+ * The pre-ledger mark, as v0 stored it.
+ *
+ * Declared here rather than in `domain/types` because nothing in the product
+ * writes one any more: it exists only as the shape this upgrade READS, and it
+ * goes away with the last device that carries it.
+ */
+export interface LegacyClassMark {
+  readonly id: string;
+  readonly date: string;
+  readonly slotId: string;
+  readonly subjectCode: string;
+  readonly outcome: AttendanceOutcome;
+  readonly markedAt: string;
+}
+
 export interface UpgradeInput {
   readonly counters: readonly AttendanceRecord[];
-  readonly marks: readonly ClassMark[];
+  readonly marks: readonly LegacyClassMark[];
   readonly slots: readonly TimetableSlot[];
   readonly now: string;
 }
@@ -65,7 +81,7 @@ export interface UpgradePlan {
   readonly entries: readonly LedgerEntry[];
 }
 
-function contribution(marks: readonly ClassMark[]): { attended: number; conducted: number } {
+function contribution(marks: readonly LegacyClassMark[]): { attended: number; conducted: number } {
   return {
     attended: marks.filter((mark) => mark.outcome === 'attended').length,
     conducted: marks.length,
@@ -84,11 +100,11 @@ export function planUpgrade(input: UpgradeInput): UpgradePlan {
   const slotById = new Map(slots.map((slot) => [slot.id, slot]));
 
   /* Marks are grouped by subject, and split by whether their slot survives. */
-  const bySubject = new Map<string, { mapped: ClassMark[]; orphaned: ClassMark[] }>();
+  const bySubject = new Map<string, { mapped: LegacyClassMark[]; orphaned: LegacyClassMark[] }>();
   const bucket = (subjectCode: string) => {
     const existing = bySubject.get(subjectCode);
     if (existing !== undefined) return existing;
-    const created = { mapped: [] as ClassMark[], orphaned: [] as ClassMark[] };
+    const created = { mapped: [] as LegacyClassMark[], orphaned: [] as LegacyClassMark[] };
     bySubject.set(subjectCode, created);
     return created;
   };
@@ -188,7 +204,7 @@ export async function runUpgrade(scope: AccountScope): Promise<number> {
 
   const [counters, marks, slots] = await Promise.all([
     readValue<AttendanceRecord[]>(scope, 'attendance'),
-    readValue<ClassMark[]>(scope, 'classMarks'),
+    readValue<LegacyClassMark[]>(scope, 'classMarks'),
     readValue<TimetableSlot[]>(scope, 'timetable'),
   ]);
 
@@ -207,5 +223,14 @@ export async function runUpgrade(scope: AccountScope): Promise<number> {
   if (!wroteLedger) return version;
 
   const wroteVersion = await writeValue(scope, 'schemaVersion', SCHEMA_VERSION);
-  return wroteVersion ? SCHEMA_VERSION : version;
+  if (!wroteVersion) return version;
+
+  /*
+   * The legacy marks are dropped only AFTER the ledger and the version marker
+   * are safely written — and only then, because until that moment they are the
+   * only copy of what the student recorded. Everything they said is either a
+   * `ClassOccurrence` now or preserved as evidence on an opening balance.
+   */
+  await deleteValue(scope, 'classMarks');
+  return SCHEMA_VERSION;
 }

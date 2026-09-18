@@ -7,19 +7,16 @@
  * which is the whole reason undo does not have to keep a copy of the record it
  * replaced — and the reason a correction from attended to missed can move one
  * counter without touching the other.
+ *
+ * The `ClassMark` collection these once accompanied is gone: it was a
+ * fortnightly duplicate guard, and the ledger is a durable record of the same
+ * classes (see attendance-ledger.test.ts). The sums are unchanged.
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  applyDelta,
-  countDelta,
-  isCountable,
-  markFor,
-  markId,
-  staleMarks,
-} from '../src/domain/attendance.js';
+import { applyDelta, countDelta, isCountable } from '../src/domain/attendance.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
-import type { AttendanceRecord, ClassMark } from '../src/domain/types.js';
+import type { AttendanceRecord } from '../src/domain/types.js';
 
 const profileId = asStudentProfileId('p1');
 
@@ -33,18 +30,6 @@ function record(attended: number, conducted: number): AttendanceRecord {
     attended,
     conducted,
     updatedAt: '2026-08-01T00:00:00.000Z',
-  };
-}
-
-function mark(date: string, slotId: string, outcome: ClassMark['outcome'] = 'attended'): ClassMark {
-  return {
-    id: markId(date, slotId),
-    profileId,
-    date,
-    slotId,
-    subjectCode: 'BCS501',
-    outcome,
-    markedAt: `${date}T10:00:00.000Z`,
   };
 }
 
@@ -98,35 +83,5 @@ describe('moving a record by a delta', () => {
     const undone = applyDelta(edited, countDelta('attended', null));
     expect(isCountable(undone)).toBe(true);
     expect([undone.attended, undone.conducted]).toEqual([0, 0]);
-  });
-});
-
-describe('which class a mark belongs to', () => {
-  it('gives one scheduled class on one day exactly one id', () => {
-    // The id is the duplicate guard: a repeated write REPLACES (§13).
-    expect(markId('2026-09-07', 't-1')).toBe(markId('2026-09-07', 't-1'));
-    expect(markId('2026-09-07', 't-1')).not.toBe(markId('2026-09-08', 't-1'));
-  });
-
-  it('does not confuse the same class on two days', () => {
-    const marks = [mark('2026-09-07', 't-1'), mark('2026-09-08', 't-1', 'missed')];
-    expect(markFor(marks, '2026-09-08', 't-1')?.outcome).toBe('missed');
-    expect(markFor(marks, '2026-09-09', 't-1')).toBeNull();
-  });
-});
-
-describe('marks do not become history', () => {
-  it('keeps a fortnight and lets the rest go', () => {
-    /*
-     * A mark answers "have I already marked this?" for a class in front of the
-     * student. Keeping them forever would turn a duplicate guard into per-class
-     * history the product would then have to keep true (§11, §44).
-     */
-    const marks = [mark('2026-09-07', 'a'), mark('2026-08-20', 'b'), mark('2026-09-01', 'c')];
-    expect(staleMarks(marks, '2026-09-07').map((stale) => stale.slotId)).toEqual(['b']);
-  });
-
-  it('keeps today', () => {
-    expect(staleMarks([mark('2026-09-07', 'a')], '2026-09-07')).toEqual([]);
   });
 });
