@@ -59,14 +59,20 @@ import {
   type ClassOutcome,
 } from '../../domain/attendance.js';
 import { asStudentProfileId } from '../../domain/identity.js';
-import { WEEKDAYS, type AttendanceRecord, type SemesterSubject } from '../../domain/types.js';
+import { type AttendanceRecord, type SemesterSubject } from '../../domain/types.js';
+import { effectiveDay } from '../../domain/day-schedule.js';
+import { Segmented } from '../../components/ui/segmented.js';
 import {
   useAttendance,
   useAttendanceLedger,
   useProfile,
   useSemesterSubjects,
   useTimetable,
+  useTimetableOverrides,
 } from '../../hooks/useCollection.js';
+import { useNow, useTodayLabel } from '../../hooks/useNow.js';
+import { DayView, NowLine } from './DayView.js';
+import { HistoryView } from './HistoryView.js';
 import { cn } from '../../lib/cn.js';
 import { formatCount, formatPercent } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
@@ -87,6 +93,9 @@ const STATUS: Record<
   dx_risk: { tone: 'danger', label: 'DX risk', Icon: OctagonAlert, ink: 'text-danger' },
 };
 
+/** Today is the default: the screen is opened to mark the day's classes. */
+type View = 'today' | 'courses' | 'history';
+
 function subjectName(code: string, subjects: readonly SemesterSubject[]): string | null {
   return subjects.find((subject) => subject.code === code)?.title ?? null;
 }
@@ -97,8 +106,17 @@ export function AttendancePage() {
   const { profile } = useProfile();
   const { items: semesterSubjects } = useSemesterSubjects();
   const { items: timetable } = useTimetable();
+  const { items: overrides } = useTimetableOverrides();
   const [planning, setPlanning] = useState<AttendanceRecord | null>(null);
   const [adding, setAdding] = useState(false);
+  const [view, setView] = useState<View>('today');
+  /*
+   * The date comes from the clock, not from this render: a student who leaves
+   * the app open across midnight must not mark tomorrow's class against
+   * yesterday (hooks/useNow).
+   */
+  const now = useNow();
+  const label = useTodayLabel();
 
   if (loading) return <PageSkeleton label="Loading attendance" />;
 
@@ -119,12 +137,8 @@ export function AttendancePage() {
   const atRisk = verdicts.filter((verdict) => verdict.ok && verdict.value.status !== 'safe').length;
   const anyDx = verdicts.some((verdict) => verdict.ok && verdict.value.status === 'dx_risk');
 
-  const dayIndex = new Date().getDay();
-  const today = dayIndex === 0 ? null : (WEEKDAYS[dayIndex - 1] ?? null);
-  const classesToday =
-    today === null
-      ? 0
-      : timetable.filter((slot) => slot.day === today && slot.subjectCode !== null).length;
+  const todayClasses = effectiveDay(now.today, timetable, overrides);
+  const markableToday = todayClasses.filter((entry) => entry.markable);
 
   /**
    * The quick mark on the course list: one more class, no date attached.
@@ -176,11 +190,11 @@ export function AttendancePage() {
         }
       />
 
-      {items.length === 0 ? (
+      {items.length === 0 && timetable.length === 0 ? (
         <EmptyState
           icon={<CalendarCheck2 />}
           title="No courses tracked yet"
-          description="Add the courses you are taking this semester and GradTools will show how many classes you can still miss."
+          description="Add the courses you are taking this semester, or import your timetable, and GradTools will show how many classes you can still miss."
           actions={
             <Button variant="primary" icon={<Plus />} onClick={() => setAdding(true)}>
               Add a course
@@ -212,14 +226,13 @@ export function AttendancePage() {
             />
             <Metric
               label="Classes today"
-              value={today === null ? 'None' : classesToday}
-              state={today === null ? 'unavailable' : 'resolved'}
+              value={markableToday.length}
               sub={
-                today === null
-                  ? 'Sunday'
-                  : timetable.length === 0
-                    ? 'No timetable saved'
-                    : new Date().toLocaleDateString('en-GB', { weekday: 'long' })
+                timetable.length === 0
+                  ? 'No timetable saved'
+                  : todayClasses.length === 0
+                    ? 'Nothing scheduled'
+                    : label.date
               }
             />
             <Metric
@@ -233,40 +246,93 @@ export function AttendancePage() {
             />
           </MetricGrid>
 
-          <div className="grid items-start gap-6 lg:grid-cols-[1fr_1.1fr]">
-            <Standing pooled={pooled} />
+          <Segmented<View>
+            label="Which attendance view"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'today', label: 'Today' },
+              { value: 'courses', label: 'Courses' },
+              { value: 'history', label: 'History' },
+            ]}
+            className="w-full"
+          />
 
-            <Card className="overflow-hidden">
-              <CardHeader
-                title="By course"
-                action={anyDx ? <Badge tone="danger">DX rule applies</Badge> : undefined}
+          {view === 'today' && (
+            <div className="flex flex-col gap-4">
+              <NowLine date={label.date} clock={label.clock} />
+              <DayView
+                date={now.today}
+                time={now.time}
+                slots={timetable}
+                overrides={overrides}
+                titleFor={(code) => subjectName(code, semesterSubjects)}
+                showTiming
+                emptyTitle={timetable.length === 0 ? 'No timetable yet' : 'Nothing on today'}
+                emptyDescription={
+                  timetable.length === 0
+                    ? 'Import or enter your weekly timetable and today’s classes appear here, ready to mark.'
+                    : 'Your timetable has no classes for today. Enjoy it.'
+                }
               />
-              <CardRows>
-                {items.map((record) => (
-                  <CourseRow
-                    key={record.id}
-                    record={record}
-                    name={subjectName(record.subjectCode, semesterSubjects)}
-                    onPlan={() => setPlanning(record)}
-                    onMark={(outcome) => void mark(record, outcome)}
-                    onRemove={() => {
-                      void remove(record.id);
-                      toast(`Stopped tracking ${record.subjectCode}`);
-                    }}
-                  />
-                ))}
-              </CardRows>
-              {anyDx && (
-                <p className="border-t border-line px-5 py-4 text-[12px] leading-relaxed text-ink-2">
-                  Below {ruleSet.attendanceDxFloorPct}% a course is marked DX and you are not
-                  permitted to sit its Semester End Examination (clause 22OB 3.7(5)). A shortage of
-                  up to {ruleSet.attendanceCondonablePct} points may be condoned by the Vice
-                  Chancellor on the Principal&rsquo;s recommendation with supporting documents. This
-                  is discretionary, not automatic.
-                </p>
-              )}
-            </Card>
-          </div>
+            </div>
+          )}
+
+          {view === 'history' && (
+            <HistoryView
+              entries={ledger}
+              overrides={overrides}
+              titleFor={(code) => subjectName(code, semesterSubjects)}
+            />
+          )}
+
+          {view === 'courses' && (
+            <div className="grid items-start gap-6 lg:grid-cols-[1fr_1.1fr]">
+              <Standing pooled={pooled} />
+
+              <Card className="overflow-hidden">
+                <CardHeader
+                  title="By course"
+                  action={anyDx ? <Badge tone="danger">DX rule applies</Badge> : undefined}
+                />
+                {items.length === 0 ? (
+                  <div className="p-5">
+                    <EmptyState
+                      compact
+                      icon={<CalendarCheck2 />}
+                      title="No courses tracked yet"
+                      description="Mark a class on Today, or add a course with the totals so far."
+                    />
+                  </div>
+                ) : (
+                  <CardRows>
+                    {items.map((record) => (
+                      <CourseRow
+                        key={record.id}
+                        record={record}
+                        name={subjectName(record.subjectCode, semesterSubjects)}
+                        onPlan={() => setPlanning(record)}
+                        onMark={(outcome) => void mark(record, outcome)}
+                        onRemove={() => {
+                          void remove(record.id);
+                          toast(`Stopped tracking ${record.subjectCode}`);
+                        }}
+                      />
+                    ))}
+                  </CardRows>
+                )}
+                {anyDx && (
+                  <p className="border-t border-line px-5 py-4 text-[12px] leading-relaxed text-ink-2">
+                    Below {ruleSet.attendanceDxFloorPct}% a course is marked DX and you are not
+                    permitted to sit its Semester End Examination (clause 22OB 3.7(5)). A shortage
+                    of up to {ruleSet.attendanceCondonablePct} points may be condoned by the Vice
+                    Chancellor on the Principal&rsquo;s recommendation with supporting documents.
+                    This is discretionary, not automatic.
+                  </p>
+                )}
+              </Card>
+            </div>
+          )}
         </>
       )}
 

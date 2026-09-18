@@ -7,8 +7,19 @@
  * removed here, or imported from Add document.
  */
 
-import { Check, Coffee, MapPin, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import {
+  Ban,
+  Check,
+  Coffee,
+  Eraser,
+  MapPin,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
 import { Button, IconButton } from '../../components/ui/button.js';
@@ -20,42 +31,31 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/menu.js';
 import { PageHeader } from '../../components/ui/page.js';
 import { ChipGroup, Segmented } from '../../components/ui/segmented.js';
 import { PageSkeleton } from '../../components/ui/skeleton.js';
-import {
-  applyDelta,
-  countDelta,
-  markFor,
-  markId,
-  staleMarks,
-  startRecord,
-  type ClassOutcome,
-} from '../../domain/attendance.js';
 import { activeCalendars, holidayOn, type CalendarEvent } from '../../domain/calendar-import.js';
+import { weekdayOf } from '../../domain/day-schedule.js';
+import { slotClassId } from '../../domain/timetable-identity.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { displayTitle, resolveSubject } from '../../domain/subjects.js';
 import { timetableEntry, type TimetableEntry } from '../../domain/timetable-import.js';
+import { WEEKDAYS, type TimetableSlot, type Weekday } from '../../domain/types.js';
 import {
-  WEEKDAYS,
-  type AttendanceRecord,
-  type TimetableSlot,
-  type Weekday,
-} from '../../domain/types.js';
-import {
-  useAttendance,
   useCalendars,
-  useClassMarks,
   useProfile,
   useSemesterSubjects,
   useTimetable,
   useTimetableImports,
 } from '../../hooks/useCollection.js';
+import { useMarkClass, type MarkState } from '../../hooks/useMarkClass.js';
+import { useNow } from '../../hooks/useNow.js';
 import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
 import { cn } from '../../lib/cn.js';
-import { branchCode, formatCount, formatDay, formatTime, localDay } from '../../lib/format.js';
+import { branchCode, formatCount, formatDay, formatTime } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
 
 const DAY_NAME: Record<Weekday, string> = {
@@ -96,25 +96,33 @@ export function TimetablePage() {
   const { items, loading, save, remove } = useTimetable();
   const { profile } = useProfile();
   const { index } = useSubjectIndex();
-  const { items: attendance, save: saveAttendance } = useAttendance();
-  const { items: marks, save: saveMark, remove: removeMark } = useClassMarks();
   const { items: calendars } = useCalendars();
   const { items: imports } = useTimetableImports();
   const { items: semesterSubjects } = useSemesterSubjects();
 
-  const today = localDay();
-  const todayName = new Date().getDay() === 0 ? null : todayWeekday();
+  /*
+   * THE DATE COMES FROM THE CLOCK, NOT FROM THIS RENDER.
+   *
+   * This used to read `localDay()` once, when the page rendered. A student who
+   * left the app open across midnight went on seeing yesterday — and a mark
+   * made after midnight was written against yesterday's date, silently
+   * attributing it to the wrong class (hooks/useNow).
+   */
+  const now = useNow();
+  const today = now.today;
+  const todayName = weekdayOf(today);
   const holiday = holidayOn(activeCalendars(calendars), today);
   const [view, setView] = useState<View>('week');
   const [activeDay, setActiveDay] = useState<Weekday>(todayWeekday);
   const [editing, setEditing] = useState<TimetableSlot | 'new' | null>(null);
 
   /*
-   * Marks decided in this session, ahead of the repository catching up, so a
-   * quick second tap reads the first tap's outcome rather than a stale one.
+   * ONE WRITE PATH. Marking used to be implemented here as well as on the
+   * attendance screen, each adjusting the counters in its own way, so the same
+   * class could be counted twice. Both now go through `useMarkClass`, which
+   * writes one ledger row per class per date and re-derives the figures.
    */
-  const decided = useRef(new Map<string, ClassOutcome | null>());
-  const counted = useRef(new Map<string, AttendanceRecord>());
+  const marking = useMarkClass();
 
   const byDay = useMemo(() => {
     const map = new Map<Weekday, TimetableSlot[]>();
@@ -142,59 +150,33 @@ export function TimetablePage() {
   const titleFor = (code: string): string => displayTitle(resolveSubject(index, code), 'timetable');
   const profileId = profile?.id ?? asStudentProfileId('local');
 
-  const outcomeOf = (slotId: string): ClassOutcome | null => {
-    const pending = decided.current.get(markId(today, slotId));
-    return pending !== undefined ? pending : (markFor(marks, today, slotId)?.outcome ?? null);
-  };
-  const recordFor = (code: string): AttendanceRecord | undefined =>
-    counted.current.get(code) ??
-    attendance.find((record) => record.subjectCode.replace(/\s+/g, '').toUpperCase() === code);
+  const outcomeOf = (slot: TimetableSlot): MarkState => marking.stateOf(today, slotClassId(slot));
 
-  const setOutcome = (slot: TimetableSlot, next: ClassOutcome | null): void => {
-    const before = outcomeOf(slot.id);
+  const setOutcome = (slot: TimetableSlot, next: MarkState): void => {
+    const before = outcomeOf(slot);
     if (before === next) return;
-    const id = markId(today, slot.id);
-    decided.current.set(id, next);
     const entry = timetableEntry(slot, null);
-    const code = entry.attendanceCode?.replace(/\s+/g, '').toUpperCase() ?? null;
-    const existing = code === null ? undefined : recordFor(code);
-    const delta = countDelta(before, next);
-    if (code !== null && existing !== undefined) {
-      const updated = applyDelta(existing, delta);
-      counted.current.set(code, updated);
-      void saveAttendance(updated);
-    } else if (code !== null && next !== null) {
-      const created = startRecord(
-        {
-          id: newId(),
-          profileId,
-          semester: profile?.currentSemester ?? 1,
-          subjectCode: code,
-          subjectTitle: displayTitle(resolveSubject(index, code), 'timetable') || code,
-        },
-        next,
-      );
-      counted.current.set(code, created);
-      void saveAttendance(created);
-    }
-    if (next === null) {
-      void removeMark(id);
-      return;
-    }
-    void saveMark({
-      id,
-      profileId,
+    const code = entry.attendanceCode;
+    if (code === null) return;
+    const klass = {
+      classId: slotClassId(slot),
       date: today,
-      slotId: slot.id,
-      subjectCode: code ?? entry.name,
-      outcome: next,
-      markedAt: new Date().toISOString(),
-    });
-    for (const stale of staleMarks(marks, today)) void removeMark(stale.id);
-    toast(`Recorded ${entry.shortName} ${next}.`, {
-      tone: next === 'attended' ? 'success' : 'warning',
-      action: { label: 'Undo', onClick: () => setOutcome(slot, null) },
-    });
+      subjectCode: code,
+      subjectTitle: displayTitle(resolveSubject(index, code), 'timetable') || code,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+    };
+    void marking.set(klass, next);
+    if (next === 'unmarked') return;
+    toast(
+      next === 'cancelled'
+        ? `${entry.shortName} is marked cancelled for today.`
+        : `Recorded ${entry.shortName} ${next}.`,
+      {
+        tone: next === 'attended' ? 'success' : next === 'missed' ? 'warning' : 'neutral',
+        action: { label: 'Undo', onClick: () => void marking.set(klass, before) },
+      },
+    );
   };
 
   const eyebrow =
@@ -483,9 +465,9 @@ function DayFocus({
   readonly day: Weekday;
   readonly slots: readonly TimetableSlot[];
   readonly titleFor: (code: string) => string;
-  readonly outcomeOf?: ((slotId: string) => ClassOutcome | null) | undefined;
+  readonly outcomeOf?: ((slot: TimetableSlot) => MarkState) | undefined;
   readonly holiday?: CalendarEvent | null | undefined;
-  readonly onMark?: ((slot: TimetableSlot, outcome: ClassOutcome | null) => void) | undefined;
+  readonly onMark?: ((slot: TimetableSlot, outcome: MarkState) => void) | undefined;
   readonly onEdit: (slot: TimetableSlot) => void;
   readonly onRemove: (slot: TimetableSlot) => void;
 }) {
@@ -536,7 +518,7 @@ function DayFocus({
               slot.subjectCode === null ? null : titleFor(slot.subjectCode),
             );
             const kind = kindOf(entry);
-            const outcome = outcomeOf?.(slot.id) ?? null;
+            const outcome = outcomeOf?.(slot) ?? 'unmarked';
             const isNow = isToday && slot.startTime <= clock && clock < slot.endTime;
             const muted = kind === 'break';
             const label = `${entry.shortName} on ${slot.day} at ${formatTime(slot.startTime)}`;
@@ -570,12 +552,22 @@ function DayFocus({
                       {entry.name}
                     </span>
                     {!muted && <Badge className="shrink-0 max-sm:hidden">{KIND_LABEL[kind]}</Badge>}
-                    {outcome !== null && (
+                    {outcome !== 'unmarked' && (
                       <Badge
-                        tone={outcome === 'attended' ? 'success' : 'warning'}
+                        tone={
+                          outcome === 'attended'
+                            ? 'success'
+                            : outcome === 'missed'
+                              ? 'warning'
+                              : 'neutral'
+                        }
                         className="shrink-0 max-sm:hidden"
                       >
-                        {outcome === 'attended' ? 'Attended' : 'Missed'}
+                        {outcome === 'attended'
+                          ? 'Attended'
+                          : outcome === 'missed'
+                            ? 'Missed'
+                            : 'Cancelled'}
                       </Badge>
                     )}
                   </div>
@@ -639,6 +631,35 @@ function DayFocus({
                       >
                         Edit
                       </DropdownMenuItem>
+                      {onMark !== undefined && entry.isCourse && (
+                        <>
+                          <DropdownMenuItem
+                            icon={<Ban />}
+                            label={
+                              outcome === 'cancelled'
+                                ? `Restore ${label}`
+                                : `Mark ${label} cancelled today`
+                            }
+                            onSelect={() =>
+                              onMark(slot, outcome === 'cancelled' ? 'unmarked' : 'cancelled')
+                            }
+                          >
+                            {outcome === 'cancelled'
+                              ? 'Class was held after all'
+                              : 'Class cancelled'}
+                          </DropdownMenuItem>
+                          {outcome !== 'unmarked' && outcome !== 'cancelled' && (
+                            <DropdownMenuItem
+                              icon={<Eraser />}
+                              label={`Clear the mark on ${label}`}
+                              onSelect={() => onMark(slot, 'unmarked')}
+                            >
+                              Clear this mark
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
                       <DropdownMenuItem
                         icon={<Trash2 />}
                         destructive
