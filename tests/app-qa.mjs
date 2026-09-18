@@ -33,7 +33,23 @@ const ROUTES = [
   ['/results/2', 'result-detail'],
   ['/academics', 'gpa'],
   ['/academics?tab=calculator', 'calculator'],
+  // Attendance opens on TODAY; its other views are toggles, not addresses.
   ['/attendance', 'attendance'],
+  [
+    '/attendance',
+    'attendance-courses',
+    (page) => page.getByRole('radio', { name: 'Courses' }).click(),
+  ],
+  [
+    '/attendance',
+    'attendance-calendar',
+    (page) => page.getByRole('radio', { name: 'Calendar' }).click(),
+  ],
+  [
+    '/attendance',
+    'attendance-history',
+    (page) => page.getByRole('radio', { name: 'History' }).click(),
+  ],
   ['/timetable', 'timetable'],
   // Day view is a toggle, not an address.
   ['/timetable', 'timetable-day', (page) => page.getByRole('radio', { name: 'Day' }).click()],
@@ -80,20 +96,43 @@ const OVERLAYS = [
   [
     'planner',
     '/attendance',
-    (page) =>
-      page
+    async (page) => {
+      await page.getByRole('radio', { name: 'Courses' }).click();
+      await page
         .getByRole('button', { name: /^plan against/i })
         .first()
-        .click(),
+        .click();
+    },
   ],
   [
     'course-menu',
     '/attendance',
-    (page) =>
-      page
+    async (page) => {
+      await page.getByRole('radio', { name: 'Courses' }).click();
+      await page
         .getByRole('button', { name: /^more actions for/i })
         .first()
-        .click(),
+        .click();
+    },
+  ],
+  [
+    'date-class-menu',
+    '/attendance',
+    async (page) => {
+      await page.getByRole('radio', { name: 'Calendar' }).click();
+      await page
+        .getByRole('button', { name: /^more actions for/i })
+        .first()
+        .click();
+    },
+  ],
+  [
+    'class-for-date',
+    '/attendance',
+    async (page) => {
+      await page.getByRole('radio', { name: 'Calendar' }).click();
+      await page.getByRole('button', { name: /add a class for this date/i }).click();
+    },
   ],
   [
     'add-class',
@@ -247,7 +286,21 @@ function seedData() {
       });
     });
   });
+  const attendanceLedger = attendance.map((record) => ({
+    kind: 'opening',
+    id: `opening:${record.subjectCode}`,
+    subjectCode: record.subjectCode,
+    attended: record.attended,
+    conducted: record.conducted,
+    migratedFrom: { attended: record.attended, conducted: record.conducted },
+    reconciliation: 'exact',
+    unreconciledMarks: [],
+    createdAt: '2026-08-29T00:00:00.000Z',
+  }));
+
   return {
+    schemaVersion: 1,
+    attendanceLedger,
     profile: {
       id: PID,
       authUserId: null,
