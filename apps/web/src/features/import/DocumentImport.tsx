@@ -38,6 +38,7 @@ import {
   type SemesterGroup,
 } from '../../domain/result-reconcile.js';
 import { buildSubjectIndex, type CatalogueSubject } from '../../domain/subjects.js';
+import { reconcileTimetable } from '../../domain/timetable-identity.js';
 import { parseTimetable, type ParsedTimetable } from '../../domain/timetable-import.js';
 import type { SchemeCourse, TimetableSlot } from '../../domain/types.js';
 import type { SavedExamTimetable, StoredExamEvent } from '../../domain/exam-import.js';
@@ -355,8 +356,19 @@ export function DocumentImport({ onDone }: { readonly onDone: () => void }) {
     slots: readonly TimetableSlot[],
     record: Parameters<typeof saveImport>[0],
   ): Promise<void> => {
+    /*
+     * IDENTITY IS CARRIED ACROSS THE REPLACEMENT.
+     *
+     * Every row is deleted and re-written with a new `id`, which is exactly why
+     * attendance is keyed on `classId` instead: reconciliation hands each new
+     * row the identity of the old row it unambiguously is, so re-importing the
+     * same timetable changes nothing about a student's history. Where the match
+     * is ambiguous no identity is guessed — a new one is minted and the old
+     * history stays where it was (domain/timetable-identity).
+     */
+    const identified = reconcileTimetable(timetable, slots, newId);
     for (const slot of timetable) await removeSlot(slot.id);
-    for (const slot of slots) await saveSlot(slot);
+    for (const slot of identified) await saveSlot(slot);
     await saveImport(record);
   };
   const saveExamTimetable = async (
