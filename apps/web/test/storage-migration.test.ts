@@ -10,11 +10,10 @@
 
 import { describe, expect, it } from 'vitest';
 import { deriveCounts } from '../src/domain/attendance.js';
-import { planUpgrade } from '../src/repositories/local/upgrade.js';
+import { planUpgrade, type LegacyClassMark } from '../src/repositories/local/upgrade.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
 import type {
   AttendanceRecord,
-  ClassMark,
   ClassOccurrence,
   OpeningBalance,
   TimetableSlot,
@@ -55,10 +54,9 @@ function mark(
   slotId: string,
   subjectCode: string,
   outcome: 'attended' | 'missed' = 'attended',
-): ClassMark {
+): LegacyClassMark {
   return {
     id: `${date}:${slotId}`,
-    profileId,
     date,
     slotId,
     subjectCode,

@@ -71,6 +71,7 @@ import {
   useTimetableOverrides,
 } from '../../hooks/useCollection.js';
 import { useNow, useTodayLabel } from '../../hooks/useNow.js';
+import { DateView } from './DateView.js';
 import { DayView, NowLine } from './DayView.js';
 import { HistoryView } from './HistoryView.js';
 import { cn } from '../../lib/cn.js';
@@ -94,7 +95,7 @@ const STATUS: Record<
 };
 
 /** Today is the default: the screen is opened to mark the day's classes. */
-type View = 'today' | 'courses' | 'history';
+type View = 'today' | 'courses' | 'calendar' | 'history';
 
 function subjectName(code: string, subjects: readonly SemesterSubject[]): string | null {
   return subjects.find((subject) => subject.code === code)?.title ?? null;
@@ -253,6 +254,7 @@ export function AttendancePage() {
             options={[
               { value: 'today', label: 'Today' },
               { value: 'courses', label: 'Courses' },
+              { value: 'calendar', label: 'Calendar' },
               { value: 'history', label: 'History' },
             ]}
             className="w-full"
@@ -276,6 +278,18 @@ export function AttendancePage() {
                 }
               />
             </div>
+          )}
+
+          {view === 'calendar' && (
+            <DateView
+              today={now.today}
+              time={now.time}
+              slots={timetable}
+              entries={ledger}
+              profile={profile ?? null}
+              subjects={semesterSubjects}
+              titleFor={(code) => subjectName(code, semesterSubjects)}
+            />
           )}
 
           {view === 'history' && (

@@ -583,13 +583,16 @@ describe('what did I mark, seen from the dashboard', () => {
     const { bundle } = createMemoryRepositories({
       profile: profile(),
       timetable: [slot('BCS501')],
-      classMarks: [
+      attendanceLedger: [
         {
+          kind: 'occurrence',
           id: `${todayDate}:t-BCS501`,
-          profileId,
+          classId: 't-BCS501',
           date: todayDate,
-          slotId: 't-BCS501',
           subjectCode: 'BCS501',
+          subjectTitle: 'Software Engineering',
+          startTime: '09:00',
+          endTime: '10:00',
           outcome: 'attended',
           markedAt: `${todayDate}T10:00:00.000Z`,
         },

@@ -15,7 +15,6 @@ import type { ReactElement } from 'react';
 import type {
   AttendanceRecord,
   BacklogRecord,
-  ClassMark,
   DayOverride,
   LedgerEntry,
   RemoteSnapshot,
@@ -45,7 +44,6 @@ export interface MemorySeed {
   semesterSubjects?: SemesterSubject[];
   backlogs?: BacklogRecord[];
   calendars?: SavedCalendar[];
-  classMarks?: ClassMark[];
   attendanceLedger?: LedgerEntry[];
   timetableOverrides?: DayOverride[];
   remoteSnapshots?: RemoteSnapshot[];
@@ -83,7 +81,6 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
   const semesterSubjects = listRepo<SemesterSubject>(seed.semesterSubjects ?? []);
   const backlogs = listRepo<BacklogRecord>(seed.backlogs ?? []);
   const calendars = listRepo<SavedCalendar>(seed.calendars ?? []);
-  const classMarks = listRepo<ClassMark>(seed.classMarks ?? []);
   const attendanceLedger = listRepo<LedgerEntry>(seed.attendanceLedger ?? []);
   const timetableOverrides = listRepo<DayOverride>(seed.timetableOverrides ?? []);
   const remoteSnapshots = listRepo<RemoteSnapshot>(seed.remoteSnapshots ?? []);
@@ -115,7 +112,6 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
     backlogs,
     calendars,
     timetableImports,
-    classMarks,
     attendanceLedger,
     timetableOverrides,
     remoteSnapshots,
@@ -150,7 +146,6 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
       backlogs: backlogs.peek,
       calendars: calendars.peek,
       timetableImports: timetableImports.peek,
-      classMarks: classMarks.peek,
       attendanceLedger: attendanceLedger.peek,
       timetableOverrides: timetableOverrides.peek,
       remoteSnapshots: remoteSnapshots.peek,

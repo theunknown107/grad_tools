@@ -30,7 +30,6 @@ import type {
   AttendanceAdjustment,
   AttendanceOutcome,
   AttendanceRecord,
-  ClassMark,
   ClassOccurrence,
   DayOverride,
   LedgerEntry,
@@ -117,21 +116,6 @@ export function isCountable(record: AttendanceRecord): boolean {
 /* The daily loop: one scheduled class, one decision                          */
 /* -------------------------------------------------------------------------- */
 
-/** One scheduled class on one day is one mark, whatever the caller does (§13). */
-export function markId(date: string, slotId: string): string {
-  return `${date}:${slotId}`;
-}
-
-/** The mark for a class on a day, or null where the student has not said. */
-export function markFor(
-  marks: readonly ClassMark[],
-  date: string,
-  slotId: string,
-): ClassMark | null {
-  const id = markId(date, slotId);
-  return marks.find((mark) => mark.id === id) ?? null;
-}
-
 /**
  * What moving one class from `before` to `after` does to the two counters.
  *
@@ -181,23 +165,6 @@ export function applyDelta(
     conducted,
     updatedAt: new Date().toISOString(),
   };
-}
-
-/** How long a mark is worth keeping. Long enough to look back over a week. */
-export const MARK_RETENTION_DAYS = 14;
-
-/**
- * Marks that have outgrown their purpose (§44).
- *
- * A mark answers "have I already marked this?" for a class the student is
- * looking at. A fortnight later nothing asks, and keeping it would turn a
- * duplicate guard into the per-class history this deliberately is not.
- */
-export function staleMarks(marks: readonly ClassMark[], today: string): ClassMark[] {
-  const cutoff = new Date(`${today}T00:00:00Z`);
-  cutoff.setUTCDate(cutoff.getUTCDate() - MARK_RETENTION_DAYS);
-  const oldest = cutoff.toISOString().slice(0, 10);
-  return marks.filter((mark) => mark.date < oldest);
 }
 
 /* -------------------------------------------------------------------------- */
