@@ -24,6 +24,7 @@ import {
 import { sortForStudent, type StudentContext } from '../domain/announcements.js';
 import { useRepositories } from '../repositories/context.js';
 import { apiBaseUrl } from '../repositories/reference.js';
+import { publish, storeFor, useShared } from './shared-store.js';
 import { useProfile, useSemesters } from './useCollection.js';
 import { buildSemesterViews, currentSemester } from '../domain/academics.js';
 
@@ -135,8 +136,27 @@ export interface NotificationsState {
   readonly savePreferences: (preferences: NotificationPreferences) => Promise<void>;
 }
 
+interface NotificationStore {
+  readonly records: readonly NotificationRecord[];
+  readonly preferences: NotificationPreferences;
+  readonly loading: boolean;
+}
+
+const EMPTY_STORE: NotificationStore = {
+  records: [],
+  preferences: DEFAULT_PREFERENCES,
+  loading: true,
+};
+
 /**
  * The notification list for this device.
+ *
+ * READ STATE IS SHARED ACROSS EVERY CONSUMER. It used to live in a `useState`
+ * inside this hook, so the shell's badge, the notifications page and the
+ * settings screen each held their own copy: pressing "Mark all read" cleared
+ * the page and left the badge still saying 9+ until the app was reloaded. One
+ * store beside the repository fixes all four consumers at once — see
+ * `shared-store.ts`.
  *
  * `now` is taken once per hook call rather than per render, so priority and
  * "days left" cannot flicker between two renders of the same screen.
@@ -144,24 +164,19 @@ export interface NotificationsState {
 export function useNotifications(announcements: readonly Announcement[]): NotificationsState {
   const repository = useRepositories().notifications;
   const context = useStudentContext();
-  const [records, setRecords] = useState<readonly NotificationRecord[]>([]);
-  const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFERENCES);
-  const [loading, setLoading] = useState(true);
+  const store = storeFor<NotificationStore>(repository, () => EMPTY_STORE);
 
-  useEffect(() => {
-    let cancelled = false;
-    void Promise.all([repository.listStates(), repository.getPreferences()]).then(
-      ([loadedRecords, loadedPreferences]) => {
-        if (cancelled) return;
-        setRecords(loadedRecords);
-        setPreferences(loadedPreferences ?? DEFAULT_PREFERENCES);
-        setLoading(false);
-      },
-    );
-    return () => {
-      cancelled = true;
+  const { records, preferences, loading } = useShared(store, async () => {
+    const [loadedRecords, loadedPreferences] = await Promise.all([
+      repository.listStates(),
+      repository.getPreferences(),
+    ]);
+    return {
+      records: loadedRecords,
+      preferences: loadedPreferences ?? DEFAULT_PREFERENCES,
+      loading: false,
     };
-  }, [repository]);
+  });
 
   const now = useMemo(() => new Date(), []);
 
@@ -170,27 +185,38 @@ export function useNotifications(announcements: readonly Announcement[]): Notifi
     [announcements, records, context, preferences, now],
   );
 
-  const setState = useCallback(
-    async (announcement: Announcement, state: NotificationState) => {
-      const next = markState(records, announcement, state, new Date().toISOString());
-      setRecords(next);
+  /*
+   * Every write reads the CURRENT snapshot rather than a value captured when
+   * the callback was built, so two consumers writing in the same tick cannot
+   * overwrite one another with a stale list.
+   */
+  const saveRecords = useCallback(
+    async (next: readonly NotificationRecord[]) => {
+      publish(store, { ...store.snapshot, records: next });
       await repository.saveStates(next);
     },
-    [records, repository],
+    [repository, store],
+  );
+
+  const setState = useCallback(
+    async (announcement: Announcement, state: NotificationState) => {
+      await saveRecords(
+        markState(store.snapshot.records, announcement, state, new Date().toISOString()),
+      );
+    },
+    [saveRecords, store],
   );
 
   const readAll = useCallback(async () => {
-    const next = markAllRead(records, notifications, new Date().toISOString());
-    setRecords(next);
-    await repository.saveStates(next);
-  }, [records, notifications, repository]);
+    await saveRecords(markAllRead(store.snapshot.records, notifications, new Date().toISOString()));
+  }, [saveRecords, notifications, store]);
 
   const savePreferences = useCallback(
     async (next: NotificationPreferences) => {
-      setPreferences(next);
+      publish(store, { ...store.snapshot, preferences: next });
       await repository.savePreferences(next);
     },
-    [repository],
+    [repository, store],
   );
 
   return {
