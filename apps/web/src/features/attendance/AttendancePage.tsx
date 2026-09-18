@@ -50,11 +50,19 @@ import { IconTile, PageHeader, SectionTitle } from '../../components/ui/page.js'
 import { Progress } from '../../components/ui/progress.js';
 import { PageSkeleton } from '../../components/ui/skeleton.js';
 import { Tooltip } from '../../components/ui/tooltip.js';
-import { markClass, type ClassOutcome } from '../../domain/attendance.js';
+import {
+  countDelta,
+  markClass,
+  openingFor,
+  openingOf,
+  shiftOpening,
+  type ClassOutcome,
+} from '../../domain/attendance.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { WEEKDAYS, type AttendanceRecord, type SemesterSubject } from '../../domain/types.js';
 import {
   useAttendance,
+  useAttendanceLedger,
   useProfile,
   useSemesterSubjects,
   useTimetable,
@@ -85,6 +93,7 @@ function subjectName(code: string, subjects: readonly SemesterSubject[]): string
 
 export function AttendancePage() {
   const { items, loading, save, remove } = useAttendance();
+  const { items: ledger, save: saveEntry } = useAttendanceLedger();
   const { profile } = useProfile();
   const { items: semesterSubjects } = useSemesterSubjects();
   const { items: timetable } = useTimetable();
@@ -117,13 +126,34 @@ export function AttendancePage() {
       ? 0
       : timetable.filter((slot) => slot.day === today && slot.subjectCode !== null).length;
 
+  /**
+   * The quick mark on the course list: one more class, no date attached.
+   *
+   * It goes into the subject's OPENING BALANCE rather than inventing a
+   * `ClassOccurrence`, because this control genuinely does not know which class
+   * it was — the row is a subject, not an hour. Dated marking lives on Today,
+   * where there is a class to point at.
+   *
+   * The ledger and the counter move together, so the derived figure and the one
+   * on screen cannot drift apart between syncs.
+   */
   const mark = (record: AttendanceRecord, outcome: ClassOutcome): AttendanceRecord => {
     const next = markClass(record, outcome);
+    const opening = openingFor(ledger, record.subjectCode);
+    void saveEntry(shiftOpening(opening, countDelta(null, outcome)));
     void save(next);
     toast(`Recorded a ${outcome} class for ${record.subjectCode}.`, {
       description: `${String(next.attended)}/${String(next.conducted)} classes`,
       tone: outcome === 'attended' ? 'success' : 'warning',
-      action: { label: 'Undo', onClick: () => void save(record) },
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          void saveEntry(
+            shiftOpening(openingFor(ledger, record.subjectCode), countDelta(outcome, null)),
+          );
+          void save(record);
+        },
+      },
     });
     return next;
   };
@@ -245,6 +275,18 @@ export function AttendancePage() {
         onOpenChange={setAdding}
         subjects={semesterSubjects}
         onAdd={(record) => {
+          /*
+           * The totals the student types are an OPENING BALANCE: classes that
+           * happened before this device was counting. Writing only the counter
+           * would leave the ledger disagreeing with the screen, and the next
+           * sync would re-derive the figure back down to nothing.
+           */
+          void saveEntry(
+            openingOf(record.subjectCode, {
+              attended: record.attended,
+              conducted: record.conducted,
+            }),
+          );
           void save({ ...record, profileId, semester: profile?.currentSemester ?? 1 });
           toast(`Tracking ${record.subjectCode}`, { tone: 'success' });
         }}
