@@ -34,7 +34,7 @@ import type { SemesterRecord, SemesterStatus } from '../../domain/types.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
 import { useProfile, useResults, useSemesters } from '../../hooks/useCollection.js';
 import { cn } from '../../lib/cn.js';
-import { formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
+import { branchCode, formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { BacklogPanel } from './BacklogPanel.js';
 import { SemesterSubjects } from './SemesterSubjects.js';
@@ -117,7 +117,7 @@ export function SemestersPage() {
         eyebrow="Programme progress"
         title="My Degree"
         description={
-          [profile?.branch, scheme]
+          [profile?.branch ? `${branchCode(profile.branch)} — ${profile.branch}` : null, scheme]
             .filter((part) => part !== undefined && part !== null && part !== '')
             .join(' · ') ||
           'Eight semesters, from the ones behind you to the ones ahead. Everything here stays on this device.'

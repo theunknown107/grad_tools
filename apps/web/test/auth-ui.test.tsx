@@ -23,6 +23,8 @@ import { screen, waitFor } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '../src/features/auth/AuthContext.js';
+import { ThemeProvider } from '../src/hooks/useTheme.js';
+import { TooltipProvider } from '../src/components/ui/tooltip.js';
 import { SignInPage } from '../src/features/auth/SignInPage.js';
 import { AccountPage } from '../src/features/auth/AccountPage.js';
 import type { AuthAdapter } from '../src/repositories/cloud/supabase.js';
@@ -77,14 +79,21 @@ function fakeAdapter(initial: Identity | null = null): AuthAdapter & { calls: st
 function renderAuth(ui: React.ReactElement, adapter: AuthAdapter | null, route = '/') {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <AuthProvider adapter={adapter}>
-        <Routes>
-          <Route path="*" element={ui} />
-        </Routes>
-      </AuthProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <AuthProvider adapter={adapter}>
+            <Routes>
+              <Route path="*" element={ui} />
+            </Routes>
+          </AuthProvider>
+        </TooltipProvider>
+      </ThemeProvider>
     </MemoryRouter>,
   );
 }
+
+/** Account → Settings → Data & privacy, where sign-in, sync and deletion live. */
+const DATA = '/account?section=data';
 
 afterEach(() => {
   cleanup();
@@ -94,15 +103,6 @@ afterEach(() => {
 /* -------------------------------------------------------------------------- */
 /* Signing in                                                                 */
 /* -------------------------------------------------------------------------- */
-
-/*
- * M9.6F split the account page into sections with a navigation rail, so only
- * one concern is on screen at a time. These tests open the section they are
- * about first; every assertion below is otherwise unchanged.
- */
-async function openSection(name: RegExp): Promise<void> {
-  await userEvent.click(await screen.findByRole('button', { name }));
-}
 
 describe('the sign-in screen', () => {
   it('offers Google, Apple and email', async () => {
@@ -171,7 +171,7 @@ describe('the account screen', () => {
   const identity: Identity = { userId: 'user-a', email: 'a@example.test', provider: 'google' };
 
   it('shows who is signed in, and how', async () => {
-    renderAuth(<AccountPage />, fakeAdapter(identity));
+    renderAuth(<AccountPage />, fakeAdapter(identity), DATA);
 
     expect(await screen.findByText('Google')).toBeTruthy();
     /*
@@ -188,7 +188,7 @@ describe('the account screen', () => {
    * must not be assumed to delete anything.
    */
   it('says signing out keeps local records', async () => {
-    renderAuth(<AccountPage />, fakeAdapter(identity));
+    renderAuth(<AccountPage />, fakeAdapter(identity), DATA);
     // Signing out lives in the default section, beside who is signed in.
     const text = await screen.findByText(/records saved on this device stay here/i);
     expect(text).toBeTruthy();
@@ -196,9 +196,8 @@ describe('the account screen', () => {
 
   /* Deletion is never one click, and never the default (M9 §54). */
   it('requires a confirmation before deleting an account', async () => {
-    renderAuth(<AccountPage />, fakeAdapter(identity));
+    renderAuth(<AccountPage />, fakeAdapter(identity), DATA);
 
-    await openSection(/^Data & privacy$/);
     await userEvent.click(await screen.findByRole('button', { name: 'Delete my account' }));
 
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
@@ -206,14 +205,12 @@ describe('the account screen', () => {
   });
 
   it('says deletion leaves the device copy alone', async () => {
-    renderAuth(<AccountPage />, fakeAdapter(identity));
-    await openSection(/^Data & privacy$/);
+    renderAuth(<AccountPage />, fakeAdapter(identity), DATA);
     expect(await screen.findByText(/copy on this device is not deleted/i)).toBeTruthy();
   });
 
   it('offers an export of the student’s own data', async () => {
-    renderAuth(<AccountPage />, fakeAdapter(identity));
-    await openSection(/^Data & privacy$/);
+    renderAuth(<AccountPage />, fakeAdapter(identity), DATA);
     expect(await screen.findByRole('button', { name: 'Download my data' })).toBeTruthy();
     expect(screen.getByText(/nobody else/i)).toBeTruthy();
   });
@@ -224,13 +221,13 @@ describe('the account screen', () => {
     adapter.current = async () => {
       throw new Error('expired');
     };
-    renderAuth(<AccountPage />, adapter);
+    renderAuth(<AccountPage />, adapter, DATA);
 
     expect(await screen.findByText(/session has expired/i)).toBeTruthy();
   });
 
   it('shows no provider metadata beyond the provider’s name', async () => {
-    const { container } = renderAuth(<AccountPage />, fakeAdapter(identity));
+    const { container } = renderAuth(<AccountPage />, fakeAdapter(identity), DATA);
     await screen.findByText('Google');
     // The user id is an internal identifier and has no business on screen.
     expect(container.textContent).not.toContain('user-a');
@@ -299,7 +296,7 @@ describe('two accounts on one browser', () => {
     await writeValue('user-a', 'profile', { id: 'p-a', schemeId: 'vtu-2022' });
 
     const adapter = fakeAdapter({ userId: 'user-a', email: null, provider: 'email' });
-    renderAuth(<AccountPage />, adapter);
+    renderAuth(<AccountPage />, adapter, DATA);
     await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
 
     await waitFor(() => {

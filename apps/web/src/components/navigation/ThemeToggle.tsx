@@ -3,7 +3,7 @@
  *
  * It flips whatever is showing now, so under "System" one press still gives
  * the opposite of what the student sees (and that becomes their explicit
- * choice). Accent, density and System itself live in Profile → Appearance —
+ * choice). Accent, density and System itself live in Account → Settings → Appearance —
  * never here.
  */
 

@@ -1,7 +1,8 @@
 /**
  * Notifications — the design's inbox: what is new since the student last
- * looked (read state stays on this device), what the VTU monitor has found for
- * a signed-in student, and what is allowed to interrupt them.
+ * looked (read state stays on this device) and what the VTU monitor has found
+ * for a signed-in student. As in the design, a row is one control: opening it
+ * marks it read. What may interrupt is set in Account → Settings.
  */
 
 import { Bell, BellRing, Check, ExternalLink, FileText } from 'lucide-react';
@@ -89,7 +90,18 @@ function FromVtuRow({
   const high = notification.importance === 'high';
   const unread = notification.state === 'unread';
   return (
-    <article className={cn('flex items-start gap-3.5 px-5 py-4', unread && 'bg-accent-weak/20')}>
+    <a
+      href={notification.sourceUrl}
+      target="_blank"
+      rel="noreferrer noopener"
+      onClick={() => {
+        if (unread) void onRead(notification.id);
+      }}
+      className={cn(
+        'flex items-start gap-3.5 px-5 py-4 text-left transition-colors hover:bg-panel',
+        unread && 'bg-accent-weak/20',
+      )}
+    >
       <IconTile tone={high ? 'warning' : 'neutral'}>
         <FileText />
       </IconTile>
@@ -100,25 +112,13 @@ function FromVtuRow({
           <Badge className="capitalize">{notification.category.replace(/_/g, ' ')}</Badge>
         </div>
         <p className="mt-1 text-[13px] text-ink-2">{notification.reason}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <a
-            href={notification.sourceUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-accent-ink underline-offset-4 hover:underline"
-          >
-            <ExternalLink className="size-3.5" aria-hidden="true" />
-            Open official source
-          </a>
-          {unread && (
-            <Button size="sm" variant="ghost" onClick={() => void onRead(notification.id)}>
-              Mark read
-            </Button>
-          )}
+        <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-ink-3">
+          Official source <ExternalLink className="size-3" aria-hidden="true" />
+          <span className="sr-only">(opens in a new tab)</span>
         </div>
       </div>
       {unread && <Dot tone="accent" className="mt-1.5" label="Unread" />}
-    </article>
+    </a>
   );
 }
 
@@ -126,28 +126,12 @@ type Filter = 'all' | 'unread';
 
 export function NotificationsPage() {
   const { items, loading, error, reload } = useAnnouncements();
-  const { notifications, unread, preferences, setState, readAll, savePreferences } =
-    useNotifications(items);
+  const { notifications, unread, setState, readAll } = useNotifications(items);
   const [filter, setFilter] = useState<Filter>('all');
-  const [permission, setPermission] = useState<string | null>(null);
   const now = Date.now();
   const undismissed = notifications.filter((notification) => notification.state !== 'dismissed');
   const visible =
     filter === 'unread' ? undismissed.filter((item) => item.state === 'unread') : undismissed;
-
-  const enableBrowserNotifications = async (): Promise<void> => {
-    if (!('Notification' in window)) {
-      setPermission('This browser does not support notifications.');
-      return;
-    }
-    const result = await Notification.requestPermission();
-    setPermission(
-      result === 'granted'
-        ? 'Browser notifications are on while GradTools is open.'
-        : 'Permission was not granted, so notifications stay in the app.',
-    );
-    await savePreferences({ ...preferences, browserNotifications: result === 'granted' });
-  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -203,13 +187,20 @@ export function NotificationsPage() {
             return (
               <li key={announcement.id}>
                 <Card
+                  interactive
                   asChild
                   className={cn(
                     'flex items-start gap-3.5 p-4',
                     isUnread && 'border-accent/30 bg-accent-weak/20',
                   )}
                 >
-                  <article data-state={state}>
+                  <Link
+                    to="/announcements"
+                    data-state={state}
+                    onClick={() => {
+                      if (isUnread) void setState(announcement, 'read');
+                    }}
+                  >
                     <IconTile tone={high ? 'warning' : 'neutral'}>
                       <Icon />
                     </IconTile>
@@ -242,81 +233,87 @@ export function NotificationsPage() {
                           </>
                         )}
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {isUnread && (
-                          <Button size="sm" onClick={() => void setState(announcement, 'read')}>
-                            Mark as read
-                          </Button>
-                        )}
-                        <Button asChild size="sm" variant="ghost">
-                          <Link to="/announcements">Open in Announcements</Link>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => void setState(announcement, 'dismissed')}
-                        >
-                          Dismiss
-                        </Button>
-                      </div>
                     </div>
                     {isUnread && <Dot tone="accent" className="mt-1.5" label="Unread" />}
-                  </article>
+                  </Link>
                 </Card>
               </li>
             );
           })}
         </ul>
       )}
+    </div>
+  );
+}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <Card className="p-6">
-          <SectionTitle>What interrupts you</SectionTitle>
-          <p className="mb-4 text-[13px] text-ink-2">
-            Muting a category stops it appearing here. It never hides the notice from Announcements
-            — you can always go and look.
+/** Settings → Notifications: what may interrupt, and browser notifications. */
+export function NotificationSettings() {
+  const { items } = useAnnouncements();
+  const { preferences, savePreferences } = useNotifications(items);
+  const [permission, setPermission] = useState<string | null>(null);
+
+  const enableBrowserNotifications = async (): Promise<void> => {
+    if (!('Notification' in window)) {
+      setPermission('This browser does not support notifications.');
+      return;
+    }
+    const result = await Notification.requestPermission();
+    setPermission(
+      result === 'granted'
+        ? 'Browser notifications are on while GradTools is open.'
+        : 'Permission was not granted, so notifications stay in the app.',
+    );
+    await savePreferences({ ...preferences, browserNotifications: result === 'granted' });
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card className="p-6">
+        <SectionTitle>What interrupts you</SectionTitle>
+        <p className="mb-4 text-[13px] text-ink-2">
+          Muting a category stops it appearing in Notifications. It never hides the notice from
+          Announcements — you can always go and look.
+        </p>
+        <div className="divide-y divide-line">
+          {MUTABLE.map((category) => {
+            const muted = preferences.muted.includes(category);
+            return (
+              <SwitchRow
+                key={category}
+                title={CATEGORY_LABEL[category]}
+                checked={!muted}
+                onCheckedChange={() =>
+                  void savePreferences({
+                    ...preferences,
+                    muted: muted
+                      ? preferences.muted.filter((value) => value !== category)
+                      : [...preferences.muted, category],
+                  })
+                }
+              />
+            );
+          })}
+        </div>
+      </Card>
+      <Card className="p-6">
+        <SectionTitle>Browser notifications</SectionTitle>
+        <p className="text-[13px] text-ink-2">
+          GradTools can show a browser notification while it is open. It cannot notify you when the
+          app is closed — that needs a push service GradTools does not have yet.
+        </p>
+        <Button
+          className="mt-4"
+          icon={<BellRing />}
+          onClick={() => void enableBrowserNotifications()}
+        >
+          {preferences.browserNotifications ? 'Notifications are on' : 'Turn on notifications'}
+        </Button>
+        {permission !== null && (
+          <p role="status" className="mt-3 text-[12px] text-ink-2">
+            {permission}
           </p>
-          <div className="divide-y divide-line">
-            {MUTABLE.map((category) => {
-              const muted = preferences.muted.includes(category);
-              return (
-                <SwitchRow
-                  key={category}
-                  title={CATEGORY_LABEL[category]}
-                  checked={!muted}
-                  onCheckedChange={() =>
-                    void savePreferences({
-                      ...preferences,
-                      muted: muted
-                        ? preferences.muted.filter((value) => value !== category)
-                        : [...preferences.muted, category],
-                    })
-                  }
-                />
-              );
-            })}
-          </div>
-        </Card>
-        <Card className="p-6">
-          <SectionTitle>Browser notifications</SectionTitle>
-          <p className="text-[13px] text-ink-2">
-            GradTools can show a browser notification while it is open. It cannot notify you when
-            the app is closed — that needs a push service GradTools does not have yet.
-          </p>
-          <Button
-            className="mt-4"
-            icon={<BellRing />}
-            onClick={() => void enableBrowserNotifications()}
-          >
-            {preferences.browserNotifications ? 'Notifications are on' : 'Turn on notifications'}
-          </Button>
-          {permission !== null && (
-            <p role="status" className="mt-3 text-[12px] text-ink-2">
-              {permission}
-            </p>
-          )}
-        </Card>
-      </div>
+        )}
+      </Card>
     </div>
   );
 }

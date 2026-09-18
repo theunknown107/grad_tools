@@ -35,12 +35,15 @@ const ROUTES = [
   ['/academics?tab=calculator', 'calculator'],
   ['/attendance', 'attendance'],
   ['/timetable', 'timetable'],
+  // Day view is a toggle, not an address.
+  ['/timetable', 'timetable-day', (page) => page.getByRole('radio', { name: 'Day' }).click()],
   ['/exams', 'exams'],
   ['/import', 'import'],
   ['/profile', 'profile'],
-  ['/profile?section=appearance', 'appearance'],
-  ['/profile?section=academic', 'profile-academic'],
-  ['/account', 'account'],
+  ['/account?section=appearance', 'appearance'],
+  ['/account?section=academic', 'settings-academic'],
+  ['/account?section=notifications', 'settings-notifications'],
+  ['/account?section=data', 'settings-data'],
   ['/sign-in', 'signin'],
   ['/first-sync', 'first-sync'],
   ['/welcome', 'welcome'],
@@ -88,7 +91,7 @@ const OVERLAYS = [
     '/attendance',
     (page) =>
       page
-        .getByRole('button', { name: /^record a class for/i })
+        .getByRole('button', { name: /^more actions for/i })
         .first()
         .click(),
   ],
@@ -107,17 +110,14 @@ const OVERLAYS = [
     (page) => page.getByRole('combobox', { name: /grade, course 1/i }).click(),
   ],
   [
-    'result-menu',
-    '/results/2',
-    (page) => page.getByRole('button', { name: /actions for semester 2/i }).click(),
+    'edit-profile',
+    '/profile',
+    (page) => page.getByRole('button', { name: /^edit profile$/i }).click(),
   ],
   [
     'delete-confirm',
     '/results/2',
-    async (page) => {
-      await page.getByRole('button', { name: /actions for semester 2/i }).click();
-      await page.getByRole('menuitem', { name: /delete this semester/i }).click();
-    },
+    (page) => page.getByRole('button', { name: /delete this semester/i }).click(),
   ],
   ['mobile-nav', '/', (page) => page.getByRole('button', { name: /^more/i }).first().click(), 1024],
 ];
@@ -341,9 +341,13 @@ const run = async () => {
       page.on('pageerror', (e) => errors.push(`PAGEERROR ${String(e)}`));
       await page.goto(`http://localhost:${PORT}/welcome`);
       if (!EMPTY) await seed(page, seedData());
-      for (const [path, name] of ROUTES) {
+      for (const [path, name, prepare] of ROUTES) {
         await page.goto(`http://localhost:${PORT}${path}`);
         await page.waitForLoadState('networkidle').catch(() => undefined);
+        if (prepare !== undefined && !EMPTY)
+          await prepare(page).catch(() =>
+            problems.push(`PREPARE ${theme} ${name}@${width}: failed`),
+          );
         await page.waitForTimeout(500);
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

@@ -147,9 +147,10 @@ describe('entering a result card', () => {
     const { bundle, peek } = createMemoryRepositories({
       results: [saved(3, [{ subjectCode: 'BCS301', credits: 4, gradeLetter: 'A' }])],
     });
-    renderWith(<ResultsPage />, { repositories: bundle });
+    // With a result saved, manual entry opens from its own address (Add document → "Enter a result by hand").
+    renderWith(<ResultsPage />, { repositories: bundle, route: '/results?new=1' });
+    await screen.findByRole('combobox', { name: /^semester$/i });
 
-    await user.click(await screen.findByRole('button', { name: /^add semester$/i }));
     await choose(/^semester$/i, 'Semester 3');
     await user.type(screen.getByLabelText(/subject code 1/i), 'BCS302');
     await user.click(screen.getByRole('button', { name: /save semester/i }));
@@ -297,8 +298,7 @@ describe('a saved result', () => {
     renderRecord(bundle);
 
     await openRecord(user);
-    await user.click(screen.getByRole('button', { name: /actions for semester 4/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /edit this semester/i }));
+    await user.click(screen.getByRole('button', { name: /edit this semester/i }));
 
     // The editor opens on the stored values, not on a blank form.
     expect((screen.getByLabelText(/internal 1/i) as HTMLInputElement).value).toBe('44');

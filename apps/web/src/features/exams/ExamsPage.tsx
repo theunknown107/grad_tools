@@ -113,7 +113,7 @@ export function ExamsPage() {
           description={`${timetables.items.length === 1 ? 'The time table you added covers' : `The ${String(timetables.items.length)} time tables you added cover`} schemes or semesters other than yours. Check your profile has the right scheme and semester, or add the time table for yours.`}
           actions={
             <Button asChild>
-              <Link to="/profile?section=academic">Check your profile</Link>
+              <Link to="/account?section=academic">Check your academic details</Link>
             </Button>
           }
         />

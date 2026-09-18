@@ -16,7 +16,7 @@ export function NotFoundPage() {
           404
         </span>
       </div>
-      <h1 className="font-display text-[28px] font-semibold tracking-[-0.02em]">
+      <h1 className="text-[28px] font-semibold tracking-[-0.02em]">
         This page isn&apos;t in your record
       </h1>
       <p className="mt-2 max-w-md text-sm text-ink-2">

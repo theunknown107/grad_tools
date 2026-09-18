@@ -67,6 +67,7 @@ import {
 } from '../../hooks/useCollection.js';
 import { cn } from '../../lib/cn.js';
 import {
+  branchCode,
   formatCount,
   formatGpa,
   formatPercent,
@@ -221,7 +222,9 @@ function Hero({
           <div className="flex flex-wrap items-center gap-2">
             {branch !== null && branch !== '' && (
               <Badge tone="accent" icon={<GraduationCap />}>
-                {branch}
+                <abbr title={branch} className="no-underline">
+                  {branchCode(branch)}
+                </abbr>
               </Badge>
             )}
             {schemeId === 'vtu-2022' && <Badge>2022 scheme</Badge>}

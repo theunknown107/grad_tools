@@ -5,20 +5,14 @@
  */
 
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
-import { ChevronDown, ClipboardList, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { ChevronDown, ClipboardList, FileText, Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
-import { Button, IconButton } from '../../components/ui/button.js';
+import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
 import { ConfirmDialog } from '../../components/ui/dialog.js';
 import { Callout, EmptyState, toast } from '../../components/ui/feedback.js';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../../components/ui/menu.js';
 import { Metric, MetricGrid } from '../../components/ui/metric.js';
 import { BackLink, PageHeader } from '../../components/ui/page.js';
 import { PageSkeleton } from '../../components/ui/skeleton.js';
@@ -27,6 +21,7 @@ import { asStudentProfileId } from '../../domain/identity.js';
 import {
   evaluateResultSubject,
   semesterBacklogs,
+  semesterCsv,
   semesterSgpa,
   type SubjectEvaluation,
 } from '../../domain/results.js';
@@ -90,11 +85,23 @@ export function ResultDetailPage() {
     );
   }
 
-  const { sgpa, credits, inputs } = semesterSgpa(result, resolved.ruleSet);
+  const { sgpa, credits, inputs, gradePoints } = semesterSgpa(result, resolved.ruleSet);
   const { backlogs, undetermined } = semesterBacklogs(result, resolved.ruleSet);
   const asserted = result.sgpaAsserted;
   const discrepancy = sgpa !== null && asserted !== null && Math.abs(sgpa - asserted) >= 0.005;
   const allPassed = backlogs === 0 && undetermined === 0;
+  const exportCsv = (): void => {
+    const blob = new Blob([semesterCsv(result, resolved.ruleSet)], {
+      type: 'text/csv;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `gradtools-semester-${String(result.semester)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast(`Semester ${String(result.semester)} exported`, { tone: 'success' });
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -116,30 +123,9 @@ export function ResultDetailPage() {
           </span>
         }
         actions={
-          <>
-            <Button icon={<Pencil />} onClick={() => setEditing(true)} disabled={editing}>
-              Edit semester
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <IconButton label={`More actions for semester ${String(result.semester)}`}>
-                  <MoreHorizontal />
-                </IconButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem icon={<Pencil />} onSelect={() => setEditing(true)}>
-                  Edit this semester
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  icon={<Trash2 />}
-                  destructive
-                  onSelect={() => setConfirming(true)}
-                >
-                  Delete this semester
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
+          <Button icon={<FileText />} onClick={exportCsv}>
+            Export
+          </Button>
         }
       />
 
@@ -175,9 +161,14 @@ export function ResultDetailPage() {
           state={credits > 0 ? 'resolved' : 'unavailable'}
         />
         <Metric
-          label="Courses"
-          value={result.subjects.length}
-          sub={`${String(inputs.courses.length)} graded`}
+          label="Grade points"
+          value={gradePoints === null ? 'Unavailable' : gradePoints}
+          state={gradePoints === null ? 'unavailable' : 'resolved'}
+          sub={
+            gradePoints === null
+              ? `${String(inputs.courses.length)} of ${String(result.subjects.length)} courses graded`
+              : 'Credit-weighted'
+          }
         />
         <Metric
           label="Result"
@@ -248,6 +239,27 @@ export function ResultDetailPage() {
           ))}
         </ul>
       </Card>
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          size="sm"
+          variant="ghost"
+          icon={<Pencil />}
+          onClick={() => setEditing(true)}
+          disabled={editing}
+        >
+          Edit this semester
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          icon={<Trash2 />}
+          className="text-danger hover:text-danger"
+          onClick={() => setConfirming(true)}
+        >
+          Delete this semester
+        </Button>
+      </div>
 
       <ConfirmDialog
         open={confirming}

@@ -1,7 +1,8 @@
 /**
- * Profile — the design's profile hero, identity and academic snapshot, with
- * the sections that shape the rest of the app: academic details, personal
- * details, Appearance, and what happens to the data.
+ * Profile — the design's profile page: hero, identity and academic snapshot,
+ * with Edit profile for the personal details. Academic configuration,
+ * Appearance and data live in Account → Settings, as the design has them; the
+ * academic panels are exported from here for that page.
  *
  * Every field is optional and stored only on this device. Nothing here is
  * needed to calculate anything.
@@ -11,24 +12,26 @@ import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import {
   Building2,
   CalendarDays,
-  Database,
   ExternalLink,
   FileText,
   GraduationCap,
   Hash,
-  LayoutDashboard,
-  Palette,
   Pencil,
   RotateCcw,
-  UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
-import { ConfirmDialog } from '../../components/ui/dialog.js';
+import {
+  ConfirmDialog,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+} from '../../components/ui/dialog.js';
 import { Callout, EmptyState, ErrorState, toast } from '../../components/ui/feedback.js';
 import { Field, Input, Select } from '../../components/ui/field.js';
 import { MiniStat } from '../../components/ui/metric.js';
@@ -51,41 +54,36 @@ import { useAcademicState } from '../../hooks/useAcademicState.js';
 import { useProfile, useResults, useTimetable } from '../../hooks/useCollection.js';
 import { useBranches, useSchemes, useSubjects } from '../../hooks/useReference.js';
 import { cn } from '../../lib/cn.js';
-import { formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
+import { branchCode, formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { isStorageAvailable } from '../../repositories/local/store.js';
 import { SEMESTER_OPTIONS } from '../import/CalendarReview.js';
-import { AppearanceSettings } from './AppearanceSettings.js';
 
 const PROGRAMMES = ['B.E.', 'B.Tech.', 'B.Arch.', 'M.Tech.', 'M.Arch.', 'MBA', 'MCA'] as const;
 const NOT_SET = '__not_set__';
 
-const SECTIONS = [
-  { key: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { key: 'academic', label: 'Academic', icon: GraduationCap },
-  { key: 'identity', label: 'You', icon: UserRound },
-  { key: 'appearance', label: 'Appearance', icon: Palette },
-  { key: 'data', label: 'Your data', icon: Database },
-] as const satisfies readonly { key: string; label: string; icon: LucideIcon }[];
-type Section = (typeof SECTIONS)[number]['key'];
-
-function isSection(value: string | null): value is Section {
-  return SECTIONS.some((section) => section.key === value);
-}
+/** Sections that used to live here and are now in Account → Settings. */
+const MOVED: Readonly<Record<string, string>> = {
+  appearance: 'appearance',
+  academic: 'academic',
+  data: 'data',
+};
 
 export function ProfilePage() {
   const { profile, loading, save } = useProfile();
   const [params, setParams] = useSearchParams();
   const [storageOk, setStorageOk] = useState(true);
   const requested = params.get('section');
-  const section: Section = isSection(requested) ? requested : 'overview';
-  const go = (next: Section): void =>
-    setParams(next === 'overview' ? {} : { section: next }, { replace: true });
+  const editing = requested === 'identity';
+  const setEditing = (open: boolean): void =>
+    setParams(open ? { section: 'identity' } : {}, { replace: true });
 
   useEffect(() => {
     void isStorageAvailable().then(setStorageOk);
   }, []);
 
+  const moved = requested === null ? undefined : MOVED[requested];
+  if (moved !== undefined) return <Navigate to={`/account?section=${moved}`} replace />;
   if (loading) return <PageSkeleton label="Loading your profile" />;
 
   return (
@@ -93,13 +91,10 @@ export function ProfilePage() {
       <PageHeader
         eyebrow="Account"
         title="Profile"
-        description="Optional, and stored only on this device. Every field can be left blank."
         actions={
-          section === 'overview' ? (
-            <Button icon={<Pencil />} onClick={() => go('academic')}>
-              Edit profile
-            </Button>
-          ) : undefined
+          <Button icon={<Pencil />} onClick={() => setEditing(true)}>
+            Edit profile
+          </Button>
         }
       />
 
@@ -110,42 +105,16 @@ export function ProfilePage() {
         </Callout>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <nav aria-label="Profile sections" className="h-fit min-w-0 lg:sticky lg:top-6">
-          <ul className="relative -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scroll-quiet lg:flex-col">
-            {SECTIONS.map((item) => {
-              const active = section === item.key;
-              return (
-                <li key={item.key} className="shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => go(item.key)}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium whitespace-nowrap transition-colors',
-                      active
-                        ? 'bg-accent-weak text-accent-ink'
-                        : 'text-ink-2 hover:bg-sunken hover:text-ink',
-                    )}
-                  >
-                    <item.icon className="size-4" aria-hidden="true" /> {item.label}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+      <Overview profile={profile ?? null} onEdit={() => setEditing(true)} />
 
-        <div key={section} className="min-w-0 animate-rise">
-          {section === 'overview' && (
-            <Overview profile={profile ?? null} onEdit={() => go('academic')} />
-          )}
-          {section === 'academic' && <AcademicForm profile={profile ?? null} save={save} />}
-          {section === 'identity' && <IdentityForm profile={profile ?? null} save={save} />}
-          {section === 'appearance' && <AppearanceSettings />}
-          {section === 'data' && <DataNotes />}
-        </div>
-      </div>
+      <Dialog open={editing} onOpenChange={setEditing}>
+        <DialogContent
+          title="Edit profile"
+          description="Optional, and stored only on this device. Every field can be left blank."
+        >
+          <IdentityForm profile={profile ?? null} save={save} onDone={() => setEditing(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -212,7 +181,11 @@ function Overview({
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {profile?.branch !== null && profile?.branch !== undefined && profile.branch !== '' && (
-              <Badge tone="accent">{profile.branch}</Badge>
+              <Badge tone="accent">
+                <abbr title={profile.branch} className="no-underline">
+                  {branchCode(profile.branch)}
+                </abbr>
+              </Badge>
             )}
             {profile?.currentSemester !== null && profile?.currentSemester !== undefined && (
               <Badge>Semester {profile.currentSemester}</Badge>
@@ -512,9 +485,11 @@ function AcademicForm({
 function IdentityForm({
   profile,
   save,
+  onDone,
 }: {
   readonly profile: StudentProfile | null;
   readonly save: SaveProfile;
+  readonly onDone: () => void;
 }) {
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '');
   const [usn, setUsn] = useState(profile?.usn ?? '');
@@ -524,92 +499,82 @@ function IdentityForm({
         displayName: blankToNull(displayName),
         usn: usn.trim() === '' ? null : usn.trim().toUpperCase(),
       }),
-    ).then(() => toast('Saved on this device.', { tone: 'success' }));
+    ).then(() => {
+      toast('Saved on this device.', { tone: 'success' });
+      onDone();
+    });
   };
   return (
-    <FormCard
-      title="You"
-      note={
-        <>
-          <p>
-            Everything here is optional and stored only in this browser. GradTools never needs any
-            of it to calculate anything.
-          </p>
-          <p>
-            Your name is used only to greet you. The USN only labels a result you export — leaving
-            it blank costs nothing.
-          </p>
-        </>
-      }
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        commit();
+      }}
     >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          commit();
-        }}
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Name" hint="Only used to greet you.">
-            <Input
-              autoComplete="name"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-            />
-          </Field>
-          <Field label="USN" optional hint="Only used to label a result you export.">
-            <Input
-              className="font-mono"
-              placeholder="1XX22CS001"
-              value={usn}
-              onChange={(event) => setUsn(event.target.value)}
-            />
-          </Field>
-        </div>
-        <div className="mt-6 flex justify-end">
-          <Button type="submit" variant="primary">
-            Save
-          </Button>
-        </div>
-      </form>
-    </FormCard>
+      <DialogBody className="grid gap-4 sm:grid-cols-2">
+        <Field label="Name" hint="Only used to greet you.">
+          <Input
+            autoComplete="name"
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+          />
+        </Field>
+        <Field label="USN" optional hint="Only used to label a result you export.">
+          <Input
+            className="font-mono"
+            placeholder="1XX22CS001"
+            value={usn}
+            onChange={(event) => setUsn(event.target.value)}
+          />
+        </Field>
+        <p className="text-[12px] text-ink-3 sm:col-span-2">
+          College, branch, programme and semester are set in{' '}
+          <Link
+            to="/account?section=academic"
+            className="font-medium text-accent-ink underline-offset-4 hover:underline"
+          >
+            Settings → Academic
+          </Link>
+          .
+        </p>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary">
+          Save
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
 
-function DataNotes() {
+/** What this version supports — shown in Settings → About. */
+export function SupportNote() {
   return (
-    <div className="flex flex-col gap-4">
-      <FormCard title="Where your data lives">
-        <div className="space-y-3 text-[13px] leading-relaxed text-ink-2">
-          <p>
-            Everything you enter (profile, attendance, results and timetable) is stored in this
-            browser. If you sign in on the Account page, a copy is kept in your account so another
-            device can restore it.
-          </p>
-          <p>Clearing your browser data removes the local copy.</p>
-          <p className="text-ink-3">
-            GradTools does not collect your date of birth, phone number, or any login details for a
-            university system, and never asks for a university password.
-          </p>
-        </div>
-        <Button asChild className="mt-4">
-          <Link to="/account">Sync, export and deletion</Link>
-        </Button>
-      </FormCard>
-      <FormCard title="What is supported">
-        <div className="space-y-3 text-[13px] leading-relaxed text-ink-2">
-          <p>
-            This experimental version supports the{' '}
-            <strong className="font-semibold text-ink">VTU 2022 scheme (22OB)</strong> for
-            B.E./B.Tech at non-autonomous affiliated colleges.
-          </p>
-          <p className="text-ink-3">
-            Autonomous colleges set their own internal rules, so these figures may not apply there.
-            Other schemes are not supported yet.
-          </p>
-        </div>
-      </FormCard>
-    </div>
+    <Card className="p-6">
+      <SectionTitle>What is supported</SectionTitle>
+      <div className="space-y-3 text-[13px] leading-relaxed text-ink-2">
+        <p>
+          This experimental version supports the{' '}
+          <strong className="font-semibold text-ink">VTU 2022 scheme (22OB)</strong> for B.E./B.Tech
+          at non-autonomous affiliated colleges.
+        </p>
+        <p className="text-ink-3">
+          Autonomous colleges set their own internal rules, so these figures may not apply there.
+          Other schemes are not supported yet.
+        </p>
+      </div>
+    </Card>
   );
+}
+
+/** Settings → Academic: the configuration, the reference subjects, and hand-entered records. */
+export function AcademicSettings() {
+  const { profile, loading, save } = useProfile();
+  if (loading) return <PageSkeleton label="Loading your academic details" />;
+  return <AcademicForm profile={profile ?? null} save={save} />;
 }
 
 /* --------------------------------------------------- Reference subjects */

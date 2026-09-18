@@ -201,7 +201,7 @@ function CommandMenu({
         keywords: 'colour color accent density motion',
         icon: Palette,
         group: 'Preferences',
-        run: go('/profile?section=appearance'),
+        run: go('/account?section=appearance'),
       },
     ];
     const records: Entry[] = [...new Set(results.map((result) => result.semester))]

@@ -12,7 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeResultSubject } from '../src/domain/results.js';
 import userEvent from '@testing-library/user-event';
-import { screen, within } from '@testing-library/dom';
+import { screen, waitFor, within } from '@testing-library/dom';
 import { cleanup } from '@testing-library/react';
 import { App } from '../src/App.js';
 import { DashboardPage } from '../src/features/dashboard/DashboardPage.js';
@@ -262,11 +262,8 @@ describe('SGPA calculator', () => {
     await choose(/grade, course 1/i, /^A \(/);
     await choose(/credits, course 2/i, '4');
     await choose(/grade, course 2/i, /^A\+ \(/);
-    // Row labels are positional and renumber after each removal, so removing
-    // "course 3" three times clears rows 3, 4 and 5.
-    for (let i = 0; i < 3; i += 1) {
-      await user.click(screen.getByRole('button', { name: /remove course 3/i }));
-    }
+    // The design starts with three rows; removing the third leaves the two above.
+    await user.click(screen.getByRole('button', { name: /remove course 3/i }));
 
     expect(await screen.findByText('8.50')).toBeTruthy();
   });
@@ -286,11 +283,13 @@ describe('SGPA calculator', () => {
     const user = userEvent.setup();
     renderWith(<AcademicsPage />);
     await openCalculator();
-    expect(screen.getByLabelText(/subject code, course 5/i)).toBeTruthy();
+    // Two columns per row, as in the design: credits and grade.
+    expect(screen.getByRole('combobox', { name: /credits, course 3/i })).toBeTruthy();
+    expect(screen.queryByLabelText(/subject code/i)).toBeNull();
     await user.click(screen.getByRole('button', { name: /add course/i }));
-    expect(screen.getByLabelText(/subject code, course 6/i)).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: /remove course 6/i }));
-    expect(screen.queryByLabelText(/subject code, course 6/i)).toBeNull();
+    expect(screen.getByRole('combobox', { name: /grade, course 4/i })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: /remove course 4/i }));
+    expect(screen.queryByRole('combobox', { name: /grade, course 4/i })).toBeNull();
   });
 });
 
@@ -420,41 +419,36 @@ describe('attendance', () => {
 });
 
 describe('bunk planner', () => {
-  it('projects the resulting attendance from planned misses', async () => {
-    const user = userEvent.setup();
+  it('says how many classes it takes to recover, from the rules engine', async () => {
     const { bundle } = createMemoryRepositories({
-      attendance: [attendance('a1', 'BCS301', 45, 50)],
+      attendance: [attendance('a1', 'BCS301', 30, 40)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
     await openPlanner();
 
-    const planned = await screen.findByLabelText(/classes still to be held/i);
-    const missed = screen.getByLabelText(/classes you would miss/i);
-    await user.clear(planned);
-    await user.type(planned, '10');
-    await user.clear(missed);
-    await user.type(missed, '2');
-
-    // (45 + 8) / (50 + 10) = 88.33%
-    expect(await screen.findByText('88.3%')).toBeTruthy();
+    // 30 of 40 at an 85% requirement: (30 + n) / (40 + n) >= 0.85 first holds at n = 27.
+    const dialog = await screen.findByRole('dialog', { name: /bunk planner/i });
+    expect(within(dialog).getByText(/attend the next 27 classes to recover/i)).toBeTruthy();
+    expect(within(dialog).getByText('75.0%')).toBeTruthy();
+    expect(within(dialog).getByText('85.0%')).toBeTruthy();
   });
 
-  it('refuses to plan more misses than classes remaining', async () => {
+  it('closes without changing the record', async () => {
     const user = userEvent.setup();
-    const { bundle } = createMemoryRepositories({
+    const { bundle, peek } = createMemoryRepositories({
       attendance: [attendance('a1', 'BCS301', 45, 50)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
     await openPlanner();
 
-    const planned = await screen.findByLabelText(/classes still to be held/i);
-    const missed = screen.getByLabelText(/classes you would miss/i);
-    await user.clear(planned);
-    await user.type(planned, '2');
-    await user.clear(missed);
-    await user.type(missed, '9');
-
-    expect(await screen.findByText(/cannot miss more classes than will be held/i)).toBeTruthy();
+    // The design's footer Close, beside the header's × which carries the same name.
+    const dialog = await screen.findByRole('dialog', { name: /bunk planner/i });
+    const closes = within(dialog).getAllByRole('button', { name: /^close$/i });
+    await user.click(closes[closes.length - 1] as HTMLElement);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(peek.attendance()[0]).toMatchObject({ attended: 45, conducted: 50 });
   });
 });
 
