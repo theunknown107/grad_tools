@@ -133,6 +133,18 @@ export interface AuthAdapter {
  */
 function friendly(message: string): string {
   const lower = message.toLowerCase();
+  /*
+   * A PROVIDER THAT IS NOT SET UP IS NOT THE STUDENT'S MISTAKE (M9 §22.17).
+   *
+   * Google and Apple are implemented in code and enabled per project in the
+   * provider's dashboard. Where a build's project has not enabled one, the
+   * SDK answers "Unsupported provider: provider is not enabled" — and telling
+   * a student "something went wrong, try again" invites them to try again for
+   * ever at a button that cannot work yet. Say what is true instead.
+   */
+  if (lower.includes('provider is not enabled') || lower.includes('unsupported provider')) {
+    return 'That sign-in method is not available for this build yet. Use email and password.';
+  }
   if (lower.includes('invalid login credentials') || lower.includes('invalid credentials')) {
     return 'That email and password do not match an account.';
   }

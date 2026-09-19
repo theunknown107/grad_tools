@@ -104,6 +104,25 @@ export function createApp(
    * Requests without an Origin header (curl, server-to-server, health probes)
    * are allowed because CORS is a browser policy and blocking them would only
    * break monitoring while stopping no attack.
+   *
+   * ---------------------------------------------------------------------
+   * THE METHODS ARE THE ONES THIS API ACTUALLY SERVES
+   * ---------------------------------------------------------------------
+   *
+   * This said `GET, HEAD, OPTIONS` from the milestone where the API served
+   * nothing but public reference reads, and was never widened when the student
+   * cloud arrived with a POST to push a sync, a PUT to save a profile, a PATCH
+   * to mark a notice read and a DELETE to remove an account. A browser asks
+   * before it sends any of those, and an answer that omits the method it asked
+   * about means the request is never made at all — so the whole mutating half
+   * of the cloud was unreachable from the web app's own origin.
+   *
+   * What keeps this safe is the ORIGIN check above, not the method list: an
+   * origin that is not on the allowlist gets no `Access-Control-Allow-Origin`
+   * header at all, and the browser refuses the response whatever method it
+   * used. Authorization is a bearer token, never a cookie, which is why
+   * `credentials` stays false — there is no ambient authority for a cross-site
+   * request to ride on.
    */
   app.use(
     cors({
@@ -114,7 +133,7 @@ export function createApp(
         }
         callback(null, false);
       },
-      methods: ['GET', 'HEAD', 'OPTIONS'],
+      methods: ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE'],
       credentials: false,
       maxAge: 600,
     }),

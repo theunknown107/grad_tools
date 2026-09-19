@@ -567,11 +567,62 @@ export function semesterSgpa(
   readonly sgpa: number | null;
   readonly credits: number;
   readonly inputs: SgpaInputs;
+  /** Σ(Ci × Gi) from the same calculation — null whenever the SGPA is. */
+  readonly gradePoints: number | null;
 } {
   const inputs = sgpaInputs(result, ruleSet);
   const credits = result.subjects.reduce((total, subject) => total + (subject.credits ?? 0), 0);
 
-  if (ruleSet === undefined || !inputs.complete) return { sgpa: null, credits, inputs };
+  if (ruleSet === undefined || !inputs.complete) {
+    return { sgpa: null, credits, inputs, gradePoints: null };
+  }
   const outcome = calculateSGPA(inputs.courses, ruleSet);
-  return { sgpa: isOk(outcome) ? outcome.value : null, credits, inputs };
+  if (!isOk(outcome)) return { sgpa: null, credits, inputs, gradePoints: null };
+  const weighted = outcome.explanation.inputs['weightedPoints'];
+  return {
+    sgpa: outcome.value,
+    credits,
+    inputs,
+    gradePoints: typeof weighted === 'number' ? weighted : null,
+  };
+}
+
+/**
+ * One semester as CSV — what Export on the result record downloads.
+ *
+ * Values are the record's own: printed marks as printed, and a grade only
+ * where the card or the rules engine gives one. A cell that a spreadsheet
+ * would run as a formula is prefixed with an apostrophe, because titles can
+ * come from an imported document.
+ */
+export function semesterCsv(result: SemesterResult, ruleSet: RuleSet | undefined): string {
+  const cell = (value: string | number | null): string => {
+    if (value === null) return '';
+    let text = String(value);
+    if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const header = [
+    'Semester',
+    'Code',
+    'Course',
+    'Internal',
+    'External',
+    'Total',
+    'Credits',
+    'Grade',
+    'Result',
+  ];
+  const rows = result.subjects.map((subject) => [
+    result.semester,
+    subject.subjectCode,
+    subject.subjectTitle,
+    subject.internal,
+    subject.external,
+    subject.total,
+    subject.credits,
+    resolveSubjectGrade(subject, ruleSet)?.letter ?? null,
+    subject.resultStatus,
+  ]);
+  return [header, ...rows].map((row) => row.map(cell).join(',')).join('\r\n') + '\r\n';
 }

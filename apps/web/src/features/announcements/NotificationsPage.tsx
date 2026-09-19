@@ -1,158 +1,31 @@
 /**
- * The notification centre.
- *
- * Authority: docs/12 §12.12 · M7 §16, §19, §21, §22
- *
- * NOT A SOCIAL FEED (M7 §16). A list of what is unread, three controls, and a
- * way to stop a category interrupting. No badges that count things nobody asked
- * to count, no infinite scroll, no activity.
- *
- * EVERYTHING HERE IS LOCAL. Read state and preferences live on the device; the
- * server is never told what has been read, which is why none of this needs an
- * account (M7 §40).
+ * Notifications — the design's inbox: what is new since the student last
+ * looked (read state stays on this device) and what the VTU monitor has found
+ * for a signed-in student. As in the design, a row is one control: opening it
+ * marks it read. What may interrupt is set in Account → Settings.
  */
 
+import { Bell, BellRing, Check, ExternalLink, FileText } from 'lucide-react';
 import { useState } from 'react';
-import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
-import { PageHeader } from '../../components/AppShell.js';
-import { Icon, type IconName } from '../../components/icons.js';
-import { MetaPill } from '../../components/ui/tone.js';
-import { formatCount } from '../../lib/format.js';
-import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
-import { Skeleton as ShapedSkeleton } from '../../components/ui/Skeleton.js';
-import { Button, EmptyState, Notice, Panel, StatusPill } from '../../components/ui/index.js';
+import { Link } from 'react-router-dom';
+import type { AnnouncementCategory } from '@gradtools/shared-types';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Card, CardHeader, CardRows } from '../../components/ui/card.js';
+import { Callout, EmptyState, ErrorState } from '../../components/ui/feedback.js';
+import { SwitchRow } from '../../components/ui/field.js';
+import { Dot, IconTile, PageHeader, SectionTitle } from '../../components/ui/page.js';
+import { Segmented } from '../../components/ui/segmented.js';
+import { Skeleton } from '../../components/ui/skeleton.js';
 import { useAnnouncements, useNotifications } from '../../hooks/useAnnouncements.js';
 import {
   useSourceNotifications,
   type SourceNotification,
 } from '../../hooks/useSourceNotifications.js';
-import { CATEGORY_LABEL } from './AnnouncementRow.js';
-import styles from './announcements.module.css';
+import { cn } from '../../lib/cn.js';
+import { relativeTime } from '../../lib/time.js';
+import { CATEGORY_ICON, CATEGORY_LABEL, CATEGORY_TONE } from './AnnouncementCard.js';
 
-/**
- * The notices a server-side run left for this student while they were away.
- *
- * Authority: Phase 7B.3.1 §14, §24, §27, §50, §51, §85
- *
- * ---------------------------------------------------------------------------
- * A PANEL BESIDE THE INBOX, NOT A CHANGE TO IT
- * ---------------------------------------------------------------------------
- *
- * The inbox below is local: a public feed, filtered on the device, with read
- * state that never leaves the browser. These rows are the opposite — decided on
- * a server, for this account, and read state the server owns. Merging them
- * would mean one list where "read" means two different things depending on the
- * row, and a student could not tell which.
- *
- * So they sit above, in their own panel, saying where they came from. The page
- * below is untouched (§85).
- *
- * SIGNED OUT, THIS RENDERS NOTHING AT ALL. Not an empty state, not a prompt to
- * sign in: a student using GradTools without an account is using it as designed,
- * and a panel advertising what they are missing would be the nag this product
- * does not do.
- */
-export function FromVtu() {
-  const { items, unread, loading, unavailable, error, markRead, markAllRead } =
-    useSourceNotifications();
-
-  if (unavailable) return null;
-  if (loading && items.length === 0) return null;
-  if (error !== null) {
-    return (
-      <Panel title="Waiting for you from VTU">
-        <Notice tone="warning">{error}</Notice>
-      </Panel>
-    );
-  }
-  if (items.length === 0) return null;
-
-  return (
-    <Panel
-      title="Waiting for you from VTU"
-      action={
-        unread > 0 ? (
-          <Button
-            variant="secondary"
-            onClick={() => {
-              void markAllRead();
-            }}
-          >
-            <Icon name="check" size="nav" />
-            Mark all read
-          </Button>
-        ) : undefined
-      }
-    >
-      <ul className={styles.inbox}>
-        {items.map((row) => (
-          <FromVtuRow key={row.id} notification={row} onRead={markRead} />
-        ))}
-      </ul>
-    </Panel>
-  );
-}
-
-function FromVtuRow({
-  notification,
-  onRead,
-}: {
-  readonly notification: SourceNotification;
-  readonly onRead: (id: string) => Promise<void>;
-}) {
-  const high = notification.importance === 'high';
-  return (
-    <li>
-      <article className={styles.notification} data-state={notification.state}>
-        <span
-          className={styles.notificationMark}
-          data-high={high ? 'true' : undefined}
-          aria-hidden="true"
-        >
-          <Icon name="papers" size="nav" />
-        </span>
-
-        <div className={styles.notificationBody}>
-          <div className={styles.notificationHead}>
-            {/* Text from a document this project did not write. Rendered as text. */}
-            <h3 className={styles.notificationTitle}>{notification.title}</h3>
-            {high && <StatusPill tone="warning">Important</StatusPill>}
-            <StatusPill tone="neutral">{notification.category.replace(/_/g, ' ')}</StatusPill>
-          </div>
-
-          {/*
-            §27. WHY THEY GOT IT, in the values the source and their profile
-            actually carry — "Applies to your scheme · programme · semester."
-            A notification nobody can account for is one they learn to ignore.
-          */}
-          <p className={styles.notificationMeta}>{notification.reason}</p>
-
-          <div className={styles.notificationActions}>
-            {/*
-              §26, §52. The official document, never a copy we made of it.
-              `rel` because the destination is not ours.
-            */}
-            <a href={notification.sourceUrl} target="_blank" rel="noreferrer noopener">
-              Open official source
-            </a>
-            {notification.state === 'unread' && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  void onRead(notification.id);
-                }}
-              >
-                Mark read
-              </Button>
-            )}
-          </div>
-        </div>
-      </article>
-    </li>
-  );
-}
-
-/** Categories worth muting. Results and examinations are deliberately absent. */
 const MUTABLE: readonly AnnouncementCategory[] = [
   'results',
   'exam_timetable',
@@ -169,61 +42,217 @@ const MUTABLE: readonly AnnouncementCategory[] = [
 ];
 
 /**
- * Which icon a category takes, from the icons this product already ships.
- *
- * The approved design gives every notification a mark of its kind. GradTools
- * has twelve categories where the design's sample has five, so they are grouped
- * onto marks that already exist rather than a new icon being drawn for each —
- * one icon family, never a mixed set (§20).
+ * What the VTU monitor has found for this student. Signed-in only: renders
+ * nothing at all otherwise, so a signed-out student is never shown an empty
+ * box that implies a feature they cannot use.
  */
-const CATEGORY_ICON: Record<AnnouncementCategory, IconName> = {
-  results: 'results',
-  exam_timetable: 'timetable',
-  exam_registration: 'edit',
-  backlog: 'warning',
-  summer_semester: 'degree',
-  revaluation: 'refresh',
-  fees: 'papers',
-  holiday: 'timetable',
-  academic_calendar: 'timetable',
-  college_notice: 'announcements',
-  department_notice: 'announcements',
-  general: 'info',
-};
-
-/** When it was published, as the design shows it — and never invented. */
-function publishedWhen(announcement: Announcement): string | null {
-  if (announcement.publishedAt === null) return null;
-  return new Date(announcement.publishedAt).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+export function FromVtu() {
+  const { items, unread, loading, unavailable, error, markRead, markAllRead } =
+    useSourceNotifications();
+  if (unavailable) return null;
+  if (loading && items.length === 0) return null;
+  if (error === null && items.length === 0) return null;
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader
+        icon={<BellRing className="text-ink-2" aria-hidden="true" />}
+        title="Waiting for you from VTU"
+        action={
+          unread > 0 ? (
+            <Button size="sm" icon={<Check />} onClick={() => void markAllRead()}>
+              Mark all read
+            </Button>
+          ) : undefined
+        }
+      />
+      {error !== null ? (
+        <Callout tone="warning" className="m-4">
+          {error}
+        </Callout>
+      ) : (
+        <CardRows>
+          {items.map((row) => (
+            <FromVtuRow key={row.id} notification={row} onRead={markRead} />
+          ))}
+        </CardRows>
+      )}
+    </Card>
+  );
 }
 
+function FromVtuRow({
+  notification,
+  onRead,
+}: {
+  readonly notification: SourceNotification;
+  readonly onRead: (id: string) => Promise<void>;
+}) {
+  const high = notification.importance === 'high';
+  const unread = notification.state === 'unread';
+  return (
+    <a
+      href={notification.sourceUrl}
+      target="_blank"
+      rel="noreferrer noopener"
+      onClick={() => {
+        if (unread) void onRead(notification.id);
+      }}
+      className={cn(
+        'flex items-start gap-3.5 px-5 py-4 text-left transition-colors hover:bg-panel',
+        unread && 'bg-accent-weak/20',
+      )}
+    >
+      <IconTile tone={high ? 'warning' : 'neutral'}>
+        <FileText />
+      </IconTile>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-[14px] leading-tight font-semibold text-ink">{notification.title}</h3>
+          {high && <Badge tone="warning">Important</Badge>}
+          <Badge className="capitalize">{notification.category.replace(/_/g, ' ')}</Badge>
+        </div>
+        <p className="mt-1 text-[13px] text-ink-2">{notification.reason}</p>
+        <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-ink-3">
+          Official source <ExternalLink className="size-3" aria-hidden="true" />
+          <span className="sr-only">(opens in a new tab)</span>
+        </div>
+      </div>
+      {unread && <Dot tone="accent" className="mt-1.5" label="Unread" />}
+    </a>
+  );
+}
+
+type Filter = 'all' | 'unread';
+
 export function NotificationsPage() {
-  const { items, loading: feedLoading, error } = useAnnouncements();
-  const { notifications, unread, preferences, setState, readAll, savePreferences } =
-    useNotifications(items);
-  const [unreadOnly, setUnreadOnly] = useState(false);
+  const { items, loading, error, reload } = useAnnouncements();
+  const { notifications, unread, setState, readAll } = useNotifications(items);
+  const [filter, setFilter] = useState<Filter>('all');
+  const now = Date.now();
+  const undismissed = notifications.filter((notification) => notification.state !== 'dismissed');
+  const visible =
+    filter === 'unread' ? undismissed.filter((item) => item.state === 'unread') : undismissed;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        eyebrow="Overview"
+        title="Notifications"
+        description="Academic updates since you last looked. Read state stays on this device."
+        actions={
+          <Button icon={<Check />} disabled={unread === 0} onClick={() => void readAll()}>
+            Mark all read
+          </Button>
+        }
+      />
+
+      <FromVtu />
+
+      <Segmented<Filter>
+        label="Which notifications"
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: 'all', label: `All · ${String(undismissed.length)}` },
+          { value: 'unread', label: `Unread · ${String(unread)}` },
+        ]}
+        className="w-full"
+      />
+
+      {error !== null ? (
+        <ErrorState title="Notifications are unavailable" message={error} onRetry={reload} />
+      ) : loading ? (
+        <div role="status" aria-live="polite" className="flex flex-col gap-2">
+          <span className="sr-only">Loading notifications…</span>
+          {[0, 1, 2, 3].map((key) => (
+            <Skeleton key={key} className="h-24 rounded-xl" />
+          ))}
+        </div>
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon={<Bell />}
+          title={filter === 'unread' ? "You're all caught up" : 'No notifications yet'}
+          description={
+            filter === 'unread'
+              ? 'No unread notifications. Switch to All to see everything you have already read.'
+              : 'Announcements that apply to you appear here.'
+          }
+        />
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {visible.map(({ announcement, state, priority }) => {
+            const Icon = CATEGORY_ICON[announcement.category];
+            const high = priority === 'urgent' || priority === 'important';
+            const isUnread = state === 'unread';
+            return (
+              <li key={announcement.id}>
+                <Card
+                  interactive
+                  asChild
+                  className={cn(
+                    'flex items-start gap-3.5 p-4',
+                    isUnread && 'border-accent/30 bg-accent-weak/20',
+                  )}
+                >
+                  <Link
+                    to="/announcements"
+                    data-state={state}
+                    onClick={() => {
+                      if (isUnread) void setState(announcement, 'read');
+                    }}
+                  >
+                    <IconTile tone={high ? 'warning' : 'neutral'}>
+                      <Icon />
+                    </IconTile>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-[14px] leading-tight font-semibold text-ink">
+                          {announcement.title}
+                        </h3>
+                        {high && <Badge tone="warning">Important</Badge>}
+                        <Badge tone={CATEGORY_TONE[announcement.category]}>
+                          {CATEGORY_LABEL[announcement.category]}
+                        </Badge>
+                        {announcement.origin === 'demo_fixture' && (
+                          <Badge tone="warning">Demo data</Badge>
+                        )}
+                      </div>
+                      {announcement.body !== null && (
+                        <p className="mt-1 line-clamp-3 text-[13px] text-ink-2">
+                          {announcement.body}
+                        </p>
+                      )}
+                      <div className="mt-1.5 text-[11px] text-ink-3">
+                        {announcement.publisher}
+                        {announcement.publishedAt !== null && (
+                          <>
+                            {' · '}
+                            <time dateTime={announcement.publishedAt}>
+                              {relativeTime(announcement.publishedAt, now)}
+                            </time>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {isUnread && <Dot tone="accent" className="mt-1.5" label="Unread" />}
+                  </Link>
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Settings → Notifications: what may interrupt, and browser notifications. */
+export function NotificationSettings() {
+  const { items } = useAnnouncements();
+  const { preferences, savePreferences } = useNotifications(items);
   const [permission, setPermission] = useState<string | null>(null);
 
-  const visible = notifications.filter((notification) =>
-    unreadOnly ? notification.state === 'unread' : notification.state !== 'dismissed',
-  );
-
-  /**
-   * Browser notifications, asked for ONLY when the student clicks.
-   *
-   * Never on page load (M7 §21). A permission prompt a visitor did not ask for
-   * is the fastest way to be refused permanently, and it is rude.
-   *
-   * This is the Notification API, not Web Push: alerts appear while GradTools
-   * is open and nothing is delivered when it is closed. True push needs a
-   * server, VAPID keys and a subscription store, none of which is approved —
-   * see docs/24 and OQ-036.
-   */
-  async function enableBrowserNotifications() {
+  const enableBrowserNotifications = async (): Promise<void> => {
     if (!('Notification' in window)) {
       setPermission('This browser does not support notifications.');
       return;
@@ -235,236 +264,56 @@ export function NotificationsPage() {
         : 'Permission was not granted, so notifications stay in the app.',
     );
     await savePreferences({ ...preferences, browserNotifications: result === 'granted' });
-  }
-
-  /*
-   * THE INBOX, HOISTED so it can be the content of BOTH tab panels.
-   *
-   * Only the selected panel is mounted by Radix, and `visible` is already
-   * derived from the selected filter, so exactly one correctly-filtered list
-   * is ever in the document. Declaring both is what gives each tab a real
-   * tabpanel for `aria-controls` to point at — which is what was missing when
-   * these were tabs with no panel anywhere on the page.
-   */
-  const inbox =
-    error !== null ? (
-      <Notice tone="warning">{error}</Notice>
-    ) : feedLoading ? (
-      <ShapedSkeleton lines={4} height="60px" radius="md" label="Loading notifications" />
-    ) : visible.length === 0 ? (
-      <EmptyState
-        title={unreadOnly ? 'You are up to date' : 'No notifications yet'}
-        icons={['notifications', 'announcements', 'empty']}
-      >
-        {unreadOnly
-          ? 'Switch to All to see everything you have already read.'
-          : 'Announcements that apply to you appear here.'}
-      </EmptyState>
-    ) : (
-      <ul className={styles.inbox}>
-        {visible.map((notification) => {
-          const { announcement, state, priority } = notification;
-          const when = publishedWhen(announcement);
-          const high = priority === 'urgent' || priority === 'important';
-          return (
-            <li key={announcement.id}>
-              {/*
-                THE DESIGN'S NOTIFICATION CARD: a mark of its kind, the notice,
-                and what it is — with the unread ones carried on their own tint.
-              */}
-              <article className={styles.notification} data-state={state}>
-                <span
-                  className={styles.notificationMark}
-                  data-high={high ? 'true' : undefined}
-                  aria-hidden="true"
-                >
-                  <Icon name={CATEGORY_ICON[announcement.category]} size="nav" />
-                </span>
-
-                <div className={styles.notificationBody}>
-                  <div className={styles.notificationHead}>
-                    {/* External text, rendered as text. */}
-                    <h3 className={styles.notificationTitle}>{announcement.title}</h3>
-                    {high && <StatusPill tone="warning">Important</StatusPill>}
-                    <StatusPill tone="neutral">{CATEGORY_LABEL[announcement.category]}</StatusPill>
-                    {/*
-                      DEMO CONTENT SAYS SO, driven by the record's own origin so
-                      a synthetic notice can never be shown as official (M7 §36).
-                    */}
-                    {announcement.origin === 'demo_fixture' && (
-                      <span className={styles.demo}>Demo data</span>
-                    )}
-                  </div>
-
-                  {announcement.body !== null && (
-                    <p className={styles.notificationText}>{announcement.body}</p>
-                  )}
-
-                  <p className={styles.notificationMeta}>
-                    {announcement.publisher}
-                    {when !== null && (
-                      <>
-                        {' · '}
-                        <time dateTime={announcement.publishedAt ?? undefined}>{when}</time>
-                      </>
-                    )}
-                  </p>
-
-                  <div className={styles.notificationActions}>
-                    {state === 'unread' && (
-                      <Button
-                        variant="secondary"
-                        small
-                        onClick={() => {
-                          void setState(announcement, 'read');
-                        }}
-                      >
-                        Mark as read
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      small
-                      onClick={() => {
-                        void setState(announcement, 'dismissed');
-                      }}
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
-                </div>
-
-                {/*
-                  UNREAD IS NOT CONVEYED BY COLOUR ALONE (M7 §29). The dot is
-                  the design's mark and is decorative; the word beside it is
-                  what a screen reader reads.
-                */}
-                {state === 'unread' && (
-                  <span className={styles.unreadMark}>
-                    <span aria-hidden="true" />
-                    <span className="visually-hidden">Unread</span>
-                  </span>
-                )}
-              </article>
-            </li>
-          );
-        })}
-      </ul>
-    );
+  };
 
   return (
-    <div className={`${styles.page ?? ''} ${styles.settingsPage ?? ''}`}>
-      <PageHeader
-        eyebrow="Overview"
-        title="Notifications"
-        subtitle="What is new since you last looked. Read state stays on this device."
-        pills={
-          unread > 0 ? <MetaPill>{formatCount(unread, 'unread', 'unread')}</MetaPill> : undefined
-        }
-        action={
-          <Button
-            variant="secondary"
-            disabled={unread === 0}
-            onClick={() => {
-              void readAll();
-            }}
-          >
-            <Icon name="check" size="nav" />
-            Mark all read
-          </Button>
-        }
-      />
-
-      <FromVtu />
-
-      {/*
-        -------------------------------------------------------------------
-        M9.6F: AN INBOX TOOLBAR, NOT A PANEL OF CONTROLS
-        -------------------------------------------------------------------
-
-        A bordered panel titled "3 unread" held a checkbox and a button, and
-        the notifications themselves began below it — so a third of the screen
-        above the inbox was chrome. It is now one toolbar row, matching the
-        header's notification popover so the page and the popover read as the
-        same inbox rather than two different ones.
-
-        All/Unread as tabs rather than a checkbox: it is a VIEW of the list,
-        and the counts belong on the tabs where they say what each view holds.
-      */}
-      <IslandTabGroup
-        value={unreadOnly ? 'unread' : 'all'}
-        onChange={(id) => {
-          setUnreadOnly(id === 'unread');
-        }}
-      >
-        <div className={styles.toolbar}>
-          <IslandTabs
-            label="Which notifications"
-            value={unreadOnly ? 'unread' : 'all'}
-            onChange={(id) => {
-              setUnreadOnly(id === 'unread');
-            }}
-            tabs={[
-              { id: 'all', label: 'All', count: notifications.length },
-              { id: 'unread', label: 'Unread', count: unread },
-            ]}
-          />
-        </div>
-
-        <IslandTabPanel id="all">{inbox}</IslandTabPanel>
-        <IslandTabPanel id="unread">{inbox}</IslandTabPanel>
-      </IslandTabGroup>
-
-      <Panel title="What interrupts you">
-        <p className={styles.note}>
-          Muting a category stops it appearing here. It never hides the notice from the
-          Announcements page — you can always go and look.
+    <div className="flex flex-col gap-4">
+      <Card className="p-6">
+        <SectionTitle>What interrupts you</SectionTitle>
+        <p className="mb-4 text-[13px] text-ink-2">
+          Muting a category stops it appearing in Notifications. It never hides the notice from
+          Announcements — you can always go and look.
         </p>
-        <ul className={styles.muteList}>
+        <div className="divide-y divide-line">
           {MUTABLE.map((category) => {
             const muted = preferences.muted.includes(category);
             return (
-              <li key={category}>
-                <label className={styles.checkbox}>
-                  <input
-                    type="checkbox"
-                    checked={!muted}
-                    onChange={() => {
-                      void savePreferences({
-                        ...preferences,
-                        muted: muted
-                          ? preferences.muted.filter((value) => value !== category)
-                          : [...preferences.muted, category],
-                      });
-                    }}
-                  />
-                  {CATEGORY_LABEL[category]}
-                </label>
-              </li>
+              <SwitchRow
+                key={category}
+                title={CATEGORY_LABEL[category]}
+                checked={!muted}
+                onCheckedChange={() =>
+                  void savePreferences({
+                    ...preferences,
+                    muted: muted
+                      ? preferences.muted.filter((value) => value !== category)
+                      : [...preferences.muted, category],
+                  })
+                }
+              />
             );
           })}
-        </ul>
-      </Panel>
-
-      <Panel title="Browser notifications">
-        <p className={styles.note}>
+        </div>
+      </Card>
+      <Card className="p-6">
+        <SectionTitle>Browser notifications</SectionTitle>
+        <p className="text-[13px] text-ink-2">
           GradTools can show a browser notification while it is open. It cannot notify you when the
-          app is closed — that needs a server GradTools does not have yet.
+          app is closed — that needs a push service GradTools does not have yet.
         </p>
         <Button
-          variant="secondary"
-          onClick={() => {
-            void enableBrowserNotifications();
-          }}
+          className="mt-4"
+          icon={<BellRing />}
+          onClick={() => void enableBrowserNotifications()}
         >
           {preferences.browserNotifications ? 'Notifications are on' : 'Turn on notifications'}
         </Button>
         {permission !== null && (
-          <p className={styles.note} role="status">
+          <p role="status" className="mt-3 text-[12px] text-ink-2">
             {permission}
           </p>
         )}
-      </Panel>
+      </Card>
     </div>
   );
 }

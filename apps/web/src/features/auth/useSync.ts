@@ -39,8 +39,15 @@ import {
   type SyncBookkeeping,
 } from '../../domain/sync.js';
 import { readValue, writeValue } from '../../repositories/local/store.js';
+import { SCHEMA_VERSION } from '../../repositories/local/upgrade.js';
 import { normalizeResultSubject } from '../../domain/results.js';
-import type { ResultSubject } from '../../domain/types.js';
+import {
+  deriveCounts,
+  noteSnapshot,
+  reconcile,
+  type ObservedAggregate,
+} from '../../domain/attendance.js';
+import type { AttendanceRecord, RemoteSnapshot, ResultSubject } from '../../domain/types.js';
 import type { RepositoryBundle } from '../../repositories/types.js';
 
 /** Which local repository backs each synced collection (M9 §53). */
@@ -109,10 +116,36 @@ function subjectToRecord(
   };
 }
 
-async function collectLocal(repositories: RepositoryBundle): Promise<LocalRecord[]> {
+/**
+ * ---------------------------------------------------------------------------
+ * ONE WRITER PER PLACE (the rule that makes the ledger authoritative)
+ * ---------------------------------------------------------------------------
+ *
+ * A ledger-authoritative device DOES NOT PUBLISH its attendance aggregate, and
+ * does not let a pulled one into storage. That is not caution, it is the only
+ * way the pair can settle: while two such devices each derive their own figure
+ * and write it to the one shared row, every pull provokes a push and the row
+ * alternates between them forever. Removing the second writer removes the loop
+ * — on v1 no pull can cause a write to anything that syncs.
+ *
+ * What a pulled aggregate becomes instead is a `RemoteSnapshot`: an observation
+ * the student is shown and decides about (domain/attendance). Nothing about it
+ * changes a number on its own.
+ *
+ * A device still on schemaVersion 0 syncs attendance exactly as it always has.
+ */
+function ledgerAuthoritative(version: number): boolean {
+  return version >= SCHEMA_VERSION;
+}
+
+async function collectLocal(
+  repositories: RepositoryBundle,
+  version: number,
+): Promise<LocalRecord[]> {
   const records: LocalRecord[] = [];
 
   for (const [collection, key] of COLLECTIONS) {
+    if (collection === 'attendance' && ledgerAuthoritative(version)) continue;
     const items = await repositories[key].list();
     for (const item of items) {
       const { id, ...rest } = item as unknown as { id: string } & Record<string, unknown>;
@@ -185,6 +218,46 @@ async function applySubjectToResult(
   await repositories.results.upsert({ ...parent, subjects } as never);
 }
 
+/**
+ * Compares what was pulled with what the ledger derives, and rewrites the cache.
+ *
+ * The comparison NEVER touches the ledger. All it can write is the observation
+ * list, which is device-local and never published — so it cannot provoke a
+ * reaction on the device the figure came from, and repeated syncs cannot
+ * oscillate.
+ */
+async function recordObservations(
+  repositories: RepositoryBundle,
+  observed: readonly ObservedAggregate[],
+): Promise<void> {
+  const entries = await repositories.attendanceLedger.list();
+  const overrides = await repositories.timetableOverrides.list();
+  const derived = deriveCounts(entries, overrides);
+  const now = new Date().toISOString();
+
+  if (observed.length > 0) {
+    const before = await repositories.remoteSnapshots.list();
+    let next: readonly RemoteSnapshot[] = before;
+    for (const aggregate of observed) {
+      next = noteSnapshot(next, aggregate, derived.get(aggregate.subjectCode), now);
+    }
+    const unchanged = new Map(before.map((snapshot) => [snapshot.id, snapshot]));
+    for (const snapshot of next) {
+      const previous = unchanged.get(snapshot.id);
+      if (previous !== undefined && previous.status === snapshot.status) continue;
+      await repositories.remoteSnapshots.upsert(snapshot);
+    }
+  }
+
+  /* The cache is re-derived whatever arrived, so a pull cannot leave it stale. */
+  const records = await repositories.attendance.list();
+  for (const record of reconcile(records, derived, now)) {
+    const previous = records.find((candidate) => candidate.id === record.id);
+    if (previous === record) continue;
+    await repositories.attendance.upsert(record);
+  }
+}
+
 export interface SyncApi {
   readonly state: SyncState;
   readonly syncNow: () => Promise<void>;
@@ -244,11 +317,29 @@ export function useSync(): SyncApi {
 
     try {
       const stored = (await readValue<SyncBookkeeping>(scope, 'syncState')) ?? EMPTY_BOOKKEEPING;
-      const local = await collectLocal(repositories);
+      /*
+       * Read through the ledger repository rather than the raw key, so the
+       * v0 -> v1 upgrade has finished before this sync decides which rules
+       * apply. A half-migrated device keeps the old behaviour, which is safe.
+       */
+      await repositories.attendanceLedger.list();
+      const version = (await readValue<number>(scope, 'schemaVersion')) ?? 0;
+      const local = await collectLocal(repositories, version);
 
       /* ---- push first, so this device's work is safe before anything is
          overwritten by a pull (M9 §68) ---------------------------------- */
-      const candidates = recordsToPush(local, stored);
+      /*
+       * A v1 device publishes NO attendance row — including no tombstone.
+       *
+       * `recordsToPush` sends a deletion for anything the bookkeeping knows
+       * about that is no longer held locally, which is right for a record the
+       * student deleted and catastrophic here: attendance is simply not
+       * collected any more, so every synced row would look deleted and this
+       * device would wipe the aggregate the other one is still using.
+       */
+      const candidates = recordsToPush(local, stored).filter(
+        (candidate) => !(ledgerAuthoritative(version) && candidate.collection === 'attendance'),
+      );
       let bookkeeping = stored;
       let conflicts = [...state.conflicts];
 
@@ -293,9 +384,25 @@ export function useSync(): SyncApi {
           Number(a.collection === 'resultSubjects') - Number(b.collection === 'resultSubjects'),
       );
 
+      const observed: ObservedAggregate[] = [];
+
       for (const record of parentsFirst) {
         if (record.collection === 'resultSubjects') {
           await applySubjectToResult(repositories, record.id, record.data, false);
+          continue;
+        }
+        if (record.collection === 'attendance' && ledgerAuthoritative(version)) {
+          /* Observed, never adopted. The local figure stays derived. */
+          const data = record.data as unknown as Partial<AttendanceRecord>;
+          if (typeof data.subjectCode === 'string') {
+            observed.push({
+              remoteRecordId: record.id,
+              subjectCode: data.subjectCode,
+              attended: Number(data.attended),
+              conducted: Number(data.conducted),
+              revision: record.revision,
+            });
+          }
           continue;
         }
         const entry = COLLECTIONS.find(([name]) => name === record.collection);
@@ -308,9 +415,19 @@ export function useSync(): SyncApi {
           await applySubjectToResult(repositories, deletion.id, {}, true);
           continue;
         }
+        /*
+         * A remote attendance row disappearing is not a statement that this
+         * device's classes did not happen. The cache is derived and is rebuilt
+         * below regardless.
+         */
+        if (deletion.collection === 'attendance' && ledgerAuthoritative(version)) continue;
         const entry = COLLECTIONS.find(([name]) => name === deletion.collection);
         if (entry === undefined) continue;
         await repositories[entry[1]].remove(deletion.id);
+      }
+
+      if (ledgerAuthoritative(version)) {
+        await recordObservations(repositories, observed);
       }
 
       bookkeeping = afterPull(bookkeeping, plan, body.syncedAt);

@@ -53,8 +53,27 @@ export type StorageKey =
   | 'calendars'
   /** Which import produced the active timetable, and its revision (M10A.8). */
   | 'timetableImports'
-  /** What the student said happened to today's scheduled classes (M10A.11). */
+  /**
+   * LEGACY, READ ONCE. The pre-ledger duplicate guard (M10A.11). The v0 -> v1
+   * upgrade migrates whatever is here into the ledger and then deletes it;
+   * nothing in the app writes it any more.
+   */
   | 'classMarks'
+  /** The attendance ledger: openings, class occurrences and adjustments (v1). */
+  | 'attendanceLedger'
+  /** What one date did to the recurring week. Device-local. */
+  | 'timetableOverrides'
+  /** Synced aggregates seen and not adopted. Device-local, never published. */
+  | 'remoteSnapshots'
+  /**
+   * Which data model this device is on.
+   *
+   * Absent or 0 is the pre-ledger device, which keeps syncing attendance
+   * counters exactly as it always did. 1 means the ledger is authoritative
+   * here, and is written LAST by the upgrade so a half-migrated device can
+   * never start behaving as though it were finished.
+   */
+  | 'schemaVersion'
   | 'schemeCourses'
   | 'examTimetables'
   | 'examEvents'

@@ -1,332 +1,137 @@
 /**
- * Weekly timetable.
+ * Timetable — the design's week grid and day focus.
  *
- * Authority: docs/03 UF-16, M3 continuation §20.
- *
- * Desktop renders a week grid; mobile renders a day agenda with BUTTON
- * navigation as well as any swipe, because a gesture must never be the only
- * way to reach content (docs/27 §27.8).
- *
- * No institutional synchronisation exists — slots are entered by the student.
+ * On today's view each class can be marked attended or missed; the mark moves
+ * that course's attendance counters (and can be undone). Holidays from an
+ * imported academic calendar replace the day. Classes are added, edited and
+ * removed here, or imported from Add document.
  */
 
-import { useMemo, useRef, useState } from 'react';
 import {
-  WEEKDAYS,
-  type AttendanceRecord,
-  type TimetableSlot,
-  type Weekday,
-} from '../../domain/types.js';
+  Ban,
+  Check,
+  Coffee,
+  Eraser,
+  MapPin,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Badge } from '../../components/ui/badge.js';
+import { Button, IconButton } from '../../components/ui/button.js';
+import { Card, CardHeader, CardRows } from '../../components/ui/card.js';
+import { Dialog, DialogBody, DialogContent } from '../../components/ui/dialog.js';
+import { Callout, EmptyState, toast } from '../../components/ui/feedback.js';
+import { Field, Input, Select } from '../../components/ui/field.js';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../components/ui/menu.js';
+import { PageHeader } from '../../components/ui/page.js';
+import { ChipGroup, Segmented } from '../../components/ui/segmented.js';
+import { PageSkeleton } from '../../components/ui/skeleton.js';
+import { activeCalendars, holidayOn, type CalendarEvent } from '../../domain/calendar-import.js';
+import { weekdayOf } from '../../domain/day-schedule.js';
+import { slotClassId } from '../../domain/timetable-identity.js';
 import { asStudentProfileId } from '../../domain/identity.js';
-import { PageHeader } from '../../components/AppShell.js';
-import { MetaPill } from '../../components/ui/tone.js';
-import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
-import { Icon } from '../../components/icons.js';
+import { displayTitle, resolveSubject } from '../../domain/subjects.js';
+import { timetableEntry, type TimetableEntry } from '../../domain/timetable-import.js';
+import { WEEKDAYS, type TimetableSlot, type Weekday } from '../../domain/types.js';
 import {
-  Button,
-  EmptyState,
-  monoClass,
-  Notice,
-  Panel,
-  SelectField,
-  TextField,
-} from '../../components/ui/index.js';
-import { formatCount, formatDay, formatTime, localDay } from '../../lib/format.js';
-import { newId } from '../../lib/id.js';
-import {
-  useAttendance,
   useCalendars,
-  useClassMarks,
   useProfile,
   useSemesterSubjects,
   useTimetable,
   useTimetableImports,
 } from '../../hooks/useCollection.js';
-import {
-  applyDelta,
-  countDelta,
-  markFor,
-  markId,
-  staleMarks,
-  startRecord,
-  type ClassOutcome,
-} from '../../domain/attendance.js';
-import { activeCalendars, holidayOn, type CalendarEvent } from '../../domain/calendar-import.js';
+import { useMarkClass, type MarkState } from '../../hooks/useMarkClass.js';
+import { useNow } from '../../hooks/useNow.js';
 import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
-import { displayTitle, resolveSubject } from '../../domain/subjects.js';
-import { timetableEntry, type TimetableEntry } from '../../domain/timetable-import.js';
-import styles from './timetable.module.css';
+import { cn } from '../../lib/cn.js';
+import { branchCode, formatCount, formatDay, formatTime } from '../../lib/format.js';
+import { newId } from '../../lib/id.js';
+
+const DAY_NAME: Record<Weekday, string> = {
+  Mon: 'Monday',
+  Tue: 'Tuesday',
+  Wed: 'Wednesday',
+  Thu: 'Thursday',
+  Fri: 'Friday',
+  Sat: 'Saturday',
+};
+
+type Kind = 'course' | 'activity' | 'break';
+
+function kindOf(entry: TimetableEntry): Kind {
+  if (entry.isCourse) return 'course';
+  return /\b(break|lunch|recess|interval)\b/i.test(entry.name) ? 'break' : 'activity';
+}
+
+const KIND_BAR: Record<Kind, string> = {
+  course: 'bg-chart-1',
+  activity: 'bg-warning',
+  break: 'bg-line-strong',
+};
+const KIND_LABEL: Record<Kind, string> = { course: 'Course', activity: 'Activity', break: 'Break' };
 
 function sortSlots(slots: readonly TimetableSlot[]): TimetableSlot[] {
   return [...slots].sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
+function todayWeekday(): Weekday {
+  const index = new Date().getDay();
+  return WEEKDAYS[index === 0 ? 0 : index - 1] ?? 'Mon';
+}
+
+type View = 'week' | 'day';
+
 export function TimetablePage() {
   const { items, loading, save, remove } = useTimetable();
   const { profile } = useProfile();
-  /*
-   * A TIMETABLE SLOT STORES A CODE AND NO TITLE, so this screen showed a bare
-   * `BMATS101` where every other screen showed a name (OQ-051). The name is
-   * resolved from the student's own records by code — nothing is stored here,
-   * and no schema changed.
-   */
   const { index } = useSubjectIndex();
-  /*
-   * TODAY'S CLASSES ARE WHERE ATTENDANCE ACTUALLY GETS RECORDED (§12, §32).
-   * The student is already looking at the class that just happened; sending
-   * them to another screen to find the same subject and press the same button
-   * is the errand this removes.
-   */
-  const { items: attendance, save: saveAttendance } = useAttendance();
-  const { items: marks, save: saveMark, remove: removeMark } = useClassMarks();
   const { items: calendars } = useCalendars();
   const { items: imports } = useTimetableImports();
-
-  /* The day the student is standing in, not the day UTC is having (§13, §19). */
-  const today = localDay();
-
-  /*
-   * CALENDAR SAYS WHEN, TIMETABLE SAYS WHAT (§20). Only the calendar in force
-   * for its term is consulted, so a superseded one cannot cancel a Monday
-   * (M10A.10 §7).
-   */
-  const holiday = holidayOn(activeCalendars(calendars), today);
-
-  /*
-   * -----------------------------------------------------------------------
-   * WHAT HAS ALREADY BEEN ANSWERED, READ WITHOUT WAITING FOR A RENDER (§13)
-   * -----------------------------------------------------------------------
-   *
-   * Two taps on Attended are one class. A tap, a walk to the dashboard and a
-   * tap on the way back is also one class. The stored mark settles both, but
-   * only once it has been read back - and a second click can arrive before
-   * React has re-rendered with the first one in it.
-   *
-   * So the intent is recorded synchronously in a ref the moment it is
-   * expressed, and every decision is read from there first. The ref is a
-   * write-through cache of the marks, not a second source: it is empty on
-   * mount and the stored marks answer everything it has not seen.
-   */
-  const decided = useRef(new Map<string, ClassOutcome | null>());
-  const outcomeOf = (slotId: string): ClassOutcome | null => {
-    const id = markId(today, slotId);
-    const pending = decided.current.get(id);
-    return pending !== undefined ? pending : (markFor(marks, today, slotId)?.outcome ?? null);
-  };
-
-  /* The same protection for the counts: two classes of one subject in a row. */
-  const counted = useRef(new Map<string, AttendanceRecord>());
-  const recordFor = (code: string): AttendanceRecord | undefined =>
-    counted.current.get(code) ??
-    attendance.find((record) => record.subjectCode.replace(/\s+/g, '').toUpperCase() === code);
-
-  const [undo, setUndo] = useState<{ readonly slot: TimetableSlot; readonly label: string } | null>(
-    null,
-  );
-
-  /**
-   * Move one scheduled class to a decision, or back out of one.
-   *
-   * `null` is "the student has not said", which is where a class starts and
-   * where Undo returns it to. Nothing here is automatic: a class the student
-   * never touches produces no mark and changes no count (§8, §10, §30).
-   */
-  const setOutcome = (slot: TimetableSlot, next: ClassOutcome | null) => {
-    const before = outcomeOf(slot.id);
-    /* Already there. A repeated tap is a repeated tap, not a second class. */
-    if (before === next) return;
-
-    const id = markId(today, slot.id);
-    decided.current.set(id, next);
-
-    /*
-     * AN ACTIVITY IS MARKABLE, AND IS NOT AN ATTENDANCE SUBJECT (§26).
-     *
-     * The mark below belongs to the SLOT and is written either way — the
-     * student said what happened, and that answer is theirs. What an hour with
-     * no course cannot do is open or move a subject's attendance record: those
-     * are counted per subject code, and "Placement & Training" has none. A
-     * record keyed by its printed name would be a subject we invented.
-     */
-    const entry = timetableEntry(slot, null);
-    const code = entry.attendanceCode?.replace(/\s+/g, '').toUpperCase() ?? null;
-    const existing = code === null ? undefined : recordFor(code);
-    const delta = countDelta(before, next);
-    if (code === null) {
-      /* No counter to move. The mark below still records what happened. */
-    } else if (existing !== undefined) {
-      const updated = applyDelta(existing, delta);
-      counted.current.set(code, updated);
-      void saveAttendance(updated);
-    } else if (next !== null) {
-      /*
-       * The first class of a subject the student has never opened the
-       * attendance screen for. The title is resolved through the subject index
-       * rather than typed again (M10A.1) - and falls back to the code, which is
-       * honest rather than blank.
-       */
-      const created = startRecord(
-        {
-          id: newId(),
-          profileId: profile?.id ?? asStudentProfileId('local'),
-          semester: profile?.currentSemester ?? 1,
-          subjectCode: code,
-          subjectTitle: displayTitle(resolveSubject(index, code), 'timetable') || code,
-        },
-        next,
-      );
-      counted.current.set(code, created);
-      void saveAttendance(created);
-    }
-
-    if (next === null) {
-      void removeMark(id);
-      setUndo(null);
-      return;
-    }
-    void saveMark({
-      id,
-      profileId: profile?.id ?? asStudentProfileId('local'),
-      date: today,
-      slotId: slot.id,
-      /*
-       * Denormalised so the mark stays readable if the slot is edited away —
-       * the code for a course, and for an activity the name the timetable
-       * printed. Nothing joins on this; the mark is found by date and slot.
-       */
-      subjectCode: code ?? entry.name,
-      outcome: next,
-      markedAt: new Date().toISOString(),
-    });
-    /* A mark's job is done in a fortnight; nothing reads it after that (§44). */
-    for (const stale of staleMarks(marks, today)) void removeMark(stale.id);
-    setUndo({ slot, label: `${entry.shortName} ${next}` });
-  };
-
-  const [day, setDay] = useState<Weekday>('Mon');
-  const [view, setView] = useState('week');
-
-  /*
-   * Today's weekday name, in the same three-letter form the records use.
-   * `toLocaleDateString` with an explicit locale rather than the device's, so
-   * a phone set to another language still matches the stored 'Mon'..'Sat'.
-   */
-  const todayName = new Date().toLocaleDateString('en-GB', { weekday: 'short' }) as Weekday;
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
   const { items: semesterSubjects } = useSemesterSubjects();
-  const [subjectCode, setSubjectCode] = useState('');
-  /* An hour that is scheduled but is not a coded course (domain/types). */
-  const [activityName, setActivityName] = useState('');
-  /*
-   * THE FORM EDITS AS WELL AS ADDS.
-   *
-   * There was no way to change an hour once saved — only delete it and type it
-   * again, which loses the room and the faculty with it. Rather than a second
-   * form with its own copy of the same validation, the one that exists loads
-   * the record: same fields, same rules, same message when they are not met.
-   */
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [room, setRoom] = useState('');
-  const [faculty, setFaculty] = useState('');
-  const [error, setError] = useState<string | undefined>(undefined);
 
-  /* Mobile agenda starts on today where today is a teaching day. */
-  const [activeDay, setActiveDay] = useState<Weekday>(() => {
-    const index = new Date().getDay();
-    return WEEKDAYS[index === 0 ? 0 : index - 1] ?? 'Mon';
-  });
+  /*
+   * THE DATE COMES FROM THE CLOCK, NOT FROM THIS RENDER.
+   *
+   * This used to read `localDay()` once, when the page rendered. A student who
+   * left the app open across midnight went on seeing yesterday — and a mark
+   * made after midnight was written against yesterday's date, silently
+   * attributing it to the wrong class (hooks/useNow).
+   */
+  const now = useNow();
+  const today = now.today;
+  const todayName = weekdayOf(today);
+  const holiday = holidayOn(activeCalendars(calendars), today);
+  const [view, setView] = useState<View>('week');
+  const [activeDay, setActiveDay] = useState<Weekday>(todayWeekday);
+  const [editing, setEditing] = useState<TimetableSlot | 'new' | null>(null);
+
+  /*
+   * ONE WRITE PATH. Marking used to be implemented here as well as on the
+   * attendance screen, each adjusting the counters in its own way, so the same
+   * class could be counted twice. Both now go through `useMarkClass`, which
+   * writes one ledger row per class per date and re-derives the figures.
+   */
+  const marking = useMarkClass();
 
   const byDay = useMemo(() => {
     const map = new Map<Weekday, TimetableSlot[]>();
-    for (const weekday of WEEKDAYS) {
+    for (const weekday of WEEKDAYS)
       map.set(weekday, sortSlots(items.filter((slot) => slot.day === weekday)));
-    }
     return map;
   }, [items]);
 
-  /** Load one saved hour back into the form. */
-  const editSlot = (slot: TimetableSlot) => {
-    setEditingId(slot.id);
-    setDay(slot.day);
-    setStartTime(slot.startTime);
-    setEndTime(slot.endTime);
-    setSubjectCode(slot.subjectCode ?? '');
-    setActivityName(slot.activity ?? '');
-    setRoom(slot.room ?? '');
-    setFaculty(slot.faculty ?? '');
-    setError(undefined);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setSubjectCode('');
-    setActivityName('');
-    setRoom('');
-    setFaculty('');
-    setError(undefined);
-  };
-
-  const addSlot = () => {
-    /*
-     * A CODE OR A NAME, NOT A CODE ONLY.
-     *
-     * An imported timetable can already hold an hour that names no course —
-     * "Placement & Training" — and a student adding one by hand could not,
-     * because this form demanded a code. They had to invent one, and an
-     * invented code reads exactly like a real VTU code and is offered for
-     * attendance beside them. So whichever field is filled decides which kind
-     * of hour this is, and the slot's own invariant does the rest.
-     */
-    const code = subjectCode.trim().toUpperCase();
-    const named = activityName.trim();
-    if (code === '' && named === '') {
-      setError('Enter a subject code, or a name for the activity.');
-      return;
-    }
-    if (code !== '' && named !== '') {
-      setError('Give a subject code or an activity name, not both.');
-      return;
-    }
-    if (endTime <= startTime) {
-      setError('The end time must be after the start time.');
-      return;
-    }
-    setError(undefined);
-    void save({
-      /* Editing writes back to the same record rather than making a second. */
-      id: editingId ?? newId(),
-      profileId: profile?.id ?? asStudentProfileId('local'),
-      day,
-      startTime,
-      endTime,
-      subjectCode: code === '' ? null : code,
-      activity: code === '' ? named : null,
-      room: room.trim() === '' ? null : room.trim(),
-      faculty: faculty.trim() === '' ? null : faculty.trim(),
-    });
-    setEditingId(null);
-    setSubjectCode('');
-    setActivityName('');
-    setRoom('');
-    setFaculty('');
-  };
-
-
-  /*
-   * -----------------------------------------------------------------------
-   * WHICH TIMETABLE AM I LOOKING AT? (§23, §24)
-   * -----------------------------------------------------------------------
-   *
-   * The revision label and the printed effective date were read at import and
-   * stored, and then shown nowhere - so a student holding a printed R2 had no
-   * way to tell whether the screen was R1 or R2 (M10A.10 §43).
-   *
-   * The classes on screen came from the most recent confirmed import, because
-   * confirming REPLACES the week rather than merging into it. That is the one
-   * whose provenance is true, and any stored import with a later effective date
-   * is a fact the student should see rather than one the screen settles quietly.
-   */
   const source = useMemo(() => {
     const sorted = [...imports].sort((a, b) => b.importedAt.localeCompare(a.importedAt));
     const active = sorted[0];
@@ -341,14 +146,43 @@ export function TimetablePage() {
     return { active, later };
   }, [imports]);
 
-  /*
-   * The class this timetable belongs to, from the record rather than assumed:
-   * the programme is the student's, the semester and the division are the
-   * imported timetable's own header. A part nobody recorded is left out.
-   */
+  if (loading) return <PageSkeleton label="Loading your timetable" />;
+
+  const titleFor = (code: string): string => displayTitle(resolveSubject(index, code), 'timetable');
+  const profileId = profile?.id ?? asStudentProfileId('local');
+
+  const outcomeOf = (slot: TimetableSlot): MarkState => marking.stateOf(today, slotClassId(slot));
+
+  const setOutcome = (slot: TimetableSlot, next: MarkState): void => {
+    const before = outcomeOf(slot);
+    if (before === next) return;
+    const entry = timetableEntry(slot, null);
+    const code = entry.attendanceCode;
+    if (code === null) return;
+    const klass = {
+      classId: slotClassId(slot),
+      date: today,
+      subjectCode: code,
+      subjectTitle: displayTitle(resolveSubject(index, code), 'timetable') || code,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+    };
+    void marking.set(klass, next);
+    if (next === 'unmarked') return;
+    toast(
+      next === 'cancelled'
+        ? `${entry.shortName} is marked cancelled for today.`
+        : `Recorded ${entry.shortName} ${next}.`,
+      {
+        tone: next === 'attended' ? 'success' : next === 'missed' ? 'warning' : 'neutral',
+        action: { label: 'Undo', onClick: () => void marking.set(klass, before) },
+      },
+    );
+  };
+
   const eyebrow =
     [
-      profile?.branch ?? null,
+      profile?.branch ? branchCode(profile.branch) : null,
       source?.active.semester !== null && source?.active.semester !== undefined
         ? `Semester ${String(source.active.semester)}`
         : profile?.currentSemester !== null && profile?.currentSemester !== undefined
@@ -357,319 +191,161 @@ export function TimetablePage() {
       source?.active.className ?? null,
     ]
       .filter((part): part is string => part !== null && part !== '')
-      .join(' · ') || null;
-
-  /*
-   * DAYS THE RECORD HAS NOTHING FOR. Said once, above the week, because a day
-   * that is genuinely free and a day the importer could not read look exactly
-   * the same on a grid — and only the student can tell them apart (§6).
-   */
+      .join(' · ') || 'Weekly schedule';
   const emptyDays = WEEKDAYS.filter((weekday) => (byDay.get(weekday) ?? []).length === 0);
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <PageHeader
-        /*
-          The design names the class this timetable belongs to. Every part comes
-          from the record — the programme from the profile, the semester and the
-          division from the imported timetable itself — and a part nobody has
-          recorded is left out rather than filled in.
-        */
-        {...(eyebrow === null ? {} : { eyebrow })}
+        eyebrow={eyebrow}
         title="Timetable"
-        subtitle="Your weekly schedule, stored on this device."
-        pills={
-          items.length === 0 ? undefined : (
-            <>
-              <MetaPill>{formatCount(items.length, 'class', 'classes')}</MetaPill>
-              {source !== null && source.active.revision !== null && (
-                <MetaPill>{source.active.revision}</MetaPill>
-              )}
-              {source !== null && source.active.effectiveFrom !== null && (
-                <MetaPill>from {formatDay(source.active.effectiveFrom)}</MetaPill>
-              )}
-            </>
-          )
+        description="Your weekly schedule, stored on this device. Mark today's classes as they happen and attendance follows."
+        actions={
+          <>
+            {items.length > 0 && (
+              <Segmented<View>
+                label="Timetable view"
+                value={view}
+                onChange={setView}
+                options={[
+                  { value: 'week', label: 'Week' },
+                  { value: 'day', label: 'Day' },
+                ]}
+              />
+            )}
+            <Button variant="primary" icon={<Plus />} onClick={() => setEditing('new')}>
+              Add class
+            </Button>
+          </>
         }
       />
 
-      {/*
-        ONE RADIX ROOT over the tab list and BOTH its panels. Week and Day were
-        previously a ternary and a `hidden` div two hundred lines apart, so the
-        tab that claimed to control the week panel was pointing at an element
-        that did not exist whenever the other was showing.
-      */}
-      <IslandTabGroup value={view} onChange={setView}>
-        <div className={styles.stack}>
-          {/*
-            COMPACT, AND NOT THE POINT OF THE SCREEN (§23). The student mainly
-            needs to know which timetable this is; one line answers it.
-          */}
-          {source !== null && items.length > 0 && (
-            <p className={styles.provenance}>
-              {[
-                source.active.className,
-                source.active.revision,
-                source.active.effectiveFrom !== null
-                  ? `from ${formatDay(source.active.effectiveFrom)}`
-                  : null,
-              ]
-                .filter((part): part is string => part !== null && part !== '')
-                .join(' · ')}
+      {source !== null && items.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {source.active.className !== null && <Badge>{source.active.className}</Badge>}
+          {source.active.revision !== null && <Badge>{source.active.revision}</Badge>}
+          {source.active.effectiveFrom !== null && (
+            <Badge>from {formatDay(source.active.effectiveFrom)}</Badge>
+          )}
+          {source.active.batch !== null && <Badge tone="accent">Batch {source.active.batch}</Badge>}
+        </div>
+      )}
+      {source?.active.effectiveFrom !== null &&
+        source !== null &&
+        source.active.effectiveFrom > today && (
+          <Callout>These classes take effect on {formatDay(source.active.effectiveFrom)}.</Callout>
+        )}
+      {source !== null && source.later !== null && (
+        <Callout tone="warning">
+          A timetable effective {formatDay(source.later.effectiveFrom ?? '')} was also imported.
+          These classes came from the one imported most recently
+          {source.active.revision !== null ? ` (${source.active.revision})` : ''}.
+        </Callout>
+      )}
+
+      {items.length === 0 ? (
+        <EmptyState
+          icon={<Plus />}
+          title="No classes yet"
+          description="Add your weekly classes, or import a timetable, and your week appears here day by day."
+          actions={
+            <>
+              <Button variant="primary" icon={<Plus />} onClick={() => setEditing('new')}>
+                Add a class
+              </Button>
+              <Button asChild>
+                <Link to="/import">Import a timetable</Link>
+              </Button>
+            </>
+          }
+        />
+      ) : (
+        <>
+          <div
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-ink-2"
+            aria-label="Legend"
+          >
+            {(['course', 'activity', 'break'] as const).map((kind) => (
+              <span key={kind} className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className={cn('size-2.5 rounded-sm', KIND_BAR[kind])} />{' '}
+                {KIND_LABEL[kind]}
+              </span>
+            ))}
+          </div>
+
+          {emptyDays.length > 0 && emptyDays.length < WEEKDAYS.length && (
+            <p className="text-[12px] text-ink-3">
+              {emptyDays.length === 1
+                ? `${DAY_NAME[emptyDays[0] as Weekday]} has no classes in this record.`
+                : `${emptyDays
+                    .slice(0, -1)
+                    .map((weekday) => DAY_NAME[weekday])
+                    .join(
+                      ', ',
+                    )} and ${DAY_NAME[emptyDays[emptyDays.length - 1] as Weekday]} have no classes in this record.`}{' '}
+              A day with nothing on it and a day the importer could not read look the same here —
+              check it against your printed timetable.
             </p>
           )}
 
-          {/* A timetable that is active but not yet in effect is not a mistake —
-              it is a fact the student is entitled to (§24). */}
-          {source?.active.effectiveFrom !== null &&
-            source !== null &&
-            source.active.effectiveFrom > today && (
-              <Notice tone="info">
-                These classes take effect on {formatDay(source.active.effectiveFrom)}.
-              </Notice>
-            )}
-
-          {source !== null && source.later !== null && (
-            <Notice tone="warning">
-              A timetable effective {formatDay(source.later.effectiveFrom as string)} was also
-              imported. These classes came from the one imported most recently
-              {source.active.revision !== null ? ` (${source.active.revision})` : ''}.
-            </Notice>
-          )}
-
-          {items.length > 0 ? (
+          {view === 'week' ? (
+            <WeekGrid
+              byDay={byDay}
+              titleFor={titleFor}
+              todayName={todayName}
+              onPick={(weekday) => {
+                setActiveDay(weekday);
+                setView('day');
+              }}
+            />
+          ) : (
             <>
-              <div className={styles.controls}>
-                <IslandTabs
-                  label="Timetable view"
-                  value={view}
-                  onChange={setView}
-                  tabs={[
-                    { id: 'week', label: 'Week', count: items.length },
-                    { id: 'day', label: 'Day', count: (byDay.get(activeDay) ?? []).length },
-                  ]}
-                />
-              </div>
-
-              {/*
-                WHAT THE RECORD DOES NOT CONTAIN, SAID ONCE.
-
-                The approved design draws a legend of session types — theory,
-                lab, project, special — and marks each session with the one it
-                is. A GradTools timetable slot has no such field: the importer
-                records a time, a code, a room and a member of staff, and
-                nothing about what KIND of session it is.
-
-                So there is no legend, because a legend for a distinction the
-                data never makes would be labelling nothing. This line says so
-                instead, and the day that changes upstream the legend has a
-                real field to read (§6).
-              */}
-              {emptyDays.length > 0 && (
-                <p className={styles.gap}>
-                  {emptyDays.length === 1
-                    ? `${emptyDays[0] as string} has no classes in this record.`
-                    : `${emptyDays.slice(0, -1).join(', ')} and ${emptyDays[emptyDays.length - 1] as string} have no classes in this record.`}{' '}
-                  A day with nothing on it and a day the importer could not read look the same here
-                  — check it against your printed timetable.
-                </p>
-              )}
-
-              <IslandTabPanel id="week">
-                <WeekGrid
-                  byDay={byDay}
-                  titleFor={(code) => displayTitle(resolveSubject(index, code), 'timetable')}
-                  todayName={todayName}
-                  onPick={(weekday) => {
-                    setActiveDay(weekday);
-                    setView('day');
-                  }}
-                />
-              </IslandTabPanel>
-
-              <IslandTabPanel id="day">
-                <div className={styles.dayPicker}>
-                  {WEEKDAYS.map((weekday) => (
-                    <button
-                      key={weekday}
-                      type="button"
-                      className={styles.dayPick}
-                      data-selected={weekday === activeDay ? 'true' : undefined}
-                      aria-pressed={weekday === activeDay}
-                      onClick={() => {
-                        setActiveDay(weekday);
-                      }}
-                    >
-                      {weekday}
-                    </button>
-                  ))}
-                </div>
-
-                <DayFocus
-                  day={activeDay}
-                  slots={byDay.get(activeDay) ?? []}
-                  titleFor={(code) => displayTitle(resolveSubject(index, code), 'timetable')}
-                  /*
-                    MARKING BELONGS TO TODAY AND ONLY TODAY. The day view can
-                    show any day of the week, and a button on Thursday's row
-                    while it is Monday invites recording attendance for a class
-                    that has not happened (§10, §30).
-                  */
-                  {...(activeDay === todayName
-                    ? { outcomeOf, onMark: setOutcome, holiday }
-                    : {})}
-                  onEdit={editSlot}
-                  onRemove={remove}
-                />
-
-                {/*
-                  ONE STEP OF UNDO, WHICH IS THE STEP THAT GETS USED (§14, §29).
-                  A tap on the wrong row is taken back by reversing exactly what
-                  was applied — the same arithmetic backwards.
-                */}
-                {undo !== null && (
-                  <div className={styles.undoBar}>
-                    <span>Recorded {undo.label}.</span>
-                    <Button
-                      small
-                      onClick={() => {
-                        setOutcome(undo.slot, null);
-                      }}
-                    >
-                      Undo
-                    </Button>
-                  </div>
-                )}
-              </IslandTabPanel>
-            </>
-          ) : null}
-
-          {loading ? null : items.length === 0 ? (
-            <Panel title="Your week" flush>
-              <EmptyState title="No classes yet" icons={['timetable']}>
-                Add your weekly classes below, or import a timetable, and your week appears here day
-                by day.
-              </EmptyState>
-            </Panel>
-          ) : null}
-
-          {/* `open` while editing, so choosing Edit on a row reveals the form. */}
-          <details className={styles.addClass} open={editingId !== null || undefined}>
-            <summary className={styles.addSummary}>
-              <Icon name="plus" size="nav" />
-              Add a class
-            </summary>
-            <div className={styles.addGrid}>
-              <SelectField
+              <ChipGroup<Weekday>
                 label="Day"
-                value={day}
-                onChange={(event) => {
-                  setDay(event.target.value as Weekday);
-                }}
-              >
-                {WEEKDAYS.map((weekday) => (
-                  <option key={weekday} value={weekday}>
-                    {weekday}
-                  </option>
-                ))}
-              </SelectField>
-              <TextField
-                label="Starts"
-                type="time"
-                value={startTime}
-                onChange={(event) => {
-                  setStartTime(event.target.value);
+                shape="tile"
+                value={activeDay}
+                onChange={setActiveDay}
+                options={WEEKDAYS.map((weekday) => ({
+                  value: weekday,
+                  label: weekday === todayName ? `${weekday} · today` : weekday,
+                }))}
+              />
+              <DayFocus
+                day={activeDay}
+                slots={byDay.get(activeDay) ?? []}
+                titleFor={titleFor}
+                {...(activeDay === todayName ? { outcomeOf, onMark: setOutcome, holiday } : {})}
+                onEdit={(slot) => setEditing(slot)}
+                onRemove={(slot) => {
+                  void remove(slot.id);
+                  toast('Class removed from every week', {
+                    description: 'Classes you already recorded for it are kept.',
+                    action: { label: 'Undo', onClick: () => void save(slot) },
+                  });
                 }}
               />
-              <TextField
-                label="Ends"
-                type="time"
-                value={endTime}
-                onChange={(event) => {
-                  setEndTime(event.target.value);
-                }}
-              />
-              {/* Suggested from the semester's subject list (M6 §16). */}
-              <TextField
-                label="Subject code"
-                placeholder="BCS304"
-                mono
-                list="semester-subject-codes"
-                value={subjectCode}
-                onChange={(event) => {
-                  setSubjectCode(event.target.value);
-                }}
-              />
-              <datalist id="semester-subject-codes">
-                {semesterSubjects.map((subject) => (
-                  <option key={subject.id} value={subject.code}>
-                    {subject.title}
-                  </option>
-                ))}
-              </datalist>
-              {/*
-                The other kind of hour. Named rather than coded, and filled in
-                INSTEAD of the code above — the helper text says so rather
-                than leaving the student to discover it from an error.
-              */}
-              <TextField
-                label="Or an activity"
-                placeholder="Placement & Training"
-                hint="For an hour that is scheduled but is not a coded course."
-                value={activityName}
-                onChange={(event) => {
-                  setActivityName(event.target.value);
-                }}
-              />
-              <TextField
-                label="Room"
-                hint="Optional"
-                placeholder="A-204"
-                value={room}
-                onChange={(event) => {
-                  setRoom(event.target.value);
-                }}
-              />
-              <TextField
-                label="Faculty"
-                hint="Optional"
-                placeholder="Prof. Kulkarni"
-                value={faculty}
-                onChange={(event) => {
-                  setFaculty(event.target.value);
-                }}
-              />
-            </div>
-            <div className={styles.addActions}>
-              {error !== undefined && (
-                <div role="alert" className={styles.addError}>
-                  <Notice tone="danger">{error}</Notice>
-                </div>
-              )}
-              <Button variant="primary" onClick={addSlot}>
-                <Icon name={editingId === null ? 'plus' : 'edit'} size="nav" />
-                {editingId === null ? 'Add class' : 'Save changes'}
-              </Button>
-              {editingId !== null && <Button onClick={cancelEdit}>Cancel</Button>}
-            </div>
-          </details>
-        </div>
-      </IslandTabGroup>
-    </>
+            </>
+          )}
+        </>
+      )}
+
+      <ClassDialog
+        editing={editing}
+        subjects={semesterSubjects}
+        profileId={profileId}
+        onClose={() => setEditing(null)}
+        onSave={(slot, isNew) => {
+          void save(slot);
+          toast(isNew ? 'Class added' : 'Class updated', { tone: 'success' });
+          setEditing(null);
+        }}
+      />
+    </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* The week                                                                   */
-/* -------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------- Week */
 
-/**
- * Six days across, as the approved design lays them out.
- *
- * A column per day on a wide screen; the same columns stacked on a phone,
- * which is the design's own mobile composition rather than a shrunk grid. The
- * day heading is the control that opens that day.
- */
 function WeekGrid({
   byDay,
   titleFor,
@@ -678,30 +354,44 @@ function WeekGrid({
 }: {
   readonly byDay: ReadonlyMap<Weekday, readonly TimetableSlot[]>;
   readonly titleFor: (code: string) => string;
-  readonly todayName: Weekday;
+  readonly todayName: Weekday | null;
   readonly onPick: (day: Weekday) => void;
 }) {
   return (
-    <ol className={styles.week}>
+    <ol className="grid gap-4 lg:grid-cols-6 lg:gap-3">
       {WEEKDAYS.map((weekday) => {
         const slots = byDay.get(weekday) ?? [];
+        const sessions = slots.filter((slot) => slot.subjectCode !== null).length;
         return (
-          <li key={weekday} className={styles.weekDay} data-today={weekday === todayName}>
+          <li key={weekday} className="flex min-w-0 flex-col gap-2">
             <button
               type="button"
-              className={styles.weekHead}
-              onClick={() => {
-                onPick(weekday);
-              }}
+              onClick={() => onPick(weekday)}
+              className="group flex items-center justify-between rounded-md text-left lg:flex-col lg:items-start"
+              aria-label={`Open ${DAY_NAME[weekday]}${weekday === todayName ? ' (today)' : ''}`}
             >
-              <span className={styles.weekDayName}>{weekday}</span>
-              <span className={styles.weekCount}>
-                {slots.length === 0 ? 'None' : formatCount(slots.length, 'session')}
+              <span
+                className={cn(
+                  'text-[13px] font-semibold transition-colors group-hover:text-accent-ink',
+                  weekday === todayName && 'text-accent-ink',
+                )}
+              >
+                {DAY_NAME[weekday]}
+                {weekday === todayName && (
+                  <span className="ml-1.5 align-middle font-mono text-[10px] text-ink-3 uppercase">
+                    today
+                  </span>
+                )}
+              </span>
+              <span className="font-mono text-[10px] tracking-wide text-ink-3 uppercase">
+                {sessions === 0 ? 'None' : formatCount(sessions, 'session')}
               </span>
             </button>
-            <div className={styles.weekBody}>
+            <div className="flex flex-col gap-1.5">
               {slots.length === 0 ? (
-                <p className={styles.dayEmpty}>Nothing recorded.</p>
+                <p className="rounded-lg border border-dashed border-line px-2.5 py-2 text-[11px] text-ink-3">
+                  Nothing recorded.
+                </p>
               ) : (
                 slots.map((slot) => (
                   <SessionChip
@@ -722,7 +412,6 @@ function WeekGrid({
   );
 }
 
-/** One class in the week grid, to the design's chip geometry. */
 function SessionChip({
   slot,
   entry,
@@ -730,43 +419,41 @@ function SessionChip({
   readonly slot: TimetableSlot;
   readonly entry: TimetableEntry;
 }) {
-  const meta = [entry.detail, slot.room].filter(Boolean).join(' · ');
+  const kind = kindOf(entry);
+  if (kind === 'break') {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-dashed border-line bg-panel px-2.5 py-1.5 text-[11px] text-ink-3">
+        <Coffee className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="font-mono">{slot.startTime}</span>
+        <span className="truncate">{entry.name}</span>
+      </div>
+    );
+  }
   return (
-    /*
-     * AN HOUR THAT IS NOT A CLASS DOES NOT LOOK LIKE ONE.
-     *
-     * BREAK, LUNCH and a named non-teaching block rendered with the class
-     * chip and its rule — and the rule's own note says it marks "that the row
-     * is a class". Unlike session KIND, which the record does not carry, this
-     * distinction IS in the data: `isCourse` is false for an hour the
-     * timetable merely named. The design draws those dashed and recessed.
-     */
-    <article className={styles.chip} data-course={entry.isCourse ? 'true' : 'false'}>
-      {entry.isCourse && <span className={styles.chipRule} aria-hidden="true" />}
-      <span className={styles.chipBody}>
-        <span className={styles.chipTime}>
-          {formatTime(slot.startTime)}–{formatTime(slot.endTime)}
-        </span>
-        <span className={styles.chipName}>{entry.name}</span>
-        {/* Omitted rather than kept as an empty line: this record's importer
-            captured no rooms, and a blank row is not a placeholder. */}
-        {meta !== '' && <span className={styles.chipMeta}>{meta}</span>}
-      </span>
+    <article className="relative overflow-hidden rounded-lg border border-line bg-raised p-2.5 transition-colors hover:border-line-strong">
+      <span
+        aria-hidden="true"
+        className={cn('absolute top-2 bottom-2 left-0 w-[3px] rounded-full', KIND_BAR[kind])}
+      />
+      <div className="pl-2">
+        <div className="flex items-center justify-between gap-1">
+          <span className="font-mono text-[10px] text-ink-3">
+            {slot.startTime}–{slot.endTime}
+          </span>
+        </div>
+        <div className="mt-1 line-clamp-2 text-[12px] leading-tight font-medium" title={entry.name}>
+          {entry.isCourse ? entry.shortName : entry.name}
+        </div>
+        <div className="truncate text-[11px] text-ink-3">
+          {slot.room ?? (entry.isCourse ? entry.name : '')}
+        </div>
+      </div>
     </article>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* One day                                                                    */
-/* -------------------------------------------------------------------------- */
+/* ----------------------------------------------------------------- Day */
 
-/**
- * One day, as the approved design's focus card: the time on the left, a rule,
- * then the class and where it is.
- *
- * Attendance marking appears only when the day being shown IS today — see the
- * note at the call site.
- */
 function DayFocus({
   day,
   slots,
@@ -780,157 +467,407 @@ function DayFocus({
   readonly day: Weekday;
   readonly slots: readonly TimetableSlot[];
   readonly titleFor: (code: string) => string;
-  readonly outcomeOf?: ((slotId: string) => ClassOutcome | null) | undefined;
-  /** The calendar's own holiday covering today, where it printed one (§19). */
+  readonly outcomeOf?: ((slot: TimetableSlot) => MarkState) | undefined;
   readonly holiday?: CalendarEvent | null | undefined;
-  readonly onMark?: ((slot: TimetableSlot, outcome: ClassOutcome | null) => void) | undefined;
-  /** Loads the hour back into the form that created it. */
-  readonly onEdit?: ((slot: TimetableSlot) => void) | undefined;
-  readonly onRemove: (id: string) => Promise<void> | void;
+  readonly onMark?: ((slot: TimetableSlot, outcome: MarkState) => void) | undefined;
+  readonly onEdit: (slot: TimetableSlot) => void;
+  readonly onRemove: (slot: TimetableSlot) => void;
 }) {
   const now = new Date();
   const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const isToday = onMark !== undefined;
   const next = isToday ? slots.find((slot) => slot.endTime > clock) : undefined;
 
-  /*
-   * THE CALENDAR OUTRANKS THE TIMETABLE ON A DAY THE COLLEGE IS SHUT (§19,
-   * §20). A timetable says what a Monday contains; the calendar says whether
-   * this Monday is one. Showing the classes anyway would invite a student to
-   * record attendance for a class that could not have happened.
-   */
   if (holiday !== null && holiday !== undefined) {
     return (
-      <Panel title={day} flush>
-        <EmptyState title="No classes today" icons={['info']}>
-          {holiday.title} — from your academic calendar.
-        </EmptyState>
-      </Panel>
+      <Card>
+        <EmptyState
+          compact
+          icon={<Coffee />}
+          title="No classes today"
+          description={`${holiday.title} — from your academic calendar.`}
+        />
+      </Card>
     );
   }
 
   return (
-    <Panel
-      title={day}
-      flush
-      action={
-        <span className={styles.dayCount}>
-          {slots.length === 0 ? 'No sessions' : formatCount(slots.length, 'session')}
-        </span>
-      }
-    >
+    <Card className="overflow-hidden">
+      <CardHeader
+        title={`${DAY_NAME[day]}${isToday ? ' · today' : ''}`}
+        action={
+          <span className="font-mono text-[11px] text-ink-3">
+            {slots.length === 0 ? 'No sessions' : formatCount(slots.length, 'session')}
+          </span>
+        }
+      />
       {slots.length === 0 ? (
-        <EmptyState title={`Nothing recorded for ${day}`} icons={['timetable']}>
-          {isToday
-            ? 'Classes you add for today appear here.'
-            : 'Either there are no classes on this day, or the imported timetable did not include them.'}
-        </EmptyState>
+        <EmptyState
+          compact
+          icon={<Plus />}
+          title={`Nothing recorded for ${DAY_NAME[day]}`}
+          description={
+            isToday
+              ? 'Classes you add for today appear here.'
+              : 'Either there are no classes on this day, or the imported timetable did not include them.'
+          }
+        />
       ) : (
-        <ul className={styles.dayList}>
+        <CardRows>
           {slots.map((slot) => {
             const entry = timetableEntry(
               slot,
               slot.subjectCode === null ? null : titleFor(slot.subjectCode),
             );
-            const outcome = outcomeOf?.(slot.id) ?? null;
+            const kind = kindOf(entry);
+            const outcome = outcomeOf?.(slot) ?? 'unmarked';
             const isNow = isToday && slot.startTime <= clock && clock < slot.endTime;
+            const muted = kind === 'break';
+            const label = `${entry.shortName} on ${slot.day} at ${formatTime(slot.startTime)}`;
             return (
-              <li
+              <div
                 key={slot.id}
-                className={styles.dayRow}
-                data-course={entry.isCourse ? 'true' : 'false'}
-                data-next={slot.id === next?.id}
-                data-now={isNow}
-                data-marked={outcome ?? undefined}
+                aria-current={isNow ? 'time' : undefined}
+                className={cn(
+                  'flex items-center gap-3 px-4 py-3.5 sm:gap-4 sm:px-5',
+                  muted && 'bg-panel',
+                  slot.id === next?.id && !muted && 'bg-accent-weak/30',
+                )}
               >
-                <span className={styles.rowTime}>
-                  <span>{formatTime(slot.startTime)}</span>
-                  <span className={styles.rowTimeEnd}>{formatTime(slot.endTime)}</span>
-                  {/* DERIVED, never stored (§17). It stops being true a minute later. */}
-                  {isNow && <span className={styles.nowTag}>Now</span>}
-                </span>
-
-                {/* Kept, not dropped: the design dims this rule for a
-                    non-teaching hour rather than removing it, and the row is a
-                    grid whose columns have to keep lining up. */}
-                <span className={styles.rowRule} aria-hidden="true" />
-
-                <span className={styles.rowBody}>
-                  <span className={styles.rowName}>{entry.name}</span>
-                  <span className={styles.rowMeta}>
-                    {/*
-                      The code, where there is one. An hour the timetable
-                      schedules without a course has nothing to print here, and
-                      prints nothing — not a dash, and not its own name twice.
-                    */}
-                    {entry.detail !== null && <span className={monoClass}>{entry.detail}</span>}
+                {/* The design's time column: one mono line, as the timetable prints it. */}
+                <div className="w-[4.75rem] shrink-0 font-mono text-[11px] whitespace-nowrap text-ink-3 tabular-nums sm:w-24">
+                  <time dateTime={slot.startTime}>{slot.startTime}</time>–
+                  <time dateTime={slot.endTime}>{slot.endTime}</time>
+                  {isNow && (
+                    <div className="mt-1">
+                      <Badge tone="accent">Now</Badge>
+                    </div>
+                  )}
+                </div>
+                <span
+                  aria-hidden="true"
+                  className={cn('h-10 w-[3px] shrink-0 rounded-full', KIND_BAR[kind])}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className={cn('truncate text-[14px] font-medium', muted && 'text-ink-3')}>
+                      {entry.name}
+                    </span>
+                    {!muted && <Badge className="shrink-0 max-sm:hidden">{KIND_LABEL[kind]}</Badge>}
+                    {outcome !== 'unmarked' && (
+                      <Badge
+                        tone={
+                          outcome === 'attended'
+                            ? 'success'
+                            : outcome === 'missed'
+                              ? 'warning'
+                              : 'neutral'
+                        }
+                        className="shrink-0 max-sm:hidden"
+                      >
+                        {outcome === 'attended'
+                          ? 'Attended'
+                          : outcome === 'missed'
+                            ? 'Missed'
+                            : 'Cancelled'}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-[12px] text-ink-3">
+                    {entry.detail !== null && <span className="font-mono">{entry.detail}</span>}
                     {slot.room !== null && (
                       <>
-                        {' · '}
-                        <Icon name="compass" size="micro" />
-                        {slot.room}
+                        {entry.detail !== null && <span aria-hidden="true">·</span>}
+                        <MapPin className="size-3 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{slot.room}</span>
                       </>
                     )}
-                    {slot.faculty !== null && ` · ${slot.faculty}`}
-                  </span>
-                </span>
-
-                {onMark !== undefined && (
-                  <span className={styles.rowActions}>
-                    {/*
-                      `aria-pressed` IS THE MARKED STATE (§28). A student must
-                      not have to remember what they tapped, and a screen reader
-                      must not have to guess it from a colour.
-                    */}
-                    <Button
-                      small
-                      aria-pressed={outcome === 'attended'}
-                      aria-label={`Mark ${entry.shortName} attended`}
-                      onClick={() => {
-                        onMark(slot, 'attended');
-                      }}
-                    >
-                      Attended
-                    </Button>
-                    <Button
-                      small
-                      aria-pressed={outcome === 'missed'}
-                      aria-label={`Mark ${entry.shortName} missed`}
-                      onClick={() => {
-                        onMark(slot, 'missed');
-                      }}
-                    >
-                      Missed
-                    </Button>
-                  </span>
-                )}
-
-                {onEdit !== undefined && (
-                  <Button
-                    iconOnly
-                    small
-                    aria-label={`Edit ${entry.shortName} on ${slot.day} at ${formatTime(slot.startTime)}`}
-                    onClick={() => {
-                      onEdit(slot);
-                    }}
-                  >
-                    <Icon name="edit" size="nav" />
-                  </Button>
-                )}
-                <Button
-                  variant="danger"
-                  iconOnly
-                  small
-                  aria-label={`Remove ${entry.shortName} on ${slot.day} at ${formatTime(slot.startTime)}`}
-                  onClick={() => void onRemove(slot.id)}
-                >
-                  <Icon name="trash" size="nav" />
-                </Button>
-              </li>
+                    {slot.faculty !== null && (
+                      <span className="truncate max-sm:hidden">· {slot.faculty}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  {onMark !== undefined && entry.isCourse && (
+                    <>
+                      <Button
+                        size="sm"
+                        icon={<Check />}
+                        aria-pressed={outcome === 'attended'}
+                        aria-label={`Mark ${entry.shortName} attended`}
+                        className={cn(
+                          'max-sm:w-8 max-sm:px-0',
+                          outcome === 'attended' &&
+                            'border-success/40 bg-success-weak text-success',
+                        )}
+                        onClick={() => onMark(slot, 'attended')}
+                      >
+                        <span className="max-sm:hidden">Attended</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        icon={<X />}
+                        aria-pressed={outcome === 'missed'}
+                        aria-label={`Mark ${entry.shortName} missed`}
+                        className={cn(
+                          'max-sm:w-8 max-sm:px-0',
+                          outcome === 'missed' && 'border-warning/40 bg-warning-weak text-warning',
+                        )}
+                        onClick={() => onMark(slot, 'missed')}
+                      >
+                        <span className="max-sm:hidden">Missed</span>
+                      </Button>
+                    </>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <IconButton size="sm" label={`More actions for ${label}`}>
+                        <MoreHorizontal />
+                      </IconButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {/*
+                        WHICH ONE AM I CHANGING?
+                        Every item names its scope. "Today" was ambiguous — it
+                        reads as a time, not as which occurrence is affected —
+                        and a student who cancels one Tuesday must not find they
+                        have cancelled every Tuesday.
+                      */}
+                      {onMark !== undefined && entry.isCourse && (
+                        <>
+                          <DropdownMenuLabel>This date only</DropdownMenuLabel>
+                          <DropdownMenuItem
+                            icon={<Ban />}
+                            label={
+                              outcome === 'cancelled'
+                                ? `Restore ${label} for today`
+                                : `Cancel ${label} for today only`
+                            }
+                            onSelect={() =>
+                              onMark(slot, outcome === 'cancelled' ? 'unmarked' : 'cancelled')
+                            }
+                          >
+                            {outcome === 'cancelled'
+                              ? 'Class was held after all'
+                              : 'Cancel this class'}
+                          </DropdownMenuItem>
+                          {outcome !== 'unmarked' && outcome !== 'cancelled' && (
+                            <DropdownMenuItem
+                              icon={<Eraser />}
+                              label={`Clear the mark on ${label}`}
+                              onSelect={() => onMark(slot, 'unmarked')}
+                            >
+                              Clear this mark
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+                      <DropdownMenuLabel>Every week</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        icon={<Pencil />}
+                        label={`Edit ${label} in every week`}
+                        onSelect={() => onEdit(slot)}
+                      >
+                        Edit this class
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        icon={<Trash2 />}
+                        destructive
+                        label={`Remove ${label} from every week`}
+                        onSelect={() => onRemove(slot)}
+                      >
+                        Remove from every week
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
             );
           })}
-        </ul>
+        </CardRows>
       )}
-    </Panel>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------ Add / edit */
+
+function ClassDialog({
+  editing,
+  subjects,
+  profileId,
+  onClose,
+  onSave,
+}: {
+  readonly editing: TimetableSlot | 'new' | null;
+  readonly subjects: readonly {
+    readonly id: string;
+    readonly code: string;
+    readonly title: string;
+  }[];
+  readonly profileId: ReturnType<typeof asStudentProfileId>;
+  readonly onClose: () => void;
+  readonly onSave: (slot: TimetableSlot, isNew: boolean) => void;
+}) {
+  const open = editing !== null;
+  const existing = editing === 'new' ? null : editing;
+  return (
+    <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
+      {open && (
+        <DialogContent
+          title={existing === null ? 'Add a class' : 'Edit class'}
+          description="A coded course, or a scheduled hour that is not one (placement training, a break)."
+        >
+          <DialogBody>
+            <ClassForm
+              key={existing?.id ?? 'new'}
+              existing={existing}
+              subjects={subjects}
+              profileId={profileId}
+              onCancel={onClose}
+              onSave={onSave}
+            />
+          </DialogBody>
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
+function ClassForm({
+  existing,
+  subjects,
+  profileId,
+  onCancel,
+  onSave,
+}: {
+  readonly existing: TimetableSlot | null;
+  readonly subjects: readonly {
+    readonly id: string;
+    readonly code: string;
+    readonly title: string;
+  }[];
+  readonly profileId: ReturnType<typeof asStudentProfileId>;
+  readonly onCancel: () => void;
+  readonly onSave: (slot: TimetableSlot, isNew: boolean) => void;
+}) {
+  const [day, setDay] = useState<Weekday>(existing?.day ?? todayWeekday());
+  const [startTime, setStartTime] = useState(existing?.startTime ?? '09:00');
+  const [endTime, setEndTime] = useState(existing?.endTime ?? '10:00');
+  const [subjectCode, setSubjectCode] = useState(existing?.subjectCode ?? '');
+  const [activityName, setActivityName] = useState(existing?.activity ?? '');
+  const [room, setRoom] = useState(existing?.room ?? '');
+  const [faculty, setFaculty] = useState(existing?.faculty ?? '');
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = (): void => {
+    const code = subjectCode.trim().toUpperCase();
+    const named = activityName.trim();
+    if (code === '' && named === '')
+      return setError('Enter a subject code, or a name for the activity.');
+    if (code !== '' && named !== '')
+      return setError('Give a subject code or an activity name, not both.');
+    if (endTime <= startTime) return setError('The end time must be after the start time.');
+    setError(null);
+    onSave(
+      {
+        id: existing?.id ?? newId(),
+        profileId: existing?.profileId ?? profileId,
+        day,
+        startTime,
+        endTime,
+        subjectCode: code === '' ? null : code,
+        activity: code === '' ? named : null,
+        room: room.trim() === '' ? null : room.trim(),
+        faculty: faculty.trim() === '' ? null : faculty.trim(),
+      },
+      existing === null,
+    );
+  };
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+      className="flex flex-col gap-4"
+    >
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Day">
+          <Select
+            value={day}
+            onValueChange={(value) => setDay(value as Weekday)}
+            options={WEEKDAYS.map((weekday) => ({ value: weekday, label: DAY_NAME[weekday] }))}
+          />
+        </Field>
+        <Field label="Starts">
+          <Input
+            type="time"
+            value={startTime}
+            onChange={(event) => setStartTime(event.target.value)}
+          />
+        </Field>
+        <Field label="Ends">
+          <Input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+        </Field>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Subject code">
+          <Input
+            className="font-mono"
+            placeholder="BCS304"
+            list="timetable-subject-codes"
+            value={subjectCode}
+            onChange={(event) => setSubjectCode(event.target.value)}
+          />
+        </Field>
+        <datalist id="timetable-subject-codes">
+          {subjects.map((subject) => (
+            <option key={subject.id} value={subject.code}>
+              {subject.title}
+            </option>
+          ))}
+        </datalist>
+        <Field
+          label="Or an activity"
+          hint="For an hour that is scheduled but is not a coded course."
+        >
+          <Input
+            placeholder="Placement & Training"
+            value={activityName}
+            onChange={(event) => setActivityName(event.target.value)}
+          />
+        </Field>
+        <Field label="Room" optional>
+          <Input
+            placeholder="A-204"
+            value={room}
+            onChange={(event) => setRoom(event.target.value)}
+          />
+        </Field>
+        <Field label="Faculty" optional>
+          <Input
+            placeholder="Prof. Kulkarni"
+            value={faculty}
+            onChange={(event) => setFaculty(event.target.value)}
+          />
+        </Field>
+      </div>
+      {error !== null && (
+        <Callout tone="danger" role="alert">
+          {error}
+        </Callout>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary" icon={existing === null ? <Plus /> : <Pencil />}>
+          {existing === null ? 'Add class' : 'Save changes'}
+        </Button>
+      </div>
+    </form>
   );
 }

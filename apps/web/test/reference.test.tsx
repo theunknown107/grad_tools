@@ -13,6 +13,7 @@ import { cleanup } from '@testing-library/react';
 import { screen, waitFor } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import { ProfilePage } from '../src/features/profile/ProfilePage.js';
+import { AccountPage } from '../src/features/auth/AccountPage.js';
 import { AttendancePage } from '../src/features/attendance/AttendancePage.js';
 import { ReferenceError, apiReferenceRepository } from '../src/repositories/reference.js';
 import { createMemoryRepositories, renderWith } from './helpers.js';
@@ -173,15 +174,17 @@ describe('apiReferenceRepository', () => {
 /* Profile screen                                                             */
 /* -------------------------------------------------------------------------- */
 
+const ACADEMIC = '/account?section=academic';
+
 describe('profile reference data', () => {
   it('renders branches and subjects from the server', async () => {
     stubApi(happyPath);
-    renderWith(<ProfilePage />);
+    renderWith(<AccountPage />, { route: ACADEMIC });
 
     expect(await screen.findByText('BMATS101')).toBeTruthy();
     expect(screen.getByText('Mathematics-I for CSE Stream')).toBeTruthy();
-    const branchSelect = await screen.findByLabelText(/^branch$/i);
-    expect(branchSelect.tagName).toBe('SELECT');
+    // Branches arrived, so the student picks one rather than typing it.
+    expect(await screen.findByRole('combobox', { name: /^branch$/i })).toBeTruthy();
   });
 
   it('shows a loading state before data arrives', async () => {
@@ -195,7 +198,7 @@ describe('profile reference data', () => {
           }),
       ),
     );
-    renderWith(<ProfilePage />);
+    renderWith(<AccountPage />, { route: ACADEMIC });
     expect((await screen.findAllByText(/loading/i)).length).toBeGreaterThan(0);
     release(jsonResponse({ data: [] }));
   });
@@ -205,7 +208,7 @@ describe('profile reference data', () => {
       'fetch',
       vi.fn(() => Promise.reject(new TypeError('offline'))),
     );
-    renderWith(<ProfilePage />);
+    renderWith(<AccountPage />, { route: ACADEMIC });
 
     expect(await screen.findAllByText(/could not reach the gradtools server/i)).toBeTruthy();
     // The reassurance matters: a server outage must not read as data loss.
@@ -230,12 +233,12 @@ describe('profile reference data', () => {
       }),
     );
 
-    renderWith(<ProfilePage />);
+    renderWith(<AccountPage />, { route: ACADEMIC });
     await screen.findAllByRole('button', { name: /try again/i });
     shouldFail = false;
 
     /*
-     * Each reference query owns its own AsyncSection and its own retry button,
+     * Each reference query owns its own error panel and its own retry button,
      * so recovering the screen means retrying all of them. The buttons unmount
      * as their section succeeds, so a held reference goes stale: re-query on
      * every pass instead of iterating a captured list.
@@ -258,7 +261,7 @@ describe('profile reference data', () => {
         ? jsonResponse({ data: [] })
         : jsonResponse({ data: [BRANCH] }),
     );
-    renderWith(<ProfilePage />);
+    renderWith(<AccountPage />, { route: ACADEMIC });
     expect(await screen.findByText(/no verified subjects/i)).toBeTruthy();
     expect(screen.getByText(/only publishes subject data it has verified/i)).toBeTruthy();
   });
@@ -279,12 +282,17 @@ describe('student data stays local', () => {
 
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<AttendancePage />, { repositories: bundle });
+    await user.click(
+      (await screen.findAllByRole('button', { name: /add a course/i }))[0] as HTMLElement,
+    );
 
     await user.type(screen.getByLabelText(/^subject code$/i), 'BCS304');
     await user.type(screen.getByLabelText(/^attended$/i), '45');
     await user.type(screen.getByLabelText(/^conducted$/i), '50');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
 
+    /* The per-course figures sit behind their own tab; Today is the default. */
+    await user.click(await screen.findByRole('radio', { name: /^courses$/i }));
     await screen.findAllByText('90.0%');
 
     // It was stored locally...
@@ -309,22 +317,19 @@ describe('student data stays local', () => {
     );
 
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ProfilePage />, { repositories: bundle });
-
+    const settings = renderWith(<AccountPage />, { repositories: bundle, route: ACADEMIC });
     await screen.findByText('BMATS101');
+    settings.unmount();
 
     /*
-     * M9.6G split Profile into sections, with Academic first (branch, scheme
-     * and semester drive every figure) and identity under "You". Name and USN
-     * are therefore one click away. The assertion below — that neither ever
-     * reaches a URL — is unchanged.
+     * Name and USN are edited from Profile → Edit profile, as the design has
+     * it. The assertion below — that neither ever reaches a URL — is unchanged.
      */
-    await user.click(screen.getByRole('button', { name: /^You$/ }));
+    const profile = renderWith(<ProfilePage />, { repositories: bundle, route: '/profile' });
+    await user.click(await screen.findByRole('button', { name: /^edit profile$/i }));
     await user.type(await screen.findByLabelText(/^name$/i), 'Ravi');
     await user.type(screen.getByLabelText(/^usn/i), '1XX22CS001');
-
-    await user.click(screen.getByRole('button', { name: /^Academic$/ }));
-    await user.click(screen.getByRole('button', { name: /save profile/i }));
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
 
     await waitFor(() => {
       expect(peek.profile()?.displayName).toBe('Ravi');
@@ -338,5 +343,12 @@ describe('student data stays local', () => {
       expect(request.path).not.toMatch(/Ravi/i);
       expect(request.path).not.toMatch(/1XX22CS001/i);
     }
+
+    /*
+     * Unmounted before the file ends. A tree left mounted here kept React work
+     * scheduled past the environment's teardown, which surfaced as an uncaught
+     * "window is not defined" from this file during a parallel run.
+     */
+    profile.unmount();
   });
 });

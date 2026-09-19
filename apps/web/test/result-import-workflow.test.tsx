@@ -19,7 +19,8 @@ import { screen, waitFor } from '@testing-library/dom';
 import { cleanup } from '@testing-library/react';
 import type { ImportLine } from '../src/domain/result-import.js';
 import type { PlacedText } from '../src/lib/pdf-text.js';
-import { createMemoryRepositories, renderWith } from './helpers.js';
+import { Route, Routes } from 'react-router-dom';
+import { choose as pick, createMemoryRepositories, renderWith } from './helpers.js';
 
 /* ---------------------------------------------------------------------- */
 /* The PDF read, stubbed at the module boundary                            */
@@ -118,6 +119,7 @@ vi.mock('../src/lib/ocr.js', () => ({
   }),
 }));
 
+const { ImportPage } = await import('../src/features/import/ImportPage.js');
 const { ResultsPage } = await import('../src/features/results/ResultsPage.js');
 
 /** A synthetic card, as the extraction layer would hand it over. */
@@ -213,11 +215,11 @@ describe('importing one result PDF', () => {
      */
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
 
-    expect(await screen.findByText(/Semester 4/)).toBeTruthy();
+    expect(await screen.findByRole('region', { name: /Semester 4 review/ })).toBeTruthy();
     expect(peek.results()).toHaveLength(0);
 
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
@@ -230,7 +232,7 @@ describe('importing one result PDF', () => {
   it('keeps the printed marks as source values, and invents no grade', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
     await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
@@ -245,7 +247,7 @@ describe('importing one result PDF', () => {
   it('shows the line it read beside the fields it produced', async () => {
     // When a reading is wrong this is the only thing that explains why.
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user);
     await openRow(user);
@@ -260,7 +262,7 @@ describe('importing one result PDF', () => {
     setCard(4, ['BQAS401  ALGORITHMS  44  36  90  P  2026-07-23']);
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
     await openRow(user);
@@ -278,7 +280,7 @@ describe('importing one result PDF', () => {
     // PARTIAL SUCCESS within one card (§33): two rows read, one kept.
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
     await openRow(user, 1);
@@ -297,7 +299,7 @@ describe('a semester the document did not print', () => {
 
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'semester4.pdf');
 
@@ -307,7 +309,7 @@ describe('a semester the document did not print', () => {
       (screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement).disabled,
     ).toBe(true);
 
-    await user.selectOptions(screen.getByLabelText(/^semester$/i), '4');
+    await pick(/^semester$/i, 'Semester 4');
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(peek.results()[0]?.semester).toBe(4);
@@ -328,7 +330,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
 
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'scan.pdf');
 
@@ -345,7 +347,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
 
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'card.jpg', 'image/jpeg');
 
@@ -368,7 +370,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
     ocrLines = cardLines(4, ROWS);
 
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, 'one.jpg', 'image/jpeg');
     await choose(user, 'two.jpg', 'image/jpeg');
@@ -387,7 +389,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
 
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'card.png', 'image/png');
 
@@ -397,7 +399,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
 
   it('refuses a file that is neither a PDF nor a picture, and names it', async () => {
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, 'marks.docx', 'application/vnd.openxmlformats');
 
@@ -412,7 +414,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
      * offending file.
      */
     const message = await screen.findByText(/marks\.docx/i);
-    expect(message.textContent).toMatch(/PDF, JPEG, PNG, WebP/i);
+    expect(message.textContent).toMatch(/PDFs and photos \(JPG, PNG, WebP\)/i);
     // And it says what to do about the commonest case, rather than only "no".
     expect(message.textContent).toMatch(/saved as a PDF/i);
   });
@@ -420,7 +422,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
   it('reports a corrupt file with a message, not a stack', async () => {
     failWith = 'This file could not be opened as a PDF.';
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, 'broken.pdf');
     expect(await screen.findByText(/could not be opened as a PDF/i)).toBeTruthy();
@@ -443,10 +445,10 @@ describe('the one question a result card cannot answer', () => {
       'BQAS401  ALGORITHMS            44  36  80  P  2026-07-23',
       'BQAS459  MANDATORY COURSE      96   0  96  P  2026-07-23',
     ]);
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
     await choose(user);
 
-    expect(await screen.findByText(/Semester 4/)).toBeTruthy();
+    expect(await screen.findByRole('region', { name: /Semester 4 review/ })).toBeTruthy();
     const asked = screen.getAllByLabelText(/^final exam/i);
     expect(asked).toHaveLength(1);
   });
@@ -455,11 +457,11 @@ describe('the one question a result card cannot answer', () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
     setCard(4, ['BQAS459  MANDATORY COURSE  96  0  96  P  2026-07-23']);
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
     await choose(user);
 
-    await screen.findByText(/Semester 4/);
-    await user.selectOptions(screen.getByLabelText(/^final exam/i), 'no');
+    await screen.findByRole('region', { name: /Semester 4 review/ });
+    await pick(/^final exam/i, 'No final exam');
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     // Answered, so the row is no longer unknown and the semester can be graded.
@@ -470,10 +472,10 @@ describe('the one question a result card cannot answer', () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
     setCard(4, ['BQAS459  MANDATORY COURSE  96  0  96  P  2026-07-23']);
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
     await choose(user);
 
-    await screen.findByText(/Semester 4/);
+    await screen.findByRole('region', { name: /Semester 4 review/ });
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     // "Not sure" is a real answer and must stay null rather than defaulting to
@@ -490,7 +492,7 @@ describe('a semester that already has a result', () => {
      */
     const user = userEvent.setup();
     const { bundle } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
     await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
@@ -505,7 +507,7 @@ describe('the filename', () => {
   it('is shown as text and used for nothing else', async () => {
     // Not identity, not a path, not semester evidence (§22).
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, '<script>alert(1)</script>.pdf');
     const list = await screen.findByText(/<script>alert\(1\)<\/script>\.pdf/);
@@ -533,10 +535,10 @@ describe('confirming an import', () => {
   it('says so, unmistakably, and leaves the review', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
-    await screen.findByText(/Semester 4/);
+    await screen.findByRole('region', { name: /Semester 4 review/ });
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
@@ -550,10 +552,10 @@ describe('confirming an import', () => {
 
   it('offers the way on to the saved record', async () => {
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user);
-    await screen.findByText(/Semester 4/);
+    await screen.findByRole('region', { name: /Semester 4 review/ });
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(await screen.findByRole('link', { name: /view results/i })).toBeTruthy();
@@ -575,10 +577,10 @@ describe('confirming an import', () => {
         upsert: () => Promise.reject(new Error('the disk is full')),
       },
     };
-    renderWith(<ResultsPage />, { repositories: failing });
+    renderWith(<ImportPage />, { repositories: failing });
 
     await choose(user);
-    await screen.findByText(/Semester 4/);
+    await screen.findByRole('region', { name: /Semester 4 review/ });
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(await screen.findByText(/could not be recorded/i)).toBeTruthy();
@@ -599,10 +601,10 @@ describe('confirming an import', () => {
      */
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
-    await screen.findByText(/Semester 4/);
+    await screen.findByRole('region', { name: /Semester 4 review/ });
 
     const confirmButton = screen.getByRole('button', { name: /confirm and save/i });
     await user.tripleClick(confirmButton);
@@ -678,11 +680,11 @@ describe('importing a scheme of teaching', () => {
 
   it('routes to the scheme review rather than to the result parser', async () => {
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, 'scheme.pdf');
 
-    expect(await screen.findByText(/Scheme of teaching/i)).toBeTruthy();
+    expect(await screen.findByRole('region', { name: 'Scheme review' })).toBeTruthy();
     expect(screen.getByText('Invented Course One')).toBeTruthy();
     expect(screen.getByText(/4 credits/)).toBeTruthy();
     // Nothing is saved before the confirm, here as everywhere.
@@ -692,10 +694,10 @@ describe('importing a scheme of teaching', () => {
   it('records the credits as the catalogue’s, and says so unmistakably', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'scheme.pdf');
-    await screen.findByText(/Scheme of teaching/i);
+    await screen.findByRole('region', { name: 'Scheme review' });
     await user.click(screen.getByRole('button', { name: /confirm and save these credits/i }));
 
     expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
@@ -709,10 +711,10 @@ describe('importing a scheme of teaching', () => {
   it('does not save the same scheme twice when Confirm is pressed twice', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'scheme.pdf');
-    await screen.findByText(/Scheme of teaching/i);
+    await screen.findByRole('region', { name: 'Scheme review' });
     await user.dblClick(screen.getByRole('button', { name: /confirm and save these credits/i }));
     await screen.findAllByText(/Data confirmed and recorded/i);
 
@@ -733,63 +735,58 @@ describe('importing a scheme of teaching', () => {
  * the figures recompute on the same render pass as the save. This asserts that
  * end to end, through the screen, with nothing remounted in between.
  */
+/*
+ * Import and results are separate routes now: Done on the import page goes to
+ * Results. Rendering both under a router keeps the question the same — is the
+ * record the student lands on already up to date, with nothing remounted by a
+ * reload in between.
+ */
+function renderImportThenResults() {
+  return renderWith(
+    <Routes>
+      <Route path="/import" element={<ImportPage />} />
+      <Route path="/results" element={<ResultsPage />} />
+    </Routes>,
+    { repositories: createMemoryRepositories().bundle, route: '/import' },
+  );
+}
+
+async function importAndFinish(user: ReturnType<typeof userEvent.setup>) {
+  await choose(user);
+  await screen.findByRole('region', { name: /Semester 4 review/ });
+  await user.click(screen.getByRole('button', { name: /confirm and save/i }));
+  expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
+  await user.click(screen.getByRole('button', { name: /^Done$/ }));
+  await screen.findByRole('heading', { name: 'Results', level: 1 });
+}
+
 describe('after a save, the figures follow', () => {
   it('recomputes the overview without a reload', async () => {
     const user = userEvent.setup();
     setCard(4);
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderImportThenResults();
+    expect(screen.queryByRole('group', { name: 'CGPA' })).toBeNull();
 
-    // BEFORE. Nothing saved, so there is no overview to carry a CGPA at all.
-    await screen.findByRole('button', { name: /add academic document/i });
-    expect(screen.queryByText('CGPA')).toBeNull();
-
-    await choose(user);
-    await screen.findByText(/Semester 4/);
-    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
-    expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
+    await importAndFinish(user);
 
     /*
-     * Done closes the panel. This is the control the student presses after an
-     * import, and its own behaviour is part of what is being asserted: the
-     * page behind it must already be up to date when it reappears.
+     * The fixture's rows carry no credits, so the CGPA says "Unavailable"
+     * with its reason — the correct answer, not an empty screen (§4, §5) —
+     * while the pass count the card does support is there.
      */
-    await user.click(screen.getByRole('button', { name: /^Done$/ }));
-
-    /*
-     * AFTER. The overview — the default view — carries a real CGPA. Nothing
-     * was remounted in between, which matters because a remount is exactly
-     * what a browser reload does.
-     */
-    /*
-     * The overview is there, and carries the figures this card supports. The
-     * CGPA is NOT among them — the fixture's rows have no credits, so it says
-     * "Unavailable" with its reason, which is the correct answer and not an
-     * empty screen (§4, §5).
-     */
-    const passed = await screen.findByText('Passed');
-    expect(passed.closest('div')?.textContent ?? '').toMatch(/2/);
-    expect(screen.getByText('CGPA').closest('div')?.textContent ?? '').toMatch(/Unavailable/);
+    expect((await screen.findByRole('group', { name: 'Courses passed' })).textContent).toMatch(/2/);
+    expect(screen.getByRole('group', { name: 'CGPA' }).textContent).toMatch(/Unavailable/);
   });
 
   it('leaves the other figures standing when the CGPA cannot be computed', async () => {
-    /*
-     * §4 asserted through the screen. The card's rows carry no credits, so no
-     * SGPA and no CGPA exist — and the subject count, the pass count and the
-     * semester list must all survive that, because none of them needed either.
-     */
     const user = userEvent.setup();
     setCard(4);
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderImportThenResults();
 
-    await choose(user);
-    await screen.findByText(/Semester 4/);
-    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
-    expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
-    await user.click(screen.getByRole('button', { name: /^Done$/ }));
+    await importAndFinish(user);
 
-    const subjects = await screen.findByText('Subjects');
-    expect(subjects.closest('div')?.textContent ?? '').toMatch(/2/);
-    // "Semesters" is also the tab's own label, so the metric is taken by role.
-    expect(screen.getByRole('tab', { name: /semesters/i })).toBeTruthy();
+    expect((await screen.findByRole('group', { name: 'Courses passed' })).textContent).toMatch(/2/);
+    // The semester list survives too, because it never needed a CGPA.
+    expect(screen.getByRole('radio', { name: /semesters · 1/i })).toBeTruthy();
   });
 });
