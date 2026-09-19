@@ -541,7 +541,16 @@ M9 is the first milestone where student data intentionally leaves the device.
 | | Holds | Authorization |
 |---|---|---|
 | Self-hosted PostgreSQL | Schemes, subjects, sources, documents, announcements, papers | None needed — none of it belongs to anybody |
-| Supabase PostgreSQL | Profiles, semesters, subjects, results, attendance, timetable, backlogs | RLS, per owner, on every table |
+| Supabase PostgreSQL | Profiles, semesters, subjects, results, **attendance totals**, timetable, backlogs | RLS, per owner, on every table |
+
+**"Attendance" in that row means the TOTALS, not the class-by-class record.**
+Since the attendance ledger (docs/08, `domain/attendance`) the per-class
+history, the date-specific timetable changes and the observations made of a
+synced total are **device-local**, and a device on `schemaVersion >= 1` does not
+publish its attendance totals either. What that leaves in the cloud is what
+older clients still write and read. The reasoning is in §7.16 under *what an
+account carries*; the rule is asserted as data in
+`apps/web/test/auth-boundaries.test.ts`.
 
 Keeping them in one database would mean one connection credential guarding
 both, and the weaker rule would win.
@@ -565,6 +574,23 @@ component knows an account exists. What changed is that the bundle is now bound
 to an **account scope**: signing in swaps which IndexedDB key space the app
 reads (§7.17). Every calculator, the degree, attendance and the paper library
 work exactly as before with no account and no network.
+
+### What an account carries, and what it deliberately does not
+
+An account is not "everything, synced". It is the collections that were
+designed to be cloud-backed, and the list is an allowlist rather than a default:
+
+| Collection | Where it lives | Why |
+|---|---|---|
+| semesters, semesterSubjects, results (+ subject rows), timetable, backlogs | cloud, RLS per owner | The student's academic record. Designed for it since M9 |
+| attendance totals | cloud for a pre-ledger client; **derived and device-local** on `schemaVersion >= 1` | Two integers cannot carry a cancelled class, so two ledger-authoritative devices writing one shared row cannot settle. The v1 device publishes nothing and observes instead |
+| attendanceLedger — the per-class record | **device-local** | Syncing per-class history needs a protocol this phase does not have. Stated in the product, not only here |
+| timetableOverrides — cancellations, replacements, one-off classes | **device-local** | Same phase, same reason |
+| remoteSnapshots — a synced total this device has seen | **device-local, never published** | An observation that syncs could make two devices take turns reacting to each other |
+
+The staging is deliberate and is said plainly on Settings → Data & privacy and
+on the attendance Date view. Multi-device per-class history is a later piece of
+work, not an omission to be closed quietly by adding a collection to the list.
 
 ## 7.17 Account-bound local storage (M9)
 

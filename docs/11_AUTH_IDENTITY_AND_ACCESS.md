@@ -435,3 +435,53 @@ fragment from the address bar. **No OAuth is implemented by hand.**
 value taken from a query parameter or from user input — so there is no
 parameter through which the app could be turned into an open redirect. Supabase
 additionally rejects redirect targets outside the project's own allowlist.
+
+## 11.15 What an account carries after the attendance ledger
+
+An account was never "everything, synced", and since the attendance ledger the
+distinction matters enough to state rather than imply.
+
+| Collection | With an account | Why |
+|---|---|---|
+| semesters, semesterSubjects, results and their subject rows, timetable, backlogs | **synced**, RLS per owner | The academic record. Designed for the cloud since M9 |
+| attendance totals | synced by a pre-ledger client; **derived and device-local** on `schemaVersion >= 1` | See below |
+| attendanceLedger — what happened in each class, on each date | **device-local** | Per-class history needs a sync protocol this phase does not have |
+| timetableOverrides — a cancellation, a replacement, a one-off class | **device-local** | Same phase, same reason |
+| remoteSnapshots — a synced total this device has observed | **device-local, never published** | An observation that syncs is a way for two devices to take turns reacting to each other |
+
+### Why a v1 device publishes no attendance total
+
+Two integers cannot say that a class was cancelled. Two devices that each
+derive their own figure from their own ledger and write it to one shared row are
+therefore both right and never agree: every pull provokes a push, and the row
+alternates for ever. The fix is not a better merge rule but one writer — so a
+device on `schemaVersion >= 1` publishes no attendance row, **including no
+tombstone**, and a pulled total becomes an observation the student decides
+about. `apps/web/test/sync-attendance.test.tsx` proves both halves against a
+fake server, including that the shared row survives.
+
+**This is a phase boundary, not a defect to close quietly.** Adding
+`attendanceLedger` to the synced collections would reintroduce exactly the model
+those tests exist to prevent. The staging is said in the product — Settings →
+Data & privacy, and a note on the attendance Date view — and asserted as data in
+`apps/web/test/auth-boundaries.test.ts`.
+
+## 11.16 Provider status in an unconfigured checkout
+
+A checkout with no `.env` has **no Supabase project at all**: `cloudConfig()`
+returns null, `createAuthAdapter()` returns null, and the sign-in screen says
+accounts are unavailable rather than offering a button that cannot work. Every
+academic feature is unaffected, which is what local-first means.
+
+Where a project IS configured but a provider on it is not, the SDK answers
+`Unsupported provider: provider is not enabled`. That used to reach the student
+as "Something went wrong signing in. Try again." — an invitation to keep
+pressing a button that cannot work yet. It now reads:
+
+> That sign-in method is not available for this build yet. Use email and
+> password.
+
+Which is true, is not the student's fault, and does not claim the method works.
+The rule behind it is unchanged: **a provider is verified only when a real
+round trip has been performed against a real project**, and Google and Apple
+have not been (§11.14).
