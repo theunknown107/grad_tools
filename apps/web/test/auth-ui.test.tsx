@@ -302,6 +302,82 @@ describe('two accounts on one browser', () => {
   });
 
   /*
+   * B OF THE M9 BOUNDARY: AUTHENTICATION IS NOT CONSENT TO UPLOAD (M9 §52).
+   *
+   * Signing in establishes who somebody is. What happens to the records already
+   * on the device is a separate decision they make on the first-sync screen,
+   * and until they make it nothing leaves the machine.
+   */
+  it('uploads nothing merely because a sign-in succeeded', async () => {
+    const requests: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        requests.push(`${init?.method ?? 'GET'} ${String(input)}`);
+        return Promise.resolve(new Response('{}', { status: 200 }));
+      }),
+    );
+
+    /* Records on the device, and a student who then signs in. */
+    await writeValue(null, 'profile', { id: 'p-anon', schemeId: 'vtu-2022' });
+    const adapter = fakeAdapter();
+    renderAuth(<SignInPage />, adapter);
+
+    await userEvent.type(screen.getByLabelText(/^email$/i), 'demo@example.test');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'synthetic-password');
+    await userEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+    await waitFor(() => {
+      expect(adapter.calls).toContain('signIn:demo@example.test');
+    });
+
+    /* Nothing was pushed, and the anonymous copy is untouched. */
+    expect(requests.filter((call) => call.startsWith('POST') && call.includes('/me/'))).toEqual([]);
+    expect(await readValue(null, 'profile')).not.toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  /*
+   * G AND H, AT THE STORAGE LAYER. The per-class ledger and the date-specific
+   * overrides are device-local in this phase: an account changes which scope
+   * they are written under, and nothing else. Adding them to the synced
+   * collections would reintroduce the two-writer model the v1 attendance rule
+   * exists to prevent (domain/attendance, test/auth-boundaries.test.ts).
+   */
+  it('keeps the attendance ledger and date overrides in their own scope', async () => {
+    const anonymous = createLocalRepositories(null);
+    const account = createLocalRepositories('user-a');
+
+    await anonymous.attendanceLedger.upsert({
+      kind: 'opening',
+      id: 'opening:BCS501',
+      subjectCode: 'BCS501',
+      attended: 8,
+      conducted: 10,
+      migratedFrom: null,
+      reconciliation: 'exact',
+      unreconciledMarks: [],
+      createdAt: '2026-01-01T00:00:00Z',
+    } as never);
+    await anonymous.timetableOverrides.upsert({
+      id: '2026-09-16:class-1',
+      profileId: 'p',
+      date: '2026-09-16',
+      classId: 'class-1',
+      status: 'cancelled',
+      addition: null,
+      replacedBy: null,
+      createdAt: '2026-09-16T08:00:00Z',
+    } as never);
+
+    expect(await anonymous.attendanceLedger.list()).toHaveLength(1);
+    expect(await anonymous.timetableOverrides.list()).toHaveLength(1);
+    /* An account sees its own, empty, ledger — never the other scope's. */
+    expect(await account.attendanceLedger.list()).toHaveLength(0);
+    expect(await account.timetableOverrides.list()).toHaveLength(0);
+  });
+
+  /*
    * SIGNING OUT DELETES NOTHING (M9 §36). The data is still under the account's
    * scope when they come back.
    */
