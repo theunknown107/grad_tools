@@ -431,8 +431,8 @@ the content type.
 |---|---|
 | TLS | Enforced; HSTS with preload |
 | Headers | `helmet`: CSP, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` |
-| CORS | Explicit origin allowlist; `credentials: true`; no wildcard |
-| CSRF | `SameSite=Lax` + `Origin`/`Sec-Fetch-Site` check on all state-changing methods |
+| CORS | Explicit origin allowlist, no wildcard; `credentials: false`, and the methods the API actually serves — a preflight for a student POST/PUT/PATCH/DELETE is answered for an allowlisted origin and for no other |
+| CSRF | No cookie carries authority: every authenticated call presents a bearer token the page must hold, so a cross-site request has nothing ambient to ride on. The origin allowlist is what a browser is told; the token is what the API checks |
 | Body limit | 1 MB JSON; 20 MB multipart on the upload endpoint only |
 | Validation | Zod on body, query and params — no handler reads an unvalidated value |
 | Authorization | Explicit guard per handler; a route without one fails a lint rule and a test |
