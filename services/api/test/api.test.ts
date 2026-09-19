@@ -872,6 +872,47 @@ describeDb('reference API', () => {
       expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
     });
 
+    /*
+     * THE WEB APP'S OWN ORIGIN MUST BE ABLE TO WRITE.
+     *
+     * A browser asks before it sends a POST, a PUT, a PATCH or a DELETE, and
+     * an answer that omits the method it asked about means the request is
+     * never made. This said GET, HEAD, OPTIONS from the milestone where the
+     * API served only public reads, so the entire mutating half of the student
+     * cloud — pushing a sync, saving a profile, marking a notice read,
+     * deleting an account — was unreachable from the app's own origin.
+     */
+    it('answers a preflight for every method the student routes serve', async () => {
+      for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+        const res = await request(app)
+          .options('/api/v1/me/sync')
+          .set('Origin', 'http://localhost:5173')
+          .set('Access-Control-Request-Method', method)
+          .set('Access-Control-Request-Headers', 'authorization,content-type');
+
+        expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+        expect(res.headers['access-control-allow-methods']).toContain(method);
+      }
+    });
+
+    /* And the origin remains the thing that gates it, not the method list. */
+    it('answers no preflight at all for an origin that is not allowed', async () => {
+      const res = await request(app)
+        .options('/api/v1/me/sync')
+        .set('Origin', 'https://evil.example.com')
+        .set('Access-Control-Request-Method', 'POST');
+
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    });
+
+    /* Bearer tokens, never cookies: there is no ambient authority to ride on. */
+    it('never allows credentialed cross-origin requests', async () => {
+      const res = await request(app)
+        .get('/api/v1/universities')
+        .set('Origin', 'http://localhost:5173');
+      expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+    });
+
     it('resists SQL injection through a path parameter', async () => {
       const res = await request(app).get(
         `/api/v1/subjects/${encodeURIComponent("x'; DROP TABLE subjects;--")}`,
