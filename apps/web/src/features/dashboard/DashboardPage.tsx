@@ -25,7 +25,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardHeader, CardRows, headerActionClass } from '../../components/ui/card.js';
 import { Callout, EmptyState } from '../../components/ui/feedback.js';
-import { Metric, MetricGrid } from '../../components/ui/metric.js';
+import { Metric, MetricStrip } from '../../components/ui/metric.js';
 import { Dot, Row, RowText, SectionTitle } from '../../components/ui/page.js';
 import { Progress } from '../../components/ui/progress.js';
 import { PageSkeleton, RowsSkeleton } from '../../components/ui/skeleton.js';
@@ -257,7 +257,12 @@ function Hero({
           </div>
         </div>
 
-        <div className="flex flex-col justify-center gap-3 rounded-xl border border-line bg-panel p-5">
+        {/*
+          The standing is a column of the hero, not a card inside it: one rule
+          separates it (above on a phone, beside from lg), so the hero stays a
+          single region with a single edge.
+        */}
+        <div className="flex flex-col justify-center gap-3 border-t border-line pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[12px] font-medium text-ink-2">
@@ -311,8 +316,11 @@ function Standing({
   readonly stats: AcademicStatistics;
   readonly attendance: readonly AttendanceRecord[];
 }) {
-  const provisional = stats.cgpaBasis.pending.length > 0;
-  const cgpa = metricDisplay(provisional ? stats.provisionalCgpa : stats.cgpa, formatGpa);
+  /*
+   * The CGPA is the hero's figure; repeating it here would say it twice. This
+   * cell carries what follows from it instead, worded as My degree words it.
+   */
+  const percentage = metricDisplay(stats.percentage, formatPercent);
   const credits = metricDisplay(stats.creditsEarned);
   const backlogs = metricDisplay(stats.backlogs);
   const latest = stats.latestSgpa.value;
@@ -324,11 +332,6 @@ function Standing({
     const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
     return verdict.ok && verdict.value.status !== 'safe';
   }).length;
-
-  const cgpaNote = provisional
-    ? (stats.provisionalCgpa.reason ?? undefined)
-    : (cgpa.note ??
-      (stats.percentage.value !== null ? formatPercent(stats.percentage.value) : undefined));
 
   return (
     <section aria-labelledby="standing-title">
@@ -342,14 +345,16 @@ function Standing({
       >
         Academic standing
       </SectionTitle>
-      <MetricGrid columns={6}>
+      <MetricStrip data-testid="standing-strip">
         <Metric
-          label={provisional ? 'Average so far' : 'CGPA'}
-          value={cgpa.value}
-          state={cgpa.value === 'Unavailable' ? 'unavailable' : 'resolved'}
-          sub={cgpaNote}
+          plain
+          label="Percentage"
+          value={percentage.value}
+          state={stats.percentage.value === null ? 'unavailable' : 'resolved'}
+          sub={stats.percentage.value === null ? percentage.note : 'CGPA × 10 (22OB 6.7)'}
         />
         <Metric
+          plain
           label="Latest SGPA"
           value={latest === null ? 'Unavailable' : formatGpa(latest.sgpa)}
           state={latest === null ? 'unavailable' : 'resolved'}
@@ -360,12 +365,14 @@ function Standing({
           }
         />
         <Metric
+          plain
           label="Credits earned"
           value={credits.value}
           state={credits.value === 'Unavailable' ? 'unavailable' : 'resolved'}
           sub={credits.note}
         />
         <Metric
+          plain
           label="Backlogs"
           value={backlogs.value}
           state={backlogs.value === 'Unavailable' ? 'unavailable' : 'resolved'}
@@ -378,6 +385,7 @@ function Standing({
           }
         />
         <Metric
+          plain
           label="Attendance"
           value={overall?.ok === true ? overall.value.percentage.toFixed(1) : 'Not recorded'}
           unit={overall?.ok === true ? '%' : undefined}
@@ -398,6 +406,7 @@ function Standing({
           }
         />
         <Metric
+          plain
           label="Semesters"
           value={`${String(stats.semestersGraded.value ?? 0)}/8`}
           sub={
@@ -407,7 +416,7 @@ function Standing({
               : 'Graded'
           }
         />
-      </MetricGrid>
+      </MetricStrip>
 
       {stats.hasAnyResult && stats.semestersGraded.value === 0 && (
         <Callout

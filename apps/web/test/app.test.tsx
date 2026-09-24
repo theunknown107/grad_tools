@@ -122,15 +122,49 @@ describe('dashboard', () => {
     renderWith(<DashboardPage />, { repositories: bundle });
 
     /*
-     * The approved design carries the CGPA twice: once as the hero's standing
-     * figure and once in the comparable metric row. Both must show the rules
-     * engine's number, so this asserts on ALL of them rather than picking one.
+     * The CGPA is said ONCE, as the hero's standing figure. The strip below
+     * carries the percentage that follows from it rather than repeating it.
      */
-    const figures = await screen.findAllByText('8.75');
-    expect(figures.length).toBeGreaterThan(0);
+    const hero = await screen.findByRole('region', { name: /^Good (morning|afternoon|evening)/ });
+    expect(within(hero).getByText('8.75')).toBeTruthy();
+    const strip = screen.getByTestId('standing-strip');
+    expect(within(strip).queryByText('8.75')).toBeNull();
     // 8.75 x 10 = 87.5%, per 22OB 6.7. NOT (8.75-0.75)x10 = 80.0%.
-    expect(screen.getByText('87.5%')).toBeTruthy();
+    expect(within(strip).getByRole('group', { name: 'Percentage' }).textContent).toMatch(/87\.5%/);
     expect(screen.queryByText('80.0%')).toBeNull();
+  });
+
+  it('lays the standing out as one ruled strip of six figures', async () => {
+    renderWith(<DashboardPage />);
+    const strip = await screen.findByTestId('standing-strip');
+    const names = within(strip)
+      .getAllByRole('group')
+      .map((group) => group.getAttribute('aria-label'));
+    expect(names).toEqual([
+      'Percentage',
+      'Latest SGPA',
+      'Credits earned',
+      'Backlogs',
+      'Attendance',
+      'Semesters',
+    ]);
+    /*
+     * One container, six cells: no cell carries tile chrome of its own. The
+     * rules are the strip's background through a 1px gap, so there is no
+     * divider element for a screen reader to announce.
+     */
+    for (const cell of within(strip).getAllByRole('group')) {
+      expect(cell.className).not.toMatch(/\bgt-metric\b|\brounded-/);
+    }
+    expect(strip.querySelector('hr, [role="separator"]')).toBeNull();
+  });
+
+  it('keeps the hero one region, with no card nested inside it', async () => {
+    renderWith(<DashboardPage />);
+    const hero = await screen.findByRole('region', { name: /^Good (morning|afternoon|evening)/ });
+    // The standing figure sits in a ruled column, not a bordered panel.
+    expect(hero.querySelector('.bg-panel, .rounded-xl')).toBeNull();
+    expect(within(hero).getByText('Semesters graded')).toBeTruthy();
   });
 
   it('surfaces only the courses that need attention', async () => {

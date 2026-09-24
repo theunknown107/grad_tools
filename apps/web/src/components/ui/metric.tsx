@@ -27,6 +27,8 @@ export interface MetricProps {
    * monochrome: the design keeps the metric row neutral in every theme.
    */
   readonly emphasis?: 'warning' | 'danger' | undefined;
+  /** No tile chrome of its own: the figure is a cell of a `MetricStrip`. */
+  readonly plain?: boolean;
 }
 
 const valueSize = { large: 'text-[40px]', md: 'text-[30px]', compact: 'text-[24px]' } as const;
@@ -42,6 +44,7 @@ export function Metric({
   className,
   state = 'resolved',
   emphasis,
+  plain = false,
 }: MetricProps) {
   const interactive = onClick !== undefined;
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -52,7 +55,11 @@ export function Metric({
   };
   return (
     <div
-      className={cn('gt-metric min-w-0 rounded-xl', pad[size], className)}
+      className={cn(
+        plain ? 'min-w-0 bg-raised' : 'gt-metric min-w-0 rounded-xl',
+        pad[size],
+        className,
+      )}
       data-interactive={interactive ? 'true' : undefined}
       data-state={state}
       {...(interactive
@@ -94,21 +101,37 @@ export function Metric({
   );
 }
 
-/** Two across on a phone, four (or six) on a wide screen. */
+/** Two across on a phone, four on a wide screen. */
 export function MetricGrid({
   children,
-  columns = 4,
   className,
 }: {
   readonly children: ReactNode;
-  readonly columns?: 4 | 6;
   readonly className?: string;
+}) {
+  return <div className={cn('grid grid-cols-2 gap-3 lg:grid-cols-4', className)}>{children}</div>;
+}
+
+/**
+ * Six figures as ONE ruled instrument, not six tiles: give each `Metric` the
+ * `plain` prop. The rules between cells are the container's own colour showing
+ * through a 1px gap, so they are pure paint, never an element a screen reader
+ * could meet. Six cells fill 2, 3 and 6 columns exactly, so no row is ragged.
+ */
+export function MetricStrip({
+  children,
+  className,
+  ...rest
+}: {
+  readonly children: ReactNode;
+  readonly className?: string;
+  readonly 'data-testid'?: string;
 }) {
   return (
     <div
+      {...rest}
       className={cn(
-        'grid grid-cols-2 gap-3',
-        columns === 6 ? 'lg:grid-cols-3 xl:grid-cols-6' : 'lg:grid-cols-4',
+        'grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-3 xl:grid-cols-6',
         className,
       )}
     >
