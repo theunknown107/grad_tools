@@ -485,7 +485,7 @@ Only the paths whose breakage would make the product unusable:
 | E2E-1 | First visit → calculate SGPA → see the derivation with its clause citation |
 | E2E-2 | Set up profile → add attendance → bunk planner returns a correct figure |
 | E2E-3 | Marks-needed, including the ineligible and unreachable branches |
-| E2E-4 | Enter a semester result → SGPA/CGPA/backlogs update |
+| E2E-4 | Enter a semester result → SGPA/CGPA and the results-derived failure figure update; the recorded Backlogs count does not (`OQ-056`) |
 | E2E-5 | Create an account → sign in via magic link → merge choice presented |
 | E2E-6 | Export data → delete account → confirm data is gone |
 | E2E-7 | Browse a subject → open a paper → view module priority with evidence |
@@ -532,7 +532,7 @@ Run against production data on a schedule, alerting on failure — these catch p
 | Orphans | No `semester_subjects` without a parent record |
 | Attendance sanity | No record with attended > conducted |
 | Grade consistency | Every stored grade matches recomputation from its marks under its rule set |
-| Backlog consistency | Every active backlog corresponds to a failing `semester_subject` |
+| Backlog consistency | No surface claims "clear" / "no backlogs" unless both recorded backlogs and result-derived failures are clear (`hasNoBacklogs`), and the two figures are never summed (`OQ-056`). Enforced by `apps/web/test/backlog-consistency.test.tsx`, not a production query: the earlier "every active backlog corresponds to a failing `semester_subject`" contradicts the two-source model |
 | Duplicate documents | No two documents share a SHA-256 |
 | Source health | No source unhealthy for more than 48 h without acknowledgement |
 

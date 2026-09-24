@@ -136,7 +136,7 @@ Token rules: single-use (`consumed_at` set inside the same transaction that crea
 | GET | `/attendance` | session | All attendance records |
 | PUT | `/attendance/:subjectCode` | owner | Upsert attendance for a course |
 | DELETE | `/attendance/:subjectCode` | owner | Remove |
-| GET | `/backlogs` | session | Derived backlogs |
+| GET | `/backlogs` | session | Derived backlogs. **Superseded by `OQ-056`** (M6 two-source model; see `08` §8.13): not built; backlogs are student-recorded, not derived |
 | GET | `/timetable` | session | Slots |
 | PUT | `/timetable` | session | Replace the whole timetable |
 | GET | `/preferences` | session | Preferences |

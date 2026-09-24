@@ -120,7 +120,7 @@ export function ResultsPage() {
           <EmptyState
             icon={<ClipboardList />}
             title="No results yet"
-            description="Import a result card or enter a semester by hand to see SGPA, CGPA and backlogs."
+            description="Import a result card or enter a semester by hand to see SGPA and CGPA."
             actions={
               <>
                 <Button asChild variant="primary" icon={<Plus />}>
@@ -192,7 +192,8 @@ export function ResultsPage() {
                   }
                 />
                 <Metric
-                  label="Backlogs"
+                  /* The results' own figure; the unqualified "Backlogs" is the recorded one (OQ-056). */
+                  label="Backlogs in your results"
                   value={
                     statistics.backlogsUndetermined > 0
                       ? `${String(backlogCount)}+`
@@ -245,7 +246,7 @@ export function ResultsPage() {
       <p className="text-[12px] leading-relaxed text-ink-3">
         GradTools does not fetch results from the university portal — that site asks automated tools
         not to access it, and we respect that. We never ask for your portal password either. Enter a
-        result card as it is printed, or import it, and SGPA, CGPA and backlogs follow from it.
+        result card as it is printed, or import it, and SGPA and CGPA follow from it.
       </p>
     </div>
   );

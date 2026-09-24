@@ -70,7 +70,9 @@ export type RowWarningKind =
   /** A line looked like a subject row but could not be read as one. */
   | 'unreadable_row'
   /** The row carried more numbers than a result row has columns. */
-  | 'ambiguous_marks';
+  | 'ambiguous_marks'
+  /** The page printed a semester outside the 1–8 the product models (OQ-057). */
+  | 'unsupported_semester';
 
 export interface RowWarning {
   readonly kind: RowWarningKind;
@@ -102,6 +104,13 @@ export interface ParsedRow {
 export interface ParsedCard {
   /** Null when the document did not state one. NEVER taken from a filename (§11). */
   readonly semester: number | null;
+  /**
+   * The semester the page printed when it lies outside 1–8 (OQ-057), else null.
+   *
+   * Never stored and never offered as a choice: `semester` stays null, and the
+   * import is refused with the reason rather than filed under 1–8.
+   */
+  readonly unsupportedSemester: number | null;
   readonly rows: readonly ParsedRow[];
   /**
    * Lines that begin with a course code but could not be read as a row.
@@ -162,8 +171,19 @@ const COURSE_CODE = /^(1?B[A-Z]{2,6}\d{3}[A-Z]?)\b/;
  */
 const TRAILING = /\s(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})(?:\s+([A-Za-z]{1,2})[.,]?)?(?:\s+(\S+))?\s*$/;
 
-/** `Semester : 4`, however it is spaced or punctuated. */
-const SEMESTER_LINE = /semester\s*[:-]?\s*(\d)\b/i;
+/**
+ * `Semester : 4`, however it is spaced or punctuated.
+ *
+ * One or two digits, so `Semester 10` is recognised and refused by name rather
+ * than read as "not printed" (OQ-057). Not more: a year such as
+ * `Semester 2024` must not become semester 2024.
+ */
+const SEMESTER_LINE = /semester\s*[:-]?\s*(\d{1,2})\b/i;
+
+/** Why a document printed with semester `printed` (outside 1–8) is not imported. */
+export function unsupportedSemesterMessage(printed: number): string {
+  return `This document is for semester ${String(printed)}. GradTools covers semesters 1–8 (B.E./B.Tech, 2022 scheme), so it cannot be imported.`;
+}
 
 /**
  * A seat-number shape: digit, two letters, two digits, two letters, three
@@ -472,12 +492,10 @@ export function parseResultCard(
   const looksLikeResultCard = cues >= 2 && rows.length > 0;
 
   const semesterMatch = SEMESTER_LINE.exec(joined);
-  const semester =
-    semesterMatch?.[1] === undefined
-      ? null
-      : Number(semesterMatch[1]) >= 1 && Number(semesterMatch[1]) <= 8
-        ? Number(semesterMatch[1])
-        : null;
+  const printed = semesterMatch?.[1] === undefined ? null : Number(semesterMatch[1]);
+  // A printed 0 stays "not printed", as before.
+  const semester = printed !== null && printed >= 1 && printed <= 8 ? printed : null;
+  const unsupportedSemester = printed !== null && printed > 8 ? printed : null;
 
   const warnings: RowWarning[] = [];
   if (unreadable.length > 0) {
@@ -489,7 +507,12 @@ export function parseResultCard(
           : `${String(unreadable.length)} lines look like subject rows but could not be read. Check them against your card and add any that are missing by hand.`,
     });
   }
-  if (looksLikeResultCard && semester === null) {
+  if (unsupportedSemester !== null) {
+    warnings.push({
+      kind: 'unsupported_semester',
+      message: unsupportedSemesterMessage(unsupportedSemester),
+    });
+  } else if (looksLikeResultCard && semester === null) {
     warnings.push({
       kind: 'unknown_status',
       message: 'The semester was not printed on this document. Choose it before importing.',
@@ -498,6 +521,7 @@ export function parseResultCard(
 
   return {
     semester,
+    unsupportedSemester,
     rows,
     unreadableRows: unreadable,
     looksLikeResultCard,

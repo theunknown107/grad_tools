@@ -78,6 +78,25 @@ describe('grouping files by the semester their pages state', () => {
     expect(isReadyToImport(groups[0] as never)).toBe(false);
     expect(blockingReason(groups[0] as never)).toMatch(/semester was not printed/i);
   });
+
+  it.each([9, 10])(
+    'refuses a semester-%i card by name, apart from unprinted ones (OQ-057)',
+    (n) => {
+      const groups = groupBySemester([
+        file('final.pdf', card(ROWS, n)),
+        file('scan.pdf', card(ROWS, null)),
+      ]);
+      expect(groups).toHaveLength(2);
+      const [unsupported, unprinted] = groups;
+      expect(unsupported?.files.map((f) => f.fileName)).toEqual(['final.pdf']);
+      expect(unsupported?.semester).toBeNull();
+      expect(isReadyToImport(unsupported as never)).toBe(false);
+      expect(blockingReason(unsupported as never)).toBe(
+        `This document is for semester ${String(n)}. GradTools covers semesters 1–8 (B.E./B.Tech, 2022 scheme), so it cannot be imported.`,
+      );
+      expect(blockingReason(unprinted as never)).toMatch(/semester was not printed/i);
+    },
+  );
 });
 
 describe('two files for one semester', () => {

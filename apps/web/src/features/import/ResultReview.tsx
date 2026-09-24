@@ -195,7 +195,13 @@ export function ResultReview({
     enrichRow(subjectFrom(row), resolveSubject(subjectIndex, row.subjectCode), ruleSet);
 
   const blocked = blockingReason(group);
-  const ready = isReadyToImport(group) || (group.semester === null && semester !== '');
+  /*
+   * A page that printed a semester outside 1–8 is refused, not re-filed: picking
+   * 1–8 for a semester-9 card would be silently wrong data (OQ-057).
+   */
+  const unsupported = group.files.some((file) => file.card.unsupportedSemester !== null);
+  const ready =
+    isReadyToImport(group) || (group.semester === null && !unsupported && semester !== '');
 
   const enriched = rows.map((row) => {
     const enrichment = enrichmentFor(row);
@@ -213,7 +219,7 @@ export function ResultReview({
   const unreadable = group.files.flatMap((file) => file.card.unreadableRows);
 
   const confirm = async (): Promise<void> => {
-    if (state === 'saving' || state === 'saved') return;
+    if (state === 'saving' || state === 'saved' || !ready) return;
     const subjects = rows.map(subjectFrom);
     setState('saving');
     setError(null);
@@ -288,7 +294,11 @@ export function ResultReview({
       meta={
         <>
           Parsed as a semester result ·{' '}
-          {group.semester === null ? 'semester not detected' : `semester ${String(group.semester)}`}{' '}
+          {first.card.unsupportedSemester !== null
+            ? `semester ${String(first.card.unsupportedSemester)} (not supported)`
+            : group.semester === null
+              ? 'semester not detected'
+              : `semester ${String(group.semester)}`}{' '}
           · {formatCount(rows.length, 'course')} detected
         </>
       }
@@ -319,7 +329,7 @@ export function ResultReview({
           against the card before saving — a misread digit becomes an SGPA you cannot explain.
         </Callout>
       )}
-      {group.semester === null && first.card.looksLikeResultCard && (
+      {group.semester === null && !unsupported && first.card.looksLikeResultCard && (
         <Card className="p-5">
           <Field
             label="Semester"

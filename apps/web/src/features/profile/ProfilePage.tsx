@@ -471,7 +471,16 @@ function AcademicForm({
             )}
             <Field
               label="Programme"
-              hint="Helps GradTools show you VTU notices meant for your programme."
+              hint={
+                /*
+                 * The programme only matches notices (OQ-055). Every academic
+                 * figure follows the one supported rule set, so a student who
+                 * picks another programme is told so here, in SupportNote's words.
+                 */
+                programme === '' || programme === 'B.E.' || programme === 'B.Tech.'
+                  ? 'Helps GradTools show you VTU notices meant for your programme.'
+                  : 'Helps GradTools show you VTU notices meant for your programme. Academic figures follow the VTU 2022 scheme (22OB) for B.E./B.Tech only.'
+              }
             >
               <Select
                 value={programme === '' ? NOT_SET : programme}
