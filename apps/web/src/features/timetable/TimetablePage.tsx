@@ -86,6 +86,15 @@ function sortSlots(slots: readonly TimetableSlot[]): TimetableSlot[] {
   return [...slots].sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
+/** "09:30" -> 570. Returns null for anything that is not a stored time. */
+function minutesOf(value: string): number | null {
+  const [hour, minute] = value.split(':');
+  const hours = Number(hour);
+  const minutes = Number(minute);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
 function todayWeekday(): Weekday {
   const index = new Date().getDay();
   return WEEKDAYS[index === 0 ? 0 : index - 1] ?? 'Mon';
@@ -358,7 +367,33 @@ function WeekGrid({
   readonly onPick: (day: Weekday) => void;
 }) {
   return (
-    <ol className="grid gap-4 lg:grid-cols-6 lg:gap-3">
+    <>
+      <WeekTimeGrid byDay={byDay} titleFor={titleFor} todayName={todayName} onPick={onPick} />
+      <WeekStack byDay={byDay} titleFor={titleFor} todayName={todayName} onPick={onPick} />
+    </>
+  );
+}
+
+/*
+ * THE NARROW LAYOUT. Six day columns cannot hold a proportional time axis at
+ * phone width without a horizontal scroll, so below `lg` the week is a list of
+ * days — each one a heading and its sessions in order. `display: none` keeps
+ * whichever layout is not in use out of the accessibility tree as well, so a
+ * screen reader hears the week once.
+ */
+function WeekStack({
+  byDay,
+  titleFor,
+  todayName,
+  onPick,
+}: {
+  readonly byDay: ReadonlyMap<Weekday, readonly TimetableSlot[]>;
+  readonly titleFor: (code: string) => string;
+  readonly todayName: Weekday | null;
+  readonly onPick: (day: Weekday) => void;
+}) {
+  return (
+    <ol className="grid gap-4 lg:hidden">
       {WEEKDAYS.map((weekday) => {
         const slots = byDay.get(weekday) ?? [];
         const sessions = slots.filter((slot) => slot.subjectCode !== null).length;
@@ -412,43 +447,280 @@ function WeekGrid({
   );
 }
 
+/* ------------------------------------------------------- Week · time grid */
+
+/**
+ * The week as a proportional time axis: one shared vertical scale, six day
+ * columns, every session placed where it really is and as long as it really
+ * is.
+ *
+ * The previous layout stacked equal-height cards per day, so a 50-minute
+ * lecture and a three-hour lab looked the same, 9 am on Monday sat level with
+ * 2 pm on Tuesday, and a free morning was invisible. None of that is a styling
+ * problem — a column of cards cannot express duration or alignment at all.
+ *
+ * GEOMETRY. The grid has one row per `STEP` minutes between the week's
+ * earliest start and latest end, rounded out to whole hours. A session spans
+ * `(start … end)` rows, so its height *is* its duration. Nothing is invented:
+ * the bounds come from the stored times, and a day with nothing in it is
+ * genuinely empty space.
+ */
+const STEP = 5;
+/** Height of one `STEP`. 6px ⇒ an hour is 72px, a 50-minute class is 60px. */
+const STEP_PX = 6;
+/**
+ * The span given to a row that HAS no duration — `end <= start`, which no
+ * writer can produce and which storage therefore only holds as corruption
+ * (domain/day-schedule `degenerate`). It gets a visible height here so the
+ * student can see and fix it, rather than a zero-height sliver.
+ *
+ * It is NOT a floor on real classes. Flooring those would either inflate the
+ * end used for overlap — splitting two back-to-back twenty-minute classes into
+ * separate lanes for a collision they do not have — or inflate the drawn
+ * height alone, so the two would be drawn on top of each other. A real class
+ * is exactly as tall as it is long.
+ */
+const DEGENERATE_SPAN_MINUTES = 30;
+const GRID_COLUMNS = '3.25rem repeat(6, minmax(0, 1fr))';
+
+interface Placement {
+  readonly slot: TimetableSlot;
+  readonly start: number;
+  readonly end: number;
+  /** Which sub-column of its day, when sessions overlap. */
+  readonly lane: number;
+  readonly lanes: number;
+}
+
+/**
+ * Where each of one day's sessions goes, and how it shares the width with
+ * anything it collides with.
+ *
+ * Overlaps are real in imported timetables (an elective against a lab) and are
+ * never auto-resolved — the product warns and leaves them. They are packed
+ * into lanes so both stay readable and neither is hidden behind the other.
+ */
+function placeDay(slots: readonly TimetableSlot[]): readonly Placement[] {
+  const timed = slots
+    .map((slot) => {
+      const start = minutesOf(slot.startTime);
+      const end = minutesOf(slot.endTime);
+      if (start === null) return null;
+      return {
+        slot,
+        start,
+        end: end === null || end <= start ? start + DEGENERATE_SPAN_MINUTES : end,
+      };
+    })
+    .filter(
+      (placed): placed is { slot: TimetableSlot; start: number; end: number } => placed !== null,
+    )
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  /* Greedy lane packing: the first lane free at this start time takes it. */
+  const laneEnds: number[] = [];
+  const lanes = timed.map((placed) => {
+    const free = laneEnds.findIndex((end) => end <= placed.start);
+    const lane = free === -1 ? laneEnds.length : free;
+    laneEnds[lane] = placed.end;
+    return lane;
+  });
+  const width = Math.max(1, ...lanes.map((lane) => lane + 1));
+  return timed.map((placed, at) => ({ ...placed, lane: lanes[at] ?? 0, lanes: width }));
+}
+
+function WeekTimeGrid({
+  byDay,
+  titleFor,
+  todayName,
+  onPick,
+}: {
+  readonly byDay: ReadonlyMap<Weekday, readonly TimetableSlot[]>;
+  readonly titleFor: (code: string) => string;
+  readonly todayName: Weekday | null;
+  readonly onPick: (day: Weekday) => void;
+}) {
+  const placed = WEEKDAYS.map((weekday) => placeDay(byDay.get(weekday) ?? []));
+  const all = placed.flat();
+  if (all.length === 0) return null;
+
+  const from = Math.floor(Math.min(...all.map((one) => one.start)) / 60) * 60;
+  const to = Math.ceil(Math.max(...all.map((one) => one.end)) / 60) * 60;
+  const rows = Math.max(1, (to - from) / STEP);
+  const rowOf = (minute: number): number => (minute - from) / STEP + 1;
+  const hours = Array.from({ length: (to - from) / 60 + 1 }, (_, at) => from + at * 60);
+
+  return (
+    <div className="hidden lg:block">
+      <div className="grid gap-x-2" style={{ gridTemplateColumns: GRID_COLUMNS }}>
+        <span aria-hidden="true" />
+        {WEEKDAYS.map((weekday) => {
+          const sessions = (byDay.get(weekday) ?? []).filter(
+            (slot) => slot.subjectCode !== null,
+          ).length;
+          return (
+            <button
+              key={weekday}
+              type="button"
+              onClick={() => onPick(weekday)}
+              aria-label={`Open ${DAY_NAME[weekday]}${weekday === todayName ? ' (today)' : ''}`}
+              className={cn(
+                'group flex min-w-0 flex-col items-start rounded-md px-1 pb-2 text-left',
+                weekday === todayName && 'bg-sunken/60',
+              )}
+            >
+              <span
+                className={cn(
+                  'text-[13px] font-semibold transition-colors group-hover:text-accent-ink',
+                  weekday === todayName && 'text-accent-ink',
+                )}
+              >
+                {DAY_NAME[weekday]}
+                {weekday === todayName && (
+                  <span className="ml-1.5 align-middle font-mono text-[10px] text-ink-3 uppercase">
+                    today
+                  </span>
+                )}
+              </span>
+              <span className="font-mono text-[10px] tracking-wide text-ink-3 uppercase">
+                {sessions === 0 ? 'None' : formatCount(sessions, 'session')}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        className="grid gap-x-2 border-t border-line"
+        style={{
+          gridTemplateColumns: GRID_COLUMNS,
+          gridTemplateRows: `repeat(${String(rows)}, ${String(STEP_PX)}px)`,
+        }}
+      >
+        {/* The scale itself, behind everything: one rule and one label an hour. */}
+        {hours.map((minute) => (
+          <div
+            key={minute}
+            aria-hidden="true"
+            className="pointer-events-none border-t border-line/60"
+            style={{ gridColumn: '2 / -1', gridRow: `${String(rowOf(minute))} / span 1` }}
+          />
+        ))}
+        {hours.slice(0, -1).map((minute) => (
+          <span
+            key={minute}
+            className="pr-2 text-right font-mono text-[10px] text-ink-3 tabular-nums"
+            style={{
+              gridColumn: '1',
+              gridRow: `${String(rowOf(minute))} / span ${String(60 / STEP)}`,
+            }}
+          >
+            {formatTime(`${String(Math.floor(minute / 60)).padStart(2, '0')}:00`)}
+          </span>
+        ))}
+
+        {WEEKDAYS.map((_weekday, day) =>
+          (placed[day] ?? []).map((one) => (
+            <div
+              key={one.slot.id}
+              className="min-w-0"
+              style={{
+                gridColumn: String(day + 2),
+                gridRow: `${String(rowOf(one.start))} / ${String(rowOf(one.end))}`,
+                marginLeft: `${String((one.lane / one.lanes) * 100)}%`,
+                width: `${String(100 / one.lanes)}%`,
+              }}
+            >
+              <SessionChip
+                slot={one.slot}
+                entry={timetableEntry(
+                  one.slot,
+                  one.slot.subjectCode === null ? null : titleFor(one.slot.subjectCode),
+                )}
+                fill
+              />
+            </div>
+          )),
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SessionChip({
   slot,
   entry,
+  fill = false,
 }: {
   readonly slot: TimetableSlot;
   readonly entry: TimetableEntry;
+  /** True in the time grid, where the chip must be exactly as tall as its row span. */
+  readonly fill?: boolean;
 }) {
   const kind = kindOf(entry);
   if (kind === 'break') {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-dashed border-line bg-panel px-2.5 py-1.5 text-[11px] text-ink-3">
+      /*
+       * A break is the same surface at lower emphasis: the dashed border and
+       * the panel background are the only overrides, so it cannot drift away
+       * from the class block it sits between.
+       */
+      <Card
+        className={cn(
+          'flex items-center gap-2 overflow-hidden rounded-lg border-dashed bg-panel px-2.5 text-[11px] text-ink-3',
+          fill ? 'h-full py-1' : 'py-1.5',
+        )}
+      >
         <Coffee className="size-3.5 shrink-0" aria-hidden="true" />
         <span className="font-mono">{slot.startTime}</span>
         <span className="truncate">{entry.name}</span>
-      </div>
+      </Card>
     );
   }
   return (
-    <article className="relative overflow-hidden rounded-lg border border-line bg-raised p-2.5 transition-colors hover:border-line-strong">
-      <span
-        aria-hidden="true"
-        className={cn('absolute top-2 bottom-2 left-0 w-[3px] rounded-full', KIND_BAR[kind])}
-      />
-      <div className="pl-2">
-        <div className="flex items-center justify-between gap-1">
-          <span className="font-mono text-[10px] text-ink-3">
-            {slot.startTime}–{slot.endTime}
-          </span>
+    /*
+     * THE CLASS BLOCK IS A CARD, NOT A HAND-ROLLED BOX.
+     *
+     * This was `rounded-lg border border-line bg-raised` written out by hand —
+     * character for character what `ui/card.tsx` already is, which is how a
+     * timetable ends up looking like arbitrary rounded rectangles rather than
+     * the rest of the product. `asChild` keeps the `<article>` element, so the
+     * semantics are unchanged and only the surface comes from the primitive.
+     *
+     * `rounded-lg` overrides the Card's `rounded-xl` through `cn`'s
+     * tailwind-merge: a grid cell this dense needs the tighter radius, and the
+     * override is the design system's own mechanism rather than a fork.
+     */
+    <Card
+      asChild
+      className={cn(
+        'relative overflow-hidden rounded-lg p-2.5 transition-colors hover:border-line-strong',
+        fill && 'h-full',
+      )}
+    >
+      <article>
+        <span
+          aria-hidden="true"
+          className={cn('absolute top-2 bottom-2 left-0 w-[3px] rounded-full', KIND_BAR[kind])}
+        />
+        <div className="pl-2">
+          <div className="flex items-center justify-between gap-1">
+            <span className="font-mono text-[10px] text-ink-3">
+              {slot.startTime}–{slot.endTime}
+            </span>
+          </div>
+          <div
+            className="mt-1 line-clamp-2 text-[12px] leading-tight font-medium"
+            title={entry.name}
+          >
+            {entry.isCourse ? entry.shortName : entry.name}
+          </div>
+          <div className="truncate text-[11px] text-ink-3">
+            {slot.room ?? (entry.isCourse ? entry.name : '')}
+          </div>
         </div>
-        <div className="mt-1 line-clamp-2 text-[12px] leading-tight font-medium" title={entry.name}>
-          {entry.isCourse ? entry.shortName : entry.name}
-        </div>
-        <div className="truncate text-[11px] text-ink-3">
-          {slot.room ?? (entry.isCourse ? entry.name : '')}
-        </div>
-      </div>
-    </article>
+      </article>
+    </Card>
   );
 }
 
