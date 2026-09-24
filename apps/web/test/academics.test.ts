@@ -30,11 +30,12 @@ import {
   STRENGTH_THRESHOLD,
 } from '../src/domain/academics.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
-import type {
-  BacklogRecord,
-  SemesterRecord,
-  SemesterResult,
-  SemesterStatus,
+import {
+  SEMESTER_NUMBERS,
+  type BacklogRecord,
+  type SemesterRecord,
+  type SemesterResult,
+  type SemesterStatus,
 } from '../src/domain/types.js';
 
 const profileId = asStudentProfileId('11111111-1111-1111-1111-111111111111');
@@ -90,6 +91,28 @@ describe('the eight-semester degree', () => {
     const views = buildSemesterViews([], []);
     expect(views.map((v) => v.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(views.every((v) => v.status === 'planned')).toBe(true);
+  });
+
+  /*
+   * THE DEGREE IS EIGHT SEMESTERS, WHATEVER IS STORED (ED-71). A stored result
+   * or semester record carries a plain `number`, and nothing below the reader
+   * refuses a 9 — the result importer does, a synced or hand-built row may not.
+   * The dashboard and Profile now take their "of 8" from the views' length, so
+   * a ninth-semester row that grew the views would quietly turn every screen's
+   * total into "of 9".
+   */
+  it('adds no view for a stored semester beyond the eighth', () => {
+    const views = buildSemesterViews(
+      [semester(9, 'completed')],
+      [result(1, [['BMATS101', 4, 'A']]), result(9, [['BCS901', 4, 'A']])],
+    );
+    expect(views.map((v) => v.number)).toEqual([...SEMESTER_NUMBERS]);
+    expect(views.some((v) => v.result?.semester === 9)).toBe(false);
+    // Semester 1, from its result; the "completed" ninth counts for nothing.
+    expect(graduationProgress(views, null)).toMatchObject({
+      semestersCompleted: 1,
+      semestersTotal: SEMESTER_NUMBERS.length,
+    });
   });
 
   /*

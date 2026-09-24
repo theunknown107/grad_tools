@@ -27,7 +27,13 @@ import {
   type RuleSet,
   type SemesterSummary,
 } from '@gradtools/academic-rules';
-import type { BacklogRecord, SemesterRecord, SemesterResult, SemesterStatus } from './types.js';
+import {
+  SEMESTER_NUMBERS,
+  type BacklogRecord,
+  type SemesterRecord,
+  type SemesterResult,
+  type SemesterStatus,
+} from './types.js';
 import {
   resolveSubjectGrade,
   semesterSgpa,
@@ -133,7 +139,7 @@ export function buildSemesterViews(
    */
   identify?: SubjectLookup,
 ): SemesterView[] {
-  return [1, 2, 3, 4, 5, 6, 7, 8].map((number) => {
+  return SEMESTER_NUMBERS.map((number) => {
     const record = semesters.find((candidate) => candidate.number === number);
     const result = results.find((candidate) => candidate.semester === number) ?? null;
 
@@ -651,7 +657,7 @@ export function graduationProgress(
     creditsRemaining:
       creditsRequired === null ? null : Math.max(0, creditsRequired - creditsCompleted),
     semestersCompleted: completed.length,
-    semestersTotal: 8,
+    semestersTotal: SEMESTER_NUMBERS.length,
     reason:
       creditsRequired === null
         ? 'The total credits for this scheme are not established in verified reference data, so credits remaining cannot be shown.'
@@ -888,7 +894,7 @@ export function dataCompleteness(views: readonly SemesterView[]): DataCompletene
     basis:
       graded.length === 0
         ? 'Nothing is calculated yet — no semester has a result that could be graded.'
-        : `Based on ${String(graded.length)} graded semester${graded.length === 1 ? '' : 's'} of 8.`,
+        : `Based on ${String(graded.length)} graded semester${graded.length === 1 ? '' : 's'} of ${String(SEMESTER_NUMBERS.length)}.`,
     gaps,
     hasGaps: gaps.length > 0,
   };
