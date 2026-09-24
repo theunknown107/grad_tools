@@ -26,7 +26,7 @@ Everything at P0 and P1 in `02`, verified against Stage 2 evidence.
 | **Calculators** | SGPA, CGPA, percentage, class, marks-needed, target CGPA — each with formula, inputs and clause citation |
 | **Attendance** | Per-course tracking, percentage, bunk planning, recovery, DX-risk warning, condonation explanation |
 | **Results** | Manual entry, semester history, derived SGPA/CGPA, asserted-vs-computed discrepancy display |
-| **Backlogs** | Derived from results, with reason (failed / attendance DX / CIE shortfall), attempt counts |
+| **Backlogs** | Derived from results, with reason (failed / attendance DX / CIE shortfall), attempt counts. **Superseded by `OQ-056`** (M6 two-source model; see `08` §8.13) |
 | **Accounts** | Optional, magic link, sync, export, delete |
 | **Content** | Syllabus browsing, subject search, and the paper library **at whichever tier `OQ-008` permits** — private corpus always; public library only with verified rights (`DEC-010`) |
 | **Announcements** | Public-source ingestion with provenance and freshness |

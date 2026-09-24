@@ -118,7 +118,7 @@ describe('Academics figures', () => {
 
     const latest = await screen.findByRole('group', { name: 'Latest SGPA' });
     expect(within(latest).getByText('Unavailable')).toBeTruthy();
-    for (const name of ['Latest SGPA', 'Credits', 'Backlogs']) {
+    for (const name of ['Latest SGPA', 'Credits', 'Backlogs in your results']) {
       expect(screen.getByRole('group', { name }).textContent).not.toContain('—');
     }
   });

@@ -111,6 +111,8 @@ Monorepo, React SPA, Express API skeleton, Postgres with initial migrations, des
 ### M4 — Core academic utilities *(highest value)*
 `packages/academic-rules` in full: grade mapping, SGPA, CGPA, percentage, class, marks-needed, target CGPA, attendance and bunk calculations. Result entry, backlog derivation, attendance UI, timetable. Local-first persistence.
 
+> "Backlog derivation" is **superseded by `OQ-056`** (M6 two-source model; see `08` §8.13): recorded backlogs are student-maintained; results yield a separate failure figure.
+
 **Exit:** 100% branch coverage; the regulation's Annexure-I example passes; property-based tests pass; **validated against real grade cards**; client and server agree.
 
 **This milestone alone delivers a genuinely useful product.** If everything after it stalled, GradTools would still be worth using — which is the intended property.

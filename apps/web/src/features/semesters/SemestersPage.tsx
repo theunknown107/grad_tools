@@ -112,19 +112,22 @@ export function SemestersPage() {
   /*
    * Two backlog figures, kept apart: what the student RECORDS (the list on this
    * page, and the dashboard's count) and what the imported results IMPLY. The
-   * standing is "Good" only when neither shows one (`hasNoBacklogs`); a count
-   * shown is the recorded one when there is any, else the results' own.
+   * standing is "Good" only when neither shows one (`hasNoBacklogs`). "To
+   * clear" comes from the recorded list alone: a failed result row is a fact
+   * about the results, and the student may already have marked it cleared.
    */
   const recordedBacklogs = statistics.backlogs.value ?? 0;
   const resultBacklogs = statistics.backlogsFromResults.value ?? 0;
   const clear = hasNoBacklogs(statistics);
-  const backlogsToClear = recordedBacklogs > 0 ? recordedBacklogs : resultBacklogs;
+  const outstanding = recordedBacklogs > 0;
+  /* Nothing recorded, yet the results show a failure: state both, claim neither. */
+  const resultsOnly = !clear && !outstanding && resultBacklogs > 0;
   /*
-   * Not clear, yet nothing to clear: rows that could not be checked, or no
+   * Not clear, yet nothing to count: rows that could not be checked, or no
    * results at all to check. Either way the honest answer is "could not be
    * checked", never "Good" and never "0 to clear".
    */
-  const uncheckedOnly = !clear && backlogsToClear === 0;
+  const uncheckedOnly = !clear && !outstanding && !resultsOnly;
   const scheme = profile?.schemeId === 'vtu-2022' ? '2022 scheme' : null;
 
   return (
@@ -153,7 +156,7 @@ export function SemestersPage() {
               </IconTile>
               <div className="min-w-0">
                 <div className="truncate text-[15px] font-semibold">
-                  {profile?.branch ?? 'Programme not set'}
+                  {profile?.branch ?? 'Branch not set'}
                 </div>
                 <div className="text-[12px] text-ink-2">
                   {current !== null
@@ -188,7 +191,7 @@ export function SemestersPage() {
             </div>
             {!profile?.branch && (
               <Button asChild size="sm" className="mt-4">
-                <Link to="/profile">Set your programme</Link>
+                <Link to="/account?section=academic">Set your branch</Link>
               </Button>
             )}
           </div>
@@ -216,18 +219,26 @@ export function SemestersPage() {
               plain
               className="bg-transparent p-0"
               label="Standing"
-              value={clear ? 'Good' : uncheckedOnly ? 'Unavailable' : 'To clear'}
+              value={
+                clear
+                  ? 'Good'
+                  : outstanding
+                    ? 'To clear'
+                    : resultsOnly
+                      ? '0 recorded'
+                      : 'Unavailable'
+              }
               state={uncheckedOnly ? 'unavailable' : 'resolved'}
-              emphasis={backlogsToClear > 0 ? 'warning' : undefined}
+              emphasis={outstanding ? 'warning' : undefined}
               sub={
                 clear
                   ? 'No backlogs'
-                  : uncheckedOnly
-                    ? 'Backlogs could not be checked'
-                    : recordedBacklogs > 0
-                      ? formatCount(recordedBacklogs, 'backlog')
-                      : /* Nothing recorded: say where the count comes from. */
+                  : outstanding
+                    ? formatCount(recordedBacklogs, 'backlog')
+                    : resultsOnly
+                      ? /* Nothing recorded: say where the count comes from. */
                         `${formatCount(resultBacklogs, 'backlog')} in your results`
+                      : 'Backlogs could not be checked'
               }
             />
             <Metric
@@ -382,11 +393,11 @@ export function SemestersPage() {
           <div
             className={cn(
               'rounded-xl border p-5',
-              uncheckedOnly
-                ? 'border-line bg-panel'
-                : clear
-                  ? 'bg-success-weak/50'
-                  : 'bg-warning-weak/50',
+              clear
+                ? 'bg-success-weak/50'
+                : outstanding
+                  ? 'bg-warning-weak/50'
+                  : 'border-line bg-panel',
             )}
           >
             <div className="flex items-center gap-3">
@@ -394,7 +405,7 @@ export function SemestersPage() {
                 aria-hidden="true"
                 className={cn(
                   'grid size-10 shrink-0 place-items-center rounded-full text-canvas',
-                  clear ? 'bg-success' : uncheckedOnly ? 'bg-ink-3' : 'bg-warning',
+                  clear ? 'bg-success' : outstanding ? 'bg-warning' : 'bg-ink-3',
                 )}
               >
                 {clear ? <Check className="size-5" /> : <TriangleAlert className="size-5" />}
@@ -403,9 +414,11 @@ export function SemestersPage() {
                 <div className="text-[15px] font-semibold">
                   {clear
                     ? 'Clear academic record'
-                    : uncheckedOnly
-                      ? 'Backlogs could not be checked'
-                      : `${formatCount(backlogsToClear, 'backlog')} to clear`}
+                    : outstanding
+                      ? `${formatCount(recordedBacklogs, 'backlog')} to clear`
+                      : resultsOnly
+                        ? `${formatCount(resultBacklogs, 'backlog')} in your results`
+                        : 'Backlogs could not be checked'}
                 </div>
                 <div className="text-[13px] text-ink-2">
                   {/* What the imported results say, whichever count the title shows. */}

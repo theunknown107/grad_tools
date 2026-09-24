@@ -212,7 +212,7 @@ deriveBacklogs(semesters, ruleSet)                                   → RuleRes
 > | Backlog items | Roadmap milestone | Status |
 > |---|---|---|
 > | M2.1, M2.2, M2.5, M2.6, M2.7, M2.8, M2.10, M2.11, M2.12, M2.13, M2.17, M2.18 | **M3** | ✅ Delivered |
-> | M2.9 (backlog derivation) | M3 / M4 | ✅ Rules-side delivered |
+> | M2.9 (backlog derivation) | M3 / M4 | ✅ Rules-side delivered; the backlog model is **superseded by `OQ-056`** (see M2.9) |
 > | **M2.3 (backend), M2.4 (PostgreSQL)** | **M5a** | ✅ Delivered |
 > | **M2.14 (syllabus)** | **M5a**, hardened in **M4.1** | ✅ Model, API and empty state delivered; `module_count` now states *unverified* rather than defaulting to 5; **content blocked** on `OQ-025` |
 > | M2.19 (security baseline), M2.20 (observability) | M3 client-side, **M5a** server-side | ✅ Server half delivered |
@@ -332,6 +332,9 @@ deriveBacklogs(semesters, ruleSet)                                   → RuleRes
 ---
 
 ### M2.9 — Backlog
+
+> **Superseded by `OQ-056`** (M6 two-source model; see `08` §8.13). Backlogs are student-recorded, not derived, and have no `reason`; results yield a separate failure figure. Original item kept for history.
+
 **Objective:** derive and display backlogs from saved results.
 **Dependencies:** M2.5, M2.13. **Stage:** EXP (derivation) / ALPHA (full tracking UI). **Par:** yes.
 **Files/modules:** `apps/web/src/features/results/backlogs/*`, `packages/academic-rules/src/backlogs.ts`.

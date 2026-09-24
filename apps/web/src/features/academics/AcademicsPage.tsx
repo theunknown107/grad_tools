@@ -226,7 +226,7 @@ function Figures() {
               could not be checked: "0+" rather than a clean 0, as on Results.
             */}
             <MiniStat
-              label="Backlogs"
+              label="Backlogs in your results"
               value={`${metricDisplay(statistics.backlogsFromResults).value}${statistics.backlogsUndetermined > 0 ? '+' : ''}`}
               valueClassName={cn(
                 statistics.backlogsFromResults.value === null &&

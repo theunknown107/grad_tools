@@ -15,10 +15,15 @@
  * cleared", "Good" or "Clear academic record" unless NEITHER source shows one
  * and there are results to rest the claim on (`hasNoBacklogs`).
  *
+ * "To clear" is said of RECORDED backlogs only. A failed result row is a fact
+ * about the results ("1 backlog in your results"): the student may already
+ * have marked that backlog cleared, and no screen may then tell them they
+ * still have it to clear. Nothing matches records to rows by subject.
+ *
  * Each page used to answer from a different source, so a recorded backlog read
  * 1 on the dashboard and 0 on Profile, and a failed result read "All cleared"
  * on the dashboard. Every case below is one of the ways those two sources can
- * disagree, rendered on all four pages.
+ * disagree, rendered on all five pages.
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -114,7 +119,11 @@ interface Case {
   readonly recorded: number;
   /** Whether any screen may say the student has no backlogs. */
   readonly clear: boolean;
-  /** My Degree's "Standing" figure: [value, sub], and the backlog card's title. */
+  /**
+   * My Degree's "Standing" figure: [value, sub], and the backlog card's title.
+   * With nothing recorded and a failed row, it states both facts apart: "0
+   * recorded" and "1 backlog in your results" — never "To clear".
+   */
   readonly standing: readonly [string, string];
   readonly standingTitle: string;
   /** Academics' results-derived "Backlogs"; null when the page has no figures. */
@@ -160,8 +169,8 @@ const CASES: readonly Case[] = [
     seed: { results: FAILED },
     recorded: 0,
     clear: false,
-    standing: ['To clear', IN_RESULTS],
-    standingTitle: '1 backlog to clear',
+    standing: ['0 recorded', IN_RESULTS],
+    standingTitle: IN_RESULTS,
     fromResults: '1',
     dashboardSub: IN_RESULTS,
     profileBadge: IN_RESULTS,
@@ -204,13 +213,16 @@ const CASES: readonly Case[] = [
     profileBadge: 'No backlogs',
   },
   {
-    /* The record says cleared, the results still hold the failure: not clear. */
+    /*
+     * The record says cleared, the results still hold the failure: not clear,
+     * and not "to clear" either — the failure is history in the results.
+     */
     name: 'a cleared record over a failed result row',
     seed: { results: FAILED, backlogs: [record('cleared')] },
     recorded: 0,
     clear: false,
-    standing: ['To clear', IN_RESULTS],
-    standingTitle: '1 backlog to clear',
+    standing: ['0 recorded', IN_RESULTS],
+    standingTitle: IN_RESULTS,
     fromResults: '1',
     dashboardSub: IN_RESULTS,
     profileBadge: IN_RESULTS,
@@ -254,6 +266,8 @@ const CASES: readonly Case[] = [
 
 /** Every wording that tells the student they have no backlogs. */
 const CLEAR_CLAIM = /^(All cleared|No backlogs|Good|Clear academic record)$/;
+/** Every wording that tells the student they still have a backlog to clear. */
+const TO_CLEAR_CLAIM = /^(To clear|\d+ backlogs? to clear)$/;
 
 const bundleFor = (seed: MemorySeed) => createMemoryRepositories(seed).bundle;
 
@@ -286,6 +300,7 @@ describe.each(CASES)('backlogs: $name', (c) => {
      * results" on the same screen.
      */
     expect(screen.queryByText(/no backlog is outstanding/) !== null).toBe(c.clear);
+    expect(screen.queryAllByText(TO_CLEAR_CLAIM)).toHaveLength(0);
   });
 
   it('My Degree gives the standing from both sources, and a count that matches', async () => {
@@ -300,6 +315,8 @@ describe.each(CASES)('backlogs: $name', (c) => {
     });
     expect(screen.getAllByText(c.standingTitle).length).toBeGreaterThan(0);
     expect(screen.queryAllByText(CLEAR_CLAIM).length > 0).toBe(c.clear);
+    /* "To clear" rests on the recorded list alone. */
+    expect(screen.queryAllByText(TO_CLEAR_CLAIM).length > 0).toBe(c.recorded > 0);
     /*
      * The panel's empty state: "No backlogs recorded" is true of an empty list,
      * but "Nothing to clear." is a claim about the student. It used to sit
@@ -322,9 +339,12 @@ describe.each(CASES)('backlogs: $name', (c) => {
      * page and not from one that has not rendered its data yet.
      */
     if ((c.seed.results ?? []).length > 0) {
-      await screen.findByRole('group', { name: 'Backlogs' });
+      await screen.findByRole('group', { name: 'Backlogs in your results' });
     }
+    /* The unqualified "Backlogs" is the recorded count; this page shows only the results'. */
+    expect(screen.queryByRole('group', { name: 'Backlogs' })).toBeNull();
     expect(screen.queryByText('Clear record') !== null).toBe(c.clear);
+    expect(screen.queryAllByText(TO_CLEAR_CLAIM)).toHaveLength(0);
   });
 
   it('Profile counts the recorded backlogs and claims none only when clear', async () => {
@@ -342,6 +362,7 @@ describe.each(CASES)('backlogs: $name', (c) => {
         .map((badge) => badge.textContent),
     ).toEqual(c.profileBadge === null ? [] : [c.profileBadge]);
     expect(screen.queryAllByText(CLEAR_CLAIM).length > 0).toBe(c.clear);
+    expect(screen.queryAllByText(TO_CLEAR_CLAIM)).toHaveLength(0);
   });
 
   it('Academics keeps the results figure and the recorded figure apart', async () => {
@@ -349,15 +370,53 @@ describe.each(CASES)('backlogs: $name', (c) => {
 
     if (c.fromResults === null) {
       expect(await screen.findByText('No calculated figures yet')).toBeTruthy();
-      expect(screen.queryByRole('group', { name: 'Backlogs' })).toBeNull();
+      expect(screen.queryByRole('group', { name: 'Backlogs in your results' })).toBeNull();
       return;
     }
     const fromResults = c.fromResults;
     await waitFor(() => {
-      const derived = screen.getByRole('group', { name: 'Backlogs' });
+      const derived = screen.getByRole('group', { name: 'Backlogs in your results' });
       expect(within(derived).getByText(fromResults)).toBeTruthy();
     });
+    /* Never the unqualified label for the results' figure (OQ-056). */
+    expect(screen.queryByRole('group', { name: 'Backlogs' })).toBeNull();
     const recorded = screen.getByRole('group', { name: 'Backlogs recorded' });
     expect(within(recorded).getByText(String(c.recorded))).toBeTruthy();
+    expect(screen.queryAllByText(TO_CLEAR_CLAIM)).toHaveLength(0);
+  });
+});
+
+/*
+ * The case the two-source rule exists for: the student marked the backlog
+ * cleared, and the old result row still shows the failure. Each screen states
+ * the recorded state and the results' fact as two things, and none turns the
+ * historical row into a backlog the student still has to clear.
+ */
+describe('backlogs: a cleared record over a failed result row, read side by side', () => {
+  const seed: MemorySeed = { results: FAILED, backlogs: [record('cleared')] };
+
+  it('My Degree shows the record as cleared, the failure as in the results', async () => {
+    renderWith(<SemestersPage />, { repositories: bundleFor(seed) });
+
+    const hero = await screen.findByLabelText('Degree standing');
+    await waitFor(() => {
+      const standing = within(hero).getByRole('group', { name: 'Standing' });
+      expect(standing.textContent).toBe(`Standing0 recorded${IN_RESULTS}`);
+    });
+    const row = await screen.findByRole('row', { name: /BMATS201/ });
+    expect(within(row).getAllByText('Cleared').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(TO_CLEAR_CLAIM)).toHaveLength(0);
+    expect(screen.queryAllByText(CLEAR_CLAIM)).toHaveLength(0);
+  });
+
+  it('Dashboard counts 0 recorded and names the failure as in the results', async () => {
+    renderWith(<DashboardPage />, { repositories: bundleFor(seed) });
+
+    const strip = await screen.findByTestId('standing-strip');
+    await waitFor(() => {
+      const figure = within(strip).getByRole('group', { name: 'Backlogs' });
+      expect(figure.textContent).toBe(`Backlogs0${IN_RESULTS}`);
+    });
+    expect(screen.queryAllByText(TO_CLEAR_CLAIM)).toHaveLength(0);
   });
 });

@@ -706,6 +706,9 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5 | DEC-024 | Documents stored via an object-store interface, local driver, outside the repository | Human |
 | M5 | ED-37...ED-43 | Source and document engineering decisions in Part B | Engineering |
 | M5.1 | ED-44...ED-46 | Fetch and publication gate hardening in Part B | Engineering |
+| Domain-contract audit | OQ-055 | Academic model stays B.E./B.Tech, 2022 scheme, eight semesters; the wider programme list is for notice matching only | Human (product owner) |
+| Domain-contract audit | OQ-056 | Recorded backlogs and result-derived failures are two independent sources, never summed, inferred or auto-reconciled; "clear" needs both | Human (product owner) |
+| Domain-contract audit | OQ-057 | Semesters 9–10 unsupported; an import printing one reports it as outside the supported model | Human (product owner) |
 
 ---
 
@@ -2192,9 +2195,15 @@ it back, through `SgpaInputs.missing`. A student sees which course is
 unresolved, not a blank.
 
 
-### OQ-055 — The profile offers programmes the academic model does not support · **opened by the domain-contract audit, unresolved**
+### OQ-055 — The profile offers programmes the academic model does not support · **opened by the domain-contract audit, RESOLVED by the product owner**
 
-**Status:** OPEN · product decision
+**Status:** RESOLVED · product decision
+
+**Resolution:** the academic model stays **B.E./B.Tech, 2022 scheme, fixed at
+eight semesters**. The broader Profile programme list stays, because it is used
+for VTU notice matching and for nothing academic. No programme-duration
+infrastructure is built. Lateral entry remains a separate, future decision. The
+text below is kept as the record of how the question was put.
 
 **What is established.** The degree is eight semesters (ED-71). `SEMESTER_NUMBERS`
 in `apps/web/src/domain/types.ts` is the single client source, and the database
@@ -2224,9 +2233,20 @@ academic screens that figures assume B.E./B.Tech, or fund programme-specific
 durations and rule sets. Lateral entry needs no change under ED-71 — a student
 who starts at semester 3 marks the earlier ones — but no decision records that.
 
-### OQ-056 — Recorded backlogs and failed result rows are never reconciled · **opened by the domain-contract audit, unresolved**
+### OQ-056 — Recorded backlogs and failed result rows are never reconciled · **opened by the domain-contract audit, RESOLVED by the product owner**
 
-**Status:** OPEN · product decision
+**Status:** RESOLVED · product decision
+
+**Resolution:** recorded backlogs (the student's own `BacklogRecord`s — active,
+attempted, cleared) and result-derived failures (from marks, by the rules) are
+**two independent sources**, and stay so. The recorded figure is the
+unqualified "Backlogs" count. The two are never added together, never inferred
+from each other, and nothing is auto-cleared. "Clear" / "no backlogs" language
+requires both sources clear (`hasNoBacklogs`). A recorded backlog marked cleared
+while an old result still shows the failure must not be presented as a backlog
+"to clear". Automatic reconciliation is **not** part of the product. The pre-M6
+derived-backlog documents are marked superseded in place (kept for provenance),
+and the `docs/22` production check is restated against this model.
 
 **What is established.** Two independent sources, on purpose (M6, `docs/08`
 §8.13; `statistics.ts`: "TWO FIGURES, BECAUSE THERE ARE TWO QUESTIONS"). A
@@ -2259,9 +2279,16 @@ backlog is recorded.
 over an old failed row is presented; and whether the pre-M6 documents and the
 `docs/22` check are withdrawn or rebuilt against the M6 model.
 
-### OQ-057 — A semester beyond the eighth · **opened by the domain-contract audit, unresolved**
+### OQ-057 — A semester beyond the eighth · **opened by the domain-contract audit, RESOLVED by the product owner**
 
-**Status:** OPEN · product decision
+**Status:** RESOLVED · product decision
+
+**Resolution:** the model stays fixed at eight semesters (OQ-055); semester 9
+and 10 records are unsupported. When the importer reads a printed semester above
+8 it reports, through its existing review-issue mechanism, that the semester is
+**outside the supported 8-semester model** — not "not printed", never dropped
+silently, and never reinterpreted as another semester. The text below records
+the state before this decision.
 
 **What is established.** Every entry point refuses it: the pickers
 (`SEMESTER_OPTIONS`), the result importer (a printed semester outside 1–8

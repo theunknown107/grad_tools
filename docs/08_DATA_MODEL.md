@@ -304,6 +304,9 @@ AttendanceRecord {
 Counts, not per-class events, for Alpha. Per-class event logging (`AttendanceEvent`) is deferred: it multiplies write volume and storage for a feature students have not yet asked for. Recorded as a future entity in §8.9.
 
 ### Backlog
+
+> **Superseded by `OQ-056`** (M6 two-source model; see §8.13). What was built is the student-maintained `BacklogRecord`: no `reason`, and nothing derived from results. The original model is kept below for history.
+
 ```
 Backlog {
   id, student_id, subject_code, subject_title, credits
@@ -462,7 +465,7 @@ Generic queue row backing the deferred-Redis decision (`06` §6.3).
 | Subject → SyllabusModule | 1:5 (typically) | |
 | Student → SemesterRecord | 1:N | One per semester per student |
 | SemesterRecord → SemesterSubject | 1:N | |
-| Student → Backlog | 1:N | Derived from SemesterSubject, stored for query speed |
+| Student → Backlog | 1:N | Derived from SemesterSubject, stored for query speed. **Superseded by `OQ-056`**: student-maintained, never derived (§8.13) |
 | Document → QuestionPaper | 1:1 | A document is one paper |
 | QuestionPaper → Question | 1:N | ~10 questions plus sub-parts |
 | Question → QuestionCluster | N:1 | |

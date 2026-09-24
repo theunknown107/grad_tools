@@ -431,3 +431,50 @@ describe('a row that could not be read is counted, never dropped in silence', ()
     expect(card.unreadableRows).toEqual([]);
   });
 });
+
+describe('a semester outside 1–8 is refused by name, never read as "not printed" (OQ-057)', () => {
+  const NOT_PRINTED = /semester was not printed/i;
+
+  it('still reads semester 8, with no warning', () => {
+    const parsed = parseResultCard(card([GOOD_ROW], 8));
+    expect(parsed.semester).toBe(8);
+    expect(parsed.unsupportedSemester).toBeNull();
+    expect(parsed.warnings).toEqual([]);
+  });
+
+  it.each([9, 10])('stores no semester for a card printed "Semester : %i", and says why', (n) => {
+    const parsed = parseResultCard(card([GOOD_ROW], n));
+    expect(parsed.semester).toBeNull();
+    expect(parsed.unsupportedSemester).toBe(n);
+    expect(parsed.warnings).toEqual([
+      {
+        kind: 'unsupported_semester',
+        message: `This document is for semester ${String(n)}. GradTools covers semesters 1–8 (B.E./B.Tech, 2022 scheme), so it cannot be imported.`,
+      },
+    ]);
+    expect(parsed.warnings.some((w) => NOT_PRINTED.test(w.message))).toBe(false);
+  });
+
+  it('still says "not printed" when there is no semester line at all', () => {
+    const lines = card([GOOD_ROW]).filter((line) => !/^Semester/.test(line.text));
+    const parsed = parseResultCard(lines);
+    expect(parsed.unsupportedSemester).toBeNull();
+    expect(parsed.warnings.map((w) => w.message)).toEqual([
+      'The semester was not printed on this document. Choose it before importing.',
+    ]);
+  });
+
+  it('does not read a four-digit number after "Semester" as a semester', () => {
+    const parsed = parseResultCard(card([GOOD_ROW], 2024));
+    expect(parsed.semester).toBeNull();
+    expect(parsed.unsupportedSemester).toBeNull();
+  });
+
+  it('keeps the unreadable-row message beside the semester one', () => {
+    const parsed = parseResultCard(card([GOOD_ROW, 'BQAS402 FINANCIAL MANAGEMENT 19 2026-07-'], 9));
+    expect(parsed.warnings.map((w) => w.kind)).toEqual(['unreadable_row', 'unsupported_semester']);
+    expect(parsed.warnings[0]?.message).toBe(
+      'One line looks like a subject row but could not be read. Check it against your card and add it by hand if it is missing.',
+    );
+  });
+});

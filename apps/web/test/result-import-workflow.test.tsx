@@ -314,6 +314,29 @@ describe('a semester the document did not print', () => {
 
     expect(peek.results()[0]?.semester).toBe(4);
   });
+
+  it('refuses a semester-9 card by name, and offers no 1–8 semester to file it under', async () => {
+    // OQ-057: the model is eight semesters; re-filing semester 9 would be wrong data.
+    setCard(9);
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+
+    expect(
+      await screen.findByText(
+        'This document is for semester 9. GradTools covers semesters 1–8 (B.E./B.Tech, 2022 scheme), so it cannot be imported.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText(/semester 9 \(not supported\)/i)).toBeTruthy();
+    expect(screen.queryByText(/semester not detected|semester was not printed/i)).toBeNull();
+    expect(screen.queryByLabelText(/^semester$/i)).toBeNull();
+    expect(
+      (screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(peek.results()).toHaveLength(0);
+  });
 });
 
 describe('a scan, a photo, and a file that cannot be read', () => {
