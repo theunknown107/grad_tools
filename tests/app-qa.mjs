@@ -18,7 +18,13 @@ import { splitConsole } from './lib/console.mjs';
 const DIST = resolve('apps/web/dist');
 const OUT = resolve(process.env.OUT ?? '.qa/shots');
 const PORT = 4322;
-const ALL_WIDTHS = [320, 375, 390, 430, 768, 1024, 1280, 1440, 1920];
+/*
+ * The 600-912 band was absent, which is how a tablet came to be served the
+ * phone bottom bar: nothing ever looked at it.
+ */
+const ALL_WIDTHS = [
+  320, 360, 375, 390, 430, 600, 768, 820, 834, 912, 1024, 1280, 1440, 1920,
+];
 const WIDTHS = (process.env.WIDTHS ?? ALL_WIDTHS.join(',')).split(',').map(Number);
 const THEMES = (process.env.THEMES ?? 'light,dark').split(',');
 const SHOT_WIDTHS = new Set((process.env.SHOTS ?? '390,1280').split(',').map(Number));
