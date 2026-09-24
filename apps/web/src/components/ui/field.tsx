@@ -23,11 +23,17 @@ import {
 } from 'react';
 import { cn } from '../../lib/cn.js';
 
+/*
+ * An invalid control is marked with a RING, not a border colour: the unlayered
+ * `border-color` rule in index.css neutralises every coloured border utility on
+ * purpose, so `border-danger` rendered as the plain hairline and an unfocused
+ * invalid field looked valid.
+ */
 export const controlClass = cn(
   'w-full rounded-lg border border-line bg-panel text-sm text-ink transition-[border-color,box-shadow]',
   'placeholder:text-ink-3 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25',
   'disabled:cursor-not-allowed disabled:opacity-60',
-  'aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger/25',
+  'aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-danger aria-[invalid=true]:focus:ring-2 aria-[invalid=true]:focus:ring-danger/25',
 );
 
 export const Label = forwardRef<

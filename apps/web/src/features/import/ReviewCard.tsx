@@ -75,7 +75,7 @@ export function Recorded({
       </h3>
       <p className="mt-1.5 max-w-md text-[14px] text-ink-2">{children}</p>
       {figures !== undefined && figures.length > 0 && (
-        <dl className="mt-4 flex items-center gap-4 rounded-xl border border-line bg-panel px-5 py-3">
+        <dl className="mt-4 flex items-center gap-4">
           {figures.map((figure, index) => (
             <div
               key={figure.label}

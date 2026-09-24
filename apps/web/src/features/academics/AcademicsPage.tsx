@@ -389,7 +389,7 @@ function Figures() {
 
 function DataStat({ label, value }: { readonly label: string; readonly value: string }) {
   return (
-    <div className="rounded-lg border border-line bg-panel p-3">
+    <div className="min-w-0">
       <dt className="text-[11px] text-ink-3">{label}</dt>
       <dd className="tnum mt-0.5 text-[15px] font-semibold text-ink">{value}</dd>
     </div>
@@ -451,7 +451,7 @@ function CalculatorPanel() {
 
 function FormulaLine({ label, formula }: { readonly label: string; readonly formula: string }) {
   return (
-    <div className="rounded-lg border border-line bg-panel px-3 py-2">
+    <div>
       <dt className="text-[11px] font-medium text-ink-2">{label}</dt>
       <dd className="mt-0.5 font-mono text-[12px] text-accent-ink">{formula}</dd>
     </div>

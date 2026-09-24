@@ -162,6 +162,35 @@ describe('the degree screen', () => {
     });
   });
 
+  it('announces semester progress once, in the units it is shown in', async () => {
+    const { bundle } = createMemoryRepositories({
+      results: [result(1, [['BMATS101', 4, 'O']]), result(2, [['BMATS201', 4, 'O']])],
+    });
+    renderWith(<SemestersPage />, { repositories: bundle });
+
+    const bar = await screen.findByRole('progressbar', { name: 'Semesters graded' });
+    expect(bar.getAttribute('aria-valuetext')).toBe('2 of 8');
+    expect(screen.getByText('2 of 8').closest('[aria-hidden="true"]')).not.toBeNull();
+    /*
+     * An SGPA bar beside its own figure is decorative. Labelled, it was read
+     * out as a percentage ("100%" for an SGPA of 10.00).
+     */
+    expect(screen.queryAllByRole('progressbar', { name: /SGPA/ })).toHaveLength(0);
+  });
+
+  it('lays the standing figures on the card, not in tiles inside it', async () => {
+    renderWith(<SemestersPage />);
+    const hero = await screen.findByLabelText('Degree standing');
+    const figures = within(hero).getAllByRole('group');
+    expect(figures.map((group) => group.getAttribute('aria-label'))).toEqual([
+      'CGPA',
+      'Standing',
+      'Credits earned',
+      'Credits left',
+    ]);
+    for (const figure of figures) expect(figure.className).not.toMatch(/\bgt-metric\b|\brounded-/);
+  });
+
   it('shows the cumulative standing from completed semesters', async () => {
     const { bundle } = createMemoryRepositories({
       results: [result(1, [['BMATS101', 4, 'O']]), result(2, [['BMATS201', 4, 'O']])],

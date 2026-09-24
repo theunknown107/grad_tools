@@ -109,7 +109,8 @@ export function BacklogPanel({ profileId }: { readonly profileId: StudentProfile
           description="Nothing to clear."
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-line">
+        <div className="border-t border-line">
+          {/* One rule, not a second frame: the card around it is already the edge. */}
           <Table>
             <TableCaption>Subjects carried from earlier semesters.</TableCaption>
             <TableHeader>
