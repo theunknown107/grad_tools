@@ -249,32 +249,38 @@ for (const theme of ['light', 'dark']) {
       (await overflow()) + 'px',
     );
     const grid = await page.evaluate(() => {
-      /*
-       * The time grid, identified by what it IS rather than by a utility
-       * class. `[class~="lg:block"]` alone matched the sidebar brand lockup
-       * once the navigation gained one, and a probe that silently inspects
-       * the wrong element reports a regression that is not there.
-       */
-      const root = [...document.querySelectorAll('[class~="lg:block"]')].find((el) =>
-        el.querySelector('[style*="grid-template-columns"]'),
-      ) ?? null;
+      /* Found by its test hook: a utility class is not an identity. */
+      const root = document.querySelector('[data-testid="timetable-time-grid"]');
       if (root === null) return null;
       const visible = getComputedStyle(root).display !== 'none';
-      /* The browser folds grid-row/grid-column into the `grid-area` shorthand. */
-      const placed = [...root.querySelectorAll('[title]')].map((one) => ({
-        name: one.getAttribute('title'),
-        height: (one.closest('[style*="grid-area"]') ?? one).getBoundingClientRect().height,
+      const sessions = [...root.querySelectorAll('article[aria-label]')];
+      const placed = sessions.map((one) => ({
+        name: one.getAttribute('aria-label'),
+        height: (one.parentElement ?? one).getBoundingClientRect().height,
       }));
-      return { visible, placed };
+      /*
+       * CLIPPING, MEASURED. A session whose content is taller than its box has
+       * had something cut off. Only a real browser lays text out, so this is
+       * the one place the check can be made.
+       */
+      const clipped = sessions
+        .filter((one) => one.scrollHeight > one.clientHeight + 1)
+        .map((one) => one.getAttribute('aria-label'));
+      return { visible, placed, clipped };
     });
     if (width >= 1024) {
       check(
         'timetable ' + at + ': the week is a time grid',
         grid !== null && grid.visible === true,
       );
+      check(
+        'timetable ' + at + ': no session has content cut off',
+        grid !== null && grid.clipped.length === 0,
+        grid === null ? 'no grid' : grid.clipped.slice(0, 3).join(' | '),
+      );
       const lecture = grid?.placed.find((one) => one.name?.includes('Algorithms'));
       const lab = grid?.placed.find(
-        (one) => one.name?.includes('Microcontroller') || one.name === 'BCSL404',
+        (one) => one.name?.includes('Microcontroller') || one.name?.includes('BCSL404'),
       );
       check(
         'timetable ' + at + ': a 3-hour lab is drawn taller than a 50-minute class',
