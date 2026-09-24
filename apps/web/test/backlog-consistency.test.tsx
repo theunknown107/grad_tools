@@ -29,6 +29,7 @@ import { DashboardPage } from '../src/features/dashboard/DashboardPage.js';
 import { SemestersPage } from '../src/features/semesters/SemestersPage.js';
 import { ProfilePage } from '../src/features/profile/ProfilePage.js';
 import { AcademicsPage } from '../src/features/academics/AcademicsPage.js';
+import { ResultsPage } from '../src/features/results/ResultsPage.js';
 import { normalizeResultSubject } from '../src/domain/results.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
 import type { BacklogRecord, SemesterResult } from '../src/domain/types.js';
@@ -278,6 +279,13 @@ describe.each(CASES)('backlogs: $name', (c) => {
     const hero = screen.getByRole('region', { name: /^Good (morning|afternoon|evening)/ });
     expect(within(hero).queryByText(/no backlogs/) !== null).toBe(c.clear);
     expect(screen.queryAllByText(CLEAR_CLAIM).length > 0).toBe(c.clear);
+    /*
+     * "Needs attention" lists RECORDED backlogs. Empty, it used to add "and no
+     * backlog is outstanding" whatever the results said — a failed row with
+     * nothing recorded read as outstanding-free beside "1 backlog in your
+     * results" on the same screen.
+     */
+    expect(screen.queryByText(/no backlog is outstanding/) !== null).toBe(c.clear);
   });
 
   it('My Degree gives the standing from both sources, and a count that matches', async () => {
@@ -292,6 +300,31 @@ describe.each(CASES)('backlogs: $name', (c) => {
     });
     expect(screen.getAllByText(c.standingTitle).length).toBeGreaterThan(0);
     expect(screen.queryAllByText(CLEAR_CLAIM).length > 0).toBe(c.clear);
+    /*
+     * The panel's empty state: "No backlogs recorded" is true of an empty list,
+     * but "Nothing to clear." is a claim about the student. It used to sit
+     * directly under "1 backlog to clear" when the results showed a failure.
+     */
+    if (!c.clear) expect(screen.queryByText('Nothing to clear.')).toBeNull();
+  });
+
+  it('Results says "Clear record" only when neither source shows a backlog', async () => {
+    renderWith(<ResultsPage />, { repositories: bundleFor(c.seed), route: '/results' });
+
+    /*
+     * Its "Backlogs" figure is the results' own, and stays so. "Clear record"
+     * beside it is a claim about the student: it used to appear with backlogs
+     * recorded, because it read only the results.
+     */
+    await screen.findByRole('heading', { name: 'Results', level: 1 });
+    /*
+     * Wait for the figure itself, so an absence below is read from the loaded
+     * page and not from one that has not rendered its data yet.
+     */
+    if ((c.seed.results ?? []).length > 0) {
+      await screen.findByRole('group', { name: 'Backlogs' });
+    }
+    expect(screen.queryByText('Clear record') !== null).toBe(c.clear);
   });
 
   it('Profile counts the recorded backlogs and claims none only when clear', async () => {

@@ -30,7 +30,7 @@ import { PageSkeleton } from '../../components/ui/skeleton.js';
 import { ruleSetForResult } from '../../domain/academics.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { semesterBacklogs } from '../../domain/results.js';
-import type { SemesterStatistics } from '../../domain/statistics.js';
+import { hasNoBacklogs, type SemesterStatistics } from '../../domain/statistics.js';
 import type { SemesterResult } from '../../domain/types.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
 import { useProfile, useResults } from '../../hooks/useCollection.js';
@@ -201,7 +201,11 @@ export function ResultsPage() {
                   emphasis={backlogCount > 0 ? 'warning' : undefined}
                   sub={
                     statistics.backlogsFromResults.reason ??
-                    (backlogCount === 0 ? 'Clear record' : undefined)
+                    /*
+                     * The figure is the results' own; "Clear record" is a claim
+                     * about the student, so it also needs no recorded backlog.
+                     */
+                    (hasNoBacklogs(statistics) ? 'Clear record' : undefined)
                   }
                 />
               </MetricGrid>
