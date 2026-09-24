@@ -22,7 +22,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, within } from '@testing-library/react';
 import { TimetablePage } from '../src/features/timetable/TimetablePage.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
 import type { TimetableSlot } from '../src/domain/types.js';
@@ -70,22 +70,21 @@ function rowsOf(element: HTMLElement): readonly [number, number] {
   return [start ?? Number.NaN, end ?? Number.NaN];
 }
 
-/** The wide time grid, which is the layout these assertions are about. */
+/** The wide time grid, found by its test hook rather than by a utility class. */
 function timeGrid(): HTMLElement {
-  /* Identified by the axis it renders, not by a utility class others share. */
-  const grid = [...document.querySelectorAll('[class~="lg:block"]')].find((el) =>
-    el.querySelector('[style*="grid-template-columns"]'),
-  );
-  expect(grid).not.toBeUndefined();
-  return grid as HTMLElement;
+  return screen.getByTestId('timetable-time-grid');
 }
 
-/** The placed wrapper a session's chip sits in, found by its course code. */
+/**
+ * The placed wrapper a session sits in, found by the session's ACCESSIBLE NAME.
+ *
+ * Semantic on purpose: the session is an `<article>` whose name carries its
+ * kind, subject, time and room, and its parent is the element the grid places.
+ */
 function placementFor(code: string): HTMLElement {
-  const article = timeGrid().querySelector(`[title="${code}"]`);
-  expect(article).not.toBeNull();
-  const wrapper = (article as HTMLElement).closest('[style*="grid-row"]');
-  expect(wrapper).not.toBeNull();
+  const article = within(timeGrid()).getByRole('article', { name: new RegExp(code) });
+  const wrapper = article.parentElement;
+  expect(wrapper?.style.gridRow).toBeTruthy();
   return wrapper as HTMLElement;
 }
 
@@ -185,6 +184,47 @@ describe('the week as a time axis', () => {
     expect(placementFor('BEL002').style.marginLeft).toBe('50%');
   });
 
+  it('names every session with its kind, subject, time and room', async () => {
+    /*
+     * The grid condenses a short session to one line. Whatever it hides
+     * visually, the accessible name must still carry all four facts.
+     */
+    renderWith(<TimetablePage />, {
+      repositories: createMemoryRepositories({
+        timetable: [{ ...slot('r1', 'Mon', '09:00', '09:20', 'BSH101'), room: 'Lab 4' }],
+      }).bundle,
+    });
+    await screen.findAllByText(/BSH101/);
+
+    const article = within(timeGrid()).getByRole('article', { name: /BSH101/ });
+    const name = article.getAttribute('aria-label') ?? '';
+    expect(name).toContain('Course');
+    expect(name).toContain('BSH101');
+    expect(name).toContain('09:00');
+    expect(name).toContain('Lab 4');
+  });
+
+  it('draws a grid session as a tint, not a bordered card', async () => {
+    render();
+    await screen.findAllByText(/BCS401/);
+
+    /*
+     * The grid carries the structure now. A session is a tonal fill with a
+     * single kind edge: no full outline, no radius, no card chrome.
+     */
+    const article = within(timeGrid()).getByRole('article', { name: /BCS401/ });
+    expect(article.className).toContain('bg-accent-weak');
+    /*
+     * The kind edge is a FILLED span, never a border: index.css neutralises
+     * every coloured border utility on purpose, so a border edge would render
+     * in the hairline colour and carry no kind at all.
+     */
+    const edge = article.querySelector('span[aria-hidden="true"]');
+    expect(edge?.className).toContain('bg-chart-1');
+    expect(article.className).not.toMatch(/\brounded-(lg|xl|md)\b/);
+    expect(article.className).not.toMatch(/(^|\s)border(\s|$)/);
+  });
+
   it('keeps a day-by-day list for narrow screens', async () => {
     const { container } = render();
     await screen.findAllByText(/BCS401/);
@@ -194,7 +234,11 @@ describe('the week as a time axis', () => {
      * hidden one out of the accessibility tree as well, so a screen reader
      * hears the week once rather than twice.
      */
-    expect(container.querySelector('ol.lg\\:hidden')).not.toBeNull();
-    expect(container.querySelector('.hidden.lg\\:block')).not.toBeNull();
+    /*
+     * Located by test hook; the responsive classes are then asserted because
+     * they ARE the contract under test here, not a way of finding the element.
+     */
+    expect(within(container).getByTestId('timetable-week-list').className).toContain('lg:hidden');
+    expect(within(container).getByTestId('timetable-time-grid').className).toContain('lg:block');
   });
 });

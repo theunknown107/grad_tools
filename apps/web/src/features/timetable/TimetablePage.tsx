@@ -82,6 +82,54 @@ const KIND_BAR: Record<Kind, string> = {
 };
 const KIND_LABEL: Record<Kind, string> = { course: 'Course', activity: 'Activity', break: 'Break' };
 
+/*
+ * In the week grid a session is a TINT OF THE GRID, not a card placed on it.
+ *
+ * The grid's hour rules and the today column carry the structure; a session
+ * only has to say what occupies that span. So it is a tonal fill with a 2px
+ * kind edge and no border, radius or shadow. Both tints are the design
+ * system's own `-weak` tokens, which are defined for light and dark, so
+ * nothing here invents a colour.
+ *
+ * THE EDGE IS A FILL, NOT A BORDER. `styles/index.css` sets `border-color`
+ * on every element in an UNLAYERED rule, deliberately, so that coloured
+ * border utilities render as the neutral hairline: the design carries state
+ * with fills, rings and text. A `border-l-2 border-chart-1` edge therefore
+ * paints in the hairline colour and is invisible — measured, not assumed. The
+ * edge is a 2px span painted with `KIND_BAR`, the same fills the legend uses.
+ */
+const KIND_TINT: Record<Kind, string> = {
+  course: 'bg-accent-weak',
+  activity: 'bg-warning-weak',
+  break: 'bg-sunken',
+};
+
+/**
+ * How much a session can show, decided by its drawn height.
+ *
+ * THE CONTENT ALWAYS FITS. The previous chip stacked time, a two-line title
+ * and the room: 83px of content in a 72px one-hour cell, so `overflow-hidden`
+ * silently cut the room off whenever a title wrapped. Budgets at 6px per five
+ * minutes, with 12px of vertical padding:
+ *
+ *   tall   >= 60 min (>= 72px)  two-line title + time and room   58px
+ *   medium 40-59 min (48-70px)  one-line title + time and room   43px
+ *   short  <  40 min (< 48px)   one line, vertically centred     ~13px
+ *
+ * Anything that still does not fit horizontally ends in a visible ellipsis,
+ * and the article's accessible name always carries all four facts.
+ *
+ * ponytail: a session under ~11 minutes cannot hold even one line; its text
+ * is lost visually (never to assistive tech). VTU timetables do not schedule
+ * classes that short. Upgrade path: hide the text and rely on the day view.
+ */
+type Density = 'tall' | 'medium' | 'short';
+function densityFor(minutes: number): Density {
+  if (minutes >= 60) return 'tall';
+  if (minutes >= 40) return 'medium';
+  return 'short';
+}
+
 function sortSlots(slots: readonly TimetableSlot[]): TimetableSlot[] {
   return [...slots].sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
@@ -393,7 +441,7 @@ function WeekStack({
   readonly onPick: (day: Weekday) => void;
 }) {
   return (
-    <ol className="grid gap-4 lg:hidden">
+    <ol className="grid gap-4 lg:hidden" data-testid="timetable-week-list">
       {WEEKDAYS.map((weekday) => {
         const slots = byDay.get(weekday) ?? [];
         const sessions = slots.filter((slot) => slot.subjectCode !== null).length;
@@ -550,8 +598,15 @@ function WeekTimeGrid({
   const rowOf = (minute: number): number => (minute - from) / STEP + 1;
   const hours = Array.from({ length: (to - from) / 60 + 1 }, (_, at) => from + at * 60);
 
+  const todayColumn = todayName === null ? -1 : WEEKDAYS.indexOf(todayName);
+
   return (
-    <div className="hidden lg:block">
+    /*
+     * `data-testid` is a test-only structural hook. The probes used to find this
+     * grid by a Tailwind utility class, which any other element may carry — and
+     * after the navigation gained a `lg:block` brand lockup, one did.
+     */
+    <div className="hidden lg:block" data-testid="timetable-time-grid">
       <div className="grid gap-x-2" style={{ gridTemplateColumns: GRID_COLUMNS }}>
         <span aria-hidden="true" />
         {WEEKDAYS.map((weekday) => {
@@ -565,7 +620,8 @@ function WeekTimeGrid({
               onClick={() => onPick(weekday)}
               aria-label={`Open ${DAY_NAME[weekday]}${weekday === todayName ? ' (today)' : ''}`}
               className={cn(
-                'group flex min-w-0 flex-col items-start rounded-md px-1 pb-2 text-left',
+                'group flex min-w-0 flex-col items-start rounded-t-md px-1 pb-2 text-left',
+                /* Continues straight into the column tint below, so "today" is a column. */
                 weekday === todayName && 'bg-sunken/60',
               )}
             >
@@ -597,12 +653,23 @@ function WeekTimeGrid({
           gridTemplateRows: `repeat(${String(rows)}, ${String(STEP_PX)}px)`,
         }}
       >
-        {/* The scale itself, behind everything: one rule and one label an hour. */}
+        {/* Today, carried from the header to the last hour. Painted first, so it sits behind. */}
+        {todayColumn >= 0 && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none bg-sunken/60"
+            style={{ gridColumn: String(todayColumn + 2), gridRow: `1 / ${String(rows + 1)}` }}
+          />
+        )}
+        {/*
+          The scale itself: one rule and one label an hour. Full strength, because
+          the rules — not the sessions — are what carry the structure now.
+        */}
         {hours.map((minute) => (
           <div
             key={minute}
             aria-hidden="true"
-            className="pointer-events-none border-t border-line/60"
+            className="pointer-events-none border-t border-line"
             style={{ gridColumn: '2 / -1', gridRow: `${String(rowOf(minute))} / span 1` }}
           />
         ))}
@@ -638,6 +705,7 @@ function WeekTimeGrid({
                   one.slot.subjectCode === null ? null : titleFor(one.slot.subjectCode),
                 )}
                 fill
+                minutes={one.end - one.start}
               />
             </div>
           )),
@@ -647,17 +715,103 @@ function WeekTimeGrid({
   );
 }
 
+/**
+ * A session as it sits in the week grid: a tint of the cell, not a card on it.
+ *
+ * The list layout below `lg` keeps the Card, because there a session IS a
+ * discrete item in a stack. Here the grid is the structure and this only
+ * fills a span of it.
+ */
+function GridSession({
+  slot,
+  entry,
+  kind,
+  minutes,
+}: {
+  readonly slot: TimetableSlot;
+  readonly entry: TimetableEntry;
+  readonly kind: Kind;
+  readonly minutes: number;
+}) {
+  const time = `${slot.startTime}–${slot.endTime}`;
+  const name = entry.isCourse ? entry.shortName : entry.name;
+  const where = slot.room ?? (entry.isCourse ? entry.name : null);
+  /* Everything, always: whatever the density hides visually, this still says. */
+  const label = [KIND_LABEL[kind], entry.name, time, slot.room].filter(Boolean).join(', ');
+  const density = densityFor(minutes);
+  const surface = cn('relative flex h-full min-w-0 overflow-hidden pr-1.5 pl-2.5', KIND_TINT[kind]);
+  /*
+   * Secondary text here is `ink-2`, not `ink-3`: on the tint, `ink-3` measures
+   * 4.17:1 light and 4.24:1 dark, under the 4.5:1 floor (axe, qa:app).
+   */
+  /* A break is quieter than a class: its tint alone says so, with no edge. */
+  const edge =
+    kind === 'break' ? null : (
+      <span aria-hidden="true" className={cn('absolute inset-y-0 left-0 w-0.5', KIND_BAR[kind])} />
+    );
+
+  if (kind === 'break') {
+    return (
+      <article
+        aria-label={label}
+        className={cn(surface, 'items-center gap-1.5 text-[11px] text-ink-2')}
+      >
+        <Coffee className="size-3.5 shrink-0" aria-hidden="true" />
+        {/* The time is the row it sits on; dropping it is what lets the name fit. */}
+        <span className="truncate" title={entry.name}>
+          {entry.name}
+        </span>
+      </article>
+    );
+  }
+
+  if (density === 'short') {
+    return (
+      <article aria-label={label} className={cn(surface, 'items-center gap-1.5')}>
+        {edge}
+        <span className="truncate text-[11px] font-medium" title={entry.name}>
+          {name}
+        </span>
+        <span className="shrink-0 font-mono text-[10px] text-ink-2">{slot.startTime}</span>
+      </article>
+    );
+  }
+
+  return (
+    <article aria-label={label} className={cn(surface, 'flex-col gap-0.5 py-1.5')}>
+      {edge}
+      <span
+        className={cn(
+          'text-[12px] leading-tight font-medium',
+          density === 'tall' ? 'line-clamp-2' : 'truncate',
+        )}
+        title={entry.name}
+      >
+        {name}
+      </span>
+      <span className="truncate font-mono text-[10px] text-ink-2">
+        {time}
+        {where === null || where === '' ? null : ` · ${where}`}
+      </span>
+    </article>
+  );
+}
+
 function SessionChip({
   slot,
   entry,
   fill = false,
+  minutes = 60,
 }: {
   readonly slot: TimetableSlot;
   readonly entry: TimetableEntry;
   /** True in the time grid, where the chip must be exactly as tall as its row span. */
   readonly fill?: boolean;
+  /** The drawn span, which decides how much of the session can be shown. */
+  readonly minutes?: number;
 }) {
   const kind = kindOf(entry);
+  if (fill) return <GridSession slot={slot} entry={entry} kind={kind} minutes={minutes} />;
   if (kind === 'break') {
     return (
       /*
