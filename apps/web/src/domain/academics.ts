@@ -28,7 +28,12 @@ import {
   type SemesterSummary,
 } from '@gradtools/academic-rules';
 import type { BacklogRecord, SemesterRecord, SemesterResult, SemesterStatus } from './types.js';
-import { resolveSubjectGrade, semesterSgpa, type SgpaInputs } from './results.js';
+import {
+  resolveSubjectGrade,
+  semesterSgpa,
+  type SgpaInputs,
+  type SubjectLookup,
+} from './results.js';
 
 /* -------------------------------------------------------------------------- */
 /* Rule-set resolution                                                        */
@@ -121,6 +126,12 @@ const SGPA_TOLERANCE = 0.005;
 export function buildSemesterViews(
   semesters: readonly SemesterRecord[],
   results: readonly SemesterResult[],
+  /*
+   * Optional, and null-by-default: a caller with the subject index lets a
+   * course whose credits the student recorded elsewhere count, instead of
+   * being reported as "no credits" on every screen at once (results.ts).
+   */
+  identify?: SubjectLookup,
 ): SemesterView[] {
   return [1, 2, 3, 4, 5, 6, 7, 8].map((number) => {
     const record = semesters.find((candidate) => candidate.number === number);
@@ -150,7 +161,7 @@ export function buildSemesterViews(
        * as the SGPA. `semesterSgpa` is where that condition lives, so every
        * screen applies it identically.
        */
-      const graded = semesterSgpa(result, resolved.ruleSet);
+      const graded = semesterSgpa(result, resolved.ruleSet, identify);
       sgpaComputed = graded.sgpa;
       credits = graded.credits;
       inputs = graded.inputs;

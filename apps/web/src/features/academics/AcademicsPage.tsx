@@ -38,6 +38,8 @@ import { PageSkeleton } from '../../components/ui/skeleton.js';
 import { Tooltip } from '../../components/ui/tooltip.js';
 import { dataCompleteness } from '../../domain/academics.js';
 import { semesterSgpa } from '../../domain/results.js';
+import { resolveSubject, type SubjectIdentity } from '../../domain/subjects.js';
+import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
 import { OUTCOME_LABEL, type CourseOutcome } from '../../domain/statistics.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
 import { useResults } from '../../hooks/useCollection.js';
@@ -610,6 +612,9 @@ const blankSemester = (index: number): SemesterRowDraft => ({
 });
 
 function CgpaCalculator() {
+  const { index } = useSubjectIndex();
+  const identify = (code: string | null): SubjectIdentity | null =>
+    code === null ? null : resolveSubject(index, code);
   const { items: savedResults } = useResults();
   const [rows, setRows] = useState<SemesterRowDraft[]>(() => [blankSemester(0), blankSemester(1)]);
   const semesters: SemesterSummary[] = useMemo(
@@ -651,7 +656,8 @@ function CgpaCalculator() {
                   [...savedResults]
                     .sort((a, b) => a.semester - b.semester)
                     .map((saved) => {
-                      const { sgpa, credits } = semesterSgpa(saved, ruleSet);
+                      /* The same credit resolution the results screens use. */
+                      const { sgpa, credits } = semesterSgpa(saved, ruleSet, identify);
                       return {
                         id: saved.id,
                         semester: String(saved.semester),

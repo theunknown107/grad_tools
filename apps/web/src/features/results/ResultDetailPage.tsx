@@ -4,7 +4,7 @@
  * figure the rules engine has for that course, each with its provenance.
  */
 
-import { vtu2022RuleSet } from '@gradtools/academic-rules';
+import { vtu2022RuleSet, type RuleSet } from '@gradtools/academic-rules';
 import { ChevronDown, ClipboardList, FileText, Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -25,6 +25,7 @@ import {
   semesterSgpa,
   type SubjectEvaluation,
 } from '../../domain/results.js';
+import { enrichRow, type RowEnrichment } from '../../domain/enrichment.js';
 import { otherTitles, resolveSubject, type SubjectIdentity } from '../../domain/subjects.js';
 import type { ResultSubject } from '../../domain/types.js';
 import { useProfile, useResults } from '../../hooks/useCollection.js';
@@ -46,6 +47,10 @@ export function ResultDetailPage() {
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  /* One resolution of a subject code, shared by the figures and the rows. */
+  const identify = (code: string | null): SubjectIdentity | null =>
+    code === null ? null : resolveSubject(index, code);
 
   const number = Number(param);
   const result = items.find((item) => item.semester === number) ?? null;
@@ -85,7 +90,11 @@ export function ResultDetailPage() {
     );
   }
 
-  const { sgpa, credits, inputs, gradePoints } = semesterSgpa(result, resolved.ruleSet);
+  const { sgpa, credits, creditsKnown, inputs, gradePoints } = semesterSgpa(
+    result,
+    resolved.ruleSet,
+    identify,
+  );
   const { backlogs, undetermined } = semesterBacklogs(result, resolved.ruleSet);
   const asserted = result.sgpaAsserted;
   const discrepancy = sgpa !== null && asserted !== null && Math.abs(sgpa - asserted) >= 0.005;
@@ -112,7 +121,7 @@ export function ResultDetailPage() {
         description={
           <span className="flex flex-wrap items-center gap-2">
             <Badge>{formatCount(result.subjects.length, 'course')}</Badge>
-            {credits > 0 && <Badge>{credits} credits</Badge>}
+            {creditsKnown && <Badge>{credits} credits</Badge>}
             {backlogs > 0 ? (
               <Badge tone="danger">{formatCount(backlogs, 'backlog')}</Badge>
             ) : undetermined > 0 ? (
@@ -157,8 +166,8 @@ export function ResultDetailPage() {
         />
         <Metric
           label="Credits"
-          value={credits > 0 ? credits : 'Not recorded'}
-          state={credits > 0 ? 'resolved' : 'unavailable'}
+          value={creditsKnown ? credits : 'Not recorded'}
+          state={creditsKnown ? 'resolved' : 'unavailable'}
         />
         <Metric
           label="Grade points"
@@ -230,9 +239,8 @@ export function ResultDetailPage() {
               key={subject.id}
               subject={subject}
               evaluation={evaluations.get(subject.id)}
-              identity={
-                subject.subjectCode === null ? null : resolveSubject(index, subject.subjectCode)
-              }
+              identity={identify(subject.subjectCode)}
+              ruleSet={resolved.ruleSet}
               open={expanded === subject.id}
               onToggle={() => setExpanded(expanded === subject.id ? null : subject.id)}
             />
@@ -340,16 +348,30 @@ function CourseRow({
   subject,
   evaluation,
   identity,
+  ruleSet: pinned,
   open,
   onToggle,
 }: {
   readonly subject: ResultSubject;
   readonly evaluation: SubjectEvaluation | undefined;
   readonly identity: SubjectIdentity | null;
+  readonly ruleSet: RuleSet | undefined;
   readonly open: boolean;
   readonly onToggle: () => void;
 }) {
-  const grade = subject.gradeLetter ?? evaluation?.computedGrade?.letter ?? null;
+  /*
+   * THE SAME READING THE REVIEW SCREEN SHOWS (domain/enrichment).
+   *
+   * This row used to read `subject.credits` and `subject.gradeLetter` raw, so
+   * a course the catalogue does not carry — a PE or self-study row whose
+   * credits the student recorded in their semester plan — showed a dash here
+   * while the import screen had just resolved it. One function now answers
+   * both, and where it has no answer the row still says so rather than
+   * guessing.
+   */
+  const enriched = enrichRow(subject, identity, pinned);
+  const grade = enriched.grade.value;
+  const credits = enriched.credits.value;
   const detailId = `course-${subject.id}`;
   return (
     <li>
@@ -370,9 +392,7 @@ function CourseRow({
             </span>
             <span className="block truncate font-mono text-[11px] text-ink-3">
               {subject.subjectCode}
-              {subject.credits !== null ? (
-                <span className="md:hidden"> · {subject.credits} cr</span>
-              ) : null}
+              {credits !== null ? <span className="md:hidden"> · {credits} cr</span> : null}
             </span>
           </span>
           <span className="flex shrink-0 items-center gap-2 md:hidden">
@@ -412,7 +432,7 @@ function CourseRow({
             mark(subject.total)
           )}
         </Cell>
-        <Cell label="Credits">{mark(subject.credits)}</Cell>
+        <Cell label="Credits">{mark(credits)}</Cell>
         <Cell label="Grade" className="md:flex md:justify-center">
           {grade === null ? mark(null) : <Badge tone={gradeTone(grade)}>{grade}</Badge>}
         </Cell>
@@ -426,7 +446,12 @@ function CourseRow({
       </button>
       {open && (
         <div id={detailId} className="animate-fade border-t border-line bg-panel px-5 py-4">
-          <SubjectDetail subject={subject} evaluation={evaluation} identity={identity} />
+          <SubjectDetail
+            subject={subject}
+            evaluation={evaluation}
+            identity={identity}
+            enriched={enriched}
+          />
         </div>
       )}
     </li>
@@ -437,10 +462,13 @@ function SubjectDetail({
   subject,
   evaluation,
   identity,
+  enriched,
 }: {
   readonly subject: ResultSubject;
   readonly evaluation: SubjectEvaluation | undefined;
   readonly identity: SubjectIdentity | null;
+  /** Computed once by the row, so the summary and the detail cannot disagree. */
+  readonly enriched: RowEnrichment;
 }) {
   const seeMax = ruleSet.courseMax - ruleSet.cieMax;
   const computedGrade = evaluation?.computedGrade ?? null;
@@ -489,11 +517,18 @@ function SubjectDetail({
               : null,
     },
     {
+      /*
+       * The source is `enrichRow`'s, not a guess from `provenance`: a figure
+       * the student typed must never be labelled the catalogue's (§14), and
+       * one resolved from their own earlier record says exactly that.
+       */
       term: 'Credits',
       value:
-        subject.credits === null
+        enriched.credits.value === null
           ? null
-          : `${String(subject.credits)}${subject.provenance === 'catalogue' || subject.catalogueCode !== null ? ' · from the catalogue' : ''}`,
+          : `${String(enriched.credits.value)}${
+              enriched.credits.source === null ? '' : ` · ${enriched.credits.source}`
+            }`,
     },
     {
       term: 'Backlog',
