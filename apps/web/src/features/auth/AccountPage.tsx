@@ -246,7 +246,7 @@ export function AccountPage() {
                     {sync.state.conflicts.map((conflict) => (
                       <li
                         key={`${conflict.collection}:${conflict.id}`}
-                        className="rounded-xl border border-warning/30 bg-warning-weak/30 p-4 text-[13px]"
+                        className="rounded-xl border bg-warning-weak/30 p-4 text-[13px]"
                       >
                         <div className="font-semibold capitalize">{conflict.collection}</div>
                         <div className="mt-0.5 text-ink-2">{conflict.reason}</div>
@@ -326,7 +326,17 @@ export function AccountPage() {
                       </Callout>
                     )}
                   </Card>
-                  <Card className="border-danger/30 p-6">
+                  <Card className="relative overflow-hidden p-6">
+                    {/*
+                      The danger edge is a FILLED span, as AnnouncementCard's "For you"
+                      edge: a `border-danger/*` colour renders as the neutral hairline
+                      (index.css neutralises coloured borders by design). Decorative;
+                      the title and the button say it in words.
+                    */}
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-0 left-0 w-0.5 bg-danger"
+                    />
                     <SectionTitle>Delete account</SectionTitle>
                     <p className="text-[13px] text-ink-2">
                       Deleting your account removes your profile, semesters, subjects, results,
