@@ -35,7 +35,17 @@ const STATUS_TONE: Record<BacklogStatus, Tone> = {
 };
 
 /** The backlogs a student records themselves — their own list of what to clear. */
-export function BacklogPanel({ profileId }: { readonly profileId: StudentProfileId }) {
+export function BacklogPanel({
+  profileId,
+  clear,
+}: {
+  readonly profileId: StudentProfileId;
+  /**
+   * `hasNoBacklogs`. "No backlogs recorded" is always true of an empty list;
+   * "Nothing to clear" is a claim about the student, and needs the results too.
+   */
+  readonly clear: boolean;
+}) {
   const { items, save, remove } = useBacklogs();
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
@@ -106,7 +116,7 @@ export function BacklogPanel({ profileId }: { readonly profileId: StudentProfile
           compact
           icon={<CircleCheck />}
           title="No backlogs recorded"
-          description="Nothing to clear."
+          description={clear ? 'Nothing to clear.' : undefined}
         />
       ) : (
         <div className="border-t border-line">

@@ -2190,3 +2190,97 @@ it as reference data; neither is inferable from what is in hand.
 **Where it surfaces:** the semester shows no SGPA and names the subject holding
 it back, through `SgpaInputs.missing`. A student sees which course is
 unresolved, not a blank.
+
+
+### OQ-055 — The profile offers programmes the academic model does not support · **opened by the domain-contract audit, unresolved**
+
+**Status:** OPEN · product decision
+
+**What is established.** The degree is eight semesters (ED-71). `SEMESTER_NUMBERS`
+in `apps/web/src/domain/types.ts` is the single client source, and the database
+(`CHECK … BETWEEN 1 AND 8` across `0001_student_cloud.sql`), the shared zod
+schemas (`.max(8)`) and the result importer enforce the same bound. The only
+rule set, `vtu2022RuleSet`, states its scope as B.E./B.Tech, 2022 scheme,
+non-autonomous colleges. `docs/30` §76 lists M.Tech, MBA, MCA and B.Arch as not
+supported. Nothing stores a programme's duration: not the rule set, the
+`schemes` table, the catalogue, or the profile.
+
+**The contradiction.** The Profile programme select (`ProfilePage.tsx`,
+`PROGRAMMES`) offers B.Arch., M.Tech., M.Arch., MBA and MCA. It was added in
+Phase 7B.3 (migration `0008_profile_programme.sql`) so that programme-scoped
+VTU notices can be matched by the server's applicability engine; that is the
+only thing it changes. An MCA student is still shown eight semesters, "N of 8",
+four semesters that never start, and grades under B.E. regulations, with no
+warning. A B.Arch student cannot record semesters 9 and 10 at all.
+
+**What GradTools does.** Nothing different: the list stays, because narrowing it
+would stop PG students matching PG notices — the one thing the field does for
+them today — and supporting those programmes needs rule sets, a duration on the
+scheme or programme, and migrations that relax the 1–8 constraints.
+
+**Decision needed:** either narrow the programme list to the supported degrees
+(and accept the notice-matching loss), or keep it and say plainly on the
+academic screens that figures assume B.E./B.Tech, or fund programme-specific
+durations and rule sets. Lateral entry needs no change under ED-71 — a student
+who starts at semester 3 marks the earlier ones — but no decision records that.
+
+### OQ-056 — Recorded backlogs and failed result rows are never reconciled · **opened by the domain-contract audit, unresolved**
+
+**Status:** OPEN · product decision
+
+**What is established.** Two independent sources, on purpose (M6, `docs/08`
+§8.13; `statistics.ts`: "TWO FIGURES, BECAUSE THERE ARE TWO QUESTIONS"). A
+`BacklogRecord` is written only by the student, from the backlog panel; nothing
+creates, updates or clears one from results, and a record has no link to a
+result row. The results figure is derived from marks by the rules. The
+unqualified "Backlogs" count is the recorded one; the results figure appears
+where it is labelled; and no screen says "no backlogs", "All cleared", "Good",
+"Clear record", "Clear academic record", "no backlog is outstanding" or
+"Nothing to clear" unless `hasNoBacklogs` holds (neither source shows one, and
+there are results).
+
+**The contradiction.** The pre-M6 documents describe one backlog store derived
+from results, with a `reason` and a "Mark cleared" flow: FR-042 (`docs/02`),
+UF-09 (`docs/03`), `docs/08` §465 and §306, `docs/09` §308, `docs/10` §139
+(`GET /backlogs`), `docs/30` §29. None of it was built. `docs/22` §535 lists a
+production check — "every active backlog corresponds to a failing
+`semester_subject`" — that is neither implemented nor expressible against the
+current schema.
+
+**Where the gap shows.** A backlog the student marks cleared never outweighs the
+failed row it came from (only one result per semester is kept, and a re-sit
+does not replace it), so My Degree reads "To clear · 1 backlog in your
+results" beside a panel row marked Cleared. A failure in a subject other than
+the recorded ones is not surfaced on Dashboard, Profile or My Degree while any
+backlog is recorded.
+
+**Decision needed:** whether the two are reconciled at all; if so, by whom
+(prompting the student, or automatically) and per subject; how a cleared record
+over an old failed row is presented; and whether the pre-M6 documents and the
+`docs/22` check are withdrawn or rebuilt against the M6 model.
+
+### OQ-057 — A semester beyond the eighth · **opened by the domain-contract audit, unresolved**
+
+**Status:** OPEN · product decision
+
+**What is established.** Every entry point refuses it: the pickers
+(`SEMESTER_OPTIONS`), the result importer (a printed semester outside 1–8
+becomes null), the database `CHECK`s and the API (422). A row with a larger
+number can therefore reach a student only through hand-edited or legacy local
+storage, where `buildSemesterViews` leaves it out of every figure without a
+word (`academics.test.ts`, "adds no view for a stored semester beyond the
+eighth").
+
+**Two known edges.** A result card that prints "Semester 9" is read as having no
+semester, and the review then says "The semester was not printed on this
+document", which is untrue; "Semester 10" is not matched at all. The student
+must then choose a semester 1–8, so a real ninth- or tenth-semester card would
+be filed under — and could replace — a semester it does not belong to. This is
+the B.Arch case of OQ-055. Separately, VTU notices may target semesters 9–10
+(`0017_source_items.sql`) but can never match a student, whose semester is
+capped at 8.
+
+**Decision needed:** whether an out-of-range stored row is surfaced to the
+student rather than silently ignored; and how an out-of-range printed semester
+is reported at import (named as out of range, or refused). Both follow from
+OQ-055 and should be decided with it.

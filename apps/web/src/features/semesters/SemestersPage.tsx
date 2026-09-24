@@ -437,7 +437,7 @@ export function SemestersPage() {
       </div>
 
       <SubjectInsights performances={performances} strengths={strengths} loading={resultsLoading} />
-      <BacklogPanel profileId={profileId} />
+      <BacklogPanel profileId={profileId} clear={clear} />
       {results.length === 0 && (
         <Callout
           action={

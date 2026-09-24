@@ -179,7 +179,12 @@ export function DashboardPage() {
       )}
 
       <section aria-label="Today" className="grid items-start gap-6 lg:grid-cols-3">
-        <Attention attendance={thisSemester} subjects={semesterSubjects} backlogs={backlogs} />
+        <Attention
+          attendance={thisSemester}
+          subjects={semesterSubjects}
+          backlogs={backlogs}
+          clear={hasNoBacklogs(statistics)}
+        />
         <Today
           timetable={timetable}
           subjects={semesterSubjects}
@@ -472,10 +477,13 @@ function Attention({
   attendance,
   subjects,
   backlogs,
+  clear,
 }: {
   readonly attendance: readonly AttendanceRecord[];
   readonly subjects: readonly SemesterSubject[];
   readonly backlogs: readonly BacklogRecord[];
+  /** `hasNoBacklogs`: whether "no backlog is outstanding" may be said at all. */
+  readonly clear: boolean;
 }) {
   const short = attendance
     .flatMap((record) => {
@@ -501,7 +509,15 @@ function Attention({
           compact
           icon={<AlertTriangle />}
           title="Nothing needs attention"
-          description="No subject is below the attendance requirement and no backlog is outstanding."
+          description={
+            /*
+             * This card lists RECORDED backlogs. With none recorded it still may
+             * not say none is outstanding unless the results agree.
+             */
+            clear
+              ? 'No subject is below the attendance requirement and no backlog is outstanding.'
+              : 'No subject is below the attendance requirement.'
+          }
         />
       ) : (
         <CardRows>
