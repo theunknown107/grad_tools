@@ -241,6 +241,58 @@ for (const theme of ['light', 'dark']) {
       await page.waitForTimeout(400);
     };
 
+    /* ---- Dashboard standing ------------------------------------------- */
+    await go('/');
+    check(
+      'dashboard ' + at + ': no horizontal overflow',
+      (await overflow()) <= 0,
+      (await overflow()) + 'px',
+    );
+    const standing = await page.evaluate(() => {
+      const strip = document.querySelector('[data-testid="standing-strip"]');
+      if (strip === null) return null;
+      const cells = [...strip.querySelectorAll(':scope > [role="group"]')];
+      return {
+        cells: cells.length,
+        /* Clipping, measured: content wider or taller than its cell was cut. */
+        clipped: cells
+          .filter(
+            (one) =>
+              one.scrollWidth > one.clientWidth + 1 || one.scrollHeight > one.clientHeight + 1,
+          )
+          .map((one) => one.getAttribute('aria-label')),
+        /* Every cell in a row is as tall as the row, or the rules go ragged. */
+        heights: [...new Set(cells.map((one) => Math.round(one.getBoundingClientRect().top)))].map(
+          (top) =>
+            new Set(
+              cells
+                .filter((one) => Math.round(one.getBoundingClientRect().top) === top)
+                .map((one) => Math.round(one.getBoundingClientRect().height)),
+            ).size,
+        ),
+        cgpaInStrip: cells.some((one) => one.getAttribute('aria-label') === 'CGPA'),
+        nestedPanel:
+          document
+            .querySelector('section[aria-labelledby="dashboard-title"]')
+            ?.querySelector('.bg-panel, .rounded-xl') !== null,
+      };
+    });
+    check(
+      'dashboard ' + at + ': the standing is one strip of six figures',
+      standing !== null && standing.cells === 6 && !standing.cgpaInStrip,
+      JSON.stringify(standing),
+    );
+    check(
+      'dashboard ' + at + ': no standing figure is cut off, and every row is flush',
+      standing !== null && standing.clipped.length === 0 && standing.heights.every((n) => n === 1),
+      JSON.stringify(standing),
+    );
+    check(
+      'dashboard ' + at + ': the hero holds no card inside it',
+      standing !== null && !standing.nestedPanel,
+      JSON.stringify(standing),
+    );
+
     /* ---- Timetable ------------------------------------------------------ */
     await go('/timetable');
     check(
