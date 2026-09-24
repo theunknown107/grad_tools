@@ -134,7 +134,7 @@ describe('dashboard', () => {
     expect(screen.queryByText('80.0%')).toBeNull();
   });
 
-  it('lays the standing out as one ruled strip of six figures', async () => {
+  it('lays the standing out as one ruled strip of five figures', async () => {
     renderWith(<DashboardPage />);
     const strip = await screen.findByTestId('standing-strip');
     const names = within(strip)
@@ -146,7 +146,6 @@ describe('dashboard', () => {
       'Credits earned',
       'Backlogs',
       'Attendance',
-      'Semesters',
     ]);
     /*
      * One container, six cells: no cell carries tile chrome of its own. The
@@ -157,6 +156,47 @@ describe('dashboard', () => {
       expect(cell.className).not.toMatch(/\bgt-metric\b|\brounded-/);
     }
     expect(strip.querySelector('hr, [role="separator"]')).toBeNull();
+  });
+
+  it('states semester progress once, as a progress bar in the hero', async () => {
+    const { bundle } = createMemoryRepositories({
+      results: [
+        result('r1', 1, null, [{ code: 'A1', credits: 4, grade: 'A' }]),
+        result('r2', 2, null, [{ code: 'B1', credits: 4, grade: 'O' }]),
+      ],
+    });
+    renderWith(<DashboardPage />, { repositories: bundle });
+
+    /*
+     * One accessible statement: the bar, named and valued in the units the
+     * eye reads ("2 of 8"), not a bare percentage. The visible "2/8" row is
+     * hidden from assistive tech so it is not heard a second time.
+     */
+    const bars = await screen.findAllByRole('progressbar', { name: 'Semesters graded' });
+    expect(bars).toHaveLength(1);
+    expect(bars[0]?.getAttribute('aria-valuetext')).toBe('2 of 8');
+    expect(screen.getByText('2/8').closest('[aria-hidden="true"]')).not.toBeNull();
+    // And the strip no longer repeats it.
+    const strip = screen.getByTestId('standing-strip');
+    expect(within(strip).queryByText(/\d\/8/)).toBeNull();
+  });
+
+  it('says how many semesters are marked complete when that differs from graded', async () => {
+    const { bundle } = createMemoryRepositories({
+      results: [result('r1', 1, null, [{ code: 'A1', credits: 4, grade: 'A' }])],
+      semesters: [1, 2].map((number) => ({
+        id: `sem-${String(number)}`,
+        profileId,
+        number,
+        status: 'completed' as const,
+        startedOn: null,
+        completedOn: null,
+        updatedAt: '',
+      })),
+    });
+    renderWith(<DashboardPage />, { repositories: bundle });
+    const hero = await screen.findByRole('region', { name: /^Good (morning|afternoon|evening)/ });
+    expect(within(hero).getByText('2 semesters marked complete')).toBeTruthy();
   });
 
   it('keeps the hero one region, with no card nested inside it', async () => {

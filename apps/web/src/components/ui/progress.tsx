@@ -18,6 +18,7 @@ export function Progress({
   tone = 'accent',
   className,
   label,
+  valueText,
 }: {
   /** 0–100. Clamped. */
   readonly value: number;
@@ -25,12 +26,15 @@ export function Progress({
   readonly className?: string;
   /** Accessible name. */
   readonly label?: string;
+  /** What the value means, e.g. "4 of 8", announced instead of a bare percentage. */
+  readonly valueText?: string;
 }) {
   const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
   return (
     <ProgressPrimitive.Root
       value={clamped}
       {...(label === undefined ? { 'aria-hidden': true } : { 'aria-label': label })}
+      {...(valueText === undefined ? {} : { getValueLabel: () => valueText })}
       className={cn('relative h-2 overflow-hidden rounded-full bg-sunken', className)}
     >
       <ProgressPrimitive.Indicator

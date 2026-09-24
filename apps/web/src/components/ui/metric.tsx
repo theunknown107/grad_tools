@@ -113,10 +113,11 @@ export function MetricGrid({
 }
 
 /**
- * Six figures as ONE ruled instrument, not six tiles: give each `Metric` the
+ * Figures as ONE ruled instrument, not a row of tiles: give each `Metric` the
  * `plain` prop. The rules between cells are the container's own colour showing
  * through a 1px gap, so they are pure paint, never an element a screen reader
- * could meet. Six cells fill 2, 3 and 6 columns exactly, so no row is ragged.
+ * could meet. The caller sets the columns (and any spans) in `className`, and
+ * must fill every row: an empty track would show as a block of rule colour.
  */
 export function MetricStrip({
   children,
@@ -130,10 +131,7 @@ export function MetricStrip({
   return (
     <div
       {...rest}
-      className={cn(
-        'grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-3 xl:grid-cols-6',
-        className,
-      )}
+      className={cn('grid gap-px overflow-hidden rounded-xl border border-line bg-line', className)}
     >
       {children}
     </div>

@@ -212,6 +212,8 @@ function Hero({
   const provisional = stats.cgpaBasis.pending.length > 0;
   const standing = provisional ? stats.provisionalCgpa : stats.cgpa;
   const graded = stats.semestersGraded.value ?? 0;
+  const planned = Math.max(stats.views.length, 8);
+  const completed = stats.semestersCompleted.value;
   const note =
     standing.reason ??
     (graded === 0
@@ -289,17 +291,28 @@ function Hero({
             )}
           </div>
           <p className="text-[12px] text-ink-3">{note}</p>
+          {/*
+            THE dashboard's semester progress: the standing strip no longer
+            repeats it. The row is what the eye reads; the bar says the same to
+            assistive tech, once, as "4 of 8" rather than a bare percentage.
+          */}
           <div>
-            <div className="mb-1.5 flex justify-between text-[12px] text-ink-2">
+            <div aria-hidden="true" className="mb-1.5 flex justify-between text-[12px] text-ink-2">
               <span>Semesters graded</span>
               <span className="tnum font-medium text-ink">
-                {graded}/{Math.max(stats.views.length, 8)}
+                {graded}/{planned}
               </span>
             </div>
             <Progress
-              value={(graded / Math.max(stats.views.length, 8)) * 100}
+              value={(graded / planned) * 100}
               label="Semesters graded"
+              valueText={`${String(graded)} of ${String(planned)}`}
             />
+            {completed !== null && completed !== graded && (
+              <p className="mt-1.5 text-[12px] text-ink-3">
+                {formatCount(completed, 'semester')} marked complete
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -345,9 +358,17 @@ function Standing({
       >
         Academic standing
       </SectionTitle>
-      <MetricStrip data-testid="standing-strip">
+      {/*
+        Five figures, every row filled: 1 + 2 + 2 on a phone (the percentage
+        leads), 3 + 2 on a six-track grid from md, five across from xl.
+      */}
+      <MetricStrip
+        data-testid="standing-strip"
+        className="grid-cols-2 md:grid-cols-6 xl:grid-cols-5"
+      >
         <Metric
           plain
+          className="col-span-2 xl:col-span-1"
           label="Percentage"
           value={percentage.value}
           state={stats.percentage.value === null ? 'unavailable' : 'resolved'}
@@ -355,6 +376,7 @@ function Standing({
         />
         <Metric
           plain
+          className="md:col-span-2 xl:col-span-1"
           label="Latest SGPA"
           value={latest === null ? 'Unavailable' : formatGpa(latest.sgpa)}
           state={latest === null ? 'unavailable' : 'resolved'}
@@ -366,6 +388,7 @@ function Standing({
         />
         <Metric
           plain
+          className="md:col-span-2 xl:col-span-1"
           label="Credits earned"
           value={credits.value}
           state={credits.value === 'Unavailable' ? 'unavailable' : 'resolved'}
@@ -373,6 +396,7 @@ function Standing({
         />
         <Metric
           plain
+          className="md:col-span-3 xl:col-span-1"
           label="Backlogs"
           value={backlogs.value}
           state={backlogs.value === 'Unavailable' ? 'unavailable' : 'resolved'}
@@ -386,6 +410,7 @@ function Standing({
         />
         <Metric
           plain
+          className="md:col-span-3 xl:col-span-1"
           label="Attendance"
           value={overall?.ok === true ? overall.value.percentage.toFixed(1) : 'Not recorded'}
           unit={overall?.ok === true ? '%' : undefined}
@@ -403,17 +428,6 @@ function Standing({
                 ? `${String(short)} below ${String(ruleSet.attendanceRequiredPct)}%`
                 : `Threshold ${String(ruleSet.attendanceRequiredPct)}%`
               : 'No classes have been marked for this semester yet.'
-          }
-        />
-        <Metric
-          plain
-          label="Semesters"
-          value={`${String(stats.semestersGraded.value ?? 0)}/8`}
-          sub={
-            stats.semestersCompleted.value !== null &&
-            stats.semestersCompleted.value !== (stats.semestersGraded.value ?? 0)
-              ? `${String(stats.semestersCompleted.value)} marked complete`
-              : 'Graded'
           }
         />
       </MetricStrip>
