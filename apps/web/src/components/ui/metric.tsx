@@ -138,7 +138,11 @@ export function MetricStrip({
   );
 }
 
-/** The small bordered stat used inside hero cards and dialogs. */
+/**
+ * A small label and figure for inside a card or dialog. It has no chrome of its
+ * own: the card is the container, and a box inside it would only repeat its
+ * edge. Spacing in the parent grid separates one figure from the next.
+ */
 export function MiniStat({
   label,
   value,
@@ -151,11 +155,7 @@ export function MiniStat({
   readonly valueClassName?: string;
 }) {
   return (
-    <div
-      role="group"
-      aria-label={label}
-      className={cn('rounded-lg border border-line bg-panel p-3', className)}
-    >
+    <div role="group" aria-label={label} className={cn('min-w-0', className)}>
       <div className="text-[11px] text-ink-3">{label}</div>
       <div className={cn('tnum mt-0.5 text-xl font-semibold text-ink', valueClassName)}>
         {value}

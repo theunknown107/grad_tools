@@ -90,7 +90,8 @@ export function SemesterSubjects({
           description="Adding them here lets attendance and the timetable use the same list."
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-line bg-raised">
+        <div className="border-t border-line">
+          {/* One rule, not a second frame: the card around it is already the edge. */}
           <Table>
             <TableCaption>
               Subjects for semester {semester}. {subjects.length} listed.

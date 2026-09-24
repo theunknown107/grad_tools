@@ -30,6 +30,7 @@ import {
 } from '../src/components/ui/dialog.js';
 import { EmptyState, Unavailable, toast } from '../src/components/ui/feedback.js';
 import { Field, Input, Select } from '../src/components/ui/field.js';
+import { MiniStat } from '../src/components/ui/metric.js';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -496,6 +497,22 @@ describe('Field', () => {
     expect(note?.getAttribute('role')).toBe('alert');
   });
 
+  it('marks an invalid control with a ring, which renders, not a border colour', () => {
+    /*
+     * index.css neutralises every coloured border utility on purpose, so a
+     * `border-danger` invalid state painted as the plain hairline. A ring is
+     * a box-shadow, which the rule does not touch.
+     */
+    render(
+      <Field label="Total" error="Does not match the columns.">
+        <Input />
+      </Field>,
+    );
+    const input = screen.getByLabelText('Total');
+    expect(input.className).toContain('aria-[invalid=true]:ring-danger');
+    expect(input.className).not.toContain('aria-[invalid=true]:border-danger');
+  });
+
   it('leaves a valid field unmarked and described by its hint', () => {
     render(
       <Field label="Total" hint="Out of 100">
@@ -646,5 +663,15 @@ describe('the shell', () => {
     expect(screen.getAllByRole('navigation').every((nav) => nav.hasAttribute('aria-label'))).toBe(
       true,
     );
+  });
+});
+
+describe('MiniStat', () => {
+  it('is a labelled figure with no box of its own', () => {
+    /* It sits inside a card or dialog; a bordered tile there is a card in a card. */
+    render(<MiniStat label="Credits" value="72" />);
+    const stat = screen.getByRole('group', { name: 'Credits' });
+    expect(stat.textContent).toContain('72');
+    expect(stat.className).not.toMatch(/\bborder\b|\brounded-|\bbg-/);
   });
 });

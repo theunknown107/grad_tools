@@ -223,6 +223,36 @@ describe('relevance on screen', () => {
     expect(screen.getByText(/Not for your branch or semester/)).toBeTruthy();
   });
 
+  it('edges an announcement for the student with a fill that renders', async () => {
+    mockFeed([
+      announcement({
+        id: 'for-me',
+        title: 'CSE lab schedule',
+        audience: {
+          schemeId: null,
+          branchId: null,
+          branchName: 'Computer Science and Engineering',
+          collegeId: null,
+          collegeName: null,
+          semester: null,
+        },
+      }),
+    ]);
+    const { bundle } = createMemoryRepositories({ profile: profile() });
+    renderWith(<AnnouncementsPage />, { repositories: bundle });
+
+    const article = (await screen.findByText('CSE lab schedule')).closest('article');
+    expect(within(article as HTMLElement).getByText(/For you/)).toBeTruthy();
+    /*
+     * A `border-l-accent` edge painted in the neutral hairline colour
+     * (index.css neutralises coloured borders by design). The edge is a filled,
+     * decorative span; "For you" says the same thing in words.
+     */
+    expect(article?.className).not.toContain('border-l-accent');
+    const edge = article?.querySelector(':scope > span[aria-hidden="true"]');
+    expect(edge?.className).toContain('bg-accent');
+  });
+
   it('filters to what applies when the student asks', async () => {
     mockFeed([targeted, announcement({ id: 'mine', title: 'For everyone' })]);
     const { bundle } = createMemoryRepositories({ profile: profile() });

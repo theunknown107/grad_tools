@@ -111,8 +111,16 @@ export function AnnouncementCard({
   const long = announcement.body !== null && announcement.body.length > 220;
 
   return (
-    <Card asChild className={cn('p-5', relevant && targeted && 'border-l-2 border-l-accent')}>
+    <Card asChild className={cn('p-5', relevant && targeted && 'relative overflow-hidden')}>
       <article>
+        {/*
+          The "for you" edge is a FILLED span: a `border-l-accent` edge renders
+          in the neutral hairline colour (index.css neutralises coloured borders
+          by design). Decorative; "For you" below says it in words.
+        */}
+        {relevant && targeted && (
+          <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-accent" />
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={CATEGORY_TONE[announcement.category]}>
             {CATEGORY_LABEL[announcement.category]}

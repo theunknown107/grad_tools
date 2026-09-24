@@ -63,7 +63,8 @@ export function SubjectInsights({
           />
         )
       ) : (
-        <div className="overflow-hidden rounded-xl border border-line">
+        <div className="border-t border-line">
+          {/* One rule, not a second frame: the card around it is already the edge. */}
           <Table>
             <TableCaption>Every subject you have a grade for, most recent first.</TableCaption>
             <TableHeader>

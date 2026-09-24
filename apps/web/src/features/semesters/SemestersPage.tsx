@@ -149,7 +149,11 @@ export function SemestersPage() {
               </div>
             </div>
             <div className="mt-5">
-              <div className="mb-2 flex justify-between text-[13px]">
+              {/*
+                Said once: the row is for the eye, the bar says "4 of 8" to
+                assistive tech rather than a bare percentage.
+              */}
+              <div aria-hidden="true" className="mb-2 flex justify-between text-[13px]">
                 <span className="text-ink-2">Semesters graded</span>
                 <span className="tnum font-semibold">
                   {graded} of {progress.semestersTotal}
@@ -159,6 +163,7 @@ export function SemestersPage() {
                 value={(graded / progress.semestersTotal) * 100}
                 className="h-2.5"
                 label="Semesters graded"
+                valueText={`${String(graded)} of ${String(progress.semestersTotal)}`}
               />
               <div className="mt-1.5 flex justify-between gap-3 text-[12px] text-ink-3">
                 <span>{metricDisplay(statistics.creditsEarned).value} credits earned</span>
@@ -171,8 +176,14 @@ export function SemestersPage() {
               </Button>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          {/*
+            Figures of the standing card, not tiles on it: `plain` drops the
+            metric's own frame, as MiniStat does inside a card.
+          */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5">
             <Metric
+              plain
+              className="bg-transparent p-0"
               label={provisional ? 'Average so far' : 'CGPA'}
               value={
                 metricDisplay(provisional ? statistics.provisionalCgpa : statistics.cgpa, formatGpa)
@@ -186,6 +197,8 @@ export function SemestersPage() {
               sub={provisional ? 'Not your CGPA' : 'Credit-weighted'}
             />
             <Metric
+              plain
+              className="bg-transparent p-0"
               label="Standing"
               value={
                 backlogsKnown === null ? 'Unavailable' : backlogsKnown === 0 ? 'Good' : 'To clear'
@@ -201,12 +214,16 @@ export function SemestersPage() {
               }
             />
             <Metric
+              plain
+              className="bg-transparent p-0"
               label="Credits earned"
               value={metricDisplay(statistics.creditsEarned).value}
               state={statistics.creditsEarned.value === null ? 'unavailable' : 'resolved'}
               sub={`Across ${formatCount(graded, 'graded semester')}`}
             />
             <Metric
+              plain
+              className="bg-transparent p-0"
               label="Credits left"
               value="Unavailable"
               state="unavailable"
@@ -306,11 +323,11 @@ export function SemestersPage() {
                         <span className="tnum w-10 shrink-0 font-semibold">
                           {formatGpa(entry.sgpa)}
                         </span>
-                        <Progress
-                          value={(entry.sgpa / 10) * 100}
-                          className="flex-1"
-                          label={`Semester ${String(entry.number)} SGPA`}
-                        />
+                        {/*
+                          Decorative: the SGPA is the figure beside it. Labelled,
+                          it was announced as a percentage ("86%" for 8.60).
+                        */}
+                        <Progress value={(entry.sgpa / 10) * 100} className="flex-1" />
                         <span
                           className={cn(
                             'tnum w-16 shrink-0 text-right text-[12px]',
