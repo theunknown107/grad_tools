@@ -503,13 +503,13 @@ describe('current semester on the dashboard', () => {
       /86\.0\s*%/,
     );
     /*
-     * The strip carries the six figures the approved design lays out, and
-     * "Subjects" is not among them — it lives on My degree, where the subject
-     * list itself is. What matters here is unchanged: the attendance figure
-     * for the semester in progress is on the dashboard, from the engine.
+     * "Subjects" is not in the strip — it lives on My degree, where the subject
+     * list itself is — and neither is semester progress, which the hero's bar
+     * carries once. What matters here is unchanged: the attendance figure for
+     * the semester in progress is on the dashboard, from the engine.
      */
     expect(within(strip).getByText('Attendance')).toBeTruthy();
-    expect(within(strip).getByText('Semesters')).toBeTruthy();
+    expect(within(strip).queryByRole('group', { name: 'Semesters' })).toBeNull();
   });
 
   /*

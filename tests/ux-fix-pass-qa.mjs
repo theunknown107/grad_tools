@@ -271,6 +271,12 @@ for (const theme of ['light', 'dark']) {
             ).size,
         ),
         cgpaInStrip: cells.some((one) => one.getAttribute('aria-label') === 'CGPA'),
+        /* Semester progress is said once, by the hero's bar, not again in the strip. */
+        semesterCells: cells.filter((one) => /semester/i.test(one.getAttribute('aria-label') ?? ''))
+          .length,
+        progressBars: document.querySelectorAll(
+          '[role="progressbar"][aria-label="Semesters graded"]',
+        ).length,
         nestedPanel:
           document
             .querySelector('section[aria-labelledby="dashboard-title"]')
@@ -278,8 +284,13 @@ for (const theme of ['light', 'dark']) {
       };
     });
     check(
-      'dashboard ' + at + ': the standing is one strip of six figures',
-      standing !== null && standing.cells === 6 && !standing.cgpaInStrip,
+      'dashboard ' + at + ': the standing is one strip of five figures',
+      standing !== null && standing.cells === 5 && !standing.cgpaInStrip,
+      JSON.stringify(standing),
+    );
+    check(
+      'dashboard ' + at + ': semester progress is stated once',
+      standing !== null && standing.semesterCells === 0 && standing.progressBars === 1,
       JSON.stringify(standing),
     );
     check(
