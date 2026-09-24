@@ -48,6 +48,7 @@ import {
   TableRow,
   numeric,
 } from '../../components/ui/table.js';
+import { identityOf } from '../../domain/auth.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import type { StudentProfile } from '../../domain/types.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
@@ -57,6 +58,7 @@ import { cn } from '../../lib/cn.js';
 import { branchCode, formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { isStorageAvailable } from '../../repositories/local/store.js';
+import { useAuth } from '../auth/AuthContext.js';
 import { SEMESTER_OPTIONS } from '../import/CalendarReview.js';
 
 const PROGRAMMES = ['B.E.', 'B.Tech.', 'B.Arch.', 'M.Tech.', 'M.Arch.', 'MBA', 'MCA'] as const;
@@ -129,6 +131,9 @@ function Overview({
   readonly onEdit: () => void;
 }) {
   const { statistics } = useAcademicState();
+  const { state: auth } = useAuth();
+  /* The verified address from the session — never the stored profile. */
+  const accountEmail = identityOf(auth)?.email ?? null;
   const name = profile?.displayName ?? null;
   const usn = profile?.usn ?? null;
   const provisional = statistics.cgpaBasis.pending.length > 0;
@@ -160,14 +165,11 @@ function Overview({
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="relative overflow-hidden" aria-label="Who you are">
-        <div aria-hidden="true" className="h-24 bg-linear-to-r from-accent to-accent-ink" />
-        <div className="px-6 pb-6">
-          <div className="-mt-9 flex items-end gap-4">
-            <span className="rounded-full ring-4 ring-raised">
-              <Avatar initials={initialsOf(name ?? usn)} size={72} />
-            </span>
-            <div className="min-w-0 pb-1">
+      <Card aria-label="Who you are">
+        <div className="p-6">
+          <div className="flex items-center gap-4">
+            <Avatar initials={initialsOf(name ?? usn)} size={56} />
+            <div className="min-w-0">
               <h2
                 className={cn(
                   'truncate text-[20px] leading-tight font-semibold',
@@ -177,6 +179,20 @@ function Overview({
                 {name ?? 'Name not set'}
               </h2>
               <div className="font-mono text-[12px] text-ink-3">{usn ?? 'No USN recorded'}</div>
+              {/*
+               * THE ACCOUNT'S ADDRESS, AND ONLY WHEN THERE IS AN ACCOUNT.
+               *
+               * It is shown verbatim and never taken apart: the local part of
+               * an address is not a person's name, and a product that renders
+               * "a.student" as who you are has invented it. The display name
+               * above stays whatever the student typed, or "Name not set".
+               */}
+              {accountEmail !== null && (
+                <div className="mt-0.5 truncate text-[12px] text-ink-3">
+                  <span className="sr-only">Signed in as </span>
+                  {accountEmail}
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -408,20 +424,39 @@ function AcademicForm({
                 />
               </Field>
             ) : (
-              <Field
-                label="Branch"
-                hint={
-                  branches.state.status === 'error'
-                    ? 'Branches could not be loaded; type yours instead.'
-                    : 'No branches available from the server; type yours instead.'
-                }
-              >
-                <Input
-                  placeholder="Computer Science"
-                  value={branch}
-                  onChange={(event) => setBranch(event.target.value)}
-                />
-              </Field>
+              /*
+               * THE FALLBACK IS A FALLBACK, AND SAYS WHICH ONE IT IS.
+               *
+               * The list above is the normal case. Typing a branch by hand is
+               * what is left when the reference data could not be reached —
+               * and an unreachable server is a thing to retry, not a thing to
+               * work around silently, which is what this looked like.
+               *
+               * The retry sits BESIDE the field rather than inside its hint:
+               * the hint is the input's `aria-describedby` target, and a
+               * control buried in a description is read as part of it.
+               */
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Field
+                  label="Branch"
+                  hint={
+                    branches.state.status === 'error'
+                      ? 'Branches could not be loaded; type yours instead.'
+                      : 'No branches available from the server; type yours instead.'
+                  }
+                >
+                  <Input
+                    placeholder="Computer Science"
+                    value={branch}
+                    onChange={(event) => setBranch(event.target.value)}
+                  />
+                </Field>
+                <div>
+                  <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={branches.retry}>
+                    Look for branches again
+                  </Button>
+                </div>
+              </div>
             )}
             <Field
               label="Programme"
