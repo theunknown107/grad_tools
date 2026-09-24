@@ -35,6 +35,35 @@ import {
 } from '@gradtools/academic-rules';
 import type { ResultSubject, SemesterResult, SubjectProvenance } from './types.js';
 import { resolveCourseKind, type ResolvedCourseKind } from './exams.js';
+import { creditsFor, type SubjectIdentity } from './subjects.js';
+
+/**
+ * How a subject code is looked up in what the student has already recorded.
+ *
+ * WHY THIS IS A PARAMETER AND NOT AN IMPORT. A VTU grade card prints no
+ * credits, and the catalogue does not carry every course a student takes — an
+ * open elective, a self-study course, a departmental PE row. For those the
+ * only source is the student's own record elsewhere in the product (their
+ * semester plan, or the same code in another semester), and the subject index
+ * is the thing that holds it.
+ *
+ * The default is "look nothing up", so a caller that has no index gets exactly
+ * the old behaviour: the row's own credits or nothing. Nothing is ever
+ * invented — `creditsFor` returns what was recorded, or null.
+ */
+export type SubjectLookup = (code: string | null) => SubjectIdentity | null;
+
+const NO_LOOKUP: SubjectLookup = () => null;
+
+/** This row's credits, from the row itself or from what the student recorded. */
+export function creditsOf(subject: ResultSubject, identity: SubjectIdentity | null): number | null {
+  /*
+   * The row's OWN figure wins, as it does in `enrichRow`: a student who typed
+   * a credit for this row said something specific about it, while the index
+   * can only speak about the code in general.
+   */
+  return subject.credits ?? creditsFor(identity).credits;
+}
 
 /** The `courseKind` on an evaluation that never got as far as resolving one. */
 const UNRESOLVED_KIND: ResolvedCourseKind = {
@@ -485,11 +514,16 @@ export function resolveSubjectGrade(
  * it back are named — so the student sees what to fill in rather than being
  * told the figure is simply unavailable.
  */
-export function sgpaInputs(result: SemesterResult, ruleSet: RuleSet | undefined): SgpaInputs {
+export function sgpaInputs(
+  result: SemesterResult,
+  ruleSet: RuleSet | undefined,
+  identify: SubjectLookup = NO_LOOKUP,
+): SgpaInputs {
   const courses: { credits: number; gradeLetter: string; subjectCode: string }[] = [];
   const missing: { subjectCode: string; reason: string }[] = [];
 
   for (const subject of result.subjects) {
+    const identity = identify(subject.subjectCode);
     /*
      * NON-CREDIT AND AUDIT COURSES ARE NOT IN THE AVERAGE.
      *
@@ -504,10 +538,10 @@ export function sgpaInputs(result: SemesterResult, ruleSet: RuleSet | undefined)
      * Excluded is not hidden. The course stays on the page with its own grade;
      * completion is mandatory for the degree.
      */
-    if (resolveCourseKind(subject, null, ruleSet).countsTowardGpa === false) continue;
+    if (resolveCourseKind(subject, identity, ruleSet).countsTowardGpa === false) continue;
 
     const grade = resolveSubjectGrade(subject, ruleSet);
-    const credits = subject.credits;
+    const credits = creditsOf(subject, identity);
     if (grade !== null && credits !== null) {
       courses.push({
         credits,
@@ -563,25 +597,37 @@ export function semesterBacklogs(
 export function semesterSgpa(
   result: SemesterResult,
   ruleSet: RuleSet | undefined,
+  identify: SubjectLookup = NO_LOOKUP,
 ): {
   readonly sgpa: number | null;
   readonly credits: number;
+  /**
+   * False when NOT ONE subject had a credit figure — so a caller can tell
+   * "this semester carries no credits" from "nobody has told us yet". `0` used
+   * to mean both, and every screen guessed with `credits > 0`.
+   */
+  readonly creditsKnown: boolean;
   readonly inputs: SgpaInputs;
   /** Σ(Ci × Gi) from the same calculation — null whenever the SGPA is. */
   readonly gradePoints: number | null;
 } {
-  const inputs = sgpaInputs(result, ruleSet);
-  const credits = result.subjects.reduce((total, subject) => total + (subject.credits ?? 0), 0);
+  const inputs = sgpaInputs(result, ruleSet, identify);
+  const resolved = result.subjects.map((subject) =>
+    creditsOf(subject, identify(subject.subjectCode)),
+  );
+  const creditsKnown = resolved.some((value) => value !== null);
+  const credits = resolved.reduce((total: number, value) => total + (value ?? 0), 0);
 
   if (ruleSet === undefined || !inputs.complete) {
-    return { sgpa: null, credits, inputs, gradePoints: null };
+    return { sgpa: null, credits, creditsKnown, inputs, gradePoints: null };
   }
   const outcome = calculateSGPA(inputs.courses, ruleSet);
-  if (!isOk(outcome)) return { sgpa: null, credits, inputs, gradePoints: null };
+  if (!isOk(outcome)) return { sgpa: null, credits, creditsKnown, inputs, gradePoints: null };
   const weighted = outcome.explanation.inputs['weightedPoints'];
   return {
     sgpa: outcome.value,
     credits,
+    creditsKnown,
     inputs,
     gradePoints: typeof weighted === 'number' ? weighted : null,
   };
