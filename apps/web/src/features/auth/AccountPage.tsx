@@ -69,6 +69,8 @@ export function AccountPage() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   if (state.status === 'restoring') return <PageSkeleton label="Checking your session" />;
 
@@ -213,7 +215,7 @@ export function AccountPage() {
                     <Button
                       icon={<RefreshCw />}
                       loading={sync.state.status === 'syncing'}
-                      disabled={busy}
+                      disabled={deleting}
                       onClick={() => void sync.syncNow()}
                     >
                       Sync now
@@ -351,7 +353,10 @@ export function AccountPage() {
                       variant="destructive"
                       className="mt-4"
                       icon={<Trash2 />}
-                      onClick={() => setConfirmingDelete(true)}
+                      onClick={() => {
+                        setDeleteError(null);
+                        setConfirmingDelete(true);
+                      }}
                     >
                       Delete my account
                     </Button>
@@ -400,26 +405,46 @@ export function AccountPage() {
 
       <ConfirmDialog
         open={confirmingDelete}
-        onOpenChange={setConfirmingDelete}
+        onOpenChange={(open) => {
+          if (!open) setDeleteError(null);
+          setConfirmingDelete(open);
+        }}
         destructive
-        busy={busy}
+        busy={deleting}
+        error={deleteError}
+        pendingStatus="Deleting account…"
         title="Delete your account permanently?"
         description="Your synced records are removed from GradTools' servers. The copy on this device stays. This cannot be undone."
         confirmLabel="Delete my account permanently"
         onConfirm={() => {
-          setBusy(true);
+          setDeleting(true);
+          setDeleteError(null);
           void sync
             .deleteAccount()
-            .then((result) => {
-              setMessage(result.error);
-              if (result.error === null) {
-                toast('Account deleted', { tone: 'neutral' });
-                void signOut();
+            // A thrown request (offline) must not leave the dialog stuck busy.
+            .catch(() => ({
+              error: 'Could not reach GradTools to delete your account. Try again.',
+            }))
+            .then(async (result) => {
+              // A failure stays in the dialog, open, so the person can retry or cancel.
+              if (result.error !== null) {
+                setDeleting(false);
+                setDeleteError(result.error);
+                return;
               }
-            })
-            .finally(() => {
-              setBusy(false);
-              setConfirmingDelete(false);
+              toast('Account deleted', { tone: 'neutral' });
+              /*
+               * Sign out BEFORE closing. Signing out removes the card that opened
+               * this dialog; closing first returned focus to its button, which
+               * then vanished and left focus on <body>. Closed after, the dialog
+               * finds its trigger gone and focus falls back to <main>.
+               */
+              try {
+                await signOut();
+              } finally {
+                setDeleting(false);
+                setConfirmingDelete(false);
+              }
             });
         }}
       />
