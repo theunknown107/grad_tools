@@ -61,12 +61,12 @@ export function EmptyState({
 
 const calloutTone = {
   warning: {
-    box: 'border-warning/30 bg-warning-weak/40',
+    box: 'bg-warning-weak/40',
     icon: 'text-warning',
     Icon: AlertTriangle,
   },
-  danger: { box: 'border-danger/30 bg-danger-weak/40', icon: 'text-danger', Icon: OctagonAlert },
-  success: { box: 'border-success/30 bg-success-weak/40', icon: 'text-success', Icon: CircleCheck },
+  danger: { box: 'bg-danger-weak/40', icon: 'text-danger', Icon: OctagonAlert },
+  success: { box: 'bg-success-weak/40', icon: 'text-success', Icon: CircleCheck },
   info: { box: 'border-line bg-panel', icon: 'text-ink-2', Icon: Info },
 } as const;
 
@@ -161,7 +161,9 @@ export function Unavailable({
         tabIndex={0}
         aria-label={`${label}: ${reason}`}
         className={cn(
-          'cursor-help border-b border-dashed border-ink-3 text-[13px] text-ink-3',
+          // A text-decoration, not a border: the global border-color rule would
+          // paint a `border-ink-3` underline as the faint hairline.
+          'cursor-help text-[13px] text-ink-3 underline decoration-ink-3 decoration-dashed underline-offset-4',
           className,
         )}
       >

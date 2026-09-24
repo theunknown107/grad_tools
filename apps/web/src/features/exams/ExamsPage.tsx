@@ -176,9 +176,7 @@ export function ExamsPage() {
                         dateTime={event.examDate}
                         className={cn(
                           'grid w-12 shrink-0 place-items-center rounded-lg border py-1.5 text-center',
-                          soon
-                            ? 'border-warning/40 bg-warning-weak text-warning'
-                            : 'border-line bg-panel',
+                          soon ? 'bg-warning-weak text-warning' : 'border-line bg-panel',
                         )}
                       >
                         <span className="text-[10px] font-medium uppercase">{parts.month}</span>

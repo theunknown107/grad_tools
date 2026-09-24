@@ -182,12 +182,12 @@ describe('the degree screen', () => {
     renderWith(<SemestersPage />);
     const hero = await screen.findByLabelText('Degree standing');
     const figures = within(hero).getAllByRole('group');
-    expect(figures.map((group) => group.getAttribute('aria-label'))).toEqual([
-      'CGPA',
-      'Standing',
-      'Credits earned',
-      'Credits left',
-    ]);
+    expect(
+      figures.map(
+        (group) =>
+          document.getElementById(group.getAttribute('aria-labelledby') ?? '')?.textContent,
+      ),
+    ).toEqual(['CGPA', 'Standing', 'Credits earned', 'Credits left']);
     for (const figure of figures) expect(figure.className).not.toMatch(/\bgt-metric\b|\brounded-/);
   });
 

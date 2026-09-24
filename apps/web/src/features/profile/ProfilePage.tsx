@@ -275,7 +275,7 @@ function Overview({
             />
             <MiniStat
               label="Semesters"
-              value={`${String(statistics.semestersGraded.value ?? 0)}/8`}
+              value={`${String(statistics.semestersGraded.value ?? 0)}/${String(Math.max(statistics.views.length, 8))}`}
               valueClassName="text-2xl"
             />
             <MiniStat

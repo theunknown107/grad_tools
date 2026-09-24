@@ -193,7 +193,7 @@ function Figures() {
                 <Tooltip content="Σ(SGPA × credits) ÷ Σ credits — weighted by the credits each semester carried. Clause 22OB 6.6.">
                   <button
                     type="button"
-                    className="cursor-help border-b border-dashed border-accent-ink font-mono text-[11px] text-accent-ink"
+                    className="cursor-help font-mono text-[11px] text-accent-ink underline decoration-accent-ink decoration-dashed underline-offset-3"
                   >
                     formula
                   </button>
@@ -207,25 +207,22 @@ function Figures() {
               label="Latest SGPA"
               value={
                 statistics.latestSgpa.value === null
-                  ? '—'
+                  ? 'Unavailable'
                   : formatGpa(statistics.latestSgpa.value.sgpa)
               }
+              valueClassName={cn(statistics.latestSgpa.value === null && 'text-base text-ink-3')}
             />
             <MiniStat
               label="Credits"
-              value={
-                metricDisplay(statistics.creditsEarned).value === 'Unavailable'
-                  ? '—'
-                  : metricDisplay(statistics.creditsEarned).value
-              }
+              value={metricDisplay(statistics.creditsEarned).value}
+              valueClassName={cn(statistics.creditsEarned.value === null && 'text-base text-ink-3')}
             />
             <MiniStat
               label="Backlogs"
-              value={
-                metricDisplay(statistics.backlogsFromResults).value === 'Unavailable'
-                  ? '—'
-                  : metricDisplay(statistics.backlogsFromResults).value
-              }
+              value={metricDisplay(statistics.backlogsFromResults).value}
+              valueClassName={cn(
+                statistics.backlogsFromResults.value === null && 'text-base text-ink-3',
+              )}
             />
           </div>
         </Card>
@@ -470,10 +467,7 @@ function ResultBlock({
   readonly children?: ReactNode;
 }) {
   return (
-    <div
-      aria-live="polite"
-      className="mt-6 rounded-xl border border-accent/30 bg-accent-weak/50 p-5"
-    >
+    <div aria-live="polite" className="mt-6 rounded-xl border bg-accent-weak/50 p-5">
       <div className="text-[12px] font-medium text-ink-2">{label}</div>
       <div className="mt-1 flex items-baseline gap-1.5">
         <span

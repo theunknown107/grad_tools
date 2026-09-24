@@ -30,7 +30,7 @@ import {
 } from '../src/components/ui/dialog.js';
 import { EmptyState, Unavailable, toast } from '../src/components/ui/feedback.js';
 import { Field, Input, Select } from '../src/components/ui/field.js';
-import { MiniStat } from '../src/components/ui/metric.js';
+import { Metric, MiniStat } from '../src/components/ui/metric.js';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -673,5 +673,25 @@ describe('MiniStat', () => {
     const stat = screen.getByRole('group', { name: 'Credits' });
     expect(stat.textContent).toContain('72');
     expect(stat.className).not.toMatch(/\bborder\b|\brounded-|\bbg-/);
+  });
+
+  it('takes its name from the visible label, not a duplicate aria-label', () => {
+    render(<MiniStat label="Credits" value="72" />);
+    const stat = screen.getByRole('group', { name: 'Credits' });
+    expect(stat.hasAttribute('aria-label')).toBe(false);
+    const labelledBy = stat.getAttribute('aria-labelledby') ?? '';
+    expect(document.getElementById(labelledBy)?.textContent).toBe('Credits');
+  });
+});
+
+describe('Metric', () => {
+  it('takes its name from the visible label alone, even beside a status dot', () => {
+    render(<Metric label="Attendance" value="62" unit="%" emphasis="warning" />);
+    const metric = screen.getByRole('group', { name: 'Attendance' });
+    expect(metric.hasAttribute('aria-label')).toBe(false);
+    const labelledBy = metric.getAttribute('aria-labelledby') ?? '';
+    expect(document.getElementById(labelledBy)?.textContent).toBe('Attendance');
+    /* The dot is still announced, on its own. */
+    expect(within(metric).getByRole('img', { name: 'Needs attention' })).toBeTruthy();
   });
 });
