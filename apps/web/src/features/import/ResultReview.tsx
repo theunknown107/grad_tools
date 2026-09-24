@@ -31,8 +31,10 @@ import { rowToSubject, type ParsedRow } from '../../domain/result-import.js';
 import {
   blockingReason,
   isReadyToImport,
+  withChosenSemester,
   type SemesterGroup,
 } from '../../domain/result-reconcile.js';
+import { useResults } from '../../hooks/useCollection.js';
 import {
   creditsFor,
   resolveSubject,
@@ -161,6 +163,7 @@ export function ResultReview({
   readonly onDiscard: () => void;
 }) {
   const first = group.files[0];
+  const { items: savedResults } = useResults();
   const [semester, setSemester] = useState(String(group.semester ?? ''));
   const [rows, setRows] = useState<readonly DraftRow[]>(() =>
     (first?.card.rows ?? []).map(toDraft),
@@ -194,14 +197,22 @@ export function ResultReview({
   const enrichmentFor = (row: DraftRow): RowEnrichment =>
     enrichRow(subjectFrom(row), resolveSubject(subjectIndex, row.subjectCode), ruleSet);
 
-  const blocked = blockingReason(group);
   /*
    * A page that printed a semester outside 1–8 is refused, not re-filed: picking
    * 1–8 for a semester-9 card would be silently wrong data (OQ-057).
    */
   const unsupported = group.files.some((file) => file.card.unsupportedSemester !== null);
-  const ready =
-    isReadyToImport(group) || (group.semester === null && !unsupported && semester !== '');
+  /* A chosen semester is checked exactly like a printed one. */
+  const effective =
+    group.semester === null && !unsupported && semester !== ''
+      ? withChosenSemester(
+          group,
+          Number(semester),
+          savedResults.map((result) => result.semester),
+        )
+      : group;
+  const blocked = blockingReason(effective);
+  const ready = isReadyToImport(effective);
 
   const enriched = rows.map((row) => {
     const enrichment = enrichmentFor(row);

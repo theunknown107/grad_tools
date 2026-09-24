@@ -161,9 +161,9 @@ function ClassRow({
   );
   const title = named.name === '' ? KIND_LABEL[entry.kind] : named.name;
 
-  const record = (next: MarkState): void => {
+  const mark = async (next: MarkState): Promise<void> => {
     const previous = state;
-    void set(
+    const result = await set(
       {
         classId: entry.classId,
         date,
@@ -174,6 +174,10 @@ function ClassRow({
       },
       next,
     );
+    if (!result.ok) {
+      toast(result.reason, { tone: 'warning' });
+      return;
+    }
     toast(
       next === 'cancelled'
         ? `${named.shortName} is marked cancelled for this date.`
@@ -202,6 +206,7 @@ function ClassRow({
       },
     );
   };
+  const record = (next: MarkState): void => void mark(next);
 
   return (
     <Row className="flex-wrap items-start gap-x-3 gap-y-2 sm:flex-nowrap sm:items-center">

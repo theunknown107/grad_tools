@@ -2311,3 +2311,61 @@ capped at 8.
 student rather than silently ignored; and how an out-of-range printed semester
 is reported at import (named as out of range, or refused). Both follow from
 OQ-055 and should be decided with it.
+
+
+### OQ-058 — How a supplementary or improvement attempt combines with the original result · **opened by Step 12, unresolved**
+
+**Status:** OPEN · academic rule + product decision
+
+**What is established.** A semester holds one `SemesterResult` (`types.ts`); a
+result subject has no attempt, session or supplementary field, and `docs/08`'s
+`attempt_number` was never built. Storage is keyed by id and the cloud
+`semester_results` table has no `UNIQUE (profile, semester)`: the "one result per
+semester" rule lives in the import review (`isReadyToImport`) and the editor.
+`examSessionOf` (`domain/exams.ts`) can tell two sittings of one semester apart
+from `announcedOn`, but nothing uses it outside tests. The regulation is silent:
+`docs/research/vtu-missing-data.md` §16 and `vtu-conflicts.md` C10 record
+revaluation / supplementary / improvement as NOT FOUND, "Do not model from
+aggregator guides." 22OB 6.3(9) only defines an attempt; nothing says whether a
+later pass supersedes an F for SGPA or CGPA, or which attempt counts.
+
+**What GradTools does (Step 12).** It keeps the original and adds nothing it
+cannot count. A second card for a semester that already has a result is refused
+with a reason that says the saved result is kept, whether the card printed the
+semester or the student chose it (the latter used to save a hidden second
+record). Where legacy data already holds two results for one semester, the
+earliest-created is the semester's result on every device — a data tie-break
+that preserves the original, not an academic rule. A re-sit can still be
+recorded by editing the failed row, which overwrites it without history.
+
+**Decision needed:** the rule for combining attempts (from VTU examination
+circulars, which are not in the repository), and then the model: separate
+sittings that coexist (`examSessionOf` is the seam), a subject-level
+replacement, or an attempt history with the original kept. Also whether legacy
+duplicate results should be surfaced to the student.
+
+### OQ-059 — Attendance records already stamped with an invented semester 1 · **opened by Step 12, unresolved**
+
+**Status:** OPEN · data decision
+
+**What is established.** Until Step 12, adding a course or marking a class for a
+new subject with no current semester set saved the record as semester 1
+(`profile?.currentSemester ?? 1`). The attendance record requires a semester
+(`types.ts`; cloud `NOT NULL CHECK (semester BETWEEN 1 AND 8)`), so an unset
+semester cannot be stored. Step 12 stops the invention: the semester is resolved
+from the semester in progress, then the profile, and when neither is known
+nothing is written and the student is asked.
+
+**The gap.** Records written before the fix with an invented 1 cannot be told
+apart from genuine semester-1 records, so they are not repaired automatically.
+The dashboard filters attendance by the current semester, so such a course is
+left out of its figure once a later semester is set. Two related points: the
+profile's current semester and the semester marked in progress can disagree
+(marking one in progress does not update the profile), and the Attendance page
+lists every semester's courses while the dashboard shows only the current one.
+
+**Decision needed:** whether and how to repair legacy records (for example,
+re-stamp records whose semester 1 is neither planned nor in progress, with the
+student's confirmation); whether the profile's current semester should follow
+the semester marked in progress; and whether the Attendance page should filter
+to the current semester.

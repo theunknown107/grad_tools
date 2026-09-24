@@ -21,12 +21,27 @@ import { AttendancePage } from '../src/features/attendance/AttendancePage.js';
 import { ResultsPage } from '../src/features/results/ResultsPage.js';
 import { TimetablePage } from '../src/features/timetable/TimetablePage.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
-import type { AttendanceRecord, SemesterResult } from '../src/domain/types.js';
+import type { AttendanceRecord, SemesterResult, StudentProfile } from '../src/domain/types.js';
 import { Route, Routes } from 'react-router-dom';
 import { ResultDetailPage } from '../src/features/results/ResultDetailPage.js';
 import { choose, createMemoryRepositories, renderWith } from './helpers.js';
 
 const profileId = asStudentProfileId('p1');
+
+/* A record needs a semester; with none set, Add course asks (attendance-semester). */
+const inSemesterFive: StudentProfile = {
+  id: profileId,
+  authUserId: null,
+  displayName: null,
+  usn: null,
+  collegeName: null,
+  programme: null,
+  schemeId: 'vtu-2022',
+  branch: null,
+  currentSemester: 5,
+  createdAt: '',
+  updatedAt: '',
+};
 
 function attendance(
   id: string,
@@ -434,7 +449,7 @@ async function openPlanner(): Promise<void> {
 describe('attendance', () => {
   it('adds a course and persists it through the repository', async () => {
     const user = userEvent.setup();
-    const { bundle, peek } = createMemoryRepositories();
+    const { bundle, peek } = createMemoryRepositories({ profile: inSemesterFive });
     renderWith(<AttendancePage />, { repositories: bundle });
     await openAddCourse();
 
@@ -454,11 +469,12 @@ describe('attendance', () => {
     expect((await screen.findAllByText('90.0%')).length).toBeGreaterThan(0);
     expect(peek.attendance()).toHaveLength(1);
     expect(peek.attendance()[0]?.subjectCode).toBe('BCS304');
+    expect(peek.attendance()[0]?.semester).toBe(5);
   });
 
   it('rejects attended greater than conducted rather than storing it', async () => {
     const user = userEvent.setup();
-    const { bundle, peek } = createMemoryRepositories();
+    const { bundle, peek } = createMemoryRepositories({ profile: inSemesterFive });
     renderWith(<AttendancePage />, { repositories: bundle });
     await openAddCourse();
 
@@ -467,7 +483,7 @@ describe('attendance', () => {
     await user.type(screen.getByLabelText(/^conducted$/i), '50');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
 
-    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect((await screen.findByRole('alert')).textContent).toMatch(/cannot be more than/i);
     expect(peek.attendance()).toHaveLength(0);
   });
 
@@ -871,7 +887,7 @@ describe('navigation', () => {
 describe('local persistence', () => {
   it('round-trips data through the repository boundary', async () => {
     const user = userEvent.setup();
-    const { bundle } = createMemoryRepositories();
+    const { bundle } = createMemoryRepositories({ profile: inSemesterFive });
 
     const first = renderWith(<AttendancePage />, { repositories: bundle });
     await openAddCourse();

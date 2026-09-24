@@ -378,9 +378,9 @@ export function ResultEditor({
       <div className="flex flex-col gap-3 border-t border-line p-5">
         {duplicate && (
           <Callout tone="warning">
-            Semester {semester} already has a result saved. Choose another semester, or close this
-            and use <strong>Edit semester</strong> on the one you already have — a second record for
-            the same semester would not be counted.
+            Semester {semester} already has a result saved, and it is kept as it is. A second result
+            for the same semester (for example the card for a backlog you re-sat) cannot be added
+            yet. To correct the saved one, close this and use <strong>Edit semester</strong>.
           </Callout>
         )}
         {showErrors && invalid && (

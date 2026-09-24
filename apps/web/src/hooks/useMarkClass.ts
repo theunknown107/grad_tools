@@ -26,11 +26,11 @@ import {
   openingOf,
   statusOf,
 } from '../domain/attendance.js';
+import { buildSemesterViews, currentSemester } from '../domain/academics.js';
 import { overrideId } from '../domain/day-schedule.js';
 import { asStudentProfileId } from '../domain/identity.js';
 import type {
   AttendanceOutcome,
-  AttendanceRecord,
   ClassOccurrence,
   DayOverride,
   LedgerEntry,
@@ -40,6 +40,7 @@ import {
   useAttendance,
   useAttendanceLedger,
   useProfile,
+  useSemesters,
   useTimetableOverrides,
 } from './useCollection.js';
 import { useLatest } from './useNow.js';
@@ -58,10 +59,13 @@ export interface MarkableClass {
   readonly endTime: string;
 }
 
+export type MarkResult = { readonly ok: true } | { readonly ok: false; readonly reason: string };
+
 export interface MarkClassApi {
   /** What this class is showing now. */
   readonly stateOf: (date: string, classId: string) => MarkState;
-  readonly set: (klass: MarkableClass, next: MarkState) => Promise<void>;
+  /** Refused, with nothing written, when there is nowhere honest to file it. */
+  readonly set: (klass: MarkableClass, next: MarkState) => Promise<MarkResult>;
   readonly loading: boolean;
 }
 
@@ -79,6 +83,7 @@ export function useMarkClass(): MarkClassApi {
   const { items: overrides, save: saveOverride, remove: removeOverride } = useTimetableOverrides();
   const { items: records, save: saveRecord } = useAttendance();
   const { profile } = useProfile();
+  const { items: semesters } = useSemesters();
 
   const stateOf = useCallback(
     (date: string, classId: string): MarkState =>
@@ -94,15 +99,33 @@ export function useMarkClass(): MarkClassApi {
    * callback was built would compare the new state against the old one, see no
    * change, and do nothing at all — the undo would silently fail.
    */
-  const latest = useLatest({ entries, overrides, records, profile });
+  const latest = useLatest({ entries, overrides, records, profile, semesters });
 
   const set = useCallback(
-    async (klass: MarkableClass, next: MarkState): Promise<void> => {
-      const { entries, overrides, records, profile } = latest.current;
+    async (klass: MarkableClass, next: MarkState): Promise<MarkResult> => {
+      const { entries, overrides, records, profile, semesters } = latest.current;
       const id = occurrenceId(klass.date, klass.classId);
       const existing = occurrenceFor(entries, klass.date, klass.classId);
       const status = statusOf(overrides, klass.date, klass.classId);
-      if (effectiveState(existing, status) === next) return;
+      if (effectiveState(existing, status) === next) return { ok: true };
+
+      const code = normalise(klass.subjectCode);
+      const record = records.find((candidate) => normalise(candidate.subjectCode) === code);
+      /* The degree first, the profile second (the Dashboard's rule). */
+      const semester =
+        currentSemester(buildSemesterViews(semesters, []))?.number ??
+        profile?.currentSemester ??
+        null;
+      /*
+       * A NEW COURSE NEEDS A SEMESTER, AND ONE IS NEVER INVENTED. Checked before
+       * any write, so a refusal leaves nothing half-recorded.
+       */
+      if (record === undefined && semester === null && (next === 'attended' || next === 'missed')) {
+        return {
+          ok: false,
+          reason: 'Set your current semester before marking a new course — it cannot be guessed.',
+        };
+      }
 
       /*
        * The two axes are written separately, and a cancellation NEVER touches
@@ -157,8 +180,6 @@ export function useMarkClass(): MarkClassApi {
         }
       }
 
-      const code = normalise(klass.subjectCode);
-
       /*
        * A SUBJECT THE LEDGER HAS NEVER HEARD OF KEEPS ITS FIGURES.
        *
@@ -169,7 +190,6 @@ export function useMarkClass(): MarkClassApi {
        * the counters become the opening balance, exactly as the upgrade would
        * have written them.
        */
-      const record = records.find((candidate) => normalise(candidate.subjectCode) === code);
       if (
         record !== undefined &&
         (record.attended > 0 || record.conducted > 0) &&
@@ -194,25 +214,28 @@ export function useMarkClass(): MarkClassApi {
         attended: 0,
         conducted: 0,
       };
-      const updated: AttendanceRecord =
-        record === undefined
-          ? {
-              id: newId(),
-              profileId: profile?.id ?? asStudentProfileId('local'),
-              semester: profile?.currentSemester ?? 1,
-              subjectCode: code,
-              subjectTitle: klass.subjectTitle ?? code,
-              attended: derived.attended,
-              conducted: derived.conducted,
-              updatedAt: new Date().toISOString(),
-            }
-          : {
-              ...record,
-              attended: derived.attended,
-              conducted: derived.conducted,
-              updatedAt: new Date().toISOString(),
-            };
-      await saveRecord(updated);
+      if (record !== undefined) {
+        await saveRecord({
+          ...record,
+          attended: derived.attended,
+          conducted: derived.conducted,
+          updatedAt: new Date().toISOString(),
+        });
+      } else if (semester !== null) {
+        await saveRecord({
+          id: newId(),
+          profileId: profile?.id ?? asStudentProfileId('local'),
+          semester,
+          subjectCode: code,
+          subjectTitle: klass.subjectTitle ?? code,
+          attended: derived.attended,
+          conducted: derived.conducted,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      /* Otherwise a class of an untracked course was cancelled or cleared with
+         no semester to file a record under: the schedule change stands alone. */
+      return { ok: true };
     },
     [latest, saveEntry, removeEntry, saveOverride, removeOverride, saveRecord],
   );

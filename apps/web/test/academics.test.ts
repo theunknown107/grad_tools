@@ -22,6 +22,7 @@ import {
   currentSemester,
   graduationProgress,
   MIN_SUBJECTS_FOR_STRENGTH,
+  resultForSemester,
   ruleSetForResult,
   sgpaReading,
   subjectPerformance,
@@ -81,6 +82,53 @@ function semester(number: number, status: SemesterStatus): SemesterRecord {
     updatedAt: '2026-01-01T00:00:00Z',
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/* A legacy second record for one semester                                    */
+/* -------------------------------------------------------------------------- */
+
+describe('a semester holding two records (legacy)', () => {
+  /*
+   * A data tie-break, not an academic rule: the earliest-created record is the
+   * semester's, whatever order storage or sync holds them in. Neither record is
+   * hidden or removed.
+   */
+  const full = result(
+    4,
+    [
+      ['BCS401', 4, 'O'],
+      ['BCS402', 4, 'F'],
+      ['BCS403', 3, 'A'],
+    ],
+    { id: 'full', createdAt: '2026-07-24T00:00:00Z', updatedAt: '2026-07-24T00:00:00Z' },
+  );
+  const resit = result(4, [['BCS402', 4, 'B']], {
+    id: 'resit',
+    createdAt: '2027-02-12T00:00:00Z',
+    updatedAt: '2027-03-01T00:00:00Z',
+  });
+
+  it('reads the earliest-created, in either storage order', () => {
+    expect(resultForSemester([resit, full], 4)?.id).toBe('full');
+    expect(resultForSemester([full, resit], 4)?.id).toBe('full');
+    expect(resultForSemester([full, resit], 5)).toBeNull();
+  });
+
+  it('breaks a createdAt tie by id, never by position', () => {
+    const twin = { ...full, id: 'zz' };
+    expect(resultForSemester([twin, full], 4)?.id).toBe('full');
+  });
+
+  it('grades the semester from the full result, with every subject kept', () => {
+    const alone = buildSemesterViews([], [full])[3];
+    const view = buildSemesterViews([], [resit, full])[3];
+
+    expect(view?.result?.id).toBe('full');
+    expect(view?.subjectCount).toBe(3);
+    expect(view?.sgpaComputed).not.toBeNull();
+    expect(view?.sgpaComputed).toBe(alone?.sgpaComputed);
+  });
+});
 
 /* -------------------------------------------------------------------------- */
 /* The eight-semester shape                                                   */
