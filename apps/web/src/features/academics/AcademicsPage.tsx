@@ -210,18 +210,27 @@ function Figures() {
                   ? 'Unavailable'
                   : formatGpa(statistics.latestSgpa.value.sgpa)
               }
-              valueClassName={cn(statistics.latestSgpa.value === null && 'text-base text-ink-3')}
+              valueClassName={cn(
+                statistics.latestSgpa.value === null && 'text-[13px] font-medium text-ink-3',
+              )}
             />
             <MiniStat
               label="Credits"
               value={metricDisplay(statistics.creditsEarned).value}
-              valueClassName={cn(statistics.creditsEarned.value === null && 'text-base text-ink-3')}
+              valueClassName={cn(
+                statistics.creditsEarned.value === null && 'text-[13px] font-medium text-ink-3',
+              )}
             />
+            {/*
+              Derived from the results on this card, and a FLOOR when a row
+              could not be checked: "0+" rather than a clean 0, as on Results.
+            */}
             <MiniStat
               label="Backlogs"
-              value={metricDisplay(statistics.backlogsFromResults).value}
+              value={`${metricDisplay(statistics.backlogsFromResults).value}${statistics.backlogsUndetermined > 0 ? '+' : ''}`}
               valueClassName={cn(
-                statistics.backlogsFromResults.value === null && 'text-base text-ink-3',
+                statistics.backlogsFromResults.value === null &&
+                  'text-[13px] font-medium text-ink-3',
               )}
             />
           </div>

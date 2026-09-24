@@ -6,10 +6,12 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup } from '@testing-library/react';
-import { screen, within } from '@testing-library/dom';
+import { screen, waitFor, within } from '@testing-library/dom';
 import { VTU_2022_RULE_SET_ID } from '@gradtools/academic-rules';
 import { AcademicsPage } from '../src/features/academics/AcademicsPage.js';
+import { DashboardPage } from '../src/features/dashboard/DashboardPage.js';
 import { ProfilePage } from '../src/features/profile/ProfilePage.js';
+import { SemestersPage } from '../src/features/semesters/SemestersPage.js';
 import { normalizeResultSubject } from '../src/domain/results.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
 import type { SemesterRecord, SemesterResult } from '../src/domain/types.js';
@@ -53,20 +55,43 @@ function completed(number: number): SemesterRecord {
 
 afterEach(cleanup);
 
-describe('Profile semester figure', () => {
+describe('semesters graded, on every screen that counts them', () => {
   /*
-   * The denominator is the degree's semester views (statistics.views), the
-   * same count the dashboard and Semesters page use. buildSemesterViews always
-   * yields the eight semesters, so this is the ordinary case: a record beyond
-   * the eighth does not stretch the degree.
+   * THREE SEMESTERS COMPLETED, TWO GRADED. The figure is semesters GRADED, so
+   * every screen reads 2 — a screen that counted completed semesters, or had a
+   * rule of its own, would read 3 and disagree with the others.
+   *
+   * THE DENOMINATOR IS NOT VARIED, BECAUSE IT CANNOT BE. The degree is modelled
+   * as exactly the eight SEMESTER_NUMBERS (ED-71): buildSemesterViews yields
+   * those eight whatever is stored, and a result for a ninth semester adds no
+   * view (academics.test.ts). A test that made the total anything but 8 would
+   * have to invent a state the app cannot reach. What this pins instead is that
+   * the three screens state the same numerator over the same total.
    */
-  it('counts graded semesters against the degree the views describe', async () => {
-    const { bundle } = createMemoryRepositories({
-      semesters: [completed(1), completed(2)],
+  it('reads the same graded count, over the same total, on all three screens', async () => {
+    const seed = {
+      semesters: [completed(1), completed(2), completed(3)],
       results: [result(1), result(2)],
-    });
-    renderWith(<ProfilePage />, { repositories: bundle, route: '/profile' });
+    };
 
+    renderWith(<DashboardPage />, { repositories: createMemoryRepositories(seed).bundle });
+    await waitFor(() => {
+      const bar = screen.getByRole('progressbar', { name: 'Semesters graded' });
+      expect(bar.getAttribute('aria-valuetext')).toBe('2 of 8');
+    });
+    cleanup();
+
+    renderWith(<SemestersPage />, { repositories: createMemoryRepositories(seed).bundle });
+    await waitFor(() => {
+      const bar = screen.getByRole('progressbar', { name: 'Semesters graded' });
+      expect(bar.getAttribute('aria-valuetext')).toBe('2 of 8');
+    });
+    cleanup();
+
+    renderWith(<ProfilePage />, {
+      repositories: createMemoryRepositories(seed).bundle,
+      route: '/profile',
+    });
     const group = await screen.findByRole('group', { name: 'Semesters' });
     expect(await within(group).findByText('2/8')).toBeTruthy();
   });

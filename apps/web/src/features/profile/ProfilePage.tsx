@@ -50,6 +50,7 @@ import {
 } from '../../components/ui/table.js';
 import { identityOf } from '../../domain/auth.js';
 import { asStudentProfileId } from '../../domain/identity.js';
+import { hasNoBacklogs } from '../../domain/statistics.js';
 import type { StudentProfile } from '../../domain/types.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
 import { useProfile, useResults, useTimetable } from '../../hooks/useCollection.js';
@@ -137,7 +138,13 @@ function Overview({
   const name = profile?.displayName ?? null;
   const usn = profile?.usn ?? null;
   const provisional = statistics.cgpaBasis.pending.length > 0;
-  const backlogs = statistics.backlogsFromResults.value;
+  /*
+   * The backlog COUNT is the one the student records, as on the dashboard and
+   * the degree page's backlog list. "No backlogs" is claimed only when neither
+   * that nor the results show one.
+   */
+  const backlogs = statistics.backlogs.value;
+  const clear = hasNoBacklogs(statistics);
   const fields: readonly {
     icon: LucideIcon;
     label: string;
@@ -207,10 +214,14 @@ function Overview({
               <Badge>Semester {profile.currentSemester}</Badge>
             )}
             {profile?.schemeId === 'vtu-2022' && <Badge>2022 scheme</Badge>}
-            {backlogs === 0 ? (
+            {clear ? (
               <Badge tone="success">No backlogs</Badge>
-            ) : backlogs !== null ? (
+            ) : backlogs !== null && backlogs > 0 ? (
               <Badge tone="warning">{formatCount(backlogs, 'backlog')}</Badge>
+            ) : (statistics.backlogsFromResults.value ?? 0) > 0 ? (
+              <Badge tone="warning">
+                {formatCount(statistics.backlogsFromResults.value ?? 0, 'backlog')} in your results
+              </Badge>
             ) : null}
           </div>
           {profile === null && (
@@ -275,15 +286,15 @@ function Overview({
             />
             <MiniStat
               label="Semesters"
-              value={`${String(statistics.semestersGraded.value ?? 0)}/${String(Math.max(statistics.views.length, 8))}`}
+              value={`${String(statistics.semestersGraded.value ?? 0)}/${String(statistics.views.length)}`}
               valueClassName="text-2xl"
             />
             <MiniStat
               label="Backlogs"
-              value={metricDisplay(statistics.backlogsFromResults).value}
+              value={metricDisplay(statistics.backlogs).value}
               valueClassName={cn(
                 'text-2xl',
-                backlogs === 0 && 'text-success',
+                clear && 'text-success',
                 backlogs === null && 'text-base text-ink-3',
                 (backlogs ?? 0) > 0 && 'text-warning',
               )}

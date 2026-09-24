@@ -42,7 +42,7 @@ import {
   type CalendarEvent,
   type SavedCalendar,
 } from '../../domain/calendar-import.js';
-import type { AcademicStatistics } from '../../domain/statistics.js';
+import { hasNoBacklogs, type AcademicStatistics } from '../../domain/statistics.js';
 import { timetableEntry } from '../../domain/timetable-import.js';
 import {
   WEEKDAYS,
@@ -109,7 +109,7 @@ function standingSentence(stats: AcademicStatistics, semester: number | null): s
   if (stats.creditsEarned.value !== null) {
     parts.push(`${formatCount(stats.creditsEarned.value, 'credit')} earned`);
   }
-  if (stats.backlogs.value === 0 && stats.backlogsUndetermined === 0) parts.push('no backlogs');
+  if (hasNoBacklogs(stats)) parts.push('no backlogs');
   const where = semester === null ? '' : ` You are in semester ${String(semester)}.`;
   return `${parts.join(', ')}.${where}`;
 }
@@ -212,7 +212,8 @@ function Hero({
   const provisional = stats.cgpaBasis.pending.length > 0;
   const standing = provisional ? stats.provisionalCgpa : stats.cgpa;
   const graded = stats.semestersGraded.value ?? 0;
-  const planned = Math.max(stats.views.length, 8);
+  /* The degree's modelled length (ED-71: eight semesters, always shown). */
+  const planned = stats.views.length;
   const completed = stats.semestersCompleted.value;
   const note =
     standing.reason ??
@@ -403,9 +404,12 @@ function Standing({
           emphasis={(stats.backlogs.value ?? 0) > 0 ? 'warning' : undefined}
           sub={
             backlogs.note ??
-            (stats.backlogs.value === 0 && stats.backlogsUndetermined === 0
+            (hasNoBacklogs(stats)
               ? 'All cleared'
-              : undefined)
+              : /* The count is what is recorded; say so when the results show more. */
+                stats.backlogs.value === 0 && (stats.backlogsFromResults.value ?? 0) > 0
+                ? `${formatCount(stats.backlogsFromResults.value ?? 0, 'backlog')} in your results`
+                : undefined)
           }
         />
         <Metric

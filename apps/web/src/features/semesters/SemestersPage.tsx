@@ -30,6 +30,7 @@ import {
   type SemesterView,
 } from '../../domain/academics.js';
 import { asStudentProfileId } from '../../domain/identity.js';
+import { hasNoBacklogs } from '../../domain/statistics.js';
 import type { SemesterRecord, SemesterStatus } from '../../domain/types.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
 import { useProfile, useResults, useSemesters } from '../../hooks/useCollection.js';
@@ -108,7 +109,22 @@ export function SemestersPage() {
   const graded = statistics.semestersGraded.value ?? 0;
   const openView = views.find((view) => view.number === openSemester) ?? null;
   const provisional = statistics.cgpaBasis.pending.length > 0;
-  const backlogsKnown = statistics.backlogsFromResults.value;
+  /*
+   * Two backlog figures, kept apart: what the student RECORDS (the list on this
+   * page, and the dashboard's count) and what the imported results IMPLY. The
+   * standing is "Good" only when neither shows one (`hasNoBacklogs`); a count
+   * shown is the recorded one when there is any, else the results' own.
+   */
+  const recordedBacklogs = statistics.backlogs.value ?? 0;
+  const resultBacklogs = statistics.backlogsFromResults.value ?? 0;
+  const clear = hasNoBacklogs(statistics);
+  const backlogsToClear = recordedBacklogs > 0 ? recordedBacklogs : resultBacklogs;
+  /*
+   * Not clear, yet nothing to clear: rows that could not be checked, or no
+   * results at all to check. Either way the honest answer is "could not be
+   * checked", never "Good" and never "0 to clear".
+   */
+  const uncheckedOnly = !clear && backlogsToClear === 0;
   const scheme = profile?.schemeId === 'vtu-2022' ? '2022 scheme' : null;
 
   return (
@@ -200,17 +216,18 @@ export function SemestersPage() {
               plain
               className="bg-transparent p-0"
               label="Standing"
-              value={
-                backlogsKnown === null ? 'Unavailable' : backlogsKnown === 0 ? 'Good' : 'To clear'
-              }
-              state={backlogsKnown === null ? 'unavailable' : 'resolved'}
-              emphasis={backlogsKnown !== null && backlogsKnown > 0 ? 'warning' : undefined}
+              value={clear ? 'Good' : uncheckedOnly ? 'Unavailable' : 'To clear'}
+              state={uncheckedOnly ? 'unavailable' : 'resolved'}
+              emphasis={backlogsToClear > 0 ? 'warning' : undefined}
               sub={
-                backlogsKnown === null
-                  ? 'Backlogs could not be checked'
-                  : backlogsKnown === 0
-                    ? 'No backlogs'
-                    : formatCount(backlogsKnown, 'backlog')
+                clear
+                  ? 'No backlogs'
+                  : uncheckedOnly
+                    ? 'Backlogs could not be checked'
+                    : recordedBacklogs > 0
+                      ? formatCount(recordedBacklogs, 'backlog')
+                      : /* Nothing recorded: say where the count comes from. */
+                        `${formatCount(resultBacklogs, 'backlog')} in your results`
               }
             />
             <Metric
@@ -365,9 +382,9 @@ export function SemestersPage() {
           <div
             className={cn(
               'rounded-xl border p-5',
-              backlogsKnown === null
+              uncheckedOnly
                 ? 'border-line bg-panel'
-                : backlogsKnown === 0
+                : clear
                   ? 'bg-success-weak/50'
                   : 'bg-warning-weak/50',
             )}
@@ -377,32 +394,23 @@ export function SemestersPage() {
                 aria-hidden="true"
                 className={cn(
                   'grid size-10 shrink-0 place-items-center rounded-full text-canvas',
-                  backlogsKnown === 0
-                    ? 'bg-success'
-                    : backlogsKnown === null
-                      ? 'bg-ink-3'
-                      : 'bg-warning',
+                  clear ? 'bg-success' : uncheckedOnly ? 'bg-ink-3' : 'bg-warning',
                 )}
               >
-                {backlogsKnown === 0 ? (
-                  <Check className="size-5" />
-                ) : (
-                  <TriangleAlert className="size-5" />
-                )}
+                {clear ? <Check className="size-5" /> : <TriangleAlert className="size-5" />}
               </span>
               <div>
                 <div className="text-[15px] font-semibold">
-                  {backlogsKnown === null
-                    ? 'Backlogs could not be checked'
-                    : backlogsKnown === 0
-                      ? 'Clear academic record'
-                      : `${formatCount(backlogsKnown, 'backlog')} to clear`}
+                  {clear
+                    ? 'Clear academic record'
+                    : uncheckedOnly
+                      ? 'Backlogs could not be checked'
+                      : `${formatCount(backlogsToClear, 'backlog')} to clear`}
                 </div>
                 <div className="text-[13px] text-ink-2">
-                  {backlogsKnown === null
-                    ? (statistics.backlogsFromResults.reason ??
-                      'Some courses cannot be read as passed or failed.')
-                    : `${String(backlogsKnown)}${statistics.backlogsUndetermined > 0 ? ' or more' : ''} across ${formatCount(statistics.grades.total, 'recorded course')}.`}
+                  {/* What the imported results say, whichever count the title shows. */}
+                  {statistics.grades.total > 0 &&
+                    `${String(resultBacklogs)}${statistics.backlogsUndetermined > 0 ? ' or more' : ''} across ${formatCount(statistics.grades.total, 'recorded course')}.`}
                 </div>
               </div>
             </div>

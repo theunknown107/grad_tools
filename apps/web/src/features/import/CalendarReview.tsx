@@ -11,6 +11,7 @@ import {
   type ParsedCalendar,
   type SavedCalendar,
 } from '../../domain/calendar-import.js';
+import { SEMESTER_NUMBERS } from '../../domain/types.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { Recorded, ReviewCard, SaveFooter, saveFailure, type SaveState } from './ReviewCard.js';
 
@@ -24,7 +25,7 @@ const CATEGORY_LABEL: Record<CalendarCategory, string> = {
   OTHER_ACADEMIC: 'Academic date',
 };
 
-export const SEMESTER_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8].map((value) => ({
+export const SEMESTER_OPTIONS = SEMESTER_NUMBERS.map((value) => ({
   value: String(value),
   label: `Semester ${String(value)}`,
 }));

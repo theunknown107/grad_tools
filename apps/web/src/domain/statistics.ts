@@ -624,6 +624,27 @@ export interface AcademicStatistics {
 }
 
 /**
+ * Whether the student can be told they have NO backlogs.
+ *
+ * The two backlog figures stay apart (see `backlogs` and `backlogsFromResults`)
+ * and are never added together. But "no backlogs", "Good" or "clear record" is
+ * a claim about the student, and it is only true when NEITHER source shows
+ * one: nothing recorded as carried, no failed result row, and no row that
+ * could not be checked. Any one of those makes the claim false or unknown.
+ *
+ * And there must BE results: with none, the derived figure is a zero that
+ * rests on nothing, and "no backlogs" would be a claim with no evidence.
+ */
+export function hasNoBacklogs(statistics: AcademicStatistics): boolean {
+  return (
+    statistics.hasAnyResult &&
+    statistics.backlogs.value === 0 &&
+    statistics.backlogsFromResults.value === 0 &&
+    statistics.backlogsUndetermined === 0
+  );
+}
+
+/**
  * Every figure the student's records support, computed once.
  *
  * The order matters only in that each block depends on the semester
