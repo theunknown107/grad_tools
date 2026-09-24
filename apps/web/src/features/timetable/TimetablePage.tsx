@@ -224,17 +224,22 @@ export function TimetablePage() {
       startTime: slot.startTime,
       endTime: slot.endTime,
     };
-    void marking.set(klass, next);
-    if (next === 'unmarked') return;
-    toast(
-      next === 'cancelled'
-        ? `${entry.shortName} is marked cancelled for today.`
-        : `Recorded ${entry.shortName} ${next}.`,
-      {
-        tone: next === 'attended' ? 'success' : next === 'missed' ? 'warning' : 'neutral',
-        action: { label: 'Undo', onClick: () => void marking.set(klass, before) },
-      },
-    );
+    void marking.set(klass, next).then((result) => {
+      if (!result.ok) {
+        toast(result.reason, { tone: 'warning' });
+        return;
+      }
+      if (next === 'unmarked') return;
+      toast(
+        next === 'cancelled'
+          ? `${entry.shortName} is marked cancelled for today.`
+          : `Recorded ${entry.shortName} ${next}.`,
+        {
+          tone: next === 'attended' ? 'success' : next === 'missed' ? 'warning' : 'neutral',
+          action: { label: 'Undo', onClick: () => void marking.set(klass, before) },
+        },
+      );
+    });
   };
 
   const eyebrow =

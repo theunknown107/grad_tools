@@ -44,7 +44,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/menu.js';
-import { Field, Input } from '../../components/ui/field.js';
+import { Field, Input, Select } from '../../components/ui/field.js';
 import { Metric, MetricGrid } from '../../components/ui/metric.js';
 import { IconTile, PageHeader, SectionTitle } from '../../components/ui/page.js';
 import { Progress } from '../../components/ui/progress.js';
@@ -58,6 +58,7 @@ import {
   shiftOpening,
   type ClassOutcome,
 } from '../../domain/attendance.js';
+import { buildSemesterViews, currentSemester } from '../../domain/academics.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import { type AttendanceRecord, type SemesterSubject } from '../../domain/types.js';
 import { effectiveDay } from '../../domain/day-schedule.js';
@@ -67,9 +68,11 @@ import {
   useAttendanceLedger,
   useProfile,
   useSemesterSubjects,
+  useSemesters,
   useTimetable,
   useTimetableOverrides,
 } from '../../hooks/useCollection.js';
+import { SEMESTER_OPTIONS } from '../import/CalendarReview.js';
 import { useNow, useTodayLabel } from '../../hooks/useNow.js';
 import { DateView } from './DateView.js';
 import { DayView, NowLine } from './DayView.js';
@@ -105,6 +108,7 @@ export function AttendancePage() {
   const { items, loading, save, remove } = useAttendance();
   const { items: ledger, save: saveEntry } = useAttendanceLedger();
   const { profile } = useProfile();
+  const { items: semesters, loading: semestersLoading } = useSemesters();
   const { items: semesterSubjects } = useSemesterSubjects();
   const { items: timetable } = useTimetable();
   const { items: overrides } = useTimetableOverrides();
@@ -119,9 +123,12 @@ export function AttendancePage() {
   const now = useNow();
   const label = useTodayLabel();
 
-  if (loading) return <PageSkeleton label="Loading attendance" />;
+  if (loading || semestersLoading) return <PageSkeleton label="Loading attendance" />;
 
   const profileId = profile?.id ?? asStudentProfileId('local');
+  /* The degree first, the profile second — the Dashboard's rule. Null is unset. */
+  const semester =
+    currentSemester(buildSemesterViews(semesters, []))?.number ?? profile?.currentSemester ?? null;
   const tracked = items.filter((record) => record.conducted > 0);
   const pooled = items.reduce(
     (running, record) => ({
@@ -173,10 +180,7 @@ export function AttendancePage() {
     return next;
   };
 
-  const semesterLabel =
-    profile?.currentSemester === null || profile?.currentSemester === undefined
-      ? 'Semester attendance'
-      : `Semester ${String(profile.currentSemester)}`;
+  const semesterLabel = semester === null ? 'Semester attendance' : `Semester ${String(semester)}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -354,6 +358,7 @@ export function AttendancePage() {
         open={adding}
         onOpenChange={setAdding}
         subjects={semesterSubjects}
+        semester={semester}
         onAdd={(record) => {
           /*
            * The totals the student types are an OPENING BALANCE: classes that
@@ -367,7 +372,7 @@ export function AttendancePage() {
               conducted: record.conducted,
             }),
           );
-          void save({ ...record, profileId, semester: profile?.currentSemester ?? 1 });
+          void save({ ...record, profileId });
           toast(`Tracking ${record.subjectCode}`, { tone: 'success' });
         }}
       />
@@ -585,14 +590,19 @@ function AddCourseDialog({
   open,
   onOpenChange,
   subjects,
+  semester,
   onAdd,
 }: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly subjects: readonly SemesterSubject[];
+  /** The resolved current semester, pre-filled; null when the student has not said. */
+  readonly semester: number | null;
   readonly onAdd: (record: AttendanceRecord) => void;
 }) {
   const [code, setCode] = useState('');
+  const [picked, setPicked] = useState<string | null>(null);
+  const chosen = picked ?? (semester === null ? '' : String(semester));
   const [attended, setAttended] = useState('');
   const [conducted, setConducted] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -602,6 +612,7 @@ function AddCourseDialog({
     const attendedValue = Number(attended);
     const conductedValue = Number(conducted);
     if (cleaned === '') return setError('Enter a subject code.');
+    if (chosen === '') return setError('Choose the semester this course is in.');
     if (
       attended.trim() === '' ||
       conducted.trim() === '' ||
@@ -621,7 +632,7 @@ function AddCourseDialog({
     onAdd({
       id: newId(),
       profileId: asStudentProfileId('local'),
-      semester: 1,
+      semester: Number(chosen),
       subjectCode: cleaned,
       subjectTitle: subjects.find((subject) => subject.code === cleaned)?.title ?? cleaned,
       attended: attendedValue,
@@ -629,6 +640,7 @@ function AddCourseDialog({
       updatedAt: nowIso(),
     });
     setCode('');
+    setPicked(null);
     setAttended('');
     setConducted('');
     onOpenChange(false);
@@ -667,6 +679,19 @@ function AddCourseDialog({
                 </option>
               ))}
             </datalist>
+            <Field
+              label="Semester"
+              {...(semester === null
+                ? { hint: 'No current semester is set, so it cannot be guessed.' }
+                : {})}
+            >
+              <Select
+                value={chosen}
+                onValueChange={setPicked}
+                placeholder="Choose…"
+                options={SEMESTER_OPTIONS}
+              />
+            </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Attended">
                 <Input

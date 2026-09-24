@@ -16,7 +16,7 @@ import { Callout, EmptyState, toast } from '../../components/ui/feedback.js';
 import { Metric, MetricGrid } from '../../components/ui/metric.js';
 import { BackLink, PageHeader } from '../../components/ui/page.js';
 import { PageSkeleton } from '../../components/ui/skeleton.js';
-import { ruleSetForResult } from '../../domain/academics.js';
+import { resultForSemester, ruleSetForResult } from '../../domain/academics.js';
 import { asStudentProfileId } from '../../domain/identity.js';
 import {
   evaluateResultSubject,
@@ -53,7 +53,7 @@ export function ResultDetailPage() {
     code === null ? null : resolveSubject(index, code);
 
   const number = Number(param);
-  const result = items.find((item) => item.semester === number) ?? null;
+  const result = resultForSemester(items, number);
   const resolved = result === null ? null : ruleSetForResult(result);
   const evaluations = useMemo(
     () =>

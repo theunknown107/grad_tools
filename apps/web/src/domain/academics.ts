@@ -122,6 +122,35 @@ export interface SemesterView {
 const SGPA_TOLERANCE = 0.005;
 
 /**
+ * THE result for a semester: the earliest-created record, `id` breaking ties.
+ *
+ * One result per semester is the invariant, but legacy storage can hold two
+ * (a card imported before the chosen-semester check existed). Reading the
+ * first in storage order made the answer depend on insertion and sync order,
+ * so a later one-subject card could stand in for the whole semester. This is a
+ * DATA tie-break that keeps the original — not an academic rule about which
+ * attempt counts, which the repository does not establish (research C10).
+ * Nothing is hidden or deleted; the other record stays where it is.
+ */
+export function resultForSemester(
+  results: readonly SemesterResult[],
+  semester: number,
+): SemesterResult | null {
+  let chosen: SemesterResult | null = null;
+  for (const candidate of results) {
+    if (candidate.semester !== semester) continue;
+    if (
+      chosen === null ||
+      candidate.createdAt < chosen.createdAt ||
+      (candidate.createdAt === chosen.createdAt && candidate.id < chosen.id)
+    ) {
+      chosen = candidate;
+    }
+  }
+  return chosen;
+}
+
+/**
  * All eight semesters, whether or not the student has reached them.
  *
  * The degree has eight semesters and the view says so from day one: a student
@@ -141,7 +170,7 @@ export function buildSemesterViews(
 ): SemesterView[] {
   return SEMESTER_NUMBERS.map((number) => {
     const record = semesters.find((candidate) => candidate.number === number);
-    const result = results.find((candidate) => candidate.semester === number) ?? null;
+    const result = resultForSemester(results, number);
 
     let sgpaComputed: number | null = null;
     let credits = 0;

@@ -15,6 +15,7 @@ import userEvent from '@testing-library/user-event';
 import { ProfilePage } from '../src/features/profile/ProfilePage.js';
 import { AccountPage } from '../src/features/auth/AccountPage.js';
 import { AttendancePage } from '../src/features/attendance/AttendancePage.js';
+import { asStudentProfileId } from '../src/domain/identity.js';
 import { ReferenceError, apiReferenceRepository } from '../src/repositories/reference.js';
 import { createMemoryRepositories, renderWith } from './helpers.js';
 
@@ -280,7 +281,22 @@ describe('student data stays local', () => {
       return jsonResponse({ data: [] });
     });
 
-    const { bundle, peek } = createMemoryRepositories();
+    // A record needs a semester; with none set the dialog asks (attendance-semester).
+    const { bundle, peek } = createMemoryRepositories({
+      profile: {
+        id: asStudentProfileId('p1'),
+        authUserId: null,
+        displayName: null,
+        usn: null,
+        collegeName: null,
+        programme: null,
+        schemeId: 'vtu-2022',
+        branch: null,
+        currentSemester: 5,
+        createdAt: '',
+        updatedAt: '',
+      },
+    });
     renderWith(<AttendancePage />, { repositories: bundle });
     await user.click(
       (await screen.findAllByRole('button', { name: /add a course/i }))[0] as HTMLElement,
@@ -297,6 +313,7 @@ describe('student data stays local', () => {
 
     // It was stored locally...
     expect(peek.attendance()).toHaveLength(1);
+    expect(peek.attendance()[0]?.semester).toBe(5);
     // ...and the attendance screen made no network request at all.
     expect(calls).toHaveLength(0);
   });

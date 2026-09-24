@@ -155,6 +155,21 @@ export function groupBySemester(
 }
 
 /**
+ * A group whose page printed no semester, once the student has chosen one.
+ *
+ * The chosen semester is held to the same check as a printed one: a semester
+ * that already has a saved result is `alreadySaved` either way. Without this a
+ * card that printed none was a way around one-result-per-semester.
+ */
+export function withChosenSemester(
+  group: SemesterGroup,
+  semester: number,
+  savedSemesters: readonly number[],
+): SemesterGroup {
+  return { ...group, semester, alreadySaved: savedSemesters.includes(semester) };
+}
+
+/**
  * Whether a group can be imported without a person deciding something first.
  *
  * Deliberately conservative. "Ready" here means the import screen may offer a
@@ -192,7 +207,7 @@ export function blockingReason(group: SemesterGroup): string | null {
     return 'Two files describe this semester differently. Check the differences and choose which to import.';
   }
   if (group.alreadySaved) {
-    return 'This semester already has a saved result. Importing would replace it, so review it first.';
+    return `Semester ${String(group.semester)} already has a saved result, and it is kept as it is. A second result for the same semester (for example the card for a backlog you re-sat) cannot be added yet.`;
   }
   return null;
 }

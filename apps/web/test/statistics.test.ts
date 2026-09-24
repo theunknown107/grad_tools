@@ -597,13 +597,31 @@ describe('a semester the student is still sitting', () => {
 });
 
 describe('the same semester imported twice', () => {
-  it('is counted once, from the first record', () => {
+  it('is counted once, from the earliest-created record', () => {
     /*
-     * `buildSemesterViews` matches a semester by number and reads the first
-     * match, so a duplicate cannot double a credit total. Asserted here
-     * because the statistics are what a duplicate would visibly corrupt.
+     * `buildSemesterViews` reads ONE record per semester — the earliest
+     * created, `id` breaking ties (`resultForSemester`) — so a duplicate cannot
+     * double a credit total. Asserted here because the statistics are what a
+     * duplicate would visibly corrupt.
      */
     const state = stats({ results: [result(4, GOOD), { ...result(4, GOOD), id: 'r4-again' }] });
+
+    expect(state.semesters.filter((entry) => entry.hasResult)).toHaveLength(1);
+    expect(state.creditsEarned.value).toBe(12);
+    expect(state.grades.total).toBe(4);
+  });
+
+  it('keeps counting the original when a later one-subject card is stored first', () => {
+    /*
+     * Storage and sync order are not evidence. A later one-subject record held
+     * FIRST, and updated more recently, must not stand in for the semester.
+     */
+    const later = result(4, [GOOD[1] as ReturnType<typeof course>], {
+      id: 'r4-resit',
+      createdAt: '2027-02-12T00:00:00Z',
+      updatedAt: '2027-03-01T00:00:00Z',
+    });
+    const state = stats({ results: [later, result(4, GOOD)] });
 
     expect(state.semesters.filter((entry) => entry.hasResult)).toHaveLength(1);
     expect(state.creditsEarned.value).toBe(12);

@@ -19,6 +19,9 @@ import { screen, waitFor } from '@testing-library/dom';
 import { cleanup } from '@testing-library/react';
 import type { ImportLine } from '../src/domain/result-import.js';
 import type { PlacedText } from '../src/lib/pdf-text.js';
+import { asStudentProfileId } from '../src/domain/identity.js';
+import { normalizeResultSubject } from '../src/domain/results.js';
+import type { SemesterResult } from '../src/domain/types.js';
 import { Route, Routes } from 'react-router-dom';
 import { choose as pick, createMemoryRepositories, renderWith } from './helpers.js';
 
@@ -523,6 +526,118 @@ describe('a semester that already has a result', () => {
     // The same card again.
     await choose(user);
     expect(await screen.findByText(/already has a saved result/i)).toBeTruthy();
+  });
+});
+
+/* ---------------------------------------------------------------------- */
+/* A supplementary (re-sit) card for a semester that already has a result   */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * How a re-sit combines with the original is NOT established in this
+ * repository (docs/research C10), so nothing here merges or replaces: the saved
+ * result is kept exactly as it was, and the second card is refused.
+ */
+const FULL4: SemesterResult = {
+  id: 'full-4',
+  profileId: asStudentProfileId('local'),
+  semester: 4,
+  schemeId: 'vtu-2022',
+  ruleSetId: null,
+  sgpaAsserted: null,
+  subjects: [
+    {
+      id: 'a',
+      subjectCode: 'BQAS401',
+      subjectTitle: 'ALGORITHMS',
+      internal: 44,
+      external: 36,
+      total: 80,
+      resultStatus: 'P',
+    },
+    {
+      id: 'b',
+      subjectCode: 'BQAS402',
+      subjectTitle: 'FINANCIAL MANAGEMENT',
+      internal: 40,
+      external: 12,
+      total: 52,
+      resultStatus: 'F',
+    },
+    {
+      id: 'c',
+      subjectCode: 'BQAS403',
+      subjectTitle: 'NETWORKS',
+      internal: 40,
+      external: 35,
+      total: 75,
+      resultStatus: 'P',
+    },
+  ].map((row) => normalizeResultSubject({ ...row, announcedOn: '2026-07-23' })),
+  createdAt: '2026-07-24T00:00:00.000Z',
+  updatedAt: '2026-07-24T00:00:00.000Z',
+};
+const RESIT_ROW = ['BQAS402  FINANCIAL MANAGEMENT  40  24  64  P  2027-02-11'];
+
+describe('a one-subject supplementary card', () => {
+  it('is refused for a semester with a saved result, which is kept exactly as it was', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories({ results: [FULL4] });
+    setCard(4, RESIT_ROW);
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+
+    expect(
+      await screen.findByText(/semester 4 already has a saved result, and it is kept as it is/i),
+    ).toBeTruthy();
+    expect(screen.queryByText(/would replace it/i)).toBeNull();
+    expect(
+      (screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(peek.results()).toEqual([FULL4]);
+  });
+
+  it('is refused when the card printed no semester and the student picks that one', async () => {
+    /*
+     * THE HOLE. A chosen semester was never checked against saved results, so
+     * this card was saved as a SECOND semester-4 result.
+     */
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories({ results: [FULL4] });
+    extractions.clear();
+    extractions.set('a', {
+      lines: cardLines(4, RESIT_ROW).filter((line) => !/^Semester/.test(line.text)),
+      hasTextLayer: true,
+    });
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+    expect(await screen.findByText(/semester not detected/i)).toBeTruthy();
+    await pick(/^semester$/i, 'Semester 4');
+
+    expect(
+      await screen.findByText(/semester 4 already has a saved result, and it is kept as it is/i),
+    ).toBeTruthy();
+    const confirm = screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    await user.click(confirm);
+
+    expect(peek.results().filter((result) => result.semester === 4)).toHaveLength(1);
+    expect(peek.results()).toEqual([FULL4]);
+  });
+
+  it('printed for another semester is filed there, never into semester 4 by its code', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories({ results: [FULL4] });
+    setCard(5, RESIT_ROW);
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
+
+    expect(peek.results()[0]).toEqual(FULL4);
+    expect(peek.results().map((result) => result.semester)).toEqual([4, 5]);
   });
 });
 
