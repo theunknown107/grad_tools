@@ -10,6 +10,10 @@
  * A dialog opened from a menu item is opened while the item has focus, and the
  * item is gone by the time the dialog closes; the menu's own trigger (which
  * Radix names the menu by) is the control to return to.
+ *
+ * If the opener itself is gone by close time (the action removed it — a
+ * deleted row, a signed-out card), focus goes to the page's main landmark
+ * rather than falling to <body>.
  */
 
 import { useRef } from 'react';
@@ -33,7 +37,9 @@ export function useReturnFocus() {
       target.current = opener();
     },
     onCloseAutoFocus: (event: Event) => {
-      const element = target.current;
+      const saved = target.current;
+      if (saved === null) return;
+      const element = saved.isConnected ? saved : document.getElementById('gt-main');
       if (!usable(element)) return;
       event.preventDefault();
       element.focus();
