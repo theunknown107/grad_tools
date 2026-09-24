@@ -73,7 +73,7 @@ export function FileDropzone({
         aria-busy={busy}
         className={cn(
           'flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition-colors sm:py-16',
-          dragging ? 'border-accent bg-accent-weak/40' : 'border-line-strong bg-panel',
+          dragging ? 'bg-accent-weak/40' : 'border-line-strong bg-panel',
           inert && 'opacity-70',
         )}
       >

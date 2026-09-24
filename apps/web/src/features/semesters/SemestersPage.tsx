@@ -253,7 +253,7 @@ export function SemestersPage() {
                     'flex h-full w-full flex-col gap-3 rounded-xl border border-line bg-raised p-4',
                     cardInteractive,
                     view.status === 'in_progress' && 'ring-1 ring-schedule/40',
-                    selected && 'border-accent ring-2 ring-accent/20',
+                    selected && 'ring-2 ring-accent/20',
                   )}
                 >
                   <span className="flex items-center justify-between gap-2">
@@ -368,8 +368,8 @@ export function SemestersPage() {
               backlogsKnown === null
                 ? 'border-line bg-panel'
                 : backlogsKnown === 0
-                  ? 'border-success/30 bg-success-weak/50'
-                  : 'border-warning/30 bg-warning-weak/50',
+                  ? 'bg-success-weak/50'
+                  : 'bg-warning-weak/50',
             )}
           >
             <div className="flex items-center gap-3">

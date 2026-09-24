@@ -35,8 +35,8 @@ export function ImportStepper({
             <span
               className={cn(
                 'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors',
-                complete && 'border-success/40 bg-success-weak text-success',
-                active && 'border-accent bg-accent-weak text-accent-ink',
+                complete && 'bg-success-weak text-success',
+                active && 'bg-accent-weak text-accent-ink',
                 !complete && !active && 'border-line text-ink-3',
               )}
             >

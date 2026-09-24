@@ -103,7 +103,7 @@ export function ChipGroup<T extends string>({
             className={cn(
               'shrink-0 whitespace-nowrap border font-medium text-ink-2 transition-colors',
               'border-line hover:bg-sunken',
-              'data-[state=on]:border-accent data-[state=on]:bg-accent-weak data-[state=on]:text-accent-ink',
+              'data-[state=on]:bg-accent-weak data-[state=on]:text-accent-ink',
               shape === 'pill'
                 ? 'rounded-full px-3 py-1.5 text-[12px]'
                 : 'rounded-lg px-3 py-2 text-[13px]',

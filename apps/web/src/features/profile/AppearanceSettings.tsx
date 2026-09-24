@@ -98,7 +98,7 @@ export function AppearanceSettings() {
                 className={cn(
                   'relative flex flex-col items-center gap-2 rounded-xl border p-4 transition-[border-color,box-shadow,background] duration-150',
                   active
-                    ? 'border-accent bg-accent-weak/40 ring-2 ring-accent/20'
+                    ? 'bg-accent-weak/40 ring-2 ring-accent/20'
                     : 'border-line hover:border-line-strong',
                 )}
               >
@@ -150,9 +150,7 @@ export function AppearanceSettings() {
                 value={key}
                 className={cn(
                   'flex flex-col items-center gap-2 rounded-xl border p-3 transition-[border-color,box-shadow] duration-150 sm:w-[5.25rem]',
-                  active
-                    ? 'border-accent ring-2 ring-accent/20'
-                    : 'border-line hover:border-line-strong',
+                  active ? 'ring-2 ring-accent/20' : 'border-line hover:border-line-strong',
                 )}
               >
                 <span

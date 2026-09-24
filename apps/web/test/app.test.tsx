@@ -139,7 +139,10 @@ describe('dashboard', () => {
     const strip = await screen.findByTestId('standing-strip');
     const names = within(strip)
       .getAllByRole('group')
-      .map((group) => group.getAttribute('aria-label'));
+      .map(
+        (group) =>
+          document.getElementById(group.getAttribute('aria-labelledby') ?? '')?.textContent,
+      );
     expect(names).toEqual([
       'Percentage',
       'Latest SGPA',

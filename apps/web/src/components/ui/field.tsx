@@ -31,7 +31,7 @@ import { cn } from '../../lib/cn.js';
  */
 export const controlClass = cn(
   'w-full rounded-lg border border-line bg-panel text-sm text-ink transition-[border-color,box-shadow]',
-  'placeholder:text-ink-3 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25',
+  'placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-accent/25',
   'disabled:cursor-not-allowed disabled:opacity-60',
   'aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-danger aria-[invalid=true]:focus:ring-2 aria-[invalid=true]:focus:ring-danger/25',
 );
@@ -320,7 +320,7 @@ export function Checkbox({
       {...(disabled === true ? { disabled: true } : {})}
       className={cn(
         'grid size-4.5 shrink-0 place-items-center rounded-[5px] border border-line-strong bg-panel transition-colors',
-        'data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-on-accent',
+        'data-[state=checked]:bg-accent data-[state=checked]:text-on-accent',
         'disabled:opacity-50',
       )}
     >

@@ -252,6 +252,9 @@ for (const theme of ['light', 'dark']) {
       const strip = document.querySelector('[data-testid="standing-strip"]');
       if (strip === null) return null;
       const cells = [...strip.querySelectorAll(':scope > [role="group"]')];
+      /* A cell is named by its visible label (aria-labelledby), not an aria-label. */
+      const nameOf = (one) =>
+        document.getElementById(one.getAttribute('aria-labelledby') ?? '')?.textContent ?? null;
       return {
         cells: cells.length,
         /* Clipping, measured: content wider or taller than its cell was cut. */
@@ -260,7 +263,7 @@ for (const theme of ['light', 'dark']) {
             (one) =>
               one.scrollWidth > one.clientWidth + 1 || one.scrollHeight > one.clientHeight + 1,
           )
-          .map((one) => one.getAttribute('aria-label')),
+          .map(nameOf),
         /* Every cell in a row is as tall as the row, or the rules go ragged. */
         heights: [...new Set(cells.map((one) => Math.round(one.getBoundingClientRect().top)))].map(
           (top) =>
@@ -270,10 +273,10 @@ for (const theme of ['light', 'dark']) {
                 .map((one) => Math.round(one.getBoundingClientRect().height)),
             ).size,
         ),
-        cgpaInStrip: cells.some((one) => one.getAttribute('aria-label') === 'CGPA'),
+        names: cells.map(nameOf),
+        cgpaInStrip: cells.some((one) => nameOf(one) === 'CGPA'),
         /* Semester progress is said once, by the hero's bar, not again in the strip. */
-        semesterCells: cells.filter((one) => /semester/i.test(one.getAttribute('aria-label') ?? ''))
-          .length,
+        semesterCells: cells.filter((one) => /semester/i.test(nameOf(one) ?? '')).length,
         progressBars: document.querySelectorAll(
           '[role="progressbar"][aria-label="Semesters graded"]',
         ).length,
@@ -285,7 +288,10 @@ for (const theme of ['light', 'dark']) {
     });
     check(
       'dashboard ' + at + ': the standing is one strip of five figures',
-      standing !== null && standing.cells === 5 && !standing.cgpaInStrip,
+      standing !== null &&
+        standing.cells === 5 &&
+        !standing.cgpaInStrip &&
+        standing.names.join('|') === 'Percentage|Latest SGPA|Credits earned|Backlogs|Attendance',
       JSON.stringify(standing),
     );
     check(

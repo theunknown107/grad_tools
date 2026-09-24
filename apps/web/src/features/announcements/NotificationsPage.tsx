@@ -189,10 +189,7 @@ export function NotificationsPage() {
                 <Card
                   interactive
                   asChild
-                  className={cn(
-                    'flex items-start gap-3.5 p-4',
-                    isUnread && 'border-accent/30 bg-accent-weak/20',
-                  )}
+                  className={cn('flex items-start gap-3.5 p-4', isUnread && 'bg-accent-weak/20')}
                 >
                   <Link
                     to="/announcements"

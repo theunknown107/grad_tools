@@ -6,7 +6,7 @@
  * underneath — never a bare dash.
  */
 
-import type { KeyboardEvent, ReactNode } from 'react';
+import { useId, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '../../lib/cn.js';
 
 export type MetricState = 'resolved' | 'partial' | 'unavailable';
@@ -46,6 +46,7 @@ export function Metric({
   emphasis,
   plain = false,
 }: MetricProps) {
+  const labelId = useId();
   const interactive = onClick !== undefined;
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -64,10 +65,11 @@ export function Metric({
       data-state={state}
       {...(interactive
         ? { role: 'button', tabIndex: 0, onClick, onKeyDown }
-        : { role: 'group', 'aria-label': label })}
+        : { role: 'group', 'aria-labelledby': labelId })}
     >
       <div className="flex items-center justify-between gap-2 text-[12px] font-medium text-ink-2">
-        {label}
+        {/* The name is the label alone: the dot beside it is a separate image. */}
+        <span id={labelId}>{label}</span>
         {emphasis !== undefined && (
           <span
             role="img"
@@ -154,9 +156,12 @@ export function MiniStat({
   readonly className?: string;
   readonly valueClassName?: string;
 }) {
+  const labelId = useId();
   return (
-    <div role="group" aria-label={label} className={cn('min-w-0', className)}>
-      <div className="text-[11px] text-ink-3">{label}</div>
+    <div role="group" aria-labelledby={labelId} className={cn('min-w-0', className)}>
+      <div id={labelId} className="text-[11px] text-ink-3">
+        {label}
+      </div>
       <div className={cn('tnum mt-0.5 text-xl font-semibold text-ink', valueClassName)}>
         {value}
       </div>
