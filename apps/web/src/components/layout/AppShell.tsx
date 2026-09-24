@@ -131,7 +131,7 @@ function Shell({
           id="gt-main"
           ref={mainRef}
           tabIndex={-1}
-          className="flex-1 overflow-y-auto pb-24 outline-none scroll-quiet lg:pb-0"
+          className="flex-1 overflow-y-auto pb-24 outline-none scroll-quiet md:pb-0"
         >
           <div
             key={location.pathname}
@@ -157,15 +157,15 @@ function Brand({ collapsed }: { readonly collapsed: boolean }) {
       to="/"
       aria-label="GradTools home"
       className={cn(
-        'flex h-16 shrink-0 items-center gap-2.5 rounded-lg px-5',
-        collapsed && 'justify-center px-0',
+        'flex h-16 shrink-0 items-center justify-center gap-2.5 rounded-lg px-0',
+        !collapsed && 'lg:justify-start lg:px-5',
       )}
     >
       <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent font-semibold text-on-accent">
         <GraduationCap className="size-5" aria-hidden="true" />
       </span>
       {!collapsed && (
-        <span className="leading-tight">
+        <span className="hidden leading-tight lg:block">
           <span className="block text-[15px] font-semibold tracking-[-0.01em]">GradTools</span>
           <span className="block font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase">
             Academic OS
@@ -195,8 +195,18 @@ function Sidebar({
       id="gt-sidebar"
       aria-label="Sections"
       className={cn(
-        'relative hidden shrink-0 flex-col border-r border-line bg-panel transition-[width] duration-300 ease-[var(--ease-out-quint)] lg:flex',
-        collapsed ? 'w-[76px]' : 'w-[256px]',
+        /*
+         * THREE STATES, NOT TWO.
+         *
+         * This was `lg:flex`, so every tablet from 600 to 1023 fell through to
+         * the phone bottom bar and had no sidebar at all — a tablet served a
+         * failed desktop breakpoint. From `md` it is an 88px rail carrying all
+         * twelve destinations with visible labels; at `lg` it becomes the full
+         * sidebar, or the same rail when the student collapses it.
+         */
+        'relative hidden shrink-0 flex-col border-r border-line bg-panel transition-[width] duration-300 ease-[var(--ease-out-quint)] md:flex',
+        'w-[88px]',
+        collapsed ? 'lg:w-[88px]' : 'lg:w-[256px]',
       )}
     >
       <Brand collapsed={collapsed} />
@@ -205,15 +215,25 @@ function Sidebar({
         aria-label="Destinations"
         className="relative flex-1 overflow-y-auto px-3 pb-4 scroll-quiet"
       >
-        {NAV_GROUPS.map((group) => (
-          <div key={group} className="mb-5">
-            {collapsed ? (
-              <span className="sr-only">{group}</span>
-            ) : (
-              <div className="mb-1.5 px-3 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase">
-                {group}
-              </div>
+        {NAV_GROUPS.map((group, at) => (
+          <div
+            key={group}
+            className={cn(
+              'mb-5',
+              /* A heading costs ~60px of a rail 736px tall at landscape tablet. */
+              at > 0 && 'border-t border-line pt-4 lg:border-0 lg:pt-0',
             )}
+          >
+            <span className={cn('sr-only', !collapsed && 'lg:not-sr-only')}>
+              <span
+                className={cn(
+                  'mb-1.5 hidden px-3 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase',
+                  !collapsed && 'lg:block',
+                )}
+              >
+                {group}
+              </span>
+            </span>
             <ul className="flex flex-col gap-0.5">
               {DESTINATIONS.filter((destination) => destination.group === group).map((item) => {
                 const active = isActive(item.to, pathname);
@@ -225,13 +245,20 @@ function Sidebar({
                       to={item.to}
                       end={item.to === '/'}
                       aria-current={active ? 'page' : undefined}
-                      title={collapsed ? item.label : undefined}
                       aria-label={
                         badge === null ? undefined : `${item.label}, ${String(badge)} unread`
                       }
                       className={cn(
-                        'group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-150',
-                        collapsed && 'justify-center px-0',
+                        /*
+                         * The rail borrows the bottom bar's proportions — a
+                         * 21px icon over an 11px label in a 56px target — so a
+                         * tablet reads the destination without hovering. The
+                         * `title` attribute this used to rely on is gone: a
+                         * hover tooltip is unreachable on a touchscreen.
+                         */
+                        'group relative mx-1.5 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-colors duration-150',
+                        !collapsed &&
+                          'lg:mx-0 lg:h-10 lg:min-h-0 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-sm',
                         active
                           ? 'bg-accent-weak text-accent-ink'
                           : 'text-ink-2 hover:bg-sunken hover:text-ink',
@@ -240,20 +267,40 @@ function Sidebar({
                       <Icon
                         aria-hidden="true"
                         className={cn(
-                          'size-[18px] shrink-0',
+                          'size-[21px] shrink-0',
+                          !collapsed && 'lg:size-[18px]',
                           active ? 'text-accent-ink' : 'text-ink-3 group-hover:text-ink-2',
                         )}
                       />
-                      <span className={collapsed ? 'sr-only' : 'truncate'}>{item.label}</span>
+                      {/*
+                        ONE label, the full one, at every width.
+                        Rendering `short` and `label` as two CSS-switched spans
+                        made the accessible name the concatenation of both
+                        ("AlertsNotifications"), and naming the link `label`
+                        while showing `short` would break WCAG 2.5.3 — a
+                        visible label must appear in the accessible name.
+                        `Exam timetable`, the longest, is 14 characters and
+                        fits 88px at 11px, so the rail simply uses it.
+                      */}
+                      <span className="max-w-full truncate">{item.label}</span>
+                      {/*
+                        The count needs a row to sit at the end of, so it is
+                        the wide sidebar's form; the rail and the collapsed
+                        sidebar carry a dot instead. `aria-label` above states
+                        the number in every state.
+                      */}
                       {!collapsed && badge !== null && (
-                        <span className="tnum ml-auto text-[11px] font-semibold text-accent-ink">
+                        <span className="tnum ml-auto hidden text-[11px] font-semibold text-accent-ink lg:inline">
                           {badge > 99 ? '99+' : badge}
                         </span>
                       )}
-                      {collapsed && badge !== null && (
+                      {badge !== null && (
                         <span
                           aria-hidden="true"
-                          className="absolute top-1.5 right-2 size-1.5 rounded-full bg-danger"
+                          className={cn(
+                            'absolute top-1.5 right-2 size-1.5 rounded-full bg-danger',
+                            !collapsed && 'lg:hidden',
+                          )}
                         />
                       )}
                     </NavLink>
@@ -319,7 +366,7 @@ function TopBar({
 
       <Link
         to="/"
-        className="flex items-center gap-2 rounded-lg lg:hidden"
+        className="flex items-center gap-2 rounded-lg md:hidden"
         aria-label="GradTools home"
       >
         <span className="grid size-8 place-items-center rounded-lg bg-accent text-on-accent">
@@ -375,7 +422,7 @@ function TopBar({
         >
           <Avatar initials={initials} size={34} />
         </Link>
-        <IconButton label="Open navigation" onClick={onOpenMore} className="lg:hidden">
+        <IconButton label="Open navigation" onClick={onOpenMore} className="md:hidden">
           <PanelLeft />
         </IconButton>
       </div>
@@ -398,7 +445,7 @@ function MobileBottomNav({
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-panel/98 backdrop-blur-sm lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-panel/98 backdrop-blur-sm md:hidden"
     >
       <div className="grid grid-cols-5">
         {MOBILE_TABS.map((item) => {
@@ -411,8 +458,14 @@ function MobileBottomNav({
               end={item.to === '/'}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex min-h-14 flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium transition-colors',
-                active ? 'text-accent-ink' : 'text-ink-3 hover:text-ink-2',
+                /*
+                 * Colour alone carried the active tab, which the design system
+                 * forbids and which no one with a colour deficiency can read.
+                 * This is the sidebar's own pill, so all three navigation
+                 * states now say "you are here" the same way.
+                 */
+                'mx-1.5 my-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium transition-colors',
+                active ? 'bg-accent-weak text-accent-ink' : 'text-ink-3 hover:text-ink-2',
               )}
             >
               <Icon className="size-[21px]" aria-hidden="true" />
@@ -426,15 +479,17 @@ function MobileBottomNav({
           aria-haspopup="dialog"
           aria-expanded={moreOpen}
           aria-label={unread > 0 ? `More, ${String(unread)} unread notifications` : 'More'}
-          className="relative flex min-h-14 flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-ink-3 transition-colors hover:text-ink-2"
+          className="relative mx-1.5 my-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium text-ink-3 transition-colors hover:text-ink-2"
         >
           <CommandIcon className="size-[21px]" aria-hidden="true" />
           More
           {unread > 0 && (
             <span
               aria-hidden="true"
-              className="absolute top-2 right-[calc(50%-18px)] size-1.5 rounded-full bg-danger"
-            />
+              className="tnum absolute top-1 right-[calc(50%-22px)] min-w-4 rounded-full bg-danger px-1 text-[10px] leading-4 font-semibold text-on-accent"
+            >
+              {unread > 9 ? '9+' : unread}
+            </span>
           )}
         </button>
       </div>
@@ -444,6 +499,9 @@ function MobileBottomNav({
 }
 
 const APPEARANCE_LABEL = { light: 'Light', dark: 'Dark', system: 'System' } as const;
+
+const IMPORT_PATH = '/import';
+const IMPORT_DESTINATION = DESTINATIONS.find((one) => one.to === IMPORT_PATH);
 
 function MobileNavSheet({
   open,
@@ -457,15 +515,44 @@ function MobileNavSheet({
   const { pathname } = useLocation();
   const { preference, setAppearance } = useTheme();
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title="Go to" className="lg:hidden">
+    <BottomSheet open={open} onOpenChange={onOpenChange} title="Go to" className="md:hidden">
       <nav aria-label="All destinations">
+        {/*
+          ADD DOCUMENT LEADS THE SHEET.
+          It is the most linked-to destination in the app — eleven in-app
+          entries across seven pages — but it is a task you launch from the
+          screen you are trying to fill, not a place you return to, so it does
+          not take one of the five permanent tabs. Leading the sheet is the
+          middle position that costs nothing.
+        */}
+        {IMPORT_DESTINATION !== undefined && (
+          <NavLink
+            to={IMPORT_DESTINATION.to}
+            onClick={() => onOpenChange(false)}
+            aria-current={isActive(IMPORT_DESTINATION.to, pathname) ? 'page' : undefined}
+            className={cn(
+              'mb-4 flex min-h-12 items-center gap-2.5 rounded-xl border p-3 text-sm font-medium transition-colors',
+              isActive(IMPORT_DESTINATION.to, pathname)
+                ? 'border-accent bg-accent-weak text-accent-ink'
+                : 'border-line bg-raised text-ink-2 hover:bg-sunken',
+            )}
+          >
+            <IMPORT_DESTINATION.icon className="size-[18px] shrink-0" aria-hidden="true" />
+            <span className="truncate">{IMPORT_DESTINATION.label}</span>
+            <span className="ml-auto truncate text-[11px] font-normal text-ink-3">
+              {IMPORT_DESTINATION.description}
+            </span>
+          </NavLink>
+        )}
         {NAV_GROUPS.map((group) => (
           <div key={group} className="mb-4">
             <div className="mb-1 px-2 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase">
               {group}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {DESTINATIONS.filter((destination) => destination.group === group).map((item) => {
+              {DESTINATIONS.filter(
+                (destination) => destination.group === group && destination.to !== IMPORT_PATH,
+              ).map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.to, pathname);
                 return (
