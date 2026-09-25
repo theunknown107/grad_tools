@@ -23,7 +23,10 @@ const out = [];
 for (let p = 1; p <= doc.numPages; p++) {
   const page = await doc.getPage(p);
   const content = await page.getTextContent();
-  const text = content.items.map((i) => i.str).join(' ').replace(/\s+/g, ' ');
+  const text = content.items
+    .map((i) => i.str)
+    .join(' ')
+    .replace(/\s+/g, ' ');
   out.push(`\n===== PAGE ${p} =====\n${text}`);
 }
 console.log(out.join('\n'));

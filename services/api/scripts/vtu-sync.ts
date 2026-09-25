@@ -59,7 +59,11 @@ import {
   type DownloadOutcome,
   type Manifest,
 } from '../src/sources/vtu-download.js';
-import { vtuSchemeAdapter, VTU_SCHEME_SOURCE_ID, type SchemeDocument } from '../src/sources/vtu-scheme.js';
+import {
+  vtuSchemeAdapter,
+  VTU_SCHEME_SOURCE_ID,
+  type SchemeDocument,
+} from '../src/sources/vtu-scheme.js';
 import { requireFetchPermission } from '../src/sources/acquire.js';
 import { validateCatalogue } from '../src/sources/catalogue-validate.js';
 import { resolveProgramme } from '../src/sources/programme-aliases.js';
@@ -566,12 +570,17 @@ async function main(): Promise<void> {
               };
         }),
       }
-    : await downloadAll(selected.map((doc) => doc.url), store, manifest, {
-        dryRun,
-        changedOnly: has('changed-only'),
-        delayMs: Number(flag('delay') ?? DEFAULT_DELAY_MS),
-        limit: null,
-      });
+    : await downloadAll(
+        selected.map((doc) => doc.url),
+        store,
+        manifest,
+        {
+          dryRun,
+          changedOnly: has('changed-only'),
+          delayMs: Number(flag('delay') ?? DEFAULT_DELAY_MS),
+          limit: null,
+        },
+      );
   const downloadByUrl = new Map<string, (typeof outcomes)[number]>();
   for (const outcome of outcomes) {
     report.download[outcome.state] = (report.download[outcome.state] ?? 0) + 1;
@@ -684,7 +693,13 @@ async function main(): Promise<void> {
        */
       const sha256 = byUrl.get(doc.url);
       if (sha256 === undefined) {
-        ledger.push({ ...base, extraction: null, lostAt: 'no bytes were retrieved', courses: 0, syllabi: 0 });
+        ledger.push({
+          ...base,
+          extraction: null,
+          lostAt: 'no bytes were retrieved',
+          courses: 0,
+          syllabi: 0,
+        });
         continue;
       }
       const bytes = await store.get(sha256);
@@ -1021,11 +1036,7 @@ async function main(): Promise<void> {
           report.first_year_unmapped += 1;
           continue;
         }
-        const resolution = resolveFirstYearForStream(
-          firstYear.pages,
-          firstYear.parsed,
-          membership,
-        );
+        const resolution = resolveFirstYearForStream(firstYear.pages, firstYear.parsed, membership);
         report.first_year_resolved += resolution.resolved.length;
         report.first_year_unresolved += resolution.unresolved.length;
         for (const slot of resolution.unresolved) {

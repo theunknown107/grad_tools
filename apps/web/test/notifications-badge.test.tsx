@@ -79,10 +79,12 @@ function badge(): HTMLElement | null {
 
 /** Every accessible name the shell gives the notifications destination. */
 function badgeLabels(): string[] {
-  return screen
-    .getAllByRole('link', { name: /^Notifications/ })
-    // The sidebar labels itself with its own text when there is nothing unread.
-    .map((link) => link.getAttribute('aria-label') ?? link.textContent ?? '');
+  return (
+    screen
+      .getAllByRole('link', { name: /^Notifications/ })
+      // The sidebar labels itself with its own text when there is nothing unread.
+      .map((link) => link.getAttribute('aria-label') ?? link.textContent ?? '')
+  );
 }
 
 afterEach(() => {
