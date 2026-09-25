@@ -378,3 +378,103 @@ describe('profile edits after the first sync (OQ-062)', () => {
     expect(results?.[0]?.subjects).toHaveLength(1);
   });
 });
+
+describe('resolving a profile conflict (explicit choice, M9 §28)', () => {
+  /* One mounted hook: a conflict lives in the hook's state until resolved. */
+  async function conflicted() {
+    await writeValue(SCOPE, 'profile', PROFILE);
+    await writeValue(SCOPE, 'results', [RESULT]);
+    const server = cloud(null);
+    await sync();
+    server.profile = cloudRow({ displayName: 'Another device', entryRoute: 'diploma' }, 3);
+    await editProfile({ displayName: 'Edited here' });
+
+    const repositories = createLocalRepositories(SCOPE);
+    const Wrapper = ({ children }: { readonly children: ReactNode }) => (
+      <AuthContextValueProvider signedIn>
+        <RepositoryProvider repositories={repositories}>{children}</RepositoryProvider>
+      </AuthContextValueProvider>
+    );
+    const hook = renderHook(() => ({ auth: useAuth().state.status, sync: useSync() }), {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => expect(hook.result.current.auth).toBe('signed_in'));
+    await act(async () => {
+      await hook.result.current.sync.syncNow();
+    });
+    expect(hook.result.current.sync.state.conflicts.map((c) => c.collection)).toEqual(['profile']);
+    return { server, hook, putsBefore: server.puts.length, pushesBefore: server.pushes.length };
+  }
+
+  const resultsUntouched = async (server: ReturnType<typeof cloud>, pushesBefore: number) => {
+    expect((await readValue<SemesterResult[]>(SCOPE, 'results'))?.[0]?.subjects).toHaveLength(1);
+    expect(server.pushes.slice(pushesBefore).flat()).toEqual([]);
+  };
+
+  it('"use account version" adopts the cloud profile, clears the conflict and converges', async () => {
+    const { server, hook, putsBefore, pushesBefore } = await conflicted();
+
+    await act(async () => {
+      await hook.result.current.sync.resolveProfileConflict('take_theirs');
+    });
+
+    expect(hook.result.current.sync.state.conflicts).toEqual([]);
+    expect(hook.result.current.sync.state.status).toBe('synced');
+    expect(server.puts).toHaveLength(putsBefore);
+    expect(await localProfile()).toMatchObject({
+      displayName: 'Another device',
+      entryRoute: 'diploma',
+    });
+    expect(await localProfile()).not.toHaveProperty('revision');
+
+    /* The next sync pushes nothing for the profile and raises no conflict. */
+    await act(async () => {
+      await hook.result.current.sync.syncNow();
+    });
+    expect(hook.result.current.sync.state.status).toBe('synced');
+    expect(server.puts).toHaveLength(putsBefore);
+    await resultsUntouched(server, pushesBefore);
+  });
+
+  it('"keep this device’s" PUTs against the conflict’s server revision and clears', async () => {
+    const { server, hook, putsBefore, pushesBefore } = await conflicted();
+
+    await act(async () => {
+      await hook.result.current.sync.resolveProfileConflict('keep_mine');
+    });
+
+    expect(server.puts.slice(putsBefore)).toEqual([
+      expect.objectContaining({ displayName: 'Edited here', baseRevision: 3 }),
+    ]);
+    expect(server.profile).toMatchObject({ displayName: 'Edited here', revision: 4 });
+    expect(hook.result.current.sync.state.conflicts).toEqual([]);
+
+    await act(async () => {
+      await hook.result.current.sync.syncNow();
+    });
+    expect(hook.result.current.sync.state.status).toBe('synced');
+    expect(server.puts).toHaveLength(putsBefore + 1);
+    await resultsUntouched(server, pushesBefore);
+  });
+
+  it('"keep this device’s" racing a newer cloud edit keeps the conflict with the newer copy', async () => {
+    const { server, hook, putsBefore, pushesBefore } = await conflicted();
+    server.profile = cloudRow({ displayName: 'Even newer' }, 5);
+
+    await act(async () => {
+      await hook.result.current.sync.resolveProfileConflict('keep_mine');
+    });
+
+    expect(server.puts.slice(putsBefore)).toEqual([expect.objectContaining({ baseRevision: 3 })]);
+    expect(server.profile).toMatchObject({ displayName: 'Even newer', revision: 5 });
+    expect(hook.result.current.sync.state.conflicts).toEqual([
+      expect.objectContaining({
+        collection: 'profile',
+        local: expect.objectContaining({ displayName: 'Edited here' }),
+        server: expect.objectContaining({ displayName: 'Even newer' }),
+      }),
+    ]);
+    expect(await localProfile()).toMatchObject({ displayName: 'Edited here' });
+    await resultsUntouched(server, pushesBefore);
+  });
+});

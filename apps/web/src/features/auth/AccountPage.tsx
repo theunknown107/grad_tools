@@ -30,6 +30,7 @@ import { Callout, toast } from '../../components/ui/feedback.js';
 import { IconTile, PageHeader, SectionTitle } from '../../components/ui/page.js';
 import { PageSkeleton } from '../../components/ui/skeleton.js';
 import { SYNC_LABEL } from '../../domain/auth.js';
+import type { ConflictResolution } from '../../domain/sync.js';
 import { cn } from '../../lib/cn.js';
 import { NotificationSettings } from '../announcements/NotificationsPage.js';
 import { AppearanceSettings } from '../profile/AppearanceSettings.js';
@@ -53,6 +54,65 @@ function summarise(data: Record<string, unknown> | null): string {
   return parts.length === 0 ? 'no details' : parts.join(', ');
 }
 
+const PROFILE_FIELD_LABEL: Record<string, string> = {
+  displayName: 'Name',
+  usn: 'USN',
+  collegeName: 'College',
+  schemeId: 'Scheme',
+  programme: 'Programme',
+  branch: 'Branch',
+  currentSemester: 'Current semester',
+  admissionYear: 'Admission year',
+  expectedPassoutYear: 'Expected passout year',
+  entryRoute: 'Entry route',
+  identityConfirmedAt: 'Identity confirmed',
+};
+
+function profileValue(key: string, value: unknown): string {
+  if (value === null || value === undefined) return 'Not set';
+  if (key === 'entryRoute') return value === 'puc' ? 'PUC' : value === 'diploma' ? 'Diploma' : '—';
+  return String(value);
+}
+
+/** The profile fields the two copies disagree on, both sides shown. */
+function ProfileConflictDiff({
+  local,
+  server,
+}: {
+  readonly local: Record<string, unknown> | null;
+  readonly server: Record<string, unknown> | null;
+}) {
+  const keys = Object.keys(PROFILE_FIELD_LABEL).filter((key) => local?.[key] !== server?.[key]);
+  return (
+    <table className="mt-3 w-full text-left text-[12px] [overflow-wrap:anywhere]">
+      <thead className="text-ink-3">
+        <tr>
+          <th scope="col" className="py-1 font-medium">
+            Field
+          </th>
+          <th scope="col" className="py-1 font-medium">
+            This device
+          </th>
+          <th scope="col" className="py-1 font-medium">
+            Your account
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {keys.map((key) => (
+          <tr key={key} className="border-t">
+            <th scope="row" className="py-1 pr-2 font-medium">
+              {PROFILE_FIELD_LABEL[key]}
+            </th>
+            <td className="py-1 pr-2">{profileValue(key, local?.[key])}</td>
+            <td className="py-1">{profileValue(key, server?.[key])}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 const SECTIONS = [
   { key: 'appearance', label: 'Appearance', icon: Palette },
   { key: 'academic', label: 'Academic', icon: GraduationCap },
@@ -71,6 +131,8 @@ export function AccountPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [profileChoice, setProfileChoice] = useState<ConflictResolution | null>(null);
+  const [resolving, setResolving] = useState(false);
 
   if (state.status === 'restoring') return <PageSkeleton label="Checking your session" />;
 
@@ -252,15 +314,34 @@ export function AccountPage() {
                       >
                         <div className="font-semibold capitalize">{conflict.collection}</div>
                         <div className="mt-0.5 text-ink-2">{conflict.reason}</div>
-                        <div className="mt-2 grid gap-1 font-mono text-[11px] text-ink-3">
-                          <span>On this device: {summarise(conflict.local)}</span>
-                          <span>In your account: {summarise(conflict.server)}</span>
-                        </div>
+                        {conflict.collection === 'profile' ? (
+                          <>
+                            <ProfileConflictDiff local={conflict.local} server={conflict.server} />
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Button size="sm" onClick={() => setProfileChoice('keep_mine')}>
+                                Keep this device&rsquo;s
+                              </Button>
+                              <Button size="sm" onClick={() => setProfileChoice('take_theirs')}>
+                                Use account version
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="mt-2 grid gap-1 font-mono text-[11px] text-ink-3">
+                            <span>On this device: {summarise(conflict.local)}</span>
+                            <span>In your account: {summarise(conflict.server)}</span>
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ul>
+                  {sync.state.error !== null && (
+                    <Callout tone="warning" role="alert" className="mt-4">
+                      {sync.state.error}
+                    </Callout>
+                  )}
                   <p className="mt-4 text-[12px] text-ink-3">
-                    Edit the record on the device you want to keep, then sync again.
+                    For other records, edit the one on the device you want to keep, then sync again.
                   </p>
                 </Card>
               )}
@@ -402,6 +483,34 @@ export function AccountPage() {
           {section === 'about' && <SupportNote />}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={profileChoice !== null}
+        onOpenChange={(open) => {
+          if (!open) setProfileChoice(null);
+        }}
+        busy={resolving}
+        pendingStatus="Saving your choice…"
+        title={
+          profileChoice === 'keep_mine'
+            ? "Keep this device's profile?"
+            : 'Use the profile from your account?'
+        }
+        description={
+          profileChoice === 'keep_mine'
+            ? 'Your account gets the profile on this device. The other version is replaced.'
+            : "This device takes your account's profile. This device's version is replaced."
+        }
+        confirmLabel={profileChoice === 'keep_mine' ? 'Keep this device’s' : 'Use account version'}
+        onConfirm={() => {
+          if (profileChoice === null) return;
+          setResolving(true);
+          void sync.resolveProfileConflict(profileChoice).finally(() => {
+            setResolving(false);
+            setProfileChoice(null);
+          });
+        }}
+      />
 
       <ConfirmDialog
         open={confirmingDelete}
