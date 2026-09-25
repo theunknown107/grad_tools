@@ -149,6 +149,19 @@ export function DashboardPage() {
         schemeId={profile?.schemeId ?? null}
       />
 
+      {profile === null && (
+        <Callout
+          action={
+            <Button asChild size="sm" variant="primary">
+              <Link to="/setup">Set up</Link>
+            </Button>
+          }
+        >
+          Add your college, branch and USN so GradTools can tailor your results. Every step is
+          optional.
+        </Callout>
+      )}
+
       <Standing stats={statistics} attendance={thisSemester} />
 
       {(statistics.semestersGraded.value ?? 0) >= 2 && (
@@ -258,6 +271,9 @@ function Hero({
           <div className="mt-5 flex flex-wrap gap-2">
             <Button asChild variant="glass-primary" icon={<FileCheck2 />}>
               <Link to="/import">Add result</Link>
+            </Button>
+            <Button asChild variant="glass">
+              <Link to="/results/get">Get VTU result</Link>
             </Button>
             <Button asChild variant="glass">
               <Link to="/results">View results</Link>

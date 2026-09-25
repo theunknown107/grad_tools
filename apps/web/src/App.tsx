@@ -48,6 +48,11 @@ const ResultDetailPage = page(
 );
 const ResultsPage = page(() => import('./features/results/ResultsPage.js'), 'ResultsPage');
 const SemestersPage = page(() => import('./features/semesters/SemestersPage.js'), 'SemestersPage');
+const SetupPage = page(() => import('./features/onboarding/SetupPage.js'), 'SetupPage');
+const GetResultPage = page(
+  () => import('./features/vtu-results/GetResultPage.js'),
+  'GetResultPage',
+);
 const TimetablePage = page(() => import('./features/timetable/TimetablePage.js'), 'TimetablePage');
 
 export function App() {
@@ -86,11 +91,13 @@ function ShellRoutes() {
           <Route path="/academics" element={<AcademicsPage />} />
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/results" element={<ResultsPage />} />
+          <Route path="/results/get" element={<GetResultPage />} />
           <Route path="/results/:semester" element={<ResultDetailPage />} />
           <Route path="/import" element={<ImportPage />} />
           <Route path="/timetable" element={<TimetablePage />} />
           <Route path="/exams" element={<ExamsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/setup" element={<SetupPage />} />
           <Route path="/sign-in" element={<SignInPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/first-sync" element={<FirstSyncPage />} />
