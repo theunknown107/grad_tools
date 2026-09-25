@@ -94,6 +94,9 @@ export function ResultsPage() {
             <Button asChild variant="secondary">
               <Link to="/academics">SGPA &amp; CGPA</Link>
             </Button>
+            <Button asChild variant="secondary">
+              <Link to="/results/get">Get VTU result</Link>
+            </Button>
             <Button asChild variant="primary" icon={<Plus />}>
               <Link to="/import">Add result</Link>
             </Button>
