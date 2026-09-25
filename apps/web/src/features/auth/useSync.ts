@@ -407,7 +407,23 @@ export function useSync(): SyncApi {
         }
         const entry = COLLECTIONS.find(([name]) => name === record.collection);
         if (entry === undefined) continue;
-        await repositories[entry[1]].upsert({ id: record.id, ...record.data } as never);
+        /*
+         * A pulled result NEVER carries `subjects` — they travel as their own
+         * rows. Replacing the whole object dropped them whenever the parent
+         * arrived alone, and the next push then tombstoned every subject on
+         * every device. Only `subjects` is kept: other local-only fields would
+         * move this record's fingerprint off what the cloud holds. A result new
+         * to this device gets its rows from `applySubjectToResult` below.
+         */
+        const previous =
+          record.collection === 'results'
+            ? (await repositories.results.list()).find((result) => result.id === record.id)
+            : undefined;
+        await repositories[entry[1]].upsert({
+          id: record.id,
+          ...record.data,
+          ...(previous === undefined ? {} : { subjects: previous.subjects }),
+        } as never);
       }
 
       for (const deletion of plan.deletions) {
