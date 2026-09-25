@@ -2530,3 +2530,54 @@ signed-in student who skipped setup still has no cloud profile and their push is
 still rejected. **Decision needed:** keep the cloud revision locally and `PUT`
 with `baseRevision` (needs a conflict display), and whether an empty anchor
 profile should be created for students who skip setup.
+
+## Part M — Step 16: database verification, profile sync, catalogue review
+
+### DEC-048 — The profile syncs by revision, through its own endpoint · **Step 16, resolves OQ-062**
+
+The profile stays out of `SYNCED_FIELDS` and keeps `PUT /me/profile`. The
+device keeps one bookkeeping entry for it (`SyncBookkeeping.profile`: the
+server revision it last agreed with and a fingerprint of what it sent).
+
+- **First sync:** if the cloud has no profile, the device creates it. A student
+  who skipped setup gets an *anchor* (the V1 scheme, every other field empty), so
+  their results can sync. The anchor is never adopted as a local profile, so the
+  "Add your details" prompts stay.
+- **Later edits:** a changed local profile is sent with `baseRevision`. The
+  server updates only `WHERE revision = baseRevision`; a missing or stale base
+  is a 409 carrying the server's copy, never a silent overwrite. Two first saves
+  racing give one save and one conflict (`ON CONFLICT DO NOTHING`), not a 500.
+- **Pull:** a newer server profile is adopted only when the local one is
+  unchanged since the last agreement; otherwise the student sees a `profile`
+  conflict in Account → Data. A profile save never touches results.
+
+**Limitation:** as for collections, there is no keep-mine / take-theirs action;
+a conflict clears when the two versions match again.
+
+### DEC-049 — Timestamps leave the database in UTC with `Z` · **Step 16**
+
+`to_char(ts, '…OF')` printed `+00` on a UTC session, which `Date.parse` and
+`z.iso.datetime` reject; the local test cluster ran in Asia/Kolkata and hid it.
+Every timestamptz the API formats is now `to_char(ts AT TIME ZONE 'UTC',
+'…"Z"')`, and `profile-identity.test.ts` connects with `TimeZone=UTC`.
+
+### OQ-061 — status after Step 16 · **still open: no college is published**
+
+Nothing new is verified, so every college stays `draft` / `unpublished` and the
+setup screen says the list is "not yet checked". The model now supports review:
+publishing needs `verified`, `verified_at`, `source_url` and a *known* autonomy
+(a second source, since the affiliation page does not state it); re-seeding
+keeps a verified row's provenance, and a changed name, code or region sends it
+back to draft. Published API rows are merged into the bundled list by
+`catalogue_id`, so publishing one college hides none. The source's own counts
+(Bengaluru 93, Mysuru 49) against the 90 and 48 listed are kept as data
+(`reportedCountsByRegion`), not filled in.
+
+### Result-session anomaly — `SplJcbcs25` · **Step 16, kept as printed**
+
+The source page itself labels the "B.E Special Exam Dec 2024 / Jan 2025" link
+Non-CBCS while its address contains `cbcs`; the transcription is faithful. It is
+the only label/address mismatch among the 54 sessions. It keeps the source's
+wording, carries `anomaly: "label-url-mismatch"`, shows a "Check" badge and a
+plain caution in the app, and a test fails if a second mismatch appears. Which
+side is right cannot be checked without using the result portal.

@@ -129,14 +129,15 @@ vi.mock('../src/lib/ocr.js', () => ({
 vi.mock('@gradtools/vtu-catalogue', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   findVtuResultSession: (id: string) =>
-    id === 'test-session'
+    id === 'test-session' || id === 'flagged-session'
       ? {
           card: { title: 'May–June 2026', yearLabel: '2026' },
           session: {
-            id: 'test-session',
+            id,
             resultType: 'Regular',
-            label: 'CBCS',
+            label: id === 'flagged-session' ? 'Non-CBCS' : 'CBCS',
             url: 'https://results.invalid/',
+            anomaly: id === 'flagged-session' ? 'label-url-mismatch' : null,
           },
         }
       : null,
@@ -1152,6 +1153,19 @@ describe('opened from "Get VTU Result"', () => {
       kind: 'vtu-result-page',
       sessionId: 'test-session',
     });
+  });
+  it('carries the caution for a session whose label disagrees with its link', async () => {
+    const user = userEvent.setup();
+    renderWith(<ImportPage />, {
+      repositories: createMemoryRepositories().bundle,
+      route: '/import?session=flagged-session',
+    });
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    expect(
+      await screen.findByText(
+        'From: May–June 2026 — Regular (Non-CBCS) — Check: listed as Non-CBCS, address suggests CBCS',
+      ),
+    ).toBeTruthy();
   });
 });
 

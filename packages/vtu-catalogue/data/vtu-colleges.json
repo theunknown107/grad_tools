@@ -12,6 +12,10 @@
       "KALABURAGI": 17,
       "MYSURU": 48
     },
+    "reportedCountsByRegion": {
+      "BENGALURU": 93,
+      "MYSURU": 49
+    },
     "duplicateCodes": {
       "RR": [
         "vtu-bengaluru-rr-rajarajeswari-college-of-engineering",

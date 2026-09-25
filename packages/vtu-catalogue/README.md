@@ -20,6 +20,8 @@ These lists are **not** crawled. VTU's terms reportedly withhold permission for 
   - When a page prints no code, the code is `null`.
   - When a page prints the same code for two institutions, both rows are kept. `source.duplicateCodes` lists the pair.
   - Autonomy is never stated on the colleges page, so `isAutonomous` is `null` for every college.
+  - When a page reports a total it does not list, the listed counts stay in `source.countsByRegion` and the page's own totals in `source.reportedCountsByRegion`; no rows are added to close the gap.
+  - When a result link's label disagrees with its URL (a "Non-CBCS" link whose path says `cbcs`), the entry keeps the label as printed and carries `"anomaly": "label-url-mismatch"`. The loader accepts only known anomaly values, the tests allow a label/URL mismatch only on flagged entries, and the app shows students a plain caution. `note` is for developers and is not shown to students.
 
 Every file has a `source` block with the page URL, `retrievedAt`, `method: "one-time transcription"`, `reviewed` and a note on known gaps.
 
@@ -30,5 +32,5 @@ Every file has a `source` block with the page URL, `retrievedAt`, `method: "one-
 3. Keep the existing `id` values; ids are stable keys. `cse` must stay `cse`.
 4. Update `source.retrievedAt`, and update the counts and anomaly notes.
 5. Set `reviewed: true` only after a person has checked every row against the live page. For colleges, reviewing the list does **not** establish autonomy. A college is published by the API only once it is `verified` and its `is_autonomous` is set from a source (migration 0019).
-6. Run `pnpm vitest run packages/vtu-catalogue`. The tests check URL hosts, unique ids, the recorded duplicate codes, provenance, and that the files contain no control characters.
+6. Run `pnpm vitest run packages/vtu-catalogue`. The tests check URL hosts, unique ids, stable college ids, listed-versus-reported counts, label/URL agreement, the recorded duplicate codes, provenance, and that the files contain no control characters.
 7. Run `pnpm db:seed`. It is idempotent: colleges upsert on `catalogue_id` and branches upsert on `id`.

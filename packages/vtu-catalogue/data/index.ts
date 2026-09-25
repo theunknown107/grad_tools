@@ -68,6 +68,11 @@ export interface TranscriptionSource {
 
 export const VTU_COLLEGES: {
   readonly source: TranscriptionSource & {
+    /** Rows listed per region heading in this file. */
+    readonly countsByRegion: Readonly<Record<string, number>>;
+    /** Totals the page itself reported, where it reported one; may exceed what was listed. */
+    readonly reportedCountsByRegion: Readonly<Record<string, number>>;
+    readonly entriesWithoutCode: number;
     readonly duplicateCodes: Readonly<Record<string, readonly string[]>>;
   };
   readonly entries: readonly TranscribedCollege[];

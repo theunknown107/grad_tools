@@ -2,6 +2,7 @@ import { Lock, ShieldCheck } from 'lucide-react';
 import { findVtuResultSession } from '@gradtools/vtu-catalogue';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/page.js';
+import { MISMATCH_SHORT } from '../vtu-results/SessionDetail.js';
 import { DocumentImport, type ImportExpectation } from './DocumentImport.js';
 
 /**
@@ -21,7 +22,7 @@ function expectationFrom(params: URLSearchParams): ImportExpectation {
         ? null
         : {
             id: found.session.id,
-            label: `${found.card.title} — ${found.session.resultType} (${found.session.label})`,
+            label: `${found.card.title} — ${found.session.resultType} (${found.session.label})${found.session.anomaly === null ? '' : ` — ${MISMATCH_SHORT}`}`,
           },
   };
 }

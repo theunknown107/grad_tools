@@ -10,6 +10,13 @@ import raw from '../data/vtu-result-sessions.json' with { type: 'json' };
 
 export type VtuResultType = 'Regular' | 'Revaluation';
 
+/**
+ * A known problem the SOURCE itself prints, kept as data rather than fixed.
+ * 'label-url-mismatch': the link label (CBCS / Non-CBCS) disagrees with the URL.
+ */
+export type VtuSessionAnomaly = 'label-url-mismatch';
+const ANOMALIES: readonly string[] = ['label-url-mismatch'] satisfies VtuSessionAnomaly[];
+
 export interface VtuResultSession {
   /** The URL path, e.g. 'MJ26cbcs' (…/MJ26cbcs/index.php) or 'indexMJ26' (…/indexMJ26.php). */
   readonly id: string;
@@ -19,7 +26,9 @@ export interface VtuResultSession {
   /** `variant ?? labelAsPrinted`. */
   readonly label: string;
   readonly programme: 'UG' | 'PG' | null;
+  /** Transcriber's note, for developers; not student-facing. */
   readonly note: string | null;
+  readonly anomaly: VtuSessionAnomaly | null;
   /* Archive card structure, in page order. */
   readonly cardTitle: string;
   readonly yearLabel: string | null;
@@ -63,6 +72,7 @@ export interface RawResultEntry {
   readonly url: string;
   readonly labelAsPrinted: string;
   readonly note: string | null;
+  readonly anomaly?: string | null;
 }
 
 const HOST = 'https://results.vtu.ac.in/';
@@ -93,6 +103,10 @@ export function buildResultCards(entries: readonly RawResultEntry[]): VtuResultC
     if (entry.resultType !== 'Regular' && entry.resultType !== 'Revaluation') {
       throw new Error(`Unknown result type "${entry.resultType}" for ${entry.url}`);
     }
+    const anomaly = entry.anomaly ?? null;
+    if (anomaly !== null && !ANOMALIES.includes(anomaly)) {
+      throw new Error(`Unknown anomaly "${anomaly}" for ${entry.url}`);
+    }
     const id = idOf(entry.url);
     if (ids.has(id)) throw new Error(`Duplicate result session id "${id}"`);
     ids.add(id);
@@ -116,6 +130,7 @@ export function buildResultCards(entries: readonly RawResultEntry[]): VtuResultC
       label: entry.variant ?? entry.labelAsPrinted,
       programme: entry.programme === 'UG' || entry.programme === 'PG' ? entry.programme : null,
       note: entry.note,
+      anomaly: anomaly as VtuSessionAnomaly | null,
       cardTitle: card.title,
       yearLabel: card.yearLabel,
       sectionLabel: section.label,

@@ -20,6 +20,28 @@ BUILD. Always build after changing source and before a browser sweep. The
 `qa:app` baseline is 12 known axe `scrollable-region-focusable` findings on
 overlay menus; anything beyond them is new.
 
+### Database tests
+
+Without database URLs the API suite _skips_ its DB tests; a skipped suite is
+not a passing one. The documented setup (`services/api/README.md`) is a
+throwaway local cluster on port 55432 with trust auth (on this machine:
+`pg_ctl -D D:\gradtools-pgtest -o "-p 55432" -l D:\gradtools-pgtest\server.log start`).
+All four URLs are needed for zero skips — the reference DB, the student cloud
+as admin, the cloud as `authenticator` (RLS is exercised through it) and as
+`monitor_login` (create both roles as `.github/workflows/verify.yml` does):
+
+```bash
+export TEST_DATABASE_URL="postgres://gradtools@127.0.0.1:55432/gradtools_test"
+export TEST_CLOUD_ADMIN_DATABASE_URL="postgres://gradtools@127.0.0.1:55432/gradtools_cloud_test"
+export TEST_CLOUD_DATABASE_URL="postgres://authenticator:authenticator@127.0.0.1:55432/gradtools_cloud_test"
+export TEST_MONITOR_DATABASE_URL="postgres://monitor_login:monitor_login@127.0.0.1:55432/gradtools_cloud_test"
+```
+
+Never point these at a shared or production database. The local cluster's
+time zone is not UTC; production is. Format timestamps as
+`to_char(ts AT TIME ZONE 'UTC', '…"Z"')`, never with `OF`, and test
+timestamp output over a `TimeZone=UTC` connection.
+
 ## Architecture boundaries
 
 Keep these layers separate; do not collapse them into one component.
@@ -27,7 +49,11 @@ Keep these layers separate; do not collapse them into one component.
 1. **Identity / profile** — `StudentProfile` (`apps/web/src/domain/types.ts`),
    edited in `features/profile`, first-run setup in `features/onboarding`
    (guided, every step skippable — UF-01, DEC-001, DEC-002). The profile is
-   not a sync collection; it travels through `PUT /api/v1/me/profile`.
+   not a sync collection; it travels through `PUT /api/v1/me/profile` with
+   `baseRevision` (missing or stale → 409 with the server copy). The device
+   keeps `SyncBookkeeping.profile` (last agreed revision + fingerprint); a
+   skipped setup uploads an empty _anchor_ that is never adopted locally
+   (DEC-048).
 2. **Reference catalogs** — `packages/vtu-catalogue` (data files carry
    provenance) and the API reference tables (`colleges`, `branches`,
    `schemes`) seeded from it.
@@ -102,6 +128,19 @@ Keep these layers separate; do not collapse them into one component.
   code as identity. Do not publish an unreviewed list as verified — mark it.
 - Result-session links must point to `https://results.vtu.ac.in/`; the
   catalog loader rejects anything else.
+- **Review and publication.** Transcribed rows are `reviewed: false` in the
+  data and `draft` / `unpublished` in the DB; the API serves only published
+  rows, and the UI says an unreviewed list is "not yet checked". Publishing a
+  college needs `verified`, `verified_at`, `source_url` and a known autonomy
+  (unknown stays NULL, never guessed). Re-seeding keeps a verified row's
+  provenance; a changed name, code or region sends it back to draft.
+  `catalogue_id` is the identity (codes repeat); published rows overlay the
+  bundled list by it. Source incompleteness is data (`reportedCountsByRegion`),
+  never filled with invented rows.
+- **Source anomalies are kept as printed**, flagged in data (e.g. a session's
+  `anomaly: "label-url-mismatch"`), shown to the student as something to
+  check, and pinned by a test so a new one fails. Never "correct" a label on
+  inference.
 
 ## UI conventions
 

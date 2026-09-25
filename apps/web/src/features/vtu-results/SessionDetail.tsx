@@ -14,13 +14,22 @@ import { Link } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Dialog, DialogBody, DialogContent } from '../../components/ui/dialog.js';
-import { toast } from '../../components/ui/feedback.js';
+import { Callout, toast } from '../../components/ui/feedback.js';
 import { Field, Select } from '../../components/ui/field.js';
 
 const SEMESTER_OPTIONS = [
   { value: 'none', label: 'Not sure / choose on import' },
   ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ value: String(n), label: `Semester ${String(n)}` })),
 ];
+
+/**
+ * Student-facing wording for a session whose link label disagrees with its URL
+ * (`anomaly: 'label-url-mismatch'`). Only SplJcbcs25 carries it today, printed
+ * as Non-CBCS with a CBCS-looking address, so the wording names that case.
+ */
+export const MISMATCH_CAUTION =
+  "The source lists this link as Non-CBCS, but its address suggests CBCS. Check the scheme shown on VTU's page before importing.";
+export const MISMATCH_SHORT = 'Check: listed as Non-CBCS, address suggests CBCS';
 
 export function importHref(sessionId: string, semester: number | null): string {
   const params = new URLSearchParams({ session: sessionId });
@@ -61,11 +70,13 @@ export function SessionDetail({
         description="Source: Official VTU Result Portal"
       >
         <DialogBody className="flex flex-col gap-5">
+          {session.anomaly !== null && <Callout tone="warning">{MISMATCH_CAUTION}</Callout>}
           <div className="flex flex-wrap items-center gap-1.5">
             {card.yearLabel !== null && <Badge>{card.yearLabel}</Badge>}
             <Badge tone="accent">{session.resultType}</Badge>
             <Badge>{variant}</Badge>
             {session.programme !== null && <Badge tone="info">{session.programme}</Badge>}
+            {session.anomaly !== null && <Badge tone="warning">Check</Badge>}
           </div>
 
           <div className="rounded-xl bg-sunken p-4">
@@ -126,9 +137,6 @@ export function SessionDetail({
             GradTools does not enter the CAPTCHA or fetch the result for you. You get it from
             VTU&apos;s own page and import the copy you saved.
           </p>
-          {session.note !== null && (
-            <p className="text-[12px] leading-relaxed text-ink-3">Note: {session.note}</p>
-          )}
         </DialogBody>
       </DialogContent>
     </Dialog>

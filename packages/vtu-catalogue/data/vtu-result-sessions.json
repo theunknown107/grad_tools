@@ -182,6 +182,7 @@
       "programme": null,
       "url": "https://results.vtu.ac.in/SplJcbcs25/index.php",
       "labelAsPrinted": "Non-CBCS",
+      "anomaly": "label-url-mismatch",
       "note": "ANOMALY: labelled 'Non-CBCS' but URL path is 'SplJcbcs25' (contains 'cbcs', not 'noncbcs'). Transcribed as printed; the label or the link may be wrong on the source page. Year printed as a range; year left null."
     },
     {

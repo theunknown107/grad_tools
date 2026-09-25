@@ -8,7 +8,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { cloudProfileSchema, profileInputSchema } from '@gradtools/shared-types';
@@ -27,10 +28,19 @@ vi.mock('../src/hooks/useReference.js', async (original) => ({
     items: [
       {
         id: 'c1',
+        catalogueId: 'vtu-synthetic-1xx',
         name: 'Synthetic Institute of Technology',
         code: '1XX',
         region: null,
         reviewed: true,
+      },
+      {
+        id: 'vtu-mysuru-nocode-synthetic-college',
+        catalogueId: 'vtu-mysuru-nocode-synthetic-college',
+        name: 'SYNTHETIC COLLEGE OF ENGINEERING',
+        code: null,
+        region: 'MYSURU',
+        reviewed: false,
       },
     ],
     loading: false,
@@ -41,6 +51,7 @@ vi.mock('../src/hooks/useReference.js', async (original) => ({
 }));
 
 const { SetupPage } = await import('../src/features/onboarding/SetupPage.js');
+const { CollegeField } = await import('../src/features/onboarding/AcademicFields.js');
 
 const RESULT = {
   id: 'r1',
@@ -90,7 +101,7 @@ describe('first-run setup', () => {
     await click(/^confirm$/i);
 
     await user.type(screen.getByLabelText(/^usn/i), ' 1xx22cs001 ');
-    await choose(/college/i, 'Synthetic Institute of Technology');
+    await choose(/college/i, 'Synthetic Institute of Technology (verified)');
     await choose(/branch/i, 'Computer Science and Engineering');
     await user.type(screen.getByLabelText(/admission year/i), '2022');
     await user.click(screen.getByRole('radio', { name: 'PUC' }));
@@ -193,5 +204,44 @@ describe('the profile contract carries no date of birth (DEC-008)', () => {
       profileInputSchema.safeParse({ ...base, admissionYear: 2024, expectedPassoutYear: 2023 })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('college review state', () => {
+  function renderCollege() {
+    const changes: string[] = [];
+    function Harness() {
+      const [value, setValue] = useState('');
+      return (
+        <CollegeField
+          value={value}
+          onChange={(next) => {
+            changes.push(next);
+            setValue(next);
+          }}
+        />
+      );
+    }
+    render(<Harness />);
+    return changes;
+  }
+  const NOT_CHECKED = /not yet checked by gradtools/i;
+
+  it('does not present an unreviewed college as verified', async () => {
+    const changes = renderCollege();
+    expect(screen.getByText(NOT_CHECKED)).toBeTruthy();
+    await choose(/college/i, 'SYNTHETIC COLLEGE OF ENGINEERING');
+    expect(changes).toEqual(['SYNTHETIC COLLEGE OF ENGINEERING']);
+    expect(screen.getByRole('combobox', { name: /college/i }).textContent).not.toMatch(/verified/i);
+    expect(screen.getByText(NOT_CHECKED)).toBeTruthy();
+  });
+
+  it('lets a published college be chosen, shows it verified, and stores only its name', async () => {
+    const changes = renderCollege();
+    await choose(/college/i, 'Synthetic Institute of Technology (verified)');
+    expect(changes).toEqual(['Synthetic Institute of Technology']);
+    expect(screen.getByRole('combobox', { name: /college/i }).textContent).toMatch(/\(verified\)/);
+    expect(screen.getByText(/verified by gradtools/i)).toBeTruthy();
+    expect(screen.queryByText(NOT_CHECKED)).toBeNull();
   });
 });

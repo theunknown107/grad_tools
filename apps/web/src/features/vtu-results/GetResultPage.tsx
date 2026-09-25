@@ -275,11 +275,12 @@ function ArchiveCard({
                   key={session.id}
                   variant="outline"
                   size="sm"
-                  aria-label={`${card.title}, ${section.resultType}, ${session.label}`}
+                  aria-label={`${card.title}, ${section.resultType}, ${session.label}${session.anomaly === null ? '' : ', Check'}`}
                   onClick={() => onPick(session)}
                   className="focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none"
                 >
                   {session.label}
+                  {session.anomaly !== null && <Badge tone="warning">Check</Badge>}
                 </Button>
               ))}
             </div>

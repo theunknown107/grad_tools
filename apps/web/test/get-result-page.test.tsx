@@ -16,6 +16,7 @@ const session = (
   resultType: 'Regular' | 'Revaluation',
   label: string,
   programme: 'UG' | 'PG' | null = null,
+  anomaly: 'label-url-mismatch' | null = null,
 ) => ({
   id,
   url: `https://results.vtu.ac.in/${id}/index.php`,
@@ -23,7 +24,9 @@ const session = (
   variant: label === 'Link' ? null : label,
   label,
   programme,
-  note: null,
+  note:
+    anomaly === null ? null : 'ANOMALY: developer note. Year printed as a range; year left null.',
+  anomaly,
 });
 
 const cards = [
@@ -50,6 +53,16 @@ const cards = [
     title: 'Ph.D. / M.S (Research) Nov / Dec 2024 Course Work',
     yearLabel: '2024',
     sections: [{ resultType: 'Regular', sessions: [session('PHD24', 'Regular', 'Link')] }],
+  },
+  {
+    title: 'B.E Special Exam Dec 2024 / Jan 2025 Exam',
+    yearLabel: null,
+    sections: [
+      {
+        resultType: 'Regular',
+        sessions: [session('SplJcbcs25', 'Regular', 'Non-CBCS', null, 'label-url-mismatch')],
+      },
+    ],
   },
 ];
 
@@ -171,6 +184,38 @@ describe('Get VTU Result', () => {
       within(dialog).getByRole('link', { name: 'Import saved result' }).getAttribute('href'),
     ).toBe('/import?session=MJ26CBCS');
     expect(repos.peek.results()).toHaveLength(1);
+  });
+
+  it('marks a session whose label disagrees with its link, and hides developer notes', async () => {
+    const user = userEvent.setup();
+    setup();
+    const flagged = screen.getByRole('button', {
+      name: 'B.E Special Exam Dec 2024 / Jan 2025 Exam, Regular, Non-CBCS, Check',
+    });
+    expect(within(flagged).getByText('Check')).toBeTruthy();
+    /* Unflagged buttons carry no Check badge. */
+    const clean = screen.getByRole('button', { name: 'May – June 2026 Exam, Regular, CBCS' });
+    expect(within(clean).queryByText('Check')).toBeNull();
+
+    await user.click(flagged);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Check')).toBeTruthy();
+    expect(within(dialog).getByText('Non-CBCS')).toBeTruthy();
+    expect(
+      within(dialog).getByText(
+        "The source lists this link as Non-CBCS, but its address suggests CBCS. Check the scheme shown on VTU's page before importing.",
+      ),
+    ).toBeTruthy();
+    expect(within(dialog).queryByText(/ANOMALY|year left null/)).toBeNull();
+  });
+
+  it('shows no caution on a session without an anomaly', async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole('button', { name: 'May – June 2026 Exam, Regular, CBCS' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByText(/address suggests CBCS/)).toBeNull();
+    expect(within(dialog).queryByText('Check')).toBeNull();
   });
 
   it('without a USN, points to the profile instead of asking for one', async () => {

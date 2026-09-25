@@ -20,6 +20,30 @@ describe('transcribed VTU colleges', () => {
     expect(duplicates).toEqual(source.duplicateCodes);
   });
 
+  it('lists no more colleges per region than the page reported, and the counts are recorded', () => {
+    const listed: Record<string, number> = {};
+    for (const e of entries) listed[e.region] = (listed[e.region] ?? 0) + 1;
+    expect(listed).toEqual(source.countsByRegion);
+    for (const [region, reported] of Object.entries(source.reportedCountsByRegion)) {
+      expect(listed[region] ?? 0).toBeLessThanOrEqual(reported);
+    }
+    expect(entries.filter((e) => e.code === null).length).toBe(source.entriesWithoutCode);
+  });
+
+  it('keeps catalogue ids stable (the API upserts on them)', () => {
+    expect(entries.length).toBe(185);
+    for (const e of entries) expect(e.id).toMatch(/^vtu-[a-z]+-[a-z0-9-]+$/);
+    const ids = new Set(entries.map((e) => e.id));
+    for (const id of [
+      'vtu-bengaluru-ay-acharaya-institute-of-technology',
+      'vtu-bengaluru-rr-rajarajeswari-college-of-engineering',
+      'vtu-belagavi-go-govt-engineering-college-haveri',
+      'vtu-kalaburagi-ng-government-engineering-college-bidar',
+    ]) {
+      expect(ids.has(id)).toBe(true);
+    }
+  });
+
   it('asserts no autonomy and invents no fields', () => {
     for (const e of entries) {
       expect(e.isAutonomous).toBeNull();
