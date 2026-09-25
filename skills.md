@@ -40,7 +40,26 @@ export TEST_MONITOR_DATABASE_URL="postgres://monitor_login:monitor_login@127.0.0
 Never point these at a shared or production database. The local cluster's
 time zone is not UTC; production is. Format timestamps as
 `to_char(ts AT TIME ZONE 'UTC', '…"Z"')`, never with `OF`, and test
-timestamp output over a `TimeZone=UTC` connection.
+timestamp output over a `TimeZone=UTC` connection. Test a race by holding
+one transaction open and waiting on `pg_blocking_pids` until the other is
+blocked. Never test a race with sleeps (`profile-concurrency.test.ts`).
+
+### Release verification
+
+A V1 release candidate needs all of these, in this order:
+
+1. typecheck, lint and Prettier are clean;
+2. the full suite passes with the four DB URLs and **0 skipped**;
+3. `qa:ux` and `qa:auth` pass;
+4. a **fresh** `pnpm --filter web build`, then `qa:app` at
+   390/768/1024/1280 in light and dark shows only the 12-finding baseline;
+5. the privacy sweep finds nothing: no USN, DOB or CAPTCHA in URLs, logs or
+   storage, and no secrets in `dist/*.js`. `test/bundle-secrets.test.ts`
+   guards the bundle. The sourcemap mentions `service_role` only in
+   supabase-js doc comments.
+
+Prove a new test fails on the old code (`git show HEAD:<path>`) or with a
+one-line mutation of the code it guards, then restore the file.
 
 ## Architecture boundaries
 
@@ -53,7 +72,11 @@ Keep these layers separate; do not collapse them into one component.
    `baseRevision` (missing or stale → 409 with the server copy). The device
    keeps `SyncBookkeeping.profile` (last agreed revision + fingerprint); a
    skipped setup uploads an empty _anchor_ that is never adopted locally
-   (DEC-048).
+   (DEC-048). A profile conflict is resolved only by the student's explicit
+   choice in Account → Data (`resolveProfileConflict`). "Keep this device's"
+   PUTs with the server's revision as its base, so a newer server copy is a new
+   conflict and never an overwrite (DEC-050). The profile stores the college
+   by name (OQ-063).
 2. **Reference catalogs** — `packages/vtu-catalogue` (data files carry
    provenance) and the API reference tables (`colleges`, `branches`,
    `schemes`) seeded from it.
