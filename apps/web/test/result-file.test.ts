@@ -75,8 +75,9 @@ vi.mock('../src/lib/ocr.js', () => ({
   normalizeContrast: vi.fn(),
 }));
 
-const { betterReading, fileKind, readImageFile, readPdfFile, MAX_OCR_PAGES } =
+const { betterReading, fileKind, readHtmlFile, readImageFile, readPdfFile, MAX_OCR_PAGES } =
   await import('../src/lib/result-file.js');
+const { parseResultCard } = await import('../src/domain/result-import.js');
 
 /** An OCR page result, as the engine would report one. */
 function page(
@@ -123,6 +124,11 @@ describe('choosing a reader', () => {
     expect(fileKind(new File([''], 'card.JPEG', { type: '' }))).toBe('image');
     expect(fileKind(new File([''], 'card.pdf', { type: '' }))).toBe('pdf');
     expect(fileKind(new File([''], 'notes.txt', { type: '' }))).toBe('unsupported');
+    expect(fileKind(new File([''], 'Result.HTM', { type: '' }))).toBe('html');
+  });
+
+  it('reads a saved web page as HTML', () => {
+    expect(fileKind(new File([''], 'result.html', { type: 'text/html' }))).toBe('html');
   });
 
   it('refuses anything else rather than guessing', () => {
@@ -309,5 +315,100 @@ describe('choosing between two readings of the same page', () => {
     const first = reading([ROW('BQAS401')], 50, 90);
     const second = reading([ROW('BQAS401')], 50, 99);
     expect(betterReading(first, second)).toBe(first);
+  });
+});
+
+/* ---------------------------------------------------------------------- */
+/* A result page saved from the browser (Save page as → HTML)              */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * The provisional-result page's structure, synthetically filled: the student
+ * block is a two-column <table>, the marks are `divTableRow` / `divTableCell`
+ * divs, and the page carries its own scripts. No real student data.
+ */
+function vtuPage(rows: readonly (readonly string[])[], extra = ''): string {
+  const cells = (row: readonly string[]) =>
+    `<div class="divTableRow">${row.map((cell) => `<div class="divTableCell">${cell}</div>`).join('')}</div>`;
+  return `<!DOCTYPE html><html><head><title>VTU Results</title>
+<script>window.__ranHead = true;</script><style>.x{color:red}</style></head>
+<body><nav><a href="/">Home</a></nav>
+<div class="container"><div class="panel-body">
+<b>VTU PROVISIONAL RESULTS OF UG / PG EXAMINATION</b>
+<table><tr><td><b>University Seat Number </b></td><td><b> : 1XX22CS001</b></td></tr>
+<tr><td><b>Student Name</b></td><td><b> : SYNTHETIC STUDENT</b></td></tr></table>
+<div style="text-align:center;padding:5px;"><b>Semester : 4</b></div>
+<div class="divTable"><div class="divTableBody">
+${cells(['<b>Subject Code</b>', '<b>Subject Name</b>', '<b>Internal Marks</b>', '<b>External Marks</b>', '<b>Total</b>', '<b>Result</b>', '<b>Announced / Updated on</b>'])}
+${rows.map(cells).join(' ')}
+</div></div>
+<div>P -&gt; PASS, F -&gt; FAIL, A -&gt; ABSENT</div>
+${extra}
+</div></div></body></html>`;
+}
+
+const htmlFile = (html: string) => new File([html], 'result.html', { type: 'text/html' });
+
+describe('a saved result page', () => {
+  it('reads each table row as one line, in the shape the card parser reads', async () => {
+    const reading = await readHtmlFile(
+      htmlFile(
+        vtuPage([
+          ['BQAS401 ', 'ALGORITHMS &amp; DATA', '44', '36', '80', 'P', '2026-07-23'],
+          ['BQAS402', 'FINANCIAL MANAGEMENT', '40', '12', '52', 'F', '2026-07-23'],
+        ]),
+      ),
+    );
+    const text = reading.lines.map((line) => line.text);
+
+    expect(text).toContain('University Seat Number : 1XX22CS001');
+    expect(text).toContain('Semester : 4');
+    expect(text).toContain('BQAS401 ALGORITHMS & DATA 44 36 80 P 2026-07-23');
+    expect(reading).toMatchObject({ source: 'text', pageCount: 1, meanConfidence: null });
+
+    const card = parseResultCard(reading.lines);
+    expect(card).toMatchObject({
+      semester: 4,
+      seatNumber: '1XX22CS001',
+      looksLikeResultCard: true,
+    });
+    expect(card.rows.map((row) => [row.subjectCode, row.total, row.resultStatus])).toEqual([
+      ['BQAS401', 80, 'P'],
+      ['BQAS402', 52, 'F'],
+    ]);
+  });
+
+  it('never runs the page: scripts and handlers are inert, and their text is not read', async () => {
+    const hits = globalThis as { __ranHead?: boolean; __ranBody?: boolean; __ranHandler?: boolean };
+    const reading = await readHtmlFile(
+      htmlFile(
+        vtuPage(
+          [['BQAS401', 'ALGORITHMS', '44', '36', '80', 'P', '2026-07-23']],
+          `<script>window.__ranBody = true; document.body.innerHTML = ''; throw new Error('ran');</script>
+<img src="x.png" onerror="window.__ranHandler = true"><iframe srcdoc="<p>framed</p>"></iframe>`,
+        ),
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(hits.__ranHead).toBeUndefined();
+    expect(hits.__ranBody).toBeUndefined();
+    expect(hits.__ranHandler).toBeUndefined();
+    const all = reading.lines.map((line) => line.text).join(' ');
+    expect(all).not.toMatch(/__ran|throw|framed|color:red/);
+    expect(parseResultCard(reading.lines).rows).toHaveLength(1);
+  });
+
+  it('has the headings of a result page but no rows, and is therefore not a result card', async () => {
+    const reading = await readHtmlFile(htmlFile(vtuPage([])));
+    const card = parseResultCard(reading.lines);
+    expect(card.rows).toEqual([]);
+    expect(card.looksLikeResultCard).toBe(false);
+  });
+
+  it('refuses a file far too large to be a result page, before reading it', async () => {
+    const huge = htmlFile('x');
+    Object.defineProperty(huge, 'size', { value: 50 * 1024 * 1024 });
+    await expect(readHtmlFile(huge)).rejects.toThrow(/too large/i);
   });
 });

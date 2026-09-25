@@ -21,7 +21,7 @@ import type { ImportLine } from '../src/domain/result-import.js';
 import type { PlacedText } from '../src/lib/pdf-text.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
 import { normalizeResultSubject } from '../src/domain/results.js';
-import type { SemesterResult } from '../src/domain/types.js';
+import type { SemesterResult, StudentProfile } from '../src/domain/types.js';
 import { Route, Routes } from 'react-router-dom';
 import { choose as pick, createMemoryRepositories, renderWith } from './helpers.js';
 
@@ -120,6 +120,26 @@ vi.mock('../src/lib/ocr.js', () => ({
       },
     });
   }),
+}));
+
+/*
+ * The result-session catalogue, with one synthetic session. `importOriginal`
+ * keeps everything else the import screen uses (scheme parsing) real.
+ */
+vi.mock('@gradtools/vtu-catalogue', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  findVtuResultSession: (id: string) =>
+    id === 'test-session'
+      ? {
+          card: { title: 'May–June 2026', yearLabel: '2026' },
+          session: {
+            id: 'test-session',
+            resultType: 'Regular',
+            label: 'CBCS',
+            url: 'https://results.invalid/',
+          },
+        }
+      : null,
 }));
 
 const { ImportPage } = await import('../src/features/import/ImportPage.js');
@@ -440,7 +460,9 @@ describe('a scan, a photo, and a file that cannot be read', () => {
      * offending file.
      */
     const message = await screen.findByText(/marks\.docx/i);
-    expect(message.textContent).toMatch(/PDFs and photos \(JPG, PNG, WebP\)/i);
+    expect(message.textContent).toMatch(
+      /PDFs and photos \(JPG, PNG, WebP\), and result pages saved as HTML/i,
+    );
     // And it says what to do about the commonest case, rather than only "no".
     expect(message.textContent).toMatch(/saved as a PDF/i);
   });
@@ -926,5 +948,253 @@ describe('after a save, the figures follow', () => {
     expect((await screen.findByRole('group', { name: 'Courses passed' })).textContent).toMatch(/2/);
     // The semester list survives too, because it never needed a CGPA.
     expect(screen.getByRole('radio', { name: /semesters · 1/i })).toBeTruthy();
+  });
+});
+
+/* ---------------------------------------------------------------------- */
+/* A result page saved from the browser, and the "Get VTU Result" link      */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * The provisional-result page's structure, synthetically filled (no real
+ * student): a two-column table for the student, `divTableRow` divs for marks.
+ */
+function vtuPage(semester: number | null, rows: readonly (readonly string[])[]): string {
+  const row = (cells: readonly string[]) =>
+    `<div class="divTableRow">${cells.map((cell) => `<div class="divTableCell">${cell}</div>`).join('')}</div>`;
+  return `<html><head><script>window.__ran = true;</script></head><body>
+<b>VTU PROVISIONAL RESULTS OF UG / PG EXAMINATION</b>
+<table><tr><td><b>University Seat Number </b></td><td><b> : 1XX22CS001</b></td></tr>
+<tr><td><b>Student Name</b></td><td><b> : SYNTHETIC STUDENT</b></td></tr></table>
+${semester === null ? '' : `<div><b>Semester : ${String(semester)}</b></div>`}
+<div class="divTable"><div class="divTableBody">
+${row(['Subject Code', 'Subject Name', 'Internal Marks', 'External Marks', 'Total', 'Result', 'Announced / Updated on'])}
+${rows.map(row).join('')}
+</div></div></body></html>`;
+}
+
+const PAGE_ROWS = [
+  ['BQAS401', 'ALGORITHMS', '44', '36', '80', 'P', '2026-07-23'],
+  ['BQAS402', 'FINANCIAL MANAGEMENT', '40', '19', '59', 'P', '2026-07-23'],
+];
+
+async function chooseHtml(user: ReturnType<typeof userEvent.setup>, html: string) {
+  const opener = screen.queryByRole('button', { name: /add academic document/i });
+  if (opener !== null) await user.click(opener);
+  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+  const file = new File([html], 'VTU Result.html', { type: 'text/html' });
+  const list = {
+    0: file,
+    length: 1,
+    item: (index: number) => (index === 0 ? file : null),
+    [Symbol.iterator]: function* () {
+      yield file;
+    },
+  };
+  Object.defineProperty(input, 'files', { value: list, configurable: true });
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+const confirmButton = () =>
+  screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement;
+
+describe('a result page saved as HTML', () => {
+  it('is read, reviewed and saved with its provenance', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(await screen.findByRole('region', { name: /Semester 4 review/ })).toBeTruthy();
+    expect(screen.getByText(/Seat number: 1XX22CS001/)).toBeTruthy();
+    expect(peek.results()).toHaveLength(0);
+    expect((globalThis as { __ran?: boolean }).__ran).toBeUndefined();
+
+    await user.click(confirmButton());
+
+    const saved = peek.results()[0];
+    expect(saved?.semester).toBe(4);
+    expect(saved?.subjects.map((subject) => [subject.subjectCode, subject.total])).toEqual([
+      ['BQAS401', 80],
+      ['BQAS402', 59],
+    ]);
+    expect(saved?.source).toMatchObject({ kind: 'vtu-result-page', sessionId: null });
+    expect(saved?.source?.parserVersion).toMatch(/\S/);
+  });
+
+  it('with the headings of a result page but no course rows, can never be imported', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await chooseHtml(user, vtuPage(4, []));
+
+    expect(await screen.findByText(/VTU Result\.html/)).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByText(/Checking the file type/i)).toBeNull();
+    });
+    const button = screen.queryByRole('button', { name: /confirm and save/i });
+    expect(button === null || (button as HTMLButtonElement).disabled).toBe(true);
+    expect(peek.results()).toHaveLength(0);
+  });
+
+  it('saved twice, is refused the second time', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(await screen.findByText(/already has a saved result/i)).toBeTruthy();
+    expect(peek.results()).toHaveLength(1);
+  });
+});
+
+describe('a result page printed to PDF', () => {
+  it('reads the printed layout through the text-layer path', async () => {
+    extractions.clear();
+    extractions.set('a', {
+      hasTextLayer: true,
+      lines: [
+        '9/25/26, 10:14 AM VTU Results',
+        'VTU PROVISIONAL RESULTS OF UG / PG EXAMINATION',
+        'University Seat Number : 1XX22CS001',
+        'Student Name : SYNTHETIC STUDENT',
+        'Semester : 4',
+        'Subject Code Subject Name Internal Marks External Marks Total Result Announced / Updated on',
+        'BQAS401 ALGORITHMS 44 36 80 P 2026-07-23',
+        'BQAS402 FINANCIAL MANAGEMENT 40 19 59 P 2026-07-23',
+        'P -> PASS, F -> FAIL, A -> ABSENT, W -> WITHHELD',
+        'https://results.invalid/resultpage.php 1/1',
+      ].map((text) => ({ text, page: 1 })),
+    });
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user, 'VTU Results.pdf');
+    expect(await screen.findByText(/Seat number: 1XX22CS001/)).toBeTruthy();
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
+
+    expect(peek.results()[0]?.semester).toBe(4);
+    expect(peek.results()[0]?.subjects).toHaveLength(2);
+  });
+});
+
+describe('opened from "Get VTU Result"', () => {
+  it('pre-fills the semester only when the card printed none', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle, route: '/import?semester=5' });
+
+    await chooseHtml(user, vtuPage(null, PAGE_ROWS));
+
+    await waitFor(() => {
+      expect(confirmButton().disabled).toBe(false);
+    });
+    await user.click(confirmButton());
+    expect(peek.results()[0]?.semester).toBe(5);
+  });
+
+  it('keeps a printed semester, and warns that it is not the one expected', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle, route: '/import?semester=5' });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(
+      await screen.findByText(/prints semester 4, but you opened it for semester 5/i),
+    ).toBeTruthy();
+    await user.click(confirmButton());
+    expect(peek.results()[0]?.semester).toBe(4);
+  });
+
+  it('still refuses a pre-filled semester that already has a result', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories({ results: [FULL4] });
+    renderWith(<ImportPage />, { repositories: bundle, route: '/import?semester=4' });
+
+    await chooseHtml(user, vtuPage(null, PAGE_ROWS));
+
+    expect(await screen.findByText(/semester 4 already has a saved result/i)).toBeTruthy();
+    expect(confirmButton().disabled).toBe(true);
+    expect(peek.results()).toEqual([FULL4]);
+  });
+
+  it('ignores a semester outside 1–8 and a session nobody knows', async () => {
+    const user = userEvent.setup();
+    renderWith(<ImportPage />, {
+      repositories: createMemoryRepositories().bundle,
+      route: '/import?semester=9&session=made-up',
+    });
+
+    await chooseHtml(user, vtuPage(null, PAGE_ROWS));
+
+    expect(await screen.findByText(/semester not detected/i)).toBeTruthy();
+    expect(confirmButton().disabled).toBe(true);
+    expect(screen.queryByText(/^From:/)).toBeNull();
+  });
+
+  it('names the session and records it on the saved result', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle, route: '/import?session=test-session' });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(await screen.findByText('From: May–June 2026 — Regular (CBCS)')).toBeTruthy();
+    await user.click(confirmButton());
+    expect(peek.results()[0]?.source).toMatchObject({
+      kind: 'vtu-result-page',
+      sessionId: 'test-session',
+    });
+  });
+});
+
+describe('the seat number on the card', () => {
+  const withUsn = (usn: string | null): StudentProfile =>
+    ({
+      id: asStudentProfileId('local'),
+      authUserId: null,
+      displayName: null,
+      usn,
+      collegeName: null,
+      schemeId: 'vtu-2022',
+      programme: null,
+      branch: null,
+      currentSemester: 4,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }) as StudentProfile;
+
+  it('warns when it is not the profile USN, but never blocks or edits the profile', async () => {
+    const user = userEvent.setup();
+    const profile = withUsn('1XX22CS099');
+    const { bundle, peek } = createMemoryRepositories({ profile });
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(
+      await screen.findByText(/This card is for 1XX22CS001, your profile says 1XX22CS099/),
+    ).toBeTruthy();
+    await user.click(confirmButton());
+    expect(peek.results()).toHaveLength(1);
+    expect(await bundle.profile.get()).toEqual(profile);
+  });
+
+  it('says nothing when they match, however they are cased or spaced', async () => {
+    const user = userEvent.setup();
+    const { bundle } = createMemoryRepositories({ profile: withUsn(' 1xx22cs001 ') });
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(await screen.findByText(/Seat number: 1XX22CS001/)).toBeTruthy();
+    expect(screen.queryByText(/This card is for/)).toBeNull();
   });
 });
