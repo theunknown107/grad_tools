@@ -25,6 +25,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { STUDENT_ROUTES, type CloudProfile, type ProfileInput } from '@gradtools/shared-types';
+import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import { apiBaseUrl } from '../../repositories/reference.js';
 import { useRepositories } from '../../repositories/context.js';
 import { useAuth } from './AuthContext.js';
@@ -33,6 +34,7 @@ import {
   EMPTY_BOOKKEEPING,
   afterPull,
   applyPushOutcomes,
+  fingerprint,
   planPull,
   recordsToPush,
   type LocalRecord,
@@ -303,23 +305,32 @@ async function recordObservations(
 
 /**
  * The profile as `PUT /me/profile` takes it: every stated field, nothing local.
- * `baseRevision` is omitted — this path only ever CREATES the cloud profile.
+ *
+ * `null` is the ANCHOR (OQ-062): a student who skipped setup still needs a
+ * cloud profile before the server accepts a push, so an empty one is uploaded
+ * with the same scheme `withChanges` (ProfilePage) would state. The anchor
+ * exists only in the cloud — it never becomes a local profile, so the
+ * Dashboard's "set up your profile" prompt stays.
  */
-function profileInput(profile: StudentProfile): ProfileInput {
+function profileInput(profile: StudentProfile | CloudProfile | null): ProfileInput {
   return {
-    displayName: profile.displayName,
-    usn: profile.usn,
-    collegeName: profile.collegeName,
-    schemeId: profile.schemeId,
-    programme: profile.programme,
-    branch: profile.branch,
-    currentSemester: profile.currentSemester,
-    admissionYear: profile.admissionYear ?? null,
-    expectedPassoutYear: profile.expectedPassoutYear ?? null,
-    entryRoute: profile.entryRoute ?? null,
-    identityConfirmedAt: profile.identityConfirmedAt ?? null,
+    displayName: profile?.displayName ?? null,
+    usn: profile?.usn ?? null,
+    collegeName: profile?.collegeName ?? null,
+    schemeId: profile?.schemeId ?? vtu2022RuleSet.schemeId,
+    programme: profile?.programme ?? null,
+    branch: profile?.branch ?? null,
+    currentSemester: profile?.currentSemester ?? null,
+    admissionYear: profile?.admissionYear ?? null,
+    expectedPassoutYear: profile?.expectedPassoutYear ?? null,
+    entryRoute: profile?.entryRoute ?? null,
+    identityConfirmedAt: profile?.identityConfirmedAt ?? null,
   };
 }
+
+const EMPTY_PROFILE_FINGERPRINT = fingerprint(profileInput(null));
+
+const PROFILE_CONFLICT_REASON = 'Your profile changed on another device and on this one.';
 
 function fromCloudProfile(cloud: CloudProfile): StudentProfile {
   const { revision: _revision, ...fields } = cloud;
@@ -394,23 +405,55 @@ export function useSync(): SyncApi {
       const version = (await readValue<number>(scope, 'schemaVersion')) ?? 0;
       const local = await collectLocal(repositories, version);
 
-      /* ---- the profile the push needs ----------------------------------
-       * The server refuses a push from an account with no cloud profile, and
-       * nothing else ever created one — so a signed-in student's records never
-       * left the device. The profile is not a collection: it is created once
-       * here, from this device's copy, and only when the cloud has none.
-       * An existing cloud profile is never overwritten from here (M9 §28). */
+      let bookkeeping = stored;
+      /* A profile conflict is re-derived by every sync, so an old one is dropped. */
+      let conflicts = state.conflicts.filter((conflict) => conflict.collection !== 'profile');
+
+      /* ---- the profile (OQ-062) ----------------------------------------
+       * The server refuses a push from an account with no cloud profile, so
+       * the first sync uploads one — this device's, or the empty anchor if the
+       * student skipped setup. After that the profile travels like a record:
+       * a local edit is PUT against the revision this device last agreed with,
+       * and a stale one comes back 409 as a conflict, never an overwrite
+       * (M9 §28). A device holding no profile never PUTs over an existing one. */
       const localProfile = await repositories.profile.get();
-      if (localProfile !== null) {
+      const mine = fingerprint(profileInput(localProfile));
+      const profileMeta = stored.profile;
+      let putProfile = false;
+      if (profileMeta === undefined) {
         const me = await authorized(STUDENT_ROUTES.me);
-        const cloudProfile =
-          me !== null && me.ok ? ((await me.json()) as { profile?: unknown }).profile : undefined;
-        if (cloudProfile === null) {
-          const created = await authorized(STUDENT_ROUTES.meProfile, {
-            method: 'PUT',
-            body: JSON.stringify(profileInput(localProfile)),
+        putProfile =
+          me !== null && me.ok && ((await me.json()) as { profile?: unknown }).profile === null;
+      } else {
+        putProfile = localProfile !== null && mine !== profileMeta.fingerprint;
+      }
+      if (putProfile) {
+        const put = await authorized(STUDENT_ROUTES.meProfile, {
+          method: 'PUT',
+          body: JSON.stringify(
+            profileMeta === undefined
+              ? profileInput(localProfile)
+              : { ...profileInput(localProfile), baseRevision: profileMeta.revision },
+          ),
+        });
+        if (put === null) throw new Error('profile failed');
+        if (put.status === 409) {
+          const { server } = (await put.json()) as { server: CloudProfile };
+          conflicts.push({
+            id: 'profile',
+            collection: 'profile',
+            reason: PROFILE_CONFLICT_REASON,
+            local: profileInput(localProfile),
+            server: profileInput(server),
           });
-          if (created === null || !created.ok) throw new Error('profile failed');
+        } else if (put.ok) {
+          const saved = (await put.json()) as CloudProfile;
+          bookkeeping = {
+            ...bookkeeping,
+            profile: { revision: saved.revision, fingerprint: mine },
+          };
+        } else {
+          throw new Error('profile failed');
         }
       }
 
@@ -428,9 +471,6 @@ export function useSync(): SyncApi {
       const candidates = recordsToPush(local, stored).filter(
         (candidate) => !(ledgerAuthoritative(version) && candidate.collection === 'attendance'),
       );
-      let bookkeeping = stored;
-      let conflicts = [...state.conflicts];
-
       if (candidates.length > 0) {
         const response = await authorized(STUDENT_ROUTES.meSync, {
           method: 'POST',
@@ -462,9 +502,35 @@ export function useSync(): SyncApi {
         syncedAt: string;
       };
 
-      /* A device with no profile of its own takes the account's (a new device). */
-      if (localProfile === null && body.profile !== undefined && body.profile !== null) {
-        await repositories.profile.save(fromCloudProfile(body.profile));
+      /*
+       * The cloud profile moved. Same content: just note the revision. This
+       * device untouched since it last agreed (or holding none): take the
+       * cloud's — unless it is the empty anchor, which never becomes a local
+       * profile. Changed in both places: a conflict, both copies kept.
+       */
+      const cloudProfile = body.profile ?? null;
+      if (cloudProfile !== null && cloudProfile.revision !== bookkeeping.profile?.revision) {
+        const theirs = fingerprint(profileInput(cloudProfile));
+        const untouched =
+          localProfile === null ||
+          (bookkeeping.profile !== undefined && mine === bookkeeping.profile.fingerprint);
+        const agreed = { revision: cloudProfile.revision, fingerprint: theirs };
+        if (theirs === mine) {
+          bookkeeping = { ...bookkeeping, profile: agreed };
+        } else if (untouched) {
+          if (localProfile !== null || theirs !== EMPTY_PROFILE_FINGERPRINT) {
+            await repositories.profile.save(fromCloudProfile(cloudProfile));
+          }
+          bookkeeping = { ...bookkeeping, profile: agreed };
+        } else if (!conflicts.some((conflict) => conflict.collection === 'profile')) {
+          conflicts.push({
+            id: 'profile',
+            collection: 'profile',
+            reason: PROFILE_CONFLICT_REASON,
+            local: profileInput(localProfile),
+            server: profileInput(cloudProfile),
+          });
+        }
       }
 
       const plan = planPull(body.records, local, bookkeeping);
