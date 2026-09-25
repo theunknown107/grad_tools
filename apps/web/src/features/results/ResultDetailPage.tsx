@@ -98,7 +98,9 @@ export function ResultDetailPage() {
   const { backlogs, undetermined } = semesterBacklogs(result, resolved.ruleSet);
   const asserted = result.sgpaAsserted;
   const discrepancy = sgpa !== null && asserted !== null && Math.abs(sgpa - asserted) >= 0.005;
-  const allPassed = backlogs === 0 && undetermined === 0;
+  /* No courses means nothing was checked — zero backlogs out of zero is not a pass. */
+  const empty = result.subjects.length === 0;
+  const allPassed = !empty && backlogs === 0 && undetermined === 0;
   const exportCsv = (): void => {
     const blob = new Blob([semesterCsv(result, resolved.ruleSet)], {
       type: 'text/csv;charset=utf-8',
@@ -127,7 +129,7 @@ export function ResultDetailPage() {
             ) : undetermined > 0 ? (
               <Badge tone="warning">Needs review</Badge>
             ) : (
-              <Badge tone="success">Completed</Badge>
+              allPassed && <Badge tone="success">Completed</Badge>
             )}
           </span>
         }
@@ -181,15 +183,24 @@ export function ResultDetailPage() {
         />
         <Metric
           label="Result"
+          state={empty ? 'unavailable' : 'resolved'}
           value={
-            allPassed
-              ? 'PASS'
-              : backlogs > 0
-                ? `${String(backlogs)}${undetermined > 0 ? '+' : ''} backlog`
-                : 'Review'
+            empty
+              ? 'Unavailable'
+              : allPassed
+                ? 'PASS'
+                : backlogs > 0
+                  ? `${String(backlogs)}${undetermined > 0 ? '+' : ''} backlog`
+                  : 'Review'
           }
           emphasis={backlogs > 0 ? 'danger' : undetermined > 0 ? 'warning' : undefined}
-          sub={undetermined > 0 ? `${String(undetermined)} could not be checked` : undefined}
+          sub={
+            empty
+              ? 'No courses are recorded for this semester.'
+              : undetermined > 0
+                ? `${String(undetermined)} could not be checked`
+                : undefined
+          }
         />
       </MetricGrid>
 

@@ -12,8 +12,13 @@
  * and tombstoned them in the cloud, and every other device lost them too.
  *
  * The fake cloud below keeps what the real one keeps: only the allowlisted
- * columns (services/api/src/student/store.ts), and a pull of everything whose
- * `updated_at` is after the cursor, ordered by `updated_at, id`.
+ * columns (services/api/src/student/store.ts), a pull of everything whose
+ * `updated_at` is after the cursor, ordered by `updated_at, id`, and a push
+ * refused as a conflict when its `baseRevision` is not the row's revision.
+ *
+ * It also guards OQ-060: a device must not push fields the cloud never stores
+ * (`profileId`, `createdAt`, a slot's `classId`), or its fingerprint never
+ * matches the cloud's echo and every sync re-pushes and conflicts with itself.
  */
 
 import 'fake-indexeddb/auto';
@@ -28,7 +33,8 @@ import { createLocalRepositories } from '../src/repositories/local/index.js';
 import { deleteValue, readValue, writeValue } from '../src/repositories/local/store.js';
 import { normalizeResultSubject } from '../src/domain/results.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
-import type { SemesterResult } from '../src/domain/types.js';
+import type { SyncState } from '../src/domain/auth.js';
+import type { SemesterResult, TimetableSlot } from '../src/domain/types.js';
 
 const SCOPE = 'aaaaaaaa-4444-4000-8000-00000000000a';
 
@@ -52,6 +58,7 @@ const ALLOWED: Record<string, readonly string[]> = {
     'catalogueCode',
     'ordinal',
   ],
+  timetable: ['day', 'startTime', 'endTime', 'subjectCode', 'activity', 'room', 'faculty'],
 };
 
 interface Row {
@@ -67,6 +74,7 @@ interface Pushed {
   id: string;
   collection: string;
   deleted: boolean;
+  baseRevision: number | null;
   data: Record<string, unknown>;
 }
 
@@ -91,6 +99,25 @@ function cloud() {
         pushed.push(...body.records);
         const outcomes = body.records.map((record) => {
           const previous = rows.get(record.id);
+          const echo = (row: Row) => ({
+            revision: row.revision,
+            data: row.data,
+            deletedAt: row.deletedAt,
+          });
+          /* The revision check store.ts makes: a stale or unknown base is a conflict. */
+          if (
+            previous === undefined
+              ? record.baseRevision !== null
+              : record.baseRevision !== previous.revision
+          ) {
+            return {
+              id: record.id,
+              collection: record.collection,
+              status: 'conflict',
+              reason: 'This record changed on another device.',
+              server: previous === undefined ? null : echo(previous),
+            };
+          }
           const row: Row = {
             id: record.id,
             collection: record.collection,
@@ -105,9 +132,7 @@ function cloud() {
             collection: record.collection,
             status: 'applied',
             reason: null,
-            server: record.deleted
-              ? null
-              : { revision: row.revision, data: row.data, deletedAt: null },
+            server: record.deleted ? null : echo(row),
           };
         });
         return ok({ outcomes });
@@ -168,7 +193,7 @@ const RESULT: SemesterResult = {
   updatedAt: '2026-09-01T00:00:00.000Z',
 };
 
-async function sync(): Promise<void> {
+async function sync(): Promise<SyncState> {
   const repositories = createLocalRepositories(SCOPE);
   const Wrapper = ({ children }: { readonly children: ReactNode }) => (
     <AuthContextValueProvider signedIn>
@@ -185,7 +210,9 @@ async function sync(): Promise<void> {
   await act(async () => {
     await result.current.sync.syncNow();
   });
+  const state = result.current.sync.state;
   unmount();
+  return state;
 }
 
 async function localResult(): Promise<SemesterResult | undefined> {
@@ -229,6 +256,7 @@ async function twoDevices(): Promise<{ a: Device; b: Device }> {
 
 beforeEach(async () => {
   await writeValue(SCOPE, 'results', [RESULT]);
+  await writeValue(SCOPE, 'timetable', []);
   await writeValue(SCOPE, 'schemaVersion', 1);
   await deleteValue(SCOPE, 'syncState');
 });
@@ -301,5 +329,89 @@ describe('a pull that does carry subject rows', () => {
     const subjects = (await localResult())?.subjects ?? [];
     expect(subjects.map((entry) => entry.subjectCode).sort()).toEqual(['BCS302', 'BCS303']);
     expect(subjects.find((entry) => entry.id === 's2')?.gradeLetter).toBe('A+');
+  });
+});
+
+describe('a record carrying fields the cloud never stores (OQ-060)', () => {
+  it('syncs once, then settles: no re-push, no conflict, local fields kept', async () => {
+    const server = cloud();
+
+    const statuses = [(await sync()).status];
+    const afterFirst = server.pushed.length;
+    statuses.push((await sync()).status, (await sync()).status);
+
+    expect(statuses).toEqual(['synced', 'synced', 'synced']);
+    expect(afterFirst).toBeGreaterThan(0);
+    expect(server.pushed).toHaveLength(afterFirst);
+    const result = await localResult();
+    expect(result?.profileId).toBe(RESULT.profileId);
+    expect(result?.createdAt).toBe(RESULT.createdAt);
+    expect(result?.subjects.map((entry) => entry.subjectCode)).toEqual(['BCS301', 'BCS302']);
+  });
+
+  it('two devices holding the same unchanged result do not conflict', async () => {
+    const server = cloud();
+    const { a, b } = await twoDevices();
+    const before = server.pushed.length;
+
+    await loadDevice(a);
+    const onA = await sync();
+    await loadDevice(b);
+    const onB = await sync();
+
+    expect([onA.status, onB.status]).toEqual(['synced', 'synced']);
+    expect(onB.conflicts).toEqual([]);
+    expect(server.pushed).toHaveLength(before);
+    expect((await localResult())?.subjects).toHaveLength(2);
+  });
+
+  it('a genuine divergence is still a conflict', async () => {
+    cloud();
+    const { a, b } = await twoDevices();
+    const edited = (device: Device, sgpaAsserted: number): Device => ({
+      ...device,
+      results: (device.results as SemesterResult[]).map((result) => ({ ...result, sgpaAsserted })),
+    });
+
+    await loadDevice(edited(a, 8.5));
+    const onA = await sync();
+    await loadDevice(edited(b, 9));
+    const onB = await sync();
+
+    expect(onA.status).toBe('synced');
+    expect(onB.status).toBe('conflicts');
+    expect(onB.conflicts.map((conflict) => conflict.id)).toContain('result-1');
+    expect((await localResult())?.subjects).toHaveLength(2);
+  });
+
+  it('a timetable slot keeps its classId and is not re-pushed after its echo', async () => {
+    const server = cloud();
+    await writeValue(SCOPE, 'results', []);
+    const slot: TimetableSlot = {
+      id: 'slot-1',
+      profileId: RESULT.profileId,
+      classId: 'class-1',
+      day: 'Mon',
+      startTime: '09:00',
+      endTime: '10:00',
+      subjectCode: 'BCS301',
+      activity: null,
+      room: null,
+      faculty: null,
+      kind: 'course',
+    };
+    await writeValue(SCOPE, 'timetable', [slot]);
+
+    const first = await sync();
+    const pushedFirst = server.pushed.length;
+    const second = await sync();
+
+    expect([first.status, second.status]).toEqual(['synced', 'synced']);
+    expect(pushedFirst).toBe(1);
+    expect(server.pushed).toHaveLength(1);
+    expect(server.pushed[0]?.data).not.toHaveProperty('classId');
+    const [stored] = await createLocalRepositories(SCOPE).timetable.list();
+    expect(stored?.classId).toBe('class-1');
+    expect(stored?.kind).toBe('course');
   });
 });

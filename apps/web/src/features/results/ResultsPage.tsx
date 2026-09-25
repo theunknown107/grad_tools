@@ -262,14 +262,29 @@ function NoMatches({ query }: { readonly query: string }) {
   );
 }
 
+/*
+ * No courses means nothing was checked: zero backlogs out of zero is not
+ * "Completed". Worded as the result record words it.
+ */
+const EMPTY_RESULT = 'No courses are recorded for this semester.';
+
 /** The design's row status: an icon and a word, no pill. */
 function StateText({
   backlogs,
   undetermined,
+  empty,
 }: {
   readonly backlogs: number;
   readonly undetermined: number;
+  readonly empty: boolean;
 }) {
+  if (empty) {
+    return (
+      <span className="text-[12px] font-medium text-ink-3" title={EMPTY_RESULT}>
+        Unavailable
+      </span>
+    );
+  }
   const [tone, Icon, text] =
     backlogs > 0
       ? (['text-danger', AlertTriangle, formatCount(backlogs, 'backlog')] as const)
@@ -287,10 +302,13 @@ function StateText({
 function StateBadge({
   backlogs,
   undetermined,
+  empty,
 }: {
   readonly backlogs: number;
   readonly undetermined: number;
+  readonly empty: boolean;
 }) {
+  if (empty) return <Badge title={EMPTY_RESULT}>Unavailable</Badge>;
   if (backlogs > 0) {
     return (
       <Badge tone="danger" icon={<AlertTriangle />}>
@@ -353,7 +371,11 @@ function SemesterRow({
           )}
         </span>
         <span className="shrink-0">
-          <StateText backlogs={backlogs} undetermined={undetermined} />
+          <StateText
+            backlogs={backlogs}
+            undetermined={undetermined}
+            empty={result.subjects.length === 0}
+          />
         </span>
         <ChevronRight className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
       </Link>
@@ -396,7 +418,11 @@ function SemesterCard({
             )}
             <span className="mt-0.5 block text-[12px] text-ink-2">SGPA</span>
           </span>
-          <StateBadge backlogs={backlogs} undetermined={undetermined} />
+          <StateBadge
+            backlogs={backlogs}
+            undetermined={undetermined}
+            empty={result.subjects.length === 0}
+          />
         </span>
         <span className="mt-4 block">
           <span className="mb-1.5 flex justify-between text-[12px] text-ink-2">

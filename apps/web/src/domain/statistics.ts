@@ -428,11 +428,12 @@ function semesterStatistics(view: SemesterView, identify: SubjectLookup): Semest
     number: view.number,
     view,
     hasResult: true,
+    /* Zero of zero courses is not "fully resolved": an empty result resolved nothing. */
     completeness:
-      resolvedCourses === courseCount
-        ? 'fully_resolved'
-        : resolvedCourses === 0
-          ? 'unresolved'
+      resolvedCourses === 0
+        ? 'unresolved'
+        : resolvedCourses === courseCount
+          ? 'fully_resolved'
           : 'partially_resolved',
     /*
      * A SEMESTER WITH A RESULT IS EXPECTED TO COUNT. If its SGPA resolved it
@@ -633,11 +634,13 @@ export interface AcademicStatistics {
  * could not be checked. Any one of those makes the claim false or unknown.
  *
  * And there must BE results: with none, the derived figure is a zero that
- * rests on nothing, and "no backlogs" would be a claim with no evidence.
+ * rests on nothing, and "no backlogs" would be a claim with no evidence. A
+ * result with no courses is no evidence either: nothing in it was checked.
  */
 export function hasNoBacklogs(statistics: AcademicStatistics): boolean {
   return (
     statistics.hasAnyResult &&
+    statistics.semesters.every((entry) => !entry.hasResult || entry.courseCount > 0) &&
     statistics.backlogs.value === 0 &&
     statistics.backlogsFromResults.value === 0 &&
     statistics.backlogsUndetermined === 0
