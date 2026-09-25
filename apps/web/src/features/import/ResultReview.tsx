@@ -34,7 +34,7 @@ import {
   withChosenSemester,
   type SemesterGroup,
 } from '../../domain/result-reconcile.js';
-import { useResults } from '../../hooks/useCollection.js';
+import { useProfile, useResults } from '../../hooks/useCollection.js';
 import {
   creditsFor,
   resolveSubject,
@@ -51,6 +51,12 @@ import { SEMESTER_OPTIONS } from './CalendarReview.js';
 import { Recorded, ReviewCard, SaveFooter, saveFailure, type SaveState } from './ReviewCard.js';
 
 const ruleSet = vtu2022RuleSet;
+
+/** Recorded on each imported result, so a later parser fix can tell which readings predate it. */
+const PARSER_VERSION = 'vtu-result-card/1';
+
+const sameUsn = (a: string, b: string): boolean =>
+  a.trim().toUpperCase() === b.trim().toUpperCase();
 
 const GRADE_OPTIONS = [
   { value: '', label: '—' },
@@ -151,6 +157,8 @@ export function ResultReview({
   catalogue,
   subjectIndex,
   profileId,
+  expectedSemester = null,
+  session = null,
   onSave,
   onDiscard,
 }: {
@@ -159,12 +167,30 @@ export function ResultReview({
   readonly catalogue: readonly CatalogueSubject[];
   readonly subjectIndex: Map<string, SubjectIdentity>;
   readonly profileId: ReturnType<typeof asStudentProfileId>;
+  /** The semester the "Get VTU Result" link was opened for, validated 1–8. */
+  readonly expectedSemester?: number | null;
+  /** The result session the student said this page is from, validated. */
+  readonly session?: { readonly id: string; readonly label: string } | null;
   readonly onSave: (result: SemesterResult) => void | Promise<void>;
   readonly onDiscard: () => void;
 }) {
   const first = group.files[0];
   const { items: savedResults } = useResults();
-  const [semester, setSemester] = useState(String(group.semester ?? ''));
+  const { profile } = useProfile();
+  /*
+   * The deep link's semester PRE-FILLS the choice only where the card printed
+   * none. It is still a choice run through `withChosenSemester` below, so a
+   * semester that already has a saved result is refused exactly as if picked.
+   * A printed semester always wins; a different expected one is only a warning.
+   */
+  const [semester, setSemester] = useState(
+    String(
+      group.semester ??
+        (group.files.some((file) => file.card.unsupportedSemester !== null)
+          ? ''
+          : (expectedSemester ?? '')),
+    ),
+  );
   const [rows, setRows] = useState<readonly DraftRow[]>(() =>
     (first?.card.rows ?? []).map(toDraft),
   );
@@ -228,6 +254,11 @@ export function ResultReview({
   const unresolvedCount = enriched.filter((entry) => entry.unresolved).length;
   const resolvedCount = enriched.length - unresolvedCount;
   const unreadable = group.files.flatMap((file) => file.card.unreadableRows);
+  const seat = first?.card.seatNumber ?? null;
+  const usn = profile?.usn ?? null;
+  const otherStudent = seat !== null && usn !== null && usn.trim() !== '' && !sameUsn(seat, usn);
+  const otherSemester =
+    group.semester !== null && expectedSemester !== null && group.semester !== expectedSemester;
 
   const confirm = async (): Promise<void> => {
     if (state === 'saving' || state === 'saved' || !ready) return;
@@ -243,6 +274,17 @@ export function ResultReview({
         ruleSetId: ruleSet.id,
         sgpaAsserted: null,
         subjects,
+        /*
+         * LOCAL-ONLY provenance: not a synced column, so it never reaches the
+         * cloud and never enters the sync fingerprint. Only a VTU result card
+         * can get here — `ready` requires `looksLikeResultCard`.
+         */
+        source: {
+          kind: 'vtu-result-page',
+          sessionId: session?.id ?? null,
+          importedAt: nowIso(),
+          parserVersion: PARSER_VERSION,
+        },
         createdAt: nowIso(),
         updatedAt: nowIso(),
       });
@@ -311,6 +353,8 @@ export function ResultReview({
               ? 'semester not detected'
               : `semester ${String(group.semester)}`}{' '}
           · {formatCount(rows.length, 'course')} detected
+          {seat !== null && <span className="block">Seat number: {seat}</span>}
+          {session !== null && <span className="block">From: {session.label}</span>}
         </>
       }
       badges={
@@ -334,6 +378,19 @@ export function ResultReview({
         </Callout>
       )}
       {blocked !== null && <Callout tone="warning">{blocked}</Callout>}
+      {otherStudent && (
+        <Callout tone="warning" title="Check whose card this is.">
+          This card is for {seat}, your profile says {usn}. You can still save it — make sure it is
+          your own result.
+        </Callout>
+      )}
+      {otherSemester && (
+        <Callout tone="warning" title="A different semester.">
+          This card prints semester {String(group.semester)}, but you opened it for semester{' '}
+          {String(expectedSemester)}. It will be saved as semester {String(group.semester)}, as
+          printed.
+        </Callout>
+      )}
       {recognised && (
         <Callout tone="warning" title="Read from a picture.">
           These figures were read from an image, not from a PDF&apos;s own text. Check every mark

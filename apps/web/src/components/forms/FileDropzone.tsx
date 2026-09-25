@@ -14,7 +14,7 @@ import { fileKind } from '../../lib/result-file.js';
 import { Button } from '../ui/button.js';
 import { Callout } from '../ui/feedback.js';
 
-const ACCEPTED = 'application/pdf,image/jpeg,image/png,image/webp';
+const ACCEPTED = 'application/pdf,image/jpeg,image/png,image/webp,text/html,.html,.htm';
 
 const isWord = (name: string): boolean => /\.docx?$/i.test(name);
 
@@ -102,7 +102,7 @@ export function FileDropzone({
           </Button>
         </div>
         <p className="mt-3 font-mono text-[11px] tracking-[0.08em] text-ink-3">
-          PDF · JPEG · PNG · WebP
+          PDF · JPEG · PNG · WebP · HTML
         </p>
         <input
           ref={inputRef}
@@ -131,10 +131,10 @@ export function FileDropzone({
             </Button>
           }
         >
-          GradTools reads PDFs and photos (JPG, PNG, WebP).{' '}
+          GradTools reads PDFs and photos (JPG, PNG, WebP), and result pages saved as HTML.{' '}
           {rejected.length === 1
-            ? `${rejected[0] ?? ''} is neither.`
-            : `${rejected.join(', ')} are neither.`}
+            ? `${rejected[0] ?? ''} is none of these.`
+            : `${rejected.join(', ')} are none of these.`}
           {rejected.some(isWord) &&
             ' A Word document can be saved as a PDF from Word (File → Save As), then added here.'}
         </Callout>

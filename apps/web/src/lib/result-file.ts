@@ -74,10 +74,11 @@ export type Recognize = (
 export const MAX_OCR_PAGES = 4;
 
 /** What kind of file this is, by type first and extension second. */
-export function fileKind(file: File): 'pdf' | 'image' | 'unsupported' {
+export function fileKind(file: File): 'pdf' | 'image' | 'html' | 'unsupported' {
   const type = file.type.toLowerCase();
   if (type === 'application/pdf') return 'pdf';
   if (type === 'image/jpeg' || type === 'image/png' || type === 'image/webp') return 'image';
+  if (type === 'text/html') return 'html';
 
   /*
    * Some Android file pickers hand over an empty type. The extension is a weak
@@ -88,6 +89,7 @@ export function fileKind(file: File): 'pdf' | 'image' | 'unsupported' {
     const name = file.name.toLowerCase();
     if (name.endsWith('.pdf')) return 'pdf';
     if (/\.(jpe?g|png|webp)$/.test(name)) return 'image';
+    if (/\.html?$/.test(name)) return 'html';
   }
   return 'unsupported';
 }
@@ -134,10 +136,7 @@ function droppedRows(lines: readonly ImportLine[]): number {
 const UNREADABLE =
   'The text on this could not be made out. A sharper, straighter photo in better light may work — or enter this result by hand.';
 
-function summarise(
-  pages: readonly OcrPageResult[],
-  pageCount: number,
-): FileReading {
+function summarise(pages: readonly OcrPageResult[], pageCount: number): FileReading {
   const words = pages.reduce((sum, page) => sum + page.wordCount, 0);
   const weighted = pages.reduce(
     (sum, page) => sum + (page.meanConfidence ?? 0) * page.wordCount,
@@ -340,4 +339,141 @@ export async function readPdfFile(
 
   if (!pages.some(isWorthReviewing)) throw new OcrError(UNREADABLE);
   return summarise(pages, extraction.pageCount);
+}
+
+/* -------------------------------------------------------------------------- */
+/* A saved web page                                                           */
+/* -------------------------------------------------------------------------- */
+
+/** A saved result page is tens of kilobytes; anything this size is not one. */
+export const MAX_HTML_BYTES = 5 * 1024 * 1024;
+
+export class HtmlReadError extends Error {}
+
+/** Elements whose text is never page content. */
+const SKIPPED = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'HEAD', 'IFRAME', 'OBJECT']);
+
+/** Elements that end a line of text. Everything else is inline. */
+const BLOCKS = new Set([
+  'ADDRESS',
+  'ARTICLE',
+  'ASIDE',
+  'BLOCKQUOTE',
+  'BR',
+  'CAPTION',
+  'DD',
+  'DIV',
+  'DL',
+  'DT',
+  'FIELDSET',
+  'FIGCAPTION',
+  'FIGURE',
+  'FOOTER',
+  'FORM',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'HEADER',
+  'HR',
+  'LI',
+  'MAIN',
+  'NAV',
+  'OL',
+  'P',
+  'PRE',
+  'SECTION',
+  'TABLE',
+  'TBODY',
+  'TD',
+  'TFOOT',
+  'TH',
+  'THEAD',
+  'UL',
+]);
+
+/**
+ * A table row, in either of the shapes a result page uses: a real `<tr>`, or
+ * the `divTableRow` / `role="row"` divs the VTU page lays its marks out with.
+ *
+ * A row that CONTAINS another row is a layout wrapper, not a data row, and is
+ * walked like any other block — flattening it would fuse a whole page into one
+ * line.
+ */
+function isRow(element: Element): boolean {
+  const shaped =
+    element.tagName === 'TR' ||
+    element.getAttribute('role') === 'row' ||
+    /tablerow/i.test(element.getAttribute('class') ?? '');
+  return (
+    shaped &&
+    element.querySelector('tr, [role="row"], [class*="ableRow"], [class*="ablerow"]') === null
+  );
+}
+
+const squash = (text: string): string => text.replace(/\s+/g, ' ').trim();
+
+/**
+ * A saved result page (Save page as → HTML), as lines.
+ *
+ * PARSED, NEVER RENDERED. `DOMParser` builds an inert document: its scripts do
+ * not run, its event handlers never fire, and its images, styles and frames are
+ * never fetched — the page is read as text on this device and nothing it
+ * references is contacted.
+ *
+ * Each table row becomes ONE line, its cells joined by spaces, which is exactly
+ * the shape `parseResultCard` reads from a PDF's text layer: code, title,
+ * marks, status, date. Other block text becomes a line of its own, so the
+ * headings (`University Seat Number`, `Semester : 4`) arrive as they do there.
+ */
+export async function readHtmlFile(file: File): Promise<FileReading> {
+  if (file.size > MAX_HTML_BYTES) {
+    throw new HtmlReadError(
+      'This web page is too large to be a saved result page. Save the result page itself (Save page as → HTML only), or print it to a PDF.',
+    );
+  }
+  const document = new DOMParser().parseFromString(await file.text(), 'text/html');
+
+  const lines: string[] = [];
+  let pending = '';
+  const flush = (): void => {
+    const text = squash(pending);
+    if (text !== '') lines.push(text);
+    pending = '';
+  };
+  const walk = (node: Node): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      pending += node.textContent ?? '';
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const element = node as Element;
+    if (SKIPPED.has(element.tagName)) return;
+    if (isRow(element)) {
+      flush();
+      const cells = [...element.children]
+        .filter((cell) => !SKIPPED.has(cell.tagName))
+        .map((cell) => squash(cell.textContent ?? ''))
+        .filter((text) => text !== '');
+      if (cells.length > 0) lines.push(cells.join(' '));
+      return;
+    }
+    const block = BLOCKS.has(element.tagName);
+    if (block) flush();
+    element.childNodes.forEach(walk);
+    if (block) flush();
+  };
+  if (document.body !== null) walk(document.body);
+  flush();
+
+  return {
+    lines: lines.map((text) => ({ text, page: 1 })),
+    placed: [],
+    source: 'text',
+    pageCount: 1,
+    meanConfidence: null,
+    lowConfidenceWords: 0,
+  };
 }

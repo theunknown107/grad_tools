@@ -5,6 +5,7 @@
  *   PDF with text      → read directly
  *   PDF without text   → queued for OCR
  *   photo              → queued for OCR
+ *   saved web page     → parsed as text, never rendered
  *
  * Then `classifyDocument` routes it: result card, academic calendar, class
  * timetable, exam timetable or scheme. Anything else is refused with the
@@ -60,6 +61,8 @@ import { OcrError, startOcr, type OcrSession } from '../../lib/ocr.js';
 import { PdfReadError } from '../../lib/pdf-text.js';
 import {
   fileKind,
+  HtmlReadError,
+  readHtmlFile,
   readImageFile,
   readPdfFile,
   type FileReading,
@@ -72,6 +75,17 @@ import { SchemeReview } from './SchemeReview.js';
 import { TimetableReview } from './TimetableReview.js';
 
 const MAX_FILES = 12;
+
+/**
+ * What the student said a document is, from the "Get VTU Result" deep link.
+ * Both already validated; null when absent or not valid.
+ */
+export interface ImportExpectation {
+  readonly semester: number | null;
+  readonly session: { readonly id: string; readonly label: string } | null;
+}
+
+const NO_EXPECTATION: ImportExpectation = { semester: null, session: null };
 
 interface FileState {
   readonly id: string;
@@ -119,7 +133,13 @@ function fileMeta(entry: FileState): string {
     : `${kind} · ${String(rows)} rows read from a picture · ${String(doubtful)} words were unclear`;
 }
 
-export function DocumentImport({ onDone }: { readonly onDone: () => void }) {
+export function DocumentImport({
+  onDone,
+  expected = NO_EXPECTATION,
+}: {
+  readonly onDone: () => void;
+  readonly expected?: ImportExpectation;
+}) {
   const { profile } = useProfile();
   const schemeId = profile?.schemeId ?? vtu2022RuleSet.schemeId;
   const profileId = profile?.id ?? asStudentProfileId('local');
@@ -236,7 +256,7 @@ export function DocumentImport({ onDone }: { readonly onDone: () => void }) {
     patch(id, {
       status: 'failed',
       error:
-        cause instanceof PdfReadError || cause instanceof OcrError
+        cause instanceof PdfReadError || cause instanceof OcrError || cause instanceof HtmlReadError
           ? cause.message
           : 'This file could not be read.',
     });
@@ -271,8 +291,17 @@ export function DocumentImport({ onDone }: { readonly onDone: () => void }) {
         if (kind === 'unsupported') {
           patch(entry.id, {
             status: 'failed',
-            error: 'GradTools reads PDFs and photos (JPG, PNG). This is neither.',
+            error:
+              'GradTools reads PDFs, photos (JPG, PNG) and result pages saved as HTML. This is none of these.',
           });
+          return;
+        }
+        if (kind === 'html') {
+          try {
+            store(entry.id, file.name, await readHtmlFile(file));
+          } catch (cause) {
+            fail(entry.id, cause);
+          }
           return;
         }
         if (kind === 'image') {
@@ -515,6 +544,8 @@ export function DocumentImport({ onDone }: { readonly onDone: () => void }) {
           catalogue={catalogue}
           subjectIndex={subjectIndex}
           profileId={profileId}
+          expectedSemester={expected.semester}
+          session={expected.session}
           onSave={async (result) => {
             await saveResult(result);
             setSaved((current) => [...current, result.semester]);
