@@ -2195,6 +2195,21 @@ it back, through `SgpaInputs.missing`. A student sees which course is
 unresolved, not a blank.
 
 
+**Status after Step 13: STILL OPEN, narrowed.** One case is no longer ambiguous
+and is now computed: a failed course with no printed letter whose TOTAL lies in
+the F band (0–39 under 22OB 6.1), whose CIE head passed and whose SEE was sat
+(external above zero). There the percentage band and the failed overall head
+both give F, so both readings above agree; a passed CIE rules out DX and a sat
+SEE rules out AB and IC. It is graded F — 0 points, credits included, as for a
+printed F — and the semester's SGPA is computed. Every other failure stays
+unresolved exactly as before: a total at or above the F band with a failed head
+(F or P), any CIE shortfall (DX under 22OB 6.3(7), which is left out of the
+GPA), and an external of 0 (possibly AB). **A documentation conflict for the
+owner:** `docs/16` §16 records 22OB 6.3(6) as "fails conditions → `F`", which,
+if it is a faithful quote, would settle the F-or-P case too; this entry says
+the regulations do not state it. The regulation PDF is not in the repository
+(see OQ-058), so the two cannot be checked against each other here.
+
 ### OQ-055 — The profile offers programmes the academic model does not support · **opened by the domain-contract audit, RESOLVED by the product owner**
 
 **Status:** RESOLVED · product decision
@@ -2344,6 +2359,25 @@ sittings that coexist (`examSessionOf` is the seam), a subject-level
 replacement, or an attempt history with the original kept. Also whether legacy
 duplicate results should be surfaced to the student.
 
+**Status after Step 13: STILL OPEN — the repository holds no authoritative
+answer.** A full search found only: 22OB 6.3(9), which defines an attempt; 6.6,
+whose "all the courses undergone" fits either counting every attempt or only
+the last; and the IC placeholder rule, the one verbatim case of a later SEE
+changing an earlier record, which cannot be generalised to F. Revaluation,
+improvement and supplementary provisions are absent from the regulation (C10).
+The regulation PDF itself is not in the repository — only quotes of it. The
+reconciler's note that a revaluation "changes one mark upward"
+(`result-reconcile.ts`) is an assumption with no cited source. **What would
+settle it:** (1) the VTU examination circular for supplementary / "fast-track"
+examinations under the 2022 scheme, stating whether a later pass replaces the F
+in the original semester's SGPA and whether SGPA and CGPA are recomputed;
+(2) any grade-cap clause for a later attempt, and whether CIE carries over;
+(3) any improvement provision, and whether the better or the latest grade
+counts; (4) the revaluation / challenge-valuation circular; (5) a real grade
+card or consolidated transcript for a student who cleared a backlog; (6) the
+extracted text of `Regulations-Clr-BE-BTECH-2022-611-02052023.pdf`, so clause 6
+can be re-checked for anything on attempts.
+
 ### OQ-059 — Attendance records already stamped with an invented semester 1 · **opened by Step 12, unresolved**
 
 **Status:** OPEN · data decision
@@ -2369,3 +2403,37 @@ re-stamp records whose semester 1 is neither planned nor in progress, with the
 student's confirmation); whether the profile's current semester should follow
 the semester marked in progress; and whether the Attendance page should filter
 to the current semester.
+
+**Status after Step 13: STILL OPEN — the page's scope is undocumented.** Every
+attendance reader now resolves the semester the same way (in progress, then
+profile). The dashboard's figure is deliberately the current semester's
+(`semesters.test.tsx`, "current semester on the dashboard"). The Attendance
+page gives mixed signals: its header names the semester and its empty state
+says "this semester", while its standing reads "pooled across every course you
+track" and FR-021 asks for attendance "per course and in aggregate". Its Today,
+Calendar and History views read the timetable and the ledger, which carry no
+semester, so they could not be scoped without a data-model change; one subject
+code is one record, whatever its semester. Options, each a product decision:
+(a) label the page as all tracked courses; (b) say on the dashboard that its
+figure is this semester's; (c) scope the page's summary figures and course list
+to the current semester (legacy records stamped 1 would then drop out of view);
+(d) have the Exams page resolve its semester the same way — it still reads the
+profile alone and decides whose exams are shown. The timetable header also
+reads the profile (a label only).
+
+### OQ-060 — Sync reports a conflict for every result created on this device · **opened by Step 13, unresolved**
+
+**Status:** OPEN · engineering decision
+
+**What is established.** A result's local copy keeps `profileId` and
+`createdAt`, which the server does not store, and the sync fingerprint ignores
+only `id` and `updatedAt`. So the device that created a result never matches
+the server's copy: it re-pushes the result on every sync and each pull flags a
+conflict, which nothing in the web app resolves (`ConflictResolution` has no
+callers). The same likely holds for other collections with local-only fields
+(attendance `profileId`). Step 13 fixed the harm this churn exposed — a pulled
+result no longer loses its subjects — but not the churn itself.
+
+**Decision needed:** whether the fingerprint should ignore fields the server
+does not keep, or pulled records should keep them locally, and how a real
+conflict is presented to the student.

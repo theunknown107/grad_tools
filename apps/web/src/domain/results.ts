@@ -340,7 +340,8 @@ function sourceGradeOf(subject: ResultSubject, ruleSet: RuleSet | undefined): Gr
  * **A grade for a carried course.** `gradeFromMarks` bands a percentage, and a
  * course that failed a head is not graded on its percentage. Rather than
  * implement a second, unverified rule for what letter a carried course earns,
- * no computed grade is offered and the reason says so.
+ * no computed grade is offered and the reason says so. The one exception is a
+ * course whose letter both readings agree on — see the F case below (OQ-054).
  *
  * **Anything at all without a rule set.** A pinned rule set this build does not
  * have stays unavailable; no substitute is reached for (M6 §6, OQ-049 §13).
@@ -415,9 +416,33 @@ export function evaluateResultSubject(
   if (!isOk(outcome)) return { ...base, courseKind: kind, unavailableReason: outcome.detail };
 
   let computedGrade: GradeReading | null = null;
-  if (outcome.value.passed) {
-    const band = gradeFromMarks(total, ruleSet.courseMax, ruleSet);
-    if (isOk(band)) computedGrade = { letter: band.value.letter, points: band.value.points };
+  const band = gradeFromMarks(total, ruleSet.courseMax, ruleSet);
+  if (isOk(band)) {
+    const reading = { letter: band.value.letter, points: band.value.points };
+    if (outcome.value.passed) {
+      computedGrade = reading;
+    } else if (
+      /*
+       * THE ONE FAILED COURSE WHOSE LETTER IS CERTAIN (OQ-054).
+       *
+       * A band lying wholly below the overall minimum (F, 0-39 under 22OB 6.1)
+       * means the overall head failed too, so both readings OQ-054 lists agree:
+       * banding by percentage gives F, and "a failed course is F" gives F.
+       * docs/16 records 22OB 6.3(6) as "fails conditions -> F". The special
+       * grades a blank letter could hide are ruled out: DX (a CIE shortfall,
+       * 6.3(7)) by the CIE head passing, AB/IC by a positive external — an SEE
+       * was sat. `hasSee` is known here; the early return above guarantees it.
+       *
+       * Everything else stays unresolved, as OQ-054 records: a total in a
+       * passing band with a failed head (F or P?), a CIE shortfall (DX?), and
+       * an external of 0 (AB?).
+       */
+      band.value.maxPct < ruleSet.overallMinPct &&
+      outcome.value.cie === 'passed' &&
+      subject.external > 0
+    ) {
+      computedGrade = reading;
+    }
   }
 
   return {
@@ -485,7 +510,9 @@ export interface SgpaInputs {
  * carries, and the handoff index is explicit: "Do not invent credits or grades…
  * If authoritative metadata cannot be resolved, surface the unresolved state."
  * So it stays unresolved, and the reason says so rather than an F appearing
- * from nowhere. Recorded as OQ-054.
+ * from nowhere. Recorded as OQ-054. The exception is a total in the F band with
+ * the CIE passed and an SEE sat, where every reading gives F — see
+ * `evaluateResultSubject`.
  */
 export interface ResolvedGrade {
   readonly letter: string;
