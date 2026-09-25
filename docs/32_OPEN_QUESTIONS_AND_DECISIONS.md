@@ -2454,3 +2454,79 @@ marks, `sgpa_asserted`) would read back as strings and `date` columns as
 timestamps — a second way a pulled value could differ from the local one. The
 test clouds do not model it. Separately, a genuine conflict is reported twice
 (once from the push, once from the pull).
+
+
+## Part L — Step 15: identity setup, the VTU result archive, saved-page import
+
+### DEC-046 — Admission year, passout year and entry route are stated, never inferred · **Step 15**
+
+The profile gains `admissionYear`, `expectedPassoutYear`, `entryRoute`
+(`puc` | `diploma`) and `identityConfirmedAt`, all optional (UF-01, DEC-001,
+DEC-002). They are collected in a guided first-run setup (`/setup`) whose every
+step can be skipped; a setup where nothing is entered writes nothing. The
+passout box is pre-filled as a *suggestion* (admission + 4, or + 3 for Diploma)
+until the student types in it. Nothing is derived from these facts or from the
+USN — no duration, rule set or lateral-entry behaviour (OQ-055). Date of birth
+stays out (DEC-008), although later Step 15 briefs mentioned "Name + DOB"; the
+product owner chose to keep it out. Migration `supabase/0010` adds the columns
+with range and passout-after-admission CHECKs.
+
+New users see a setup prompt on the Dashboard rather than a forced redirect, so
+the app stays usable before setup (UF-01).
+
+### DEC-047 — The result portal is linked, never fetched · **Step 15**
+
+The Get VTU Result screen (`/results/get`) lists the official session pages as
+cards (Regular / Revaluation, then variant links). Each link is a plain new-tab
+link to the exact `https://results.vtu.ac.in/` page. The student enters their
+USN and the CAPTCHA **on VTU's page**, saves it as PDF or HTML, and imports it
+(`/import?session=<id>&semester=N`). GradTools never fetches, frames, proxies or
+posts to the portal, never sees a CAPTCHA, and puts no USN in a URL.
+
+**Why:** the portal's robots.txt is `User-agent: * Disallow: /`, and `docs/14`
+§7 prohibits solving or outsourcing a CAPTCHA and submitting a student's
+identifiers on their behalf. An in-app "enter CAPTCHA → fetch" flow was asked
+for and declined on these grounds; it stays out of scope unless VTU provides an
+authorized integration (DEC-011). Whether one CAPTCHA serves several lookups is
+unknown: checking it would mean using the portal.
+
+A saved HTML page is parsed with `DOMParser` (an inert document: no scripts,
+handlers or network). An imported result records local-only provenance
+(`source`: kind, session id, import time, parser version); it is not in
+`SYNCED_FIELDS`.
+
+### OQ-061 — Catalogue sources and their review state · **opened by Step 15, unresolved**
+
+**Status:** OPEN · data review
+
+- **Result sessions** (54 sessions in 17 cards) were transcribed once from the
+  VTUSync "VTU Results Links" page. Its robots.txt allows the page, but its
+  terms say content may not be copied without permission, so only facts are
+  stored (session names, years, types, and VTU's own URLs). The provenance note
+  records this. One oddity is kept as printed: "B.E Special Exam Dec 2024 / Jan
+  2025" is labelled Non-CBCS but its URL is `SplJcbcs25`.
+- **Colleges** (185) were transcribed once from `vtu.ac.in/affiliated-institute/`.
+  All are `reviewed: false` and of unknown autonomy. The database seeds them as
+  unpublished drafts (migration `0019`), so the API serves none until a person
+  verifies them, and the app falls back to the bundled list, marked unreviewed.
+  Known gaps: the page's own counts suggest 3 Bengaluru and 1 Mysuru rows may be
+  missing; codes RR, GO, KF and NG repeat; 5 rows have no code; spelling came
+  through text extraction.
+- **Branches** (56) came from the 2022 scheme list; the page prints no branch
+  codes, so GradTools ids stand in. No new scheme rows were added.
+
+**Decision needed:** who reviews and publishes the college list, and whether
+permission is sought from VTUSync or the session list is re-sourced from VTU.
+
+### OQ-062 — Profile sync after first upload · **opened by Step 15, unresolved**
+
+**Status:** OPEN · engineering decision
+
+The profile is not a sync collection. Sync now creates the cloud profile from
+the local one when the cloud has none (so a first push is no longer rejected),
+and a device with no profile adopts the cloud's. It never overwrites an existing
+cloud profile, so edits made after the first sync are not uploaded, and a
+signed-in student who skipped setup still has no cloud profile and their push is
+still rejected. **Decision needed:** keep the cloud revision locally and `PUT`
+with `baseRevision` (needs a conflict display), and whether an empty anchor
+profile should be created for students who skip setup.
