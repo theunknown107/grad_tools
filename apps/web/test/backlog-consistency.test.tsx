@@ -27,6 +27,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { cleanup } from '@testing-library/react';
 import { screen, waitFor, within } from '@testing-library/dom';
 import { VTU_2022_RULE_SET_ID } from '@gradtools/academic-rules';
@@ -251,6 +252,21 @@ const CASES: readonly Case[] = [
     profileBadge: null,
   },
   {
+    /*
+     * A saved result with no courses: zero backlogs out of zero checked is not
+     * "no backlogs". The results' own figure is still a literal 0.
+     */
+    name: 'a result with no courses',
+    seed: { results: [result(3, [])] },
+    recorded: 0,
+    clear: false,
+    standing: ['Unavailable', COULD_NOT],
+    standingTitle: COULD_NOT,
+    fromResults: '0',
+    dashboardSub: null,
+    profileBadge: null,
+  },
+  {
     /* A row that could not be checked makes the count a floor, not a zero. */
     name: 'a result row that could not be checked',
     seed: { results: UNCHECKED },
@@ -418,5 +434,32 @@ describe('backlogs: a cleared record over a failed result row, read side by side
       expect(figure.textContent).toBe(`Backlogs0${IN_RESULTS}`);
     });
     expect(screen.queryAllByText(TO_CLEAR_CLAIM)).toHaveLength(0);
+  });
+});
+
+/*
+ * The Results list's own status word. "Completed" used to follow from zero
+ * backlogs and zero unchecked rows — which a result with no courses has too.
+ */
+describe('Results: a result with no courses is not "Completed"', () => {
+  const EMPTY = 'No courses are recorded for this semester.';
+  const seed: MemorySeed = { results: [result(3, []), result(1, [course('BMATS101', 44, 36)])] };
+
+  it('shows Unavailable on the row and the card, and Completed only on the clean one', async () => {
+    const user = userEvent.setup();
+    renderWith(<ResultsPage />, { repositories: bundleFor(seed), route: '/results' });
+
+    const emptyRow = await screen.findByRole('link', { name: /^Semester 3, SGPA/ });
+    expect(within(emptyRow).getByTitle(EMPTY).textContent).toBe('Unavailable');
+    expect(within(emptyRow).queryByText('Completed')).toBeNull();
+    const cleanRow = screen.getByRole('link', { name: /^Semester 1, SGPA/ });
+    expect(within(cleanRow).getByText('Completed')).toBeTruthy();
+
+    await user.click(screen.getByText('Semesters · 2'));
+    const emptyCard = await screen.findByRole('link', { name: /^Semester 3 — open/ });
+    expect(within(emptyCard).getByTitle(EMPTY).textContent).toBe('Unavailable');
+    expect(within(emptyCard).queryByText('Completed')).toBeNull();
+    const cleanCard = screen.getByRole('link', { name: /^Semester 1 — open/ });
+    expect(within(cleanCard).getByText('Completed')).toBeTruthy();
   });
 });

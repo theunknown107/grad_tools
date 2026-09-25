@@ -138,6 +138,43 @@ function ledgerAuthoritative(version: number): boolean {
   return version >= SCHEMA_VERSION;
 }
 
+/**
+ * The fields the cloud stores for each collection — and so the only ones sent.
+ *
+ * A CLIENT COPY of services/api/src/student/store.ts `COLLECTION_TABLES`
+ * (columns camelCased, as they travel). test/sync-allowlist.test.ts pins it to
+ * that list; change both together.
+ *
+ * Why it matters (OQ-060): a pushed record is fingerprinted, and the cloud
+ * echoes back only these columns. A local-only field in the payload
+ * (`profileId`, `createdAt`, a slot's `classId`) meant the device's fingerprint
+ * never matched the cloud's again: every sync re-pushed every record, and the
+ * first pull reported a conflict with itself. An ALLOWLIST rather than a
+ * denylist, so a local field added later stays local by default.
+ */
+export const SYNCED_FIELDS = {
+  semesters: ['number', 'status', 'startedOn', 'completedOn'],
+  semesterSubjects: ['semester', 'code', 'title', 'credits', 'notes'],
+  results: ['semester', 'schemeId', 'ruleSetId', 'sgpaAsserted'],
+  attendance: ['semester', 'subjectCode', 'subjectTitle', 'attended', 'conducted'],
+  timetable: ['day', 'startTime', 'endTime', 'subjectCode', 'activity', 'room', 'faculty'],
+  backlogs: [
+    'subjectCode',
+    'subjectTitle',
+    'originSemester',
+    'status',
+    'attempts',
+    'clearedInSemester',
+  ],
+} as const satisfies Record<(typeof COLLECTIONS)[number][0], readonly string[]>;
+
+function syncedFields(
+  collection: keyof typeof SYNCED_FIELDS,
+  item: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(SYNCED_FIELDS[collection].map((field) => [field, item[field]]));
+}
+
 async function collectLocal(
   repositories: RepositoryBundle,
   version: number,
@@ -162,14 +199,14 @@ async function collectLocal(
           subjects?: readonly LocalResultSubject[];
         } & Record<string, unknown>;
 
-        records.push({ id, collection, data: withoutSubjects });
+        records.push({ id, collection, data: syncedFields(collection, withoutSubjects) });
         (subjects ?? []).forEach((subject, ordinal) => {
           records.push(subjectToRecord(id, subject, ordinal));
         });
         continue;
       }
 
-      records.push({ id, collection, data: rest });
+      records.push({ id, collection, data: syncedFields(collection, rest) });
     }
   }
 
@@ -408,21 +445,22 @@ export function useSync(): SyncApi {
         const entry = COLLECTIONS.find(([name]) => name === record.collection);
         if (entry === undefined) continue;
         /*
-         * A pulled result NEVER carries `subjects` — they travel as their own
-         * rows. Replacing the whole object dropped them whenever the parent
-         * arrived alone, and the next push then tombstoned every subject on
-         * every device. Only `subjects` is kept: other local-only fields would
-         * move this record's fingerprint off what the cloud holds. A result new
-         * to this device gets its rows from `applySubjectToResult` below.
+         * The pulled columns are MERGED onto the local record, never replace
+         * it. A pull carries only what the cloud stores, so replacing the
+         * object dropped every local-only field — a result's `subjects` (which
+         * travel as their own rows; losing them made the next push tombstone
+         * every subject on every device), a slot's `classId`, `profileId`,
+         * `createdAt`. Keeping them is safe because `syncedFields` leaves them
+         * out of the fingerprint. A result new to this device gets its rows
+         * from `applySubjectToResult` below.
          */
-        const previous =
-          record.collection === 'results'
-            ? (await repositories.results.list()).find((result) => result.id === record.id)
-            : undefined;
+        const previous = (await repositories[entry[1]].list()).find(
+          (item) => item.id === record.id,
+        );
         await repositories[entry[1]].upsert({
+          ...previous,
           id: record.id,
           ...record.data,
-          ...(previous === undefined ? {} : { subjects: previous.subjects }),
         } as never);
       }
 

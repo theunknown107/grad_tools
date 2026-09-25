@@ -546,6 +546,17 @@ describe('telling a student they have no backlogs', () => {
   it('does not hold with a row that could not be checked', () => {
     expect(hasNoBacklogs(stats({ results: [result(4, [...GOOD, uncheckable])] }))).toBe(false);
   });
+
+  it('does not hold on a result with no courses, alone or beside a clean one', () => {
+    /* Zero backlogs out of zero courses checked nothing. */
+    expect(hasNoBacklogs(stats({ results: [result(3, [])] }))).toBe(false);
+    expect(hasNoBacklogs(stats({ results: [result(3, []), result(4, GOOD)] }))).toBe(false);
+  });
+
+  it('calls an empty result unresolved, not fully resolved', () => {
+    const state = stats({ results: [result(3, [])] });
+    expect(state.semesters.find((e) => e.number === 3)?.completeness).toBe('unresolved');
+  });
 });
 
 describe('a rule set this build does not have', () => {

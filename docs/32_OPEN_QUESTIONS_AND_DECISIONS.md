@@ -2437,3 +2437,20 @@ result no longer loses its subjects — but not the churn itself.
 **Decision needed:** whether the fingerprint should ignore fields the server
 does not keep, or pulled records should keep them locally, and how a real
 conflict is presented to the student.
+
+**Status after Step 14: the churn is FIXED; one related question is open.** The
+creating device pushed its whole local object, so fields the server never stores
+(`profileId`, `createdAt`; a timetable slot's `classId` and `kind`) entered the
+fingerprint, which then never matched the cloud's echo — every sync re-pushed
+the record and the first pull already reported a conflict with itself. Pushes
+now carry only the columns the server stores for each collection
+(`SYNCED_FIELDS` in `useSync.ts`, pinned to `store.ts` by
+`sync-allowlist.test.ts`), and a pulled record is merged onto the local one, so
+local-only fields survive. A record now syncs once and settles; a genuine
+divergence between two devices still raises a conflict. **Still open, and
+unverified against a real database:** `services/api/src/db/cloud.ts` configures
+postgres.js with default type parsing, under which `numeric` columns (credits,
+marks, `sgpa_asserted`) would read back as strings and `date` columns as
+timestamps — a second way a pulled value could differ from the local one. The
+test clouds do not model it. Separately, a genuine conflict is reported twice
+(once from the push, once from the pull).
