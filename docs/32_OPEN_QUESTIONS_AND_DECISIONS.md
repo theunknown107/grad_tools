@@ -2621,8 +2621,21 @@ spelling as an alias the picker matches, or store `catalogueId` on the profile.
   a test.
 - The one-off failure of 6 monitor tests (Step 16, first run after creating
   `monitor_login` by hand) did not reproduce. Two full runs after dropping the
-  role, which recreates the first-run state, passed 677/677. It is recorded as
-  environmental; no code changed.
+  role, which recreates the first-run state, passed 677/677. ~~It is recorded as
+  environmental; no code changed.~~ **Corrected after CI (run 36164709434):**
+  it was not environmental and not a timing flake. It was a deterministic
+  test-isolation defect. `monitor-fanout.test.ts` left an enrolled synthetic
+  student (`synthetic-fanout-a`, scheme 2022, semester 5). The fanout correctly
+  notifies every matching enrolled student, so when `monitor-realtime.test.ts`
+  ran after it, 4 notifications were created and student A rightly received
+  only its 2, against an expectation of 4. The failure depended on file order.
+  Vitest orders files by its duration cache, which ran realtime first locally
+  and fanout first on a cache-less CI runner. The Step 16 local failure most
+  likely had the same cause. Production fanout was correct throughout. The
+  realtime test now removes synthetic fanout and realtime students before each
+  test, and the fanout test removes its synthetic students when it finishes.
+  Proven by running fanout then realtime with no cache: 1 failure before the
+  fix, 65/65 after.
 - A semester whose saved result is empty is not listed under "Semesters
   without a result", because a second result for that semester is refused
   (OQ-058). The student edits the saved result instead. Kept as is.
