@@ -293,9 +293,22 @@ describeDb('the doorbell', () => {
     return materialize(monitor, `rt-fanout-${String(Date.now())}`, items, {});
   }
 
-  /** Waits for the LISTEN round trip, which is a real network hop. */
+  /**
+   * A fixed window for the LISTEN round trip. On its own it only proves an
+   * ABSENCE (nothing arrived). Where events are expected, `arrive` waits for
+   * them first; a slow runner can take longer than any fixed window.
+   */
   async function settle(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+
+  /** Waits until `ready()` holds (or 10s pass), then one more window so extras show. */
+  async function arrive(ready: () => boolean): Promise<void> {
+    const deadline = Date.now() + 10_000;
+    while (!ready() && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    await settle();
   }
 
   /*
@@ -307,7 +320,7 @@ describeDb('the doorbell', () => {
     addListener(A, (e) => seen.push(e));
 
     expect(await publish(monitor, event(A, 'n-cross'))).toBe(true);
-    await settle();
+    await arrive(() => seen.length >= 1);
 
     expect(seen).toHaveLength(1);
     expect(seen[0]?.notificationId).toBe('n-cross');
@@ -332,7 +345,7 @@ describeDb('the doorbell', () => {
     addListener(A, (e) => seen.push(e));
 
     const result = await fanout();
-    await settle();
+    await arrive(() => seen.length >= result.created);
 
     expect(result.created).toBeGreaterThan(0);
     expect(result.deliveryAttempted).toBe(result.created);
@@ -419,7 +432,7 @@ describeDb('the doorbell', () => {
     addListener(A, (e) => seen.push(e));
 
     const [left, right] = await Promise.all([fanout(), fanout()]);
-    await settle();
+    await arrive(() => seen.length >= left.created + right.created);
 
     const created = left.created + right.created;
     expect(seen.length).toBe(created);
@@ -454,11 +467,11 @@ describeDb('the doorbell', () => {
     addListener(A, (e) => mine.push(e));
     addListener(B, (e) => theirs.push(e));
 
-    await fanout();
-    await settle();
-
     const timetable = (list: NotificationCreated[]) =>
       list.filter((e) => e.category === 'exam_timetable');
+
+    await fanout();
+    await arrive(() => timetable(mine).length > 0);
     expect(timetable(mine).length).toBeGreaterThan(0);
     expect(timetable(theirs)).toHaveLength(0);
   });
