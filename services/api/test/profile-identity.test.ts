@@ -10,6 +10,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import postgres from 'postgres';
+import { z } from 'zod';
 import { loadConfig } from '../src/config.js';
 import type { Sql } from '../src/db/client.js';
 import { createApp } from '../src/http/app.js';
@@ -84,7 +85,16 @@ describeDb('PUT /me/profile with the academic identity', () => {
 
   beforeAll(() => {
     admin = postgres(CLOUD_ADMIN_URL as string, { max: 2 }) as unknown as Sql;
-    cloud = postgres(CLOUD_URL as string, { max: 2, prepare: false }) as unknown as Sql;
+    /*
+     * A UTC session, as production has. The local test server runs in
+     * Asia/Calcutta, where an `OF` offset prints as `+05:30` and hid that
+     * UTC prints `+00` — which Date.parse and zod both reject.
+     */
+    cloud = postgres(CLOUD_URL as string, {
+      max: 2,
+      prepare: false,
+      connection: { TimeZone: 'UTC' },
+    }) as unknown as Sql;
     sql = postgres(DATABASE_URL as string, { max: 2 }) as unknown as Sql;
     app = createApp(
       loadConfig({ DATABASE_URL, NODE_ENV: 'test', APP_ENV: 'test' }),
@@ -118,6 +128,15 @@ describeDb('PUT /me/profile with the academic identity', () => {
     expect(Date.parse(created.body.identityConfirmedAt)).toBe(
       Date.parse(IDENTITY.identityConfirmedAt),
     );
+    const [zone] = await cloud<{ tz: string }[]>`SELECT current_setting('TimeZone') AS tz`;
+    expect(zone?.tz).toBe('UTC');
+    for (const key of ['identityConfirmedAt', 'createdAt', 'updatedAt']) {
+      const value = created.body[key] as string;
+      expect(Number.isNaN(Date.parse(value)), `${key} = ${value}`).toBe(false);
+      expect(z.iso.datetime({ offset: true }).safeParse(value).success, `${key} = ${value}`).toBe(
+        true,
+      );
+    }
     expect(Object.keys(created.body).filter((key) => /dob|birth/i.test(key))).toEqual([]);
 
     const updated = await request(app)
@@ -136,6 +155,54 @@ describeDb('PUT /me/profile with the academic identity', () => {
       entryRoute: 'diploma',
       identityConfirmedAt: null,
     });
+  });
+
+  const put = (body: object) =>
+    request(app).put('/api/v1/me/profile').set('Authorization', `Bearer ${A}`).send(body);
+
+  it('refuses to overwrite an existing profile without a base revision', async () => {
+    const created = await put(IDENTITY);
+    expect(created.status).toBe(200);
+
+    const blind = await put({ schemeId: 'vtu-2022', entryRoute: 'diploma' });
+    expect(blind.status).toBe(409);
+    expect(blind.body.server).toMatchObject({ entryRoute: 'puc', revision: created.body.revision });
+  });
+
+  it('refuses a stale base revision and returns the server copy', async () => {
+    const created = await put(IDENTITY);
+    const moved = await put({
+      ...IDENTITY,
+      entryRoute: 'diploma',
+      baseRevision: created.body.revision,
+    });
+    expect(moved.status).toBe(200);
+
+    const stale = await put({ ...IDENTITY, baseRevision: created.body.revision });
+    expect(stale.status).toBe(409);
+    expect(stale.body.server).toMatchObject({
+      entryRoute: 'diploma',
+      revision: moved.body.revision,
+    });
+  });
+
+  it("keeps the student's semester results across a profile save", async () => {
+    const created = await put(IDENTITY);
+    await admin`
+      INSERT INTO semester_results (auth_user_id, profile_id, semester, scheme_id)
+      VALUES (${A}::uuid, ${created.body.id}::uuid, 3, 'vtu-2022')
+    `;
+    const updated = await put({
+      ...IDENTITY,
+      entryRoute: 'diploma',
+      baseRevision: created.body.revision,
+    });
+    expect(updated.status).toBe(200);
+
+    const rows = await admin<{ count: string }[]>`
+      SELECT count(*)::text AS count FROM semester_results WHERE auth_user_id = ${A}::uuid
+    `;
+    expect(rows[0]?.count).toBe('1');
   });
 
   it('is backed by CHECKs the database enforces on its own', async () => {
