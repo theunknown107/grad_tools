@@ -23,7 +23,7 @@
  * says `offline` — never `synced`, and never a silent discard (M9 §68).
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { STUDENT_ROUTES, type CloudProfile, type ProfileInput } from '@gradtools/shared-types';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import { apiBaseUrl } from '../../repositories/reference.js';
@@ -37,6 +37,7 @@ import {
   fingerprint,
   planPull,
   recordsToPush,
+  type ConflictResolution,
   type LocalRecord,
   type SyncBookkeeping,
 } from '../../domain/sync.js';
@@ -340,6 +341,8 @@ function fromCloudProfile(cloud: CloudProfile): StudentProfile {
 export interface SyncApi {
   readonly state: SyncState;
   readonly syncNow: () => Promise<void>;
+  /** The student's explicit answer to a profile conflict (M9 §28). */
+  readonly resolveProfileConflict: (choice: ConflictResolution) => Promise<void>;
   readonly exportData: () => Promise<boolean>;
   readonly deleteAccount: () => Promise<{ error: string | null }>;
 }
@@ -348,6 +351,8 @@ export function useSync(): SyncApi {
   const { state: auth, adapter } = useAuth();
   const repositories = useRepositories();
   const [state, setState] = useState<SyncState>(IDLE_SYNC);
+  /* The cloud copy behind the current profile conflict: its revision is the base a "keep mine" PUT claims. */
+  const profileServer = useRef<CloudProfile | null>(null);
 
   const scope = auth.status === 'signed_in' ? auth.identity.userId : null;
 
@@ -439,6 +444,7 @@ export function useSync(): SyncApi {
         if (put === null) throw new Error('profile failed');
         if (put.status === 409) {
           const { server } = (await put.json()) as { server: CloudProfile };
+          profileServer.current = server;
           conflicts.push({
             id: 'profile',
             collection: 'profile',
@@ -523,6 +529,7 @@ export function useSync(): SyncApi {
           }
           bookkeeping = { ...bookkeeping, profile: agreed };
         } else if (!conflicts.some((conflict) => conflict.collection === 'profile')) {
+          profileServer.current = cloudProfile;
           conflicts.push({
             id: 'profile',
             collection: 'profile',
@@ -628,6 +635,80 @@ export function useSync(): SyncApi {
     }
   }, [authorized, repositories, scope, state.conflicts]);
 
+  /**
+   * Settles a profile conflict with the same PUT + baseRevision a sync uses.
+   *
+   * `take_theirs` saves the account's copy here and agrees with its revision —
+   * nothing is sent. `keep_mine` PUTs this device's copy against the revision
+   * the conflict showed; if the account moved again meanwhile, the 409 replaces
+   * the conflict with the newer copy and nothing is overwritten. Records are
+   * never touched. A device holding no profile has nothing to keep, so it
+   * always takes the account's (it never PUTs over an existing profile).
+   */
+  const resolveProfileConflict = useCallback(
+    async (choice: ConflictResolution) => {
+      const server = profileServer.current;
+      if (scope === null || server === null) return;
+      try {
+        const localProfile = await repositories.profile.get();
+        let agreed: { revision: number; fingerprint: string };
+        if (choice === 'take_theirs' || localProfile === null) {
+          const theirs = fingerprint(profileInput(server));
+          if (localProfile !== null || theirs !== EMPTY_PROFILE_FINGERPRINT) {
+            await repositories.profile.save(fromCloudProfile(server));
+          }
+          agreed = { revision: server.revision, fingerprint: theirs };
+        } else {
+          const put = await authorized(STUDENT_ROUTES.meProfile, {
+            method: 'PUT',
+            body: JSON.stringify({ ...profileInput(localProfile), baseRevision: server.revision }),
+          });
+          if (put === null) throw new Error('profile failed');
+          if (put.status === 409) {
+            const { server: newer } = (await put.json()) as { server: CloudProfile };
+            profileServer.current = newer;
+            setState((current) => ({
+              ...current,
+              conflicts: current.conflicts.map((conflict) =>
+                conflict.collection === 'profile'
+                  ? { ...conflict, local: profileInput(localProfile), server: profileInput(newer) }
+                  : conflict,
+              ),
+            }));
+            return;
+          }
+          if (!put.ok) throw new Error('profile failed');
+          const saved = (await put.json()) as CloudProfile;
+          agreed = {
+            revision: saved.revision,
+            fingerprint: fingerprint(profileInput(localProfile)),
+          };
+        }
+        const stored = (await readValue<SyncBookkeeping>(scope, 'syncState')) ?? EMPTY_BOOKKEEPING;
+        await writeValue(scope, 'syncState', { ...stored, profile: agreed });
+        profileServer.current = null;
+        setState((current) => {
+          const conflicts = current.conflicts.filter(
+            (conflict) => conflict.collection !== 'profile',
+          );
+          return {
+            ...current,
+            conflicts,
+            status:
+              conflicts.length === 0 && current.status === 'conflicts' ? 'synced' : current.status,
+            error: null,
+          };
+        });
+      } catch {
+        setState((current) => ({
+          ...current,
+          error: 'Could not save your choice. Both versions are still here.',
+        }));
+      }
+    },
+    [authorized, repositories, scope],
+  );
+
   /** Downloads the student's own data as a file (M9 §35). */
   const exportData = useCallback(async (): Promise<boolean> => {
     const response = await authorized(STUDENT_ROUTES.meExport);
@@ -654,5 +735,5 @@ export function useSync(): SyncApi {
     return { error: null };
   }, [authorized]);
 
-  return { state, syncNow, exportData, deleteAccount };
+  return { state, syncNow, resolveProfileConflict, exportData, deleteAccount };
 }
