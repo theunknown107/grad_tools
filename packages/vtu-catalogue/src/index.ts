@@ -74,4 +74,5 @@ export {
   type VtuResultSection,
   type VtuResultSession,
   type VtuResultType,
+  type VtuSessionAnomaly,
 } from './result-sessions.js';

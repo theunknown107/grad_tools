@@ -43,6 +43,22 @@ describe('result-session loader', () => {
     expect(() => buildResultCards([entry({ resultType: 'Makeup' })])).toThrow(/Unknown/);
   });
 
+  it('refuses a duplicate id even when the two URLs are spelled differently', () => {
+    expect(() =>
+      buildResultCards([
+        entry({ url: 'https://results.vtu.ac.in/MJ26cbcs/index.php' }),
+        entry({ session: 'Other', url: 'https://results.vtu.ac.in/MJ26cbcs.php' }),
+      ]),
+    ).toThrow(/Duplicate result session id "MJ26cbcs"/);
+  });
+
+  it('keeps a known anomaly and refuses an unknown one', () => {
+    const [card] = buildResultCards([entry({ anomaly: 'label-url-mismatch' })]);
+    expect(card!.sections[0]!.sessions[0]!.anomaly).toBe('label-url-mismatch');
+    expect(buildResultCards([entry({})])[0]!.sections[0]!.sessions[0]!.anomaly).toBeNull();
+    expect(() => buildResultCards([entry({ anomaly: 'typo' })])).toThrow(/Unknown anomaly/);
+  });
+
   it('never merges two cards that are not adjacent, even with the same title', () => {
     const cards = buildResultCards([
       entry({ url: 'https://results.vtu.ac.in/A/index.php' }),
@@ -98,6 +114,7 @@ describe('the shipped result-session catalogue', () => {
         'label',
         'programme',
         'note',
+        'anomaly',
         'cardTitle',
         'yearLabel',
         'sectionLabel',
@@ -107,6 +124,35 @@ describe('the shipped result-session catalogue', () => {
         'buttonIndex',
       ].sort(),
     );
+  });
+
+  /** What the label/section says versus what the URL path says. */
+  const labelUrlProblems = (s: (typeof sessions)[number]): string[] => {
+    const id = s.id.toLowerCase();
+    const problems: string[] = [];
+    if (s.variant === 'CBCS' && (!id.includes('cbcs') || id.includes('noncbcs')))
+      problems.push('CBCS label without a cbcs path');
+    if (s.variant === 'Non-CBCS' && !id.includes('noncbcs'))
+      problems.push('Non-CBCS label without a noncbcs path');
+    if (s.variant === 'Main Page' && !id.startsWith('index'))
+      problems.push('Main Page label without an index path');
+    if (id.includes('rv') !== (s.resultType === 'Revaluation'))
+      problems.push('rv in the path disagrees with the Revaluation section');
+    return problems;
+  };
+
+  it('every label agrees with its URL, except entries flagged as a source anomaly', () => {
+    for (const s of sessions) {
+      if (s.anomaly === null) expect([s.id, labelUrlProblems(s)]).toEqual([s.id, []]);
+      else expect(labelUrlProblems(s).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('flags exactly one session: SplJcbcs25, printed as Non-CBCS', () => {
+    const flagged = sessions.filter((s) => s.anomaly !== null);
+    expect(flagged.map((s) => [s.id, s.anomaly, s.label])).toEqual([
+      ['SplJcbcs25', 'label-url-mismatch', 'Non-CBCS'],
+    ]);
   });
 
   it('finds a session by id, and nothing for an unknown one', () => {

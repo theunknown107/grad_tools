@@ -192,9 +192,18 @@ export function CollegeField({
     );
   }
 
+  /* Review state travels in words, not colour: the hint and a "verified" suffix. */
+  const chosen = other ? undefined : colleges.items.find((c) => c.name === value);
+  const hint =
+    chosen?.reviewed === true
+      ? "Verified by GradTools against VTU's affiliated-institute list."
+      : chosen !== undefined || colleges.items.some((c) => !c.reviewed)
+        ? "Transcribed from VTU's affiliated-institute list; not yet checked by GradTools."
+        : 'From the list of VTU-affiliated colleges.';
+
   return (
     <>
-      <Field label="College" optional hint="From the list of VTU-affiliated colleges.">
+      <Field label="College" optional hint={hint}>
         <Select
           value={other ? OTHER : value === '' ? NOT_SET : value}
           onValueChange={(next) => {
@@ -203,7 +212,10 @@ export function CollegeField({
           }}
           options={[
             { value: NOT_SET, label: 'Not set' },
-            ...colleges.items.map((college) => ({ value: college.name, label: college.name })),
+            ...colleges.items.map((college) => ({
+              value: college.name,
+              label: college.reviewed ? `${college.name} (verified)` : college.name,
+            })),
             { value: OTHER, label: 'Other (type it)' },
           ]}
         />

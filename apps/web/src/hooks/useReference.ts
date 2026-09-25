@@ -119,9 +119,14 @@ export function useSchemeRules(schemeId: string | null, collegeId?: string) {
   );
 }
 
-/** A college as the UI lists it. `reviewed` is false for the bundled transcription. */
+/**
+ * A college as the UI lists it. `reviewed` is true only for a row the API
+ * published (a person verified it); the bundled transcription is unreviewed.
+ */
 export interface College {
   readonly id: string;
+  /** The @gradtools/vtu-catalogue id this row came from, or null if none. */
+  readonly catalogueId: string | null;
   readonly name: string;
   readonly code: string | null;
   readonly region: string | null;
@@ -136,6 +141,7 @@ export interface CollegesResult {
 
 const BUNDLED_COLLEGES: readonly College[] = VTU_COLLEGES.entries.map((entry) => ({
   id: entry.id,
+  catalogueId: entry.id,
   name: entry.name,
   code: entry.code,
   region: entry.region,
@@ -143,14 +149,36 @@ const BUNDLED_COLLEGES: readonly College[] = VTU_COLLEGES.entries.map((entry) =>
 }));
 
 /**
+ * Lays published rows over the bundled list: a published row replaces the
+ * bundled row with the same catalogueId (keeping the bundled region, which the
+ * API does not carry); a published row with no bundled match is appended.
+ * Every other bundled row stays.
+ */
+export function overlayColleges(
+  bundled: readonly College[],
+  published: readonly College[],
+): College[] {
+  const byCatalogueId = new Map(
+    published.flatMap((row) => (row.catalogueId === null ? [] : [[row.catalogueId, row] as const])),
+  );
+  const used = new Set<College>();
+  const merged = bundled.map((row) => {
+    const hit = byCatalogueId.get(row.id);
+    if (hit === undefined) return row;
+    used.add(hit);
+    return { ...hit, region: hit.region ?? row.region };
+  });
+  return [...merged, ...published.filter((row) => !used.has(row))];
+}
+
+/**
  * VTU-affiliated colleges.
  *
  * The API serves only VERIFIED colleges (the database refuses to publish an
- * unverified one, migration 0002), so until a person reviews the transcription
- * it returns none. Published rows win when there are any; otherwise the bundled
- * one-time transcription from @gradtools/vtu-catalogue is the list, marked
- * `reviewed: false`. An unreachable API is therefore not an empty picker: the
- * bundled list still shows, and `error` stays null because the list is whole.
+ * unverified one), so the list is the bundled one-time transcription from
+ * @gradtools/vtu-catalogue with any published rows laid over it by
+ * `catalogueId` (see `overlayColleges`). An unreachable API is therefore not an
+ * empty picker: the bundled list still shows, and `error` stays null.
  */
 export function useColleges(): CollegesResult {
   const { state } = useAsync(
@@ -165,6 +193,7 @@ export function useColleges(): CollegesResult {
           return parsed.success
             ? parsed.data.data.map<College>((college) => ({
                 id: college.id,
+                catalogueId: college.catalogueId,
                 name: college.name,
                 code: college.code,
                 region: null,
@@ -175,8 +204,7 @@ export function useColleges(): CollegesResult {
     [],
   );
   if (state.status === 'loading') return { items: [], loading: true, error: null };
-  const served = state.status === 'ready' ? state.data : [];
-  const items = served.length > 0 ? served : BUNDLED_COLLEGES;
+  const items = overlayColleges(BUNDLED_COLLEGES, state.status === 'ready' ? state.data : []);
   return {
     items,
     loading: false,
