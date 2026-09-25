@@ -60,6 +60,8 @@ Every category, its purpose, legal basis, storage location and retention. This t
 | 3 | **USN** | Labelling saved results | Consent, optional (`DEC-002`) | Local; server if account | Until deletion |
 | ~~4~~ | ~~Date of birth~~ | **Not collected** — removed by `DEC-008`; no approved feature requires it | — | — | — |
 | 5 | **College, scheme, branch, semester** | Selecting the correct rule set and subjects | Consent | Local; server if account | Until deletion |
+| 5a | **Admission year, expected passout year, entry route (PUC/Diploma), identity-confirmed time** | Profile facts the student states at setup (`DEC-046`); nothing is derived from them | Consent, optional | Local; server if account | Until deletion |
+| 5b | **Result provenance** (`source`: kind, VTU session id, import time, parser version) | Showing where an imported result came from | Consent | Local only — not synced | Until deletion |
 | 6 | **Semester results (marks, grades)** | SGPA/CGPA, backlogs, analytics | Consent | Local; server if account | Until deletion |
 | 7 | **Attendance counts** | Attendance % and bunk planning | Consent | Local; server if account | Until deletion |
 | 8 | **Timetable** | Schedule display, reminders | Consent | Local; server if account | Until deletion |

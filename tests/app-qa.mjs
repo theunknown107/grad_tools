@@ -37,6 +37,7 @@ const ROUTES = [
   ['/semesters', 'degree'],
   ['/results', 'results'],
   ['/results/2', 'result-detail'],
+  ['/results/get', 'get-result'],
   ['/academics', 'gpa'],
   ['/academics?tab=calculator', 'calculator'],
   // Attendance opens on TODAY; its other views are toggles, not addresses.
@@ -62,6 +63,7 @@ const ROUTES = [
   ['/exams', 'exams'],
   ['/import', 'import'],
   ['/profile', 'profile'],
+  ['/setup', 'setup'],
   ['/account?section=appearance', 'appearance'],
   ['/account?section=academic', 'settings-academic'],
   ['/account?section=notifications', 'settings-notifications'],
