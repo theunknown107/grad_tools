@@ -122,6 +122,8 @@ describeDb('server-side notification fanout', () => {
   }, 120_000);
 
   afterAll(async () => {
+    // Leave no enrolled synthetic student for a later file's fanout to notify.
+    await admin`DELETE FROM auth.users WHERE email LIKE 'synthetic-fanout-%@example.test'`;
     await Promise.all([sql.end(), cloud.end(), admin.end(), monitor.end()]);
   });
 

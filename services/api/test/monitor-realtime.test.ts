@@ -226,7 +226,18 @@ describeDb('the doorbell', () => {
     clearListeners();
     await sql`DELETE FROM source_items`;
     await sql`DELETE FROM monitor_runs`;
-    await admin`DELETE FROM auth.users WHERE id IN (${A}::uuid, ${B}::uuid)`;
+    /*
+     * The fanout notifies EVERY matching enrolled student, so a synthetic
+     * student left by another file (monitor-fanout enrols one in the same
+     * scheme and semester) would receive notifications counted here. This file
+     * owns the enrolments it depends on: synthetic students only, never real ones.
+     */
+    await admin`
+      DELETE FROM auth.users
+       WHERE id IN (${A}::uuid, ${B}::uuid)
+          OR email LIKE 'synthetic-fanout-%@example.test'
+          OR email LIKE 'synthetic-rt-%@example.test'
+    `;
     await admin`
       INSERT INTO auth.users (id, email) VALUES
         (${A}::uuid, 'synthetic-rt-a@example.test'),
