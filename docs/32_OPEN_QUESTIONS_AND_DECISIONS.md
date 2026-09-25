@@ -2581,3 +2581,48 @@ the only label/address mismatch among the 54 sessions. It keeps the source's
 wording, carries `anomaly: "label-url-mismatch"`, shows a "Check" badge and a
 plain caution in the app, and a test fails if a second mismatch appears. Which
 side is right cannot be checked without using the result portal.
+
+## Part N — Step 17: V1 release hardening
+
+### DEC-050 — Profile conflicts are resolved by an explicit choice · **Step 17**
+
+Account → Data shows a profile conflict as the fields that differ, with "Keep
+this device's" and "Use account version", each behind the existing confirm
+dialog. Both reuse DEC-048's machinery; there is no second conflict system.
+Keeping this device's copy PUTs it with the server's revision as the base, so a
+newer server copy raises a fresh conflict instead of being overwritten. Using
+the account's copy saves it locally and records its revision; nothing is
+PUT. Results are never touched. Other collections keep the existing message
+("edit the record on the device you want to keep, then sync again").
+
+### OQ-063 — A corrected college name orphans a stored selection · **opened by Step 17, deferred to V2**
+
+**Status:** OPEN · data migration
+
+The profile stores the college by name. When a transcription error is
+corrected, a student who picked the old spelling sees it as a typed "Other"
+college. Their text is kept, so nothing is lost. Nothing has been renamed and
+no college is published, so it does not happen today. The catalogue id is
+stable (a literal in the data file; all 185 are pinned by
+`packages/vtu-catalogue/test/college-ids.json`). Storing it on the profile
+needs a cloud column (a migration, `store.ts`, both profile schemas and the
+sync fingerprint). **When the first name is corrected:** either add the old
+spelling as an alias the picker matches, or store `catalogueId` on the profile.
+
+### Test reliability notes · **Step 17**
+
+- Profile writes that truly overlap are tested against Postgres without sleeps
+  (`profile-concurrency.test.ts`). The second writer is held on the first's
+  row lock, detected with `pg_blocking_pids`. That test fails if the UPDATE
+  loses its `WHERE revision = base`.
+- Catalogue tests survived no mutation: changing an id, dropping the anomaly
+  flag, removing the loader's host, duplicate-id or anomaly checks, replacing
+  instead of merging published colleges, or removing a Check badge each fails
+  a test.
+- The one-off failure of 6 monitor tests (Step 16, first run after creating
+  `monitor_login` by hand) did not reproduce. Two full runs after dropping the
+  role, which recreates the first-run state, passed 677/677. It is recorded as
+  environmental; no code changed.
+- A semester whose saved result is empty is not listed under "Semesters
+  without a result", because a second result for that semester is refused
+  (OQ-058). The student edits the saved result instead. Kept as is.
