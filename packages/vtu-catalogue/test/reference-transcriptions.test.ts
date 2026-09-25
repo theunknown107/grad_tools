@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { VTU_BRANCHES_2022, VTU_COLLEGES } from '../data/index.js';
+import pinnedIds from './college-ids.json' with { type: 'json' };
 
 describe('transcribed VTU colleges', () => {
   const { source, entries } = VTU_COLLEGES;
@@ -31,17 +32,11 @@ describe('transcribed VTU colleges', () => {
   });
 
   it('keeps catalogue ids stable (the API upserts on them)', () => {
-    expect(entries.length).toBe(185);
     for (const e of entries) expect(e.id).toMatch(/^vtu-[a-z]+-[a-z0-9-]+$/);
-    const ids = new Set(entries.map((e) => e.id));
-    for (const id of [
-      'vtu-bengaluru-ay-acharaya-institute-of-technology',
-      'vtu-bengaluru-rr-rajarajeswari-college-of-engineering',
-      'vtu-belagavi-go-govt-engineering-college-haveri',
-      'vtu-kalaburagi-ng-government-engineering-college-bidar',
-    ]) {
-      expect(ids.has(id)).toBe(true);
-    }
+    /* Every id is pinned: a rename, addition or removal must be a deliberate
+       edit of test/college-ids.json, since published rows point at these ids. */
+    expect(entries.map((e) => e.id).sort()).toEqual(pinnedIds);
+    expect(pinnedIds).toHaveLength(185);
   });
 
   it('asserts no autonomy and invents no fields', () => {
