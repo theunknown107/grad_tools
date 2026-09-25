@@ -18,6 +18,7 @@ import request from 'supertest';
 import { Writable } from 'node:stream';
 import type { Express } from 'express';
 import { API_ROUTES } from '@gradtools/shared-types';
+import { VTU_BRANCHES_2022, VTU_COLLEGES } from '@gradtools/vtu-catalogue/data';
 import { loadConfig } from '../src/config.js';
 import { createClient, type Sql } from '../src/db/client.js';
 import { runMigrations } from '../src/db/migrate.js';
@@ -278,9 +279,28 @@ describeDb('reference API', () => {
       expect(Number(rows[0]?.count)).toBe(0);
     });
 
-    it('seeds no colleges, because none has been verified', async () => {
-      const rows = await sql<{ count: string }[]>`SELECT count(*) AS count FROM colleges`;
-      expect(Number(rows[0]?.count)).toBe(0);
+    it('seeds the transcribed colleges as unpublished drafts with autonomy unknown', async () => {
+      const rows = await sql<
+        { total: string; published: string; asserted: string; keyed: string }[]
+      >`
+        SELECT count(*) AS total,
+               count(*) FILTER (WHERE publication = 'published') AS published,
+               count(*) FILTER (WHERE is_autonomous IS NOT NULL) AS asserted,
+               count(DISTINCT catalogue_id) AS keyed
+        FROM colleges WHERE source_url = ${VTU_COLLEGES.source.url}
+      `;
+      expect(Number(rows[0]?.total)).toBe(VTU_COLLEGES.entries.length);
+      expect(Number(rows[0]?.keyed)).toBe(VTU_COLLEGES.entries.length);
+      expect(Number(rows[0]?.published)).toBe(0);
+      expect(Number(rows[0]?.asserted)).toBe(0);
+    });
+
+    it('refuses to publish a college whose autonomy is unknown', async () => {
+      await expect(sql`
+        UPDATE colleges
+           SET verification = 'verified', verified_at = now(), publication = 'published'
+         WHERE catalogue_id = ${VTU_COLLEGES.entries[0]!.id}
+      `).rejects.toThrow(/colleges_publish_requires_known_autonomy/);
     });
   });
 
@@ -506,7 +526,9 @@ describeDb('reference API', () => {
       expect((universities.body.data as { id: string }[]).map((u) => u.id)).toEqual(['vtu']);
 
       const branches = await request(app).get('/api/v1/branches');
-      expect((branches.body.data as { id: string }[]).map((b) => b.id)).toEqual(['cse']);
+      expect((branches.body.data as { id: string }[]).map((b) => b.id).sort()).toEqual(
+        VTU_BRANCHES_2022.entries.map((b) => b.id).sort(),
+      );
     });
   });
 

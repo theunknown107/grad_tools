@@ -11,7 +11,9 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { ReferenceError, apiReferenceRepository } from '../repositories/reference.js';
+import { API_ROUTES, collegeSchema, listResponseSchema } from '@gradtools/shared-types';
+import { VTU_COLLEGES } from '@gradtools/vtu-catalogue/data';
+import { ReferenceError, apiBaseUrl, apiReferenceRepository } from '../repositories/reference.js';
 
 export type AsyncState<T> =
   | { readonly status: 'loading' }
@@ -115,4 +117,69 @@ export function useSchemeRules(schemeId: string | null, collegeId?: string) {
         : apiReferenceRepository.getSchemeRules(schemeId, collegeId, signal),
     [schemeId, collegeId],
   );
+}
+
+/** A college as the UI lists it. `reviewed` is false for the bundled transcription. */
+export interface College {
+  readonly id: string;
+  readonly name: string;
+  readonly code: string | null;
+  readonly region: string | null;
+  readonly reviewed: boolean;
+}
+
+export interface CollegesResult {
+  readonly items: readonly College[];
+  readonly loading: boolean;
+  readonly error: string | null;
+}
+
+const BUNDLED_COLLEGES: readonly College[] = VTU_COLLEGES.entries.map((entry) => ({
+  id: entry.id,
+  name: entry.name,
+  code: entry.code,
+  region: entry.region,
+  reviewed: VTU_COLLEGES.source.reviewed,
+}));
+
+/**
+ * VTU-affiliated colleges.
+ *
+ * The API serves only VERIFIED colleges (the database refuses to publish an
+ * unverified one, migration 0002), so until a person reviews the transcription
+ * it returns none. Published rows win when there are any; otherwise the bundled
+ * one-time transcription from @gradtools/vtu-catalogue is the list, marked
+ * `reviewed: false`. An unreachable API is therefore not an empty picker: the
+ * bundled list still shows, and `error` stays null because the list is whole.
+ */
+export function useColleges(): CollegesResult {
+  const { state } = useAsync(
+    (signal) =>
+      fetch(`${apiBaseUrl()}${API_ROUTES.colleges}`, {
+        headers: { Accept: 'application/json' },
+        signal,
+      })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((body: unknown) => {
+          const parsed = listResponseSchema(collegeSchema).safeParse(body);
+          return parsed.success
+            ? parsed.data.data.map<College>((college) => ({
+                id: college.id,
+                name: college.name,
+                code: college.code,
+                region: null,
+                reviewed: true,
+              }))
+            : [];
+        }),
+    [],
+  );
+  if (state.status === 'loading') return { items: [], loading: true, error: null };
+  const served = state.status === 'ready' ? state.data : [];
+  const items = served.length > 0 ? served : BUNDLED_COLLEGES;
+  return {
+    items,
+    loading: false,
+    error: items.length === 0 && state.status === 'error' ? state.message : null,
+  };
 }

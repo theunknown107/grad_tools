@@ -1,0 +1,1333 @@
+{
+  "source": {
+    "url": "https://vtu.ac.in/affiliated-institute/",
+    "retrievedAt": "2026-09-25",
+    "method": "one-time transcription",
+    "reviewed": false,
+    "robots": "https://vtu.ac.in/robots.txt checked 2026-09-25: \"User-agent: *\", \"Disallow: /wp-admin/\", \"Allow: /wp-admin/admin-ajax.php\". This page is not disallowed.",
+    "note": "Read once by a person-supervised agent session; no scraper exists and nothing fetches this page at build or run time. VTU terms reportedly withhold permission for data-mining robots, which is why this is a one-off, human-reviewable transcription. The page reading passed through a text-extraction model, so spelling must be checked against the live page before `reviewed` becomes true. The page states no totals; counts may conflict with other VTU pages. Region is the page section heading as returned by the extraction (upper-case). The extraction reported 93 Bengaluru and 49 Mysuru institutions but listed 90 and 48, so some rows may be missing; nothing was added to make up the difference. Autonomy is NOT stated on the page and is not verified: every isAutonomous is null.",
+    "countsByRegion": {
+      "BENGALURU": 90,
+      "BELAGAVI": 30,
+      "KALABURAGI": 17,
+      "MYSURU": 48
+    },
+    "duplicateCodes": {
+      "RR": [
+        "vtu-bengaluru-rr-rajarajeswari-college-of-engineering",
+        "vtu-bengaluru-rr-r-r-school-of-architecture"
+      ],
+      "GO": [
+        "vtu-bengaluru-go-gopalan-school-of-architecture-and-planning",
+        "vtu-belagavi-go-govt-engineering-college-haveri"
+      ],
+      "KF": [
+        "vtu-bengaluru-kf-k-s-school-of-architecture",
+        "vtu-belagavi-kf-angadi-school-of-architecture-belagavi"
+      ],
+      "NG": [
+        "vtu-kalaburagi-ng-government-engineering-college-gangavati",
+        "vtu-kalaburagi-ng-government-engineering-college-bidar",
+        "vtu-kalaburagi-ng-poojya-dr-shivakumar-swamiji-school-of-architecture-kalaburagi"
+      ]
+    },
+    "entriesWithoutCode": 5
+  },
+  "entries": [
+    {
+      "id": "vtu-bengaluru-ay-acharaya-institute-of-technology",
+      "code": "AY",
+      "name": "ACHARAYA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ap-a-p-s-college-of-engineering",
+      "code": "AP",
+      "name": "A.P.S COLLEGE OF ENGINEERING.",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-am-amc-engineering-college",
+      "code": "AM",
+      "name": "AMC ENGINEERING COLLEGE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ar-amrutha-institute-of-engineering-and-mgmt-sciences",
+      "code": "AR",
+      "name": "AMRUTHA INSTITUTE OF ENGINEERING AND MGMT. SCIENCES",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-at-atria-institute-of-technology",
+      "code": "AT",
+      "name": "ATRIA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-bc-bengaluru-college-of-engineering-and-technology",
+      "code": "BC",
+      "name": "BENGALURU COLLEGE OF ENGINEERING AND TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-bi-bengaluru-institute-of-technology",
+      "code": "BI",
+      "name": "BENGALURU INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-bo-brindavan-college-of-engg",
+      "code": "BO",
+      "name": "BRINDAVAN COLLEGE OF ENGG",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-cr-c-m-r-institute-of-technology",
+      "code": "CR",
+      "name": "C.M.R INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-cd-cambridge-institute-of-technology",
+      "code": "CD",
+      "name": "CAMBRIDGE INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-cg-channa-basaveshwara-institute-of-technology",
+      "code": "CG",
+      "name": "CHANNA BASAVESHWARA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ce-city-engineering-college",
+      "code": "CE",
+      "name": "CITY ENGINEERING COLLEGE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-db-don-bosco-institute-of-technology",
+      "code": "DB",
+      "name": "DON BOSCO INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-gv-dr-t-thimaiah-institute-of-technology",
+      "code": "GV",
+      "name": "DR. T THIMAIAH INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ep-east-point-college-of-engineering-and-technology",
+      "code": "EP",
+      "name": "EAST POINT COLLEGE OF ENGINEERING AND TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ew-east-west-institute-of-technology",
+      "code": "EW",
+      "name": "EAST WEST INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-gc-ghousia-college-of-engineering",
+      "code": "GC",
+      "name": "GHOUSIA COLLEGE OF ENGINEERING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-sk-government-s-k-s-j-t-institute-of-technology",
+      "code": "SK",
+      "name": "GOVERNMENT S.K.S.J.T. INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-gt-government-tool-room-and-training-centre",
+      "code": "GT",
+      "name": "GOVERNMENT TOOL ROOM AND TRAINING CENTRE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-gg-govt-engineering-college-ramnagar",
+      "code": "GG",
+      "name": "GOVT. ENGINEERING COLLEGE RAMNAGAR",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-hk-hkbk-college-of-engineering",
+      "code": "HK",
+      "name": "HKBK COLLEGE OF ENGINEERING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-hm-hms-institute-of-technology",
+      "code": "HM",
+      "name": "HMS INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ic-impact-college-of-engineering",
+      "code": "IC",
+      "name": "IMPACT COLLEGE OF ENGINEERING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-jv-jnana-vikas-institute-of-tencnology",
+      "code": "JV",
+      "name": "JNANA VIKAS INSTITUTE OF TENCNOLOGY,",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-js-jss-academy-of-technicial-education",
+      "code": "JS",
+      "name": "JSS ACADEMY OF TECHNICIAL EDUCATION",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ks-k-s-institute-of-technology",
+      "code": "KS",
+      "name": "K.S.INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ki-kalpataru-institute-of-technology",
+      "code": "KI",
+      "name": "KALPATARU INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-kn-kns-institute-of-technology",
+      "code": "KN",
+      "name": "KNS INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-me-m-s-engineering-college",
+      "code": "ME",
+      "name": "M.S.ENGINEERING COLLEGE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ox-oxford-college-of-engineering",
+      "code": "OX",
+      "name": "OXFORD COLLEGE OF ENGINEERING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ri-r-r-institute-of-technology",
+      "code": "RI",
+      "name": "R R INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-rl-r-l-jalappa-institute-of-technology",
+      "code": "RL",
+      "name": "R.L.JALAPPA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-rr-rajarajeswari-college-of-engineering",
+      "code": "RR",
+      "name": "RAJARAJESWARI COLLEGE OF ENGINEERING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-rg-rajiv-gandhi-institute-of-technology",
+      "code": "RG",
+      "name": "RAJIV GANDHI INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-rn-rns-institute-of-technology",
+      "code": "RN",
+      "name": "RNS INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-sj-s-j-c-institute-of-technology",
+      "code": "SJ",
+      "name": "S.J.C INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-va-sai-vidya-institute-of-technology",
+      "code": "VA",
+      "name": "SAI VIDYA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-st-sambhram-institute-of-technology",
+      "code": "ST",
+      "name": "SAMBHRAM INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-sg-sapthagiri-college-of-engineering",
+      "code": "SG",
+      "name": "SAPTHAGIRI COLLEGE OF ENGINEERING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-sp-sea-college-of-engineering-and-technology",
+      "code": "SP",
+      "name": "SEA COLLEGE OF ENGINEERING AND TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-sb-sri-sairam-college-of-engineering",
+      "code": "SB",
+      "name": "SRI SAIRAM COLLEGE OF ENGINEERING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-sv-shridevi-institute-of-engineering-and-technology",
+      "code": "SV",
+      "name": "SHRIDEVI INSTITUTE OF ENGINEERING AND TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-mv-sir-m-visvesvaraya-institute-of-technology",
+      "code": "MV",
+      "name": "SIR M. VISVESVARAYA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-jb-sjb-institute-of-technology",
+      "code": "JB",
+      "name": "SJB INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-cc-dr-sri-sri-sri-shivkumar-mahaswamy-college-of-engg",
+      "code": "CC",
+      "name": "Dr. Sri Sri Sri SHIVKUMAR MAHASWAMY, COLLEGE OF ENGG.",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-kt-sri-krishna-institute-of-technology",
+      "code": "KT",
+      "name": "SRI KRISHNA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-rc-sri-revanasiddeshwara-institute-of-technology",
+      "code": "RC",
+      "name": "SRI REVANASIDDESHWARA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ve-sri-venkateshwara-college-of-engineering",
+      "code": "VE",
+      "name": "SRI VENKATESHWARA COLLEGE OF ENGINEERING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-tj-t-john-institute-of-technology",
+      "code": "TJ",
+      "name": "T. JOHN INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-vi-vemana-institute-of-technology",
+      "code": "VI",
+      "name": "VEMANA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-vk-vivekananda-institute-of-technology",
+      "code": "VK",
+      "name": "VIVEKANANDA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-aa-acharys-nrv-school-of-architecture",
+      "code": "AA",
+      "name": "ACHARYS NRV SCHOOL OF ARCHITECTURE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ah-acs-college-of-engineering",
+      "code": "AH",
+      "name": "ACS COLLEGE OF ENGINEERING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ak-akshaya-institute-of-technology",
+      "code": "AK",
+      "name": "AKSHAYA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ck-c-byeregowda-institute-of-technology",
+      "code": "CK",
+      "name": "C BYEREGOWDA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-vj-vijaya-vittala-institute-of-technology",
+      "code": "VJ",
+      "name": "VIJAYA VITTALA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-hs-shashib-college-of-engineering",
+      "code": "HS",
+      "name": "SHASHIB COLLEGE OF ENGINEERING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-sz-sampoorna-institute-of-technology-research",
+      "code": "SZ",
+      "name": "SAMPOORNA INSTITUTE OF TECHNOLOGY  RESEARCH",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-kg-k-s-school-of-engg-and-mgmt",
+      "code": "KG",
+      "name": "K.S SCHOOL OF ENGG & MGMT",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-gd-gopalan-college-of-engineering-management",
+      "code": "GD",
+      "name": "GOPALAN COLLEGE OF ENGINEERING  MANAGEMENT",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-bh-bengaluru-technological-institute",
+      "code": "BH",
+      "name": "BENGALURU TECHNOLOGICAL INSTITUTE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-jt-jyothy-institute-of-technology",
+      "code": "JT",
+      "name": "JYOTHY INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-dt-dayananda-sagar-academy-of-technology-and-mgmt",
+      "code": "DT",
+      "name": "DAYANANDA SAGAR ACADEMY OF TECHNOLOGY AND MGMT.",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-aj-cambridge-insitute-of-technology-north-campus-bangalore",
+      "code": "AJ",
+      "name": "CAMBRIDGE INSITUTE OF TECHNOLOGY NORTH CAMPUS BANGALORE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-dc-dayanand-sagar-school-of-architecture",
+      "code": "DC",
+      "name": "DAYANAND SAGAR SCHOOL OF ARCHITECTURE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-is-impact-school-of-architecture",
+      "code": "IS",
+      "name": "IMPACT SCHOOL OF ARCHITECTURE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-rw-r-v-college-of-architecture",
+      "code": "RW",
+      "name": "R V COLLEGE OF ARCHITECTURE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-bq-bms-school-of-architecture",
+      "code": "BQ",
+      "name": "BMS SCHOOL OF ARCHITECTURE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ja-s-j-b-school-of-arch-and-planning",
+      "code": "JA",
+      "name": "S J B School of Arch. & Planning",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-go-gopalan-school-of-architecture-and-planning",
+      "code": "GO",
+      "name": "GOPALAN SCHOOL OF ARCHITECTURE & PLANNING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-rr-r-r-school-of-architecture",
+      "code": "RR",
+      "name": "R.R. SCHOOL OF ARCHITECTURE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-an-adithya-academy-of-architecture-and-desgin",
+      "code": "AN",
+      "name": "ADITHYA ACADEMY OF ARCHITECTURE & DESGIN",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-pc-bgs-school-of-architecture-and-planning",
+      "code": "PC",
+      "name": "BGS SCHOOL OF ARCHITECTURE & PLANNING",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-kf-k-s-school-of-architecture",
+      "code": "KF",
+      "name": "K S SCHOOL OF ARCHITECTURE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ee-east-west-college-of-engg",
+      "code": "EE",
+      "name": "EAST WEST COLLEGE OF ENGG",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-vb-sri-vinayaka-institute-of-technology",
+      "code": "VB",
+      "name": "SRI VINAYAKA INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-iv-sir-m-v-school-of-architecture",
+      "code": "IV",
+      "name": "Sir. M. V. School of Architecture",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ns-nitte-school-of-architecture",
+      "code": "NS",
+      "name": "Nitte School of Architecture",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-it-hms-school-of-architecture",
+      "code": "IT",
+      "name": "HMS School of Architecture",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ie-brindavan-college-of-architecture",
+      "code": "IE",
+      "name": "Brindavan College of Architecture",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-cf-bms-college-of-architecture",
+      "code": "CF",
+      "name": "BMS College of Architecture",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-oq-oxford-school-of-architecture",
+      "code": "OQ",
+      "name": "OXFORD SCHOOL OF ARCHITECTURE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-rq-rns-school-of-architecture",
+      "code": "RQ",
+      "name": "RNS SCHOOL OF ARCHITECTURE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-sw-sri-basaveshwar-institute-of-technology",
+      "code": "SW",
+      "name": "SRI BASAVESHWAR INSTITUTE OF TECHNOLOGY",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-rf-r-v-institute-of-technology-and-mgmt",
+      "code": "RF",
+      "name": "R V INSTITUTE OF TECHNOLOGY AND MGMT",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-ws-east-west-school-of-architecture",
+      "code": "WS",
+      "name": "EAST WEST SCHOOL OF ARCHITECTURE",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-nocode-bgs-college-of-engineering-and-technology",
+      "code": null,
+      "name": "BGS College of Engineering & Technology",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-nocode-aditya-college-of-engineering-and-technology",
+      "code": null,
+      "name": "Aditya College of Engineering & Technology",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-nocode-akash-institute-of-engineering-and-technology",
+      "code": null,
+      "name": "Akash Institute of Engineering & Technology",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-bengaluru-nocode-ghousia-institute-of-technology-for-women",
+      "code": null,
+      "name": "Ghousia Institute of Technology for Women",
+      "region": "BENGALURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-ab-anjuman-institute-of-technology-and-management",
+      "code": "AB",
+      "name": "ANJUMAN  INSTITUTE OF TECHNOLOGY & MANAGEMENT",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-bl-bldeas-college-of-engineering",
+      "code": "BL",
+      "name": "BLDEAS COLLEGE OF ENGINEERING",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-go-govt-engineering-college-haveri",
+      "code": "GO",
+      "name": "GOVT. ENGINEERING COLLEGE HAVERI",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-hn-hirasugar-institute-of-technology",
+      "code": "HN",
+      "name": "HIRASUGAR INSTITUTE OF TECHNOLOGY",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-kd-kle-college-of-eng-and-technology-chikodi",
+      "code": "KD",
+      "name": "KLE COLLEGE OF ENG. AND TECHNOLOGY CHIKODI",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-ke-kle-institute-of-tech-hubli",
+      "code": "KE",
+      "name": "KLE INSTITUTE OF TECH HUBLI",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-kl-kle-dr-m-s-sheshgiri-college-of-engineering-and-technology",
+      "code": "KL",
+      "name": "KLE Dr M. S. SHESHGIRI COLLEGE OF ENGINEERING AND TECHNOLOGY",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-mb-malik-sandal-institute-of-art-and-architecture",
+      "code": "MB",
+      "name": "MALIK SANDAL INSTITUTE OF ART AND ARCHITECTURE",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-mm-maratha-mandals-engineering-college",
+      "code": "MM",
+      "name": "MARATHA MANDALS ENGINEERING COLLEGE",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-rh-rural-engineering-college-hulkoti",
+      "code": "RH",
+      "name": "RURAL ENGINEERING COLLEGE, HULKOTI",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-bu-s-g-balekundri-inst-of-tech",
+      "code": "BU",
+      "name": "S G BALEKUNDRI INST. OF TECH",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-sr-s-t-j-institute-of-technology",
+      "code": "SR",
+      "name": "S.T.J. INSTITUTE OF TECHNOLOGY",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-sa-secab-institute-of-engineering-and-technology",
+      "code": "SA",
+      "name": "SECAB INSTITUTE OF ENGINEERING AND TECHNOLOGY",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-ka-smt-kamala-and-sri-venkappa-m-agadi-college-of-engineering-and-technology",
+      "code": "KA",
+      "name": "SMT. KAMALA AND SRI VENKAPPA M. AGADI COLLEGE OF ENGINEERING AND TECHNOLOGY",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-tg-sri-tontadaraya-college-of-engineering",
+      "code": "TG",
+      "name": "SRI TONTADARAYA COLLEGE OF ENGINEERING",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-vd-vishwanatharao-deshpande-institute-of-technology-haliyal",
+      "code": "VD",
+      "name": "VISHWANATHARAO DESHPANDE INSTITUTE OF TECHNOLOGY, HALIYAL",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-gb-govt-engineering-college-huvinhadagali",
+      "code": "GB",
+      "name": "GOVT. ENGINEERING COLLEGE HUVINHADAGALI",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-gp-government-engineering-college-karwar",
+      "code": "GP",
+      "name": "GOVERNMENT ENGINEERING COLLEGE KARWAR",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-ag-angadi-institute-of-technology-and-mgmt",
+      "code": "AG",
+      "name": "ANGADI INSTITUTE OF TECHNOLOGY AND MGMT.",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-ji-jain-college-of-engineering",
+      "code": "JI",
+      "name": "JAIN COLLEGE OF ENGINEERING",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-vs-v-s-m-s-institute-of-technology",
+      "code": "VS",
+      "name": "V S M'S INSTITUTE OF TECHNOLOGY",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-av-agm-rural-college-of-engineering-and-technology",
+      "code": "AV",
+      "name": "AGM RURAL COLLEGE OF ENGINEERING & TECHNOLOGY",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-gj-grijabai-sail-institute-of-technology-karwar",
+      "code": "GJ",
+      "name": "GRIJABAI SAIL INSTITUTE OF TECHNOLOGY KARWAR",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-lb-biluru-gurubasava-mahaswamiji-institute-of-technology",
+      "code": "LB",
+      "name": "BILURU GURUBASAVA MAHASWAMIJI INSTITUTE OF TECHNOLOGY",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-vl-basava-engg-school-of-technology-zalaki",
+      "code": "VL",
+      "name": "BASAVA ENGG SCHOOL OF TECHNOLOGY ZALAKI",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-ih-jain-college-of-engg-hubballi",
+      "code": "IH",
+      "name": "JAIN COLLEGE OF ENGG HUBBALLI",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-lg-government-engineering-college-talakal",
+      "code": "LG",
+      "name": "GOVERNMENT ENGINEERING COLLEGE, TALAKAL",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-kf-angadi-school-of-architecture-belagavi",
+      "code": "KF",
+      "name": "ANGADI SCHOOL OF ARCHITECTURE BELAGAVI",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-jr-jain-college-of-engineering-and-research-belagavi",
+      "code": "JR",
+      "name": "JAIN COLLEGE OF ENGINEERING & RESEARCH BELAGAVI",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-belagavi-nocode-govt-engineering-college-ron-road",
+      "code": null,
+      "name": "Govt.Engineering College,  Ron Road",
+      "region": "BELAGAVI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-bk-basavakalyan-engineering-college",
+      "code": "BK",
+      "name": "BASAVAKALYAN ENGINEERING COLLEGE",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-gu-govt-engineering-college-raichur",
+      "code": "GU",
+      "name": "GOVT. ENGINEERING COLLEGE RAICHUR",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-gn-guru-nanak-dev-engineering-college",
+      "code": "GN",
+      "name": "GURU NANAK DEV ENGINEERING COLLEGE",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-kc-k-c-t-engineering-college",
+      "code": "KC",
+      "name": "K.C.T. ENGINEERING COLLEGE",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-kb-khaja-banda-nawaz-college-of-engineering",
+      "code": "KB",
+      "name": "KHAJA BANDA NAWAZ COLLEGE OF ENGINEERING",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-na-navodaya-institute-of-technology",
+      "code": "NA",
+      "name": "NAVODAYA INSTITUTE OF TECHNOLOGY",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-pg-proudadevaraya-institute-of-technology",
+      "code": "PG",
+      "name": "PROUDADEVARAYA INSTITUTE OF TECHNOLOGY",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-vc-rao-bahaddur-y-mahabaleshwarappa-engg-college",
+      "code": "VC",
+      "name": "RAO BAHADDUR Y MAHABALESHWARAPPA ENGG COLLEGE",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-rb-bheemanna-khandre-institute-of-technology-bhalki",
+      "code": "RB",
+      "name": "BHEEMANNA KHANDRE INSTITUTE OF TECHNOLOGY, BHALKI",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-sl-sln-college-of-engineering",
+      "code": "SL",
+      "name": "SLN COLLEGE OF ENGINEERING",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-vn-veerappa-nisty-engineering-college",
+      "code": "VN",
+      "name": "VEERAPPA NISTY ENGINEERING COLLEGE",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-la-lingaraj-appa-engineering-college",
+      "code": "LA",
+      "name": "LINGARAJ APPA ENGINEERING COLLEGE",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-gf-godutai-engineering-college-for-women",
+      "code": "GF",
+      "name": "GODUTAI ENGINEERING COLLEGE FOR WOMEN",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-ts-shetty-institute-of-technology",
+      "code": "TS",
+      "name": "SHETTY INSTITUTE OF TECHNOLOGY",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-ng-government-engineering-college-gangavati",
+      "code": "NG",
+      "name": "GOVERNMENT ENGINEERING COLLEGE,GANGAVATI",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-ng-government-engineering-college-bidar",
+      "code": "NG",
+      "name": "GOVERNMENT ENGINEERING COLLEGE,BIDAR",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-kalaburagi-ng-poojya-dr-shivakumar-swamiji-school-of-architecture-kalaburagi",
+      "code": "NG",
+      "name": "Poojya Dr. Shivakumar Swamiji School of Architecture Kalaburagi",
+      "region": "KALABURAGI",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-ai-adichunchanagiri-institute-of-technology",
+      "code": "AI",
+      "name": "ADICHUNCHANAGIRI INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-al-alvas-inst-of-engg-and-technology",
+      "code": "AL",
+      "name": "ALVAS INST. OF ENGG. AND TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-bb-bahubali-college-of-engineering",
+      "code": "BB",
+      "name": "BAHUBALI COLLEGE OF ENGINEERING",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-bd-bapuji-institute-of-engineering-and-technology",
+      "code": "BD",
+      "name": "BAPUJI INSTITUTE OF ENGINEERING AND TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-bp-bearys-institute-of-technology",
+      "code": "BP",
+      "name": "BEARYS INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-cb-canara-engineering-college",
+      "code": "CB",
+      "name": "CANARA ENGINEERING COLLEGE",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-ci-coorg-institute-of-technology",
+      "code": "CI",
+      "name": "COORG INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-dm-yenepoya-institute-of-technology",
+      "code": "DM",
+      "name": "YENEPOYA INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-gm-gm-institute-of-techonology",
+      "code": "GM",
+      "name": "GM.INSTITUTE OF TECHONOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-ge-govt-engineering-college-chamarajanagara",
+      "code": "GE",
+      "name": "GOVT. ENGINEERING COLLEGE CHAMARAJANAGARA",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-gh-govt-engineering-college-hassan",
+      "code": "GH",
+      "name": "GOVT. ENGINEERING COLLEGE HASSAN",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-gl-govt-engineering-college-kushal-nagar",
+      "code": "GL",
+      "name": "GOVT. ENGINEERING COLLEGE KUSHAL NAGAR",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-gk-govt-engineering-college-mandya",
+      "code": "GK",
+      "name": "GOVT. ENGINEERING COLLEGE MANDYA",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-gr-govt-tool-room-and-training-centre",
+      "code": "GR",
+      "name": "GOVT. TOOL ROOM AND TRAINING CENTRE",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-gw-gsss-institute-of-engineering-and-technology-for-women",
+      "code": "GW",
+      "name": "GSSS INSTITUTE OF ENGINEERING AND TECHNOLOGY FOR WOMEN",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-jn-jawaharlal-nehru-national-college-of-enginering",
+      "code": "JN",
+      "name": "JAWAHARLAL NEHRU NATIONAL COLLEGE OF ENGINERING",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-kv-k-v-g-college-of-engineering",
+      "code": "KV",
+      "name": "K.V.G. COLLEGE OF ENGINEERING",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-km-karavali-institute-of-technology",
+      "code": "KM",
+      "name": "KARAVALI INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-mh-maharaja-institute-of-technology-mysore",
+      "code": "MH",
+      "name": "MAHARAJA INSTITUTE OF TECHNOLOGY MYSORE",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-mt-mangalore-institute-of-technology-and-engineering",
+      "code": "MT",
+      "name": "MANGALORE INSTITUTE OF TECHNOLOGY AND ENGINEERING",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-mk-moodlakatte-institute-of-techonology",
+      "code": "MK",
+      "name": "MOODLAKATTE INSTITUTE OF TECHONOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-nn-nie-inst-of-technology",
+      "code": "NN",
+      "name": "NIE INST. OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-pa-p-a-college-of-engineering",
+      "code": "PA",
+      "name": "P.A.COLLEGE OF ENGINEERING",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-pm-pes-insitute-of-technology-and-mgmt",
+      "code": "PM",
+      "name": "PES INSITUTE OF TECHNOLOGY AND MGMT.",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-ra-rajeev-inst-of-technology",
+      "code": "RA",
+      "name": "RAJEEV INST. OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-sh-shree-devi-institute-of-technology",
+      "code": "SH",
+      "name": "SHREE DEVI INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-sm-sjm-institute-of-technology",
+      "code": "SM",
+      "name": "SJM INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-su-sri-dharmasthal-manjunatheshwar-institute-of-technology",
+      "code": "SU",
+      "name": "SRI DHARMASTHAL MANJUNATHESHWAR INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-je-sri-jayachamrajendra-college-off-engg-evening",
+      "code": "JE",
+      "name": "SRI JAYACHAMRAJENDRA COLLEGE OFF ENGG. EVENING",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-sn-srinivas-institute-of-technology",
+      "code": "SN",
+      "name": "SRINIVAS INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-vm-vidya-vikas-institute-of-engineering-and-technology",
+      "code": "VM",
+      "name": "VIDYA VIKAS INSTITUTE OF ENGINEERING AND TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-vp-vivekananda-college-of-engineering-and-technology",
+      "code": "VP",
+      "name": "VIVEKANANDA COLLEGE OF ENGINEERING AND TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-yg-navkis-college-of-engineering-hassan",
+      "code": "YG",
+      "name": "NAVKIS COLLEGE OF ENGINEERING HASSAN",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-mw-shri-madhwa-vadiraja-institute-of-technology-and-management",
+      "code": "MW",
+      "name": "SHRI MADHWA VADIRAJA INSTITUTE OF TECHNOLOGY & MANAGEMENT",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-ad-academy-for-technical-and-management-excellence",
+      "code": "AD",
+      "name": "ACADEMY FOR TECHNICAL AND MANAGEMENT EXCELLENCE",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-ub-ubdt-engineering-college-davanagere-constituent-college-of-vtu",
+      "code": "UB",
+      "name": "UBDT ENGINEERING  COLLEGE DAVANAGERE ( Constituent College of VTU )",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-mg-g-madegowda-institute-of-technology",
+      "code": "MG",
+      "name": "G MADEGOWDA INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-jd-jain-institute-of-technology",
+      "code": "JD",
+      "name": "JAIN INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-mr-mangalore-marine-college-and-technology",
+      "code": "MR",
+      "name": "MANGALORE MARINE COLLEGE & TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-ca-cauvery-institute-of-technology",
+      "code": "CA",
+      "name": "CAUVERY INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-ma-mysore-school-of-architecture",
+      "code": "MA",
+      "name": "MYSORE SCHOOL OF ARCHITECTURE",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-ed-bearys-environment-architecture-design-school-mangalore",
+      "code": "ED",
+      "name": "BEARYS ENVIRONMENT ARCHITECTURE DESIGN SCHOOL MANGALORE",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-mo-mysore-college-of-engineering-and-management",
+      "code": "MO",
+      "name": "MYSORE COLLEGE OF ENGINEERING AND MANAGEMENT",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-mu-mysuru-royal-institute-of-technology",
+      "code": "MU",
+      "name": "MYSURU ROYAL INSTITUTE OF TECHNOLOGY",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-cm-wadiyar-centre-for-architecture",
+      "code": "CM",
+      "name": "WADIYAR CENTRE FOR ARCHITECTURE",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-mn-maharaja-institute-of-technology",
+      "code": "MN",
+      "name": "Maharaja Institute of Technology",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-jk-a-j-institute-of-engineering",
+      "code": "JK",
+      "name": "A. J. Institute of Engineering",
+      "region": "MYSURU",
+      "isAutonomous": null
+    },
+    {
+      "id": "vtu-mysuru-hg-government-engineering-college-mosale-hosahalli",
+      "code": "HG",
+      "name": "GOVERNMENT ENGINEERING COLLEGE,MOSALE HOSAHALLI",
+      "region": "MYSURU",
+      "isAutonomous": null
+    }
+  ]
+}
