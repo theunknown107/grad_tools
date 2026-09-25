@@ -81,6 +81,7 @@ describeDb('an account across sign-ins', () => {
           schemeId: 'vtu-2022',
           displayName: `Demo ${attempt}`,
           currentSemester: 5,
+          baseRevision: (await readProfile(sql))?.revision,
         });
         expect(outcome.kind).toBe('saved');
       });
@@ -92,32 +93,52 @@ describeDb('an account across sign-ins', () => {
     expect(rows[0]?.count).toBe('1');
   });
 
+  it('answers two racing first saves with one save and one conflict, never an error', async () => {
+    const outcomes = await Promise.all(
+      [5, 6].map((currentSemester) =>
+        withUser(cloud, sessionFor(A), (sql) =>
+          upsertProfile(sql, { schemeId: 'vtu-2022', currentSemester }),
+        ),
+      ),
+    );
+    expect(outcomes.map((o) => o.kind).sort()).toEqual(['conflict', 'saved']);
+  });
+
   it('returns the same profile id to the same auth user', async () => {
     const first = await withUser(cloud, sessionFor(A), (sql) =>
       upsertProfile(sql, { schemeId: 'vtu-2022', currentSemester: 5 }),
     );
+    if (first.kind !== 'saved') throw new Error('first save failed');
     const again = await withUser(cloud, sessionFor(A), (sql) =>
-      upsertProfile(sql, { schemeId: 'vtu-2022', currentSemester: 6 }),
+      upsertProfile(sql, {
+        schemeId: 'vtu-2022',
+        currentSemester: 6,
+        baseRevision: first.profile.revision,
+      }),
     );
 
-    expect(first.kind).toBe('saved');
     expect(again.kind).toBe('saved');
-    if (first.kind !== 'saved' || again.kind !== 'saved') return;
+    if (again.kind !== 'saved') return;
     expect(again.profile.id).toBe(first.profile.id);
     /* The edit landed; it did not create a second row to land in. */
     expect(again.profile.currentSemester).toBe(6);
   });
 
   it('never re-keys a profile around an email a student can change', async () => {
-    await withUser(cloud, sessionFor(A), (sql) =>
+    const before = await withUser(cloud, sessionFor(A), (sql) =>
       upsertProfile(sql, { schemeId: 'vtu-2022', currentSemester: 5 }),
     );
+    if (before.kind !== 'saved') throw new Error('first save failed');
 
     /* The same person, now signing in with a different address on the token. */
     await admin`UPDATE auth.users SET email = 'renamed-a@example.test' WHERE id = ${A}::uuid`;
 
     const after = await withUser(cloud, sessionFor(A), (sql) =>
-      upsertProfile(sql, { schemeId: 'vtu-2022', currentSemester: 5 }),
+      upsertProfile(sql, {
+        schemeId: 'vtu-2022',
+        currentSemester: 5,
+        baseRevision: before.profile.revision,
+      }),
     );
     expect(after.kind).toBe('saved');
 

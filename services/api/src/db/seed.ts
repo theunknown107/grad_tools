@@ -158,6 +158,8 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
    * the same data from the bundled file, marked unreviewed.
    */
   const colleges = VTU_COLLEGES;
+  const changed = sql`((colleges.name, colleges.code, colleges.region)
+    IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.code, EXCLUDED.region))`;
   for (const college of colleges.entries) {
     await sql`
       INSERT INTO colleges (
@@ -173,8 +175,16 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
         name = EXCLUDED.name,
         code = EXCLUDED.code,
         region = EXCLUDED.region,
-        source_url = EXCLUDED.source_url,
-        source_clause = EXCLUDED.source_clause
+        -- A reviewed row keeps the provenance its reviewer checked, unless the
+        -- transcription itself changed; then the review is stale and resets.
+        source_url = CASE WHEN colleges.verification = 'verified' AND NOT ${changed}
+          THEN colleges.source_url ELSE EXCLUDED.source_url END,
+        source_clause = CASE WHEN colleges.verification = 'verified' AND NOT ${changed}
+          THEN colleges.source_clause ELSE EXCLUDED.source_clause END,
+        verification = CASE WHEN ${changed} THEN 'draft' ELSE colleges.verification END,
+        publication = CASE WHEN ${changed} THEN 'unpublished' ELSE colleges.publication END,
+        verified_at = CASE WHEN ${changed} THEN NULL ELSE colleges.verified_at END,
+        verified_by = CASE WHEN ${changed} THEN NULL ELSE colleges.verified_by END
     `;
   }
 

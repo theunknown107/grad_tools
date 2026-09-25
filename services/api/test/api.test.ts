@@ -302,6 +302,51 @@ describeDb('reference API', () => {
          WHERE catalogue_id = ${VTU_COLLEGES.entries[0]!.id}
       `).rejects.toThrow(/colleges_publish_requires_known_autonomy/);
     });
+
+    it('keeps the provenance a reviewer verified when re-seeded', async () => {
+      const id = VTU_COLLEGES.entries[1]!.id;
+      await sql`
+        UPDATE colleges SET verification = 'verified', verified_at = now(),
+          source_url = 'https://example.org/reviewed', source_clause = 'reviewed copy'
+        WHERE catalogue_id = ${id}
+      `;
+      try {
+        await seed(sql);
+        const [row] = await sql<{ source_url: string; verification: string }[]>`
+          SELECT source_url, source_clause, verification FROM colleges WHERE catalogue_id = ${id}
+        `;
+        expect(row).toMatchObject({
+          source_url: 'https://example.org/reviewed',
+          source_clause: 'reviewed copy',
+          verification: 'verified',
+        });
+      } finally {
+        await sql`UPDATE colleges SET verification = 'draft', verified_at = NULL WHERE catalogue_id = ${id}`;
+        await seed(sql);
+      }
+    });
+
+    it('resets the review of a row whose transcription changed', async () => {
+      const entry = VTU_COLLEGES.entries[2]!;
+      await sql`
+        UPDATE colleges SET name = 'Stale Name', verification = 'verified', verified_at = now(),
+          verified_by = 'a reviewer', source_url = 'https://example.org/reviewed'
+        WHERE catalogue_id = ${entry.id}
+      `;
+      await seed(sql);
+      const [row] = await sql<Record<string, unknown>[]>`
+        SELECT name, verification, publication, verified_at, verified_by, source_url
+        FROM colleges WHERE catalogue_id = ${entry.id}
+      `;
+      expect(row).toEqual({
+        name: entry.name,
+        verification: 'draft',
+        publication: 'unpublished',
+        verified_at: null,
+        verified_by: null,
+        source_url: VTU_COLLEGES.source.url,
+      });
+    });
   });
 
   /* ---------------------------------------------------------------------- */
@@ -621,6 +666,24 @@ describeDb('reference API', () => {
         false,
       );
       await sql`DELETE FROM colleges WHERE name = 'Draft College'`;
+    });
+
+    it('serves the catalogue id with each published college', async () => {
+      await sql`
+        INSERT INTO colleges (university_id, name, is_autonomous, source_url,
+                              verification, verified_at, publication, catalogue_id)
+        VALUES ('vtu', 'Catalogued College', false, 'https://example.org/x',
+                'verified', now(), 'published', 'test-catalogued')
+      `;
+      try {
+        const res = await request(app).get('/api/v1/colleges');
+        const college = (res.body.data as { name: string; catalogueId: string | null }[]).find(
+          (c) => c.name === 'Catalogued College',
+        );
+        expect(college?.catalogueId).toBe('test-catalogued');
+      } finally {
+        await sql`DELETE FROM colleges WHERE catalogue_id = 'test-catalogued'`;
+      }
     });
   });
 
