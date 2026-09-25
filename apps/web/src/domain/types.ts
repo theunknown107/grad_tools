@@ -51,6 +51,22 @@ export interface StudentProfile {
   readonly branch: string | null;
   readonly currentSemester: number | null;
 
+  /**
+   * Academic identity, AS THE STUDENT STATED IT (UF-01). Each is optional and
+   * none is ever inferred from another: the entry route is a plain fact and
+   * implies no semester count or lateral entry (OQ-055), and the passout year
+   * is what the student asserted — a suggestion from the admission year is
+   * only ever offered, never stored on its own. NO DATE OF BIRTH (DEC-008).
+   *
+   * OPTIONAL KEYS, because profiles saved before these existed do not carry
+   * them — absent and null both mean "not said"; read them `?? null`.
+   */
+  readonly admissionYear?: number | null;
+  readonly expectedPassoutYear?: number | null;
+  readonly entryRoute?: 'puc' | 'diploma' | null;
+  /** ISO time the student explicitly confirmed how their name is shown. */
+  readonly identityConfirmedAt?: string | null;
+
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -187,6 +203,14 @@ export interface ResultSubject {
  * competing source of truth. When the two disagree the UI shows BOTH and
  * flags it — neither silently overrides the other (docs/08 §SemesterRecord).
  */
+export interface ResultSource {
+  readonly kind: 'vtu-result-page' | 'document' | 'manual';
+  /** The VTU result session the student said this came from, or null. */
+  readonly sessionId: string | null;
+  readonly importedAt: string;
+  readonly parserVersion: string;
+}
+
 export interface SemesterResult {
   readonly id: string;
   readonly profileId: StudentProfileId;
@@ -204,6 +228,12 @@ export interface SemesterResult {
   /** Optional: the SGPA printed on the grade card, as entered by the student. */
   readonly sgpaAsserted: number | null;
   readonly subjects: readonly ResultSubject[];
+  /**
+   * Where this result came from (DEC-011). LOCAL-ONLY in V1: not a synced
+   * column, so it is kept on pull and left out of the sync fingerprint.
+   * Absent on results saved before it existed.
+   */
+  readonly source?: ResultSource | undefined;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

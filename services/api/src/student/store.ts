@@ -173,6 +173,10 @@ const PROFILE_COLUMNS = (sql: Sql) => sql`
   programme,
   branch,
   current_semester AS "currentSemester",
+  admission_year   AS "admissionYear",
+  expected_passout_year AS "expectedPassoutYear",
+  entry_route      AS "entryRoute",
+  to_char(identity_confirmed_at, 'YYYY-MM-DD"T"HH24:MI:SS.MSOF') AS "identityConfirmedAt",
   revision,
   to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MSOF') AS "createdAt",
   to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.MSOF') AS "updatedAt"
@@ -208,12 +212,15 @@ export async function upsertProfile(sql: Sql, input: ProfileInput): Promise<Prof
      */
     const rows = await sql<CloudProfile[]>`
       INSERT INTO student_profiles (
-        display_name, usn, college_name, scheme_id, programme, branch, current_semester
+        display_name, usn, college_name, scheme_id, programme, branch, current_semester,
+        admission_year, expected_passout_year, entry_route, identity_confirmed_at
       )
       VALUES (
         ${input.displayName ?? null}, ${input.usn ?? null}, ${input.collegeName ?? null},
         ${input.schemeId}, ${input.programme ?? null}, ${input.branch ?? null},
-        ${input.currentSemester ?? null}
+        ${input.currentSemester ?? null},
+        ${input.admissionYear ?? null}, ${input.expectedPassoutYear ?? null},
+        ${input.entryRoute ?? null}, ${input.identityConfirmedAt ?? null}
       )
       RETURNING ${PROFILE_COLUMNS(sql)}
     `;
@@ -234,7 +241,11 @@ export async function upsertProfile(sql: Sql, input: ProfileInput): Promise<Prof
       scheme_id        = ${input.schemeId},
       programme        = ${input.programme ?? null},
       branch           = ${input.branch ?? null},
-      current_semester = ${input.currentSemester ?? null}
+      current_semester = ${input.currentSemester ?? null},
+      admission_year   = ${input.admissionYear ?? null},
+      expected_passout_year = ${input.expectedPassoutYear ?? null},
+      entry_route      = ${input.entryRoute ?? null},
+      identity_confirmed_at = ${input.identityConfirmedAt ?? null}
     RETURNING ${PROFILE_COLUMNS(sql)}
   `;
   return { kind: 'saved', profile: rows[0] as CloudProfile };
