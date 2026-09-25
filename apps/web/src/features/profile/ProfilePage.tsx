@@ -54,13 +54,20 @@ import { hasNoBacklogs } from '../../domain/statistics.js';
 import type { StudentProfile } from '../../domain/types.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
 import { useProfile, useResults, useTimetable } from '../../hooks/useCollection.js';
-import { useBranches, useSchemes, useSubjects } from '../../hooks/useReference.js';
+import { useSubjects } from '../../hooks/useReference.js';
 import { cn } from '../../lib/cn.js';
 import { branchCode, formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { isStorageAvailable } from '../../repositories/local/store.js';
 import { useAuth } from '../auth/AuthContext.js';
 import { SEMESTER_OPTIONS } from '../import/CalendarReview.js';
+import {
+  BranchField,
+  CollegeField,
+  SchemeField,
+  YearFields,
+  useAcademicYears,
+} from '../onboarding/AcademicFields.js';
 
 const PROGRAMMES = ['B.E.', 'B.Tech.', 'B.Arch.', 'M.Tech.', 'M.Arch.', 'MBA', 'MCA'] as const;
 const NOT_SET = '__not_set__';
@@ -159,6 +166,22 @@ function Overview({
       icon: FileText,
       label: 'Scheme',
       value: profile?.schemeId === 'vtu-2022' ? 'VTU 2022 (22OB)' : null,
+    },
+    { icon: CalendarDays, label: 'Admission year', value: yearText(profile?.admissionYear) },
+    {
+      icon: CalendarDays,
+      label: 'Expected passout year',
+      value: yearText(profile?.expectedPassoutYear),
+    },
+    {
+      icon: GraduationCap,
+      label: 'Entry route',
+      value:
+        profile?.entryRoute === 'puc'
+          ? 'PUC'
+          : profile?.entryRoute === 'diploma'
+            ? 'Diploma'
+            : null,
     },
     {
       icon: CalendarDays,
@@ -309,11 +332,14 @@ function Overview({
   );
 }
 
+const yearText = (year: number | null | undefined): string | null =>
+  year === null || year === undefined ? null : String(year);
+
 /* ---------------------------------------------------------------- Forms */
 
 type SaveProfile = (profile: StudentProfile) => Promise<void>;
 
-function withChanges(
+export function withChanges(
   profile: StudentProfile | null,
   patch: Partial<StudentProfile>,
 ): StudentProfile {
@@ -327,6 +353,10 @@ function withChanges(
     programme: profile?.programme ?? null,
     branch: profile?.branch ?? null,
     currentSemester: profile?.currentSemester ?? null,
+    admissionYear: profile?.admissionYear ?? null,
+    expectedPassoutYear: profile?.expectedPassoutYear ?? null,
+    entryRoute: profile?.entryRoute ?? null,
+    identityConfirmedAt: profile?.identityConfirmedAt ?? null,
     createdAt: profile?.createdAt ?? nowIso(),
     ...patch,
     updatedAt: nowIso(),
@@ -360,8 +390,7 @@ function AcademicForm({
   readonly profile: StudentProfile | null;
   readonly save: SaveProfile;
 }) {
-  const schemes = useSchemes();
-  const branches = useBranches();
+  const years = useAcademicYears(profile);
   const [collegeName, setCollegeName] = useState(profile?.collegeName ?? '');
   const [branch, setBranch] = useState(profile?.branch ?? '');
   const [programme, setProgramme] = useState(profile?.programme ?? '');
@@ -371,6 +400,7 @@ function AcademicForm({
       : String(profile.currentSemester),
   );
   const dirty =
+    years.dirty ||
     collegeName !== (profile?.collegeName ?? '') ||
     branch !== (profile?.branch ?? '') ||
     programme !== (profile?.programme ?? '') ||
@@ -380,6 +410,7 @@ function AcademicForm({
         : String(profile.currentSemester));
 
   const reset = (): void => {
+    years.reset();
     setCollegeName(profile?.collegeName ?? '');
     setBranch(profile?.branch ?? '');
     setProgramme(profile?.programme ?? '');
@@ -389,9 +420,12 @@ function AcademicForm({
         : String(profile.currentSemester),
     );
   };
+  /* Profile fields only: nothing here reaches a result, whatever changes. */
   const commit = (): void => {
+    if (years.error !== null) return;
     void save(
       withChanges(profile, {
+        ...years.values(),
         collegeName: blankToNull(collegeName),
         branch: blankToNull(branch),
         programme: blankToNull(programme),
@@ -413,62 +447,8 @@ function AcademicForm({
           }}
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="College">
-              <Input value={collegeName} onChange={(event) => setCollegeName(event.target.value)} />
-            </Field>
-            {branches.state.status === 'loading' ? (
-              <Field label="Branch" hint="Loading branches…">
-                <Input disabled value={branch} />
-              </Field>
-            ) : branches.state.status === 'ready' && branches.state.data.length > 0 ? (
-              <Field label="Branch" hint="From the GradTools reference data.">
-                <Select
-                  value={branch === '' ? NOT_SET : branch}
-                  onValueChange={(value) => setBranch(value === NOT_SET ? '' : value)}
-                  options={[
-                    { value: NOT_SET, label: 'Not set' },
-                    ...branches.state.data.map((item) => ({ value: item.name, label: item.name })),
-                    ...(branch !== '' && !branches.state.data.some((item) => item.name === branch)
-                      ? [{ value: branch, label: branch }]
-                      : []),
-                  ]}
-                />
-              </Field>
-            ) : (
-              /*
-               * THE FALLBACK IS A FALLBACK, AND SAYS WHICH ONE IT IS.
-               *
-               * The list above is the normal case. Typing a branch by hand is
-               * what is left when the reference data could not be reached —
-               * and an unreachable server is a thing to retry, not a thing to
-               * work around silently, which is what this looked like.
-               *
-               * The retry sits BESIDE the field rather than inside its hint:
-               * the hint is the input's `aria-describedby` target, and a
-               * control buried in a description is read as part of it.
-               */
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <Field
-                  label="Branch"
-                  hint={
-                    branches.state.status === 'error'
-                      ? 'Branches could not be loaded; type yours instead.'
-                      : 'No branches available from the server; type yours instead.'
-                  }
-                >
-                  <Input
-                    placeholder="Computer Science"
-                    value={branch}
-                    onChange={(event) => setBranch(event.target.value)}
-                  />
-                </Field>
-                <div>
-                  <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={branches.retry}>
-                    Look for branches again
-                  </Button>
-                </div>
-              </div>
-            )}
+            <CollegeField value={collegeName} onChange={setCollegeName} />
+            <BranchField value={branch} onChange={setBranch} />
             <Field
               label="Programme"
               hint={
@@ -498,34 +478,14 @@ function AcademicForm({
                 options={[{ value: NOT_SET, label: 'Not set' }, ...SEMESTER_OPTIONS]}
               />
             </Field>
-            <Field
-              label="Scheme"
-              hint={
-                schemes.state.status === 'error'
-                  ? 'Schemes could not be loaded from the server.'
-                  : 'Only verified schemes are offered.'
-              }
-            >
-              <Select
-                value={vtu2022RuleSet.schemeId}
-                onValueChange={() => undefined}
-                disabled={schemes.state.status !== 'ready' || schemes.state.data.length <= 1}
-                options={
-                  schemes.state.status === 'ready' && schemes.state.data.length > 0
-                    ? schemes.state.data.map((item) => ({
-                        value: item.id,
-                        label: `${item.name} (${item.regulationCode})`,
-                      }))
-                    : [{ value: vtu2022RuleSet.schemeId, label: 'VTU 2022 (22OB)' }]
-                }
-              />
-            </Field>
+            <SchemeField />
+            <YearFields years={years} />
           </div>
           <div className="mt-6 flex justify-end gap-2">
             <Button variant="ghost" icon={<RotateCcw />} onClick={reset} disabled={!dirty}>
               Reset
             </Button>
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="primary" disabled={years.error !== null}>
               Save profile
             </Button>
           </div>
@@ -583,7 +543,8 @@ function IdentityForm({
           />
         </Field>
         <p className="text-[12px] text-ink-3 sm:col-span-2">
-          College, branch, programme and semester are set in{' '}
+          College, branch, programme, semester, admission and passout years and entry route are set
+          in{' '}
           <Link
             to="/account?section=academic"
             className="font-medium text-accent-ink underline-offset-4 hover:underline"

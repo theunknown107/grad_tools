@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { STUDENT_ROUTES } from '@gradtools/shared-types';
+import { STUDENT_ROUTES, type CloudProfile, type ProfileInput } from '@gradtools/shared-types';
 import { apiBaseUrl } from '../../repositories/reference.js';
 import { useRepositories } from '../../repositories/context.js';
 import { useAuth } from './AuthContext.js';
@@ -47,7 +47,13 @@ import {
   reconcile,
   type ObservedAggregate,
 } from '../../domain/attendance.js';
-import type { AttendanceRecord, RemoteSnapshot, ResultSubject } from '../../domain/types.js';
+import type {
+  AttendanceRecord,
+  RemoteSnapshot,
+  ResultSubject,
+  StudentProfile,
+} from '../../domain/types.js';
+import { asStudentProfileId } from '../../domain/identity.js';
 import type { RepositoryBundle } from '../../repositories/types.js';
 
 /** Which local repository backs each synced collection (M9 §53). */
@@ -295,6 +301,31 @@ async function recordObservations(
   }
 }
 
+/**
+ * The profile as `PUT /me/profile` takes it: every stated field, nothing local.
+ * `baseRevision` is omitted — this path only ever CREATES the cloud profile.
+ */
+function profileInput(profile: StudentProfile): ProfileInput {
+  return {
+    displayName: profile.displayName,
+    usn: profile.usn,
+    collegeName: profile.collegeName,
+    schemeId: profile.schemeId,
+    programme: profile.programme,
+    branch: profile.branch,
+    currentSemester: profile.currentSemester,
+    admissionYear: profile.admissionYear ?? null,
+    expectedPassoutYear: profile.expectedPassoutYear ?? null,
+    entryRoute: profile.entryRoute ?? null,
+    identityConfirmedAt: profile.identityConfirmedAt ?? null,
+  };
+}
+
+function fromCloudProfile(cloud: CloudProfile): StudentProfile {
+  const { revision: _revision, ...fields } = cloud;
+  return { ...fields, id: asStudentProfileId(cloud.id), authUserId: null };
+}
+
 export interface SyncApi {
   readonly state: SyncState;
   readonly syncNow: () => Promise<void>;
@@ -363,6 +394,26 @@ export function useSync(): SyncApi {
       const version = (await readValue<number>(scope, 'schemaVersion')) ?? 0;
       const local = await collectLocal(repositories, version);
 
+      /* ---- the profile the push needs ----------------------------------
+       * The server refuses a push from an account with no cloud profile, and
+       * nothing else ever created one — so a signed-in student's records never
+       * left the device. The profile is not a collection: it is created once
+       * here, from this device's copy, and only when the cloud has none.
+       * An existing cloud profile is never overwritten from here (M9 §28). */
+      const localProfile = await repositories.profile.get();
+      if (localProfile !== null) {
+        const me = await authorized(STUDENT_ROUTES.me);
+        const cloudProfile =
+          me !== null && me.ok ? ((await me.json()) as { profile?: unknown }).profile : undefined;
+        if (cloudProfile === null) {
+          const created = await authorized(STUDENT_ROUTES.meProfile, {
+            method: 'PUT',
+            body: JSON.stringify(profileInput(localProfile)),
+          });
+          if (created === null || !created.ok) throw new Error('profile failed');
+        }
+      }
+
       /* ---- push first, so this device's work is safe before anything is
          overwritten by a pull (M9 §68) ---------------------------------- */
       /*
@@ -400,6 +451,7 @@ export function useSync(): SyncApi {
       if (pull === null || !pull.ok) throw new Error('pull failed');
 
       const body = (await pull.json()) as {
+        profile?: CloudProfile | null;
         records: {
           id: string;
           collection: string;
@@ -409,6 +461,11 @@ export function useSync(): SyncApi {
         }[];
         syncedAt: string;
       };
+
+      /* A device with no profile of its own takes the account's (a new device). */
+      if (localProfile === null && body.profile !== undefined && body.profile !== null) {
+        await repositories.profile.save(fromCloudProfile(body.profile));
+      }
 
       const plan = planPull(body.records, local, bookkeeping);
 
