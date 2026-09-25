@@ -571,9 +571,7 @@ export function readDictionary(
     const namedAfter = named.slice(named.indexOf(code) + (named.includes(code) ? code.length : 0));
 
     const titleParts =
-      declared === null
-        ? [stripAdmin(namedAfter)]
-        : [after.slice(0, after.indexOf(declared))];
+      declared === null ? [stripAdmin(namedAfter)] : [after.slice(0, after.indexOf(declared))];
     for (const index of block.slice(1)) {
       titleParts.push(stripAdmin(declared === null ? nameColumn(index) : (rows[index] ?? '')));
     }
@@ -1255,7 +1253,7 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
    * a label are past the midpoint, so the band is the label's row alone — byte
    * for byte the behaviour that layout had before.
    */
-  const labelY = (index: number) => (rows[index]?.[0]?.y ?? 0);
+  const labelY = (index: number) => rows[index]?.[0]?.y ?? 0;
   const bands = new Map<number, Band>();
 
   for (let position = 0; position < labelRows.length; position += 1) {
@@ -1265,8 +1263,7 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
 
     const y = labelY(labelRow);
     const previous = position > 0 ? labelY(labelRows[position - 1] as number) : null;
-    const next =
-      position + 1 < labelRows.length ? labelY(labelRows[position + 1] as number) : null;
+    const next = position + 1 < labelRows.length ? labelY(labelRows[position + 1] as number) : null;
 
     /*
      * The outer edges use the gap this day actually has, mirrored. A first or

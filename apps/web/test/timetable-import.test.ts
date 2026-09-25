@@ -400,7 +400,10 @@ describe('what a slot is, answered once', () => {
   });
 
   it('names an activity as the document printed it, with no code beside it', () => {
-    const entry = timetableEntry({ ...hour, subjectCode: null, activity: 'Placement & Training' }, null);
+    const entry = timetableEntry(
+      { ...hour, subjectCode: null, activity: 'Placement & Training' },
+      null,
+    );
     expect(entry).toEqual({
       name: 'Placement & Training',
       shortName: 'Placement & Training',
@@ -1066,9 +1069,7 @@ describe('the subject table read as COLUMNS', () => {
      * the row as one flattened line made the subject "Mini project New
      * Faculty", and a grid cell saying "Mini project" then matched nothing.
      */
-    const dictionary = read([
-      tableRow(300, 'BQAS586-Mini project', 'New Faculty', null),
-    ]);
+    const dictionary = read([tableRow(300, 'BQAS586-Mini project', 'New Faculty', null)]);
     expect(dictionary[0]?.title).toBe('Mini project');
   });
 

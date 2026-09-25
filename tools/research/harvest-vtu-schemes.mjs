@@ -43,12 +43,22 @@ const OUT = resolve(ROOT, 'docs/research');
 const TARGETS = [
   // ---- 2022 scheme, semesters 3-8: where the 259 missing codes live -------
   ['2022', 'Computer Science & Engineering', '3-8', 'https://vtu.ac.in/pdf/2022_3to8/38csesch.pdf'],
-  ['2022', 'Information Science & Engineering', '3-8', 'https://vtu.ac.in/pdf/2022_3to8/38issch.pdf'],
+  [
+    '2022',
+    'Information Science & Engineering',
+    '3-8',
+    'https://vtu.ac.in/pdf/2022_3to8/38issch.pdf',
+  ],
   ['2022', 'Computer Science (CS)', '3-8', 'https://vtu.ac.in/pdf/2022_3to8/38cssch.pdf'],
   ['2022', 'Computer Engineering', '3-8', 'https://vtu.ac.in/pdf/2022_3to8/38cesch.pdf'],
   ['2022', 'AI & Data Science', '3-8', 'https://vtu.ac.in/pdf/2022_3to8/38aidssch.pdf'],
   ['2022', 'AI & Machine Learning', '3-8', 'https://vtu.ac.in/pdf/2022_3to8/38aimlsch.pdf'],
-  ['2022', 'Computer & Communication Engineering', '3-8', 'https://vtu.ac.in/pdf/2022_3to8/38ccesch.pdf'],
+  [
+    '2022',
+    'Computer & Communication Engineering',
+    '3-8',
+    'https://vtu.ac.in/pdf/2022_3to8/38ccesch.pdf',
+  ],
   ['2022', 'Computer Science & Design', '3-8', 'https://vtu.ac.in/pdf/2022_3to8/38csdsch.pdf'],
   ['2022', 'Data Science', '3-8', 'https://vtu.ac.in/pdf/2022_3to8/38dssch.pdf'],
   ['2022', 'Electronics & Communication', '3-4', 'https://vtu.ac.in/pdf/2022_3to8/ecesch.pdf'],
@@ -63,10 +73,30 @@ const TARGETS = [
   ['2022', 'Electrical Streams', '1-2', 'https://vtu.ac.in/pdf/2022syll/elecsch.pdf'],
   ['2022', 'Mechanical Streams', '1-2', 'https://vtu.ac.in/pdf/2022syll/mechsch.pdf'],
   // ---- 2025 scheme ------------------------------------------------------
-  ['2025', 'Common to all Engineering (Physics Cycle)', '1-2', 'https://vtu.ac.in/pdf/UG2024/phycyc.pdf'],
-  ['2025', 'Common to all Engineering (Chemistry Cycle)', '1-2', 'https://vtu.ac.in/pdf/UG2024/chemcyc.pdf'],
-  ['2025', 'Computer Science & Engineering', '3-4', 'https://vtu.ac.in/pdf/2025syll3to8/34csesch.pdf'],
-  ['2025', 'Information Science & Engineering', '3-4', 'https://vtu.ac.in/pdf/2025syll3to8/34issch.pdf'],
+  [
+    '2025',
+    'Common to all Engineering (Physics Cycle)',
+    '1-2',
+    'https://vtu.ac.in/pdf/UG2024/phycyc.pdf',
+  ],
+  [
+    '2025',
+    'Common to all Engineering (Chemistry Cycle)',
+    '1-2',
+    'https://vtu.ac.in/pdf/UG2024/chemcyc.pdf',
+  ],
+  [
+    '2025',
+    'Computer Science & Engineering',
+    '3-4',
+    'https://vtu.ac.in/pdf/2025syll3to8/34csesch.pdf',
+  ],
+  [
+    '2025',
+    'Information Science & Engineering',
+    '3-4',
+    'https://vtu.ac.in/pdf/2025syll3to8/34issch.pdf',
+  ],
   ['2025', 'Electronics & Communication', '3-4', 'https://vtu.ac.in/pdf/2025syll3to8/34ecsch.pdf'],
   ['2025', 'Electrical & Electronics', '3-4', 'https://vtu.ac.in/pdf/2025syll3to8/34eeesch.pdf'],
   ['2025', 'Mechanical Engineering', '3-4', 'https://vtu.ac.in/pdf/2025syll3to8/34mecsch.pdf'],
@@ -96,7 +126,12 @@ async function extract(file) {
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p);
     const content = await page.getTextContent();
-    pages.push(content.items.map((i) => i.str).join(' ').replace(/[ \t]+/g, ' '));
+    pages.push(
+      content.items
+        .map((i) => i.str)
+        .join(' ')
+        .replace(/[ \t]+/g, ' '),
+    );
   }
   return { pageCount: doc.numPages, pages };
 }
@@ -111,23 +146,31 @@ for (const [scheme, programme, semesters, url] of TARGETS) {
     const { file, bytes, cached } = await fetchCached(url);
     rec.bytes = bytes;
     rec.cached = cached;
-    rec.sha256 = createHash('sha256').update(await readFile(file)).digest('hex');
+    rec.sha256 = createHash('sha256')
+      .update(await readFile(file))
+      .digest('hex');
     const { pageCount, pages } = await extract(file);
     rec.pageCount = pageCount;
     const text = pages.map((t, i) => `\n===== PAGE ${i + 1} =====\n${t}`).join('\n');
     rec.chars = text.length;
     /* An image-only scan extracts as near-nothing. Record it, never fake it. */
-    rec.status = text.replace(/=====[^=]*=====/g, '').trim().length < 200
-      ? 'EXTRACTION_EMPTY (likely image-only scan)'
-      : 'EXTRACTED';
-    const slug = url.split('/').pop().replace(/\.pdf$/, '');
+    rec.status =
+      text.replace(/=====[^=]*=====/g, '').trim().length < 200
+        ? 'EXTRACTION_EMPTY (likely image-only scan)'
+        : 'EXTRACTED';
+    const slug = url
+      .split('/')
+      .pop()
+      .replace(/\.pdf$/, '');
     rec.textFile = `.vtu-cache/text/${scheme}_${slug}.txt`;
     await writeFile(join(CACHE, 'text', `${scheme}_${slug}.txt`), text, 'utf8');
   } catch (error) {
     rec.status = `FAILED: ${String(error.message)}`;
   }
   records.push(rec);
-  console.log(`${rec.status.padEnd(34)} ${scheme} ${programme} [${semesters}] ${url.split('/').pop()}`);
+  console.log(
+    `${rec.status.padEnd(34)} ${scheme} ${programme} [${semesters}] ${url.split('/').pop()}`,
+  );
 }
 
 /* Duplicate detection by content hash, not by filename. */
@@ -137,25 +180,31 @@ for (const r of records) {
   if (!byHash.has(r.sha256)) byHash.set(r.sha256, []);
   byHash.get(r.sha256).push(r.url);
 }
-const duplicates = [...byHash.entries()].filter(([, urls]) => urls.length > 1)
+const duplicates = [...byHash.entries()]
+  .filter(([, urls]) => urls.length > 1)
   .map(([sha256, urls]) => ({ sha256, urls }));
 
 await writeFile(
   join(OUT, 'vtu-official-documents.json'),
-  JSON.stringify({
-    schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
-    method: 'Official vtu.ac.in PDFs only. Downloaded with curl-equivalent fetch at 1 req/s, hashed, extracted with the product pdfjs build.',
-    indexSource: 'https://vtu.ac.in/b-e-scheme-syllabus/',
-    counts: {
-      targeted: records.length,
-      extracted: records.filter((r) => r.status === 'EXTRACTED').length,
-      empty: records.filter((r) => String(r.status).startsWith('EXTRACTION_EMPTY')).length,
-      failed: records.filter((r) => String(r.status).startsWith('FAILED')).length,
+  JSON.stringify(
+    {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      method:
+        'Official vtu.ac.in PDFs only. Downloaded with curl-equivalent fetch at 1 req/s, hashed, extracted with the product pdfjs build.',
+      indexSource: 'https://vtu.ac.in/b-e-scheme-syllabus/',
+      counts: {
+        targeted: records.length,
+        extracted: records.filter((r) => r.status === 'EXTRACTED').length,
+        empty: records.filter((r) => String(r.status).startsWith('EXTRACTION_EMPTY')).length,
+        failed: records.filter((r) => String(r.status).startsWith('FAILED')).length,
+      },
+      duplicates,
+      documents: records,
     },
-    duplicates,
-    documents: records,
-  }, null, 1),
+    null,
+    1,
+  ),
   'utf8',
 );
 console.log('\nwrote docs/research/vtu-official-documents.json');

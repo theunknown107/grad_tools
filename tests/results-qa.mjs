@@ -421,7 +421,9 @@ const run = async () => {
       await page.waitForTimeout(400);
     }
     const card = page
-      .getByRole('button', { name: new RegExp(`Semester ${String(semester)}.*open the full record`, 'i') })
+      .getByRole('button', {
+        name: new RegExp(`Semester ${String(semester)}.*open the full record`, 'i'),
+      })
       .first();
     if ((await card.count()) > 0) {
       await card.click();
@@ -461,7 +463,10 @@ const run = async () => {
 
   const s1Rows = await (await openRecord(1)).count();
   expect(s1Rows === 8, `INTERACTION: semester 1 rendered ${s1Rows} rows, expected 8`);
-  await page.getByRole('button', { name: /back to results/i }).first().click();
+  await page
+    .getByRole('button', { name: /back to results/i })
+    .first()
+    .click();
   await page.waitForTimeout(400);
 
   /* ---- a second result for a semester that has one is refused --------- */

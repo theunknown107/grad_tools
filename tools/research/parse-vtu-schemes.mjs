@@ -30,9 +30,7 @@ const ROOT = resolve(process.cwd(), '../..');
 const TEXT = resolve(ROOT, '.vtu-cache/text');
 const OUT = resolve(ROOT, 'docs/research');
 
-const docs = JSON.parse(
-  await readFile(join(OUT, 'vtu-official-documents.json'), 'utf8'),
-).documents;
+const docs = JSON.parse(await readFile(join(OUT, 'vtu-official-documents.json'), 'utf8')).documents;
 
 const ROMAN = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8 };
 const CODE = /\b(1?B[A-Z]{2,5}\d{3}[A-Zx]?)\b/g;
@@ -66,7 +64,10 @@ const perDoc = [];
 
 for (const doc of docs) {
   if (doc.status !== 'EXTRACTED') continue;
-  const slug = doc.url.split('/').pop().replace(/\.pdf$/, '');
+  const slug = doc.url
+    .split('/')
+    .pop()
+    .replace(/\.pdf$/, '');
   const text = await readFile(join(TEXT, `${doc.scheme}_${slug}.txt`), 'utf8');
 
   const pages = text.split(/\n===== PAGE (\d+) =====\n/).slice(1);
@@ -132,8 +133,13 @@ for (const doc of docs) {
       if (pageMatched > 0) break;
     }
   }
-  perDoc.push({ url: doc.url, scheme: doc.scheme, programme: doc.programme,
-    codesSeen: seen.size, rowsParsed: matched });
+  perDoc.push({
+    url: doc.url,
+    scheme: doc.scheme,
+    programme: doc.programme,
+    codesSeen: seen.size,
+    rowsParsed: matched,
+  });
 }
 
 /* De-duplicate on code+scheme+programme, keeping every source reference. */
@@ -162,22 +168,26 @@ for (const c of unique) bySchemeCount[c.scheme] = (bySchemeCount[c.scheme] ?? 0)
 
 await writeFile(
   join(OUT, 'vtu-official-courses.json'),
-  JSON.stringify({
-    schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
-    status: 'EXTRACTED — not verified, not ready for ingestion',
-    caveat:
-      'Machine-parsed from official VTU scheme tables. Every row carries sourceUrl + sha256 + page. Rows that did not match the table shape were NOT guessed at; see coverage.unmatchedCodes for the shortfall.',
-    counts: {
-      uniqueCourses: unique.length,
-      byScheme: bySchemeCount,
-      parseOk: unique.filter((c) => c.parseConfidence === 'OK').length,
-      parseSuspect: unique.filter((c) => c.parseConfidence === 'SUSPECT').length,
-      placeholderCodes: unique.filter((c) => c.isPlaceholderCode).length,
+  JSON.stringify(
+    {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      status: 'EXTRACTED — not verified, not ready for ingestion',
+      caveat:
+        'Machine-parsed from official VTU scheme tables. Every row carries sourceUrl + sha256 + page. Rows that did not match the table shape were NOT guessed at; see coverage.unmatchedCodes for the shortfall.',
+      counts: {
+        uniqueCourses: unique.length,
+        byScheme: bySchemeCount,
+        parseOk: unique.filter((c) => c.parseConfidence === 'OK').length,
+        parseSuspect: unique.filter((c) => c.parseConfidence === 'SUSPECT').length,
+        placeholderCodes: unique.filter((c) => c.isPlaceholderCode).length,
+      },
+      coverage: perDoc,
+      courses: unique,
     },
-    coverage: perDoc,
-    courses: unique,
-  }, null, 1),
+    null,
+    1,
+  ),
   'utf8',
 );
 
