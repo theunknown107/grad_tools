@@ -3,14 +3,13 @@
  * Signing in uploads nothing by itself; First sync asks what to do next.
  */
 
-import { GraduationCap } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
 import { Callout } from '../../components/ui/feedback.js';
 import { Field, Input } from '../../components/ui/field.js';
-import { IconTile } from '../../components/ui/page.js';
 import { Segmented } from '../../components/ui/segmented.js';
 import { useAuth } from './AuthContext.js';
 
@@ -33,9 +32,7 @@ function Frame({
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-4 py-4">
       <Card className="p-6 sm:p-8">
-        <IconTile tone="solid" size="lg">
-          <GraduationCap />
-        </IconTile>
+        <GradToolsLogo size={40} />
         <h1 className="mt-5 font-display text-[26px] leading-tight font-semibold tracking-[-0.02em]">
           {title}
         </h1>

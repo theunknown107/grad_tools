@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
@@ -458,9 +459,7 @@ export function AccountPage() {
           {section === 'about' && (
             <Card className="p-6">
               <div className="flex items-center gap-3">
-                <IconTile tone="solid" size="lg">
-                  <GraduationCap />
-                </IconTile>
+                <GradToolsLogo size={40} />
                 <div>
                   <h2 className="text-[16px] font-semibold">GradTools</h2>
                   <div className="font-mono text-[11px] text-ink-3">

@@ -27,6 +27,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
 import { Toaster } from '../../components/ui/feedback.js';
+import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
 import { IconTile } from '../../components/ui/page.js';
 import { Progress } from '../../components/ui/progress.js';
 import { TooltipProvider } from '../../components/ui/tooltip.js';
@@ -132,9 +133,7 @@ export function LandingPage() {
               className="flex items-center gap-2.5 rounded-lg"
               aria-label="GradTools"
             >
-              <span className="grid size-8 place-items-center rounded-lg bg-accent text-on-accent">
-                <GraduationCap className="size-5" aria-hidden="true" />
-              </span>
+              <GradToolsLogo />
               <span className="leading-tight">
                 <span className="block text-[15px] font-semibold tracking-[-0.01em]">
                   GradTools
@@ -368,9 +367,7 @@ export function LandingPage() {
           <div className="mx-auto grid max-w-[1180px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.4fr_2fr] lg:px-10">
             <div>
               <Link to="/welcome" className="inline-flex items-center gap-2.5 rounded-lg">
-                <span className="grid size-8 place-items-center rounded-lg bg-accent text-on-accent">
-                  <GraduationCap className="size-5" aria-hidden="true" />
-                </span>
+                <GradToolsLogo />
                 <span className="text-[15px] font-semibold">GradTools</span>
               </Link>
               <p className="mt-3 max-w-sm text-[13px] text-ink-2">
