@@ -68,6 +68,17 @@ export interface SchemeCourse {
    * Both options are worth what that row says. Null for an ordinary course.
    */
   readonly viaAlternativeTo: string | null;
+  /**
+   * The code this one replaces, when the row prints it in brackets beside it.
+   *
+   *     1BKSK109(BKSK107)
+   *
+   * Carried rather than discarded, and deliberately NOT written to the alias
+   * table: both first-year cycles print `(BKSK107)`, one against `1BKSK109`
+   * and the other against `1BKSK209`, so one superseded code has two
+   * superseding ones and an alias would have to claim otherwise.
+   */
+  readonly supersedes: string | null;
 }
 
 export interface SchemeRejection {
@@ -143,11 +154,36 @@ export interface ParsedScheme {
  * short of the total its own document prints, and the code was not missing
  * from the PDF at all — only from the pattern.
  *
- * Still anchored at `B`, so the 2025 family's `1BMATC101` does not match here.
- * That one-character difference is a different scheme, not a variant of this
- * one, and reading it as one would reattribute a course to the wrong year.
+ * THE LEADING DIGIT IS THE SCHEME GENERATION, AND IT IS OPTIONAL.
+ *
+ * This was anchored at `B`, with a comment saying the 2025 family's `1BMATC101`
+ * deliberately did not match because "that one-character difference is a
+ * different scheme, not a variant of this one". The first half of that is
+ * right and the second half does not follow. The 2025 scheme prints
+ *
+ *     1BCS301  1BCS302  1BCS303  1BCSL306  1BCSL307A  1BCP308  1BNSS309
+ *     1BMATDIP310
+ *
+ * which is this very shape with a generation digit in front of it — the same
+ * `B`, the same 2-to-7-letter department segment, the same three digits, the
+ * same optional suffix. It is one grammar with a generation marker, not two
+ * grammars, and `vtu-scheme.ts` has recognised it as one (`^1?B…`) since it
+ * was written.
+ *
+ * What actually keeps a 2025 course out of a 2022 student's catalogue is
+ * `scheme_year`, which is part of the identity (§18) and is read from the
+ * document's own heading. Refusing to READ the code never provided that
+ * separation; it only meant a 2025 document parsed to nothing at all, which
+ * looks exactly like a document with no courses in it.
+ *
+ * WHAT THIS DOES NOT CLAIM. That the 2025 codes are equivalent to any 2022
+ * code, that a 2025 document's LAYOUT is understood, or that any credit or
+ * applicability can be read from a document nobody has supplied. This is the
+ * code shape and nothing else.
  */
-const COURSE_CODE = /^B[A-Z]{2,7}\d{3}[A-Za-z]?$/;
+const GENERATION = String.raw`1?`;
+const CODE_SHAPE = String.raw`${GENERATION}B[A-Z]{2,7}\d{3}[A-Za-z]?`;
+const COURSE_CODE = new RegExp(`^${CODE_SHAPE}$`);
 
 /**
  * A CODE CELL THAT NAMES MORE THAN ONE CODE.
@@ -173,8 +209,73 @@ const COURSE_CODE = /^B[A-Z]{2,7}\d{3}[A-Za-z]?$/;
  * document actually prints. The row is read; the unprinted twin is not
  * invented (§1, §7).
  */
-const COMPOUND_CODES = /^B[A-Z]{2,7}\d{3}[A-Za-z]?(?:\/B[A-Z]{2,7}\d{3}[A-Za-z]?)+$/;
-const SHARED_TAIL = /^B([A-Z]{2,6})((?:\/[A-Z]{2,6})+)(\d{3}[A-Za-z]?)$/;
+const COMPOUND_CODES = new RegExp(`^${CODE_SHAPE}(?:/${CODE_SHAPE})+$`);
+
+/**
+ * A CODE PRINTED WITH THE CODE IT SUPERSEDES BESIDE IT.
+ *
+ *     1BKSK109(BKSK107)/1BKBK109(BKBK107)
+ *     Samskrutika Kannada / Balake Kannada
+ *
+ * One row, one credit, two named alternatives, and each of them carrying the
+ * 2022 code it replaces in brackets. It is the only shape in the corpus that
+ * does this: across the 290 cached documents the bracketed form appears in
+ * exactly four cells, which are these two rows, each wrapped over two lines.
+ *
+ * THESE ARE SEPARATE PATTERNS ON PURPOSE. Folding the brackets into
+ * `COMPOUND_CODES` would widen a rule that every other row in every other
+ * document goes through, to serve two of them. Everything here is additive: a
+ * cell that did not match before still does not, and a cell that matched
+ * before is untouched.
+ *
+ * THE BRACKETED CODE IS NOT AN ALIAS, and must not be recorded as one. Both
+ * documents print `(BKSK107)`, but the physics cycle puts the course in
+ * semester I as `1BKSK109` and the chemistry cycle in semester II as
+ * `1BKSK209`. One superseded code, two different superseding ones — so the
+ * alias table's "no code aliased to two different canonical codes" invariant
+ * would reject it, and would be right to. It is carried on the course that
+ * prints it instead.
+ */
+const SUPERSEDING_CODE = new RegExp(`^(${CODE_SHAPE})\\(\\s*(${CODE_SHAPE})\\s*\\)$`);
+
+/** The same, wrapped: the head keeps the slash the document breaks after. */
+const SUPERSEDING_HEAD = new RegExp(`^${CODE_SHAPE}\\(\\s*${CODE_SHAPE}\\s*\\)/$`);
+
+export interface SupersedingCode {
+  readonly code: string;
+  /** The code this one replaces, as printed in brackets beside it. */
+  readonly supersedes: string;
+}
+
+/**
+ * The alternatives a superseding pair names, or null when the cell is not one.
+ *
+ * Every part must carry its own bracketed code. A cell where only one half
+ * does, or where a bracket holds something that is not a course code, is
+ * refused ENTIRELY rather than half-read: there is no honest way to say what
+ * the other half was meant to be, and a half-read pair would put one Kannada
+ * course in a student's semester and silently drop the choice.
+ */
+export function supersedingPairIn(cell: string): SupersedingCode[] | null {
+  const parts = cell
+    .split('/')
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+  if (parts.length < 2) return null;
+
+  const pair: SupersedingCode[] = [];
+  for (const part of parts) {
+    const match = SUPERSEDING_CODE.exec(part);
+    const code = match?.[1];
+    const supersedes = match?.[2];
+    if (code === undefined || supersedes === undefined) return null;
+    pair.push({ code, supersedes });
+  }
+  return pair;
+}
+const SHARED_TAIL = new RegExp(
+  String.raw`^(${GENERATION})B([A-Z]{2,6})((?:/[A-Z]{2,6})+)(\d{3}[A-Za-z]?)$`,
+);
 
 /**
  * THE RUNS A PDF EMITS ARE NOT THE CELLS A TABLE HAS.
@@ -255,7 +356,7 @@ function joinCodeCells(items: readonly PositionedText[]): PositionedText[] {
   for (const head of usable) {
     if (consumed.has(head)) continue;
     const text = head.text.trim();
-    if (!WRAPPED_CODE_HEAD.test(text)) continue;
+    if (!WRAPPED_CODE_HEAD.test(text) && !SUPERSEDING_HEAD.test(text)) continue;
     const tail = usable
       .filter(
         (candidate) =>
@@ -263,7 +364,8 @@ function joinCodeCells(items: readonly PositionedText[]): PositionedText[] {
           candidate.y < head.y &&
           head.y - candidate.y <= line * WRAPPED_CODE_LINES &&
           Math.abs(candidate.x - head.x) <= line &&
-          COMPOUND_CODES.test(`${text}${candidate.text.trim()}`),
+          (COMPOUND_CODES.test(`${text}${candidate.text.trim()}`) ||
+            supersedingPairIn(`${text}${candidate.text.trim()}`) !== null),
       )
       .sort((a, b) => b.y - a.y)[0];
     if (tail === undefined) continue;
@@ -350,7 +452,7 @@ const CODE_PIECE_GAP = 0.5;
  * against the compound grammar before it is believed — so a head that happens
  * to end in a slash joins nothing unless the result is two whole codes.
  */
-const WRAPPED_CODE_HEAD = /^B[A-Z]{2,7}\d{3}[A-Za-z]?\/[A-Z]{0,7}$/;
+const WRAPPED_CODE_HEAD = new RegExp(`^${CODE_SHAPE}/[A-Z]{0,7}$`);
 /** How many lines down its continuation may sit. */
 const WRAPPED_CODE_LINES = 1.6;
 
@@ -358,7 +460,80 @@ const WRAPPED_CODE_LINES = 1.6;
  * Every code a cell names, in the order printed. One entry for an ordinary
  * cell, and an empty list for a cell that names none.
  */
-function codesIn(cell: string): string[] {
+/**
+ * THE PLACEHOLDER LETTERS, IN WHICHEVER CASE THE TYPIST USED.
+ *
+ * `BXX515x` is not a department segment that happens to spell XX — it is the
+ * document writing "whichever discipline this is", and the row it names is the
+ * elective SLOT that carries the credits. The 2022 catalogue ships six of them
+ * as courses for that reason: until a student picks an option, the slot is the
+ * thing they are enrolled in.
+ *
+ * The 2025 CSBS scheme prints those same placeholders in BOTH cases, and not
+ * consistently within one page. Its fourth-semester table row says
+ * `1BXXL406x` while the heading of the option list directly above it says
+ * `1BxxL406x`; the whole of the eighth-semester table is lowercase —
+ * `1Bxx801x`, `1Bxx802x`, `1Bxx803x`, worth 3, 3 and 9 of the 15 credits that
+ * table totals.
+ *
+ * With the letters required to be capitals, that entire semester read as zero
+ * courses. Not refused with a reason — INVISIBLE, because a cell that is not a
+ * code is not a row, so nothing was there to refuse. The scheme reported
+ * semesters III to VII and looked complete.
+ *
+ * Only the placeholder is case-folded, and only to the spelling the rest of
+ * the document uses. Accepting lowercase generally would make `1Bcs302` a
+ * second identity for `1BCS302` and admit prose fragments as codes; this
+ * accepts one token whose letters are `xx` because in that one position the
+ * case carries no meaning to lose.
+ */
+const PLACEHOLDER_CODE = /^(1?)B([A-Za-z]{2,7})(\d{3}[A-Za-z]?)$/;
+
+/**
+ * A DISCIPLINE SEGMENT THAT STANDS FOR SOMETHING RATHER THAN NAMING IT.
+ *
+ * VTU prints real course codes in capitals — across the 290 cached documents
+ * there is no real code with a lowercase letter in its discipline segment — so
+ * a lowercase letter there is a MARKER, not part of a name. That is the whole
+ * rule, and it is measured rather than assumed.
+ *
+ * It covers both families the 2025 documents use:
+ *
+ *     1BXX505x   1Bxx801x    the elective slot, discipline unspecified
+ *     1BMATx101  1BCEDx103   the STREAM marker: "whichever stream's maths"
+ *     1Bxxx105x  1BxxxL207x  the programme marker, discipline unspecified
+ *
+ * `XX` is included in upper case as well because the same document prints the
+ * elective placeholder both ways, and both are the same slot.
+ */
+function isPlaceholderSegment(segment: string): boolean {
+  return /[a-z]/.test(segment) || segment.includes('XX');
+}
+
+function canonicalCode(cell: string): string {
+  const placeholder = PLACEHOLDER_CODE.exec(cell);
+  if (placeholder === null) return cell;
+  const [, generation, segment, tail] = placeholder as unknown as [
+    string,
+    string,
+    string,
+    string,
+  ];
+  if (!isPlaceholderSegment(segment)) return cell;
+  /*
+   * THE TAIL IS LEFT EXACTLY AS PRINTED. Only the discipline segment is
+   * case-free. The trailing letter is not: a lowercase `x` marks the slot
+   * itself — "whichever option is chosen" — and a capital `A`, `B`, `C` names
+   * one of those options, so `BXX515x` and `BXX515A` are different rows.
+   * Folding the tail too turned the six placeholder slots the 2022 catalogue
+   * has shipped since it was published into `BXX515X`, renaming published
+   * courses to fix a different scheme's typography.
+   */
+  return `${generation}B${segment.toUpperCase()}${tail}`;
+}
+
+function codesIn(raw: string): string[] {
+  const cell = canonicalCode(raw.trim());
   if (COURSE_CODE.test(cell)) return [cell];
   /*
    * A SPACE INSIDE THE CELL IS STILL INSIDE THE CELL.
@@ -375,10 +550,26 @@ function codesIn(cell: string): string[] {
   const tight = cell.replace(/\s+/g, '');
   if (tight !== cell && COURSE_CODE.test(tight)) return [tight];
   if (COMPOUND_CODES.test(cell)) return cell.split('/');
+  /*
+   * A superseding pair names its alternatives in order. The FIRST carries the
+   * row, exactly as a compound cell's first code does; the second is attached
+   * to it as an alternative below, so one printed row stays one credit however
+   * many codes it prints.
+   */
+  const superseding = supersedingPairIn(cell);
+  if (superseding !== null) return superseding.map((entry) => entry.code);
   const shared = SHARED_TAIL.exec(cell);
   if (shared === null) return [];
-  const [, head, , tail] = shared as unknown as [string, string, string, string];
-  return [`B${head}${tail}`];
+  const [, generation, head, , tail] = shared as unknown as [
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
+  /* The generation digit travels with the code it belongs to, or the rebuilt
+   * code would name a different scheme's course than the cell printed. */
+  return [`${generation}B${head}${tail}`];
 }
 
 /*
@@ -417,6 +608,35 @@ const ROMAN: Readonly<Record<string, number>> = {
  * department VALUE always names a department after a colon; a header does not.
  */
 const DEPARTMENT_CELL = /^(TD|PSB)\b[^:]{0,14}:/i;
+
+/**
+ * THE SAME CELL, ARRIVING IN TWO PIECES.
+ *
+ * `DEPARTMENT_CELL` requires the colon because that is what separates a
+ * department VALUE from the bare `TD/PSB` column HEADER, and matching the
+ * header would drag the department column's left edge out to it and clip every
+ * title on the page to nothing.
+ *
+ * The 2025 scheme splits the cell at exactly that colon:
+ *
+ *     "TD/PSB"(x 377)   ": CS Allied"(x 404)
+ *
+ * so neither half matches — the first carries no colon, the second opens with
+ * one instead of a label — and both were assembled into the course name. Every
+ * row on those pages read as "TD/PSB : CS Allied Machine Learning".
+ *
+ * THIS PATTERN IS FOR TITLES ONLY, and is deliberately not used to place the
+ * department column. Keeping a bare `TD/PSB` run out of a course NAME is right
+ * whether the run is a header or half a value; letting one set the column edge
+ * is the bug the colon was guarding against. So both halves are refused here,
+ * and only the colon-bearing form is trusted there.
+ */
+const DEPARTMENT_PIECE = /^(TD|PSB)(\s*\/\s*(TD|PSB))?$|^:/i;
+
+/** Text belonging to the department column rather than to a course name. */
+function isDepartmentText(text: string): boolean {
+  return DEPARTMENT_CELL.test(text) || DEPARTMENT_PIECE.test(text);
+}
 
 /**
  * A whole number as the scheme prints one: `3`, `03`, `100`.
@@ -546,7 +766,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
       const nearbyTitle = row
         .filter(
           (cell) =>
-            !DEPARTMENT_CELL.test(cell.text.trim()) &&
+            !isDepartmentText(cell.text.trim()) &&
             !WHOLE_NUMBER.test(cell.text.trim()) &&
             !COURSE_CODE.test(cell.text.trim()),
         )
@@ -645,7 +865,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
             cell.y >= titleFloor &&
             cell.x > item.x &&
             cell.x < Math.min(departmentX, numbers[0]?.x ?? Number.POSITIVE_INFINITY) &&
-            !DEPARTMENT_CELL.test(cell.text.trim()) &&
+            !isDepartmentText(cell.text.trim()) &&
             !WHOLE_NUMBER.test(cell.text.trim()) &&
             !COURSE_CODE.test(cell.text.trim()),
         )
@@ -706,15 +926,38 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
        * two courses either side of a marker and neither is the row; here it
        * draws one row and writes more than one code against it.
        */
+      /*
+       * TITLES WRITTEN IN PARALLEL WITH THE CODES BELONG TO THEM ONE FOR ONE.
+       *
+       *     1BKSK109(BKSK107)/1BKBK109(BKBK107)
+       *     Samskrutika Kannada / Balake Kannada
+       *
+       * Two codes, two names, in the order the row prints them. Only taken
+       * when the counts match and only for a superseding pair: a compound like
+       * `BCH358x/BCHL358x` names ONE course under two codes, and splitting its
+       * title would hand each half a fragment of a name.
+       */
+      const parallel =
+        supersedingPairIn(cell) === null
+          ? null
+          : (() => {
+              const parts = title
+                .split('/')
+                .map((part) => part.trim())
+                .filter((part) => part !== '');
+              return parts.length === named.length ? parts : null;
+            })();
+
       for (const [index, alternative] of named.entries()) {
         courses.push({
           code: alternative,
-          title,
+          title: parallel?.[index] ?? title,
           credits,
           semester,
           page,
           viaElectiveSlot: null,
           viaAlternativeTo: index === 0 ? heads : code,
+          supersedes: supersedingPairIn(cell)?.[index]?.supersedes ?? null,
         });
       }
     }
@@ -786,6 +1029,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
           page,
           viaElectiveSlot: null,
           viaAlternativeTo: partner.text.trim(),
+          supersedes: null,
         });
       }
     }
@@ -877,6 +1121,7 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
       page: rejection.page,
       viaElectiveSlot: slot.code,
       viaAlternativeTo: null,
+      supersedes: null,
     });
   }
 
@@ -894,17 +1139,37 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
 /**
  * The semester a page's table is for.
  *
- * Taken from the page's own heading, and only from a SHORT one. The body text
- * on the notes pages opens with "III semester to the VI semester (for 4
- * semesters)…", which matches the heading shape and would file a page of prose
- * under semester three.
+ * Taken from the page's own heading, and only where the run is a heading
+ * rather than the opening of a sentence. The body text on the notes pages
+ * begins "III semester to the VI semester (for 4 semesters)…", which matches
+ * the heading shape and would file a page of prose under semester three.
+ *
+ * What separates the two is what FOLLOWS the heading: a heading is either the
+ * whole run or the heading plus bracketed qualifiers, while the prose carries
+ * straight on in open text. So the tail is allowed to be parenthesised and
+ * nothing else.
+ *
+ * THIS USED TO BE A LENGTH LIMIT — runs longer than 24 characters were skipped
+ * — and the 2025 scheme is where that proxy broke. It heads its last two
+ * tables "VII SEMESTER (Swappable VII and VIII SEMESTER) (SCHEME-A)", 57
+ * characters, so BOTH of those semesters were dropped: every seventh- and
+ * eighth-semester row came back refused with "This page states no semester"
+ * while the first four semesters imported cleanly. A scheme missing a quarter
+ * of its courses still looks like a working import.
+ *
+ * The bracket rule is not case-sensitive on purpose. The first-year CSE-stream
+ * tables head themselves "ISemester (CSE" — mixed case, and truncated mid-
+ * qualifier by the run boundary — so requiring capitals would trade this bug
+ * for that one.
  */
 function semesterOf(pageItems: readonly PositionedText[]): number | null {
   for (const item of pageItems) {
     const text = item.text.trim();
-    if (text.length > 24) continue;
     const match = SEMESTER_HEADING.exec(text);
-    const roman = match?.[1]?.toUpperCase();
+    if (match === null) continue;
+    /* Words before any opening bracket mean the run kept talking: prose. */
+    if (/^[^(]*[A-Za-z0-9]/.test(text.slice(match[0].length))) continue;
+    const roman = match[1]?.toUpperCase();
     if (roman !== undefined && roman in ROMAN) return ROMAN[roman] ?? null;
   }
   return null;
@@ -928,10 +1193,47 @@ function headingMatch(items: readonly PositionedText[], pattern: RegExp): string
  * bound the title instead.
  */
 function departmentColumn(pageItems: readonly PositionedText[]): number {
-  const labelled = pageItems.filter((item) => DEPARTMENT_CELL.test(item.text.trim()));
+  const labelled = pageItems.filter(
+    (item) => DEPARTMENT_CELL.test(item.text.trim()) || completesADepartmentCell(item, pageItems),
+  );
   return labelled.length === 0
     ? Number.POSITIVE_INFINITY
     : Math.min(...labelled.map((item) => item.x));
+}
+
+/**
+ * A LABEL RUN WHOSE COLON ARRIVED SEPARATELY IS STILL A LABELLED CELL.
+ *
+ * `DEPARTMENT_CELL` wants `TD/PSB: CS Allied` in one run. The 2025 scheme emits
+ * the label and its value as two runs that meet at the colon, so no cell on
+ * those pages was labelled, the column had NO left edge, and every run to the
+ * right of a course name — the department, the setting board, whatever else
+ * the row carried — was assembled into the title.
+ *
+ * ADJACENCY IS WHAT MAKES THIS SAFE, and it is the rule this reader already
+ * uses to rejoin a course code split across runs: the pieces must touch. The
+ * bare `TD/PSB` COLUMN HEADER is the thing the colon was guarding against, and
+ * a header is not followed by `: something` on its own baseline — it sits alone
+ * above the column. Measured on this document the two halves meet exactly, gap
+ * 0.0, so nothing here is a tolerance dressed up as a rule.
+ *
+ * The edge returned is the LABEL's x, not the colon's, because the label is
+ * where the cell starts and therefore where the title has to stop.
+ */
+function completesADepartmentCell(
+  item: PositionedText,
+  pageItems: readonly PositionedText[],
+): boolean {
+  if (!DEPARTMENT_PIECE.test(item.text.trim())) return false;
+  if (item.text.trim().startsWith(':')) return false;
+  const ends = item.x + item.width;
+  return pageItems.some(
+    (other) =>
+      other !== item &&
+      Math.abs(other.y - item.y) <= 2 &&
+      Math.abs(other.x - ends) <= 1 &&
+      other.text.trim().startsWith(':'),
+  );
 }
 
 /**
@@ -971,7 +1273,7 @@ function titleBeside(
         Math.abs(cell.y - code.y) <= band &&
         cell.x > code.x &&
         cell.x < departmentX &&
-        !DEPARTMENT_CELL.test(cell.text.trim()) &&
+        !isDepartmentText(cell.text.trim()) &&
         !WHOLE_NUMBER.test(cell.text.trim()) &&
         !COURSE_CODE.test(cell.text.trim()) &&
         !ALTERNATIVE_MARKER.test(cell.text.trim()),
@@ -1012,6 +1314,18 @@ export interface SemesterTotal {
  * seventeen real documents is verified, and a validation aid has no business
  * changing what it returns.
  */
+/**
+ * The masthead a scheme re-prints above every table it starts.
+ *
+ * Continuation pages carry the table's rows and no masthead, which is what
+ * makes this usable as the boundary between "still the same table" and "a new
+ * one whose semester has not been stated".
+ */
+const TABLE_TITLE_BLOCK = /Scheme\s+of\s+Teaching\s+and\s+Examinations/i;
+
+const startsATable = (items: readonly PositionedText[]): boolean =>
+  items.some((item) => TABLE_TITLE_BLOCK.test(item.text));
+
 export function semesterTotalsOf(pages: readonly SchemePage[]): SemesterTotal[] {
   const totals: SemesterTotal[] = [];
   /*
@@ -1021,7 +1335,28 @@ export function semesterTotalsOf(pages: readonly SchemePage[]): SemesterTotal[] 
    */
   let semester: number | null = null;
   for (const { page, items } of pages) {
-    semester = semesterOf(items) ?? semester;
+    const stated = semesterOf(items);
+    /*
+     * A PAGE THAT RE-PRINTS THE TITLE BLOCK IS STARTING A TABLE, NOT
+     * CONTINUING ONE — so if it does not say which semester, the previous
+     * page's semester is not the answer and nothing here is attributable.
+     *
+     * The carry-forward above exists because a table runs across pages and
+     * only its first page prints the heading. That is true of CONTINUATION
+     * pages, which print no masthead. It is not true of the 2025 scheme's
+     * eleventh page, which re-prints "B.E. in … / Scheme of Teaching and
+     * Examinations - 2025" and opens a different table entirely: the Scheme-B
+     * variant for candidates taking a two-semester internship, whose own
+     * caption says it covers "VII and VIII semesters". Inheriting semester
+     * eight from page nine filed that table's 20 credits as an eighth-semester
+     * total, against a table that states 15.
+     *
+     * Checked against the whole corpus this drops four readings and every one
+     * of them was attributed to the wrong semester: a sixth-semester table
+     * filed under the eighth, a second table filed under the fifth beside the
+     * fifth's own total, and a "Total" deep inside a syllabus section.
+     */
+    semester = stated ?? (startsATable(items) ? null : semester);
     if (semester === null) continue;
 
     for (const row of rowsOf(items)) {
@@ -1052,17 +1387,69 @@ export function semesterTotalsOf(pages: readonly SchemePage[]): SemesterTotal[] 
   return totals;
 }
 
-/** The page's text clustered onto printed rows, left to right. */
+/**
+ * The largest baseline drift that still belongs to one printed row.
+ *
+ * MEASURED, not chosen. The cells of a single TOTAL row in these documents do
+ * not share an exact y: the 2025 scheme's seventh-semester total is typeset
+ * with `Total` and one figure at y 105 and the rest of the row — including its
+ * credits cell — at y 104. One point.
+ *
+ * Two points covers that with margin and stays far below the gap between
+ * distinct printed rows, which is about twelve. Across the 290 cached
+ * documents, tolerances of 2, 3 and 5 produce identical readings; at 8 rows
+ * that are genuinely separate begin to merge.
+ */
+const TOTAL_ROW_BAND = 2;
+
+/**
+ * The page's text clustered onto printed rows, left to right.
+ *
+ * THE ROWS ARE FOUND BY PROXIMITY, NOT BY AN EXACT KEY. This used to bucket on
+ * `Math.round(item.y)`, which puts a hard boundary between two cells one point
+ * apart and tears a printed row in half wherever the typesetter's baseline
+ * drifts across it.
+ *
+ * That is how both 2025 semester-total disagreements happened, and they were
+ * one defect rather than two. The seventh-semester row is
+ *
+ *     Total | 628 | 15 | 400 | 300 | 700 | 20
+ *
+ * with `Total` and `15` at y 105 and everything else at y 104. Split there,
+ * the `Total` fragment kept exactly one number — `15` — and the reader
+ * reported the semester as printing 15 credits against a catalogue holding
+ * 20. The eighth-semester row tore the same way at y 272/271, keeping `9` and
+ * losing the `15` that is the table's actual total.
+ *
+ * Neither figure was ever "a nearby numeric token": both rows state their
+ * credits in the credits column, and the reader was not seeing the whole row.
+ *
+ * The band is anchored on the row's FIRST cell rather than its most recent, so
+ * a long row cannot creep: every cell lies within `TOTAL_ROW_BAND` of where
+ * that row started, not of its neighbour.
+ */
 function rowsOf(items: readonly PositionedText[]): PositionedText[][] {
-  const rows = new Map<number, PositionedText[]>();
-  for (const item of items) {
-    if (item.text.trim() === '') continue;
-    const key = Math.round(item.y);
-    const bucket = rows.get(key);
-    if (bucket === undefined) rows.set(key, [item]);
-    else bucket.push(item);
+  const descending = items
+    .filter((item) => item.text.trim() !== '')
+    .slice()
+    .sort((a, b) => b.y - a.y);
+
+  const rows: PositionedText[][] = [];
+  let current: PositionedText[] = [];
+  let baseline = 0;
+  for (const item of descending) {
+    if (current.length === 0) {
+      baseline = item.y;
+      current = [item];
+    } else if (baseline - item.y <= TOTAL_ROW_BAND) {
+      current.push(item);
+    } else {
+      rows.push(current);
+      baseline = item.y;
+      current = [item];
+    }
   }
-  return [...rows.entries()]
-    .sort((a, b) => b[0] - a[0])
-    .map(([, cells]) => cells.sort((a, b) => a.x - b.x));
+  if (current.length > 0) rows.push(current);
+
+  return rows.map((cells) => cells.sort((a, b) => a.x - b.x));
 }

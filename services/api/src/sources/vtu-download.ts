@@ -52,6 +52,135 @@ export interface ManifestEntry {
   readonly lastSeen: string;
   readonly etag: string | null;
   readonly lastModified: string | null;
+  /**
+   * HOW THESE BYTES WERE OBTAINED.
+   *
+   *   live      the downloader fetched them, under a registry entry that
+   *             permitted it at the time
+   *   supplied  somebody already held the official document and handed it
+   *             over; nothing went out over the network (Mode B)
+   *
+   * ABSENT MEANS NOT RECORDED, and is read as neither. The 289 documents in
+   * the store predate this field, and stamping them `live` now would be
+   * inventing a provenance claim about bytes nobody can re-examine. A
+   * distinction that matters (§42) is worth leaving visibly blank where it was
+   * never captured.
+   */
+  readonly acquisition?: 'live' | 'supplied';
+  /** When a supplied document was handed over. Supplied entries only. */
+  readonly capturedAt?: string;
+  /** The filename it arrived under: evidence about the document, kept as given. */
+  readonly sourceFilename?: string;
+  /** Pages, where the capture counted them. */
+  readonly pageCount?: number;
+}
+
+/** What supplying a document did to the manifest. */
+export type SupplyState =
+  /** New bytes, now held. */
+  | 'supplied'
+  /** These exact bytes were already held; the URL and timestamps advance. */
+  | 'already_present'
+  /** This URL has served different bytes before. Both versions are kept (§7). */
+  | 'changed';
+
+/**
+ * Record a document somebody supplied, without fetching anything.
+ *
+ * MODE B HAD NO DOOR FOR DOCUMENTS. `acquire.ts` describes two acquisition
+ * modes and says the difference is "ACQUISITION ONLY" — everything after the
+ * bytes is identical. That was true of the listing page, which `vtu:sync
+ * --from` accepts, and false of the documents themselves: `store.put` had
+ * exactly one caller, inside the live downloader. So a person holding an
+ * official VTU PDF had no way to put it into the pipeline at all, and the only
+ * route to a document was the one the registry refuses.
+ *
+ * The bytes take the same path from here as a fetched document: same store,
+ * same manifest, same hash identity, same extraction and normalization. What
+ * differs is only how they arrived, and that is recorded rather than erased.
+ */
+export function recordSupplied(
+  manifest: Manifest,
+  input: {
+    readonly sha256: string;
+    readonly byteSize: number;
+    readonly url: string;
+    readonly capturedAt: string;
+    readonly sourceFilename: string;
+    readonly pageCount: number | null;
+  },
+): { readonly manifest: Manifest; readonly state: SupplyState } {
+  const history = manifest.urlHistory[input.url] ?? [];
+  const known = manifest.entries.find((entry) => entry.sha256 === input.sha256) ?? null;
+  /*
+   * A URL that has served other bytes before is §7's case: this is a NEW
+   * version, and the earlier one keeps its row. The September 2025 first-year
+   * circular is exactly this — VTU replaced files in place — so it is reported
+   * rather than merged away.
+   */
+  const state: SupplyState =
+    known !== null
+      ? 'already_present'
+      : history.length > 0
+        ? 'changed'
+        : 'supplied';
+
+  /*
+   * SUPPLYING BYTES THAT ARE ALREADY HELD ADDS A REFERENCE. IT DOES NOT
+   * RESTATE WHERE THEY CAME FROM.
+   *
+   * This built one entry for both cases and stamped it `acquisition:
+   * 'supplied'` with `etag` and `lastModified` nulled. Every one of the 289
+   * documents in the store arrived by live fetch, so supplying any of them —
+   * an ordinary thing to do with a document you happen to hold — silently
+   * relabelled a live acquisition as a supplied one, and threw away the
+   * validators the conditional request depends on. `--changed-only` would then
+   * re-download a document the server would have said was unchanged.
+   *
+   * The bytes were acquired however they were FIRST acquired. That is a fact
+   * about the past and handing over an identical copy does not alter it.
+   */
+  const entry: ManifestEntry =
+    known === null
+      ? {
+          sha256: input.sha256,
+          byteSize: input.byteSize,
+          mimeType: 'application/pdf',
+          urls: [input.url],
+          firstSeen: input.capturedAt,
+          lastSeen: input.capturedAt,
+          etag: null,
+          lastModified: null,
+          acquisition: 'supplied',
+          capturedAt: input.capturedAt,
+          sourceFilename: input.sourceFilename,
+          ...(input.pageCount === null ? {} : { pageCount: input.pageCount }),
+        }
+      : {
+          ...known,
+          /* One document, several source references (§6). */
+          urls: [...new Set([...known.urls, input.url])],
+          lastSeen: input.capturedAt,
+          /* Filled in only where it was never recorded; never overwritten. */
+          ...(known.pageCount === undefined && input.pageCount !== null
+            ? { pageCount: input.pageCount }
+            : {}),
+        };
+
+  return {
+    state,
+    manifest: {
+      version: 1,
+      entries:
+        known === null
+          ? [...manifest.entries, entry]
+          : manifest.entries.map((row) => (row.sha256 === input.sha256 ? entry : row)),
+      urlHistory: {
+        ...manifest.urlHistory,
+        [input.url]: history.includes(input.sha256) ? history : [...history, input.sha256],
+      },
+    },
+  };
 }
 
 export interface Manifest {
@@ -346,6 +475,9 @@ export async function downloadAll(
           lastSeen: now(),
           etag: fetched.etag,
           lastModified: fetched.lastModified,
+          /* Stamped here so a later reader can tell a fetched document from a
+           * supplied one without consulting anything outside the manifest. */
+          acquisition: 'live',
         });
       }
 

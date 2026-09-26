@@ -130,19 +130,59 @@ function linesOf(pages: readonly SchemePage[]): Line[] {
 /* Patterns                                                                   */
 /* -------------------------------------------------------------------------- */
 
-const COURSE_CODE = /\bCourse\s*Code\s*:?\s*([A-Z]{2,5}\d{3}[A-Za-z]?)\b/i;
+/**
+ * THE SAME CODE SHAPE THE SCHEME READER USES.
+ *
+ * This was `[A-Z]{2,5}\d{3}` — its own narrower copy of a grammar that lives
+ * in `scheme-import.ts`, and the two drifted. That one already accepts a
+ * leading generation digit and a department segment of up to seven letters,
+ * both measured against the corpus; this one accepted neither, so the 2025
+ * syllabus produced NOTHING. `1BMATCS301` misses twice over: the `1` has
+ * nowhere to go, and `BMATCS` is six letters where five were allowed.
+ *
+ * The failure was silent in the worst way. The document extracted cleanly as
+ * text, every page parsed, and the run reported "syllabi 0" beside "extraction
+ * text" — a 59-page syllabus read as containing no courses, which is exactly
+ * what a syllabus containing no courses looks like.
+ *
+ * The `B` is now required rather than implied by `[A-Z]{2,5}`. Every VTU course
+ * code carries it, and requiring it is what lets the letters widen to seven
+ * without the pattern starting to match arbitrary words followed by digits.
+ */
+const CODE_SHAPE = String.raw`1?B[A-Z]{2,7}\d{3}[A-Za-z]?`;
+
+const COURSE_CODE = new RegExp(String.raw`\bCourse\s*Code\s*:?\s*(${CODE_SHAPE})\b`, 'i');
 
 /**
- * A code on its own line, which is how the header prints it when the label and
- * the value fall in different table cells.
+ * The code where its value cell begins.
+ *
+ * This is how the header prints the code when the label and the value fall in
+ * different table cells, and the line below the label is where it lands.
+ *
+ * IT USED TO REQUIRE THE WHOLE LINE (`^code$`), which holds only when the
+ * value column carries nothing else. The 2025 header puts two label/value
+ * pairs on one row — `Course Code | 1BCS305 | Scheme | 2025` — and typesets
+ * the labels two points above their values, so the line splits as
+ *
+ *     "Course Code Scheme"
+ *     "1BCS305 2025"
+ *
+ * and the value line is not just a code. `1BCS305` was then read by nothing:
+ * the label line carries no code and the value line was not bare, so DATA
+ * STRUCTURES AND APPLICATIONS was the one course of the nine that document
+ * contains which produced no syllabus at all.
+ *
+ * Still anchored at the start, and still only consulted on the line directly
+ * below a `Course Code` label, so this reads the value cell rather than
+ * hunting for a code-shaped token anywhere on the page.
  *
  * `BPHYS102/202` is one course the university offers in both semesters of the
- * first year under two codes. The printed primary is taken; the second is NOT
- * expanded from the "/202" fragment, because completing an abbreviation would
- * be this parser inventing a course code. Recording the pair is alias work, and
- * belongs against the document that states both.
+ * first year under two codes. The printed primary is what matches here; the
+ * second is NOT expanded from the "/202" fragment, because completing an
+ * abbreviation would be this parser inventing a course code. Recording the
+ * pair is alias work, and belongs against the document that states both.
  */
-const BARE_CODE = /^([A-Z]{2,5}\d{3}[A-Za-z]?)(?:\s*\/\s*\d{3}[A-Za-z]?)?$/;
+const LEADING_CODE = new RegExp(String.raw`^(${CODE_SHAPE})\b`);
 const COURSE_TITLE = /\bCourse\s*Title\s*:\s*(\S.*)$/i;
 /** The label with its value typeset in another cell, above or below it. */
 const TITLE_LABEL_ALONE = /^\s*Course\s*Title\s*:?\s*$/i;
@@ -175,9 +215,17 @@ const ROMAN: Readonly<Record<string, number>> = {
   VIII: 8,
 };
 
-/** A header cell, so a course title is never read out of one. */
+/**
+ * A header cell, so a course title is never read out of one.
+ *
+ * `Type of Course` is the same label as `Course Type` with the words the other
+ * way round, and it is how the 2025 documents print it. Without it every 2025
+ * syllabus took its name from that cell: `1BMATCS301` came out titled "Type of
+ * Course ASC", and — worse than the wrong name — the field was marked
+ * `resolved`, which is this parser's word for "the document says so".
+ */
 const HEADER_LABEL =
-  /^(Course\s*(Code|Title|Type)|Teaching|Total\s*(Hours|Marks)|Credits|CIE|SEE|Exam|Examination|Prerequisite|\(Theory)/i;
+  /^(Course\s*(Code|Title|Type)|Type\s*of\s*Course|Teaching|Total\s*(Hours|Marks)|Credits|CIE|SEE|Exam|Examination|Prerequisite|\(Theory)/i;
 
 /**
  * A module heading.
@@ -265,16 +313,35 @@ function labelledNumber(
   label: RegExp,
   bound: keyof typeof PLAUSIBLE,
 ): Field<number> {
+  const [low, high] = PLAUSIBLE[bound];
+  let implausible: Field<number> | null = null;
+
   for (const line of lines) {
     const match = label.exec(line.text);
     if (match === null) continue;
     const number = /(\d{1,3})/.exec(line.text.slice(match.index + match[0].length));
     if (number?.[1] === undefined) continue;
     const value = Number(number[1]);
-    const [low, high] = PLAUSIBLE[bound];
-    return value < low || value > high ? ambiguous(value, line.page) : resolved(value, line.page);
+    if (value >= low && value <= high) return resolved(value, line.page);
+    /*
+     * A LABEL CAN APPEAR SOMEWHERE THAT IS NOT THE TABLE.
+     *
+     * This took the FIRST line carrying the label, which is right until the
+     * page furniture carries it too. Every page of the 2025 syllabus is headed
+     *
+     *     IPCC (4 Credits) template30.03.2026 1
+     *
+     * and "Credits" there is followed by ") template30" — so the credits of
+     * seven of that document's nine courses were read as 30, 20 or 300 from a
+     * running header, while "Credits 3" sat further down in the table.
+     *
+     * The implausible reading is kept and keeps its `ambiguous` state, so a
+     * document whose only reading is out of range still reports one (§5). It
+     * is simply no longer allowed to beat a reading that is in range.
+     */
+    implausible ??= ambiguous(value, line.page);
   }
-  return unavailable();
+  return implausible ?? unavailable();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -321,7 +388,7 @@ function readCourse(lines: readonly Line[]): ParsedSyllabus {
        * prints when they fall in different table cells. The code is next.
        */
       const next = header[index + 1];
-      const bare = next === undefined ? null : BARE_CODE.exec(next.text.trim());
+      const bare = next === undefined ? null : LEADING_CODE.exec(next.text.trim());
       if (bare?.[1] !== undefined) code = resolved(bare[1].toUpperCase(), next?.page ?? line.page);
     }
 
@@ -361,6 +428,43 @@ function readCourse(lines: readonly Line[]): ParsedSyllabus {
       if (title.value === null) {
         const before = line.text.slice(0, found.index).trim();
         title = usableTitle(before, line) ?? adjacentValue(header, index) ?? title;
+      }
+    }
+  }
+
+  /*
+   * THE NAME ABOVE THE TABLE.
+   *
+   * The templates handled above either label the title or print it on the
+   * semester's own line. The 2025 documents do neither: the course name is a
+   * line of its own ABOVE the header table, with the labelled cells beneath
+   * it, so every reading above comes back empty.
+   *
+   * This runs ONLY when the title is still unavailable, so it cannot override
+   * a title a document actually labelled — it fills a blank or leaves one.
+   *
+   * SEARCHED BACKWARDS FROM THE COURSE CODE, not forwards from the top of the
+   * block, because the top of the block is not the top of the course. These
+   * pages carry a running header — "IPCC (4 Credits) template30.03.2026 1" —
+   * printed above the title on every page of the document, and reading down
+   * from the start took that stamp as the name of seven of the eight courses.
+   * The name is the last thing before the header table begins.
+   */
+  if (title.value === null) {
+    const codeAt = header.findIndex(
+      (line) =>
+        COURSE_CODE.test(line.text) ||
+        LEADING_CODE.test(line.text.trim()) ||
+        /Course\s*Code/i.test(line.text),
+    );
+    for (let i = codeAt - 1; i >= 0; i -= 1) {
+      const line = header[i] as Line;
+      /* A line that opens with a course code is the value cell, not a name. */
+      if (LEADING_CODE.test(line.text.trim())) continue;
+      const candidate = usableTitle(line.text, line);
+      if (candidate !== null) {
+        title = candidate;
+        break;
       }
     }
   }
@@ -504,6 +608,14 @@ function semesterOn(text: string): { value: number; index: number } | null {
 function usableTitle(text: string, line: Line): Field<string> | null {
   const trimmed = text.trim();
   if (trimmed.length < 4 || HEADER_LABEL.test(trimmed)) return null;
+  /*
+   * A line opening with a course code is the header's VALUE cell, and the
+   * letters inside the code satisfy the "has words in it" test below. When the
+   * 2025 template put the labels and their values on separate baselines, the
+   * line below `Type of Course … Semester 3` was `1BCS305 2025` — so the
+   * course named DATA STRUCTURES AND APPLICATIONS was titled "1BCS305 2025".
+   */
+  if (LEADING_CODE.test(trimmed)) return null;
   return /[A-Za-z]{3}/.test(trimmed) ? resolved(trimmed, line.page) : null;
 }
 

@@ -11,10 +11,32 @@
  *
  * The store and the manifest live outside Git (§29): the repository keeps
  * normalized records and provenance, never a binary dump of VTU.
+ *
+ * ---------------------------------------------------------------------------
+ * THE GATE, WHICH THIS SCRIPT DID NOT HAVE
+ * ---------------------------------------------------------------------------
+ *
+ * `vtu:discover`, `vtu:smoke` and `vtu:sync` each consult the source registry
+ * before reaching vtu.ac.in. This one did not — and it is the script whose
+ * entire job is retrieving documents. `isFetchableUrl` checks the protocol and
+ * that the host IS vtu.ac.in, which is the opposite of a permission check: it
+ * confirms the target is the very source the registry has not authorised.
+ *
+ * So `pnpm vtu:download --graph graph.json` would fetch every PDF in the graph
+ * with no permission check at all. Not by subverting anything — by running the
+ * documented command. That made "live VTU is unauthorised" true of three
+ * scripts and false of the product.
+ *
+ * A document that cannot be fetched can still be SUPPLIED: see `vtu:supply`,
+ * which puts an official document somebody already holds into the same store
+ * without a network call.
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import postgres from 'postgres';
+import { requireFetchPermission } from '../src/sources/acquire.js';
+import { VTU_SCHEME_SOURCE_ID } from '../src/sources/vtu-scheme.js';
 import { createLocalDocumentStore } from '../src/sources/document-store.js';
 import {
   downloadAll,
@@ -52,6 +74,20 @@ async function readManifest(): Promise<Manifest> {
 async function main(): Promise<void> {
   const graphPath = flag('graph');
   if (graphPath === null) throw new Error('Pass --graph <discovery json>.');
+
+  /*
+   * BEFORE THE GRAPH IS EVEN READ. The registry decides whether this process
+   * may reach vtu.ac.in at all, and a refusal should cost nothing and explain
+   * itself. `--dry-run` is gated too: a dry run still reports what it WOULD
+   * fetch, and the question of whether it may is not a function of that flag.
+   */
+  const registry = process.env['DATABASE_URL'] ?? process.env['TEST_DATABASE_URL'] ?? null;
+  const sql = registry === null ? null : postgres(registry, { max: 1 });
+  try {
+    await requireFetchPermission(sql, VTU_SCHEME_SOURCE_ID);
+  } finally {
+    await sql?.end();
+  }
 
   const graph = JSON.parse(await readFile(graphPath, 'utf8')) as { documents: GraphDocument[] };
   const wantProgramme = flag('programme');
