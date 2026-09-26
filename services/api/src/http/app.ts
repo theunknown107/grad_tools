@@ -193,7 +193,7 @@ export function createApp(
     });
   });
 
-  app.use(createAnnouncementRouter(sql));
+  app.use(createAnnouncementRouter(sql, { operatorToken: config.OPERATOR_TOKEN }));
   /*
    * STUDENT ROUTES ARE MOUNTED ONLY WHERE A CLOUD EXISTS.
    *

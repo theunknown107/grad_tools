@@ -68,12 +68,16 @@ export class ReferenceError extends Error {
  * Public configuration only: `VITE_` variables are compiled into the browser
  * bundle, so a secret must never be read here. The database URL lives on the
  * server and the browser never sees it (M5a §13).
+ *
+ * Unset, development talks to the local API and a production build talks to
+ * its own origin. A production bundle must never fall back to localhost: on a
+ * phone that is the phone itself, and every request would fail silently. A
+ * staging site or the Android app on another origin sets `VITE_API_URL`.
  */
 export function apiBaseUrl(): string {
   const configured: unknown = import.meta.env.VITE_API_URL;
-  return typeof configured === 'string' && configured !== ''
-    ? configured.replace(/\/$/, '')
-    : 'http://localhost:3001';
+  if (typeof configured === 'string' && configured !== '') return configured.replace(/\/$/, '');
+  return import.meta.env.DEV ? 'http://localhost:3001' : '';
 }
 
 async function fetchJson(path: string, signal?: AbortSignal): Promise<unknown> {

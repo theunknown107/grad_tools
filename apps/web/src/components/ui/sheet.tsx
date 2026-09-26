@@ -41,7 +41,7 @@ export function BottomSheet({
             aria-hidden="true"
             className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-line-strong"
           />
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[max(2rem,env(safe-area-inset-bottom))] scroll-quiet">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[max(2rem,var(--gt-safe-bottom))] scroll-quiet">
             {children}
           </div>
         </Drawer.Content>

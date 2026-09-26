@@ -332,6 +332,18 @@
   --chart-5: color-mix(in oklab, var(--accent) 30%, var(--canvas));
 }
 
+/* Safe areas — the device's status bar, gesture bar, notch and rounded
+   corners. With `viewport-fit=cover` the page draws edge to edge, so anything
+   pinned to an edge pads itself by these. Capacitor's SystemBars sets
+   --safe-area-inset-* on Android (where env() can be 0 in a WebView); every
+   browser falls back to env(). Always 0 on a desktop. (docs/48 §Edge-to-edge) */
+:root {
+  --gt-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --gt-safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --gt-safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --gt-safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+}
+
 /* Density — overrides the spacing base so every padding and gap tightens. */
 [data-density='compact'] {
   --spacing: 0.222rem;
@@ -472,6 +484,26 @@
   }
   &:hover::-webkit-scrollbar-thumb {
     background: var(--border-strong);
+  }
+}
+
+/* ------------------------------------------------------- Bar material.
+     The one material for every bar pinned to an edge (top bar, bottom nav,
+     landing header). It reproduces the bars' existing look exactly — panel at
+     95% (98% for the bottom nav, via --gt-bar-opacity) under an 8px blur.
+     A future Liquid Glass layer is a change HERE, not in components: swap the
+     fill and filter, keep the fallback below. Legible with no backdrop-filter
+     at all, because the fill carries it (docs/48 §Liquid Glass). */
+.gt-bar {
+  background-color: color-mix(in oklab, var(--panel) var(--gt-bar-opacity, 95%), transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .gt-bar {
+    background-color: var(--panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 

@@ -21,24 +21,30 @@ const configSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
 
   /**
-   * The interface the API binds to. **This is a security control, not a
-   * convenience setting.**
+   * The interface the API binds to. Loopback by default, for local work; a
+   * container sets `0.0.0.0` (the Dockerfile does).
    *
-   * Stage 1 has no authentication, and the private document routes
-   * (`/api/v1/documents/import`, `/private`, `/:id/process`, `/:id/sections`)
-   * are unauthenticated by design because there is no one to authenticate yet.
-   * Binding to `0.0.0.0` would therefore publish an anonymous read-and-write
-   * document service to every host that can reach the machine.
-   *
-   * CORS does NOT prevent this. CORS is a browser policy; curl, Postman and any
-   * non-browser client ignore it entirely. The bind address is the control that
-   * actually holds.
-   *
-   * Defaults to loopback. Production must set it explicitly, and
-   * `assertSafeExposure` below refuses a non-loopback bind while the routes are
-   * still unauthenticated (docs/13 §T-19, docs/25 §25.4).
+   * Binding publicly is safe because NO route is unauthenticated: the reads are
+   * public by design, every `/api/v1/me` route verifies a Supabase session, and
+   * the two operator writes require `OPERATOR_TOKEN` (and do not exist at all
+   * without it). The bind address used to be the only thing standing between
+   * those writes and the network; it is no longer the control (docs/13 §T-19).
    */
   HOST: z.string().min(1).default('127.0.0.1'),
+
+  /**
+   * The operator credential for announcement entry and publication. **SECRET.**
+   *
+   * Unset — the default, and right for any deployment that has no operator —
+   * the operator routes are not mounted: they answer 404 like any other path.
+   * Set, they require `Authorization: Bearer <token>`. At least 32 characters,
+   * so it cannot be a word someone guesses; generate it, never choose it.
+   * Never a `VITE_` variable: it must not reach a browser bundle.
+   */
+  OPERATOR_TOKEN: z
+    .string()
+    .min(32, 'OPERATOR_TOKEN must be at least 32 characters; generate it randomly')
+    .optional(),
 
   /** Secret. Never logged, never returned by any endpoint. */
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
@@ -120,37 +126,35 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   };
 }
 
-/** Addresses that mean "every interface on this machine". */
-const WILDCARD_HOSTS = new Set(['0.0.0.0', '::', '*']);
-
-function isLoopback(host: string): boolean {
-  const bare = host.replace(/^\[|\]$/g, '').toLowerCase();
-  return bare === 'localhost' || bare === '::1' || /^127\./.test(bare);
-}
+/** Environments that are reached over the network by people other than the developer. */
+const DEPLOYED_ENVIRONMENTS = new Set<Config['APP_ENV']>(['staging', 'alpha']);
 
 /**
- * Refuses to start with unauthenticated private routes on a public interface.
+ * Refuses to start a deployed environment whose browser policy is not explicit.
  *
- * Called at boot, before the server listens. A misconfiguration that would
- * expose the document routes is a startup failure, not a quiet risk discovered
- * later — the same principle the rest of this file follows, applied to the one
- * setting whose default being wrong would matter most.
+ * Called at boot, before the server listens. In `staging` and `alpha` the CORS
+ * allowlist must be SET — the `http://localhost:5173` default would silently
+ * refuse the real web app — and every origin must be `https://`, because a
+ * page served over plain HTTP could be altered on the way to the student. The
+ * Android app's origin, `https://localhost`, qualifies.
  *
- * `ALLOW_PUBLIC_BIND=true` is the deliberate escape hatch for a deployment that
- * has put its own authentication in front (a reverse proxy, a private network).
- * It must be set on purpose; nothing infers it.
+ * Binding publicly is no longer refused: nothing unauthenticated remains to
+ * expose (see `HOST` and `OPERATOR_TOKEN`).
  */
 export function assertSafeExposure(config: Config, env: NodeJS.ProcessEnv = process.env): void {
-  if (isLoopback(config.HOST)) return;
-  if (env.ALLOW_PUBLIC_BIND === 'true') return;
+  if (!DEPLOYED_ENVIRONMENTS.has(config.APP_ENV)) return;
 
-  const where = WILDCARD_HOSTS.has(config.HOST) ? 'every network interface' : `"${config.HOST}"`;
-  throw new Error(
-    `Refusing to start: HOST is set to ${where}, which would expose the ` +
-      `unauthenticated private document routes to the network.\n` +
-      `  Stage 1 has no authentication, so the bind address is the only control ` +
-      `protecting them (CORS does not apply to non-browser clients).\n` +
-      `  Use HOST=127.0.0.1, or set ALLOW_PUBLIC_BIND=true if this deployment ` +
-      `authenticates these routes some other way.`,
-  );
+  const problems: string[] = [];
+  if (env.WEB_ORIGIN === undefined || env.WEB_ORIGIN.trim() === '') {
+    problems.push(`WEB_ORIGIN must be set explicitly in ${config.APP_ENV}.`);
+  }
+  const insecure = config.allowedOrigins.filter((origin) => !origin.startsWith('https://'));
+  if (insecure.length > 0) {
+    problems.push(
+      `Every WEB_ORIGIN must use https:// in ${config.APP_ENV}: ${insecure.join(', ')}`,
+    );
+  }
+  if (problems.length > 0) {
+    throw new Error(`Refusing to start:\n  ${problems.join('\n  ')}`);
+  }
 }

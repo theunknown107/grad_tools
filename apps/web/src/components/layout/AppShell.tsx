@@ -97,7 +97,7 @@ function Shell({
   };
 
   return (
-    <div className="flex h-full bg-canvas text-ink">
+    <div className="flex h-full bg-canvas pr-[var(--gt-safe-right)] pl-[var(--gt-safe-left)] text-ink">
       <a
         href="#gt-main"
         className="sr-only z-[100] rounded-lg bg-raised px-3 py-2 text-sm font-medium shadow-e2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
@@ -124,7 +124,7 @@ function Shell({
           id="gt-main"
           ref={mainRef}
           tabIndex={-1}
-          className="flex-1 overflow-y-auto pb-24 outline-none scroll-quiet md:pb-0"
+          className="flex-1 overflow-y-auto pb-[calc(6rem+var(--gt-safe-bottom))] outline-none scroll-quiet md:pb-[var(--gt-safe-bottom)]"
         >
           <div
             key={location.pathname}
@@ -195,7 +195,7 @@ function Sidebar({
          * twelve destinations with visible labels; at `lg` it becomes the full
          * sidebar, or the same rail when the student collapses it.
          */
-        'relative hidden shrink-0 flex-col border-r border-line bg-panel transition-[width] duration-300 ease-[var(--ease-out-quint)] md:flex',
+        'relative hidden shrink-0 flex-col border-r border-line bg-panel pt-[var(--gt-safe-top)] transition-[width] duration-300 ease-[var(--ease-out-quint)] md:flex',
         'w-[88px]',
         collapsed ? 'lg:w-[88px]' : 'lg:w-[256px]',
       )}
@@ -342,7 +342,7 @@ function TopBar({
 }) {
   const openCommand = useOpenCommand();
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-panel/95 px-4 backdrop-blur-sm sm:px-6">
+    <header className="sticky top-0 z-40 flex h-[calc(4rem+var(--gt-safe-top))] shrink-0 items-center gap-3 gt-bar border-b border-line px-4 pt-[var(--gt-safe-top)] sm:px-6">
       <IconButton
         label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         aria-expanded={!collapsed}
@@ -429,7 +429,7 @@ function MobileBottomNav({
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-panel/98 backdrop-blur-sm md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 gt-bar border-t border-line pr-[var(--gt-safe-right)] pl-[var(--gt-safe-left)] [--gt-bar-opacity:98%] md:hidden"
     >
       <div className="grid grid-cols-5">
         {MOBILE_TABS.map((item) => {
@@ -477,7 +477,7 @@ function MobileBottomNav({
           )}
         </button>
       </div>
-      <div className="h-[env(safe-area-inset-bottom)]" />
+      <div className="h-[var(--gt-safe-bottom)]" />
     </nav>
   );
 }

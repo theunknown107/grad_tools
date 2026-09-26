@@ -189,9 +189,12 @@ export function useAnnouncements(category?: string, source?: string): Announceme
       if (document.visibilityState === 'visible') refreshFeed(store, query);
     };
     window.addEventListener('focus', onFocus);
+    // The Android app coming back from the background (Capacitor).
+    document.addEventListener('resume', onFocus);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       window.removeEventListener('focus', onFocus);
+      document.removeEventListener('resume', onFocus);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [store, query]);

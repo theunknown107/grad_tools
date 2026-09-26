@@ -123,7 +123,7 @@ export function LandingPage() {
         >
           Skip to content
         </a>
-        <header className="sticky top-0 z-40 border-b border-line bg-panel/95 backdrop-blur-sm">
+        <header className="sticky top-0 z-40 gt-bar border-b border-line pt-[var(--gt-safe-top)]">
           <nav
             aria-label="Site"
             className="mx-auto flex h-16 max-w-[1180px] items-center gap-3 px-4 sm:px-6 lg:px-10"
