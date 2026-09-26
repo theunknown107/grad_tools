@@ -80,6 +80,42 @@ function feedStore(scope: object, query: string): SharedStore<FeedSnapshot> {
   return storeFor<FeedSnapshot>(key, () => FEED_INITIAL);
 }
 
+/** The API's largest page (`MAX_LIMIT` in `routes/announcements.ts`). */
+const PAGE_SIZE = 100;
+
+/**
+ * Every published notice matching `query`, page by page, in the server's order.
+ *
+ * Relevance and read state are decided on the device, so the device needs the
+ * whole feed: taking only the API's default first page meant a notice for this
+ * student that sat behind twenty newer ones never reached Notifications or the
+ * badge. A notice published between two page requests shifts the later pages,
+ * so a repeated id is dropped. Any failed page fails the whole read: a feed
+ * missing its older half must not be presented as complete.
+ */
+async function fetchWholeFeed(query: string): Promise<{ data: Announcement[]; total: number }> {
+  const data: Announcement[] = [];
+  const seen = new Set<string>();
+  let total = 0;
+  let offset = 0;
+  for (;;) {
+    const params = new URLSearchParams(query);
+    params.set('limit', String(PAGE_SIZE));
+    params.set('offset', String(offset));
+    const response = await fetch(`${apiBaseUrl()}${SOURCE_ROUTES.announcements}?${params}`);
+    if (!response.ok) throw new Error(String(response.status));
+    const page = (await response.json()) as { data: Announcement[]; total: number };
+    total = page.total;
+    for (const item of page.data) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      data.push(item);
+    }
+    offset += page.data.length;
+    if (page.data.length === 0 || offset >= total) return { data, total };
+  }
+}
+
 /**
  * Fetches the feed, joining a request already under way rather than sending a
  * second identical one. Never rejects: a failure becomes the error state.
@@ -88,13 +124,7 @@ function requestFeed(store: SharedStore<FeedSnapshot>, query: string): Promise<F
   const pending = inFlight.get(store);
   if (pending !== undefined) return pending;
 
-  const request = fetch(
-    `${apiBaseUrl()}${SOURCE_ROUTES.announcements}${query === '' ? '' : `?${query}`}`,
-  )
-    .then(async (response) => {
-      if (!response.ok) throw new Error(String(response.status));
-      return (await response.json()) as { data: Announcement[]; total: number };
-    })
+  const request = fetchWholeFeed(query)
     .then(
       (body): FeedSnapshot => {
         loadedAt.set(store, Date.now());
