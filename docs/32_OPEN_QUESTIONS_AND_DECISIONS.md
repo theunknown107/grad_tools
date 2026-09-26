@@ -894,8 +894,9 @@ is not lost between now and September.
 ### OQ-032 — How announcements reach a student who is not in the app · **opened by M7**
 
 **Why unresolved:** M7 delivers everything about a notification except delivery.
-In-app unread state works; an opt-in browser notification works *while the app
-is open*; nothing reaches a student who has closed it.
+In-app unread state works; nothing reaches a student outside the app. (This
+entry once said an opt-in browser notification worked while the app was open;
+none was ever shown, and the control that implied it has been removed.)
 
 Real delivery means Web Push — VAPID keys, a service worker, a subscription
 store, and therefore a **server-side identity**, which Stage 1 deliberately does

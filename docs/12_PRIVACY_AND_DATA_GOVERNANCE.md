@@ -327,11 +327,12 @@ nothing to request the deletion of.
 
 ### Browser notifications
 
-Permission is **never requested on page load**. It is requested only when a
-student presses the control that asks for it, and the UI states before they
-press it that the notification works only while GradTools is open — because
-without a server there is no push, and implying otherwise would be a promise the
-app cannot keep.
+**Browser notification permission is never requested.** GradTools shows no
+browser or system notification — no `Notification` call, no service worker, no
+push — so Settings → Notifications says that browser notifications are not
+available yet and offers no control. (An earlier control asked for permission
+and then reported notifications as on while nothing ever showed one; it was
+removed rather than left as a promise the app could not keep.)
 
 ### Demo content
 
