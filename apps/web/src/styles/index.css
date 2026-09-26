@@ -121,6 +121,20 @@
   color-scheme: dark;
 }
 
+/* ============================================================ Brand mark.
+   One monochrome symbol (src/brand/gradtools-mark.svg); only its tile takes
+   the theme. The neutral accent keeps the default black mark on white (white
+   on near-black in dark). Every colour accent puts its own contrast ink on its
+   own fill, so a new accent needs nothing here. */
+:root {
+  --brand-surface: var(--raised);
+  --brand-mark: var(--text-primary);
+}
+[data-accent]:not([data-accent='mono']) {
+  --brand-surface: var(--accent);
+  --brand-mark: var(--accent-contrast);
+}
+
 /* ============================================================ Accent themes.
    Only accent / accent-weak / accent-ink / accent-contrast / ring change —
    never surfaces, never academic figures. `--accent-contrast` is the text
@@ -342,6 +356,8 @@
   --color-accent-weak: var(--accent-weak);
   --color-accent-ink: var(--accent-ink);
   --color-on-accent: var(--accent-contrast);
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-mark: var(--brand-mark);
   --color-schedule: var(--schedule);
   --color-schedule-weak: var(--schedule-weak);
   --color-progress: var(--progress);

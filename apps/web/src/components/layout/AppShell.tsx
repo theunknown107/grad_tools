@@ -10,15 +10,9 @@
  * page), replay the design's rise-in, and reset the scroll position.
  */
 
-import {
-  Command as CommandIcon,
-  GraduationCap,
-  PanelLeft,
-  PanelLeftClose,
-  Search,
-  Bell,
-} from 'lucide-react';
+import { Command as CommandIcon, PanelLeft, PanelLeftClose, Search, Bell } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAnnouncements, useNotifications } from '../../hooks/useAnnouncements.js';
 import { useProfile } from '../../hooks/useCollection.js';
@@ -161,9 +155,7 @@ function Brand({ collapsed }: { readonly collapsed: boolean }) {
         !collapsed && 'lg:justify-start lg:px-5',
       )}
     >
-      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent font-semibold text-on-accent">
-        <GraduationCap className="size-5" aria-hidden="true" />
-      </span>
+      <GradToolsLogo />
       {!collapsed && (
         <span className="hidden leading-tight lg:block">
           <span className="block text-[15px] font-semibold tracking-[-0.01em]">GradTools</span>
@@ -369,9 +361,7 @@ function TopBar({
         className="flex items-center gap-2 rounded-lg md:hidden"
         aria-label="GradTools home"
       >
-        <span className="grid size-8 place-items-center rounded-lg bg-accent text-on-accent">
-          <GraduationCap className="size-4.5" aria-hidden="true" />
-        </span>
+        <GradToolsLogo />
         <span className="hidden font-semibold tracking-[-0.01em] min-[380px]:inline">
           GradTools
         </span>
