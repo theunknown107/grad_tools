@@ -24,7 +24,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { AppShell } from '../src/components/layout/AppShell.js';
 import { DESTINATIONS, MOBILE_TABS, isActive } from '../src/components/layout/nav.js';
 import { renderWith } from './helpers.js';
@@ -98,6 +98,21 @@ describe('every destination is reachable', () => {
 
     /* And "More" opens the rest rather than the bar growing a sixth item. */
     expect(screen.getByRole('button', { name: /^More/ })).toBeTruthy();
+  });
+
+  it('opens the whole navigation from More alone, with no second trigger in the top bar', async () => {
+    shell();
+    expect(screen.queryByRole('button', { name: 'Open navigation' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /^More/ }));
+    const sheet = await screen.findByRole('dialog');
+    const names = [...sheet.querySelectorAll('a')].map((link) => link.textContent ?? '');
+    for (const destination of DESTINATIONS) {
+      expect(names.some((name) => name.includes(destination.label))).toBe(true);
+    }
+    for (const appearance of ['Light', 'Dark', 'System']) {
+      expect(within(sheet).getByRole('button', { name: appearance })).toBeTruthy();
+    }
   });
 });
 

@@ -338,6 +338,18 @@ describe('the notification centre', () => {
     expect(await screen.findByRole('img', { name: 'Unread' })).toBeTruthy();
   });
 
+  it('lands on the linked notice when opened from a notification', async () => {
+    mockFeed([
+      announcement({ id: 'a1', title: 'First notice' }),
+      announcement({ id: 'a2', title: 'Second notice' }),
+    ]);
+    renderWith(<AnnouncementsPage />, { route: '/announcements#announcement-a2' });
+    await screen.findByText('Second notice');
+    await waitFor(() => {
+      expect(document.activeElement?.id).toBe('announcement-a2');
+    });
+  });
+
   it('marks one as read when it is opened, and keeps it', async () => {
     mockFeed([announcement()]);
     const { bundle, peek } = createMemoryRepositories();
@@ -345,7 +357,8 @@ describe('the notification centre', () => {
 
     // As in the design, the row is one control: opening it reads it.
     const row = await screen.findByRole('link', { name: /Semester 4 results announced/ });
-    expect(row.getAttribute('href')).toBe('/announcements');
+    // It opens the notice itself, not the top of the list.
+    expect(row.getAttribute('href')).toBe('/announcements#announcement-a1');
     await userEvent.click(row);
 
     await waitFor(() => {
