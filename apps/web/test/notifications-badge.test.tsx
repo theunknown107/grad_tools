@@ -148,7 +148,36 @@ describe('the notification badge and the notification list', () => {
     });
   });
 
-  it('counts a notice that arrives later without resurrecting read ones', async () => {
+  it('counts a notice published while the app is open, on the next focus, with no remount', async () => {
+    let feed = [announcement(1), announcement(2), announcement(3)];
+    mockFeed(() => feed);
+
+    renderWith(
+      <AppShell>
+        <NotificationsPage />
+      </AppShell>,
+      { route: '/notifications' },
+    );
+
+    await waitFor(() => {
+      expect(badge()?.textContent).toBe('3');
+    });
+    const shellBell = bell();
+
+    // A fourth notice is published. The student comes back to the tab.
+    feed = [announcement(1), announcement(2), announcement(3), announcement(4)];
+    window.dispatchEvent(new Event('focus'));
+
+    // The SAME mounted bell now counts four, and the page lists the new notice.
+    await waitFor(() => {
+      expect(badge()?.textContent).toBe('4');
+    });
+    expect(bell()).toBe(shellBell);
+    expect(screen.getByRole('link', { name: /Notice number 4/ })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /^Unread/ }).textContent).toBe('Unread · 4');
+  });
+
+  it('keeps read notices read when a refresh brings a new one', async () => {
     let feed = [announcement(1), announcement(2)];
     mockFeed(() => feed);
     const user = userEvent.setup();
@@ -163,21 +192,52 @@ describe('the notification badge and the notification list', () => {
     await waitFor(() => {
       expect(badge()?.textContent).toBe('2');
     });
-
     await user.click(screen.getByRole('button', { name: 'Mark all read' }));
     await waitFor(() => {
       expect(badge()).toBeNull();
     });
 
-    // A refetch brings the same two back plus one new one.
     feed = [announcement(1), announcement(2), announcement(3)];
-    await user.click(screen.getByRole('radio', { name: /^All/ }));
-    await user.click(screen.getByRole('radio', { name: /^Unread/ }));
+    window.dispatchEvent(new Event('focus'));
 
-    // Read state survived the refetch: only the new notice is unread.
+    // Exactly the new notice is unread: read state survived the refresh.
     await waitFor(() => {
-      expect(screen.getByRole('radio', { name: /^Unread/ }).textContent).toMatch(/Unread · [01]/);
+      expect(badge()?.textContent).toBe('1');
     });
+    expect(screen.getByRole('radio', { name: /^Unread/ }).textContent).toBe('Unread · 1');
+  });
+
+  it('shares one feed request between the shell and the page, and refreshes both', async () => {
+    let feed = [announcement(1)];
+    mockFeed(() => feed);
+    const fetchMock = vi.mocked(fetch);
+    const feedRequests = () =>
+      fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/v1/announcements'))
+        .length;
+
+    renderWith(
+      <AppShell>
+        <NotificationsPage />
+      </AppShell>,
+      { route: '/notifications' },
+    );
+
+    await waitFor(() => {
+      expect(badge()?.textContent).toBe('1');
+    });
+    await screen.findByRole('link', { name: /Notice number 1/ });
+    expect(feedRequests()).toBe(1);
+
+    feed = [announcement(1), announcement(2)];
+    window.dispatchEvent(new Event('focus'));
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await waitFor(() => {
+      expect(badge()?.textContent).toBe('2');
+    });
+    await screen.findByRole('link', { name: /Notice number 2/ });
+    // One refresh for the whole app, not one per consumer or per event.
+    expect(feedRequests()).toBe(2);
   });
 
   it('shows the same unread figure in the list filter and the shell', async () => {
