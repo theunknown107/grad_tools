@@ -248,25 +248,15 @@ export function NotificationsPage() {
   );
 }
 
-/** Settings → Notifications: what may interrupt, and browser notifications. */
+/**
+ * Settings → Notifications: what may interrupt, and a plain statement that
+ * browser notifications do not exist yet. There used to be a button here that
+ * asked for permission and then said notifications were on, while nothing ever
+ * showed one; a control wired to nothing is worse than no control.
+ */
 export function NotificationSettings() {
   const { items } = useAnnouncements();
   const { preferences, savePreferences } = useNotifications(items);
-  const [permission, setPermission] = useState<string | null>(null);
-
-  const enableBrowserNotifications = async (): Promise<void> => {
-    if (!('Notification' in window)) {
-      setPermission('This browser does not support notifications.');
-      return;
-    }
-    const result = await Notification.requestPermission();
-    setPermission(
-      result === 'granted'
-        ? 'Browser notifications are on while GradTools is open.'
-        : 'Permission was not granted, so notifications stay in the app.',
-    );
-    await savePreferences({ ...preferences, browserNotifications: result === 'granted' });
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -300,21 +290,9 @@ export function NotificationSettings() {
       <Card className="p-6">
         <SectionTitle>Browser notifications</SectionTitle>
         <p className="text-[13px] text-ink-2">
-          GradTools can show a browser notification while it is open. It cannot notify you when the
-          app is closed — that needs a push service GradTools does not have yet.
+          Browser notifications aren&rsquo;t available yet. New notices appear here in GradTools, in
+          Notifications and on the bell, marked unread until you open them.
         </p>
-        <Button
-          className="mt-4"
-          icon={<BellRing />}
-          onClick={() => void enableBrowserNotifications()}
-        >
-          {preferences.browserNotifications ? 'Notifications are on' : 'Turn on notifications'}
-        </Button>
-        {permission !== null && (
-          <p role="status" className="mt-3 text-[12px] text-ink-2">
-            {permission}
-          </p>
-        )}
       </Card>
     </div>
   );

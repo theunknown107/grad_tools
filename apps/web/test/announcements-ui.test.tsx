@@ -452,30 +452,29 @@ describe('the notification centre', () => {
   });
 
   /*
-   * PERMISSION IS NEVER REQUESTED ON LOAD (M7 §24). A prompt nobody asked for
-   * is the fastest way to be refused permanently.
+   * GradTools delivers nothing outside the app: no `Notification` call, no
+   * service worker, no push. The settings used to offer a button that asked for
+   * permission and then said notifications were on. They now say plainly that
+   * there are none, ask for nothing, and offer no control wired to nothing.
    */
-  it('does not ask for notification permission until the student clicks', async () => {
+  it('asks for no browser permission and offers no browser-notification control', async () => {
     const requestPermission = vi.fn(() => Promise.resolve('granted'));
-    vi.stubGlobal('Notification', { requestPermission, permission: 'default' });
+    const constructed = vi.fn();
+    vi.stubGlobal(
+      'Notification',
+      Object.assign(constructed, { requestPermission, permission: 'default' }),
+    );
     mockFeed([announcement()]);
     renderWith(<NotificationSettings />);
 
-    await screen.findByRole('button', { name: 'Turn on notifications' });
+    expect(await screen.findByText(/Browser notifications aren’t available yet/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /notifications/i })).toBeNull();
+    expect(screen.queryByText(/Notifications are on|Turn on notifications/)).toBeNull();
+
+    // Using the rest of the page — muting a category — asks for nothing either.
+    await userEvent.click(await screen.findByRole('switch', { name: 'Holiday' }));
     expect(requestPermission).not.toHaveBeenCalled();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Turn on notifications' }));
-    await waitFor(() => {
-      expect(requestPermission).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  /* The limit is stated rather than implied: it cannot notify when closed. */
-  it('says browser notifications only work while the app is open', async () => {
-    mockFeed([announcement()]);
-    renderWith(<NotificationSettings />);
-
-    expect(await screen.findByText(/cannot notify you when the app is closed/)).toBeTruthy();
+    expect(constructed).not.toHaveBeenCalled();
   });
 
   it('says so when nothing is unread', async () => {
