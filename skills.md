@@ -102,8 +102,22 @@ Keep these layers separate; do not collapse them into one component.
 - **Date of birth** is not collected, stored, logged or requested (DEC-008).
   It returns only as a new explicit product decision with a privacy review.
 - **Privacy.** No USN, name or DOB in URLs or logs (`REDACT_PATHS` in the API
-  logger). No personal data in fixtures — use synthetic values such as
-  `1XX22CS001`.
+  logger). No personal data in fixtures, comments or examples. That includes
+  the owner's own USN, name or email, which has leaked twice. Use synthetic
+  values such as `1XX22CS001`, "Test Student" and `a.student@example.test`. A
+  real seat number used even "as an example of the shape" is still a real one.
+  Before committing, `git grep` the diff for a real-USN shape
+  (`[1-4][A-Z]{2}[0-9]{2}[A-Z]{2,3}[0-9]{3}` not starting `1XX`).
+- **Repository hygiene.** Only source, docs, migrations and small
+  reviewed data are tracked. Never commit build output, `dist`, coverage, QA
+  screenshots (`.qa/`), OCR assets (`*.traineddata`), caches
+  (`.vtu-cache/`, `.vtu-store/`), `.env*` except `.env.example`, logs,
+  database dumps, or any supplied real-document folder. All of these are in
+  `.gitignore`; after editing it, `git ls-files -ci --exclude-standard` must
+  print nothing. Removing a file from HEAD does not remove it from history.
+  A history rewrite changes every later SHA, including release tags such as
+  `v1.0.0`, and needs the owner's explicit approval. A leaked credential is
+  rotated first; rewriting history does not revoke it.
 - **Academic model** (OQ-055, ED-71): B.E./B.Tech, 2022 scheme, eight
   semesters (`SEMESTER_NUMBERS`). Programme and entry route (PUC/Diploma) are
   profile facts only — infer no duration, rule set or lateral-entry behaviour

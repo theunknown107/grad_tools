@@ -2421,7 +2421,7 @@ to the current semester (legacy records stamped 1 would then drop out of view);
 profile alone and decides whose exams are shown. The timetable header also
 reads the profile (a label only).
 
-### OQ-060 — Sync reports a conflict for every result created on this device · **opened by Step 13, unresolved**
+### OQ-060 — Sync reports a conflict for every result created on this device · **opened by Step 13; churn fixed by Step 14, numeric/date typing still open**
 
 **Status:** OPEN · engineering decision
 
@@ -2518,9 +2518,9 @@ handlers or network). An imported result records local-only provenance
 **Decision needed:** who reviews and publishes the college list, and whether
 permission is sought from VTUSync or the session list is re-sourced from VTU.
 
-### OQ-062 — Profile sync after first upload · **opened by Step 15, unresolved**
+### OQ-062 — Profile sync after first upload · **opened by Step 15, RESOLVED by DEC-048 (Step 16)**
 
-**Status:** OPEN · engineering decision
+**Status:** RESOLVED by DEC-048 (Step 16) and DEC-050 (Step 17) · the text below is the question as opened
 
 The profile is not a sync collection. Sync now creates the cloud profile from
 the local one when the cloud has none (so a first push is no longer rejected),
