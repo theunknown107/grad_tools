@@ -95,6 +95,11 @@ function hostOf(url: string): string {
   }
 }
 
+/** The element id a notification links to, so it opens this notice, not the list's top. */
+export function announcementAnchor(id: string): string {
+  return `announcement-${id}`;
+}
+
 export function AnnouncementCard({
   announcement,
   relevant,
@@ -111,8 +116,14 @@ export function AnnouncementCard({
   const long = announcement.body !== null && announcement.body.length > 220;
 
   return (
-    <Card asChild className={cn('p-5', relevant && targeted && 'relative overflow-hidden')}>
-      <article>
+    <Card
+      asChild
+      className={cn(
+        'scroll-mt-24 p-5 outline-none',
+        relevant && targeted && 'relative overflow-hidden',
+      )}
+    >
+      <article id={announcementAnchor(announcement.id)} tabIndex={-1}>
         {/*
           The "for you" edge is a FILLED span: a `border-l-accent` edge renders
           in the neutral hairline colour (index.css neutralises coloured borders

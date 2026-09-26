@@ -24,7 +24,12 @@ import {
 } from '../../hooks/useSourceNotifications.js';
 import { cn } from '../../lib/cn.js';
 import { relativeTime } from '../../lib/time.js';
-import { CATEGORY_ICON, CATEGORY_LABEL, CATEGORY_TONE } from './AnnouncementCard.js';
+import {
+  announcementAnchor,
+  CATEGORY_ICON,
+  CATEGORY_LABEL,
+  CATEGORY_TONE,
+} from './AnnouncementCard.js';
 
 const MUTABLE: readonly AnnouncementCategory[] = [
   'results',
@@ -192,7 +197,7 @@ export function NotificationsPage() {
                   className={cn('flex items-start gap-3.5 p-4', isUnread && 'bg-accent-weak/20')}
                 >
                   <Link
-                    to="/announcements"
+                    to={`/announcements#${announcementAnchor(announcement.id)}`}
                     data-state={state}
                     onClick={() => {
                       if (isUnread) void setState(announcement, 'read');

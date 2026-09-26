@@ -117,7 +117,6 @@ function Shell({
         <TopBar
           collapsed={collapsed}
           onToggleCollapse={toggleCollapsed}
-          onOpenMore={() => setMoreOpen(true)}
           unread={unread}
           initials={initials}
         />
@@ -333,13 +332,11 @@ function Sidebar({
 function TopBar({
   collapsed,
   onToggleCollapse,
-  onOpenMore,
   unread,
   initials,
 }: {
   readonly collapsed: boolean;
   readonly onToggleCollapse: () => void;
-  readonly onOpenMore: () => void;
   readonly unread: number;
   readonly initials: string;
 }) {
@@ -412,9 +409,6 @@ function TopBar({
         >
           <Avatar initials={initials} size={34} />
         </Link>
-        <IconButton label="Open navigation" onClick={onOpenMore} className="md:hidden">
-          <PanelLeft />
-        </IconButton>
       </div>
     </header>
   );

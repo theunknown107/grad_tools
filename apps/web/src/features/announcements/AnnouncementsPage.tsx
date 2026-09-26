@@ -6,7 +6,8 @@
 
 import type { AnnouncementCategory } from '@gradtools/shared-types';
 import { Megaphone, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
 import { EmptyState, ErrorState } from '../../components/ui/feedback.js';
 import { Input } from '../../components/ui/field.js';
@@ -47,6 +48,20 @@ export function AnnouncementsPage() {
   const { items, loading, error, reload } = useAnnouncements(category);
   const sorted = useSortedAnnouncements(items);
   const context = useStudentContext();
+
+  /*
+   * A notification links to `#announcement-<id>`. The router does not scroll to
+   * a hash, and the shell resets scroll on navigation, so once the feed has
+   * loaded bring that notice into view and give it focus.
+   */
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (loading || hash === '') return;
+    const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+    if (target === null) return;
+    target.scrollIntoView?.({ block: 'start' });
+    target.focus({ preventScroll: true });
+  }, [hash, loading]);
 
   const needle = query.trim().toLowerCase();
   const forYou = sorted.filter((item) => isRelevant(item, context));
