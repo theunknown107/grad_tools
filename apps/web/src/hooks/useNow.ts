@@ -14,11 +14,16 @@
  *
  * So the date comes from the clock rather than from the render, and the clock
  * is shared. The tick is aligned to the minute boundary (not `setInterval`,
- * which drifts), and re-read whenever the tab comes back — a laptop that was
+ * which drifts), and re-read whenever the app comes back — a laptop that was
  * asleep for six hours fires no timers while it sleeps.
+ *
+ * While the app is hidden or paused the tick STOPS rather than waking the
+ * device once a minute to update a screen nobody is looking at; coming back
+ * re-reads the clock, so nothing is lost (docs/48 §Background).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { isPageVisible, subscribePageVisibility } from './usePageVisible.js';
 
 /** 'YYYY-MM-DD' in the device's own timezone, which is the student's day. */
 export function localDay(at: Date = new Date()): string {
@@ -91,23 +96,34 @@ function schedule(): void {
 }
 
 function start(): void {
-  if (timer === null) schedule();
+  if (timer === null && isPageVisible()) schedule();
 }
 
-function stop(): void {
-  if (listeners.size > 0 || timer === null) return;
+function halt(): void {
+  if (timer === null) return;
   clearTimeout(timer);
   timer = null;
 }
 
-function onVisible(): void {
+let unwatch: (() => void) | null = null;
+
+function stop(): void {
+  if (listeners.size > 0) return;
+  halt();
+  unwatch?.();
+  unwatch = null;
+}
+
+function onVisibility(): void {
   /*
    * Timers do not fire in a sleeping tab, so the clock is stale the moment it
-   * wakes — and "stale" here can mean a different day.
+   * wakes — and "stale" here can mean a different day. Hidden, nothing ticks.
    */
-  if (document.visibilityState === 'visible') {
+  if (isPageVisible()) {
     publish();
     schedule();
+  } else {
+    halt();
   }
 }
 
@@ -116,11 +132,10 @@ export function useNow(): Now {
     /* The first mount re-reads: the clock may have moved on since the last one. */
     if (listeners.size === 0) snapshot = read();
     listeners.add(onChange);
+    unwatch ??= subscribePageVisibility(onVisibility);
     start();
-    document.addEventListener('visibilitychange', onVisible);
     return () => {
       listeners.delete(onChange);
-      document.removeEventListener('visibilitychange', onVisible);
       stop();
     };
   }, []);

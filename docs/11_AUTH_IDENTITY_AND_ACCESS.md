@@ -261,7 +261,7 @@ If a college pilot proceeds, an obvious request will be college-verified account
 
 **M7 implements no authentication of any kind.** No password, no password table,
 no auth endpoint, no Supabase Auth call, no change to auth behaviour. The
-announcement feed is public and the operator routes are loopback-only (§10.14).
+announcement feed is public and the operator routes require `OPERATOR_TOKEN` (§10.14).
 
 These requirements bind M9, when identity arrives, and are recorded now so the
 decision is not made under delivery pressure later.

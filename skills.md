@@ -195,6 +195,27 @@ Keep these layers separate; do not collapse them into one component.
   by restoring the previous file with `git show <sha>:<path>`, never by
   stashing a shared tree.
 
+## Deployment and Android (docs/48)
+
+- **No write route without a guard.** `/api/v1/me/*` uses the Supabase JWT
+  `guard`; announcement entry/publish need `OPERATOR_TOKEN` (bearer, ≥32
+  chars, constant-time) and are not mounted without it. The bind address and
+  CORS are not controls (DEC-051); `ALLOW_PUBLIC_BIND` no longer exists.
+  `APP_ENV=staging|alpha` refuses a missing or non-https `WEB_ORIGIN`.
+- **Browser config is `apps/web/.env*`, never the root.** `VITE_API_URL` is
+  required off-origin; a production build never falls back to localhost.
+- **Android** is Capacitor in `apps/web/android` (committed; `assets/public`
+  and build output ignored). `pnpm --filter @gradtools/web android:sync`
+  rebuilds and syncs. App origin is `https://localhost` — it must be in
+  `WEB_ORIGIN`. Open: OQ-064 (OAuth/email links in-app), OQ-065 (appId).
+- **Edge-to-edge:** anything pinned to a screen edge pads by
+  `--gt-safe-top/right/bottom/left` (index.css), never raw `env()`.
+- **Background:** anything holding a timer or connection stops while
+  `usePageVisible()` is false (visibilitychange + Capacitor pause/resume).
+  No service workers, push, wake locks, polling, rAF loops or intervals.
+- **Materials** are CSS classes (`.gt-bar` for edge bars, `.gt-glass` for
+  controls); restyle there, never per component.
+
 ## Working checkout
 
 - The authoritative checkout for `feat/figma-frontend` is `D:/gradtools-audit`:

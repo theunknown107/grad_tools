@@ -18,7 +18,7 @@ function start(): void {
   let config;
   try {
     config = loadConfig();
-    // Before anything listens: refuse to publish unauthenticated routes.
+    // Before anything listens: a deployed environment needs an explicit HTTPS origin list.
     assertSafeExposure(config);
   } catch (error) {
     // Deliberately console, not the logger: the logger needs config to exist.
@@ -33,9 +33,9 @@ function start(): void {
   const app = createApp(config, sql, logger);
 
   /*
-   * Bound explicitly. `app.listen(PORT)` alone binds every interface, which
-   * would put the unauthenticated Stage 1 document routes on the network
-   * (docs/13 §T-19).
+   * Bound explicitly to `HOST`: loopback for local work, `0.0.0.0` in the
+   * container. Public binding is safe because no route is unauthenticated
+   * (see `OPERATOR_TOKEN` in config.ts, docs/13 §T-19).
    */
   const server = app.listen(config.PORT, config.HOST, () => {
     logger.info(

@@ -69,8 +69,9 @@ describe('the three navigation states', () => {
   it('reserves bottom-bar space only while the bottom bar is there', () => {
     shell();
     const main = document.getElementById('gt-main');
-    expect(main?.className).toContain('pb-24');
-    expect(main?.className).toContain('md:pb-0');
+    // The bar's height plus the gesture bar below it; from md, the gesture bar only.
+    expect(main?.className).toContain('pb-[calc(6rem+var(--gt-safe-bottom))]');
+    expect(main?.className).toContain('md:pb-[var(--gt-safe-bottom)]');
   });
 
   it('widens from the rail to the full sidebar at lg', () => {

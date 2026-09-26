@@ -252,7 +252,7 @@ export function Toaster() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed right-4 bottom-20 z-[90] flex flex-col items-end gap-2 max-sm:inset-x-4 max-sm:items-stretch lg:bottom-4"
+      className="pointer-events-none fixed right-4 bottom-[calc(5rem+var(--gt-safe-bottom))] z-[90] flex flex-col items-end gap-2 max-sm:inset-x-4 max-sm:items-stretch lg:bottom-[calc(1rem+var(--gt-safe-bottom))]"
     >
       {items.map((item) => (
         <div

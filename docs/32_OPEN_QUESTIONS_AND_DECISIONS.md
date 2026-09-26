@@ -2640,3 +2640,35 @@ spelling as an alias the picker matches, or store `catalogueId` on the profile.
 - A semester whose saved result is empty is not listed under "Semesters
   without a result", because a second result for that semester is refused
   (OQ-058). The student edits the saved result instead. Kept as is.
+
+## Part O — Deployment readiness
+
+### DEC-051 — Operator writes are authenticated by a token, not by the bind address · **supersedes ED-40**
+
+The two announcement operator routes were the last unauthenticated writes, and
+ED-40's loopback bind was all that kept them off the network — which made any
+container deployment either unreachable or unsafe. They now require
+`OPERATOR_TOKEN` (bearer, ≥32 characters, constant-time comparison) and are not
+mounted without it. With no unauthenticated route left, the bind refusal and
+`ALLOW_PUBLIC_BIND` were removed; the Dockerfile binds `0.0.0.0`. A single
+shared token was chosen over roles because no role model exists and inventing
+one was out of scope; `verifiedBy` stays a free-text label. In `staging` and
+`alpha` the API refuses to start without an explicit all-HTTPS `WEB_ORIGIN`.
+See docs/13 §13.4a, docs/48.
+
+### OQ-064 — Google/Apple sign-in and emailed links inside the Android app · **open**
+
+Email-and-password sign-in is a direct API call and needs no redirect. Google
+and Apple sign-in, the sign-up confirmation email and password reset all
+redirect to `window.location.origin + '/account'`, which inside the Capacitor
+WebView is `https://localhost/account` — a URL the system browser cannot hand
+back to the app. Until a deep link (custom scheme or verified App Link) and a
+matching Supabase redirect URL exist, those flows do not complete on Android
+(an account confirmed or reset from a desktop browser then signs in on the
+phone with its password). Not verified on a device. See docs/48.
+
+### OQ-065 — Android application id · **open**
+
+`capacitor.config.json` uses `app.gradtools` as a placeholder. An application id
+is permanent once published to a store; it should be a reverse domain the
+project controls. Decide before any store upload.

@@ -459,7 +459,7 @@ stated plainly to the student rather than quietly assumed.
 | A VTU source adapter | The source gate is closed pending terms review (`OQ-026`, `OQ-006`). No adapter, no scraper, no env switch |
 | `GET /notifications`, `/unread-count` | Would require a server-side student identity that Stage 1 does not have |
 | Web Push (VAPID, service worker) | Needs a server, a subscription store and an identity. The opt-in Notification API works only while the app is open, and the UI says so |
-| A public write endpoint | Announcement creation is loopback-only and cannot publish (§10.14) |
+| A public write endpoint | Announcement creation requires `OPERATOR_TOKEN` and cannot publish (§10.14) |
 
 ## 7.15 The question-paper library (M8)
 

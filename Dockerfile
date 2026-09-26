@@ -96,29 +96,19 @@ COPY . .
 USER node
 
 EXPOSE 3001
+# A platform that assigns its own port (Render, Railway, Fly) overrides PORT.
 ENV PORT=3001
 
 # -----------------------------------------------------------------------------
-# `HOST` IS DELIBERATELY NOT SET, AND THE CONTAINER IS UNREACHABLE UNTIL IT IS
+# THE CONTAINER BINDS EVERY INTERFACE, BECAUSE NOTHING IS UNAUTHENTICATED
 # -----------------------------------------------------------------------------
 #
-# A container has to bind 0.0.0.0 to be reachable at all, and `main.ts` refuses
-# to start on a non-loopback address: Stage 1's document routes have no
-# authentication, so the bind address is the only thing protecting them
-# (docs/13 §T-19).
-#
-# An earlier version of this file set `HOST=0.0.0.0` here and the API refused to
-# boot — correctly. The fix is NOT to add `ALLOW_PUBLIC_BIND=true` and make the
-# error go away: that would silently switch off a real control and publish
-# unauthenticated routes to whatever the platform exposes.
-#
-# So the decision belongs to whoever deploys this, and has to be made out loud:
-#
-#   -e HOST=0.0.0.0 -e ALLOW_PUBLIC_BIND=true
-#
-# and only where something in front of the container authenticates those routes.
-# Until Stage 1 has authentication, this image is safe on a private network and
-# is NOT safe on the public internet. docs/45 says so in full.
+# A container has to bind 0.0.0.0 to be reachable at all. That used to be
+# refused, because the announcement operator writes had no authentication and
+# the bind address was the only thing protecting them. They now require
+# OPERATOR_TOKEN and do not exist without it; every /api/v1/me route verifies a
+# Supabase session; everything else is a public read (docs/13 §T-19, docs/48).
+ENV HOST=0.0.0.0
 
 # Liveness only. Readiness is `/health/ready`, which checks the database, and a
 # container should not be restarted because a database blipped.

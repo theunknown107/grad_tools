@@ -534,7 +534,7 @@ student-facing app uses.
 
 ## 10.14 Endpoints — Announcements (M7)
 
-Two public reads, two loopback writes.
+Three public reads, two operator writes.
 
 ### `GET /api/v1/announcements`
 
@@ -563,11 +563,13 @@ cacheable, contains no student data.
 An unpublished announcement is **404, not 403**. "It exists but you may not see
 it" is itself information about unreleased content.
 
-### `POST /api/v1/announcements/entry` — loopback only
+### `POST /api/v1/announcements/entry` — operator token
 
-Operator entry. Reachable only from the machine running the API, the same
-boundary the document routes use. **There is deliberately no public
-unauthenticated write.**
+Operator entry. Requires `Authorization: Bearer <OPERATOR_TOKEN>`; any missing,
+malformed or wrong token is the same `401 UNAUTHENTICATED`. When the deployment
+sets no `OPERATOR_TOKEN` the route is not mounted and answers `404`. **There is
+deliberately no public unauthenticated write.** (Originally loopback-only;
+superseded by the token — docs/13 §13.4a, docs/48.)
 
 The endpoint accepts no verification or publication state. An entry arrives
 `draft` / `unpublished` exactly as a fetched notice would, and is invisible to
@@ -575,9 +577,11 @@ students until a separate act publishes it. Storing a notice and vouching for it
 are different decisions; collapsing them would mean anything typed in was
 published by the act of typing it.
 
-### `POST /api/v1/announcements/:id/publish` — loopback only
+### `POST /api/v1/announcements/:id/publish` — operator token
 
-Requires `verifiedBy`. An unattributed verification is not a verification.
+Same authorization as entry. Requires `verifiedBy`, which is a label the
+operator writes, not an authenticated identity: there is one operator
+credential, not per-person accounts. An unattributed verification is not a verification.
 
 ### Not built, and why
 
@@ -585,7 +589,7 @@ Requires `verifiedBy`. An unattributed verification is not a verification.
 |---|---|
 | `GET /api/v1/notifications` | Needs a server-side student identity Stage 1 does not have (§9.16) |
 | `GET /api/v1/notifications/unread-count` | Same. Unread is computed on the device |
-| Any announcement write without loopback | Would be an unauthenticated public write to student-visible content |
+| Any announcement write without the operator token | Would be an unauthenticated public write to student-visible content |
 
 ## 10.15 Endpoints — The question-paper library (M8)
 

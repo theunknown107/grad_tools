@@ -162,19 +162,29 @@ reach the machine.
 non-browser client ignore it completely. Relying on the CORS allowlist here
 would be relying on attackers using a browser.
 
-**The control.** The bind address, enforced at boot:
+**The control, until the deployment-readiness change.** The bind address:
+`HOST` defaulted to `127.0.0.1` and `assertSafeExposure()` refused to start on a
+non-loopback bind unless `ALLOW_PUBLIC_BIND=true`.
 
-- `HOST` is validated configuration and **defaults to `127.0.0.1`**.
-- `assertSafeExposure()` runs before the server listens and **refuses to start**
-  if `HOST` is non-loopback, so a misconfiguration is a loud startup failure
-  rather than a quiet exposure.
-- `ALLOW_PUBLIC_BIND=true` is the deliberate escape hatch for a deployment that
-  authenticates these routes some other way. Nothing infers it.
+**The control now — authentication, not the bind address (docs/48).** The
+document write routes named above no longer exist in the API; the only
+unauthenticated writes that remained were the two announcement operator routes.
+Those now require `OPERATOR_TOKEN` as a bearer token (a generated secret of at
+least 32 characters, compared in constant time) and **are not mounted at all**
+when it is unset, so they answer 404. Every `/api/v1/me` route verifies a
+Supabase session. Everything else is a public read by design. With nothing
+unauthenticated left to expose, the bind refusal and `ALLOW_PUBLIC_BIND` were
+removed and the container binds `0.0.0.0`. `services/api/test/announcements.test.ts`
+proves an anonymous, wrong-token or wrong-scheme write is a 401 that stores
+nothing, and that the writes 404 without a configured token.
 
-**The rule, binding:** *unauthenticated private-document routes must never be
-reachable from an untrusted network.* When authentication exists, exposure can
-be enabled intentionally, behind it. Until then the loopback bind is what makes
-the privacy claim true rather than aspirational.
+`assertSafeExposure()` still runs before the server listens: in `staging` and
+`alpha` it refuses to start unless `WEB_ORIGIN` is set explicitly and every
+origin is `https://`.
+
+**The rule, binding:** *no write route may be reachable from an untrusted
+network without authentication.* A new route that writes must arrive with its
+guard; CORS and the bind address are not guards.
 
 ## 13.4b T-20 — The OCR worker's input is hostile (M5A.3)
 
@@ -332,7 +342,7 @@ GradTools, sometimes carrying a link. That is the whole threat.
 | T-34 | A student following an external link without realising they are leaving | The link shows **the host** it goes to, opens in a new tab, and carries `rel="noopener noreferrer nofollow"` |
 | T-35 | Unverified content reaching students | Publication requires verification, enforced by a database CHECK, not by the router |
 | T-36 | A source silently editing a notice a human already approved | A content change **withdraws verification** and unpublishes the row (§8.14) |
-| T-37 | Anyone posting an announcement | No public write. Entry is loopback-only and cannot publish (§10.14) |
+| T-37 | Anyone posting an announcement | No public write. Entry requires `OPERATOR_TOKEN` (absent: not mounted) and cannot publish (§10.14, §13.4a) |
 | T-38 | Synthetic content mistaken for an official notice | `origin = 'demo_fixture'` drives a visible DEMO label; publishers are fictional; the VTU disclaimer is on the page |
 
 **Not a sanitiser.** `toPlainText` keeps no HTML at all. A sanitiser decides

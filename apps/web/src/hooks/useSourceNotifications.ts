@@ -29,6 +29,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { STUDENT_ROUTES } from '@gradtools/shared-types';
 import { apiBaseUrl } from '../repositories/reference.js';
 import { useAuth } from '../features/auth/AuthContext.js';
+import { usePageVisible } from './usePageVisible.js';
 
 export type SourceNotificationState = 'unread' | 'read' | 'dismissed';
 
@@ -77,6 +78,7 @@ export function useSourceNotifications(): SourceNotificationsState {
 
   const signedIn = authState.status === 'signed_in';
   const unavailable = adapter === null || !signedIn;
+  const visible = usePageVisible();
 
   /** The bearer token, or null. Read per request, never held in state. */
   const authorize = useCallback(async (): Promise<Record<string, string> | null> => {
@@ -165,9 +167,15 @@ export function useSourceNotifications(): SourceNotificationsState {
    *
    * THE EVENT IS A HINT. Losing one costs nothing: the row is already in the
    * database, and the next connect reads it (§22).
+   *
+   * CLOSED WHILE HIDDEN. A backgrounded tab or Android app has nobody to ring
+   * for, and an open socket — or a reconnect loop retrying one — keeps the
+   * radio awake. Hidden, the stream is aborted; visible again, it reconnects
+   * once, and connecting refetches the authoritative list, so nothing that
+   * arrived meanwhile is missed.
    */
   useEffect(() => {
-    if (unavailable) return;
+    if (unavailable || !visible) return;
 
     const abort = new AbortController();
     let stopped = false;
@@ -231,7 +239,14 @@ export function useSourceNotifications(): SourceNotificationsState {
          */
         attempt += 1;
         const wait = Math.min(1000 * 2 ** attempt, 60_000);
-        await new Promise((resolve) => setTimeout(resolve, wait));
+        /* Hiding the app ends the wait too, rather than leaving a timer behind. */
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, wait);
+          abort.signal.addEventListener('abort', () => {
+            clearTimeout(timer);
+            resolve();
+          });
+        });
       }
     };
 
@@ -287,7 +302,7 @@ export function useSourceNotifications(): SourceNotificationsState {
       stopped = true;
       abort.abort();
     };
-  }, [unavailable, authorize]);
+  }, [unavailable, visible, authorize]);
 
   const markRead = useCallback(
     async (id: string): Promise<void> => {
