@@ -195,6 +195,23 @@ Keep these layers separate; do not collapse them into one component.
   by restoring the previous file with `git show <sha>:<path>`, never by
   stashing a shared tree.
 
+## Working checkout
+
+- The authoritative checkout for `feat/figma-frontend` is `D:/gradtools-audit`:
+  branch `feat/figma-frontend`, remote `origin` (GitHub).
+- These other local checkouts are **not** authoritative for current
+  `feat/figma-frontend` work: `D:\GradTools`, `D:/gradtools-rewritten` and
+  `D:/gradtools-final`. The first two hold history from before the privacy
+  rewrite; `D:/gradtools-final` is stale relative to the published branch (its
+  `origin` is a local mirror, not GitHub). Do not push or do branch work from
+  any of them unless it has been explicitly revalidated first.
+- Before making or pushing changes on this branch, verify that:
+  1. the working directory is `D:/gradtools-audit`;
+  2. the branch is `feat/figma-frontend`;
+  3. the working tree is clean, or its changes are understood;
+  4. `HEAD` and the remote branch (`git ls-remote origin`) are checked before
+     any history-sensitive operation (push, rebase, reset, tag).
+
 ## Working with agents
 
 - Split work by file ownership; one owner per file. Shared entry points
