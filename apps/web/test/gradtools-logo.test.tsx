@@ -23,7 +23,8 @@ describe('the GradTools logo', () => {
     expect(logo.style.width).toBe('40px');
     const svg = logo.querySelector('svg');
     expect(svg).not.toBeNull();
-    expect(svg!.querySelector('g')?.getAttribute('fill')).toBe('currentColor');
+    expect(svg!.querySelector('path')?.getAttribute('fill')).toBe('currentColor');
+    expect(svg!.querySelector('[fill]:not([fill="currentColor"])')).toBeNull();
     expect(logo.className).toMatch(/bg-brand-surface/);
     expect(logo.className).toMatch(/text-brand-mark/);
     expect(svg!.querySelector('text')).toBeNull();
