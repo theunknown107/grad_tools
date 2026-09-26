@@ -230,6 +230,55 @@ describeDb('announcements against PostgreSQL', () => {
     });
   }
 
+  /* ---- paging --------------------------------------------------------- */
+
+  /*
+   * The client reads the whole feed by offset. Notices that tie on both
+   * timestamps (one insert transaction gives every row the same created_at)
+   * must still come back exactly once across the pages.
+   */
+  it('pages through notices that tie on both timestamps without repeating or skipping one', async () => {
+    const ids: string[] = [];
+    for (let index = 0; index < 9; index += 1) {
+      const outcome = await store({ title: `Tied notice ${String(index)}` });
+      await publishAnnouncement(sql, outcome.id, 'operator');
+      ids.push(outcome.id);
+    }
+    await sql`UPDATE announcements SET created_at = '2026-09-01T00:00:00Z'`;
+
+    const seen: string[] = [];
+    for (let offset = 0; offset < 9; offset += 2) {
+      const response = await request(app).get(
+        `/api/v1/announcements?limit=2&offset=${String(offset)}`,
+      );
+      expect(response.body.total).toBe(9);
+      seen.push(...(response.body.data as { id: string }[]).map((item) => item.id));
+    }
+    expect(seen).toHaveLength(9);
+    expect(new Set(seen)).toEqual(new Set(ids));
+  });
+
+  /*
+   * The app refreshes the feed when a student returns to the tab. A cached
+   * response with a lifetime would answer that refresh from the browser and
+   * hide a notice published since, so the feed is public but revalidated on
+   * every use — and an unchanged feed costs a 304, not a body.
+   */
+  it('lets a refresh reach the server, and answers an unchanged feed with a 304', async () => {
+    const outcome = await store({ title: 'Cached notice' });
+    await publishAnnouncement(sql, outcome.id, 'operator');
+
+    const first = await request(app).get('/api/v1/announcements');
+    expect(first.headers['cache-control']).toBe('public, max-age=0, must-revalidate');
+    const etag = first.headers['etag'] as string | undefined;
+    expect(etag).toBeTruthy();
+
+    const again = await request(app)
+      .get('/api/v1/announcements')
+      .set('If-None-Match', etag as string);
+    expect(again.status).toBe(304);
+  });
+
   /* ---- the publication gate ------------------------------------------- */
 
   describe('the publication gate', () => {

@@ -76,10 +76,13 @@ export function createAnnouncementRouter(sql: Sql): Router {
     });
 
     /*
-     * Public, and safe to cache briefly: this response is identical for every
-     * visitor because it contains nothing about any of them.
+     * Public — identical for every visitor, because it contains nothing about
+     * any of them — but revalidated on every use. The app refreshes this feed
+     * when a student returns to the tab, and a minute of `max-age` would answer
+     * that refresh from the browser's cache and hide a notice published since.
+     * Express's ETag keeps an unchanged feed to a 304.
      */
-    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
     res.json({ data: items, total, limit, offset });
   });
 

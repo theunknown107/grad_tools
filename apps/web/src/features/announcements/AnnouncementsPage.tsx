@@ -45,7 +45,7 @@ export function AnnouncementsPage() {
   const [category, setCategory] = useState<AnnouncementCategory | 'all'>('all');
   const [scope, setScope] = useState<Scope>('all');
   const [query, setQuery] = useState('');
-  const { items, loading, error, reload } = useAnnouncements(category);
+  const { items, total, loading, error, reload } = useAnnouncements(category);
   const sorted = useSortedAnnouncements(items);
   const context = useStudentContext();
 
@@ -80,7 +80,7 @@ export function AnnouncementsPage() {
         actions={
           sorted.length > 0 ? (
             <>
-              <Badge>{formatCount(sorted.length, 'notice')}</Badge>
+              <Badge>{formatCount(total, 'notice')}</Badge>
               <Badge tone="accent">{forYou.length} for you</Badge>
             </>
           ) : undefined

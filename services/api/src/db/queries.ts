@@ -524,11 +524,14 @@ export async function listPublishedAnnouncements(
   const sourceFilter =
     query.sourceId === undefined ? sql`` : sql`AND a.source_id = ${query.sourceId}`;
 
+  // `id` last makes the order total, so paging by offset can neither repeat nor
+  // skip a notice that ties on both timestamps (one insert transaction gives
+  // every row the same created_at).
   const rows = await sql`
     SELECT ${ANNOUNCEMENT_COLUMNS(sql)}
       FROM announcements a
      WHERE ${PUBLISHED_ANNOUNCEMENT(sql)} ${categoryFilter} ${sourceFilter}
-     ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC
+     ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC, a.id
      LIMIT ${query.limit} OFFSET ${query.offset}
   `;
 

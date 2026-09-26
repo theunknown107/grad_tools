@@ -19,6 +19,7 @@ import {
   NotificationsPage,
 } from '../src/features/announcements/NotificationsPage.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
+import { useAnnouncements } from '../src/hooks/useAnnouncements.js';
 import type { StudentProfile } from '../src/domain/types.js';
 import { createMemoryRepositories, renderWith } from './helpers.js';
 
@@ -544,5 +545,151 @@ describe('priority on screen', () => {
     await screen.findByText('URGENT: act immediately');
     const row = screen.getByText('URGENT: act immediately').closest('article') as HTMLElement;
     expect(within(row).queryByText('Urgent')).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* A feed longer than one page                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Serves the feed the way the API does: `limit` defaults to 20 and is clamped
+ * to 100, `offset` skips, `category` filters, and `total` counts every match.
+ * The plain `mockFeed` above ignores paging, which is how a client that only
+ * ever saw the first 20 notices went unnoticed.
+ */
+function mockPagedFeed(items: Announcement[], options: { overlap?: boolean } = {}) {
+  const requests: URL[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input), 'http://api.test');
+      requests.push(url);
+      const category = url.searchParams.get('category');
+      const matching = category === null ? items : items.filter((a) => a.category === category);
+      const limit = Math.min(Math.max(1, Number(url.searchParams.get('limit') ?? 20)), 100);
+      let offset = Number(url.searchParams.get('offset') ?? 0);
+      // A notice published between two page requests shifts later pages by one.
+      if (options.overlap === true && offset > 0) offset -= 1;
+      const body = {
+        data: matching.slice(offset, offset + limit),
+        total: matching.length,
+        limit,
+        offset,
+      };
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(body) } as Response);
+    }),
+  );
+  return requests;
+}
+
+/** `count` notices, newest first, as the API orders them. */
+function manyNotices(
+  count: number,
+  overrides: (index: number) => Partial<Announcement> = () => ({}),
+) {
+  return Array.from({ length: count }, (_, index) => {
+    const day = new Date(Date.UTC(2026, 8, 30) - index * 3_600_000).toISOString();
+    return announcement({
+      id: `bulk-${String(index)}`,
+      title: `Bulk notice ${String(index)}`,
+      publishedAt: day,
+      updatedAt: day,
+      ...overrides(index),
+    });
+  });
+}
+
+function FeedTitles() {
+  const { items, total, loading } = useAnnouncements();
+  if (loading) return null;
+  return (
+    <ol aria-label={`feed of ${String(total)}`}>
+      {items.map((item) => (
+        <li key={item.id}>{item.title}</li>
+      ))}
+    </ol>
+  );
+}
+
+describe('a feed longer than one page', () => {
+  const civil = {
+    schemeId: null,
+    branchId: null,
+    branchName: 'Civil Engineering',
+    collegeId: null,
+    collegeName: null,
+    semester: null,
+  };
+
+  it('notifies about a relevant notice that sits beyond the first 20', async () => {
+    const notices = manyNotices(25, (index) =>
+      index === 23
+        ? {
+            id: 'old-cse',
+            title: 'Older CSE lab notice',
+            audience: { ...civil, branchName: 'Computer Science and Engineering' },
+          }
+        : { audience: civil },
+    );
+    mockPagedFeed(notices);
+    const { bundle } = createMemoryRepositories({ profile: profile() });
+    renderWith(<NotificationsPage />, { repositories: bundle });
+
+    // The only notice for this student is the 24th: it must still reach them.
+    const row = await screen.findByRole('link', { name: /Older CSE lab notice/ });
+    expect(row.getAttribute('href')).toBe('/announcements#announcement-old-cse');
+    expect(row.getAttribute('data-state')).toBe('unread');
+    expect(screen.getByRole('radio', { name: /^Unread/ }).textContent).toBe('Unread · 1');
+  });
+
+  it('counts the API total and lists every notice, in the server order', async () => {
+    const notices = manyNotices(130);
+    const requests = mockPagedFeed(notices);
+    renderWith(<FeedTitles />);
+
+    const list = await screen.findByRole('list', { name: 'feed of 130' });
+    const titles = within(list)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
+    expect(titles).toEqual(notices.map((notice) => notice.title));
+
+    const feedPages = requests.filter((url) => url.pathname === '/api/v1/announcements');
+    expect(feedPages.map((url) => url.searchParams.get('offset'))).toEqual(['0', '100']);
+  });
+
+  it('shows the API total in the Announcements header, not one page of it', async () => {
+    mockPagedFeed(manyNotices(130));
+    renderWith(<AnnouncementsPage />);
+    expect(await screen.findByText('130 notices')).toBeTruthy();
+    expect(screen.getByText('Bulk notice 129')).toBeTruthy();
+  });
+
+  it('never lists a notice twice when pages overlap', async () => {
+    const notices = manyNotices(130);
+    mockPagedFeed(notices, { overlap: true });
+    renderWith(<FeedTitles />);
+
+    const list = await screen.findByRole('list', { name: 'feed of 130' });
+    const titles = within(list)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
+    expect(new Set(titles).size).toBe(titles.length);
+    expect(titles).toEqual(notices.map((notice) => notice.title));
+  });
+
+  it('keeps filtering by category, across pages', async () => {
+    const notices = manyNotices(130, (index) => ({
+      category: index % 2 === 0 ? 'results' : 'fees',
+    }));
+    const requests = mockPagedFeed(notices);
+    renderWith(<AnnouncementsPage />);
+    await screen.findByText('130 notices');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Results' }));
+    expect(await screen.findByText('65 notices')).toBeTruthy();
+    expect(screen.queryByText('Bulk notice 1')).toBeNull();
+    expect(screen.getByText('Bulk notice 128')).toBeTruthy();
+    expect(requests.some((url) => url.searchParams.get('category') === 'results')).toBe(true);
   });
 });
