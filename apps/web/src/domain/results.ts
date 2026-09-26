@@ -35,6 +35,35 @@ import {
 } from '@gradtools/academic-rules';
 import type { ResultSubject, SemesterResult, SubjectProvenance } from './types.js';
 import { resolveCourseKind, type ResolvedCourseKind } from './exams.js';
+import { creditsFor, type SubjectIdentity } from './subjects.js';
+
+/**
+ * How a subject code is looked up in what the student has already recorded.
+ *
+ * WHY THIS IS A PARAMETER AND NOT AN IMPORT. A VTU grade card prints no
+ * credits, and the catalogue does not carry every course a student takes — an
+ * open elective, a self-study course, a departmental PE row. For those the
+ * only source is the student's own record elsewhere in the product (their
+ * semester plan, or the same code in another semester), and the subject index
+ * is the thing that holds it.
+ *
+ * The default is "look nothing up", so a caller that has no index gets exactly
+ * the old behaviour: the row's own credits or nothing. Nothing is ever
+ * invented — `creditsFor` returns what was recorded, or null.
+ */
+export type SubjectLookup = (code: string | null) => SubjectIdentity | null;
+
+const NO_LOOKUP: SubjectLookup = () => null;
+
+/** This row's credits, from the row itself or from what the student recorded. */
+export function creditsOf(subject: ResultSubject, identity: SubjectIdentity | null): number | null {
+  /*
+   * The row's OWN figure wins, as it does in `enrichRow`: a student who typed
+   * a credit for this row said something specific about it, while the index
+   * can only speak about the code in general.
+   */
+  return subject.credits ?? creditsFor(identity).credits;
+}
 
 /** The `courseKind` on an evaluation that never got as far as resolving one. */
 const UNRESOLVED_KIND: ResolvedCourseKind = {
@@ -311,7 +340,8 @@ function sourceGradeOf(subject: ResultSubject, ruleSet: RuleSet | undefined): Gr
  * **A grade for a carried course.** `gradeFromMarks` bands a percentage, and a
  * course that failed a head is not graded on its percentage. Rather than
  * implement a second, unverified rule for what letter a carried course earns,
- * no computed grade is offered and the reason says so.
+ * no computed grade is offered and the reason says so. The one exception is a
+ * course whose letter both readings agree on — see the F case below (OQ-054).
  *
  * **Anything at all without a rule set.** A pinned rule set this build does not
  * have stays unavailable; no substitute is reached for (M6 §6, OQ-049 §13).
@@ -386,9 +416,33 @@ export function evaluateResultSubject(
   if (!isOk(outcome)) return { ...base, courseKind: kind, unavailableReason: outcome.detail };
 
   let computedGrade: GradeReading | null = null;
-  if (outcome.value.passed) {
-    const band = gradeFromMarks(total, ruleSet.courseMax, ruleSet);
-    if (isOk(band)) computedGrade = { letter: band.value.letter, points: band.value.points };
+  const band = gradeFromMarks(total, ruleSet.courseMax, ruleSet);
+  if (isOk(band)) {
+    const reading = { letter: band.value.letter, points: band.value.points };
+    if (outcome.value.passed) {
+      computedGrade = reading;
+    } else if (
+      /*
+       * THE ONE FAILED COURSE WHOSE LETTER IS CERTAIN (OQ-054).
+       *
+       * A band lying wholly below the overall minimum (F, 0-39 under 22OB 6.1)
+       * means the overall head failed too, so both readings OQ-054 lists agree:
+       * banding by percentage gives F, and "a failed course is F" gives F.
+       * docs/16 records 22OB 6.3(6) as "fails conditions -> F". The special
+       * grades a blank letter could hide are ruled out: DX (a CIE shortfall,
+       * 6.3(7)) by the CIE head passing, AB/IC by a positive external — an SEE
+       * was sat. `hasSee` is known here; the early return above guarantees it.
+       *
+       * Everything else stays unresolved, as OQ-054 records: a total in a
+       * passing band with a failed head (F or P?), a CIE shortfall (DX?), and
+       * an external of 0 (AB?).
+       */
+      band.value.maxPct < ruleSet.overallMinPct &&
+      outcome.value.cie === 'passed' &&
+      subject.external > 0
+    ) {
+      computedGrade = reading;
+    }
   }
 
   return {
@@ -456,7 +510,9 @@ export interface SgpaInputs {
  * carries, and the handoff index is explicit: "Do not invent credits or grades…
  * If authoritative metadata cannot be resolved, surface the unresolved state."
  * So it stays unresolved, and the reason says so rather than an F appearing
- * from nowhere. Recorded as OQ-054.
+ * from nowhere. Recorded as OQ-054. The exception is a total in the F band with
+ * the CIE passed and an SEE sat, where every reading gives F — see
+ * `evaluateResultSubject`.
  */
 export interface ResolvedGrade {
   readonly letter: string;
@@ -485,11 +541,16 @@ export function resolveSubjectGrade(
  * it back are named — so the student sees what to fill in rather than being
  * told the figure is simply unavailable.
  */
-export function sgpaInputs(result: SemesterResult, ruleSet: RuleSet | undefined): SgpaInputs {
+export function sgpaInputs(
+  result: SemesterResult,
+  ruleSet: RuleSet | undefined,
+  identify: SubjectLookup = NO_LOOKUP,
+): SgpaInputs {
   const courses: { credits: number; gradeLetter: string; subjectCode: string }[] = [];
   const missing: { subjectCode: string; reason: string }[] = [];
 
   for (const subject of result.subjects) {
+    const identity = identify(subject.subjectCode);
     /*
      * NON-CREDIT AND AUDIT COURSES ARE NOT IN THE AVERAGE.
      *
@@ -504,10 +565,10 @@ export function sgpaInputs(result: SemesterResult, ruleSet: RuleSet | undefined)
      * Excluded is not hidden. The course stays on the page with its own grade;
      * completion is mandatory for the degree.
      */
-    if (resolveCourseKind(subject, null, ruleSet).countsTowardGpa === false) continue;
+    if (resolveCourseKind(subject, identity, ruleSet).countsTowardGpa === false) continue;
 
     const grade = resolveSubjectGrade(subject, ruleSet);
-    const credits = subject.credits;
+    const credits = creditsOf(subject, identity);
     if (grade !== null && credits !== null) {
       courses.push({
         credits,
@@ -563,15 +624,78 @@ export function semesterBacklogs(
 export function semesterSgpa(
   result: SemesterResult,
   ruleSet: RuleSet | undefined,
+  identify: SubjectLookup = NO_LOOKUP,
 ): {
   readonly sgpa: number | null;
   readonly credits: number;
+  /**
+   * False when NOT ONE subject had a credit figure — so a caller can tell
+   * "this semester carries no credits" from "nobody has told us yet". `0` used
+   * to mean both, and every screen guessed with `credits > 0`.
+   */
+  readonly creditsKnown: boolean;
   readonly inputs: SgpaInputs;
+  /** Σ(Ci × Gi) from the same calculation — null whenever the SGPA is. */
+  readonly gradePoints: number | null;
 } {
-  const inputs = sgpaInputs(result, ruleSet);
-  const credits = result.subjects.reduce((total, subject) => total + (subject.credits ?? 0), 0);
+  const inputs = sgpaInputs(result, ruleSet, identify);
+  const resolved = result.subjects.map((subject) =>
+    creditsOf(subject, identify(subject.subjectCode)),
+  );
+  const creditsKnown = resolved.some((value) => value !== null);
+  const credits = resolved.reduce((total: number, value) => total + (value ?? 0), 0);
 
-  if (ruleSet === undefined || !inputs.complete) return { sgpa: null, credits, inputs };
+  if (ruleSet === undefined || !inputs.complete) {
+    return { sgpa: null, credits, creditsKnown, inputs, gradePoints: null };
+  }
   const outcome = calculateSGPA(inputs.courses, ruleSet);
-  return { sgpa: isOk(outcome) ? outcome.value : null, credits, inputs };
+  if (!isOk(outcome)) return { sgpa: null, credits, creditsKnown, inputs, gradePoints: null };
+  const weighted = outcome.explanation.inputs['weightedPoints'];
+  return {
+    sgpa: outcome.value,
+    credits,
+    creditsKnown,
+    inputs,
+    gradePoints: typeof weighted === 'number' ? weighted : null,
+  };
+}
+
+/**
+ * One semester as CSV — what Export on the result record downloads.
+ *
+ * Values are the record's own: printed marks as printed, and a grade only
+ * where the card or the rules engine gives one. A cell that a spreadsheet
+ * would run as a formula is prefixed with an apostrophe, because titles can
+ * come from an imported document.
+ */
+export function semesterCsv(result: SemesterResult, ruleSet: RuleSet | undefined): string {
+  const cell = (value: string | number | null): string => {
+    if (value === null) return '';
+    let text = String(value);
+    if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const header = [
+    'Semester',
+    'Code',
+    'Course',
+    'Internal',
+    'External',
+    'Total',
+    'Credits',
+    'Grade',
+    'Result',
+  ];
+  const rows = result.subjects.map((subject) => [
+    result.semester,
+    subject.subjectCode,
+    subject.subjectTitle,
+    subject.internal,
+    subject.external,
+    subject.total,
+    subject.credits,
+    resolveSubjectGrade(subject, ruleSet)?.letter ?? null,
+    subject.resultStatus,
+  ]);
+  return [header, ...rows].map((row) => row.map(cell).join(',')).join('\r\n') + '\r\n';
 }

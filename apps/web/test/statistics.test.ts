@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { VTU_2022_RULE_SET_ID } from '@gradtools/academic-rules';
-import { academicStatistics } from '../src/domain/statistics.js';
+import { academicStatistics, hasNoBacklogs } from '../src/domain/statistics.js';
 import { normalizeResultSubject } from '../src/domain/results.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
 import type { BacklogRecord, SemesterRecord, SemesterResult } from '../src/domain/types.js';
@@ -71,6 +71,21 @@ function semesterRecord(number: number, status: SemesterRecord['status']): Semes
     status,
     startedOn: null,
     completedOn: null,
+    updatedAt: '2026-01-01T00:00:00Z',
+  };
+}
+
+/** A subject the student has recorded as carried. */
+function carried(subjectCode: string, status: BacklogRecord['status']): BacklogRecord {
+  return {
+    id: `b-${subjectCode}`,
+    profileId,
+    subjectCode,
+    subjectTitle: subjectCode,
+    originSemester: 3,
+    status,
+    attempts: status === 'active' ? 0 : 1,
+    clearedInSemester: status === 'cleared' ? 4 : null,
     updatedAt: '2026-01-01T00:00:00Z',
   };
 }
@@ -405,10 +420,17 @@ describe('a course that cannot be read either way', () => {
      * is not what their result rows imply, and a student may well have one
      * without the other. Blending them produced a number neither source
      * supports — and it was how the results page lost its "+" convention.
+     *
+     * Two records beside a floor of zero: a blend would read 2+, or 2 partial,
+     * or 0+. Each figure must keep its own value AND its own status.
      */
-    expect(state.backlogs).toMatchObject({ value: 0, status: 'resolved' });
-    expect(state.backlogs.source).toMatch(/backlog records/i);
-    expect(state.backlogsFromResults.source).toMatch(/rule set/i);
+    const both = stats({
+      results: [result(4, [...GOOD, ambiguous])],
+      backlogs: [carried('BCS301', 'active'), carried('BCS302', 'attempted')],
+    });
+    expect(both.backlogs).toMatchObject({ value: 2, status: 'resolved' });
+    expect(both.backlogsFromResults).toMatchObject({ value: 0, status: 'partial' });
+    expect(both.backlogsUndetermined).toBe(1);
   });
 
   it('surfaces it as a course needing review', () => {
@@ -431,6 +453,30 @@ describe('a genuine zero is not an absence', () => {
     ];
     const state = stats({ results: [result(4, failed)] });
     expect(state.backlogsFromResults).toMatchObject({ value: 1, status: 'resolved' });
+    // A failed row is not a recorded backlog: the student has written none down.
+    expect(state.backlogs).toMatchObject({ value: 0, status: 'resolved' });
+  });
+
+  it('never adds a recorded backlog to a derived one', () => {
+    /*
+     * Two carried subjects and one different failed row: 2 and 1, never 3.
+     * The recorded figure counts outstanding records only — a cleared one is
+     * not carried, however the results read.
+     */
+    const failed = [
+      course('BCS401', 4, { internal: 12, external: 30 }),
+      course('BCS402', 4, { internal: 44, external: 36 }),
+    ];
+    const state = stats({
+      results: [result(4, failed)],
+      backlogs: [
+        carried('BCS301', 'active'),
+        carried('BCS302', 'attempted'),
+        carried('BCS303', 'cleared'),
+      ],
+    });
+    expect(state.backlogs).toMatchObject({ value: 2, status: 'resolved' });
+    expect(state.backlogsFromResults).toMatchObject({ value: 1, status: 'resolved' });
   });
 
   it('reports zero credits earned as a real figure when every course failed', () => {
@@ -443,6 +489,73 @@ describe('a genuine zero is not an absence', () => {
     expect(state.creditsAttempted.value).toBe(8);
     expect(state.creditsEarned.value).toBe(0);
     expect(state.outcomes.failed).toBe(2);
+  });
+});
+
+describe('telling a student they have no backlogs', () => {
+  /*
+   * "No backlogs" is a claim about the student, so it needs all four: results
+   * to rest on, nothing recorded as carried, no failed row, and no row that
+   * could not be checked. The baseline is clear; each case below breaks exactly
+   * one condition, so each condition is shown to be required on its own.
+   */
+  const failedRow = course('BCS405', 4, { internal: 12, external: 30 });
+  const uncheckable = normalizeResultSubject({
+    id: 'amb',
+    subjectCode: 'BCS406',
+    subjectTitle: 'BCS406',
+    internal: 40,
+    external: 0,
+    total: 40,
+    resultStatus: 'P',
+    credits: 4,
+    gradeLetter: null,
+    hasSee: null,
+    provenance: 'manual',
+  });
+
+  it('holds with graded results, nothing carried and nothing failed', () => {
+    expect(hasNoBacklogs(stats({ results: [result(4, GOOD)] }))).toBe(true);
+    // A cleared record is not carried, so it does not break the claim.
+    expect(
+      hasNoBacklogs(
+        stats({ results: [result(4, GOOD)], backlogs: [carried('BCS301', 'cleared')] }),
+      ),
+    ).toBe(true);
+  });
+
+  it('does not hold with no results to rest on', () => {
+    expect(hasNoBacklogs(stats({}))).toBe(false);
+  });
+
+  it('does not hold with a recorded backlog', () => {
+    expect(
+      hasNoBacklogs(stats({ results: [result(4, GOOD)], backlogs: [carried('BCS301', 'active')] })),
+    ).toBe(false);
+    expect(
+      hasNoBacklogs(
+        stats({ results: [result(4, GOOD)], backlogs: [carried('BCS301', 'attempted')] }),
+      ),
+    ).toBe(false);
+  });
+
+  it('does not hold with a failed result row', () => {
+    expect(hasNoBacklogs(stats({ results: [result(4, [...GOOD, failedRow])] }))).toBe(false);
+  });
+
+  it('does not hold with a row that could not be checked', () => {
+    expect(hasNoBacklogs(stats({ results: [result(4, [...GOOD, uncheckable])] }))).toBe(false);
+  });
+
+  it('does not hold on a result with no courses, alone or beside a clean one', () => {
+    /* Zero backlogs out of zero courses checked nothing. */
+    expect(hasNoBacklogs(stats({ results: [result(3, [])] }))).toBe(false);
+    expect(hasNoBacklogs(stats({ results: [result(3, []), result(4, GOOD)] }))).toBe(false);
+  });
+
+  it('calls an empty result unresolved, not fully resolved', () => {
+    const state = stats({ results: [result(3, [])] });
+    expect(state.semesters.find((e) => e.number === 3)?.completeness).toBe('unresolved');
   });
 });
 
@@ -495,13 +608,31 @@ describe('a semester the student is still sitting', () => {
 });
 
 describe('the same semester imported twice', () => {
-  it('is counted once, from the first record', () => {
+  it('is counted once, from the earliest-created record', () => {
     /*
-     * `buildSemesterViews` matches a semester by number and reads the first
-     * match, so a duplicate cannot double a credit total. Asserted here
-     * because the statistics are what a duplicate would visibly corrupt.
+     * `buildSemesterViews` reads ONE record per semester — the earliest
+     * created, `id` breaking ties (`resultForSemester`) — so a duplicate cannot
+     * double a credit total. Asserted here because the statistics are what a
+     * duplicate would visibly corrupt.
      */
     const state = stats({ results: [result(4, GOOD), { ...result(4, GOOD), id: 'r4-again' }] });
+
+    expect(state.semesters.filter((entry) => entry.hasResult)).toHaveLength(1);
+    expect(state.creditsEarned.value).toBe(12);
+    expect(state.grades.total).toBe(4);
+  });
+
+  it('keeps counting the original when a later one-subject card is stored first', () => {
+    /*
+     * Storage and sync order are not evidence. A later one-subject record held
+     * FIRST, and updated more recently, must not stand in for the semester.
+     */
+    const later = result(4, [GOOD[1] as ReturnType<typeof course>], {
+      id: 'r4-resit',
+      createdAt: '2027-02-12T00:00:00Z',
+      updatedAt: '2027-03-01T00:00:00Z',
+    });
+    const state = stats({ results: [later, result(4, GOOD)] });
 
     expect(state.semesters.filter((entry) => entry.hasResult)).toHaveLength(1);
     expect(state.creditsEarned.value).toBe(12);

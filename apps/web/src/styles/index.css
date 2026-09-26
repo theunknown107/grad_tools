@@ -1,0 +1,728 @@
+/*
+ * GradTools — the design system's stylesheet.
+ *
+ * Source of truth: the Figma Make file "Redesign GradTools Repository"
+ * (2FOVSi8bzRRmtHv5EFzwsD), `src/index.css`. Token values, material classes and
+ * keyframes are carried across from it unchanged except where noted:
+ *
+ *   - Fonts are the same three families, served from the bundle (fonts.css)
+ *     instead of a Google Fonts request, so opening the app tells no third
+ *     party who is reading.
+ *   - Reduced motion is keyed on `[data-motion='reduced']`, the attribute
+ *     `lib/theme.ts` already writes, instead of a class.
+ *   - Colours that failed WCAG AA (4.5:1) for the small text the design sets in
+ *     them were deepened, hue unchanged: muted ink (both modes), the six light
+ *     status inks against their own `-weak` badge fills, and the light accent
+ *     fills that carry white text (matrix, crimson, turquoise, amber, emerald,
+ *     solar). `theme.test.ts` computes every pair from this file.
+ *   - `--accent-contrast` names the text colour that sits ON an accent fill.
+ *     The design used `text-inverse` there, which is only correct for Mono.
+ *
+ * Everything a component needs is a token here. Components use the Tailwind
+ * utilities these tokens generate (`bg-panel`, `text-ink-2`, `border-line`) and
+ * never a raw hex.
+ */
+
+@import './fonts.css';
+@import 'tailwindcss';
+
+/* Dark is a class on <html>, set from the resolved appearance (useTheme and the
+   pre-paint script in index.html), so System resolves through the same path. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================ Light (default) */
+:root {
+  /* Surfaces — warm-neutral off-white workspace */
+  --canvas: #f4f2ee;
+  --panel: #fbfaf8;
+  --raised: #ffffff;
+  --sunken: #efece7;
+
+  /* Ink */
+  --text-primary: #1b1a17;
+  --text-secondary: #55524b;
+  --text-muted: #6f6b63;
+  --text-inverse: #fbfaf8;
+
+  /* Structure */
+  --border: #e3dfd7;
+  --border-strong: #d2cdc2;
+
+  /* Accent — Mono is the default: near-black in light, near-white in dark. */
+  --accent: #1b1a17;
+  --accent-weak: #e7e4dd;
+  --accent-ink: #1b1a17;
+  --accent-contrast: #fbfaf8;
+  --ring: #1b1a17;
+
+  /* Fixed semantic accents (status, not brand) */
+  --schedule: #096b75;
+  --schedule-weak: #d9f0f1;
+  --progress: #516e19;
+  --progress-weak: #e9efd8;
+  --success: #25734b;
+  --success-weak: #dbf0e4;
+  --warning: #93600f;
+  --warning-weak: #f6ecd3;
+  --danger: #ad3426;
+  --danger-weak: #f8dedb;
+  --info: #28639f;
+  --info-weak: #dce9f7;
+
+  /* Elevation — precise, restrained */
+  --shadow-sm: 0 1px 2px rgba(27, 26, 23, 0.05);
+  --shadow-md: 0 4px 14px -4px rgba(27, 26, 23, 0.1), 0 1px 3px rgba(27, 26, 23, 0.05);
+  --shadow-lg: 0 18px 48px -12px rgba(27, 26, 23, 0.22), 0 4px 12px rgba(27, 26, 23, 0.08);
+
+  --radius: 12px;
+  --spacing: 0.25rem;
+
+  color-scheme: light;
+}
+
+/* ================================================================ Jet black */
+.dark {
+  --canvas: #070708;
+  --panel: #0e0e11;
+  --raised: #161619;
+  --sunken: #050506;
+
+  --text-primary: #f4f3f1;
+  --text-secondary: #a7a5a0;
+  --text-muted: #8a8882;
+  --text-inverse: #0e0e11;
+
+  --border: #232327;
+  --border-strong: #33333a;
+
+  --accent: #f4f3f1;
+  --accent-weak: #26262b;
+  --accent-ink: #f4f3f1;
+  --accent-contrast: #0e0e11;
+  --ring: #d8d6d1;
+
+  --schedule: #3bc0cd;
+  --schedule-weak: #0c2b2d;
+  --progress: #9bbb4f;
+  --progress-weak: #20260e;
+  --success: #4ec38a;
+  --success-weak: #0f2c20;
+  --warning: #e0a848;
+  --warning-weak: #2c2109;
+  --danger: #ec6a5c;
+  --danger-weak: #331210;
+  --info: #63a0e0;
+  --info-weak: #0e1f30;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 14px -4px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 52px -12px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}
+
+/* ============================================================ Brand mark.
+   One monochrome symbol (src/brand/gradtools-mark.svg); only its tile takes
+   the theme. The neutral accent keeps the default black mark on white (white
+   on near-black in dark). Every colour accent puts its own contrast ink on its
+   own fill, so a new accent needs nothing here. */
+:root {
+  --brand-surface: var(--raised);
+  --brand-mark: var(--text-primary);
+}
+[data-accent]:not([data-accent='mono']) {
+  --brand-surface: var(--accent);
+  --brand-mark: var(--accent-contrast);
+}
+
+/* ============================================================ Accent themes.
+   Only accent / accent-weak / accent-ink / accent-contrast / ring change —
+   never surfaces, never academic figures. `--accent-contrast` is the text
+   colour that sits ON an accent fill (primary buttons, the avatar, the brand
+   mark). In light it is white; in dark the lifted accents are pale, so it is
+   the near-black ink. */
+[data-accent='mono'] {
+  --accent: #1b1a17;
+  --accent-weak: #e7e4dd;
+  --accent-ink: #1b1a17;
+  --accent-contrast: #fbfaf8;
+  --ring: #1b1a17;
+}
+.dark[data-accent='mono'] {
+  --accent: #f4f3f1;
+  --accent-weak: #26262b;
+  --accent-ink: #f4f3f1;
+  --accent-contrast: #0e0e11;
+  --ring: #d8d6d1;
+}
+
+[data-accent='violet'] {
+  --accent: #5b4cc4;
+  --accent-weak: #ece9fb;
+  --accent-ink: #44379f;
+  --accent-contrast: #ffffff;
+  --ring: #6c5ce0;
+}
+.dark[data-accent='violet'] {
+  --accent: #8f80f0;
+  --accent-weak: #201d31;
+  --accent-ink: #b7aef7;
+  --accent-contrast: #0e0e11;
+  --ring: #8f80f0;
+}
+
+[data-accent='matrix'] {
+  --accent: #2a7147;
+  --accent-weak: #d9efe0;
+  --accent-ink: #235f3c;
+  --accent-contrast: #ffffff;
+  --ring: #379460;
+}
+.dark[data-accent='matrix'] {
+  --accent: #4bbd7f;
+  --accent-weak: #0e2a1c;
+  --accent-ink: #86dcae;
+  --accent-contrast: #0e0e11;
+  --ring: #4bbd7f;
+}
+
+[data-accent='crimson'] {
+  --accent: #c8102e;
+  --accent-weak: #fbdde2;
+  --accent-ink: #a8102e;
+  --accent-contrast: #ffffff;
+  --ring: #dc143c;
+}
+.dark[data-accent='crimson'] {
+  --accent: #f04d63;
+  --accent-weak: #350a11;
+  --accent-ink: #f4a6b1;
+  --accent-contrast: #0e0e11;
+  --ring: #f04d63;
+}
+
+[data-accent='turquoise'] {
+  --accent: #0a7580;
+  --accent-weak: #d7f0f1;
+  --accent-ink: #0a6b76;
+  --accent-contrast: #ffffff;
+  --ring: #12a8b6;
+}
+.dark[data-accent='turquoise'] {
+  --accent: #35c2cf;
+  --accent-weak: #0c2c2e;
+  --accent-ink: #7fe0e8;
+  --accent-contrast: #0e0e11;
+  --ring: #35c2cf;
+}
+
+[data-accent='ocean'] {
+  --accent: #2b6cb0;
+  --accent-weak: #dce9f7;
+  --accent-ink: #1f5490;
+  --accent-contrast: #ffffff;
+  --ring: #3b82c4;
+}
+.dark[data-accent='ocean'] {
+  --accent: #5ea1e6;
+  --accent-weak: #0f2237;
+  --accent-ink: #9cc6f2;
+  --accent-contrast: #0e0e11;
+  --ring: #5ea1e6;
+}
+
+[data-accent='amber'] {
+  --accent: #8f5d12;
+  --accent-weak: #f6ecd3;
+  --accent-ink: #7a4f0e;
+  --accent-contrast: #ffffff;
+  --ring: #d08a1f;
+}
+.dark[data-accent='amber'] {
+  --accent: #e0a848;
+  --accent-weak: #2c2109;
+  --accent-ink: #f0cd86;
+  --accent-contrast: #0e0e11;
+  --ring: #e0a848;
+}
+
+[data-accent='rose'] {
+  --accent: #be2f65;
+  --accent-weak: #fadfe8;
+  --accent-ink: #9a244f;
+  --accent-contrast: #ffffff;
+  --ring: #d24677;
+}
+.dark[data-accent='rose'] {
+  --accent: #f0709b;
+  --accent-weak: #33121f;
+  --accent-ink: #f6a9c3;
+  --accent-contrast: #0e0e11;
+  --ring: #f0709b;
+}
+
+[data-accent='indigo'] {
+  --accent: #4338ca;
+  --accent-weak: #e3e1fb;
+  --accent-ink: #362da0;
+  --accent-contrast: #ffffff;
+  --ring: #5348d6;
+}
+.dark[data-accent='indigo'] {
+  --accent: #818cf8;
+  --accent-weak: #1a1c3a;
+  --accent-ink: #b3baf9;
+  --accent-contrast: #0e0e11;
+  --ring: #818cf8;
+}
+
+[data-accent='emerald'] {
+  --accent: #047857;
+  --accent-weak: #d5f2e6;
+  --accent-ink: #047251;
+  --accent-contrast: #ffffff;
+  --ring: #10ac7c;
+}
+.dark[data-accent='emerald'] {
+  --accent: #34d399;
+  --accent-weak: #0c2c20;
+  --accent-ink: #7fe7c1;
+  --accent-contrast: #0e0e11;
+  --ring: #34d399;
+}
+
+[data-accent='solar'] {
+  --accent: #a14a08;
+  --accent-weak: #f7e6d1;
+  --accent-ink: #8a3f08;
+  --accent-contrast: #ffffff;
+  --ring: #cd6510;
+}
+.dark[data-accent='solar'] {
+  --accent: #f0932e;
+  --accent-weak: #2e1c07;
+  --accent-ink: #f6bd7e;
+  --accent-contrast: #0e0e11;
+  --ring: #f0932e;
+}
+
+[data-accent='slate'] {
+  --accent: #475569;
+  --accent-weak: #e2e6ec;
+  --accent-ink: #384154;
+  --accent-contrast: #ffffff;
+  --ring: #556279;
+}
+.dark[data-accent='slate'] {
+  --accent: #94a3b8;
+  --accent-weak: #1c222c;
+  --accent-ink: #c1cbd8;
+  --accent-contrast: #0e0e11;
+  --ring: #94a3b8;
+}
+
+/* Chart family — a single-hue luminance ramp derived from the active accent,
+   so Mono charts are grayscale and colour themes stay one hue. */
+:root,
+.dark {
+  --chart-1: var(--accent);
+  --chart-2: color-mix(in oklab, var(--accent) 82%, var(--canvas));
+  --chart-3: color-mix(in oklab, var(--accent) 64%, var(--canvas));
+  --chart-4: color-mix(in oklab, var(--accent) 46%, var(--canvas));
+  --chart-5: color-mix(in oklab, var(--accent) 30%, var(--canvas));
+}
+
+/* Density — overrides the spacing base so every padding and gap tightens. */
+[data-density='compact'] {
+  --spacing: 0.222rem;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+
+  --color-ink: var(--text-primary);
+  --color-ink-2: var(--text-secondary);
+  --color-ink-3: var(--text-muted);
+  --color-inverse: var(--text-inverse);
+
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ring: var(--ring);
+
+  --color-accent: var(--accent);
+  --color-accent-weak: var(--accent-weak);
+  --color-accent-ink: var(--accent-ink);
+  --color-on-accent: var(--accent-contrast);
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-mark: var(--brand-mark);
+  --color-schedule: var(--schedule);
+  --color-schedule-weak: var(--schedule-weak);
+  --color-progress: var(--progress);
+  --color-progress-weak: var(--progress-weak);
+  --color-success: var(--success);
+  --color-success-weak: var(--success-weak);
+  --color-warning: var(--warning);
+  --color-warning-weak: var(--warning-weak);
+  --color-danger: var(--danger);
+  --color-danger-weak: var(--danger-weak);
+  --color-info: var(--info);
+  --color-info-weak: var(--info-weak);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  --shadow-e1: var(--shadow-sm);
+  --shadow-e2: var(--shadow-md);
+  --shadow-e3: var(--shadow-lg);
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-rise: gt-rise 0.34s var(--ease-out-quint) both;
+  --animate-fade: gt-fade 0.2s ease both;
+  --animate-pop: gt-pop 0.16s var(--ease-out-quint) both;
+  --animate-toast-in: gt-toast-in 0.22s var(--ease-out-quint) both;
+  --animate-sheet-in: gt-sheet-in 0.3s var(--ease-out-quint) both;
+  --animate-drawer-in: gt-drawer-in 0.28s var(--ease-out-quint) both;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
+  /* Theme transitions: surfaces glide rather than snap when the toggle flips. */
+  body,
+  header,
+  aside,
+  nav {
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      color 0.2s ease;
+  }
+}
+
+/*
+ * UNLAYERED, AS IN THE DESIGN'S STYLESHEET. An unlayered rule outranks every
+ * Tailwind utility, so a `border-accent` or `border-warning/30` utility renders
+ * as the neutral hairline — which is how the design actually looks, and the
+ * look this reproduces. State is carried by fills, rings and text instead.
+ * Component materials below (.gt-glass, .gt-metric) are unlayered too, so
+ * their own borders still win by specificity.
+ */
+*,
+::before,
+::after {
+  border-color: var(--border);
+}
+
+/* Tabular, technical numerals everywhere numbers matter */
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Hide scrollbars until scrolling */
+@utility scroll-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  &:hover {
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 8px;
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+  }
+}
+
+/* ------------------------------------------------------- Glass controls.
+     Reserved for buttons and compact interactive controls. Legible with
+     backdrop-filter disabled: background and border carry it. */
+.gt-glass {
+  background-color: var(--raised);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.28));
+  border: 1px solid var(--border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    var(--shadow-sm);
+  -webkit-backdrop-filter: blur(6px) saturate(1.1);
+  backdrop-filter: blur(6px) saturate(1.1);
+}
+.gt-glass:hover {
+  background-color: var(--panel);
+  border-color: var(--border-strong);
+}
+.gt-glass:active {
+  box-shadow: inset 0 1px 2px rgba(27, 26, 23, 0.12);
+}
+.dark .gt-glass {
+  background-color: rgba(255, 255, 255, 0.025);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015));
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.55),
+    var(--shadow-sm);
+}
+.dark .gt-glass:hover {
+  background-color: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.dark .gt-glass:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.gt-glass-primary {
+  color: var(--accent-contrast);
+  background-color: var(--accent);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 88%, white),
+    var(--accent)
+  );
+  border: 1px solid color-mix(in srgb, var(--accent) 65%, black);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    var(--shadow-sm);
+}
+.gt-glass-primary:hover {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 96%, white),
+    var(--accent)
+  );
+}
+.gt-glass-primary:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.dark .gt-glass-primary {
+  color: var(--accent-ink);
+  background-color: color-mix(in srgb, var(--accent) 18%, transparent);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 30%, transparent),
+    color-mix(in srgb, var(--accent) 14%, transparent)
+  );
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.5),
+    var(--shadow-sm);
+  -webkit-backdrop-filter: blur(6px) saturate(1.2);
+  backdrop-filter: blur(6px) saturate(1.2);
+}
+.dark .gt-glass-primary:hover {
+  background-color: color-mix(in srgb, var(--accent) 26%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* ------------------------------------------------------- Metric material.
+     Monochrome instrument tile: surface + hairline + micro-highlight. No
+     accent, no stripe, no glow — neutral in every accent theme. */
+.gt-metric {
+  --metric-surface: var(--raised);
+  --metric-border: var(--border);
+  --metric-highlight: rgba(255, 255, 255, 0.65);
+  background-color: var(--metric-surface);
+  border: 1px solid var(--metric-border);
+  box-shadow:
+    inset 0 1px 0 var(--metric-highlight),
+    var(--shadow-sm);
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s var(--ease-out-quint);
+}
+.gt-metric:hover {
+  border-color: var(--border-strong);
+}
+.gt-metric[data-interactive='true']:hover {
+  box-shadow:
+    inset 0 1px 0 var(--metric-highlight),
+    var(--shadow-md);
+  transform: translateY(-1px);
+}
+.gt-metric[data-interactive='true']:active {
+  transform: translateY(0);
+  box-shadow: inset 0 1px 2px rgba(27, 26, 23, 0.1);
+}
+.dark .gt-metric {
+  --metric-surface: rgba(255, 255, 255, 0.022);
+  --metric-border: rgba(255, 255, 255, 0.075);
+  --metric-highlight: rgba(255, 255, 255, 0.05);
+}
+.dark .gt-metric:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.dark .gt-metric[data-interactive='true']:hover {
+  background-color: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    var(--shadow-md);
+}
+.dark .gt-metric[data-interactive='true']:active {
+  background-color: rgba(255, 255, 255, 0.018);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55);
+}
+
+.gt-skeleton {
+  background: linear-gradient(90deg, var(--sunken) 25%, var(--border) 37%, var(--sunken) 63%);
+  background-size: 1200px 100%;
+  animation: gt-shimmer 1.4s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------- Keyframes */
+@keyframes gt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes gt-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes gt-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes gt-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes gt-pop-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+@keyframes gt-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes gt-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes gt-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes gt-shimmer {
+  0% {
+    background-position: -600px 0;
+  }
+  100% {
+    background-position: 600px 0;
+  }
+}
+
+/* Radix exit states: close with the reverse of the open, never a snap. */
+[data-slot='overlay'][data-state='closed'] {
+  animation: gt-fade-out 0.14s ease both;
+}
+[data-slot='popup'][data-state='closed'] {
+  animation: gt-pop-out 0.12s ease both;
+}
+
+/* ---------------------------------------------------------- Reduced motion.
+   Both the OS preference and the in-app switch (Appearance → Interface). */
+[data-motion='reduced'] *,
+[data-motion='reduced'] *::before,
+[data-motion='reduced'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

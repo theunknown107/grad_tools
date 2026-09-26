@@ -52,6 +52,17 @@ export type AuthIdentity = z.infer<typeof authIdentitySchema>;
 /* The cloud profile                                                          */
 /* -------------------------------------------------------------------------- */
 
+/** How the student entered the degree. A plain fact: it implies nothing (OQ-055). */
+export const ENTRY_ROUTES = ['puc', 'diploma'] as const;
+export type EntryRoute = (typeof ENTRY_ROUTES)[number];
+
+/**
+ * A plausible calendar-year window, and nothing cleverer. No bound is derived
+ * from a USN or from the entry route — there is no evidence for one.
+ * Supabase 0010 carries the same window as CHECKs.
+ */
+const profileYear = z.number().int().min(2000).max(2100);
+
 /** NO DATE OF BIRTH, and none may be added (DEC-008). USN is optional (M9 §33). */
 export const cloudProfileSchema = z.object({
   id: z.string(),
@@ -63,6 +74,11 @@ export const cloudProfileSchema = z.object({
   programme: z.string().nullable(),
   branch: z.string().nullable(),
   currentSemester: z.number().int().min(1).max(8).nullable(),
+  /* Academic identity, stated by the student and never inferred (UF-01, OQ-055). */
+  admissionYear: z.number().int().nullable(),
+  expectedPassoutYear: z.number().int().nullable(),
+  entryRoute: z.enum(ENTRY_ROUTES).nullable(),
+  identityConfirmedAt: z.string().nullable(),
   revision: z.number().int().positive(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -71,17 +87,32 @@ export const cloudProfileSchema = z.object({
 export type CloudProfile = z.infer<typeof cloudProfileSchema>;
 
 /** What a client may set. `revision` is the server's, never the client's. */
-export const profileInputSchema = z.object({
-  displayName: z.string().min(1).max(100).nullable().optional(),
-  usn: z.string().min(1).max(20).nullable().optional(),
-  collegeName: z.string().min(1).max(200).nullable().optional(),
-  schemeId: z.string().min(1).max(40),
-  programme: z.string().min(1).max(60).nullable().optional(),
-  branch: z.string().min(1).max(120).nullable().optional(),
-  currentSemester: z.number().int().min(1).max(8).nullable().optional(),
-  /** The revision the client read. Omitted only when creating. */
-  baseRevision: z.number().int().positive().optional(),
-});
+export const profileInputSchema = z
+  .object({
+    displayName: z.string().min(1).max(100).nullable().optional(),
+    usn: z.string().min(1).max(20).nullable().optional(),
+    collegeName: z.string().min(1).max(200).nullable().optional(),
+    schemeId: z.string().min(1).max(40),
+    programme: z.string().min(1).max(60).nullable().optional(),
+    branch: z.string().min(1).max(120).nullable().optional(),
+    currentSemester: z.number().int().min(1).max(8).nullable().optional(),
+    admissionYear: profileYear.nullable().optional(),
+    expectedPassoutYear: profileYear.nullable().optional(),
+    entryRoute: z.enum(ENTRY_ROUTES).nullable().optional(),
+    identityConfirmedAt: z.iso.datetime({ offset: true }).nullable().optional(),
+    /** The revision the client read. Omitted only when creating. */
+    baseRevision: z.number().int().positive().optional(),
+  })
+  .refine(
+    (input) =>
+      typeof input.admissionYear !== 'number' ||
+      typeof input.expectedPassoutYear !== 'number' ||
+      input.expectedPassoutYear >= input.admissionYear,
+    {
+      message: 'The passout year cannot be before the admission year.',
+      path: ['expectedPassoutYear'],
+    },
+  );
 
 export type ProfileInput = z.infer<typeof profileInputSchema>;
 

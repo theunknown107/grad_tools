@@ -53,7 +53,13 @@ import {
   summariseBacklogs,
   type SemesterView,
 } from './academics.js';
-import { evaluateResultSubject, resolveSubjectGrade, semesterBacklogs } from './results.js';
+import {
+  creditsOf,
+  evaluateResultSubject,
+  resolveSubjectGrade,
+  semesterBacklogs,
+  type SubjectLookup,
+} from './results.js';
 import { resolveCourseKind } from './exams.js';
 import type { BacklogRecord, ResultSubject, SemesterRecord, SemesterResult } from './types.js';
 
@@ -338,7 +344,7 @@ export interface SemesterStatistics {
  * alongside — which is the difference between a page that goes blank and a
  * page that says what is missing (§4).
  */
-function semesterStatistics(view: SemesterView): SemesterStatistics {
+function semesterStatistics(view: SemesterView, identify: SubjectLookup): SemesterStatistics {
   const result = view.result;
 
   if (result === null) {
@@ -384,9 +390,18 @@ function semesterStatistics(view: SemesterView): SemesterStatistics {
     const outcome = outcomeOf(subject, ruleSet);
     outcomes[outcome] += 1;
 
+    const identity = identify(subject.subjectCode);
+    /*
+     * THE SAME CREDIT RESOLUTION THE REST OF THE PRODUCT USES (results.ts).
+     * A course the catalogue does not carry — a PE row, a self-study course —
+     * still has credits when the student recorded them elsewhere, and counting
+     * it as "no credit figure" here made the degree screens disagree with the
+     * semester screens about the same course.
+     */
+    const credits = creditsOf(subject, identity);
     const grade = resolveSubjectGrade(subject, ruleSet);
-    if (grade !== null && subject.credits !== null) resolvedCourses += 1;
-    if (subject.credits === null) creditsUnresolved += 1;
+    if (grade !== null && credits !== null) resolvedCourses += 1;
+    if (credits === null) creditsUnresolved += 1;
 
     /*
      * A NON-CREDIT OR AUDIT COURSE IS NOT ORDINARY CREDIT (§9). It is excluded
@@ -394,10 +409,10 @@ function semesterStatistics(view: SemesterView): SemesterStatistics {
      * arithmetically harmless and would still make the course look like one
      * that was attempted for credit and earned none.
      */
-    const kind = resolveCourseKind(subject, null, ruleSet);
-    if (kind.countsTowardGpa !== false && subject.credits !== null) {
-      creditsAttempted += subject.credits;
-      if (outcome === 'passed') creditsEarned += subject.credits;
+    const kind = resolveCourseKind(subject, identity, ruleSet);
+    if (kind.countsTowardGpa !== false && credits !== null) {
+      creditsAttempted += credits;
+      if (outcome === 'passed') creditsEarned += credits;
     }
 
     const evaluation = evaluateResultSubject(subject, ruleSet);
@@ -413,11 +428,12 @@ function semesterStatistics(view: SemesterView): SemesterStatistics {
     number: view.number,
     view,
     hasResult: true,
+    /* Zero of zero courses is not "fully resolved": an empty result resolved nothing. */
     completeness:
-      resolvedCourses === courseCount
-        ? 'fully_resolved'
-        : resolvedCourses === 0
-          ? 'unresolved'
+      resolvedCourses === 0
+        ? 'unresolved'
+        : resolvedCourses === courseCount
+          ? 'fully_resolved'
           : 'partially_resolved',
     /*
      * A SEMESTER WITH A RESULT IS EXPECTED TO COUNT. If its SGPA resolved it
@@ -609,6 +625,29 @@ export interface AcademicStatistics {
 }
 
 /**
+ * Whether the student can be told they have NO backlogs.
+ *
+ * The two backlog figures stay apart (see `backlogs` and `backlogsFromResults`)
+ * and are never added together. But "no backlogs", "Good" or "clear record" is
+ * a claim about the student, and it is only true when NEITHER source shows
+ * one: nothing recorded as carried, no failed result row, and no row that
+ * could not be checked. Any one of those makes the claim false or unknown.
+ *
+ * And there must BE results: with none, the derived figure is a zero that
+ * rests on nothing, and "no backlogs" would be a claim with no evidence. A
+ * result with no courses is no evidence either: nothing in it was checked.
+ */
+export function hasNoBacklogs(statistics: AcademicStatistics): boolean {
+  return (
+    statistics.hasAnyResult &&
+    statistics.semesters.every((entry) => !entry.hasResult || entry.courseCount > 0) &&
+    statistics.backlogs.value === 0 &&
+    statistics.backlogsFromResults.value === 0 &&
+    statistics.backlogsUndetermined === 0
+  );
+}
+
+/**
  * Every figure the student's records support, computed once.
  *
  * The order matters only in that each block depends on the semester
@@ -623,9 +662,12 @@ export function academicStatistics(input: {
   readonly backlogs: readonly BacklogRecord[];
   /** The degree's credit requirement, from the rule set. Null when unknown. */
   readonly totalCreditsRequired?: number | null;
+  /** How a subject code is looked up in what the student already recorded. */
+  readonly identify?: SubjectLookup;
 }): AcademicStatistics {
-  const views = buildSemesterViews(input.semesters, input.results);
-  const stats = views.map(semesterStatistics);
+  const identify: SubjectLookup = input.identify ?? (() => null);
+  const views = buildSemesterViews(input.semesters, input.results, identify);
+  const stats = views.map((view) => semesterStatistics(view, identify));
   const withResults = stats.filter((entry) => entry.hasResult);
   const standing = cumulativeStanding(views);
 

@@ -373,8 +373,10 @@ describeDb('the authorization matrix', () => {
     /* ---------------------------------------------------------------- */
 
     it('cannot see another student’s manual result row', async () => {
-      const mine = await withUser(cloud, sessionFor(B), (tx) =>
-        tx<{ id: string }[]>`SELECT id::text FROM result_subjects`,
+      const mine = await withUser(
+        cloud,
+        sessionFor(B),
+        (tx) => tx<{ id: string }[]>`SELECT id::text FROM result_subjects`,
       );
       expect(mine).toHaveLength(0);
 
@@ -464,8 +466,10 @@ describeDb('the authorization matrix', () => {
         UPDATE result_subjects SET catalogue_code = 'BQAS502'
         WHERE id = ${ids.aResultSubject}::uuid
       `;
-      const seen = await withUser(cloud, sessionFor(B), (tx) =>
-        tx<{ catalogue_code: string | null }[]>`SELECT catalogue_code FROM result_subjects`,
+      const seen = await withUser(
+        cloud,
+        sessionFor(B),
+        (tx) => tx<{ catalogue_code: string | null }[]>`SELECT catalogue_code FROM result_subjects`,
       );
       expect(seen).toHaveLength(0);
     });

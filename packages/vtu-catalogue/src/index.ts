@@ -62,3 +62,17 @@ export {
   type FirstYearResolution,
   type OptionCell,
 } from './first-year-streams.js';
+
+export {
+  buildResultCards,
+  findVtuResultSession,
+  vtuResultCards,
+  vtuResultCatalog,
+  type RawResultEntry,
+  type VtuResultCard,
+  type VtuResultCatalog,
+  type VtuResultSection,
+  type VtuResultSession,
+  type VtuResultType,
+  type VtuSessionAnomaly,
+} from './result-sessions.js';

@@ -92,9 +92,7 @@ const main = async () => {
    * than from here. Asking the package that actually depends on it is also the
    * only way to be sure the copied core matches the library's expected version.
    */
-  const coreDir = dirname(
-    createRequire(tesseractPkg).resolve('tesseract.js-core/package.json'),
-  );
+  const coreDir = dirname(createRequire(tesseractPkg).resolve('tesseract.js-core/package.json'));
 
   const jobs = [
     // The worker script the main thread spawns.
@@ -122,7 +120,9 @@ const main = async () => {
    * the worker and the model — so what a student actually pays is roughly the
    * largest core plus the model, not this sum.
    */
-  console.log(`  ---\n  ${(total / 1024 / 1024).toFixed(2)} MB on disk across ${String(jobs.length)} files`);
+  console.log(
+    `  ---\n  ${(total / 1024 / 1024).toFixed(2)} MB on disk across ${String(jobs.length)} files`,
+  );
 };
 
 main().catch((error) => {

@@ -23,8 +23,9 @@
  * says `offline` — never `synced`, and never a silent discard (M9 §68).
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { STUDENT_ROUTES } from '@gradtools/shared-types';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { STUDENT_ROUTES, type CloudProfile, type ProfileInput } from '@gradtools/shared-types';
+import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import { apiBaseUrl } from '../../repositories/reference.js';
 import { useRepositories } from '../../repositories/context.js';
 import { useAuth } from './AuthContext.js';
@@ -33,14 +34,29 @@ import {
   EMPTY_BOOKKEEPING,
   afterPull,
   applyPushOutcomes,
+  fingerprint,
   planPull,
   recordsToPush,
+  type ConflictResolution,
   type LocalRecord,
   type SyncBookkeeping,
 } from '../../domain/sync.js';
 import { readValue, writeValue } from '../../repositories/local/store.js';
+import { SCHEMA_VERSION } from '../../repositories/local/upgrade.js';
 import { normalizeResultSubject } from '../../domain/results.js';
-import type { ResultSubject } from '../../domain/types.js';
+import {
+  deriveCounts,
+  noteSnapshot,
+  reconcile,
+  type ObservedAggregate,
+} from '../../domain/attendance.js';
+import type {
+  AttendanceRecord,
+  RemoteSnapshot,
+  ResultSubject,
+  StudentProfile,
+} from '../../domain/types.js';
+import { asStudentProfileId } from '../../domain/identity.js';
 import type { RepositoryBundle } from '../../repositories/types.js';
 
 /** Which local repository backs each synced collection (M9 §53). */
@@ -109,10 +125,73 @@ function subjectToRecord(
   };
 }
 
-async function collectLocal(repositories: RepositoryBundle): Promise<LocalRecord[]> {
+/**
+ * ---------------------------------------------------------------------------
+ * ONE WRITER PER PLACE (the rule that makes the ledger authoritative)
+ * ---------------------------------------------------------------------------
+ *
+ * A ledger-authoritative device DOES NOT PUBLISH its attendance aggregate, and
+ * does not let a pulled one into storage. That is not caution, it is the only
+ * way the pair can settle: while two such devices each derive their own figure
+ * and write it to the one shared row, every pull provokes a push and the row
+ * alternates between them forever. Removing the second writer removes the loop
+ * — on v1 no pull can cause a write to anything that syncs.
+ *
+ * What a pulled aggregate becomes instead is a `RemoteSnapshot`: an observation
+ * the student is shown and decides about (domain/attendance). Nothing about it
+ * changes a number on its own.
+ *
+ * A device still on schemaVersion 0 syncs attendance exactly as it always has.
+ */
+function ledgerAuthoritative(version: number): boolean {
+  return version >= SCHEMA_VERSION;
+}
+
+/**
+ * The fields the cloud stores for each collection — and so the only ones sent.
+ *
+ * A CLIENT COPY of services/api/src/student/store.ts `COLLECTION_TABLES`
+ * (columns camelCased, as they travel). test/sync-allowlist.test.ts pins it to
+ * that list; change both together.
+ *
+ * Why it matters (OQ-060): a pushed record is fingerprinted, and the cloud
+ * echoes back only these columns. A local-only field in the payload
+ * (`profileId`, `createdAt`, a slot's `classId`) meant the device's fingerprint
+ * never matched the cloud's again: every sync re-pushed every record, and the
+ * first pull reported a conflict with itself. An ALLOWLIST rather than a
+ * denylist, so a local field added later stays local by default.
+ */
+export const SYNCED_FIELDS = {
+  semesters: ['number', 'status', 'startedOn', 'completedOn'],
+  semesterSubjects: ['semester', 'code', 'title', 'credits', 'notes'],
+  results: ['semester', 'schemeId', 'ruleSetId', 'sgpaAsserted'],
+  attendance: ['semester', 'subjectCode', 'subjectTitle', 'attended', 'conducted'],
+  timetable: ['day', 'startTime', 'endTime', 'subjectCode', 'activity', 'room', 'faculty'],
+  backlogs: [
+    'subjectCode',
+    'subjectTitle',
+    'originSemester',
+    'status',
+    'attempts',
+    'clearedInSemester',
+  ],
+} as const satisfies Record<(typeof COLLECTIONS)[number][0], readonly string[]>;
+
+function syncedFields(
+  collection: keyof typeof SYNCED_FIELDS,
+  item: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(SYNCED_FIELDS[collection].map((field) => [field, item[field]]));
+}
+
+async function collectLocal(
+  repositories: RepositoryBundle,
+  version: number,
+): Promise<LocalRecord[]> {
   const records: LocalRecord[] = [];
 
   for (const [collection, key] of COLLECTIONS) {
+    if (collection === 'attendance' && ledgerAuthoritative(version)) continue;
     const items = await repositories[key].list();
     for (const item of items) {
       const { id, ...rest } = item as unknown as { id: string } & Record<string, unknown>;
@@ -129,14 +208,14 @@ async function collectLocal(repositories: RepositoryBundle): Promise<LocalRecord
           subjects?: readonly LocalResultSubject[];
         } & Record<string, unknown>;
 
-        records.push({ id, collection, data: withoutSubjects });
+        records.push({ id, collection, data: syncedFields(collection, withoutSubjects) });
         (subjects ?? []).forEach((subject, ordinal) => {
           records.push(subjectToRecord(id, subject, ordinal));
         });
         continue;
       }
 
-      records.push({ id, collection, data: rest });
+      records.push({ id, collection, data: syncedFields(collection, rest) });
     }
   }
 
@@ -185,9 +264,85 @@ async function applySubjectToResult(
   await repositories.results.upsert({ ...parent, subjects } as never);
 }
 
+/**
+ * Compares what was pulled with what the ledger derives, and rewrites the cache.
+ *
+ * The comparison NEVER touches the ledger. All it can write is the observation
+ * list, which is device-local and never published — so it cannot provoke a
+ * reaction on the device the figure came from, and repeated syncs cannot
+ * oscillate.
+ */
+async function recordObservations(
+  repositories: RepositoryBundle,
+  observed: readonly ObservedAggregate[],
+): Promise<void> {
+  const entries = await repositories.attendanceLedger.list();
+  const overrides = await repositories.timetableOverrides.list();
+  const derived = deriveCounts(entries, overrides);
+  const now = new Date().toISOString();
+
+  if (observed.length > 0) {
+    const before = await repositories.remoteSnapshots.list();
+    let next: readonly RemoteSnapshot[] = before;
+    for (const aggregate of observed) {
+      next = noteSnapshot(next, aggregate, derived.get(aggregate.subjectCode), now);
+    }
+    const unchanged = new Map(before.map((snapshot) => [snapshot.id, snapshot]));
+    for (const snapshot of next) {
+      const previous = unchanged.get(snapshot.id);
+      if (previous !== undefined && previous.status === snapshot.status) continue;
+      await repositories.remoteSnapshots.upsert(snapshot);
+    }
+  }
+
+  /* The cache is re-derived whatever arrived, so a pull cannot leave it stale. */
+  const records = await repositories.attendance.list();
+  for (const record of reconcile(records, derived, now)) {
+    const previous = records.find((candidate) => candidate.id === record.id);
+    if (previous === record) continue;
+    await repositories.attendance.upsert(record);
+  }
+}
+
+/**
+ * The profile as `PUT /me/profile` takes it: every stated field, nothing local.
+ *
+ * `null` is the ANCHOR (OQ-062): a student who skipped setup still needs a
+ * cloud profile before the server accepts a push, so an empty one is uploaded
+ * with the same scheme `withChanges` (ProfilePage) would state. The anchor
+ * exists only in the cloud — it never becomes a local profile, so the
+ * Dashboard's "set up your profile" prompt stays.
+ */
+function profileInput(profile: StudentProfile | CloudProfile | null): ProfileInput {
+  return {
+    displayName: profile?.displayName ?? null,
+    usn: profile?.usn ?? null,
+    collegeName: profile?.collegeName ?? null,
+    schemeId: profile?.schemeId ?? vtu2022RuleSet.schemeId,
+    programme: profile?.programme ?? null,
+    branch: profile?.branch ?? null,
+    currentSemester: profile?.currentSemester ?? null,
+    admissionYear: profile?.admissionYear ?? null,
+    expectedPassoutYear: profile?.expectedPassoutYear ?? null,
+    entryRoute: profile?.entryRoute ?? null,
+    identityConfirmedAt: profile?.identityConfirmedAt ?? null,
+  };
+}
+
+const EMPTY_PROFILE_FINGERPRINT = fingerprint(profileInput(null));
+
+const PROFILE_CONFLICT_REASON = 'Your profile changed on another device and on this one.';
+
+function fromCloudProfile(cloud: CloudProfile): StudentProfile {
+  const { revision: _revision, ...fields } = cloud;
+  return { ...fields, id: asStudentProfileId(cloud.id), authUserId: null };
+}
+
 export interface SyncApi {
   readonly state: SyncState;
   readonly syncNow: () => Promise<void>;
+  /** The student's explicit answer to a profile conflict (M9 §28). */
+  readonly resolveProfileConflict: (choice: ConflictResolution) => Promise<void>;
   readonly exportData: () => Promise<boolean>;
   readonly deleteAccount: () => Promise<{ error: string | null }>;
 }
@@ -196,6 +351,8 @@ export function useSync(): SyncApi {
   const { state: auth, adapter } = useAuth();
   const repositories = useRepositories();
   const [state, setState] = useState<SyncState>(IDLE_SYNC);
+  /* The cloud copy behind the current profile conflict: its revision is the base a "keep mine" PUT claims. */
+  const profileServer = useRef<CloudProfile | null>(null);
 
   const scope = auth.status === 'signed_in' ? auth.identity.userId : null;
 
@@ -244,14 +401,82 @@ export function useSync(): SyncApi {
 
     try {
       const stored = (await readValue<SyncBookkeeping>(scope, 'syncState')) ?? EMPTY_BOOKKEEPING;
-      const local = await collectLocal(repositories);
+      /*
+       * Read through the ledger repository rather than the raw key, so the
+       * v0 -> v1 upgrade has finished before this sync decides which rules
+       * apply. A half-migrated device keeps the old behaviour, which is safe.
+       */
+      await repositories.attendanceLedger.list();
+      const version = (await readValue<number>(scope, 'schemaVersion')) ?? 0;
+      const local = await collectLocal(repositories, version);
+
+      let bookkeeping = stored;
+      /* A profile conflict is re-derived by every sync, so an old one is dropped. */
+      let conflicts = state.conflicts.filter((conflict) => conflict.collection !== 'profile');
+
+      /* ---- the profile (OQ-062) ----------------------------------------
+       * The server refuses a push from an account with no cloud profile, so
+       * the first sync uploads one — this device's, or the empty anchor if the
+       * student skipped setup. After that the profile travels like a record:
+       * a local edit is PUT against the revision this device last agreed with,
+       * and a stale one comes back 409 as a conflict, never an overwrite
+       * (M9 §28). A device holding no profile never PUTs over an existing one. */
+      const localProfile = await repositories.profile.get();
+      const mine = fingerprint(profileInput(localProfile));
+      const profileMeta = stored.profile;
+      let putProfile = false;
+      if (profileMeta === undefined) {
+        const me = await authorized(STUDENT_ROUTES.me);
+        putProfile =
+          me !== null && me.ok && ((await me.json()) as { profile?: unknown }).profile === null;
+      } else {
+        putProfile = localProfile !== null && mine !== profileMeta.fingerprint;
+      }
+      if (putProfile) {
+        const put = await authorized(STUDENT_ROUTES.meProfile, {
+          method: 'PUT',
+          body: JSON.stringify(
+            profileMeta === undefined
+              ? profileInput(localProfile)
+              : { ...profileInput(localProfile), baseRevision: profileMeta.revision },
+          ),
+        });
+        if (put === null) throw new Error('profile failed');
+        if (put.status === 409) {
+          const { server } = (await put.json()) as { server: CloudProfile };
+          profileServer.current = server;
+          conflicts.push({
+            id: 'profile',
+            collection: 'profile',
+            reason: PROFILE_CONFLICT_REASON,
+            local: profileInput(localProfile),
+            server: profileInput(server),
+          });
+        } else if (put.ok) {
+          const saved = (await put.json()) as CloudProfile;
+          bookkeeping = {
+            ...bookkeeping,
+            profile: { revision: saved.revision, fingerprint: mine },
+          };
+        } else {
+          throw new Error('profile failed');
+        }
+      }
 
       /* ---- push first, so this device's work is safe before anything is
          overwritten by a pull (M9 §68) ---------------------------------- */
-      const candidates = recordsToPush(local, stored);
-      let bookkeeping = stored;
-      let conflicts = [...state.conflicts];
-
+      /*
+       * A v1 device publishes NO attendance row — including no tombstone.
+       *
+       * `recordsToPush` sends a deletion for anything the bookkeeping knows
+       * about that is no longer held locally, which is right for a record the
+       * student deleted and catastrophic here: attendance is simply not
+       * collected any more, so every synced row would look deleted and this
+       * device would wipe the aggregate the other one is still using.
+       */
+      const candidates = recordsToPush(local, stored).filter(
+        (candidate) => !(ledgerAuthoritative(version) && candidate.collection === 'attendance'),
+      );
       if (candidates.length > 0) {
         const response = await authorized(STUDENT_ROUTES.meSync, {
           method: 'POST',
@@ -272,6 +497,7 @@ export function useSync(): SyncApi {
       if (pull === null || !pull.ok) throw new Error('pull failed');
 
       const body = (await pull.json()) as {
+        profile?: CloudProfile | null;
         records: {
           id: string;
           collection: string;
@@ -281,6 +507,38 @@ export function useSync(): SyncApi {
         }[];
         syncedAt: string;
       };
+
+      /*
+       * The cloud profile moved. Same content: just note the revision. This
+       * device untouched since it last agreed (or holding none): take the
+       * cloud's — unless it is the empty anchor, which never becomes a local
+       * profile. Changed in both places: a conflict, both copies kept.
+       */
+      const cloudProfile = body.profile ?? null;
+      if (cloudProfile !== null && cloudProfile.revision !== bookkeeping.profile?.revision) {
+        const theirs = fingerprint(profileInput(cloudProfile));
+        const untouched =
+          localProfile === null ||
+          (bookkeeping.profile !== undefined && mine === bookkeeping.profile.fingerprint);
+        const agreed = { revision: cloudProfile.revision, fingerprint: theirs };
+        if (theirs === mine) {
+          bookkeeping = { ...bookkeeping, profile: agreed };
+        } else if (untouched) {
+          if (localProfile !== null || theirs !== EMPTY_PROFILE_FINGERPRINT) {
+            await repositories.profile.save(fromCloudProfile(cloudProfile));
+          }
+          bookkeeping = { ...bookkeeping, profile: agreed };
+        } else if (!conflicts.some((conflict) => conflict.collection === 'profile')) {
+          profileServer.current = cloudProfile;
+          conflicts.push({
+            id: 'profile',
+            collection: 'profile',
+            reason: PROFILE_CONFLICT_REASON,
+            local: profileInput(localProfile),
+            server: profileInput(cloudProfile),
+          });
+        }
+      }
 
       const plan = planPull(body.records, local, bookkeeping);
 
@@ -293,14 +551,47 @@ export function useSync(): SyncApi {
           Number(a.collection === 'resultSubjects') - Number(b.collection === 'resultSubjects'),
       );
 
+      const observed: ObservedAggregate[] = [];
+
       for (const record of parentsFirst) {
         if (record.collection === 'resultSubjects') {
           await applySubjectToResult(repositories, record.id, record.data, false);
           continue;
         }
+        if (record.collection === 'attendance' && ledgerAuthoritative(version)) {
+          /* Observed, never adopted. The local figure stays derived. */
+          const data = record.data as unknown as Partial<AttendanceRecord>;
+          if (typeof data.subjectCode === 'string') {
+            observed.push({
+              remoteRecordId: record.id,
+              subjectCode: data.subjectCode,
+              attended: Number(data.attended),
+              conducted: Number(data.conducted),
+              revision: record.revision,
+            });
+          }
+          continue;
+        }
         const entry = COLLECTIONS.find(([name]) => name === record.collection);
         if (entry === undefined) continue;
-        await repositories[entry[1]].upsert({ id: record.id, ...record.data } as never);
+        /*
+         * The pulled columns are MERGED onto the local record, never replace
+         * it. A pull carries only what the cloud stores, so replacing the
+         * object dropped every local-only field — a result's `subjects` (which
+         * travel as their own rows; losing them made the next push tombstone
+         * every subject on every device), a slot's `classId`, `profileId`,
+         * `createdAt`. Keeping them is safe because `syncedFields` leaves them
+         * out of the fingerprint. A result new to this device gets its rows
+         * from `applySubjectToResult` below.
+         */
+        const previous = (await repositories[entry[1]].list()).find(
+          (item) => item.id === record.id,
+        );
+        await repositories[entry[1]].upsert({
+          ...previous,
+          id: record.id,
+          ...record.data,
+        } as never);
       }
 
       for (const deletion of plan.deletions) {
@@ -308,9 +599,19 @@ export function useSync(): SyncApi {
           await applySubjectToResult(repositories, deletion.id, {}, true);
           continue;
         }
+        /*
+         * A remote attendance row disappearing is not a statement that this
+         * device's classes did not happen. The cache is derived and is rebuilt
+         * below regardless.
+         */
+        if (deletion.collection === 'attendance' && ledgerAuthoritative(version)) continue;
         const entry = COLLECTIONS.find(([name]) => name === deletion.collection);
         if (entry === undefined) continue;
         await repositories[entry[1]].remove(deletion.id);
+      }
+
+      if (ledgerAuthoritative(version)) {
+        await recordObservations(repositories, observed);
       }
 
       bookkeeping = afterPull(bookkeeping, plan, body.syncedAt);
@@ -333,6 +634,80 @@ export function useSync(): SyncApi {
       }));
     }
   }, [authorized, repositories, scope, state.conflicts]);
+
+  /**
+   * Settles a profile conflict with the same PUT + baseRevision a sync uses.
+   *
+   * `take_theirs` saves the account's copy here and agrees with its revision —
+   * nothing is sent. `keep_mine` PUTs this device's copy against the revision
+   * the conflict showed; if the account moved again meanwhile, the 409 replaces
+   * the conflict with the newer copy and nothing is overwritten. Records are
+   * never touched. A device holding no profile has nothing to keep, so it
+   * always takes the account's (it never PUTs over an existing profile).
+   */
+  const resolveProfileConflict = useCallback(
+    async (choice: ConflictResolution) => {
+      const server = profileServer.current;
+      if (scope === null || server === null) return;
+      try {
+        const localProfile = await repositories.profile.get();
+        let agreed: { revision: number; fingerprint: string };
+        if (choice === 'take_theirs' || localProfile === null) {
+          const theirs = fingerprint(profileInput(server));
+          if (localProfile !== null || theirs !== EMPTY_PROFILE_FINGERPRINT) {
+            await repositories.profile.save(fromCloudProfile(server));
+          }
+          agreed = { revision: server.revision, fingerprint: theirs };
+        } else {
+          const put = await authorized(STUDENT_ROUTES.meProfile, {
+            method: 'PUT',
+            body: JSON.stringify({ ...profileInput(localProfile), baseRevision: server.revision }),
+          });
+          if (put === null) throw new Error('profile failed');
+          if (put.status === 409) {
+            const { server: newer } = (await put.json()) as { server: CloudProfile };
+            profileServer.current = newer;
+            setState((current) => ({
+              ...current,
+              conflicts: current.conflicts.map((conflict) =>
+                conflict.collection === 'profile'
+                  ? { ...conflict, local: profileInput(localProfile), server: profileInput(newer) }
+                  : conflict,
+              ),
+            }));
+            return;
+          }
+          if (!put.ok) throw new Error('profile failed');
+          const saved = (await put.json()) as CloudProfile;
+          agreed = {
+            revision: saved.revision,
+            fingerprint: fingerprint(profileInput(localProfile)),
+          };
+        }
+        const stored = (await readValue<SyncBookkeeping>(scope, 'syncState')) ?? EMPTY_BOOKKEEPING;
+        await writeValue(scope, 'syncState', { ...stored, profile: agreed });
+        profileServer.current = null;
+        setState((current) => {
+          const conflicts = current.conflicts.filter(
+            (conflict) => conflict.collection !== 'profile',
+          );
+          return {
+            ...current,
+            conflicts,
+            status:
+              conflicts.length === 0 && current.status === 'conflicts' ? 'synced' : current.status,
+            error: null,
+          };
+        });
+      } catch {
+        setState((current) => ({
+          ...current,
+          error: 'Could not save your choice. Both versions are still here.',
+        }));
+      }
+    },
+    [authorized, repositories, scope],
+  );
 
   /** Downloads the student's own data as a file (M9 §35). */
   const exportData = useCallback(async (): Promise<boolean> => {
@@ -360,5 +735,5 @@ export function useSync(): SyncApi {
     return { error: null };
   }, [authorized]);
 
-  return { state, syncNow, exportData, deleteAccount };
+  return { state, syncNow, resolveProfileConflict, exportData, deleteAccount };
 }

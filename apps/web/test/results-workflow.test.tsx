@@ -23,7 +23,9 @@ import { normalizeResultSubject } from '../src/domain/results.js';
 import { VTU_2022_RULE_SET_ID } from '@gradtools/academic-rules';
 import { asStudentProfileId } from '../src/domain/identity.js';
 import type { SemesterResult } from '../src/domain/types.js';
-import { createMemoryRepositories, renderWith } from './helpers.js';
+import { Route, Routes } from 'react-router-dom';
+import { ResultDetailPage } from '../src/features/results/ResultDetailPage.js';
+import { choose, createMemoryRepositories, renderWith } from './helpers.js';
 
 afterEach(cleanup);
 
@@ -56,12 +58,12 @@ describe('entering a result card', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<ResultsPage />, { repositories: bundle });
 
-    await user.click(screen.getByRole('button', { name: /add a semester/i }));
+    await user.click(await screen.findByRole('button', { name: /add a semester/i }));
     await user.type(screen.getByLabelText(/subject code 1/i), 'BCS401');
     await user.type(screen.getByLabelText(/internal 1/i), '44');
     await user.type(screen.getByLabelText(/external 1/i), '36');
     await user.type(screen.getByLabelText(/total 1/i), '80');
-    await user.selectOptions(screen.getByLabelText(/^result 1$/i), 'P');
+    await choose(/^result 1$/i, 'P');
     await user.click(screen.getByRole('button', { name: /save semester/i }));
 
     const stored = peek.results()[0]?.subjects[0];
@@ -80,7 +82,7 @@ describe('entering a result card', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<ResultsPage />, { repositories: bundle });
 
-    await user.click(screen.getByRole('button', { name: /add a semester/i }));
+    await user.click(await screen.findByRole('button', { name: /add a semester/i }));
     await user.type(screen.getByLabelText(/subject code 1/i), 'BCS401');
     await user.type(screen.getByLabelText(/internal 1/i), '44');
     await user.type(screen.getByLabelText(/external 1/i), '36');
@@ -101,12 +103,12 @@ describe('entering a result card', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<ResultsPage />, { repositories: bundle });
 
-    await user.click(screen.getByRole('button', { name: /add a semester/i }));
+    await user.click(await screen.findByRole('button', { name: /add a semester/i }));
     await user.type(screen.getByLabelText(/subject code 1/i), 'BPEK459');
     await user.type(screen.getByLabelText(/internal 1/i), '96');
     await user.type(screen.getByLabelText(/external 1/i), '0');
     await user.type(screen.getByLabelText(/total 1/i), '96');
-    await user.selectOptions(screen.getByLabelText(/semester-end exam 1/i), 'no');
+    await choose(/semester-end exam 1/i, 'No — internal only');
     await user.click(screen.getByRole('button', { name: /save semester/i }));
 
     expect(peek.results()[0]?.subjects[0]?.hasSee).toBe(false);
@@ -117,7 +119,7 @@ describe('entering a result card', () => {
     const { bundle } = createMemoryRepositories();
     renderWith(<ResultsPage />, { repositories: bundle });
 
-    await user.click(screen.getByRole('button', { name: /add a semester/i }));
+    await user.click(await screen.findByRole('button', { name: /add a semester/i }));
     // The first row's remove button is disabled while it is the only row: a
     // result with no subjects is not a result.
     expect(
@@ -145,10 +147,11 @@ describe('entering a result card', () => {
     const { bundle, peek } = createMemoryRepositories({
       results: [saved(3, [{ subjectCode: 'BCS301', credits: 4, gradeLetter: 'A' }])],
     });
-    renderWith(<ResultsPage />, { repositories: bundle });
+    // With a result saved, manual entry opens from its own address (Add document → "Enter a result by hand").
+    renderWith(<ResultsPage />, { repositories: bundle, route: '/results?new=1' });
+    await screen.findByRole('combobox', { name: /^semester$/i });
 
-    await user.click(await screen.findByRole('button', { name: /add a semester/i }));
-    await user.selectOptions(screen.getByLabelText(/^semester$/i), '3');
+    await choose(/^semester$/i, 'Semester 3');
     await user.type(screen.getByLabelText(/subject code 1/i), 'BCS302');
     await user.click(screen.getByRole('button', { name: /save semester/i }));
 
@@ -157,11 +160,43 @@ describe('entering a result card', () => {
 
     // Another semester saves normally — the guard is about the collision, not
     // about the form.
-    await user.selectOptions(screen.getByLabelText(/^semester$/i), '5');
+    await choose(/^semester$/i, 'Semester 5');
     await user.click(screen.getByRole('button', { name: /save semester/i }));
     expect(peek.results()).toHaveLength(2);
   });
 });
+
+/** Results and the record route, the way the app mounts them. */
+function renderRecord(bundle: ReturnType<typeof createMemoryRepositories>['bundle']) {
+  return renderWith(
+    <Routes>
+      <Route path="/results" element={<ResultsPage />} />
+      <Route path="/results/:semester" element={<ResultDetailPage />} />
+    </Routes>,
+    { repositories: bundle, route: '/results' },
+  );
+}
+
+async function openRecord(user: ReturnType<typeof userEvent.setup>): Promise<HTMLElement> {
+  await user.click(await screen.findByRole('radio', { name: /semesters/i }));
+  await user.click(
+    (await screen.findAllByRole('link', { name: /open the full record/i }))[0] as HTMLElement,
+  );
+  return screen.findByRole('list', { name: /courses in semester/i });
+}
+
+/** A course row expands in place; its figures are the <dl> it controls. */
+async function expand(
+  user: ReturnType<typeof userEvent.setup>,
+  list: HTMLElement,
+  name: RegExp,
+): Promise<HTMLElement> {
+  const row = within(list).getByRole('button', { name });
+  await user.click(row);
+  const detail = document.getElementById(row.getAttribute('aria-controls') ?? '');
+  expect(detail).toBeTruthy();
+  return detail as HTMLElement;
+}
 
 describe('a saved result', () => {
   const provisional = () =>
@@ -189,28 +224,22 @@ describe('a saved result', () => {
   it('shows the printed marks as columns of their own', async () => {
     const { bundle } = createMemoryRepositories({ results: [provisional()] });
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderRecord(bundle);
 
-    await user.click(await screen.findByRole('tab', { name: /semesters/i }));
-    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
-
-    const table = screen.getByRole('table');
-    expect(within(table).getByRole('columnheader', { name: /internal/i })).toBeTruthy();
-    expect(within(table).getByRole('columnheader', { name: /external/i })).toBeTruthy();
-    expect(within(table).getByRole('columnheader', { name: /total/i })).toBeTruthy();
-    expect(within(table).getByText('44')).toBeTruthy();
-    expect(within(table).getByText('80')).toBeTruthy();
+    const list = await openRecord(user);
+    // Each figure is named in the row, not only placed under a visual header.
+    const row = within(list).getByRole('button', { name: /Analysis & Design of Algorithms/i });
+    expect(row.textContent).toMatch(/Internal\s*44/);
+    expect(row.textContent).toMatch(/External\s*36/);
+    expect(row.textContent).toMatch(/Total\s*80/);
   });
 
   it('says why there is no SGPA instead of showing a dash alone', async () => {
-    // A provisional card prints no grades, so no SGPA can be computed — and the
-    // rows that held it back are named so the student can finish the record.
     const { bundle } = createMemoryRepositories({ results: [provisional()] });
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderRecord(bundle);
 
-    await user.click(await screen.findByRole('tab', { name: /semesters/i }));
-    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
+    await openRecord(user);
     expect(screen.getByText(/no sgpa yet/i)).toBeTruthy();
     expect(screen.getAllByText(/BCS401/).length).toBeGreaterThan(0);
   });
@@ -218,64 +247,36 @@ describe('a saved result', () => {
   it('calls a CIE-only course Not applicable, and not a backlog', async () => {
     /*
      * THE REGRESSION THIS FILE EXISTS FOR, at the screen. "0 / 50" would say the
-     * student sat an exam and scored nothing; a red backlog pill would say they
+     * student sat an exam and scored nothing; a backlog badge would say they
      * failed a course the university passed them in.
      */
     const { bundle } = createMemoryRepositories({ results: [provisional()] });
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderRecord(bundle);
 
-    await user.click(await screen.findByRole('tab', { name: /semesters/i }));
-    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
-
-    /*
-     * THE WIDE LAYOUT, where the row opens where it sits. Scoped to the table
-     * because the same course is also a button in the narrow row list — jsdom
-     * renders both layouts, and only one of them is ever on screen.
-     */
-    const table = screen.getByRole('table');
-    await user.click(within(table).getByRole('button', { name: /Physical Education/i }));
-
-    const detail = table.querySelector('dl');
-    expect(detail).toBeTruthy();
-    expect(within(detail as HTMLElement).getByText(/not applicable/i)).toBeTruthy();
-    expect(within(detail as HTMLElement).queryByText(/0 \/ 50/)).toBeNull();
-
-    const backlog = within(detail as HTMLElement).getByText('Backlog').closest('div');
+    const list = await openRecord(user);
+    const detail = await expand(user, list, /Physical Education/i);
+    expect(within(detail).getByText(/not applicable/i)).toBeTruthy();
+    expect(within(detail).queryByText(/0 \/ 50/)).toBeNull();
+    const backlog = within(detail).getByText('Backlog').closest('div');
     expect(backlog?.textContent).toMatch(/No$/);
   });
 
   it('shows the SEE contribution out of 50 where the course has one', async () => {
     const { bundle } = createMemoryRepositories({ results: [provisional()] });
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderRecord(bundle);
 
-    await user.click(await screen.findByRole('tab', { name: /semesters/i }));
-    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
-
-    /*
-     * THE NARROW LAYOUT, where the same fields arrive in a sheet. The one of
-     * the two buttons that is NOT in the table is the phone's row.
-     */
-    const rows = screen.getAllByRole('button', { name: /Analysis & Design of Algorithms/i });
-    const narrow = rows.find((row) => row.closest('table') === null);
-    expect(narrow).toBeTruthy();
-    await user.click(narrow as HTMLElement);
-
-    const sheet = await screen.findByRole('dialog');
-    expect(within(sheet).getByText('36 / 50')).toBeTruthy();
+    const list = await openRecord(user);
+    const detail = await expand(user, list, /Analysis & Design of Algorithms/i);
+    expect(within(detail).getByText('36 / 50')).toBeTruthy();
   });
 
   it('reports a backlog count that admits what it could not check', async () => {
     /*
-     * A row whose SEE applicability is unknown makes the count a FLOOR. The
-     * number a student most needs to be right about must not read as complete.
-     *
-     * BCS402 carries the genuinely unanswerable shape: no `hasSee`, an external
-     * of 0, AND an internal that fits the CIE scale. A positive external
-     * resolves on its own, and so does an internal above `cieMax` — 96 is not a
-     * mark out of 50 — so this is the only shape left that really cannot be
-     * checked.
+     * A row whose SEE applicability is unknown makes the count a FLOOR. BCS402
+     * has no `hasSee`, an external of 0 and an internal on the CIE scale — the
+     * one shape that really cannot be checked.
      */
     const { bundle } = createMemoryRepositories({
       results: [
@@ -294,12 +295,10 @@ describe('a saved result', () => {
   it('edits a saved semester in place rather than creating a second one', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories({ results: [provisional()] });
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderRecord(bundle);
 
-    await user.click(await screen.findByRole('tab', { name: /semesters/i }));
-    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
-    await user.click(screen.getByRole('button', { name: /actions for semester 4/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /edit this semester/i }));
+    await openRecord(user);
+    await user.click(screen.getByRole('button', { name: /edit this semester/i }));
 
     // The editor opens on the stored values, not on a blank form.
     expect((screen.getByLabelText(/internal 1/i) as HTMLInputElement).value).toBe('44');
@@ -318,19 +317,17 @@ describe('a saved result', () => {
 
   it('keeps a record that predates the marks fields readable', async () => {
     // A row saved when the model held only credits and a grade still renders,
-    // with its marks columns honestly empty rather than zero.
+    // with its marks honestly empty rather than zero.
     const { bundle } = createMemoryRepositories({
       results: [saved(3, [{ subjectCode: 'BCS301', credits: 4, gradeLetter: 'A' }])],
     });
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderRecord(bundle);
 
-    await user.click(await screen.findByRole('tab', { name: /semesters/i }));
-    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
-    const table = screen.getByRole('table');
-    // The title falls back to the code, so the cell carries it twice.
-    expect(within(table).getAllByText('BCS301').length).toBeGreaterThan(0);
-    expect(within(table).getAllByText('—').length).toBeGreaterThan(0);
+    const list = await openRecord(user);
+    const row = within(list).getByRole('button', { name: /BCS301/ });
+    expect(row.textContent).toMatch(/Internal\s*—\s*not recorded/);
+    expect(row.textContent).not.toMatch(/Internal\s*0/);
     expect(screen.getAllByText('8.00').length).toBeGreaterThan(0);
   });
 });

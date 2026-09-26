@@ -62,8 +62,8 @@ credentials are committed: the URL is supplied per machine.
 ## Running the tests
 
 **Three URLs, not one.** `TEST_DATABASE_URL` alone leaves 47 tests still
-skipping: the authorization and result-sync suites run against the *student
-cloud*, which is a separate database from the reference one exactly as it is in
+skipping: the authorization and result-sync suites run against the _student
+cloud_, which is a separate database from the reference one exactly as it is in
 production (docs/09 §9.18). Setting only the first is the mistake that made the
 suite look complete while row-level security went unexercised.
 

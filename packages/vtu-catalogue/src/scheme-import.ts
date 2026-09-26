@@ -322,7 +322,9 @@ function joinCodeCells(items: readonly PositionedText[]): PositionedText[] {
   /* ---- One baseline, no gaps ------------------------------------------- */
   const rows: PositionedText[][] = [];
   for (const item of [...usable].sort((a, b) => b.y - a.y || a.x - b.x)) {
-    const row = rows.find((candidate) => Math.abs((candidate[0] as PositionedText).y - item.y) <= line * 0.5);
+    const row = rows.find(
+      (candidate) => Math.abs((candidate[0] as PositionedText).y - item.y) <= line * 0.5,
+    );
     if (row === undefined) rows.push([item]);
     else row.push(item);
   }
@@ -346,7 +348,13 @@ function joinCodeCells(items: readonly PositionedText[]): PositionedText[] {
         const first = parts[0] as PositionedText;
         const last = parts[parts.length - 1] as PositionedText;
         for (const part of parts) consumed.add(part);
-        joined.push({ text, x: first.x, y: first.y, width: last.x + last.width - first.x, height: first.height });
+        joined.push({
+          text,
+          x: first.x,
+          y: first.y,
+          width: last.x + last.width - first.x,
+          height: first.height,
+        });
         break;
       }
     }
@@ -513,12 +521,7 @@ function isPlaceholderSegment(segment: string): boolean {
 function canonicalCode(cell: string): string {
   const placeholder = PLACEHOLDER_CODE.exec(cell);
   if (placeholder === null) return cell;
-  const [, generation, segment, tail] = placeholder as unknown as [
-    string,
-    string,
-    string,
-    string,
-  ];
+  const [, generation, segment, tail] = placeholder as unknown as [string, string, string, string];
   if (!isPlaceholderSegment(segment)) return cell;
   /*
    * THE TAIL IS LEFT EXACTLY AS PRINTED. Only the discipline segment is

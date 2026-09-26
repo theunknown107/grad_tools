@@ -1,56 +1,65 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-accent="mono">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <meta
       name="description"
       content="GradTools brings routine academic workflows into one place. Independent student project, not affiliated with VTU."
     />
     <title>GradTools</title>
+    <!-- The same file the in-app logo inlines; it follows the browser's light/dark. -->
+    <link rel="icon" type="image/svg+xml" href="/src/brand/gradtools-mark.svg" />
     <!--
-      THE TYPE STACK IS NOT LOADED FROM HERE ANY MORE.
+      Fonts ship with the bundle (src/styles/fonts.css); no third-party request.
 
-      This carried a Google Fonts stylesheet link, which meant every page load
-      told Google who was reading — IP, referer and time — before a student had
-      typed anything. The faces are unchanged and now ship with the bundle;
-      they are declared in src/styles/fonts.css, which says why.
+      Applies the stored appearance BEFORE first paint. The React bundle is a
+      deferred module, so a theme applied there would paint once in light and
+      then repaint — the flash. This duplicates lib/theme.ts on purpose:
+      importing it would make this deferred again.
 
-      Nothing about them is required for the app to work: every stack in
-      tokens.css ends in a full system fallback, so a student whose faces have
-      not arrived yet gets a correctly proportioned interface in a different
-      one.
-    -->
-    <!--
-      Applies the stored theme BEFORE first paint.
-
-      This has to be an inline, blocking script in <head>. The React bundle is a
-      module, so it is deferred; if the theme were applied there, the page would
-      paint once with the default dark palette and then repaint into light — the
-      flash every themed site gets wrong. Everything here is duplicated from
-      lib/theme.ts on purpose: importing it would make this deferred again.
-
-      Deliberately silent on failure. A theme that cannot be read is not worth a
-      blank page, so any error leaves the CSS defaults in charge, which are the
-      system-driven ones.
+      Default: LIGHT, accent MONO. `.dark` is the resolved appearance, so
+      "system" is decided here too. Silent on failure: the CSS defaults (light)
+      stay in charge.
     -->
     <script>
       (function () {
         try {
-          var raw = window.localStorage.getItem('gradtools:v1:theme');
-          if (!raw) return;
-          var saved = JSON.parse(raw);
           var root = document.documentElement;
-          if (saved.appearance === 'light' || saved.appearance === 'dark') {
-            root.setAttribute('data-theme', saved.appearance);
-            root.style.colorScheme = saved.appearance;
-          }
-          if (['violet', 'cyan', 'amber', 'rose', 'green'].indexOf(saved.accent) !== -1) {
-            root.setAttribute('data-accent', saved.accent);
-          }
+          var raw = window.localStorage.getItem('gradtools:v1:theme');
+          var saved = raw ? JSON.parse(raw) : {};
+          var appearance =
+            saved.appearance === 'dark' || saved.appearance === 'system'
+              ? saved.appearance
+              : 'light';
+          var dark =
+            appearance === 'dark' ||
+            (appearance === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          root.classList.toggle('dark', dark);
+          if (appearance !== 'system') root.setAttribute('data-theme', appearance);
+          root.style.colorScheme = dark ? 'dark' : 'light';
+          var accents = [
+            'mono',
+            'violet',
+            'matrix',
+            'crimson',
+            'turquoise',
+            'ocean',
+            'amber',
+            'rose',
+            'indigo',
+            'emerald',
+            'solar',
+            'slate',
+          ];
+          var renamed = { cyan: 'turquoise', green: 'emerald' };
+          var accent = renamed[saved.accent] || saved.accent;
+          root.setAttribute('data-accent', accents.indexOf(accent) !== -1 ? accent : 'mono');
+          if (saved.density === 'compact') root.setAttribute('data-density', 'compact');
+          if (saved.reducedMotion === true) root.setAttribute('data-motion', 'reduced');
         } catch (error) {
-          /* Storage blocked or corrupt: fall back to the system appearance. */
+          /* Storage blocked or corrupt: light + mono from the stylesheet. */
         }
       })();
     </script>

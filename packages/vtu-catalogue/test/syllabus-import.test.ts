@@ -478,11 +478,7 @@ describe('the 2025 syllabus template', () => {
   });
 
   it('still reports an implausible figure when that is all the page states', () => {
-    const course = one([
-      'Course Code 1BCS302 Scheme 2025',
-      'Credits 300',
-      'Course objectives:',
-    ]);
+    const course = one(['Course Code 1BCS302 Scheme 2025', 'Credits 300', 'Course objectives:']);
 
     expect(course.credits).toMatchObject({ value: 300, state: 'ambiguous' });
   });

@@ -144,7 +144,8 @@ export async function listColleges(sql: Sql): Promise<College[]> {
       name,
       code,
       is_autonomous AS "isAutonomous",
-      city
+      city,
+      catalogue_id AS "catalogueId"
     FROM colleges
     WHERE publication = 'published' AND active
     ORDER BY name
@@ -483,9 +484,9 @@ const ANNOUNCEMENT_COLUMNS = (sql: Sql) => sql`
   a.body,
   a.category,
   a.canonical_url AS "canonicalUrl",
-  to_char(a.published_at,   'YYYY-MM-DD"T"HH24:MI:SSOF') AS "publishedAt",
-  to_char(a.event_start_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS "eventStartAt",
-  to_char(a.deadline_at,    'YYYY-MM-DD"T"HH24:MI:SSOF') AS "deadlineAt",
+  to_char(a.published_at AT TIME ZONE 'UTC',   'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS "publishedAt",
+  to_char(a.event_start_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS "eventStartAt",
+  to_char(a.deadline_at AT TIME ZONE 'UTC',    'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS "deadlineAt",
   json_build_object(
     'schemeId',    a.scheme_id,
     'branchId',    a.branch_id,
@@ -494,9 +495,9 @@ const ANNOUNCEMENT_COLUMNS = (sql: Sql) => sql`
     'collegeName', a.college_name,
     'semester',    a.semester
   ) AS audience,
-  to_char(a.first_seen_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS "firstSeenAt",
-  to_char(a.last_seen_at,  'YYYY-MM-DD"T"HH24:MI:SSOF') AS "lastSeenAt",
-  to_char(a.updated_at,    'YYYY-MM-DD"T"HH24:MI:SSOF') AS "updatedAt"
+  to_char(a.first_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS "firstSeenAt",
+  to_char(a.last_seen_at AT TIME ZONE 'UTC',  'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS "lastSeenAt",
+  to_char(a.updated_at AT TIME ZONE 'UTC',    'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS "updatedAt"
 `;
 
 export interface AnnouncementQuery {
@@ -523,11 +524,14 @@ export async function listPublishedAnnouncements(
   const sourceFilter =
     query.sourceId === undefined ? sql`` : sql`AND a.source_id = ${query.sourceId}`;
 
+  // `id` last makes the order total, so paging by offset can neither repeat nor
+  // skip a notice that ties on both timestamps (one insert transaction gives
+  // every row the same created_at).
   const rows = await sql`
     SELECT ${ANNOUNCEMENT_COLUMNS(sql)}
       FROM announcements a
      WHERE ${PUBLISHED_ANNOUNCEMENT(sql)} ${categoryFilter} ${sourceFilter}
-     ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC
+     ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC, a.id
      LIMIT ${query.limit} OFFSET ${query.offset}
   `;
 

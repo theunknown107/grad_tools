@@ -1,22 +1,14 @@
 /**
- * Attendance overview and bunk planner.
+ * Attendance — the design's metric row, standing card, course list and bunk
+ * planner dialog.
  *
- * Authority: docs/03 UF-07, docs/16 §16.7/§16.9, M3 continuation §17-§18.
- *
- * ---------------------------------------------------------------------------
- * TONE
- * ---------------------------------------------------------------------------
- * This screen reports arithmetic. It never advises a student to skip a class,
- * and never moralises about whether they should (docs/19 §19.11, docs/28
- * §28.6). "You can miss 3 more and stay above 85%" is arithmetic. "You should
- * skip tomorrow" is advice, and GradTools does not give it.
- *
- * Condonation is shown as DISCRETIONARY, never as an entitlement: the Vice
- * Chancellor may condone up to 10 points on the Principal's recommendation
- * with documented grounds (22OB 3.7(1)).
+ * Every percentage and verdict comes from @gradtools/academic-rules under the
+ * VTU 2022 regulation: 85% per course, DX below 75% (22OB 3.7). The design's
+ * "attendance over time" chart is not drawn: the product stores counts, not a
+ * dated history, and a trend line through numbers it does not have would be
+ * invented. The standing card shows what is known instead.
  */
 
-import { useState } from 'react';
 import {
   calculateAttendance,
   calculateClassesCanMiss,
@@ -24,214 +16,119 @@ import {
   vtu2022RuleSet,
   type AttendanceStatus,
 } from '@gradtools/academic-rules';
-import type { AttendanceRecord, SemesterSubject } from '../../domain/types.js';
-import { markClass, type ClassOutcome } from '../../domain/attendance.js';
-import { PageHeader } from '../../components/AppShell.js';
-import { MetaPill } from '../../components/ui/tone.js';
-import { Icon } from '../../components/icons.js';
 import {
-  Button,
-  EmptyState,
-  ExplanationDisclosure,
-  monoClass,
-  Notice,
-  Panel,
-  StatusPill,
-  statusIcons,
-  TextField,
-  type PillTone,
-} from '../../components/ui/index.js';
-import { formatCount, formatPercent } from '../../lib/format.js';
-import { MetricStrip } from '../../components/ui/layout.js';
-import { Tooltip } from '../../components/ui/Tooltip.js';
-import { Sheet } from '../../components/ui/Sheet.js';
-import { newId, nowIso } from '../../lib/id.js';
-import { useAttendance, useProfile, useSemesterSubjects } from '../../hooks/useCollection.js';
+  CalendarCheck2,
+  CalendarClock,
+  Check,
+  CircleHelp,
+  MoreHorizontal,
+  OctagonAlert,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  TriangleAlert,
+  X,
+} from 'lucide-react';
+import { useState } from 'react';
+import { ExplanationDisclosure } from '../../components/academic/ExplanationDisclosure.js';
+import { Badge, type Tone } from '../../components/ui/badge.js';
+import { Button, IconButton } from '../../components/ui/button.js';
+import { Card, CardHeader, CardRows } from '../../components/ui/card.js';
+import { Dialog, DialogBody, DialogContent } from '../../components/ui/dialog.js';
+import { Callout, EmptyState, Unavailable, toast } from '../../components/ui/feedback.js';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../components/ui/menu.js';
+import { Field, Input, Select } from '../../components/ui/field.js';
+import { Metric, MetricGrid } from '../../components/ui/metric.js';
+import { IconTile, PageHeader, SectionTitle } from '../../components/ui/page.js';
+import { Progress } from '../../components/ui/progress.js';
+import { PageSkeleton } from '../../components/ui/skeleton.js';
+import { Tooltip } from '../../components/ui/tooltip.js';
+import {
+  countDelta,
+  markClass,
+  openingFor,
+  openingOf,
+  shiftOpening,
+  type ClassOutcome,
+} from '../../domain/attendance.js';
+import { buildSemesterViews, currentSemester } from '../../domain/academics.js';
 import { asStudentProfileId } from '../../domain/identity.js';
-import styles from './attendance.module.css';
+import { type AttendanceRecord, type SemesterSubject } from '../../domain/types.js';
+import { effectiveDay } from '../../domain/day-schedule.js';
+import { Segmented } from '../../components/ui/segmented.js';
+import {
+  useAttendance,
+  useAttendanceLedger,
+  useProfile,
+  useSemesterSubjects,
+  useSemesters,
+  useTimetable,
+  useTimetableOverrides,
+} from '../../hooks/useCollection.js';
+import { SEMESTER_OPTIONS } from '../import/CalendarReview.js';
+import { useNow, useTodayLabel } from '../../hooks/useNow.js';
+import { DateView } from './DateView.js';
+import { DayView, NowLine } from './DayView.js';
+import { HistoryView } from './HistoryView.js';
+import { cn } from '../../lib/cn.js';
+import { formatCount, formatPercent } from '../../lib/format.js';
+import { newId, nowIso } from '../../lib/id.js';
 
 const ruleSet = vtu2022RuleSet;
 
-const STATUS_PRESENTATION: Record<
+const STATUS: Record<
   AttendanceStatus,
-  { tone: PillTone; label: string; icon: (typeof statusIcons)[keyof typeof statusIcons] }
+  { tone: Tone; label: string; Icon: typeof ShieldCheck; ink: string }
 > = {
-  safe: { tone: 'success', label: 'Safe', icon: statusIcons.safe },
+  safe: { tone: 'success', label: 'Safe', Icon: ShieldCheck, ink: 'text-ink' },
   below_requirement: {
     tone: 'warning',
     label: 'Below requirement',
-    icon: statusIcons.below,
+    Icon: TriangleAlert,
+    ink: 'text-warning',
   },
-  dx_risk: { tone: 'danger', label: 'DX risk', icon: statusIcons.risk },
+  dx_risk: { tone: 'danger', label: 'DX risk', Icon: OctagonAlert, ink: 'text-danger' },
 };
 
-/** The verdict, as a tone. Derived from the ENGINE's status, never a threshold. */
-const TONE_OF: Record<AttendanceStatus, 'safe' | 'warning' | 'danger'> = {
-  safe: 'safe',
-  below_requirement: 'warning',
-  dx_risk: 'danger',
-};
+/** Today is the default: the screen is opened to mark the day's classes. */
+type View = 'today' | 'courses' | 'calendar' | 'history';
 
-/** A course's real name, or null when the student has not entered one. */
 function subjectName(code: string, subjects: readonly SemesterSubject[]): string | null {
   return subjects.find((subject) => subject.code === code)?.title ?? null;
 }
 
-/**
- * The overall figure, and the one sentence that follows from it.
- *
- * M9.6F §9: the page answers "can I miss this class". A per-subject list
- * answers it subject by subject and never answers it for the semester, which
- * is the question a student asks first.
- *
- * Computed by the rules engine over the pooled totals — NOT an average of the
- * per-subject percentages. Averaging percentages weights a 12-class lab the
- * same as a 60-class lecture and produces a number that is nobody's attendance.
- *
- * ---------------------------------------------------------------------------
- * WHY THIS IS NOT THE DESIGN'S CHART
- * ---------------------------------------------------------------------------
- *
- * The approved design draws attendance over time, with the threshold as a
- * reference line. GradTools stores attendance as COUNTS, not as per-class
- * events (docs/08 §8.9) — there is no week-by-week history to plot, and
- * inventing one would be fabricating the student's own record.
- *
- * So the same fact is drawn the way the data supports it: the standing against
- * both thresholds, on one track, with each threshold marked where it falls.
- */
-function OverallStanding({ items }: { readonly items: readonly AttendanceRecord[] }) {
-  const attended = items.reduce((total, record) => total + record.attended, 0);
-  const conducted = items.reduce((total, record) => total + record.conducted, 0);
-  if (conducted === 0) return null;
-
-  const overall = calculateAttendance(attended, conducted, ruleSet);
-  if (!overall.ok) return null;
-
-  const { percentage, status } = overall.value;
-
-  return (
-    <Panel title="Where you stand">
-      <div className={styles.gaugeFigure}>
-        <span className={styles.gaugeValue} data-tone={TONE_OF[status]}>
-          {formatPercent(percentage)}
-        </span>
-        <StatusPill tone={STATUS_PRESENTATION[status].tone} icon={STATUS_PRESENTATION[status].icon}>
-          {STATUS_PRESENTATION[status].label}
-        </StatusPill>
-      </div>
-
-      <div className={styles.gauge}>
-        <span className={styles.gaugeTrack} aria-hidden="true">
-          <span
-            className={styles.gaugeFill}
-            data-tone={TONE_OF[status]}
-            style={{ inlineSize: `${String(Math.max(0, Math.min(100, percentage)))}%` }}
-          />
-          {/* Both thresholds, where they actually fall on the scale. */}
-          <span
-            className={styles.gaugeMark}
-            data-kind="floor"
-            style={{ insetInlineStart: `${String(ruleSet.attendanceDxFloorPct)}%` }}
-          />
-          <span
-            className={styles.gaugeMark}
-            data-kind="required"
-            style={{ insetInlineStart: `${String(ruleSet.attendanceRequiredPct)}%` }}
-          />
-        </span>
-        {/*
-          One legend, not two floating labels: the floor and the requirement
-          are ten points apart, and positioned labels collide there.
-        */}
-        <p className={styles.gaugeScale}>
-          <span data-kind="floor">{ruleSet.attendanceDxFloorPct}% DX floor</span>
-          <span data-kind="required">{ruleSet.attendanceRequiredPct}% required</span>
-        </p>
-      </div>
-
-      <p className={styles.standingNote}>
-        {/*
-          The pooled figure is NOT what the regulation checks — 22OB 3.7 is per
-          course — so saying only "you are at 82%" would be reassuring and
-          wrong. The sentence names which figure this is and points at the one
-          that actually decides.
-        */}
-        {attended} of {conducted} classes attended, pooled across every course you track. The
-        requirement is applied <strong>per course</strong> (22OB 3.7), so the list beside this is
-        what decides whether you can sit each exam.
-      </p>
-
-      <ExplanationDisclosure explanation={overall.explanation} />
-    </Panel>
-  );
-}
-
 export function AttendancePage() {
   const { items, loading, save, remove } = useAttendance();
+  const { items: ledger, save: saveEntry } = useAttendanceLedger();
   const { profile } = useProfile();
-  /** The record as it was before the last mark, so one tap can be taken back. */
-  const [undo, setUndo] = useState<{ record: AttendanceRecord; label: string } | null>(null);
-  /** The course whose planner is open. */
-  const [planning, setPlanning] = useState<AttendanceRecord | null>(null);
-
+  const { items: semesters, loading: semestersLoading } = useSemesters();
   const { items: semesterSubjects } = useSemesterSubjects();
-  /* Whether the DX rule needs stating at all — said once, at the list. */
-  const anyAtRisk = items.some((record) => {
-    const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
-    return verdict.ok && verdict.value.status === 'dx_risk';
-  });
-  const [subjectCode, setSubjectCode] = useState('');
-  const [attended, setAttended] = useState('');
-  const [conducted, setConducted] = useState('');
-  const [formError, setFormError] = useState<string | undefined>(undefined);
+  const { items: timetable } = useTimetable();
+  const { items: overrides } = useTimetableOverrides();
+  const [planning, setPlanning] = useState<AttendanceRecord | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [view, setView] = useState<View>('today');
+  /*
+   * The date comes from the clock, not from this render: a student who leaves
+   * the app open across midnight must not mark tomorrow's class against
+   * yesterday (hooks/useNow).
+   */
+  const now = useNow();
+  const label = useTodayLabel();
+
+  if (loading || semestersLoading) return <PageSkeleton label="Loading attendance" />;
 
   const profileId = profile?.id ?? asStudentProfileId('local');
-
-  const addRecord = () => {
-    const attendedValue = Number(attended);
-    const conductedValue = Number(conducted);
-
-    if (subjectCode.trim() === '') {
-      setFormError('Enter a subject code.');
-      return;
-    }
-    if (!Number.isInteger(attendedValue) || !Number.isInteger(conductedValue)) {
-      setFormError('Attended and conducted must be whole numbers.');
-      return;
-    }
-    if (attendedValue > conductedValue) {
-      setFormError(
-        `Attended (${String(attendedValue)}) cannot be more than conducted (${String(conductedValue)}).`,
-      );
-      return;
-    }
-    if (attendedValue < 0 || conductedValue < 1) {
-      setFormError('Enter the classes held so far and how many you attended.');
-      return;
-    }
-
-    setFormError(undefined);
-    void save({
-      id: newId(),
-      profileId,
-      semester: profile?.currentSemester ?? 1,
-      subjectCode: subjectCode.trim().toUpperCase(),
-      // The semester list is the one place a subject is named; reuse its title
-      // rather than storing the code twice.
-      subjectTitle:
-        semesterSubjects.find((subject) => subject.code === subjectCode.trim().toUpperCase())
-          ?.title ?? subjectCode.trim().toUpperCase(),
-      attended: attendedValue,
-      conducted: conductedValue,
-      updatedAt: nowIso(),
-    });
-    setSubjectCode('');
-    setAttended('');
-    setConducted('');
-  };
-
-  /* The four figures the design puts across the top, each from the engine. */
+  /* The degree first, the profile second — the Dashboard's rule. Null is unset. */
+  const semester =
+    currentSemester(buildSemesterViews(semesters, []))?.number ?? profile?.currentSemester ?? null;
   const tracked = items.filter((record) => record.conducted > 0);
   const pooled = items.reduce(
     (running, record) => ({
@@ -242,306 +139,427 @@ export function AttendancePage() {
   );
   const overall =
     pooled.conducted === 0 ? null : calculateAttendance(pooled.attended, pooled.conducted, ruleSet);
-  const atRisk = items.filter((record) => {
-    const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
-    return verdict.ok && verdict.value.status !== 'safe';
-  }).length;
+  const verdicts = items.map((record) =>
+    calculateAttendance(record.attended, record.conducted, ruleSet),
+  );
+  const atRisk = verdicts.filter((verdict) => verdict.ok && verdict.value.status !== 'safe').length;
+  const anyDx = verdicts.some((verdict) => verdict.ok && verdict.value.status === 'dx_risk');
+
+  const todayClasses = effectiveDay(now.today, timetable, overrides);
+  const markableToday = todayClasses.filter((entry) => entry.markable);
+
+  /**
+   * The quick mark on the course list: one more class, no date attached.
+   *
+   * It goes into the subject's OPENING BALANCE rather than inventing a
+   * `ClassOccurrence`, because this control genuinely does not know which class
+   * it was — the row is a subject, not an hour. Dated marking lives on Today,
+   * where there is a class to point at.
+   *
+   * The ledger and the counter move together, so the derived figure and the one
+   * on screen cannot drift apart between syncs.
+   */
+  const mark = (record: AttendanceRecord, outcome: ClassOutcome): AttendanceRecord => {
+    const next = markClass(record, outcome);
+    const opening = openingFor(ledger, record.subjectCode);
+    void saveEntry(shiftOpening(opening, countDelta(null, outcome)));
+    void save(next);
+    toast(`Recorded a ${outcome} class for ${record.subjectCode}.`, {
+      description: `${String(next.attended)}/${String(next.conducted)} classes`,
+      tone: outcome === 'attended' ? 'success' : 'warning',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          void saveEntry(
+            shiftOpening(openingFor(ledger, record.subjectCode), countDelta(outcome, null)),
+          );
+          void save(record);
+        },
+      },
+    });
+    return next;
+  };
+
+  const semesterLabel = semester === null ? 'Semester attendance' : `Semester ${String(semester)}`;
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Semester attendance"
+        eyebrow={semesterLabel}
         title="Attendance"
-        subtitle={`The requirement is ${String(ruleSet.attendanceRequiredPct)}% per course (clause 22OB 3.7). Below ${String(ruleSet.attendanceDxFloorPct)}% a course is marked DX and you cannot sit its exam.`}
-        pills={
-          items.length === 0 ? undefined : (
-            <>
-              <MetaPill>{formatCount(items.length, 'course')}</MetaPill>
-              <MetaPill>{String(ruleSet.attendanceRequiredPct)}% required</MetaPill>
-            </>
-          )
+        description={`The requirement is ${String(ruleSet.attendanceRequiredPct)}% per course (clause 22OB 3.7). Below ${String(ruleSet.attendanceDxFloorPct)}% a course is marked DX and you cannot sit its exam.`}
+        actions={
+          <Button variant="primary" icon={<Plus />} onClick={() => setAdding(true)}>
+            Add a course
+          </Button>
         }
       />
 
-      <div className={styles.stack}>
-        {items.length > 0 && (
-          <MetricStrip
-            metrics={[
-              {
-                label: 'Overall attendance',
-                value:
-                  overall?.ok === true ? formatPercent(overall.value.percentage) : 'Unavailable',
-                ...(overall?.ok === true && overall.value.status !== 'safe'
-                  ? {
-                      tone:
-                        overall.value.status === 'dx_risk'
-                          ? ('danger' as const)
-                          : ('warning' as const),
-                    }
-                  : {}),
-                note: `${String(ruleSet.attendanceRequiredPct)}% required`,
-              },
-              {
-                label: 'Courses at risk',
-                value: String(atRisk),
-                ...(atRisk > 0 ? { tone: 'warning' as const } : {}),
-                note: atRisk > 0 ? 'Below the requirement' : 'All clear',
-              },
-              {
-                label: 'Classes held',
-                value: String(pooled.conducted),
-                note: 'Across every course',
-              },
-              {
-                label: 'Tracked courses',
-                value: String(tracked.length),
-                ...(items.length - tracked.length > 0
-                  ? { note: `${String(items.length - tracked.length)} awaiting data` }
-                  : {}),
-              },
-            ]}
-          />
-        )}
-
-        {/*
-          -------------------------------------------------------------------
-          M9.6F: LEAD WITH THE ANSWER, NOT WITH A FORM
-          -------------------------------------------------------------------
-
-          The first thing on this page was "Add a course" — a data-entry form —
-          and the figures a student actually opened the page for were below it.
-          The question this page exists to answer is "can I miss this class",
-          and the overall standing is the first half of that answer.
-        */}
-        {loading ? null : items.length === 0 ? (
-          <Panel title="Your courses" flush>
-            <EmptyState title="No courses tracked yet" icons={['attendance']}>
-              Add the courses you are taking this semester and GradTools will show how many classes
-              you can still miss.
-            </EmptyState>
-          </Panel>
-        ) : (
-          <div className={styles.twoUp}>
-            <OverallStanding items={items} />
-
-            <Panel
-              title="By course"
-              flush
-              /*
-               * SAID ONCE, NOT PER COURSE (M9.3 §13). The DX rule used to be
-               * repeated in full inside every at-risk card; with three such
-               * courses a student read the same paragraph three times and the
-               * page became mostly warning.
-               */
-              action={anyAtRisk ? <span className={styles.dxHint}>DX rule below</span> : undefined}
-            >
-              <ul className={styles.courseList}>
-                {items.map((record) => (
-                  <AttendanceRow
-                    key={record.id}
-                    record={record}
-                    name={subjectName(record.subjectCode, semesterSubjects)}
-                    onPlan={() => {
-                      setPlanning(record);
-                    }}
-                    onMark={(outcome) => {
-                      /*
-                       * The previous record is kept, not recomputed. Undo by
-                       * subtracting would happily take a count below zero if it
-                       * were ever reached twice, and an irreversible counter
-                       * with a mis-tappable button is worse than no button.
-                       */
-                      setUndo({ record, label: record.subjectCode });
-                      void save(markClass(record, outcome));
-                    }}
-                  />
-                ))}
-              </ul>
-              {anyAtRisk && (
-                <p className={styles.dxNote}>
-                  Below {String(ruleSet.attendanceDxFloorPct)}% a course is marked DX and you are
-                  not permitted to sit its Semester End Examination (clause 22OB 3.7(5)). A shortage
-                  of up to {String(ruleSet.attendanceCondonablePct)} points may be condoned by the
-                  Vice Chancellor on the Principal&rsquo;s recommendation with supporting documents.
-                  This is discretionary, not automatic.
-                </p>
-              )}
-            </Panel>
-          </div>
-        )}
-
-        {/*
-          ONE STEP OF UNDO, WHICH IS THE STEP THAT GETS USED. A mis-tap on a
-          counter is the ordinary mistake here — the buttons sit next to each
-          other and get pressed while walking out of a lecture — and the fix has
-          to be as cheap as the error.
-        */}
-        {undo !== null && (
-          <div className={styles.undoBar}>
-            <span>Recorded a class for {undo.label}.</span>
-            <Button
-              small
-              onClick={() => {
-                void save(undo.record);
-                setUndo(null);
-              }}
-            >
-              Undo
+      {items.length === 0 && timetable.length === 0 ? (
+        <EmptyState
+          icon={<CalendarCheck2 />}
+          title="No courses tracked yet"
+          description="Add the courses you are taking this semester, or import your timetable, and GradTools will show how many classes you can still miss."
+          actions={
+            <Button variant="primary" icon={<Plus />} onClick={() => setAdding(true)}>
+              Add a course
             </Button>
-          </div>
-        )}
-
-        <details className={styles.addCourse}>
-          <summary className={styles.addSummary}>
-            <Icon name="plus" size="nav" />
-            Add a course
-          </summary>
-          <div className={styles.addRow}>
-            {/*
-              THE SUBJECT IS DEFINED ONCE (M6 §16). The semester's subject list
-              suggests codes here rather than this screen keeping its own copy.
-              Still free text, because a student may be tracking something they
-              have not added to the semester yet.
-            */}
-            <TextField
-              label="Subject code"
-              placeholder="BCS304"
-              mono
-              list="semester-subject-codes"
-              hint={
-                semesterSubjects.length > 0 ? 'Your semester subjects are suggested.' : undefined
+          }
+        />
+      ) : (
+        <>
+          <MetricGrid>
+            <Metric
+              label="Overall attendance"
+              value={overall?.ok === true ? overall.value.percentage.toFixed(1) : 'Unavailable'}
+              unit={overall?.ok === true ? '%' : undefined}
+              state={overall?.ok === true ? 'resolved' : 'unavailable'}
+              emphasis={
+                overall?.ok === true && overall.value.status !== 'safe'
+                  ? overall.value.status === 'dx_risk'
+                    ? 'danger'
+                    : 'warning'
+                  : undefined
               }
-              value={subjectCode}
-              onChange={(event) => {
-                setSubjectCode(event.target.value);
-              }}
+              sub={`Threshold ${String(ruleSet.attendanceRequiredPct)}%`}
             />
-            <datalist id="semester-subject-codes">
-              {semesterSubjects.map((subject) => (
-                <option key={subject.id} value={subject.code}>
-                  {subject.title}
-                </option>
-              ))}
-            </datalist>
-            <TextField
-              label="Attended"
-              inputMode="numeric"
-              placeholder="42"
-              value={attended}
-              onChange={(event) => {
-                setAttended(event.target.value);
-              }}
+            <Metric
+              label="Courses at risk"
+              value={atRisk}
+              emphasis={atRisk > 0 ? 'warning' : undefined}
+              sub={atRisk > 0 ? 'Action needed' : 'All clear'}
             />
-            <TextField
-              label="Conducted"
-              inputMode="numeric"
-              placeholder="50"
-              value={conducted}
-              onChange={(event) => {
-                setConducted(event.target.value);
-              }}
+            <Metric
+              label="Classes today"
+              value={markableToday.length}
+              sub={
+                timetable.length === 0
+                  ? 'No timetable saved'
+                  : todayClasses.length === 0
+                    ? 'Nothing scheduled'
+                    : label.date
+              }
             />
-            <Button variant="primary" onClick={addRecord}>
-              <Icon name="plus" size="nav" />
-              Add
-            </Button>
-          </div>
-          {formError !== undefined && (
-            <div className={styles.formError} role="alert">
-              <Notice tone="danger">{formError}</Notice>
+            <Metric
+              label="Tracked courses"
+              value={tracked.length}
+              sub={
+                items.length - tracked.length > 0
+                  ? `${String(items.length - tracked.length)} awaiting data`
+                  : `${String(pooled.conducted)} classes held`
+              }
+            />
+          </MetricGrid>
+
+          <Segmented<View>
+            label="Which attendance view"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'today', label: 'Today' },
+              { value: 'courses', label: 'Courses' },
+              { value: 'calendar', label: 'Calendar' },
+              { value: 'history', label: 'History' },
+            ]}
+            className="w-full"
+          />
+
+          {view === 'today' && (
+            <div className="flex flex-col gap-4">
+              <NowLine date={label.date} clock={label.clock} />
+              <DayView
+                date={now.today}
+                time={now.time}
+                slots={timetable}
+                overrides={overrides}
+                titleFor={(code) => subjectName(code, semesterSubjects)}
+                showTiming
+                emptyTitle={timetable.length === 0 ? 'No timetable yet' : 'Nothing on today'}
+                emptyDescription={
+                  timetable.length === 0
+                    ? 'Import or enter your weekly timetable and today’s classes appear here, ready to mark.'
+                    : 'Your timetable has no classes for today. Enjoy it.'
+                }
+              />
             </div>
           )}
-        </details>
-      </div>
+
+          {view === 'calendar' && (
+            <DateView
+              today={now.today}
+              time={now.time}
+              slots={timetable}
+              entries={ledger}
+              profile={profile ?? null}
+              subjects={semesterSubjects}
+              titleFor={(code) => subjectName(code, semesterSubjects)}
+            />
+          )}
+
+          {view === 'history' && (
+            <HistoryView
+              entries={ledger}
+              overrides={overrides}
+              titleFor={(code) => subjectName(code, semesterSubjects)}
+            />
+          )}
+
+          {view === 'courses' && (
+            <div className="grid items-start gap-6 lg:grid-cols-[1fr_1.1fr]">
+              <Standing pooled={pooled} />
+
+              <Card className="overflow-hidden">
+                <CardHeader
+                  title="By course"
+                  action={anyDx ? <Badge tone="danger">DX rule applies</Badge> : undefined}
+                />
+                {items.length === 0 ? (
+                  <div className="p-5">
+                    <EmptyState
+                      compact
+                      icon={<CalendarCheck2 />}
+                      title="No courses tracked yet"
+                      description="Mark a class on Today, or add a course with the totals so far."
+                    />
+                  </div>
+                ) : (
+                  <CardRows>
+                    {items.map((record) => (
+                      <CourseRow
+                        key={record.id}
+                        record={record}
+                        name={subjectName(record.subjectCode, semesterSubjects)}
+                        onPlan={() => setPlanning(record)}
+                        onMark={(outcome) => void mark(record, outcome)}
+                        onRemove={() => {
+                          void remove(record.id);
+                          toast(`Stopped tracking ${record.subjectCode}`);
+                        }}
+                      />
+                    ))}
+                  </CardRows>
+                )}
+                {anyDx && (
+                  <p className="border-t border-line px-5 py-4 text-[12px] leading-relaxed text-ink-2">
+                    Below {ruleSet.attendanceDxFloorPct}% a course is marked DX and you are not
+                    permitted to sit its Semester End Examination (clause 22OB 3.7(5)). A shortage
+                    of up to {ruleSet.attendanceCondonablePct} points may be condoned by the Vice
+                    Chancellor on the Principal&rsquo;s recommendation with supporting documents.
+                    This is discretionary, not automatic.
+                  </p>
+                )}
+              </Card>
+            </div>
+          )}
+        </>
+      )}
+
+      <AddCourseDialog
+        open={adding}
+        onOpenChange={setAdding}
+        subjects={semesterSubjects}
+        semester={semester}
+        onAdd={(record) => {
+          /*
+           * The totals the student types are an OPENING BALANCE: classes that
+           * happened before this device was counting. Writing only the counter
+           * would leave the ledger disagreeing with the screen, and the next
+           * sync would re-derive the figure back down to nothing.
+           */
+          void saveEntry(
+            openingOf(record.subjectCode, {
+              attended: record.attended,
+              conducted: record.conducted,
+            }),
+          );
+          void save({ ...record, profileId });
+          toast(`Tracking ${record.subjectCode}`, { tone: 'success' });
+        }}
+      />
 
       <BunkPlanner
         record={planning}
-        onClose={() => {
-          setPlanning(null);
-        }}
-        onMark={(record, outcome) => {
-          setUndo({ record, label: record.subjectCode });
-          const next = markClass(record, outcome);
-          void save(next);
-          setPlanning(next);
-        }}
-        onRemove={(record) => {
-          setPlanning(null);
-          void remove(record.id);
-        }}
+        name={planning === null ? null : subjectName(planning.subjectCode, semesterSubjects)}
+        onClose={() => setPlanning(null)}
       />
-    </>
+    </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* One course                                                                 */
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------- Standing */
 
-/**
- * One course, as the approved design's row: the verdict as a mark, the course,
- * how much of it has been attended, and the way into planning against it.
- *
- * The two marking buttons are not in the design, and they stay: recording a
- * class is the thing a student does weekly, and the only alternatives this
- * product has ever offered are retyping both totals or deleting the course.
- */
-function AttendanceRow({
+function Standing({
+  pooled,
+}: {
+  readonly pooled: { readonly attended: number; readonly conducted: number };
+}) {
+  if (pooled.conducted === 0) {
+    return (
+      <Card className="p-5">
+        <SectionTitle>Where you stand</SectionTitle>
+        <EmptyState
+          compact
+          icon={<CircleHelp />}
+          title="No classes recorded yet"
+          description="Mark a class, or enter the counts so far, and your standing appears here."
+        />
+      </Card>
+    );
+  }
+  const overall = calculateAttendance(pooled.attended, pooled.conducted, ruleSet);
+  if (!overall.ok) return null;
+  const { percentage, status } = overall.value;
+  const presentation = STATUS[status];
+  return (
+    <Card className="p-5">
+      <SectionTitle
+        action={
+          <Badge tone={presentation.tone} icon={<presentation.Icon />}>
+            {presentation.label}
+          </Badge>
+        }
+      >
+        Where you stand
+      </SectionTitle>
+      <div
+        className={cn(
+          'tnum text-[44px] leading-none font-semibold tracking-[-0.03em]',
+          presentation.ink,
+        )}
+      >
+        {formatPercent(percentage)}
+      </div>
+      <div className="relative mt-5" aria-hidden="true">
+        <Progress value={percentage} tone={presentation.tone} className="h-3" />
+        <span
+          className="absolute -top-1 h-5 w-0.5 rounded-full bg-danger"
+          style={{ left: `${String(ruleSet.attendanceDxFloorPct)}%` }}
+        />
+        <span
+          className="absolute -top-1 h-5 w-0.5 rounded-full bg-ink"
+          style={{ left: `${String(ruleSet.attendanceRequiredPct)}%` }}
+        />
+      </div>
+      <div className="relative mt-2 h-4 text-[11px]" aria-hidden="true">
+        <span
+          className="absolute -translate-x-full pr-1 text-danger"
+          style={{ left: `${String(ruleSet.attendanceDxFloorPct)}%` }}
+        >
+          {ruleSet.attendanceDxFloorPct}% DX
+        </span>
+        <span
+          className="absolute pl-1 text-ink-2"
+          style={{ left: `${String(ruleSet.attendanceRequiredPct)}%` }}
+        >
+          {ruleSet.attendanceRequiredPct}%
+        </span>
+      </div>
+      <p className="mt-3 text-[13px] leading-relaxed text-ink-2">
+        {pooled.attended} of {pooled.conducted} classes attended, pooled across every course you
+        track. The requirement is applied{' '}
+        <strong className="font-semibold text-ink">per course</strong> (22OB 3.7), so the list
+        beside this is what decides whether you can sit each exam.
+      </p>
+      <ExplanationDisclosure explanation={overall.explanation} className="mt-3" />
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------ Course row */
+
+function CourseRow({
   record,
   name,
   onMark,
   onPlan,
+  onRemove,
 }: {
   readonly record: AttendanceRecord;
   readonly name: string | null;
   readonly onMark: (outcome: ClassOutcome) => void;
   readonly onPlan: () => void;
+  readonly onRemove: () => void;
 }) {
   const attendance = calculateAttendance(record.attended, record.conducted, ruleSet);
+  const title = name ?? record.subjectCode;
+  const actions = (
+    <div className="flex shrink-0 items-center">
+      <Button
+        size="sm"
+        variant="ghost"
+        aria-label={`Plan against ${record.subjectCode}`}
+        onClick={onPlan}
+      >
+        Plan
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <IconButton size="sm" label={`More actions for ${record.subjectCode}`}>
+            <MoreHorizontal />
+          </IconButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuLabel>Record a class</DropdownMenuLabel>
+          <DropdownMenuItem
+            icon={<Check />}
+            label={`Mark a class attended for ${record.subjectCode}`}
+            onSelect={() => onMark('attended')}
+          >
+            Attended
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            icon={<X />}
+            label={`Mark a class missed for ${record.subjectCode}`}
+            onSelect={() => onMark('missed')}
+          >
+            Missed
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            icon={<Trash2 />}
+            destructive
+            label={`Stop tracking ${record.subjectCode}`}
+            onSelect={onRemove}
+          >
+            Stop tracking
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 
   if (!attendance.ok) {
     return (
-      <li className={styles.courseRow}>
-        <span className={styles.courseMark} data-tone="unknown" aria-hidden="true">
-          <Icon name="empty" size="nav" />
-        </span>
-        <span className={styles.courseBody}>
-          <span className={styles.courseName}>{name ?? record.subjectCode}</span>
-          <span className={styles.courseMeta}>{attendance.detail}</span>
-        </span>
-        <Button small onClick={onPlan}>
-          Plan
-        </Button>
-      </li>
+      <div className="flex items-center gap-4 px-5 py-3.5">
+        <IconTile>
+          <CircleHelp />
+        </IconTile>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-medium">{title}</div>
+          <div className="font-mono text-[11px] text-ink-3">{record.subjectCode}</div>
+        </div>
+        <Unavailable reason={attendance.detail} />
+        {actions}
+      </div>
     );
   }
-
   const { percentage, status } = attendance.value;
-  const tone = TONE_OF[status];
-
+  const presentation = STATUS[status];
+  const tile = status === 'safe' ? 'success' : status === 'dx_risk' ? 'danger' : 'warning';
   return (
-    <li className={styles.courseRow}>
-      <span className={styles.courseMark} data-tone={tone} aria-hidden="true">
-        <Icon name={STATUS_PRESENTATION[status].icon} size="nav" />
-      </span>
-
-      <span className={styles.courseBody}>
-        <span className={styles.courseName}>{name ?? record.subjectCode}</span>
-        <span className={`${styles.courseMeta ?? ''} ${monoClass}`}>
+    <div className="flex items-center gap-4 px-5 py-3.5">
+      <IconTile tone={tile}>
+        <presentation.Icon />
+      </IconTile>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13px] font-medium">{title}</div>
+        <div className="truncate font-mono text-[11px] text-ink-3">
           {record.subjectCode} · {record.attended}/{record.conducted} classes
-        </span>
-      </span>
-
-      <span className={styles.courseBar} aria-hidden="true">
-        <span data-tone={tone} style={{ inlineSize: `${String(Math.min(100, percentage))}%` }} />
-      </span>
-
-      {/*
-        The tooltip EXPLAINS the figure; it never carries one. The percentage,
-        the counts and the verdict are all already on the row, so nothing is
-        lost on a touchscreen or in a printout — what it adds is which
-        threshold this subject is measured against (M9.6D §16).
-      */}
+        </div>
+      </div>
+      <div className="hidden w-20 sm:block" aria-hidden="true">
+        <Progress value={percentage} tone={presentation.tone} />
+      </div>
       <Tooltip
         content={
           status === 'safe'
@@ -551,256 +569,283 @@ function AttendanceRow({
               : `Below the ${String(ruleSet.attendanceRequiredPct)}% requirement but above the ${String(ruleSet.attendanceDxFloorPct)}% floor.`
         }
       >
-        <span className={styles.coursePercent} data-tone={tone} tabIndex={0}>
+        <button
+          type="button"
+          className={cn(
+            'tnum w-14 shrink-0 cursor-help text-right text-[15px] font-semibold',
+            presentation.ink,
+          )}
+        >
           {formatPercent(percentage)}
-        </span>
+        </button>
       </Tooltip>
-
-      <span className={styles.courseActions}>
-        {/*
-          QUICK MARKING, WHERE THERE IS ROOM FOR IT. The design's row carries
-          one button; this product also has to record a class, which is the
-          thing a student does weekly. Below 1440px the two marks would squeeze
-          the course NAME to an ellipsis, so there they live in the planner
-          — one tap away, and always present there.
-        */}
-        <span className={styles.courseMarks}>
-          <Button
-            small
-            aria-label={`Mark a class attended for ${record.subjectCode}`}
-            onClick={() => {
-              onMark('attended');
-            }}
-          >
-            Attended
-          </Button>
-          <Button
-            small
-            aria-label={`Mark a class missed for ${record.subjectCode}`}
-            onClick={() => {
-              onMark('missed');
-            }}
-          >
-            Missed
-          </Button>
-        </span>
-        <Button small aria-label={`Plan against ${record.subjectCode}`} onClick={onPlan}>
-          Plan
-        </Button>
-      </span>
-    </li>
+      {actions}
+    </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Bunk planner                                                               */
-/* -------------------------------------------------------------------------- */
+/* ------------------------------------------------------------ Add course */
 
-/**
- * What one course can still afford, and what happens if you spend it.
- *
- * The design opens this from the course row, and states the two figures a
- * student is really asking for: where they are now, and where the requirement
- * is. Everything below that — the projection — is this product's own, and is
- * the reason the planner exists at all.
- *
- * Every figure comes from the rules engine. This component decides nothing
- * about attendance and advises nothing: "you can miss three more" is
- * arithmetic; "you should skip tomorrow" is advice, and GradTools does not
- * give it (docs/19 §19.11).
- */
+function AddCourseDialog({
+  open,
+  onOpenChange,
+  subjects,
+  semester,
+  onAdd,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly subjects: readonly SemesterSubject[];
+  /** The resolved current semester, pre-filled; null when the student has not said. */
+  readonly semester: number | null;
+  readonly onAdd: (record: AttendanceRecord) => void;
+}) {
+  const [code, setCode] = useState('');
+  const [picked, setPicked] = useState<string | null>(null);
+  const chosen = picked ?? (semester === null ? '' : String(semester));
+  const [attended, setAttended] = useState('');
+  const [conducted, setConducted] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = (): void => {
+    const cleaned = code.trim().toUpperCase();
+    const attendedValue = Number(attended);
+    const conductedValue = Number(conducted);
+    if (cleaned === '') return setError('Enter a subject code.');
+    if (chosen === '') return setError('Choose the semester this course is in.');
+    if (
+      attended.trim() === '' ||
+      conducted.trim() === '' ||
+      !Number.isInteger(attendedValue) ||
+      !Number.isInteger(conductedValue)
+    ) {
+      return setError('Attended and conducted must be whole numbers.');
+    }
+    if (attendedValue > conductedValue) {
+      return setError(
+        `Attended (${String(attendedValue)}) cannot be more than conducted (${String(conductedValue)}).`,
+      );
+    }
+    if (attendedValue < 0 || conductedValue < 1)
+      return setError('Enter the classes held so far and how many you attended.');
+    setError(null);
+    onAdd({
+      id: newId(),
+      profileId: asStudentProfileId('local'),
+      semester: Number(chosen),
+      subjectCode: cleaned,
+      subjectTitle: subjects.find((subject) => subject.code === cleaned)?.title ?? cleaned,
+      attended: attendedValue,
+      conducted: conductedValue,
+      updatedAt: nowIso(),
+    });
+    setCode('');
+    setPicked(null);
+    setAttended('');
+    setConducted('');
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        title="Add a course"
+        description="Enter the counts so far. You can mark each class as it happens after this."
+      >
+        <DialogBody>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              submit();
+            }}
+            className="flex flex-col gap-4"
+          >
+            <Field
+              label="Subject code"
+              {...(subjects.length > 0 ? { hint: 'Your semester subjects are suggested.' } : {})}
+            >
+              <Input
+                className="font-mono"
+                placeholder="BCS304"
+                list="semester-subject-codes"
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+              />
+            </Field>
+            <datalist id="semester-subject-codes">
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.code}>
+                  {subject.title}
+                </option>
+              ))}
+            </datalist>
+            <Field
+              label="Semester"
+              {...(semester === null
+                ? { hint: 'No current semester is set, so it cannot be guessed.' }
+                : {})}
+            >
+              <Select
+                value={chosen}
+                onValueChange={setPicked}
+                placeholder="Choose…"
+                options={SEMESTER_OPTIONS}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Attended">
+                <Input
+                  inputMode="numeric"
+                  placeholder="42"
+                  value={attended}
+                  onChange={(event) => setAttended(event.target.value)}
+                />
+              </Field>
+              <Field label="Conducted">
+                <Input
+                  inputMode="numeric"
+                  placeholder="50"
+                  value={conducted}
+                  onChange={(event) => setConducted(event.target.value)}
+                />
+              </Field>
+            </div>
+            {error !== null && (
+              <Callout tone="danger" role="alert">
+                {error}
+              </Callout>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" icon={<Plus />}>
+                Add
+              </Button>
+            </div>
+          </form>
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ----------------------------------------------------------- Bunk planner */
+
 function BunkPlanner({
   record,
+  name,
   onClose,
-  onRemove,
-  onMark,
 }: {
   readonly record: AttendanceRecord | null;
+  readonly name: string | null;
   readonly onClose: () => void;
-  readonly onRemove: (record: AttendanceRecord) => void;
-  readonly onMark: (record: AttendanceRecord, outcome: ClassOutcome) => void;
 }) {
-  const [plannedClasses, setPlannedClasses] = useState('10');
-  const [classesToMiss, setClassesToMiss] = useState('2');
-
   const attendance =
     record === null ? null : calculateAttendance(record.attended, record.conducted, ruleSet);
   const canMiss =
     record === null ? null : calculateClassesCanMiss(record.attended, record.conducted, ruleSet);
   const mustAttend =
     record === null ? null : calculateClassesMustAttend(record.attended, record.conducted, ruleSet);
-
-  const planned = Number(plannedClasses);
-  const missed = Number(classesToMiss);
-  const inputsValid =
-    Number.isInteger(planned) && Number.isInteger(missed) && planned >= 0 && missed >= 0;
-  const missedExceedsPlanned = inputsValid && missed > planned;
-
-  const projectedAttended = (record?.attended ?? 0) + Math.max(0, planned - missed);
-  const projectedConducted = (record?.conducted ?? 0) + Math.max(0, planned);
-  const projection =
-    record !== null && inputsValid && !missedExceedsPlanned
-      ? calculateAttendance(projectedAttended, projectedConducted, ruleSet)
-      : null;
-
-  /* If the projection lands below the threshold, how many of the remaining
-     classes would need to be attended instead. Still arithmetic, not advice. */
-  const recovery =
-    projection?.ok === true && projection.value.status !== 'safe'
-      ? calculateClassesMustAttend(projectedAttended, projectedConducted, ruleSet)
-      : null;
-
   const safe = attendance?.ok === true && attendance.value.status === 'safe';
 
   return (
-    <Sheet
-      open={record !== null}
-      onClose={onClose}
-      side="bottom"
-      title="Bunk planner"
-      /* Not "BCS501 · BCS501": the title falls back to the code when a course
-         has no name, and printing it twice reads as a bug. */
-      description={
-        record === null
-          ? ''
-          : record.subjectTitle === record.subjectCode
-            ? record.subjectCode
-            : `${record.subjectTitle} · ${record.subjectCode}`
-      }
-    >
-      {record !== null && attendance?.ok === true && (
-        <div className={styles.planner}>
-          <div className={styles.plannerFigures}>
-            <div className={styles.plannerFigure}>
-              <span className={styles.plannerLabel}>Current attendance</span>
-              <span className={styles.plannerValue} data-tone={TONE_OF[attendance.value.status]}>
-                {formatPercent(attendance.value.percentage)}
-              </span>
-              <span className={styles.plannerNote}>
-                {record.attended} of {record.conducted} classes
-              </span>
+    <Dialog open={record !== null} onOpenChange={(open) => !open && onClose()}>
+      {record !== null && (
+        <DialogContent
+          title="Bunk planner"
+          description={
+            name === null || name === record.subjectCode
+              ? record.subjectCode
+              : `${name} · ${record.subjectCode}`
+          }
+        >
+          <DialogBody>
+            {attendance?.ok === true ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-line bg-panel p-4">
+                    <div className="text-[12px] text-ink-2">Current attendance</div>
+                    <div
+                      className={cn(
+                        'tnum mt-1 text-3xl font-semibold',
+                        STATUS[attendance.value.status].ink,
+                      )}
+                    >
+                      {formatPercent(attendance.value.percentage)}
+                    </div>
+                    <div className="mt-0.5 text-[12px] text-ink-3">
+                      {record.attended} of {record.conducted} classes
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-line bg-panel p-4">
+                    <div className="text-[12px] text-ink-2">Required</div>
+                    <div className="tnum mt-1 text-3xl font-semibold">
+                      {formatPercent(attendance.value.requiredPct)}
+                    </div>
+                    <div className="mt-0.5 text-[12px] text-ink-3">University minimum</div>
+                  </div>
+                </div>
+
+                <div
+                  role="status"
+                  className={cn(
+                    'mt-4 rounded-xl border p-4',
+                    safe
+                      ? 'border-success/30 bg-success-weak/40'
+                      : 'border-danger/30 bg-danger-weak/40',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'flex items-center gap-2 text-[13px] font-semibold',
+                      safe ? 'text-success' : 'text-danger',
+                    )}
+                  >
+                    {safe ? (
+                      <ShieldCheck className="size-4" aria-hidden="true" />
+                    ) : (
+                      <CalendarClock className="size-4" aria-hidden="true" />
+                    )}
+                    {safe && canMiss?.ok === true
+                      ? canMiss.value > 0
+                        ? `You can miss ${formatCount(canMiss.value, 'more class', 'more classes')}`
+                        : 'You cannot miss any more classes'
+                      : mustAttend?.ok === true && mustAttend.value > 0
+                        ? `Attend the next ${formatCount(mustAttend.value, 'class', 'classes')} to recover`
+                        : 'Attendance is below the requirement'}
+                  </div>
+                  <p className="mt-1 text-[12px] text-ink-2">
+                    {safe
+                      ? `Attendance stays at or above ${String(attendance.value.requiredPct)}%.`
+                      : `Reaching ${String(attendance.value.requiredPct)}% requires attending ${
+                          mustAttend?.ok === true ? String(mustAttend.value) : 'the'
+                        } consecutive upcoming sessions.`}{' '}
+                    <span className="text-ink-3">
+                      Calculated from recorded classes only (22OB 3.7).
+                    </span>
+                  </p>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-ink-3">
+                  <Badge tone={safe ? 'success' : 'danger'}>
+                    {safe ? 'Calculated' : 'Recovery'}
+                  </Badge>
+                  <Badge>Assumption: fixed schedule</Badge>
+                </div>
+              </>
+            ) : (
+              <Callout>
+                {attendance?.ok === false ? attendance.detail : 'No classes recorded yet.'}
+              </Callout>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <Button onClick={onClose}>Close</Button>
             </div>
-            <div className={styles.plannerFigure}>
-              <span className={styles.plannerLabel}>Required</span>
-              <span className={styles.plannerValue}>
-                {formatPercent(attendance.value.requiredPct)}
-              </span>
-              <span className={styles.plannerNote}>University minimum, per course</span>
-            </div>
-          </div>
-
-          {/* WHAT THIS COURSE CAN AFFORD, or what it would take to recover. */}
-          <div className={styles.plannerVerdict} data-tone={safe ? 'safe' : 'attention'}>
-            <span className={styles.plannerVerdictMark} aria-hidden="true">
-              <Icon name={safe ? 'success' : 'warning'} size="medium" />
-            </span>
-            <div>
-              <p className={styles.plannerVerdictTitle}>
-                {safe && canMiss?.ok === true
-                  ? canMiss.value > 0
-                    ? `You can miss ${formatCount(canMiss.value, 'more class', 'more classes')}`
-                    : 'You cannot miss any more classes'
-                  : mustAttend?.ok === true && mustAttend.value > 0
-                    ? `Attend the next ${formatCount(mustAttend.value, 'class', 'classes')} to recover`
-                    : 'Attendance is below the requirement'}
-              </p>
-              <p className={styles.plannerVerdictBody}>
-                {safe
-                  ? `Attendance stays at or above ${String(attendance.value.requiredPct)}% if you do. Assumes no further classes beyond the ones counted here.`
-                  : `Reaching ${String(attendance.value.requiredPct)}% is calculated from recorded classes only.`}
-              </p>
-            </div>
-          </div>
-
-          {/* THE PROJECTION — this product's own, and the reason to plan. */}
-          <div className={styles.plannerControls}>
-            <TextField
-              label="Classes still to be held"
-              inputMode="numeric"
-              value={plannedClasses}
-              onChange={(event) => {
-                setPlannedClasses(event.target.value);
-              }}
-            />
-            <TextField
-              label="Of those, classes you would miss"
-              inputMode="numeric"
-              value={classesToMiss}
-              error={
-                missedExceedsPlanned ? 'Cannot miss more classes than will be held.' : undefined
-              }
-              onChange={(event) => {
-                setClassesToMiss(event.target.value);
-              }}
-            />
-          </div>
-
-          {projection?.ok === true && (
-            <div className={styles.plannerResult}>
-              <span className={styles.plannerLabel}>Attendance would become</span>
-              <span className={styles.plannerValue} data-tone={TONE_OF[projection.value.status]}>
-                {formatPercent(projection.value.percentage)}
-              </span>
-              <span className={styles.plannerNote}>
-                {String(projectedAttended)} of {String(projectedConducted)} classes ·{' '}
-                {String(projection.value.requiredPct)}% required
-              </span>
-              <StatusPill
-                tone={STATUS_PRESENTATION[projection.value.status].tone}
-                icon={STATUS_PRESENTATION[projection.value.status].icon}
-              >
-                {STATUS_PRESENTATION[projection.value.status].label}
-              </StatusPill>
-              {recovery?.ok === true && recovery.value > 0 && (
-                <p className={styles.plannerNote}>
-                  Reaching {String(projection.value.requiredPct)}% from there would take{' '}
-                  {formatCount(recovery.value, 'further class', 'further classes')} attended in a
-                  row.
-                </p>
-              )}
-              <ExplanationDisclosure explanation={projection.explanation} />
-            </div>
-          )}
-
-          {/*
-            RECORDING A CLASS, from the same place you plan one. Both raise
-            the classes-held count, because attendance is a ratio and not a
-            score — missing a class is not the same as the class not happening.
-          */}
-          <div className={styles.plannerMark}>
-            <span className={styles.plannerLabel}>Record a class</span>
-            <span className={styles.plannerMarkButtons}>
-              <Button
-                onClick={() => {
-                  onMark(record, 'attended');
-                }}
-              >
-                Attended
-              </Button>
-              <Button
-                onClick={() => {
-                  onMark(record, 'missed');
-                }}
-              >
-                Missed
-              </Button>
-            </span>
-          </div>
-
-          <div className={styles.plannerFoot}>
-            <Button
-              variant="danger"
-              aria-label={`Remove ${record.subjectCode}`}
-              onClick={() => {
-                onRemove(record);
-              }}
-            >
-              <Icon name="trash" size="nav" />
-              Stop tracking this course
-            </Button>
-          </div>
-        </div>
+          </DialogBody>
+        </DialogContent>
       )}
-    </Sheet>
+    </Dialog>
   );
 }

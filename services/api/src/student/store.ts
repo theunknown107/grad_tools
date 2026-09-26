@@ -173,9 +173,13 @@ const PROFILE_COLUMNS = (sql: Sql) => sql`
   programme,
   branch,
   current_semester AS "currentSemester",
+  admission_year   AS "admissionYear",
+  expected_passout_year AS "expectedPassoutYear",
+  entry_route      AS "entryRoute",
+  to_char(identity_confirmed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "identityConfirmedAt",
   revision,
-  to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MSOF') AS "createdAt",
-  to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.MSOF') AS "updatedAt"
+  to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt",
+  to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "updatedAt"
 `;
 
 /**
@@ -208,21 +212,30 @@ export async function upsertProfile(sql: Sql, input: ProfileInput): Promise<Prof
      */
     const rows = await sql<CloudProfile[]>`
       INSERT INTO student_profiles (
-        display_name, usn, college_name, scheme_id, programme, branch, current_semester
+        display_name, usn, college_name, scheme_id, programme, branch, current_semester,
+        admission_year, expected_passout_year, entry_route, identity_confirmed_at
       )
       VALUES (
         ${input.displayName ?? null}, ${input.usn ?? null}, ${input.collegeName ?? null},
         ${input.schemeId}, ${input.programme ?? null}, ${input.branch ?? null},
-        ${input.currentSemester ?? null}
+        ${input.currentSemester ?? null},
+        ${input.admissionYear ?? null}, ${input.expectedPassoutYear ?? null},
+        ${input.entryRoute ?? null}, ${input.identityConfirmedAt ?? null}
       )
+      ON CONFLICT (auth_user_id) DO NOTHING
       RETURNING ${PROFILE_COLUMNS(sql)}
     `;
-    return { kind: 'saved', profile: rows[0] as CloudProfile };
+    // No row: another request created the profile between our read and this
+    // INSERT. DO NOTHING rather than catching 23505, because a failed statement
+    // would abort the caller's transaction and the re-read with it.
+    if (rows[0] === undefined) return profileConflict(sql);
+    return { kind: 'saved', profile: rows[0] };
   }
 
   // A client that read revision 3 and writes while the server is at 4 is
   // working from something it has not seen. That is a conflict, not an update.
-  if (input.baseRevision !== undefined && input.baseRevision !== existing.revision) {
+  // A client that sends no base has seen nothing: same answer, never a blind overwrite.
+  if (input.baseRevision === undefined || input.baseRevision !== existing.revision) {
     return { kind: 'conflict', server: existing };
   }
 
@@ -234,10 +247,23 @@ export async function upsertProfile(sql: Sql, input: ProfileInput): Promise<Prof
       scheme_id        = ${input.schemeId},
       programme        = ${input.programme ?? null},
       branch           = ${input.branch ?? null},
-      current_semester = ${input.currentSemester ?? null}
+      current_semester = ${input.currentSemester ?? null},
+      admission_year   = ${input.admissionYear ?? null},
+      expected_passout_year = ${input.expectedPassoutYear ?? null},
+      entry_route      = ${input.entryRoute ?? null},
+      identity_confirmed_at = ${input.identityConfirmedAt ?? null}
+    WHERE revision = ${input.baseRevision}
     RETURNING ${PROFILE_COLUMNS(sql)}
   `;
-  return { kind: 'saved', profile: rows[0] as CloudProfile };
+  // Zero rows: a concurrent write moved the revision after our read.
+  if (rows[0] === undefined) return profileConflict(sql);
+  return { kind: 'saved', profile: rows[0] };
+}
+
+async function profileConflict(sql: Sql): Promise<ProfileOutcome> {
+  const server = await readProfile(sql);
+  if (server === null) throw new Error('profile conflict but no profile row is visible');
+  return { kind: 'conflict', server };
 }
 
 /* -------------------------------------------------------------------------- */

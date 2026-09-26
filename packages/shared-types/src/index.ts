@@ -86,6 +86,8 @@ export const collegeSchema = z.object({
   code: z.string().nullable(),
   isAutonomous: z.boolean(),
   city: z.string().nullable(),
+  /** The vtu-catalogue transcription id, or null for a row not from the catalogue. */
+  catalogueId: z.string().nullable(),
 });
 export type College = z.infer<typeof collegeSchema>;
 

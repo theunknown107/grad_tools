@@ -19,7 +19,11 @@ import { screen, waitFor } from '@testing-library/dom';
 import { cleanup } from '@testing-library/react';
 import type { ImportLine } from '../src/domain/result-import.js';
 import type { PlacedText } from '../src/lib/pdf-text.js';
-import { createMemoryRepositories, renderWith } from './helpers.js';
+import { asStudentProfileId } from '../src/domain/identity.js';
+import { normalizeResultSubject } from '../src/domain/results.js';
+import type { SemesterResult, StudentProfile } from '../src/domain/types.js';
+import { Route, Routes } from 'react-router-dom';
+import { choose as pick, createMemoryRepositories, renderWith } from './helpers.js';
 
 /* ---------------------------------------------------------------------- */
 /* The PDF read, stubbed at the module boundary                            */
@@ -118,6 +122,28 @@ vi.mock('../src/lib/ocr.js', () => ({
   }),
 }));
 
+/*
+ * The result-session catalogue, with one synthetic session. `importOriginal`
+ * keeps everything else the import screen uses (scheme parsing) real.
+ */
+vi.mock('@gradtools/vtu-catalogue', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  findVtuResultSession: (id: string) =>
+    id === 'test-session' || id === 'flagged-session'
+      ? {
+          card: { title: 'May–June 2026', yearLabel: '2026' },
+          session: {
+            id,
+            resultType: 'Regular',
+            label: id === 'flagged-session' ? 'Non-CBCS' : 'CBCS',
+            url: 'https://results.invalid/',
+            anomaly: id === 'flagged-session' ? 'label-url-mismatch' : null,
+          },
+        }
+      : null,
+}));
+
+const { ImportPage } = await import('../src/features/import/ImportPage.js');
 const { ResultsPage } = await import('../src/features/results/ResultsPage.js');
 
 /** A synthetic card, as the extraction layer would hand it over. */
@@ -213,11 +239,11 @@ describe('importing one result PDF', () => {
      */
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
 
-    expect(await screen.findByText(/Semester 4/)).toBeTruthy();
+    expect(await screen.findByRole('region', { name: /Semester 4 review/ })).toBeTruthy();
     expect(peek.results()).toHaveLength(0);
 
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
@@ -230,7 +256,7 @@ describe('importing one result PDF', () => {
   it('keeps the printed marks as source values, and invents no grade', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
     await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
@@ -245,7 +271,7 @@ describe('importing one result PDF', () => {
   it('shows the line it read beside the fields it produced', async () => {
     // When a reading is wrong this is the only thing that explains why.
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user);
     await openRow(user);
@@ -260,7 +286,7 @@ describe('importing one result PDF', () => {
     setCard(4, ['BQAS401  ALGORITHMS  44  36  90  P  2026-07-23']);
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
     await openRow(user);
@@ -278,7 +304,7 @@ describe('importing one result PDF', () => {
     // PARTIAL SUCCESS within one card (§33): two rows read, one kept.
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
     await openRow(user, 1);
@@ -297,7 +323,7 @@ describe('a semester the document did not print', () => {
 
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'semester4.pdf');
 
@@ -307,10 +333,33 @@ describe('a semester the document did not print', () => {
       (screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement).disabled,
     ).toBe(true);
 
-    await user.selectOptions(screen.getByLabelText(/^semester$/i), '4');
+    await pick(/^semester$/i, 'Semester 4');
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(peek.results()[0]?.semester).toBe(4);
+  });
+
+  it('refuses a semester-9 card by name, and offers no 1–8 semester to file it under', async () => {
+    // OQ-057: the model is eight semesters; re-filing semester 9 would be wrong data.
+    setCard(9);
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+
+    expect(
+      await screen.findByText(
+        'This document is for semester 9. GradTools covers semesters 1–8 (B.E./B.Tech, 2022 scheme), so it cannot be imported.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText(/semester 9 \(not supported\)/i)).toBeTruthy();
+    expect(screen.queryByText(/semester not detected|semester was not printed/i)).toBeNull();
+    expect(screen.queryByLabelText(/^semester$/i)).toBeNull();
+    expect(
+      (screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(peek.results()).toHaveLength(0);
   });
 });
 
@@ -328,7 +377,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
 
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'scan.pdf');
 
@@ -345,7 +394,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
 
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'card.jpg', 'image/jpeg');
 
@@ -368,7 +417,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
     ocrLines = cardLines(4, ROWS);
 
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, 'one.jpg', 'image/jpeg');
     await choose(user, 'two.jpg', 'image/jpeg');
@@ -387,7 +436,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
 
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'card.png', 'image/png');
 
@@ -397,7 +446,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
 
   it('refuses a file that is neither a PDF nor a picture, and names it', async () => {
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, 'marks.docx', 'application/vnd.openxmlformats');
 
@@ -412,7 +461,9 @@ describe('a scan, a photo, and a file that cannot be read', () => {
      * offending file.
      */
     const message = await screen.findByText(/marks\.docx/i);
-    expect(message.textContent).toMatch(/PDF, JPEG, PNG, WebP/i);
+    expect(message.textContent).toMatch(
+      /PDFs and photos \(JPG, PNG, WebP\), and result pages saved as HTML/i,
+    );
     // And it says what to do about the commonest case, rather than only "no".
     expect(message.textContent).toMatch(/saved as a PDF/i);
   });
@@ -420,7 +471,7 @@ describe('a scan, a photo, and a file that cannot be read', () => {
   it('reports a corrupt file with a message, not a stack', async () => {
     failWith = 'This file could not be opened as a PDF.';
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, 'broken.pdf');
     expect(await screen.findByText(/could not be opened as a PDF/i)).toBeTruthy();
@@ -443,10 +494,10 @@ describe('the one question a result card cannot answer', () => {
       'BQAS401  ALGORITHMS            44  36  80  P  2026-07-23',
       'BQAS459  MANDATORY COURSE      96   0  96  P  2026-07-23',
     ]);
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
     await choose(user);
 
-    expect(await screen.findByText(/Semester 4/)).toBeTruthy();
+    expect(await screen.findByRole('region', { name: /Semester 4 review/ })).toBeTruthy();
     const asked = screen.getAllByLabelText(/^final exam/i);
     expect(asked).toHaveLength(1);
   });
@@ -455,11 +506,11 @@ describe('the one question a result card cannot answer', () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
     setCard(4, ['BQAS459  MANDATORY COURSE  96  0  96  P  2026-07-23']);
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
     await choose(user);
 
-    await screen.findByText(/Semester 4/);
-    await user.selectOptions(screen.getByLabelText(/^final exam/i), 'no');
+    await screen.findByRole('region', { name: /Semester 4 review/ });
+    await pick(/^final exam/i, 'No final exam');
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     // Answered, so the row is no longer unknown and the semester can be graded.
@@ -470,10 +521,10 @@ describe('the one question a result card cannot answer', () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
     setCard(4, ['BQAS459  MANDATORY COURSE  96  0  96  P  2026-07-23']);
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
     await choose(user);
 
-    await screen.findByText(/Semester 4/);
+    await screen.findByRole('region', { name: /Semester 4 review/ });
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     // "Not sure" is a real answer and must stay null rather than defaulting to
@@ -490,7 +541,7 @@ describe('a semester that already has a result', () => {
      */
     const user = userEvent.setup();
     const { bundle } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
     await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
@@ -501,11 +552,123 @@ describe('a semester that already has a result', () => {
   });
 });
 
+/* ---------------------------------------------------------------------- */
+/* A supplementary (re-sit) card for a semester that already has a result   */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * How a re-sit combines with the original is NOT established in this
+ * repository (docs/research C10), so nothing here merges or replaces: the saved
+ * result is kept exactly as it was, and the second card is refused.
+ */
+const FULL4: SemesterResult = {
+  id: 'full-4',
+  profileId: asStudentProfileId('local'),
+  semester: 4,
+  schemeId: 'vtu-2022',
+  ruleSetId: null,
+  sgpaAsserted: null,
+  subjects: [
+    {
+      id: 'a',
+      subjectCode: 'BQAS401',
+      subjectTitle: 'ALGORITHMS',
+      internal: 44,
+      external: 36,
+      total: 80,
+      resultStatus: 'P',
+    },
+    {
+      id: 'b',
+      subjectCode: 'BQAS402',
+      subjectTitle: 'FINANCIAL MANAGEMENT',
+      internal: 40,
+      external: 12,
+      total: 52,
+      resultStatus: 'F',
+    },
+    {
+      id: 'c',
+      subjectCode: 'BQAS403',
+      subjectTitle: 'NETWORKS',
+      internal: 40,
+      external: 35,
+      total: 75,
+      resultStatus: 'P',
+    },
+  ].map((row) => normalizeResultSubject({ ...row, announcedOn: '2026-07-23' })),
+  createdAt: '2026-07-24T00:00:00.000Z',
+  updatedAt: '2026-07-24T00:00:00.000Z',
+};
+const RESIT_ROW = ['BQAS402  FINANCIAL MANAGEMENT  40  24  64  P  2027-02-11'];
+
+describe('a one-subject supplementary card', () => {
+  it('is refused for a semester with a saved result, which is kept exactly as it was', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories({ results: [FULL4] });
+    setCard(4, RESIT_ROW);
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+
+    expect(
+      await screen.findByText(/semester 4 already has a saved result, and it is kept as it is/i),
+    ).toBeTruthy();
+    expect(screen.queryByText(/would replace it/i)).toBeNull();
+    expect(
+      (screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(peek.results()).toEqual([FULL4]);
+  });
+
+  it('is refused when the card printed no semester and the student picks that one', async () => {
+    /*
+     * THE HOLE. A chosen semester was never checked against saved results, so
+     * this card was saved as a SECOND semester-4 result.
+     */
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories({ results: [FULL4] });
+    extractions.clear();
+    extractions.set('a', {
+      lines: cardLines(4, RESIT_ROW).filter((line) => !/^Semester/.test(line.text)),
+      hasTextLayer: true,
+    });
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+    expect(await screen.findByText(/semester not detected/i)).toBeTruthy();
+    await pick(/^semester$/i, 'Semester 4');
+
+    expect(
+      await screen.findByText(/semester 4 already has a saved result, and it is kept as it is/i),
+    ).toBeTruthy();
+    const confirm = screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    await user.click(confirm);
+
+    expect(peek.results().filter((result) => result.semester === 4)).toHaveLength(1);
+    expect(peek.results()).toEqual([FULL4]);
+  });
+
+  it('printed for another semester is filed there, never into semester 4 by its code', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories({ results: [FULL4] });
+    setCard(5, RESIT_ROW);
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
+
+    expect(peek.results()[0]).toEqual(FULL4);
+    expect(peek.results().map((result) => result.semester)).toEqual([4, 5]);
+  });
+});
+
 describe('the filename', () => {
   it('is shown as text and used for nothing else', async () => {
     // Not identity, not a path, not semester evidence (§22).
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, '<script>alert(1)</script>.pdf');
     const list = await screen.findByText(/<script>alert\(1\)<\/script>\.pdf/);
@@ -533,10 +696,10 @@ describe('confirming an import', () => {
   it('says so, unmistakably, and leaves the review', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
-    await screen.findByText(/Semester 4/);
+    await screen.findByRole('region', { name: /Semester 4 review/ });
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
@@ -550,10 +713,10 @@ describe('confirming an import', () => {
 
   it('offers the way on to the saved record', async () => {
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user);
-    await screen.findByText(/Semester 4/);
+    await screen.findByRole('region', { name: /Semester 4 review/ });
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(await screen.findByRole('link', { name: /view results/i })).toBeTruthy();
@@ -575,10 +738,10 @@ describe('confirming an import', () => {
         upsert: () => Promise.reject(new Error('the disk is full')),
       },
     };
-    renderWith(<ResultsPage />, { repositories: failing });
+    renderWith(<ImportPage />, { repositories: failing });
 
     await choose(user);
-    await screen.findByText(/Semester 4/);
+    await screen.findByRole('region', { name: /Semester 4 review/ });
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(await screen.findByText(/could not be recorded/i)).toBeTruthy();
@@ -599,10 +762,10 @@ describe('confirming an import', () => {
      */
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
-    await screen.findByText(/Semester 4/);
+    await screen.findByRole('region', { name: /Semester 4 review/ });
 
     const confirmButton = screen.getByRole('button', { name: /confirm and save/i });
     await user.tripleClick(confirmButton);
@@ -678,11 +841,11 @@ describe('importing a scheme of teaching', () => {
 
   it('routes to the scheme review rather than to the result parser', async () => {
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
 
     await choose(user, 'scheme.pdf');
 
-    expect(await screen.findByText(/Scheme of teaching/i)).toBeTruthy();
+    expect(await screen.findByRole('region', { name: 'Scheme review' })).toBeTruthy();
     expect(screen.getByText('Invented Course One')).toBeTruthy();
     expect(screen.getByText(/4 credits/)).toBeTruthy();
     // Nothing is saved before the confirm, here as everywhere.
@@ -692,10 +855,10 @@ describe('importing a scheme of teaching', () => {
   it('records the credits as the catalogue’s, and says so unmistakably', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'scheme.pdf');
-    await screen.findByText(/Scheme of teaching/i);
+    await screen.findByRole('region', { name: 'Scheme review' });
     await user.click(screen.getByRole('button', { name: /confirm and save these credits/i }));
 
     expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
@@ -709,10 +872,10 @@ describe('importing a scheme of teaching', () => {
   it('does not save the same scheme twice when Confirm is pressed twice', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user, 'scheme.pdf');
-    await screen.findByText(/Scheme of teaching/i);
+    await screen.findByRole('region', { name: 'Scheme review' });
     await user.dblClick(screen.getByRole('button', { name: /confirm and save these credits/i }));
     await screen.findAllByText(/Data confirmed and recorded/i);
 
@@ -733,63 +896,319 @@ describe('importing a scheme of teaching', () => {
  * the figures recompute on the same render pass as the save. This asserts that
  * end to end, through the screen, with nothing remounted in between.
  */
+/*
+ * Import and results are separate routes now: Done on the import page goes to
+ * Results. Rendering both under a router keeps the question the same — is the
+ * record the student lands on already up to date, with nothing remounted by a
+ * reload in between.
+ */
+function renderImportThenResults() {
+  return renderWith(
+    <Routes>
+      <Route path="/import" element={<ImportPage />} />
+      <Route path="/results" element={<ResultsPage />} />
+    </Routes>,
+    { repositories: createMemoryRepositories().bundle, route: '/import' },
+  );
+}
+
+async function importAndFinish(user: ReturnType<typeof userEvent.setup>) {
+  await choose(user);
+  await screen.findByRole('region', { name: /Semester 4 review/ });
+  await user.click(screen.getByRole('button', { name: /confirm and save/i }));
+  expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
+  await user.click(screen.getByRole('button', { name: /^Done$/ }));
+  await screen.findByRole('heading', { name: 'Results', level: 1 });
+}
+
 describe('after a save, the figures follow', () => {
   it('recomputes the overview without a reload', async () => {
     const user = userEvent.setup();
     setCard(4);
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderImportThenResults();
+    expect(screen.queryByRole('group', { name: 'CGPA' })).toBeNull();
 
-    // BEFORE. Nothing saved, so there is no overview to carry a CGPA at all.
-    await screen.findByRole('button', { name: /add academic document/i });
-    expect(screen.queryByText('CGPA')).toBeNull();
-
-    await choose(user);
-    await screen.findByText(/Semester 4/);
-    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
-    expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
+    await importAndFinish(user);
 
     /*
-     * Done closes the panel. This is the control the student presses after an
-     * import, and its own behaviour is part of what is being asserted: the
-     * page behind it must already be up to date when it reappears.
+     * The fixture's rows carry no credits, so the CGPA says "Unavailable"
+     * with its reason — the correct answer, not an empty screen (§4, §5) —
+     * while the pass count the card does support is there.
      */
-    await user.click(screen.getByRole('button', { name: /^Done$/ }));
-
-    /*
-     * AFTER. The overview — the default view — carries a real CGPA. Nothing
-     * was remounted in between, which matters because a remount is exactly
-     * what a browser reload does.
-     */
-    /*
-     * The overview is there, and carries the figures this card supports. The
-     * CGPA is NOT among them — the fixture's rows have no credits, so it says
-     * "Unavailable" with its reason, which is the correct answer and not an
-     * empty screen (§4, §5).
-     */
-    const passed = await screen.findByText('Passed');
-    expect(passed.closest('div')?.textContent ?? '').toMatch(/2/);
-    expect(screen.getByText('CGPA').closest('div')?.textContent ?? '').toMatch(/Unavailable/);
+    expect((await screen.findByRole('group', { name: 'Courses passed' })).textContent).toMatch(/2/);
+    expect(screen.getByRole('group', { name: 'CGPA' }).textContent).toMatch(/Unavailable/);
   });
 
   it('leaves the other figures standing when the CGPA cannot be computed', async () => {
-    /*
-     * §4 asserted through the screen. The card's rows carry no credits, so no
-     * SGPA and no CGPA exist — and the subject count, the pass count and the
-     * semester list must all survive that, because none of them needed either.
-     */
     const user = userEvent.setup();
     setCard(4);
-    renderWith(<ResultsPage />, { repositories: createMemoryRepositories().bundle });
+    renderImportThenResults();
 
-    await choose(user);
-    await screen.findByText(/Semester 4/);
-    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
-    expect(await screen.findAllByText(/Data confirmed and recorded/i)).not.toHaveLength(0);
-    await user.click(screen.getByRole('button', { name: /^Done$/ }));
+    await importAndFinish(user);
 
-    const subjects = await screen.findByText('Subjects');
-    expect(subjects.closest('div')?.textContent ?? '').toMatch(/2/);
-    // "Semesters" is also the tab's own label, so the metric is taken by role.
-    expect(screen.getByRole('tab', { name: /semesters/i })).toBeTruthy();
+    expect((await screen.findByRole('group', { name: 'Courses passed' })).textContent).toMatch(/2/);
+    // The semester list survives too, because it never needed a CGPA.
+    expect(screen.getByRole('radio', { name: /semesters · 1/i })).toBeTruthy();
+  });
+});
+
+/* ---------------------------------------------------------------------- */
+/* A result page saved from the browser, and the "Get VTU Result" link      */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * The provisional-result page's structure, synthetically filled (no real
+ * student): a two-column table for the student, `divTableRow` divs for marks.
+ */
+function vtuPage(semester: number | null, rows: readonly (readonly string[])[]): string {
+  const row = (cells: readonly string[]) =>
+    `<div class="divTableRow">${cells.map((cell) => `<div class="divTableCell">${cell}</div>`).join('')}</div>`;
+  return `<html><head><script>window.__ran = true;</script></head><body>
+<b>VTU PROVISIONAL RESULTS OF UG / PG EXAMINATION</b>
+<table><tr><td><b>University Seat Number </b></td><td><b> : 1XX22CS001</b></td></tr>
+<tr><td><b>Student Name</b></td><td><b> : SYNTHETIC STUDENT</b></td></tr></table>
+${semester === null ? '' : `<div><b>Semester : ${String(semester)}</b></div>`}
+<div class="divTable"><div class="divTableBody">
+${row(['Subject Code', 'Subject Name', 'Internal Marks', 'External Marks', 'Total', 'Result', 'Announced / Updated on'])}
+${rows.map(row).join('')}
+</div></div></body></html>`;
+}
+
+const PAGE_ROWS = [
+  ['BQAS401', 'ALGORITHMS', '44', '36', '80', 'P', '2026-07-23'],
+  ['BQAS402', 'FINANCIAL MANAGEMENT', '40', '19', '59', 'P', '2026-07-23'],
+];
+
+async function chooseHtml(user: ReturnType<typeof userEvent.setup>, html: string) {
+  const opener = screen.queryByRole('button', { name: /add academic document/i });
+  if (opener !== null) await user.click(opener);
+  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+  const file = new File([html], 'VTU Result.html', { type: 'text/html' });
+  const list = {
+    0: file,
+    length: 1,
+    item: (index: number) => (index === 0 ? file : null),
+    [Symbol.iterator]: function* () {
+      yield file;
+    },
+  };
+  Object.defineProperty(input, 'files', { value: list, configurable: true });
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+const confirmButton = () =>
+  screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement;
+
+describe('a result page saved as HTML', () => {
+  it('is read, reviewed and saved with its provenance', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(await screen.findByRole('region', { name: /Semester 4 review/ })).toBeTruthy();
+    expect(screen.getByText(/Seat number: 1XX22CS001/)).toBeTruthy();
+    expect(peek.results()).toHaveLength(0);
+    expect((globalThis as { __ran?: boolean }).__ran).toBeUndefined();
+
+    await user.click(confirmButton());
+
+    const saved = peek.results()[0];
+    expect(saved?.semester).toBe(4);
+    expect(saved?.subjects.map((subject) => [subject.subjectCode, subject.total])).toEqual([
+      ['BQAS401', 80],
+      ['BQAS402', 59],
+    ]);
+    expect(saved?.source).toMatchObject({ kind: 'vtu-result-page', sessionId: null });
+    expect(saved?.source?.parserVersion).toMatch(/\S/);
+  });
+
+  it('with the headings of a result page but no course rows, can never be imported', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await chooseHtml(user, vtuPage(4, []));
+
+    expect(await screen.findByText(/VTU Result\.html/)).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByText(/Checking the file type/i)).toBeNull();
+    });
+    const button = screen.queryByRole('button', { name: /confirm and save/i });
+    expect(button === null || (button as HTMLButtonElement).disabled).toBe(true);
+    expect(peek.results()).toHaveLength(0);
+  });
+
+  it('saved twice, is refused the second time', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(await screen.findByText(/already has a saved result/i)).toBeTruthy();
+    expect(peek.results()).toHaveLength(1);
+  });
+});
+
+describe('a result page printed to PDF', () => {
+  it('reads the printed layout through the text-layer path', async () => {
+    extractions.clear();
+    extractions.set('a', {
+      hasTextLayer: true,
+      lines: [
+        '9/25/26, 10:14 AM VTU Results',
+        'VTU PROVISIONAL RESULTS OF UG / PG EXAMINATION',
+        'University Seat Number : 1XX22CS001',
+        'Student Name : SYNTHETIC STUDENT',
+        'Semester : 4',
+        'Subject Code Subject Name Internal Marks External Marks Total Result Announced / Updated on',
+        'BQAS401 ALGORITHMS 44 36 80 P 2026-07-23',
+        'BQAS402 FINANCIAL MANAGEMENT 40 19 59 P 2026-07-23',
+        'P -> PASS, F -> FAIL, A -> ABSENT, W -> WITHHELD',
+        'https://results.invalid/resultpage.php 1/1',
+      ].map((text) => ({ text, page: 1 })),
+    });
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user, 'VTU Results.pdf');
+    expect(await screen.findByText(/Seat number: 1XX22CS001/)).toBeTruthy();
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
+
+    expect(peek.results()[0]?.semester).toBe(4);
+    expect(peek.results()[0]?.subjects).toHaveLength(2);
+  });
+});
+
+describe('opened from "Get VTU Result"', () => {
+  it('pre-fills the semester only when the card printed none', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle, route: '/import?semester=5' });
+
+    await chooseHtml(user, vtuPage(null, PAGE_ROWS));
+
+    await waitFor(() => {
+      expect(confirmButton().disabled).toBe(false);
+    });
+    await user.click(confirmButton());
+    expect(peek.results()[0]?.semester).toBe(5);
+  });
+
+  it('keeps a printed semester, and warns that it is not the one expected', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle, route: '/import?semester=5' });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(
+      await screen.findByText(/prints semester 4, but you opened it for semester 5/i),
+    ).toBeTruthy();
+    await user.click(confirmButton());
+    expect(peek.results()[0]?.semester).toBe(4);
+  });
+
+  it('still refuses a pre-filled semester that already has a result', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories({ results: [FULL4] });
+    renderWith(<ImportPage />, { repositories: bundle, route: '/import?semester=4' });
+
+    await chooseHtml(user, vtuPage(null, PAGE_ROWS));
+
+    expect(await screen.findByText(/semester 4 already has a saved result/i)).toBeTruthy();
+    expect(confirmButton().disabled).toBe(true);
+    expect(peek.results()).toEqual([FULL4]);
+  });
+
+  it('ignores a semester outside 1–8 and a session nobody knows', async () => {
+    const user = userEvent.setup();
+    renderWith(<ImportPage />, {
+      repositories: createMemoryRepositories().bundle,
+      route: '/import?semester=9&session=made-up',
+    });
+
+    await chooseHtml(user, vtuPage(null, PAGE_ROWS));
+
+    expect(await screen.findByText(/semester not detected/i)).toBeTruthy();
+    expect(confirmButton().disabled).toBe(true);
+    expect(screen.queryByText(/^From:/)).toBeNull();
+  });
+
+  it('names the session and records it on the saved result', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle, route: '/import?session=test-session' });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(await screen.findByText('From: May–June 2026 — Regular (CBCS)')).toBeTruthy();
+    await user.click(confirmButton());
+    expect(peek.results()[0]?.source).toMatchObject({
+      kind: 'vtu-result-page',
+      sessionId: 'test-session',
+    });
+  });
+  it('carries the caution for a session whose label disagrees with its link', async () => {
+    const user = userEvent.setup();
+    renderWith(<ImportPage />, {
+      repositories: createMemoryRepositories().bundle,
+      route: '/import?session=flagged-session',
+    });
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    expect(
+      await screen.findByText(
+        'From: May–June 2026 — Regular (Non-CBCS) — Check: listed as Non-CBCS, address suggests CBCS',
+      ),
+    ).toBeTruthy();
+  });
+});
+
+describe('the seat number on the card', () => {
+  const withUsn = (usn: string | null): StudentProfile =>
+    ({
+      id: asStudentProfileId('local'),
+      authUserId: null,
+      displayName: null,
+      usn,
+      collegeName: null,
+      schemeId: 'vtu-2022',
+      programme: null,
+      branch: null,
+      currentSemester: 4,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }) as StudentProfile;
+
+  it('warns when it is not the profile USN, but never blocks or edits the profile', async () => {
+    const user = userEvent.setup();
+    const profile = withUsn('1XX22CS099');
+    const { bundle, peek } = createMemoryRepositories({ profile });
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(
+      await screen.findByText(/This card is for 1XX22CS001, your profile says 1XX22CS099/),
+    ).toBeTruthy();
+    await user.click(confirmButton());
+    expect(peek.results()).toHaveLength(1);
+    expect(await bundle.profile.get()).toEqual(profile);
+  });
+
+  it('says nothing when they match, however they are cased or spaced', async () => {
+    const user = userEvent.setup();
+    const { bundle } = createMemoryRepositories({ profile: withUsn(' 1xx22cs001 ') });
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+
+    expect(await screen.findByText(/Seat number: 1XX22CS001/)).toBeTruthy();
+    expect(screen.queryByText(/This card is for/)).toBeNull();
   });
 });
