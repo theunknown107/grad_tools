@@ -8,7 +8,8 @@
  * needed to calculate anything.
  */
 
-import { vtu2022RuleSet } from '@gradtools/academic-rules';
+import { getScheme } from '@gradtools/academic-rules';
+import { DEFAULT_SCHEME_ID } from '../../hooks/useSchemeRules.js';
 import {
   Building2,
   CalendarDays,
@@ -165,7 +166,7 @@ function Overview({
     {
       icon: FileText,
       label: 'Scheme',
-      value: profile?.schemeId === 'vtu-2022' ? 'VTU 2022 (22OB)' : null,
+      value: schemeName(profile?.schemeId),
     },
     { icon: CalendarDays, label: 'Admission year', value: yearText(profile?.admissionYear) },
     {
@@ -236,7 +237,9 @@ function Overview({
             {profile?.currentSemester !== null && profile?.currentSemester !== undefined && (
               <Badge>Semester {profile.currentSemester}</Badge>
             )}
-            {profile?.schemeId === 'vtu-2022' && <Badge>2022 scheme</Badge>}
+            {schemeName(profile?.schemeId) !== null && (
+              <Badge>{getScheme(profile?.schemeId ?? '')?.label ?? ''}</Badge>
+            )}
             {clear ? (
               <Badge tone="success">No backlogs</Badge>
             ) : backlogs !== null && backlogs > 0 ? (
@@ -349,7 +352,8 @@ export function withChanges(
     displayName: profile?.displayName ?? null,
     usn: profile?.usn ?? null,
     collegeName: profile?.collegeName ?? null,
-    schemeId: vtu2022RuleSet.schemeId,
+    /* The recorded scheme is kept; only a profile that has none starts at 2022. */
+    schemeId: profile?.schemeId || DEFAULT_SCHEME_ID,
     programme: profile?.programme ?? null,
     branch: profile?.branch ?? null,
     currentSemester: profile?.currentSemester ?? null,
@@ -364,6 +368,15 @@ export function withChanges(
 }
 
 const blankToNull = (value: string): string | null => (value.trim() === '' ? null : value.trim());
+
+/** The recorded scheme, named as the registry names it (any scheme, not just 2022). */
+function schemeName(id: string | null | undefined): string | null {
+  const scheme = getScheme(id ?? '');
+  if (scheme === undefined) return null;
+  return scheme.regulationCode === null
+    ? scheme.label
+    : `${scheme.label} (${scheme.regulationCode})`;
+}
 
 function FormCard({
   title,
@@ -394,6 +407,7 @@ function AcademicForm({
   const [collegeName, setCollegeName] = useState(profile?.collegeName ?? '');
   const [branch, setBranch] = useState(profile?.branch ?? '');
   const [programme, setProgramme] = useState(profile?.programme ?? '');
+  const [scheme, setScheme] = useState(profile?.schemeId || DEFAULT_SCHEME_ID);
   const [semester, setSemester] = useState(
     profile?.currentSemester === null || profile?.currentSemester === undefined
       ? ''
@@ -404,6 +418,7 @@ function AcademicForm({
     collegeName !== (profile?.collegeName ?? '') ||
     branch !== (profile?.branch ?? '') ||
     programme !== (profile?.programme ?? '') ||
+    scheme !== (profile?.schemeId || DEFAULT_SCHEME_ID) ||
     semester !==
       (profile?.currentSemester === null || profile?.currentSemester === undefined
         ? ''
@@ -414,6 +429,7 @@ function AcademicForm({
     setCollegeName(profile?.collegeName ?? '');
     setBranch(profile?.branch ?? '');
     setProgramme(profile?.programme ?? '');
+    setScheme(profile?.schemeId || DEFAULT_SCHEME_ID);
     setSemester(
       profile?.currentSemester === null || profile?.currentSemester === undefined
         ? ''
@@ -429,6 +445,7 @@ function AcademicForm({
         collegeName: blankToNull(collegeName),
         branch: blankToNull(branch),
         programme: blankToNull(programme),
+        schemeId: scheme,
         currentSemester: semester === '' ? null : Number(semester),
       }),
     ).then(() => toast('Saved on this device.', { tone: 'success' }));
@@ -448,7 +465,7 @@ function AcademicForm({
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <CollegeField value={collegeName} onChange={setCollegeName} />
-            <BranchField value={branch} onChange={setBranch} />
+            <BranchField value={branch} onChange={setBranch} schemeId={scheme} />
             <Field
               label="Programme"
               hint={
@@ -478,7 +495,7 @@ function AcademicForm({
                 options={[{ value: NOT_SET, label: 'Not set' }, ...SEMESTER_OPTIONS]}
               />
             </Field>
-            <SchemeField />
+            <SchemeField value={scheme} onChange={setScheme} />
             <YearFields years={years} />
           </div>
           <div className="mt-6 flex justify-end gap-2">
@@ -573,13 +590,14 @@ export function SupportNote() {
       <SectionTitle>What is supported</SectionTitle>
       <div className="space-y-3 text-[13px] leading-relaxed text-ink-2">
         <p>
-          This experimental version supports the{' '}
+          This experimental version calculates figures for the{' '}
           <strong className="font-semibold text-ink">VTU 2022 scheme (22OB)</strong> for B.E./B.Tech
           at non-autonomous affiliated colleges.
         </p>
         <p className="text-ink-3">
           Autonomous colleges set their own internal rules, so these figures may not apply there.
-          Other schemes are not supported yet.
+          The 2025, 2021, 2018, 2017, 2015 and 2010 schemes can be recorded on your profile, but
+          GradTools has no verified rules for them yet and calculates nothing for them.
         </p>
       </div>
     </Card>

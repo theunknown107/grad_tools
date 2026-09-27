@@ -44,6 +44,7 @@
  * special handling, because it is never matched — it is what is left over.
  */
 
+import { schemeCompatibility } from './scheme-compat.js';
 import type { ResultSubject } from './types.js';
 import { normalizeResultSubject } from './results.js';
 import { subjectKey } from './subjects.js';
@@ -59,6 +60,7 @@ export type RowWarningKind =
   | 'unreadable_code'
   /** The code belongs to a scheme family other than the student's (OQ-053). */
   | 'scheme_mismatch'
+  | 'equivalence_course'
   /** No title was printed between the code and the marks. */
   | 'missing_title'
   /** A status letter the card's own legend does not list. */
@@ -145,14 +147,20 @@ export interface ParsedCard {
 /* -------------------------------------------------------------------------- */
 
 /**
- * A VTU course code, in either family.
+ * A VTU course code, in any scheme family this app can name.
  *
  * The optional leading digit is deliberate and is the M10A.3 lesson: a 2022
  * pattern run over a later-scheme code matches its tail, so `1BMATC101`
  * silently becomes `BMATC101` — a real code for a different course. Matching
  * the whole thing and reporting the mismatch is the only safe reading (§87).
+ *
+ * The second branch is the older schemes' two-digit year prefix (`18CS51`,
+ * `21MAT11`), for the known years only. Without it an older-scheme card lost
+ * every row instead of being read and compared with the student's scheme
+ * (scheme-compat.ts). A USN (one leading digit), a date or a clause reference
+ * such as "22OB 6.1" cannot match it.
  */
-const COURSE_CODE = /^(1?B[A-Z]{2,6}\d{3}[A-Z]?)\b/;
+const COURSE_CODE = /^(1?B[A-Z]{2,6}\d{3}[A-Z]?|(?:10|15|17|18|21)[A-Z]{2,6}\d{2,3}[A-Z]?)\b/;
 
 /**
  * The trailing block: three marks, then an optional status and date.
@@ -318,7 +326,7 @@ function wholeNumber(raw: string): number | null {
  * a page number. That is the common case and is not a warning: most lines of a
  * result card are not rows.
  */
-export function parseRow(line: ImportLine, schemeFamily2022: boolean): ParsedRow | null {
+export function parseRow(line: ImportLine, profileSchemeId: string): ParsedRow | null {
   const text = stripRules(line.text);
   /*
    * Leading punctuation is stripped before the code is matched. A table's
@@ -423,14 +431,17 @@ export function parseRow(line: ImportLine, schemeFamily2022: boolean): ParsedRow
   }
 
   /*
-   * A LATER-SCHEME CODE IS NOT REINTERPRETED (§87, OQ-053). `1BMATC101` is a
-   * real course in a scheme this student is not on; stripping the digit to make
-   * it match would attribute someone else's course to their degree.
+   * ANOTHER SCHEME'S CODE IS NOT REINTERPRETED (§87, OQ-053). `1BMATC101` is a
+   * real course in a scheme this student may not be on; stripping the digit to
+   * make it match would attribute someone else's course to their degree. A
+   * VTU-notified equivalence is named as one; anything else is a mismatch to
+   * check (scheme-compat.ts).
    */
-  if (schemeFamily2022 && code.startsWith('1B')) {
+  const compatibility = schemeCompatibility(code, profileSchemeId);
+  if (compatibility.message !== null) {
     warnings.push({
-      kind: 'scheme_mismatch',
-      message: `${code} belongs to a different VTU scheme from your profile. It has not been reinterpreted — check before importing.`,
+      kind: compatibility.status === 'equivalence' ? 'equivalence_course' : 'scheme_mismatch',
+      message: compatibility.message,
     });
   }
 
@@ -458,9 +469,10 @@ export function parseRow(line: ImportLine, schemeFamily2022: boolean): ParsedRow
  */
 export function parseResultCard(
   lines: readonly ImportLine[],
-  options: { readonly schemeFamily2022?: boolean } = {},
+  /** The student's recorded scheme; the codes on the card are compared with it. */
+  options: { readonly profileSchemeId?: string } = {},
 ): ParsedCard {
-  const schemeFamily2022 = options.schemeFamily2022 ?? true;
+  const profileSchemeId = options.profileSchemeId ?? 'vtu-2022';
   const joined = lines.map((line) => line.text).join('\n');
 
   const rows: ParsedRow[] = [];
@@ -475,7 +487,7 @@ export function parseResultCard(
    */
   const unreadable: ImportLine[] = [];
   for (const line of lines) {
-    const row = parseRow(line, schemeFamily2022);
+    const row = parseRow(line, profileSchemeId);
     if (row !== null) {
       rows.push(row);
     } else if (looksLikeSubjectRow(line.text)) {
@@ -563,6 +575,11 @@ export function rowToSubject(
     gradePoint: null,
     credits: reference?.credits ?? null,
     hasSee: reference?.hasSee ?? null,
-    provenance: reference === null ? 'manual' : 'catalogue',
+    /* `catalogue` only when the reference actually supplied a value — a match
+       with nothing in it has vouched for nothing. */
+    provenance:
+      reference !== null && (reference.credits !== null || reference.hasSee !== null)
+        ? 'catalogue'
+        : 'manual',
   });
 }

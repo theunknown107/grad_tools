@@ -215,7 +215,16 @@ Keep these layers separate; do not collapse them into one component.
   No service workers, push, wake locks, polling, rAF loops or intervals.
 - **Materials** are CSS classes (`.gt-bubble` for the floating top
   controls — there is no top bar —, `.gt-bar` for the bottom bar, `.gt-glass`
-  for controls); restyle there, never per component.
+  for controls); restyle there, never per component. Shrink a control's look,
+  never its target: `.gt-hit` keeps 44px (`--gt-hit-size`).
+- **Schemes (DEC-053):** record any `VTU_SCHEMES` entry; calculate only where
+  `schemeSupport(id) === 'supported'` (a verified rule set exists — today
+  2022). Screens take rules from `useSchemeRules()`; never fall back to 2022
+  for another scheme. A printed P/F decides pass; marks that contradict it are
+  a `conflict`, not a failure (DEC-052).
+- **Provenance words** are fixed: "From the document", "Calculated (2022
+  rules)", "GradTools catalogue", "Your own record". "Needs review" is only a
+  real conflict or an unanswered question; unknown values are "incomplete".
 - **Keyboard and popups:** `useKeyboardOpen()` and `collisionInsets()` in
   `lib/viewport.ts` are the only keyboard/edge logic. Every Radix popup passes
   `collisionPadding={collisionInsets()}`; never a fixed pixel padding.

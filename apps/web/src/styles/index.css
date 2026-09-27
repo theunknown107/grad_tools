@@ -522,10 +522,33 @@
      glass treatment changes the fill and filter HERE — never the header —
      and keeps the reduced-transparency fallback. No shadow: the hairline and
      the fill carry it. */
+:root {
+  /* What a floating control LOOKS like, and what it RESPONDS to. The visible
+     disc is compact; the touch target stays 44px through an invisible ring
+     (`.gt-hit`), so shrinking the chrome never shrinks the target. */
+  --gt-bubble-size: 2.25rem;
+  --gt-bubble-icon: 1.125rem;
+  --gt-hit-size: 2.75rem;
+}
+.gt-hit {
+  position: relative;
+}
+.gt-hit::before {
+  content: '';
+  position: absolute;
+  inset: min(0px, calc((100% - var(--gt-hit-size)) / 2));
+  border-radius: inherit;
+}
 .gt-bubble {
+  width: var(--gt-bubble-size);
+  height: var(--gt-bubble-size);
   background-color: color-mix(in oklab, var(--raised) var(--gt-bubble-opacity, 100%), transparent);
   border: 1px solid var(--border);
   border-radius: 9999px;
+}
+.gt-bubble svg {
+  width: var(--gt-bubble-icon);
+  height: var(--gt-bubble-icon);
 }
 .gt-bubble:hover {
   background-color: var(--sunken);

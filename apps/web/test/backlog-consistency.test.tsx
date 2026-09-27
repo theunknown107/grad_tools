@@ -46,8 +46,10 @@ const profileId = asStudentProfileId('11111111-1111-1111-1111-111111111111');
 /*
  * A course with marks and a known semester-end exam, so its pass or fail is
  * worked out by the rules. A failure is read from the MARKS: an internal of 12
- * is below the CIE minimum. The result status and grade letter are not what
- * decides it, and a grade-only row cannot be checked at all (see UNCHECKED).
+ * is below the CIE minimum. The card prints no result status here — where one
+ * IS printed, its P or F decides and marks that disagree are a conflict to
+ * check (results.test.ts) — and a grade-only row cannot be checked at all
+ * (see UNCHECKED).
  */
 function course(code: string, internal: number, external: number) {
   return normalizeResultSubject({
@@ -57,7 +59,7 @@ function course(code: string, internal: number, external: number) {
     internal,
     external,
     total: internal + external,
-    resultStatus: 'P',
+    resultStatus: null,
     credits: 4,
     gradeLetter: null,
     hasSee: true,

@@ -38,13 +38,13 @@ if (d === undefined) throw new Error('gradtools-mark.svg has no path');
 
 /*
  * Adaptive icon geometry. The canvas is 108dp; launchers mask it to shapes
- * that are guaranteed to show only the central 66dp circle. The mark's
- * farthest point (a cap tip) is 32.2 units from its optical centre (32, 33),
- * so a 0.9 scale keeps all of it within 29dp of the centre — inside the safe
- * zone with room to spare, and large enough not to look lost.
+ * that are guaranteed to show only the central 66dp circle. The mark is a ring
+ * G on the 64-unit grid centred at (32, 32), and its farthest point is 25
+ * units out, so at scale 1 all of it lies within 25dp of the centre —
+ * inside the 33dp safe radius, with room for any mask shape.
  */
-const SCALE = 0.9;
-const [CX, CY] = [32, 33];
+const SCALE = 1.0;
+const [CX, CY] = [32, 32];
 const tx = 54 - CX * SCALE;
 const ty = 54 - CY * SCALE;
 
@@ -122,7 +122,7 @@ try {
       await page.setViewportSize({ width: px, height: px });
       await page.setContent(`<!doctype html><html><body style="margin:0;background:transparent">
         <div style="width:${px}px;height:${px}px;border-radius:${radius};background:${BRAND};display:grid;place-items:center">
-          <svg viewBox="0 0 64 64" width="${px * 0.66}" height="${px * 0.66}"><path fill="${MARK}" d="${d}"/></svg>
+          <svg viewBox="0 0 64 64" width="${px * 0.78}" height="${px * 0.78}"><path fill="${MARK}" d="${d}"/></svg>
         </div></body></html>`);
       await mkdir(join(RES, `mipmap-${density}`), { recursive: true });
       await page.screenshot({

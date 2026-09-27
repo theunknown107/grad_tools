@@ -8,17 +8,18 @@
  * (DEC-008).
  */
 
-import { vtu2022RuleSet } from '@gradtools/academic-rules';
-import { RotateCcw } from 'lucide-react';
+import { VTU_SCHEMES, schemeSupport } from '@gradtools/academic-rules';
+import { VTU_BRANCHES_2022 } from '@gradtools/vtu-catalogue/data';
+import { DEFAULT_SCHEME_ID } from '../../hooks/useSchemeRules.js';
 import { useState } from 'react';
-import { Button } from '../../components/ui/button.js';
+import { Combobox } from '../../components/ui/combobox.js';
 import { Field, Input, Select } from '../../components/ui/field.js';
 import { Segmented } from '../../components/ui/segmented.js';
+import { searchColleges } from '../../domain/college-search.js';
 import type { StudentProfile } from '../../domain/types.js';
-import { useBranches, useColleges, useSchemes } from '../../hooks/useReference.js';
+import { useBranches, useColleges } from '../../hooks/useReference.js';
 
 const NOT_SET = '__not_set__';
-const OTHER = '__other__';
 
 export type EntryRoute = 'puc' | 'diploma';
 
@@ -192,6 +193,19 @@ export function CollegeField({
     );
   }
 
+  const collegeOptions = [
+    { value: NOT_SET, label: 'Not set', name: '', code: null },
+    ...colleges.items.map((college) => ({
+      value: college.name,
+      label: college.reviewed ? `${college.name} (verified)` : college.name,
+      detail: [college.code, college.region]
+        .filter((part) => part !== null && part !== '')
+        .join(' · '),
+      name: college.name,
+      code: college.code,
+    })),
+  ];
+
   /* Review state travels in words, not colour: the hint and a "verified" suffix. */
   const chosen = other ? undefined : colleges.items.find((c) => c.name === value);
   const hint =
@@ -203,21 +217,27 @@ export function CollegeField({
 
   return (
     <>
+      {/*
+        SEARCHED, NOT SCROLLED. 185 colleges in one dropdown was a list a
+        student had to scroll to find their own. Picking one stores the
+        catalogue's own name, so the value stays canonical; typing a name that
+        is not listed is a separate, explicit choice.
+      */}
       <Field label="College" optional hint={hint}>
-        <Select
-          value={other ? OTHER : value === '' ? NOT_SET : value}
+        <Combobox
+          value={other ? '' : value === '' ? NOT_SET : value}
           onValueChange={(next) => {
-            setOther(next === OTHER);
-            if (next !== OTHER) onChange(next === NOT_SET ? '' : next);
+            setOther(false);
+            onChange(next === NOT_SET ? '' : next);
           }}
-          options={[
-            { value: NOT_SET, label: 'Not set' },
-            ...colleges.items.map((college) => ({
-              value: college.name,
-              label: college.reviewed ? `${college.name} (verified)` : college.name,
-            })),
-            { value: OTHER, label: 'Other (type it)' },
-          ]}
+          options={collegeOptions}
+          search={(_, query) =>
+            query.trim() === '' ? collegeOptions : searchColleges(collegeOptions.slice(1), query)
+          }
+          placeholder={other ? 'Not listed (typed below)' : 'Not set'}
+          searchPlaceholder="Search colleges — name, initials or code"
+          noun="colleges"
+          footer={{ label: 'My college isn’t listed — type it', onSelect: () => setOther(true) }}
         />
       </Field>
       {other && (
@@ -233,52 +253,33 @@ export function CollegeField({
 export function BranchField({
   value,
   onChange,
+  schemeId = DEFAULT_SCHEME_ID,
 }: {
   readonly value: string;
   readonly onChange: (value: string) => void;
+  /** The scheme being recorded: the bundled branch list is the 2022 scheme's. */
+  readonly schemeId?: string;
 }) {
   const branches = useBranches();
-  const unconnected = branches.state.status === 'error' && branches.state.kind === 'unconfigured';
-  if (branches.state.status === 'loading') {
-    return (
-      <Field label="Branch" hint="Loading branches…">
-        <Input disabled value={value} />
-      </Field>
-    );
-  }
-  if (branches.state.status === 'ready' && branches.state.data.length > 0) {
-    const data = branches.state.data;
-    return (
-      <Field label="Branch" hint="From the GradTools reference data.">
-        <Select
-          value={value === '' ? NOT_SET : value}
-          onValueChange={(next) => onChange(next === NOT_SET ? '' : next)}
-          options={[
-            { value: NOT_SET, label: 'Not set' },
-            ...data.map((item) => ({ value: item.name, label: item.name })),
-            ...(value !== '' && !data.some((item) => item.name === value)
-              ? [{ value, label: value }]
-              : []),
-          ]}
-        />
-      </Field>
-    );
-  }
+  const [typing, setTyping] = useState(false);
   /*
-   * THE FALLBACK IS A FALLBACK, AND SAYS WHICH ONE IT IS. The retry sits beside
-   * the field rather than in its hint, which is the input's description.
+   * PUBLISHED ROWS FIRST, THE BUNDLED LIST OTHERWISE. VTU's 2022 branch list is
+   * transcribed into the app, so no request is needed to offer it; the server
+   * only improves on it. It is the 2022 scheme's list, so another scheme is not
+   * shown it as though it applied.
    */
-  return (
-    <div className="flex min-w-0 flex-col gap-1.5">
+  const fromServer = branches.state.status === 'ready' && branches.state.data.length > 0;
+  const listed = fromServer
+    ? branches.state.data.map((item) => item.name)
+    : schemeId === DEFAULT_SCHEME_ID
+      ? VTU_BRANCHES_2022.entries.map((entry) => entry.labelAsPrinted)
+      : [];
+
+  if (listed.length === 0) {
+    return (
       <Field
         label="Branch"
-        hint={
-          unconnected
-            ? 'Not connected to a GradTools server, so there is no branch list. Type yours.'
-            : branches.state.status === 'error'
-              ? 'Branches could not be loaded; type yours instead.'
-              : 'No branches available from the server; type yours instead.'
-        }
+        hint="GradTools has no branch list for this scheme yet. Type yours as your college prints it."
       >
         <Input
           placeholder="Computer Science"
@@ -286,44 +287,83 @@ export function BranchField({
           onChange={(event) => onChange(event.target.value)}
         />
       </Field>
-      {/* A retry can only help when there is a server to retry. */}
-      {!unconnected && (
-        <div>
-          <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={branches.retry}>
-            Look for branches again
-          </Button>
-        </div>
+    );
+  }
+
+  const other = typing || (value !== '' && !listed.includes(value));
+  const options = [
+    { value: NOT_SET, label: 'Not set', name: '', code: null },
+    ...listed.map((name) => ({ value: name, label: name, name, code: null })),
+  ];
+  return (
+    <>
+      <Field
+        label="Branch"
+        hint={
+          fromServer
+            ? 'From the GradTools reference data.'
+            : "VTU's 2022-scheme branch list, as transcribed by GradTools."
+        }
+      >
+        <Combobox
+          value={other ? '' : value === '' ? NOT_SET : value}
+          onValueChange={(next) => {
+            setTyping(false);
+            onChange(next === NOT_SET ? '' : next);
+          }}
+          options={options}
+          search={(_, query) =>
+            query.trim() === '' ? options : searchColleges(options.slice(1), query)
+          }
+          placeholder={other ? 'Not listed (typed below)' : 'Not set'}
+          searchPlaceholder="Search branches"
+          noun="branches"
+          footer={{ label: 'My branch isn’t listed — type it', onSelect: () => setTyping(true) }}
+        />
+      </Field>
+      {other && (
+        <Field label="Your branch">
+          <Input value={value} onChange={(event) => onChange(event.target.value)} />
+        </Field>
       )}
-    </div>
+    </>
   );
 }
 
-/** Scheme: only verified schemes are offered; today that is one. */
-export function SchemeField() {
-  const schemes = useSchemes();
+/**
+ * Scheme: every VTU B.E./B.Tech scheme can be RECORDED; only one with verified
+ * rules is calculated for. The list is the versioned registry in
+ * @gradtools/academic-rules — static, so no request is made to fill it — and a
+ * scheme without rules says so in the option itself, not after the fact.
+ */
+export function SchemeField({
+  value,
+  onChange,
+}: {
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+}) {
+  const support = schemeSupport(value);
   return (
     <Field
       label="Scheme"
       hint={
-        schemes.state.status === 'error' && schemes.state.kind === 'unconfigured'
-          ? 'The scheme built into the app. Not connected to a GradTools server.'
-          : schemes.state.status === 'error'
-            ? 'Schemes could not be loaded from the server.'
-            : 'Only verified schemes are offered.'
+        support === 'supported'
+          ? 'GradTools calculates figures for this scheme.'
+          : support === 'recognised'
+            ? 'Recorded on your profile. GradTools has no verified rules for this scheme yet, so it will not calculate SGPA, CGPA or attendance for it.'
+            : 'Not a scheme GradTools knows. Choose yours from the list.'
       }
     >
       <Select
-        value={vtu2022RuleSet.schemeId}
-        onValueChange={() => undefined}
-        disabled={schemes.state.status !== 'ready' || schemes.state.data.length <= 1}
-        options={
-          schemes.state.status === 'ready' && schemes.state.data.length > 0
-            ? schemes.state.data.map((item) => ({
-                value: item.id,
-                label: `${item.name} (${item.regulationCode})`,
-              }))
-            : [{ value: vtu2022RuleSet.schemeId, label: 'VTU 2022 (22OB)' }]
-        }
+        value={value}
+        onValueChange={onChange}
+        options={VTU_SCHEMES.map((scheme) => ({
+          value: scheme.id,
+          label: `${scheme.label}${scheme.regulationCode === null ? '' : ` (${scheme.regulationCode})`}${
+            schemeSupport(scheme.id) === 'supported' ? '' : ' — recorded only'
+          }`,
+        }))}
       />
     </Field>
   );

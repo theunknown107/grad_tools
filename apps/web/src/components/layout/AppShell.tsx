@@ -115,11 +115,14 @@ function Shell({
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar
-          collapsed={collapsed}
-          onToggleCollapse={toggleCollapsed}
-          unread={unread}
-          initials={initials}
+        {/*
+          The status bar gets a strip of page colour and nothing else, so text
+          scrolling up never runs under the clock. It is the only fixed chrome
+          at the top of a phone.
+        */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[var(--gt-safe-top)] bg-canvas md:hidden"
         />
         <main
           id="gt-main"
@@ -127,6 +130,12 @@ function Shell({
           tabIndex={-1}
           className="flex-1 overflow-y-auto pb-[calc(6rem+var(--gt-safe-bottom))] outline-none scroll-quiet md:pb-[var(--gt-safe-bottom)]"
         >
+          <TopBar
+            collapsed={collapsed}
+            onToggleCollapse={toggleCollapsed}
+            unread={unread}
+            initials={initials}
+          />
           <div
             key={location.pathname}
             className="mx-auto w-full max-w-[1180px] animate-rise px-4 py-6 sm:px-6 sm:py-8 lg:px-10"
@@ -351,7 +360,14 @@ function TopBar({
      * needed. The safe-area top still pads the row: the app draws behind the
      * status bar, and the controls must not.
      */
-    <header className="z-40 flex h-[calc(3.5rem+var(--gt-safe-top))] shrink-0 items-center gap-2 px-4 pt-[var(--gt-safe-top)] sm:px-6">
+    /*
+     * The controls live INSIDE the scroll area. As a separate row above it,
+     * content was cut off at a hard line under the controls — and that line
+     * read as a bar however transparent the row was. On a phone they now
+     * scroll away with the page; from `md` they stay pinned on the page colour,
+     * where a desktop expects search to be.
+     */
+    <header className="z-20 flex h-[calc(3.5rem+var(--gt-safe-top))] items-center gap-2 px-4 pt-[var(--gt-safe-top)] sm:px-6 md:sticky md:top-0 md:bg-canvas">
       <IconButton
         label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         aria-expanded={!collapsed}
@@ -364,10 +380,10 @@ function TopBar({
 
       <Link
         to="/"
-        className="flex min-h-11 items-center gap-2.5 rounded-full pr-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:hidden"
+        className="gt-hit flex items-center gap-2.5 rounded-full pr-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:hidden"
         aria-label="GradTools home"
       >
-        <GradToolsLogo size={44} round />
+        <GradToolsLogo size={36} round />
         <span className="hidden text-[17px] font-semibold tracking-[-0.01em] min-[380px]:inline">
           GradTools
         </span>
@@ -388,7 +404,7 @@ function TopBar({
         </span>
       </button>
 
-      <div className="ml-auto flex items-center gap-1.5">
+      <div className="ml-auto flex items-center gap-2">
         <IconButton label="Search" onClick={openCommand} bubble className="sm:hidden">
           <Search />
         </IconButton>
@@ -415,9 +431,9 @@ function TopBar({
         <Link
           to="/profile"
           aria-label="Open profile"
-          className="rounded-full ring-offset-2 ring-offset-canvas focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="gt-hit rounded-full ring-offset-2 ring-offset-canvas focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <Avatar initials={initials} size={44} />
+          <Avatar initials={initials} size={36} />
         </Link>
       </div>
     </header>

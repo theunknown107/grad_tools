@@ -13,6 +13,7 @@
  * setup skipped end to end writes nothing at all. NO DATE OF BIRTH (DEC-008).
  */
 
+import { DEFAULT_SCHEME_ID } from '../../hooks/useSchemeRules.js';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button.js';
@@ -56,6 +57,7 @@ function Setup({
   const [usn, setUsn] = useState(profile?.usn ?? '');
   const [college, setCollege] = useState(profile?.collegeName ?? '');
   const [branch, setBranch] = useState(profile?.branch ?? '');
+  const [scheme, setScheme] = useState(profile?.schemeId || DEFAULT_SCHEME_ID);
   const years = useAcademicYears(profile);
 
   const trimmed = name.trim();
@@ -70,6 +72,8 @@ function Setup({
             usn: usn.trim() === '' ? null : usn.trim().toUpperCase(),
             collegeName: college.trim() === '' ? null : college.trim(),
             branch: branch.trim() === '' ? null : branch.trim(),
+            // Written only when chosen, so a setup that states nothing writes nothing.
+            ...(scheme !== (profile?.schemeId || DEFAULT_SCHEME_ID) ? { schemeId: scheme } : {}),
             ...years.values(),
           }
         : {}),
@@ -162,10 +166,11 @@ function Setup({
                   onChange={(event) => setUsn(event.target.value)}
                 />
               </Field>
-              <CollegeField value={college} onChange={setCollege} />
-              <SchemeField />
-              <BranchField value={branch} onChange={setBranch} />
+              {/* The scheme first: it decides what the branch and results mean. */}
+              <SchemeField value={scheme} onChange={setScheme} />
+              <BranchField value={branch} onChange={setBranch} schemeId={scheme} />
               <YearFields years={years} />
+              <CollegeField value={college} onChange={setCollege} />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => void finish(false)}>
