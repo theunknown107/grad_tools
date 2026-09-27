@@ -58,6 +58,14 @@ import { useSubjects } from '../../hooks/useReference.js';
 import { cn } from '../../lib/cn.js';
 import { newId } from '../../lib/id.js';
 import { OcrError, startOcr, type OcrSession } from '../../lib/ocr.js';
+import { aiResultToParsedCard, aiTimetableToParsed } from '../../domain/ai-import.js';
+import {
+  DocumentAiError,
+  documentAiAvailable,
+  readWithAi,
+} from '../../repositories/document-ai.js';
+import { useAuth } from '../auth/AuthContext.js';
+import { SwitchRow } from '../../components/ui/field.js';
 import { PdfReadError } from '../../lib/pdf-text.js';
 import {
   HtmlReadError,
@@ -104,6 +112,9 @@ interface FileState {
   readonly error: string | null;
   /** Kept so a failed file can be tried again without choosing it again. */
   readonly source: File;
+  /** Read by the AI service rather than on the device (and what its gate found). */
+  readonly ai: boolean;
+  readonly aiNote: string | null;
   readonly file: ImportedFile | null;
   readonly calendar: ParsedCalendar | null;
   readonly timetable: ParsedTimetable | null;
@@ -126,6 +137,7 @@ function fileMeta(entry: FileState): string {
     return 'Preparing the text recogniser — the first time takes longer on a phone…';
   if (entry.status === 'recognising') return 'Reading the text in this picture…';
   if (entry.status === 'reading') return 'Checking the file type and structure…';
+  const via = entry.ai ? ` · read by AI${entry.aiNote === null ? '' : ` — ${entry.aiNote}`}` : '';
   const kind =
     entry.calendar !== null
       ? 'Academic calendar'
@@ -136,8 +148,9 @@ function fileMeta(entry: FileState): string {
           : entry.scheme !== null
             ? 'Scheme of teaching'
             : 'Result card';
-  if (entry.file === null) return kind;
+  if (entry.file === null) return `${kind}${via}`;
   const rows = entry.file.card.rows.length;
+  if (entry.ai) return `${kind} · ${String(rows)} rows${via} · check them against the card`;
   if (entry.reading?.source !== 'ocr') return `${kind} · ${String(rows)} rows read`;
   const doubtful = entry.reading.lowConfidenceWords;
   return doubtful === 0
@@ -191,6 +204,9 @@ export function DocumentImport({
   );
 
   const [files, setFiles] = useState<readonly FileState[]>([]);
+  const { adapter, state: authState } = useAuth();
+  const aiAvailable = documentAiAvailable(adapter !== null && authState.status === 'signed_in');
+  const [useAi, setUseAi] = useState(false);
   const [saved, setSaved] = useState<readonly number[]>([]);
   const session = useRef<OcrSession | null>(null);
   /** Bumped by Cancel: a batch from an older generation may change nothing. */
@@ -279,7 +295,10 @@ export function DocumentImport({
     patch(id, {
       status: 'failed',
       error:
-        cause instanceof PdfReadError || cause instanceof OcrError || cause instanceof HtmlReadError
+        cause instanceof PdfReadError ||
+        cause instanceof OcrError ||
+        cause instanceof HtmlReadError ||
+        cause instanceof DocumentAiError
           ? cause.message
           : 'This file could not be read.',
     });
@@ -297,6 +316,8 @@ export function DocumentImport({
       status: 'reading',
       error: null,
       source: file,
+      ai: false,
+      aiNote: null,
       file: null,
       calendar: null,
       timetable: null,
@@ -316,11 +337,48 @@ export function DocumentImport({
     }
   };
 
+  /*
+   * AI READING: the file goes to the GradTools server, which sends it to the
+   * configured Gemini model. What comes back is the document's own values,
+   * already checked by the server's recognition gate — and it lands in exactly
+   * the review the on-device path uses, with nothing saved until confirmed.
+   */
+  const readViaAi = async (id: string, file: File): Promise<void> => {
+    const token = adapter === null ? null : await adapter.accessToken();
+    if (token === null) throw new DocumentAiError('Sign in again to read with AI.');
+    const review = await readWithAi(file, token);
+    if (review.recognition === 'UNRECOGNIZED_DOCUMENT') {
+      throw new DocumentAiError(
+        `GradTools could not recognise this as a VTU result card or class timetable. ${review.evidence[0] ?? ''}`.trim(),
+      );
+    }
+    const aiNote =
+      review.recognition === 'NEEDS_REVIEW'
+        ? 'only partly recognised as a VTU document; check it carefully'
+        : null;
+    if (review.documentType === 'RESULT_CARD' && review.resultCard !== null) {
+      patch(id, {
+        status: 'read',
+        ai: true,
+        aiNote,
+        file: { fileName: file.name, card: aiResultToParsedCard(review.resultCard, schemeId) },
+      });
+      return;
+    }
+    if (review.documentType === 'TIMETABLE' && review.timetable !== null) {
+      const { parsed, fingerprint } = aiTimetableToParsed(review.timetable);
+      patch(id, { status: 'read', ai: true, aiNote, timetable: parsed, fingerprint });
+      return;
+    }
+    throw new DocumentAiError('The AI reading returned nothing to review.');
+  };
+
   const readBatch = async (
     accepted: readonly File[],
     pending: readonly FileState[],
     live: () => boolean,
   ): Promise<void> => {
+    const viaAi = useAi && aiAvailable;
     const queue: { id: string; file: File; kind: 'image' | 'pdf'; data?: ArrayBuffer }[] = [];
     await Promise.all(
       accepted.map(async (file, index) => {
@@ -343,6 +401,11 @@ export function DocumentImport({
           }
           if (kind === 'html') {
             store(entry.id, file.name, await readHtmlFile(file));
+            return;
+          }
+          // A saved web page is text already: it never needs AI and never leaves.
+          if (viaAi) {
+            await readViaAi(entry.id, file);
             return;
           }
           if (kind === 'image') {
@@ -464,6 +527,17 @@ export function DocumentImport({
     <div className="flex flex-col gap-6">
       <ImportStepper at={step} done={saved.length > 0} />
 
+      {aiAvailable && (
+        <Card className="px-5 py-4">
+          <SwitchRow
+            title="Read with AI"
+            description="Sends each PDF or photo you add to the GradTools server, which passes it to Google’s Gemini AI service to read. Off: GradTools reads it on this device and nothing leaves. Either way, nothing is saved until you confirm it."
+            checked={useAi}
+            onCheckedChange={setUseAi}
+            disabled={busy}
+          />
+        </Card>
+      )}
       <FileDropzone busy={busy} onFiles={(chosen) => void read(chosen)} />
 
       {files.length > 0 && (
@@ -598,7 +672,7 @@ export function DocumentImport({
           group={group}
           recognised={files.some(
             (entry) =>
-              entry.reading?.source === 'ocr' &&
+              (entry.reading?.source === 'ocr' || entry.ai) &&
               entry.file !== null &&
               group.files.includes(entry.file),
           )}

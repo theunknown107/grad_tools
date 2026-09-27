@@ -24,7 +24,16 @@ describe('the GradTools logo', () => {
     const svg = logo.querySelector('svg');
     expect(svg).not.toBeNull();
     expect(svg!.querySelector('path')?.getAttribute('fill')).toBe('currentColor');
-    expect(svg!.querySelector('[fill]:not([fill="currentColor"])')).toBeNull();
+    // One colour, from the theme: every paint is currentColor, or none at all.
+    for (const attribute of ['fill', 'stroke']) {
+      expect(
+        svg!.querySelector(
+          `[${attribute}]:not([${attribute}="currentColor"]):not([${attribute}="none"])`,
+        ),
+      ).toBeNull();
+    }
+    // Inlined, its favicon style must not reach the page: `:root` is the page there.
+    expect(svg!.querySelector('style')?.textContent ?? '').not.toMatch(/:root\s*\{/);
     expect(logo.className).toMatch(/bg-brand-surface/);
     expect(logo.className).toMatch(/text-brand-mark/);
     expect(svg!.querySelector('text')).toBeNull();

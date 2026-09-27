@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "GradTools reference-data API. Read-only public academic reference data. No student data (docs/33 \u00a733.3).",
+  "description": "GradTools reference-data API. Read-only public academic reference data. No student data (docs/33 §33.3).",
   "main": "./src/main.ts",
   "scripts": {
     "dev": "tsx watch src/main.ts",
@@ -26,6 +26,7 @@
     "vtu:validate": "tsx scripts/vtu-validate.ts"
   },
   "dependencies": {
+    "@google/genai": "^2.24.0",
     "@gradtools/academic-rules": "workspace:*",
     "@gradtools/shared-types": "workspace:*",
     "@gradtools/vtu-catalogue": "workspace:*",

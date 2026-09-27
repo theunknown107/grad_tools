@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App.js';
+import { LaunchSplash } from './components/layout/LaunchSplash.js';
 import { AuthProvider } from './features/auth/AuthContext.js';
 import { ThemeProvider } from './hooks/useTheme.js';
 import { mirrorAriaHiddenAsInert } from './lib/inert-hidden.js';
@@ -20,6 +21,8 @@ createRoot(container).render(
         <AuthProvider>
           <App />
         </AuthProvider>
+        {/* Android only; removes itself after ~800ms (LaunchSplash). */}
+        <LaunchSplash />
       </BrowserRouter>
     </ThemeProvider>
   </StrictMode>,

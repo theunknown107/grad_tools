@@ -222,6 +222,13 @@ Keep these layers separate; do not collapse them into one component.
   2022). Screens take rules from `useSchemeRules()`; never fall back to 2022
   for another scheme. A printed P/F decides pass; marks that contradict it are
   a `conflict`, not a failure (DEC-052).
+- **AI document reading (DEC-055):** server-side only, behind the session
+  guard; the model gets no tools and its reply is validated by the strict
+  `aiExtractionSchema` and gated by `recognize.ts` before anything returns.
+  The AI returns SOURCE values only; the device adds catalogue/calculated
+  values in the ordinary review; nothing is saved before confirmation. Never
+  log document bytes or model replies; never send real student documents to
+  a free-tier key.
 - **Provenance words** are fixed: "From the document", "Calculated (2022
   rules)", "GradTools catalogue", "Your own record". "Needs review" is only a
   real conflict or an unanswered question; unknown values are "incomplete".

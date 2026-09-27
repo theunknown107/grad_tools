@@ -624,3 +624,41 @@ line's first word by height instead of its leftmost, and glued the first
 course row onto the header. Fixed in `pdf-layout.ts` (leftmost word), pinned by
 `ocr-layout.test.ts` with the engine's own boxes; the harness now requires all
 four courses and zero wrong values.
+
+## 13.29 AI document reading (Gemini) — Phase 1 prototype
+
+**What leaves the device, and when.** Only when a signed-in student turns on
+"Read with AI" and adds a PDF or photo: that one file goes to the GradTools
+API (`POST /api/v1/me/documents/extract`), which sends it to the configured
+Gemini model and returns what the model read. With the switch off — the default
+— nothing leaves the device, exactly as before. Saved HTML pages never go to
+AI. The Gemini key lives only in the API's environment (`GEMINI_API_KEY`); no
+`VITE_` variable, bundle or APK holds it.
+
+**The model output is treated as untrusted input and cannot directly access
+application storage, credentials, tools, databases or arbitrary network
+operations.** This is the security claim, and the only one: no claim is made
+that the model cannot be misled by a document.
+
+| Boundary | Control |
+|---|---|
+| Who may ask | The existing Supabase session guard (`requireSession`), which runs before the body is read. Mounted only where the student cloud and a Gemini key are configured; there is no anonymous or development bypass |
+| What is sent | The file as inline data (no Files API object), after a signature check (PDF/JPEG/PNG/WebP, ≤ 8MB). The declared content type is ignored |
+| What the model can do | Nothing but answer: a fixed system instruction, one fixed text turn, a response JSON schema. No tools, functions, search, code execution or URL context. Document text is never placed in the instruction |
+| Prompt injection | The instruction tells the model the file is data; more importantly, obeying an injected instruction gains nothing — there is no capability to use and no free-text channel back to the app |
+| What comes back | Parsed as JSON and validated with the strict zod schema (`aiExtractionSchema`): any extra key, wrong type or missing field rejects the whole reply — it is never repaired. The schema has no field for grade points, SGPA, CGPA, percentages, pass/fail or catalogue values |
+| Is it a supported document | A deterministic gate (`recognize.ts`) — not the model — requires structure (course rows with marks, or sessions with day and times) plus evidence GradTools controls: a VTU heading, a match in the transcribed VTU college list, VTU-shaped course codes. Two kinds → RECOGNIZED, one → NEEDS_REVIEW, none → UNRECOGNIZED_DOCUMENT with no data returned. RECOGNIZED never means "official" |
+| Persistence | None on the server. The payload returns to the device, maps into the ordinary review (catalogue enrichment, deterministic rules, provenance labels, conflicts) and is saved only when the student confirms |
+| Logging | The request line only. No document bytes, model reply, error text from the provider, or key reaches a log — pinned by a test that captures the real logger. Provider errors map to fixed messages |
+| Buffers | The request buffer is zeroed when the request ends; base64 copies are released for collection |
+
+**Free tier.** Development may use the Gemini free tier with synthetic,
+anonymised or public documents only. It is not suitable for real student
+records: production use needs a paid Gemini configuration whose data-handling
+terms fit student records, or students stay in on-device mode.
+
+**Known limits.** The model can misread; the review exists for that, and every
+AI-read row says so. The gate cannot tell a genuine document from a
+well-made fake. A document can still bias the extraction (injected text that
+makes a value wrong); the strict schema, the gate and human review contain it,
+they do not prevent it.

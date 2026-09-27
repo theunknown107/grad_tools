@@ -17,6 +17,8 @@ import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { createStudentRouter } from '../routes/me.js';
+import { createDocumentRouter } from '../routes/documents.js';
+import { createGeminiReader, type DocumentReader } from '../documents/gemini.js';
 import { createAccountDeleter, createCloudClient } from '../db/cloud.js';
 import { startListening } from '../monitor/realtime.js';
 import { authConfigFor, createVerifier } from '../auth/session.js';
@@ -53,6 +55,8 @@ export function createApp(
     readonly sql: Sql;
     readonly verify: ReturnType<typeof createVerifier>;
     readonly deleteAccount?: (userId: string) => Promise<boolean>;
+    /** A stand-in for the Gemini reader, for tests. The route still needs GEMINI_API_KEY. */
+    readonly documentReader?: DocumentReader;
   },
 ): Express {
   const app = express();
@@ -224,6 +228,25 @@ export function createApp(
       : undefined);
 
   if (student !== undefined) {
+    /*
+     * AI document reading: signed-in only, and only where a Gemini key is
+     * configured. Without the key the route does not exist, and documents are
+     * read on the device only (docs/13 §13.29).
+     */
+    if (config.GEMINI_API_KEY !== undefined) {
+      app.use(
+        createDocumentRouter({
+          verify: student.verify,
+          reader:
+            cloud?.documentReader ??
+            createGeminiReader({
+              apiKey: config.GEMINI_API_KEY,
+              model: config.GEMINI_DOCUMENT_MODEL,
+            }),
+          model: config.GEMINI_DOCUMENT_MODEL,
+        }),
+      );
+    }
     app.use(
       createStudentRouter({
         cloud: student.sql,
