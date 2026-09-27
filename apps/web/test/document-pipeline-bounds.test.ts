@@ -23,7 +23,25 @@ const engine = {
   options: null as null | Record<string, unknown>,
   terminated: 0,
   release: null as null | ((worker: unknown) => void),
+  /** Raw Web Workers constructed, and how many of them were terminated. */
+  spawned: 0,
+  rawTerminated: 0,
 };
+
+/* jsdom has no Worker; this one counts what the engine would leave running. */
+class FakeRawWorker {
+  constructor(readonly url: string) {
+    engine.spawned += 1;
+  }
+  terminate(): void {
+    engine.rawTerminated += 1;
+  }
+}
+Object.defineProperty(globalThis, 'Worker', {
+  value: FakeRawWorker,
+  writable: true,
+  configurable: true,
+});
 
 function fakeWorker() {
   return {
@@ -42,6 +60,8 @@ function fakeWorker() {
 vi.mock('tesseract.js', () => ({
   createWorker: (_lang: string, _oem: number, options: Record<string, unknown>) => {
     engine.options = options;
+    // Like tesseract.js: the Worker exists before anything is awaited.
+    new Worker(String(options.workerPath));
     if (engine.modelMissing) {
       (options.errorHandler as (data: unknown) => void)(
         'Network error while fetching /ocr/eng.traineddata.gz. Response code: 404',
@@ -68,6 +88,8 @@ beforeEach(() => {
   engine.options = null;
   engine.terminated = 0;
   engine.release = null;
+  engine.spawned = 0;
+  engine.rawTerminated = 0;
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -95,6 +117,33 @@ describe('the OCR engine', () => {
     // The physical-device failure: no timer is advanced, so only the error path can end this.
     engine.modelMissing = true;
     await expect(startOcr()).rejects.toThrow(/could not start/);
+  });
+
+  it('terminates the worker of a start that failed, which tesseract.js never hands back', async () => {
+    engine.modelMissing = true;
+    await expect(startOcr()).rejects.toThrow(/could not start/);
+    expect(engine.spawned).toBe(1);
+    expect(engine.rawTerminated).toBe(1);
+    // And `Worker` itself is left exactly as it was.
+    expect(globalThis.Worker).toBe(FakeRawWorker);
+  });
+
+  it('terminates the worker of a start that timed out, without waiting for it', async () => {
+    vi.useFakeTimers();
+    engine.startHangs = true;
+    const starting = startOcr();
+    const outcome = expect(starting).rejects.toThrow(/did not start/);
+    await vi.advanceTimersByTimeAsync(ENGINE_START_MS);
+    await outcome;
+    expect(engine.rawTerminated).toBe(1);
+  });
+
+  it('starts exactly one worker, and ends it when the session closes', async () => {
+    const session = await startOcr();
+    expect(engine.spawned).toBe(1);
+    expect(engine.rawTerminated).toBe(0);
+    await session.close();
+    expect(engine.terminated).toBe(1);
   });
 
   it('asks for every asset from our own origin, and the model uncompressed', async () => {

@@ -37,6 +37,7 @@
 
 import { ocrPageToLines, type OcrPageResult, type OcrWord } from '../domain/ocr-layout.js';
 import { ENGINE_START_MS, RECOGNITION_MS, withDeadline } from './deadline.js';
+import { IMAGE_HEADER_BYTES, decodable, imageDimensions } from './image-header.js';
 
 /** Where `vendor-ocr-assets.mjs` puts the engine, on our own origin. */
 const ASSET_BASE = '/ocr';
@@ -95,6 +96,22 @@ export async function decodeImage(blob: Blob): Promise<DecodedImage> {
   if (blob.size > MAX_IMAGE_BYTES) {
     throw new OcrError(
       `That image is larger than ${String(MAX_IMAGE_BYTES / 1024 / 1024)}MB. A photo of a result card is normally a few megabytes.`,
+    );
+  }
+
+  /*
+   * THE SIZE IS CHECKED BEFORE THE DECODE, from the header. Decoding allocates
+   * width × height × 4 bytes whatever the file size, so a tiny file declaring
+   * enormous dimensions would exhaust memory inside the decoder, before any
+   * check on the decoded image could run (lib/image-header.ts).
+   */
+  const size = imageDimensions(
+    new Uint8Array(await blob.slice(0, IMAGE_HEADER_BYTES).arrayBuffer()),
+  );
+  if (size === null) throw new OcrError('This image could not be opened.');
+  if (!decodable(size)) {
+    throw new OcrError(
+      `This image is ${String(size.width)}×${String(size.height)} pixels — too large to read safely on this device. A photo at the camera's normal setting will work.`,
     );
   }
 
@@ -294,6 +311,27 @@ export interface OcrSession {
  * downloads the engine: it is a separate chunk, and the ~6.5MB of worker, core
  * and model is fetched on first use and then cached by the browser (§7).
  */
+/**
+ * Runs `create` and returns every Web Worker it constructed synchronously.
+ * `Worker` is restored before this returns, whatever `create` does.
+ */
+export function captureWorkers<T>(create: () => T): { result: T; workers: Worker[] } {
+  const workers: Worker[] = [];
+  const Original = globalThis.Worker;
+  if (typeof Original !== 'function') return { result: create(), workers };
+  globalThis.Worker = class extends Original {
+    constructor(...args: ConstructorParameters<typeof Worker>) {
+      super(...args);
+      workers.push(this);
+    }
+  };
+  try {
+    return { result: create(), workers };
+  } finally {
+    globalThis.Worker = Original;
+  }
+}
+
 export async function startOcr(): Promise<OcrSession> {
   const { createWorker } = await import('tesseract.js');
 
@@ -304,10 +342,6 @@ export async function startOcr(): Promise<OcrSession> {
    * swallowed and the promise never settles. The one place such a failure
    * surfaces is `errorHandler` — so during start-up it rejects the start.
    * (Its argument can carry engine output; it is never logged or shown.)
-   *
-   * ponytail: a start that failed this way never hands back its worker, so it
-   * cannot be terminated from here; each failed attempt can leave one idle
-   * worker until the page closes. Bounded by the student's retries.
    */
   let failStart: (error: OcrError) => void = () => undefined;
   const startFailed = new Promise<never>((_, reject) => {
@@ -315,28 +349,43 @@ export async function startOcr(): Promise<OcrSession> {
   });
   startFailed.catch(() => undefined);
 
-  const starting = createWorker('eng', 1, {
-    /*
-     * All three, explicitly. Any one left unset silently reaches jsDelivr,
-     * and the request would carry the fact that a student is reading a result
-     * card to a third party (§5).
-     */
-    workerPath: `${ASSET_BASE}/worker.min.js`,
-    corePath: ASSET_BASE,
-    langPath: ASSET_BASE,
-    // Uncompressed: an APK cannot hold a `.gz` asset under its own name
-    // (scripts/vendor-ocr-assets.mjs explains the device failure).
-    gzip: false,
-    // Nothing is logged: the callback would otherwise carry document text.
-    logger: () => undefined,
-    errorHandler: () => {
-      failStart(
-        new OcrError(
-          'The text recogniser could not start. You can still enter this result by hand.',
-        ),
-      );
-    },
-  });
+  /*
+   * WE OWN THE WORKER FROM THE MOMENT IT EXISTS.
+   *
+   * A start that fails never hands back the object that could terminate it,
+   * so a failed attempt used to leave an idle Web Worker — engine and model in
+   * memory — alive until the page closed. `createWorker` constructs its Worker
+   * synchronously, before its first `await` (tesseract.js 7,
+   * src/createWorker.js → spawnWorker), so it is captured at construction:
+   * `Worker` is swapped for a recording subclass for exactly the duration of
+   * that synchronous call and restored in `finally`. JavaScript is single-
+   * threaded, so nothing else can construct a Worker in that window.
+   */
+  const spawned = captureWorkers(() =>
+    createWorker('eng', 1, {
+      /*
+       * All three, explicitly. Any one left unset silently reaches jsDelivr,
+       * and the request would carry the fact that a student is reading a result
+       * card to a third party (§5).
+       */
+      workerPath: `${ASSET_BASE}/worker.min.js`,
+      corePath: ASSET_BASE,
+      langPath: ASSET_BASE,
+      // Uncompressed: an APK cannot hold a `.gz` asset under its own name
+      // (scripts/vendor-ocr-assets.mjs explains the device failure).
+      gzip: false,
+      // Nothing is logged: the callback would otherwise carry document text.
+      logger: () => undefined,
+      errorHandler: () => {
+        failStart(
+          new OcrError(
+            'The text recogniser could not start. You can still enter this result by hand.',
+          ),
+        );
+      },
+    }),
+  );
+  const starting = spawned.result;
 
   let worker: Awaited<typeof starting>;
   try {
@@ -349,7 +398,9 @@ export async function startOcr(): Promise<OcrSession> {
         ),
     );
   } catch (cause) {
-    // A start that finishes after we gave up must not leave its worker behind.
+    // Failed, or timed out: the worker is terminated now, not when the page closes.
+    for (const raw of spawned.workers) raw.terminate();
+    // And a start that finishes after we gave up must not leave its worker behind.
     void starting.then((late) => late.terminate()).catch(() => undefined);
     if (cause instanceof OcrError) throw cause;
     throw new OcrError(

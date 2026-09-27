@@ -145,9 +145,23 @@ export function itemsToLines(items: readonly PositionedText[], page = 1): Import
    * heading or a legend: each of those either starts the table's first column
    * or stands somewhere the row above has nothing.
    */
+  /*
+   * The LEFTMOST item, not the first. Rows are ordered by height, so `row[0]`
+   * is whichever word sits highest — on a PDF baseline that is also the
+   * leftmost, but OCR reports ink, and in a recognised header `Code` (no
+   * ascenders past its cap height) sat above `Subject`. The header's "first
+   * column" became its second, the course row beneath it — whose every cell
+   * stands under a header column — read as a wrapped continuation, and the
+   * card's first course was glued onto the header and lost.
+   */
+  const leftmost = (items: readonly PositionedText[]): PositionedText | undefined =>
+    items.reduce<PositionedText | undefined>(
+      (best, item) => (best === undefined || item.x < best.x ? item : best),
+      undefined,
+    );
   const continues = (line: readonly PositionedText[], above: readonly PositionedText[]) => {
-    const head = line[0];
-    const first = above[0];
+    const head = leftmost(line);
+    const first = leftmost(above);
     if (head === undefined || first === undefined) return false;
     const slack = medianHeight(above) * COLUMN_TOLERANCE;
     if (Math.abs(head.x - first.x) <= slack) return false;
