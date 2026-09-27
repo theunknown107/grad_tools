@@ -32,6 +32,13 @@ import { classifyDocument } from '../domain/document-type.js';
 import { parseTimetable } from '../domain/timetable-import.js';
 import { decodeImage, normalizeContrast, OcrError } from './ocr.js';
 import { extractPdfLines, renderPdfPage, PdfReadError, type PlacedText } from './pdf-text.js';
+import { PDF_READ_MS, withDeadline } from './deadline.js';
+
+/** pdf.js runs in a worker; one that dies silently must not hang the import. */
+const pdfTimedOut = (): Error =>
+  new PdfReadError(
+    'Reading this PDF took too long on this device. Try again, or try another copy of the document.',
+  );
 
 /** How the lines were obtained. Shown to the student, not just logged. */
 export type ReadSource = 'text' | 'ocr';
@@ -92,6 +99,30 @@ export function fileKind(file: File): 'pdf' | 'image' | 'html' | 'unsupported' {
     if (/\.html?$/.test(name)) return 'html';
   }
   return 'unsupported';
+}
+
+/**
+ * What a file IS, from its first bytes — not from its name or declared type.
+ *
+ * A name and a MIME type are claims the file makes about itself. Android's
+ * pickers routinely hand over a photo named only by a UUID, with or without a
+ * type, and a renamed file can claim anything. The signature decides which
+ * decoder runs; the decoder itself still refuses content it cannot parse.
+ * HTML has no signature, so a file is treated as HTML only when it says it is
+ * AND looks like no binary format — it is then parsed inert, never rendered.
+ */
+export async function sniffKind(file: File): Promise<ReturnType<typeof fileKind>> {
+  // The PDF header may sit anywhere in the first kilobyte (ISO 32000 §7.5.2).
+  const head = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
+  const starts = (...bytes: number[]): boolean => bytes.every((byte, at) => head[at] === byte);
+  const ascii = (from: number, text: string): boolean =>
+    [...text].every((char, at) => head[from + at] === char.charCodeAt(0));
+
+  if (new TextDecoder('latin1').decode(head).includes('%PDF-')) return 'pdf';
+  if (starts(0xff, 0xd8, 0xff)) return 'image';
+  if (starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image';
+  if (ascii(0, 'RIFF') && ascii(8, 'WEBP')) return 'image';
+  return fileKind(file) === 'html' ? 'html' : 'unsupported';
 }
 
 /**
@@ -297,7 +328,7 @@ export async function readPdfFile(
    * scan as unreadable. One copy of a few hundred kilobytes is the cheap side
    * of that trade.
    */
-  const extraction = await extractPdfLines(data.slice(0));
+  const extraction = await withDeadline(extractPdfLines(data.slice(0)), PDF_READ_MS, pdfTimedOut);
   if (extraction.hasTextLayer) {
     return {
       lines: extraction.lines,
@@ -329,7 +360,11 @@ export async function readPdfFile(
    */
   const pages: OcrPageResult[] = [];
   for (let number = 1; number <= extraction.pageCount; number += 1) {
-    const canvas = await renderPdfPage(data.slice(0), number);
+    const canvas = await withDeadline(
+      renderPdfPage(data.slice(0), number),
+      PDF_READ_MS,
+      pdfTimedOut,
+    );
     pages.push(await recognizeBothWays(canvas, number, recognize));
     // Releasing the backing store now, rather than waiting for the collector to
     // notice, is what keeps peak memory at one page instead of all of them.

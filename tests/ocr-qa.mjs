@@ -227,7 +227,7 @@ const run = async () => {
   page.on('pageerror', (e) => errors.push(String(e)));
 
   const openImport = async (target) => {
-    await target.goto(`${ORIGIN}/results`);
+    await target.goto(`${ORIGIN}/import`);
     await target.waitForTimeout(500);
     const opener = target.getByRole('button', { name: /add academic document/i });
     if (await opener.count()) await opener.first().click();
@@ -274,7 +274,7 @@ const run = async () => {
       const field = target.getByLabel(label).first();
       return (await field.count()) === 0 ? null : field.inputValue();
     };
-    const semesterHeading = await target.locator('#main').innerText();
+    const semesterHeading = await target.locator('#gt-main').innerText();
     const rows = [];
     for (let i = 1; i <= 12; i += 1) {
       const code = await value(new RegExp(`^Subject code ${String(i)}$`, 'i'));
@@ -341,7 +341,7 @@ const run = async () => {
   /* 2. The page says the figures came from a picture                     */
   /* -------------------------------------------------------------------- */
 
-  const reviewText = await page.locator('#main').innerText();
+  const reviewText = await page.locator('#gt-main').innerText();
   expect(
     /check every mark against the card/i.test(reviewText),
     'OCR: the review did not say the figures were read from a picture',
@@ -417,7 +417,7 @@ const run = async () => {
     .catch(() => undefined);
 
   const scannedRead = await readBack(page);
-  const scannedText = await page.locator('#main').innerText();
+  const scannedText = await page.locator('#gt-main').innerText();
   expect(
     scannedRead.rows.length === TRUTH.rows.length,
     `OCR: a scanned PDF yielded ${String(scannedRead.rows.length)} rows, expected ${String(TRUTH.rows.length)}`,
@@ -437,7 +437,7 @@ const run = async () => {
 
   await openImport(page);
   await feedImage(page, { name: 'blurred.png', blur: 6, scale: 1 });
-  const blurredText = await page.locator('#main').innerText();
+  const blurredText = await page.locator('#gt-main').innerText();
   expect(
     /could not be made out|Failed|rows read from a picture/i.test(blurredText),
     'OCR: a heavily blurred card produced neither a reading nor a refusal',
@@ -456,7 +456,7 @@ const run = async () => {
   await feedImage(page, { name: 'tiny.png', scale: 0.3 });
   expect(
     /cannot be read reliably|could not be made out|Failed/i.test(
-      await page.locator('#main').innerText(),
+      await page.locator('#gt-main').innerText(),
     ),
     'OCR: a card too small to read was not refused',
   );

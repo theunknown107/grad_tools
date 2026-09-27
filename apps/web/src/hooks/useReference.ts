@@ -13,7 +13,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { API_ROUTES, collegeSchema, listResponseSchema } from '@gradtools/shared-types';
 import { VTU_COLLEGES } from '@gradtools/vtu-catalogue/data';
-import { ReferenceError, apiBaseUrl, apiReferenceRepository } from '../repositories/reference.js';
+import {
+  ReferenceError,
+  apiBaseUrl,
+  apiConfigured,
+  apiReferenceRepository,
+} from '../repositories/reference.js';
 
 export type AsyncState<T> =
   | { readonly status: 'loading' }
@@ -183,24 +188,27 @@ export function overlayColleges(
 export function useColleges(): CollegesResult {
   const { state } = useAsync(
     (signal) =>
-      fetch(`${apiBaseUrl()}${API_ROUTES.colleges}`, {
-        headers: { Accept: 'application/json' },
-        signal,
-      })
-        .then((response) => (response.ok ? response.json() : null))
-        .then((body: unknown) => {
-          const parsed = listResponseSchema(collegeSchema).safeParse(body);
-          return parsed.success
-            ? parsed.data.data.map<College>((college) => ({
-                id: college.id,
-                catalogueId: college.catalogueId,
-                name: college.name,
-                code: college.code,
-                region: null,
-                reviewed: true,
-              }))
-            : [];
-        }),
+      // No server: the bundled list is the whole answer, and no request is sent.
+      !apiConfigured()
+        ? Promise.resolve([])
+        : fetch(`${apiBaseUrl()}${API_ROUTES.colleges}`, {
+            headers: { Accept: 'application/json' },
+            signal,
+          })
+            .then((response) => (response.ok ? response.json() : null))
+            .then((body: unknown) => {
+              const parsed = listResponseSchema(collegeSchema).safeParse(body);
+              return parsed.success
+                ? parsed.data.data.map<College>((college) => ({
+                    id: college.id,
+                    catalogueId: college.catalogueId,
+                    name: college.name,
+                    code: college.code,
+                    region: null,
+                    reviewed: true,
+                  }))
+                : [];
+            }),
     [],
   );
   if (state.status === 'loading') return { items: [], loading: true, error: null };

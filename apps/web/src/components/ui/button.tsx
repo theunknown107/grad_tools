@@ -98,8 +98,13 @@ export const iconButtonVariants = cva(
         true: 'bg-accent-weak text-accent-ink hover:bg-accent-weak hover:text-accent-ink',
         false: '',
       },
+      /** A floating control on the page itself (the top of the app has no bar). */
+      bubble: {
+        true: 'gt-bubble size-11 text-ink [&_svg:not([class*=size-])]:size-5',
+        false: '',
+      },
     },
-    defaultVariants: { size: 'md', active: false },
+    defaultVariants: { size: 'md', active: false, bubble: false },
   },
 );
 
@@ -111,7 +116,7 @@ export interface IconButtonProps
 }
 
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { label, className, size, active, asChild = false, type, ...props },
+  { label, className, size, active, bubble, asChild = false, type, ...props },
   ref,
 ) {
   const Comp = asChild ? Slot : 'button';
@@ -120,7 +125,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       ref={ref}
       aria-label={label}
       title={label}
-      className={cn(iconButtonVariants({ size, active }), className)}
+      className={cn(iconButtonVariants({ size, active, bubble }), className)}
       {...(asChild ? {} : { type: type ?? 'button' })}
       {...props}
     />

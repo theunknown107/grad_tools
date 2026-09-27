@@ -37,9 +37,15 @@ export function FileDropzone({
   const depth = useRef(0);
   const inert = disabled || busy;
 
+  /*
+   * Refused here only when the file DECLARES a type we do not read. A file with
+   * no type at all — Android pickers hand over photos named by a UUID — goes
+   * on, and its own first bytes decide (`sniffKind`).
+   */
+  const refused = (file: File): boolean => file.type !== '' && fileKind(file) === 'unsupported';
   const accept = (files: readonly File[]): void => {
-    const good = files.filter((file) => fileKind(file) !== 'unsupported');
-    setRejected(files.filter((file) => fileKind(file) === 'unsupported').map((file) => file.name));
+    const good = files.filter((file) => !refused(file));
+    setRejected(files.filter(refused).map((file) => file.name));
     if (good.length > 0) onFiles(good);
   };
 

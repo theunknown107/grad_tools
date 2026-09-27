@@ -17,10 +17,13 @@ export function GradToolsLogo({
   size = 32,
   label,
   className,
+  round = false,
 }: {
   readonly size?: number;
   readonly label?: string;
   readonly className?: string;
+  /** The header's logo bubble; everywhere else the tile keeps its corners. */
+  readonly round?: boolean;
 }) {
   return (
     <span
@@ -29,10 +32,12 @@ export function GradToolsLogo({
       aria-hidden={label === undefined ? true : undefined}
       data-testid="gradtools-logo"
       className={cn(
-        'inline-grid shrink-0 place-items-center bg-brand-surface text-brand-mark ring-1 ring-line ring-inset [&>svg]:size-[78%]',
+        'inline-grid shrink-0 place-items-center bg-brand-surface text-brand-mark ring-1 ring-line ring-inset',
+        // A circle is narrower at its corners; the cap's tips need the room.
+        round ? '[&>svg]:size-[68%]' : '[&>svg]:size-[78%]',
         className,
       )}
-      style={{ width: size, height: size, borderRadius: size / 4 }}
+      style={{ width: size, height: size, borderRadius: round ? size / 2 : size / 4 }}
       dangerouslySetInnerHTML={{ __html: mark }}
     />
   );

@@ -238,6 +238,7 @@ export function BranchField({
   readonly onChange: (value: string) => void;
 }) {
   const branches = useBranches();
+  const unconnected = branches.state.status === 'error' && branches.state.kind === 'unconfigured';
   if (branches.state.status === 'loading') {
     return (
       <Field label="Branch" hint="Loading branches…">
@@ -272,9 +273,11 @@ export function BranchField({
       <Field
         label="Branch"
         hint={
-          branches.state.status === 'error'
-            ? 'Branches could not be loaded; type yours instead.'
-            : 'No branches available from the server; type yours instead.'
+          unconnected
+            ? 'Not connected to a GradTools server, so there is no branch list. Type yours.'
+            : branches.state.status === 'error'
+              ? 'Branches could not be loaded; type yours instead.'
+              : 'No branches available from the server; type yours instead.'
         }
       >
         <Input
@@ -283,11 +286,14 @@ export function BranchField({
           onChange={(event) => onChange(event.target.value)}
         />
       </Field>
-      <div>
-        <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={branches.retry}>
-          Look for branches again
-        </Button>
-      </div>
+      {/* A retry can only help when there is a server to retry. */}
+      {!unconnected && (
+        <div>
+          <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={branches.retry}>
+            Look for branches again
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -299,9 +305,11 @@ export function SchemeField() {
     <Field
       label="Scheme"
       hint={
-        schemes.state.status === 'error'
-          ? 'Schemes could not be loaded from the server.'
-          : 'Only verified schemes are offered.'
+        schemes.state.status === 'error' && schemes.state.kind === 'unconfigured'
+          ? 'The scheme built into the app. Not connected to a GradTools server.'
+          : schemes.state.status === 'error'
+            ? 'Schemes could not be loaded from the server.'
+            : 'Only verified schemes are offered.'
       }
     >
       <Select

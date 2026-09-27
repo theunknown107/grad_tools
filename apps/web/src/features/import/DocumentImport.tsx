@@ -15,7 +15,7 @@
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import { parseScheme, schemePages, type ParsedScheme } from '@gradtools/vtu-catalogue';
 import { coursesForScheme } from '@gradtools/vtu-catalogue/data';
-import { FileText, ImageIcon, X } from 'lucide-react';
+import { FileText, ImageIcon, RotateCcw, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileDropzone } from '../../components/forms/FileDropzone.js';
 import { ImportStepper, type ImportStep } from '../../components/forms/ImportStepper.js';
@@ -60,11 +60,11 @@ import { newId } from '../../lib/id.js';
 import { OcrError, startOcr, type OcrSession } from '../../lib/ocr.js';
 import { PdfReadError } from '../../lib/pdf-text.js';
 import {
-  fileKind,
   HtmlReadError,
   readHtmlFile,
   readImageFile,
   readPdfFile,
+  sniffKind,
   type FileReading,
   type Recognize,
 } from '../../lib/result-file.js';
@@ -87,13 +87,23 @@ export interface ImportExpectation {
 
 const NO_EXPECTATION: ImportExpectation = { semester: null, session: null };
 
+/**
+ * Where one file is. Every path ends in `read` or `failed` — a cancelled file
+ * is `failed` with a reason — and nothing waits without a bound (lib/deadline).
+ */
+type FileStatus = 'reading' | 'queued' | 'preparing' | 'recognising' | 'read' | 'failed';
+
+const WORKING: ReadonlySet<FileStatus> = new Set(['reading', 'queued', 'preparing', 'recognising']);
+
 interface FileState {
   readonly id: string;
   readonly fileName: string;
   readonly bytes: number;
   readonly image: boolean;
-  readonly status: 'reading' | 'queued' | 'recognising' | 'read' | 'failed';
+  readonly status: FileStatus;
   readonly error: string | null;
+  /** Kept so a failed file can be tried again without choosing it again. */
+  readonly source: File;
   readonly file: ImportedFile | null;
   readonly calendar: ParsedCalendar | null;
   readonly timetable: ParsedTimetable | null;
@@ -111,7 +121,9 @@ function sizeOf(bytes: number): string {
 
 function fileMeta(entry: FileState): string {
   if (entry.status === 'failed') return entry.error ?? 'Could not be read';
-  if (entry.status === 'queued') return 'Waiting to be read…';
+  if (entry.status === 'queued') return 'Waiting for the text recogniser…';
+  if (entry.status === 'preparing')
+    return 'Preparing the text recogniser — the first time takes longer on a phone…';
   if (entry.status === 'recognising') return 'Reading the text in this picture…';
   if (entry.status === 'reading') return 'Checking the file type and structure…';
   const kind =
@@ -181,25 +193,36 @@ export function DocumentImport({
   const [files, setFiles] = useState<readonly FileState[]>([]);
   const [saved, setSaved] = useState<readonly number[]>([]);
   const session = useRef<OcrSession | null>(null);
-  const cancelled = useRef(false);
+  /** Bumped by Cancel: a batch from an older generation may change nothing. */
+  const generation = useRef(0);
+  /** Batches still running, so the engine closes only when the last one ends. */
+  const running = useRef(0);
+
+  const stopEngine = (): void => {
+    void session.current?.close();
+    session.current = null;
+  };
 
   useEffect(
     () => () => {
-      cancelled.current = true;
-      void session.current?.close();
-      session.current = null;
+      generation.current += 1;
+      stopEngine();
     },
     [],
   );
 
   const patch = (id: string, changes: Partial<FileState>): void => {
     setFiles((current) =>
-      current.map((entry) => (entry.id === id ? { ...entry, ...changes } : entry)),
+      current.map((entry) =>
+        // A file already settled (by Cancel) is not reopened by a late result.
+        entry.id === id && WORKING.has(entry.status) ? { ...entry, ...changes } : entry,
+      ),
     );
   };
 
+  /* One engine for everything in flight; a closed or timed-out one is replaced. */
   const recognizer = async (): Promise<Recognize> => {
-    if (session.current === null) session.current = await startOcr();
+    if (session.current === null || session.current.closed) session.current = await startOcr();
     const live = session.current;
     return (canvas, page, options) => live.recognize(canvas, page, options);
   };
@@ -263,15 +286,17 @@ export function DocumentImport({
   };
 
   const read = async (chosen: readonly File[]): Promise<void> => {
-    cancelled.current = false;
+    const batch = generation.current;
+    const live = (): boolean => generation.current === batch;
     const accepted = chosen.slice(0, MAX_FILES);
     const pending: FileState[] = accepted.map((file) => ({
       id: newId(),
       fileName: file.name,
       bytes: file.size,
-      image: fileKind(file) === 'image',
-      status: fileKind(file) === 'image' ? 'queued' : 'reading',
+      image: file.type.startsWith('image/'),
+      status: 'reading',
       error: null,
+      source: file,
       file: null,
       calendar: null,
       timetable: null,
@@ -281,62 +306,74 @@ export function DocumentImport({
       reading: null,
     }));
     setFiles((current) => [...current, ...pending]);
+    running.current += 1;
+    try {
+      await readBatch(accepted, pending, live);
+    } finally {
+      running.current -= 1;
+      // Nothing is read in the background: the engine goes when the work does.
+      if (running.current === 0) stopEngine();
+    }
+  };
 
+  const readBatch = async (
+    accepted: readonly File[],
+    pending: readonly FileState[],
+    live: () => boolean,
+  ): Promise<void> => {
     const queue: { id: string; file: File; kind: 'image' | 'pdf'; data?: ArrayBuffer }[] = [];
     await Promise.all(
       accepted.map(async (file, index) => {
         const entry = pending[index];
         if (entry === undefined) return;
-        const kind = fileKind(file);
-        if (kind === 'unsupported') {
-          patch(entry.id, {
-            status: 'failed',
-            error:
-              'GradTools reads PDFs, photos (JPG, PNG) and result pages saved as HTML. This is none of these.',
-          });
-          return;
-        }
-        if (kind === 'html') {
-          try {
-            store(entry.id, file.name, await readHtmlFile(file));
-          } catch (cause) {
-            fail(entry.id, cause);
-          }
-          return;
-        }
-        if (kind === 'image') {
-          queue.push({ id: entry.id, file, kind });
-          return;
-        }
-        const data = await file.arrayBuffer();
+        /*
+         * EVERYTHING inside the try. Reading the bytes can fail too — an Android
+         * content URI can stop being readable — and a throw that escaped here
+         * used to reject the whole batch and leave every file in it spinning.
+         */
         try {
-          store(entry.id, file.name, await readPdfFile(data, null));
-        } catch (cause) {
-          if (cause instanceof PdfReadError && cause.message.includes('no selectable text')) {
-            queue.push({ id: entry.id, file, kind, data });
-            patch(entry.id, { status: 'queued' });
+          const kind = await sniffKind(file);
+          if (kind === 'unsupported') {
+            patch(entry.id, {
+              status: 'failed',
+              error:
+                'GradTools reads PDFs, photos (JPG, PNG, WebP) and result pages saved as HTML. This file is none of these.',
+            });
             return;
           }
+          if (kind === 'html') {
+            store(entry.id, file.name, await readHtmlFile(file));
+            return;
+          }
+          if (kind === 'image') {
+            queue.push({ id: entry.id, file, kind });
+            patch(entry.id, { status: 'queued', image: true });
+            return;
+          }
+          const data = await file.arrayBuffer();
+          try {
+            store(entry.id, file.name, await readPdfFile(data, null));
+          } catch (cause) {
+            if (cause instanceof PdfReadError && cause.message.includes('no selectable text')) {
+              queue.push({ id: entry.id, file, kind, data });
+              patch(entry.id, { status: 'queued' });
+              return;
+            }
+            throw cause;
+          }
+        } catch (cause) {
           fail(entry.id, cause);
         }
       }),
     );
-    if (queue.length === 0) return;
+    if (queue.length === 0 || !live()) return;
 
-    let recognize: Recognize;
-    try {
-      recognize = await recognizer();
-    } catch (cause) {
-      for (const item of queue) fail(item.id, cause);
-      return;
-    }
+    for (const item of queue) patch(item.id, { status: 'preparing' });
     for (const item of queue) {
-      if (cancelled.current) {
-        patch(item.id, { status: 'failed', error: 'Cancelled before this file was read.' });
-        continue;
-      }
-      patch(item.id, { status: 'recognising' });
+      if (!live()) return;
       try {
+        const recognize = await recognizer();
+        patch(item.id, { status: 'recognising' });
         const reading =
           item.kind === 'image'
             ? await readImageFile(item.file, recognize)
@@ -348,14 +385,29 @@ export function DocumentImport({
     }
   };
 
+  /** Stops the work in place. What was read stays; the rest can be retried. */
+  const cancel = (): void => {
+    generation.current += 1;
+    stopEngine();
+    setFiles((current) =>
+      current.map((entry) =>
+        WORKING.has(entry.status)
+          ? { ...entry, status: 'failed', error: 'Cancelled before this file was read.' }
+          : entry,
+      ),
+    );
+  };
+
+  const retry = (entry: FileState): void => {
+    setFiles((current) => current.filter((candidate) => candidate.id !== entry.id));
+    void read([entry.source]);
+  };
+
   const groups: readonly SemesterGroup[] = groupBySemester(
     files.flatMap((entry) => (entry.file === null ? [] : [entry.file])),
     [...results.map((result) => result.semester), ...saved],
   );
-  const busy = files.some(
-    (entry) =>
-      entry.status === 'reading' || entry.status === 'queued' || entry.status === 'recognising',
-  );
+  const busy = files.some((entry) => WORKING.has(entry.status));
   const anyReview = files.some(
     (entry) =>
       entry.calendar !== null ||
@@ -368,7 +420,7 @@ export function DocumentImport({
       ? 'Confirm'
       : files.some((entry) => entry.status === 'recognising')
         ? 'Parse'
-        : files.some((entry) => entry.status === 'reading' || entry.status === 'queued')
+        : busy
           ? 'Validate'
           : groups.length > 0 || anyReview
             ? 'Review'
@@ -419,10 +471,7 @@ export function DocumentImport({
           <h3 className="sr-only">Files you added</h3>
           <CardRows aria-live="polite">
             {files.map((entry) => {
-              const working =
-                entry.status === 'reading' ||
-                entry.status === 'queued' ||
-                entry.status === 'recognising';
+              const working = WORKING.has(entry.status);
               return (
                 <Row key={entry.id}>
                   <IconTile
@@ -459,6 +508,18 @@ export function DocumentImport({
                         ? 'Read'
                         : 'Processing'}
                   </Badge>
+                  {entry.status === 'failed' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Try ${entry.fileName} again`}
+                      onClick={() => {
+                        retry(entry);
+                      }}
+                    >
+                      <RotateCcw className="size-4" />
+                    </Button>
+                  )}
                   {(entry.status === 'read' || entry.status === 'failed') && (
                     <Button
                       size="sm"
@@ -559,16 +620,18 @@ export function DocumentImport({
 
       {files.length > 0 && (
         <div className="flex justify-end">
-          <Button
-            onClick={() => {
-              cancelled.current = true;
-              void session.current?.close();
-              session.current = null;
-              onDone();
-            }}
-          >
-            {busy ? 'Cancel' : 'Done'}
-          </Button>
+          {busy ? (
+            <Button onClick={cancel}>Cancel</Button>
+          ) : (
+            <Button
+              onClick={() => {
+                stopEngine();
+                onDone();
+              }}
+            >
+              Done
+            </Button>
+          )}
         </div>
       )}
     </div>

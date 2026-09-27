@@ -53,9 +53,9 @@ export interface ReferenceRepository {
  * button (docs/04 §4.6).
  */
 export class ReferenceError extends Error {
-  readonly kind: 'network' | 'server' | 'contract';
+  readonly kind: 'network' | 'server' | 'contract' | 'unconfigured';
 
-  constructor(kind: 'network' | 'server' | 'contract', message: string) {
+  constructor(kind: 'network' | 'server' | 'contract' | 'unconfigured', message: string) {
     super(message);
     this.name = 'ReferenceError';
     this.kind = kind;
@@ -80,7 +80,29 @@ export function apiBaseUrl(): string {
   return import.meta.env.DEV ? 'http://localhost:3001' : '';
 }
 
+/**
+ * Whether this build has a GradTools server to talk to at all.
+ *
+ * A web build served next to its API uses its own origin, which is a real
+ * server. The Android app's own origin is `https://localhost` — the phone —
+ * and its local asset server answers an unknown path with the app's
+ * index.html and a 200, so a request there "succeeds" with a web page and
+ * the screen used to report that the server had failed. It had not: no server
+ * was configured. That is a different fact and gets different words.
+ */
+export function apiConfigured(): boolean {
+  const configured: unknown = import.meta.env.VITE_API_URL;
+  if (typeof configured === 'string' && configured !== '') return true;
+  const native = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return native?.isNativePlatform?.() !== true;
+}
+
+export const NOT_CONNECTED = 'This copy of GradTools is not connected to a GradTools server.';
+
 async function fetchJson(path: string, signal?: AbortSignal): Promise<unknown> {
+  // Nothing to reach: say so, and send no request that could only mislead.
+  if (!apiConfigured()) throw new ReferenceError('unconfigured', NOT_CONNECTED);
+
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl()}${path}`, {
