@@ -36,7 +36,8 @@ function course(
     internal: marks.internal,
     external: marks.external,
     total: marks.internal + marks.external,
-    resultStatus: 'P',
+    // Not printed, so the marks decide pass or fail (a printed P or F would).
+    resultStatus: null,
     credits,
     gradeLetter: marks.gradeLetter ?? null,
     hasSee: marks.hasSee ?? true,

@@ -7,6 +7,7 @@
  * notices. Where a figure is not known the tile says so, with the reason.
  */
 
+import { useSchemeRules } from '../../hooks/useSchemeRules.js';
 import { calculateAttendance, vtu2022RuleSet } from '@gradtools/academic-rules';
 import {
   Activity,
@@ -116,6 +117,7 @@ function standingSentence(stats: AcademicStatistics, semester: number | null): s
 
 export function DashboardPage() {
   const { profile } = useProfile();
+  const schemeRules = useSchemeRules();
   const { items: attendance, loading: attendanceLoading } = useAttendance();
   const { loading: resultsLoading } = useResults();
   const { items: timetable, loading: timetableLoading } = useTimetable();
@@ -162,7 +164,7 @@ export function DashboardPage() {
         </Callout>
       )}
 
-      <Standing stats={statistics} attendance={thisSemester} />
+      <Standing stats={statistics} attendance={thisSemester} rulesKnown={schemeRules.builtIn} />
 
       {(statistics.semestersGraded.value ?? 0) >= 2 && (
         <section aria-label="Trends" className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
@@ -193,6 +195,7 @@ export function DashboardPage() {
 
       <section aria-label="Today" className="grid items-start gap-6 lg:grid-cols-3">
         <Attention
+          rulesKnown={schemeRules.builtIn}
           attendance={thisSemester}
           subjects={semesterSubjects}
           backlogs={backlogs}
@@ -347,9 +350,12 @@ function Hero({
 function Standing({
   stats,
   attendance,
+  rulesKnown,
 }: {
   readonly stats: AcademicStatistics;
   readonly attendance: readonly AttendanceRecord[];
+  /** False on a scheme without verified rules: no threshold is judged. */
+  readonly rulesKnown: boolean;
 }) {
   /*
    * The CGPA is the hero's figure; repeating it here would say it twice. This
@@ -362,7 +368,8 @@ function Standing({
 
   const attended = attendance.reduce((total, record) => total + record.attended, 0);
   const conducted = attendance.reduce((total, record) => total + record.conducted, 0);
-  const overall = conducted > 0 ? calculateAttendance(attended, conducted, ruleSet) : null;
+  const overall =
+    rulesKnown && conducted > 0 ? calculateAttendance(attended, conducted, ruleSet) : null;
   const short = attendance.filter((record) => {
     const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
     return verdict.ok && verdict.value.status !== 'safe';
@@ -452,7 +459,9 @@ function Standing({
               ? short > 0
                 ? `${String(short)} below ${String(ruleSet.attendanceRequiredPct)}%`
                 : `Threshold ${String(ruleSet.attendanceRequiredPct)}%`
-              : 'No classes have been marked for this semester yet.'
+              : rulesKnown
+                ? 'No classes have been marked for this semester yet.'
+                : 'Not calculated — your scheme’s attendance rules are not in GradTools yet.'
           }
         />
       </MetricStrip>
@@ -494,14 +503,17 @@ function Attention({
   subjects,
   backlogs,
   clear,
+  rulesKnown,
 }: {
+  /** False on a scheme without verified rules: no shortfall is claimed. */
+  readonly rulesKnown: boolean;
   readonly attendance: readonly AttendanceRecord[];
   readonly subjects: readonly SemesterSubject[];
   readonly backlogs: readonly BacklogRecord[];
   /** `hasNoBacklogs`: whether "no backlog is outstanding" may be said at all. */
   readonly clear: boolean;
 }) {
-  const short = attendance
+  const short = (rulesKnown ? attendance : [])
     .flatMap((record) => {
       const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
       if (!verdict.ok || verdict.value.status === 'safe') return [];

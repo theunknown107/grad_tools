@@ -20,7 +20,8 @@ export function ThemeToggle({ bubble = false }: { readonly bubble?: boolean }) {
       aria-pressed={dark}
       onClick={toggleAppearance}
       bubble={bubble}
-      className="relative overflow-hidden"
+      // The bubble's touch ring lives outside its box, so it must not be clipped.
+      className={bubble ? undefined : 'relative overflow-hidden'}
     >
       <Sun
         aria-hidden="true"

@@ -2672,3 +2672,62 @@ phone with its password). Not verified on a device. See docs/48.
 `capacitor.config.json` uses `app.gradtools` as a placeholder. An application id
 is permanent once published to a store; it should be a reverse domain the
 project controls. Decide before any store upload.
+
+## Part P — Academic model and schemes (physical-device follow-up)
+
+### DEC-052 — A printed P or F decides; marks that disagree are a conflict
+
+`evaluateResultSubject` never read the printed result, so a row printed P with
+4 + 36 read against a printed 80 (an OCR digit loss) fell through to "this
+course did not pass" (OQ-054 text) — a validation failure reported as a failed
+course. Now `printedPass` reads P/F only; when printed, it decides `backlog`,
+and marks that contradict it set `statusConflict`, with no grade worked out.
+`enrichRow` returns `conflict` — marks that do not add up, a status the marks
+contradict, a printed letter the marks disagree with — and "needs review"
+means only that (or the final-exam question). Missing credits or a missing
+letter are "incomplete", not review. Any other printed status (A, W, X, NE)
+decides nothing. OQ-054 stays open for genuinely failed courses.
+
+Provenance words: "From the document", "Calculated (2022 rules)", "GradTools
+catalogue" (it is our transcription; BCS401's row is the CSBS scheme table's),
+"Your own record". Credits appear once, in the field, with that source; a
+typed credit is saved `manual` even on a catalogue-matched row. A catalogue
+match with no values in it is not `catalogue` provenance.
+
+### DEC-053 — Schemes are recorded freely and calculated only with verified rules
+
+`VTU_SCHEMES` (academic-rules/src/schemes.ts) lists the B.E./B.Tech regulations
+VTU publishes — 2025, 2022, 2021, 2018, 2017, 2015-16, 2010 — each with its
+official regulation URL. There is no separate 2014 regulation (VTU groups "2010
+& 2014" syllabi), so none is listed. `schemeSupport` is DERIVED: `supported`
+exactly when a verified active rule set exists (today: 2022 only),
+`recognised` otherwise. The profile records any listed scheme; `withChanges`
+no longer resets it to 2022. Attendance and SGPA & CGPA show a notice instead
+of 2022-rule figures for a recognised scheme; the dashboard judges no
+attendance threshold; results are filed under the profile's scheme and pinned
+to a rule set only when one exists (`ruleSetId: null` otherwise); grade letters
+are typed as printed. No persisted type changed: `schemeId` was always a free
+string (Supabase `text`, 1–40), every existing profile is `vtu-2022`.
+
+Import compares each course code's scheme family (`scheme-compat.ts`) with the
+profile: same → silent; VTU notification 4718 (2021→2022, semester 1–4
+backlogs) or 1812 (2010/2015/2017→2018) → an equivalence note; anything else →
+`scheme_mismatch`. Codes are never re-mapped and the profile is never changed
+from a card. The code grammar now reads the older schemes' year-prefixed codes
+(10/15/17/18/21), which were dropped before. The CBCS/Non-CBCS label of a
+result session is a portal partition, never mapped to a scheme.
+
+### OQ-066 — The `21…` code prefix for the 2021 scheme · **open**
+
+Follows the 18/17/15/10 convention but has not been checked against a real
+2021 grade card. Until it is, a wrong guess costs only a warning.
+
+### DEC-054 — College and branch are searched, not scrolled
+
+Both are comboboxes (Radix Popover + cmdk, deterministic ranking in
+`college-search.ts`: exact name, compacted-name prefix — "SG" finds "S G
+BALEKUNDRI…" —, exact VTU code, word prefixes, substring). The stored value is
+still the catalogue's own name (OQ-063 unchanged: no persisted id added). The
+branch list is the bundled 2022 transcription, offered only to a 2022 profile;
+no request is needed for either.
+

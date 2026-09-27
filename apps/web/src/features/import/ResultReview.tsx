@@ -8,7 +8,8 @@
  * nothing is saved until the student confirms.
  */
 
-import { vtu2022RuleSet } from '@gradtools/academic-rules';
+import { useSchemeRules } from '../../hooks/useSchemeRules.js';
+import type { RuleSet } from '@gradtools/academic-rules';
 import {
   AlertTriangle,
   ArrowRight,
@@ -17,7 +18,7 @@ import {
   FileCheck2,
   Trash2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -50,24 +51,27 @@ import { newId, nowIso } from '../../lib/id.js';
 import { SEMESTER_OPTIONS } from './CalendarReview.js';
 import { Recorded, ReviewCard, SaveFooter, saveFailure, type SaveState } from './ReviewCard.js';
 
-const ruleSet = vtu2022RuleSet;
-
 /** Recorded on each imported result, so a later parser fix can tell which readings predate it. */
 const PARSER_VERSION = 'vtu-result-card/1';
 
 const sameUsn = (a: string, b: string): boolean =>
   a.trim().toUpperCase() === b.trim().toUpperCase();
 
-const GRADE_OPTIONS = [
-  { value: '', label: '—' },
-  ...[...ruleSet.gradeBands, ...ruleSet.specialGrades].map((grade) => ({
-    value: grade.letter,
-    label: grade.letter,
-  })),
-];
+function gradeOptionsFor(rules: RuleSet) {
+  return [
+    { value: '', label: 'Not printed' },
+    ...[...rules.gradeBands, ...rules.specialGrades].map((grade) => ({
+      value: grade.letter,
+      label: grade.letter,
+    })),
+  ];
+}
+/* P and F say what they mean; the other statuses stay as printed (their
+   meaning is scheme-specific and is not guessed here). */
+const STATUS_MEANING: Readonly<Record<string, string>> = { P: 'P — Pass', F: 'F — Fail' };
 const STATUS_OPTIONS = [
-  { value: '', label: '—' },
-  ...RESULT_STATUSES.map((status) => ({ value: status, label: status })),
+  { value: '', label: 'Not printed' },
+  ...RESULT_STATUSES.map((status) => ({ value: status, label: STATUS_MEANING[status] ?? status })),
 ];
 // Radix Select cannot hold '' as an item value; these map it to a sentinel.
 const NONE = '__none__';
@@ -174,6 +178,8 @@ export function ResultReview({
   readonly onSave: (result: SemesterResult) => void | Promise<void>;
   readonly onDiscard: () => void;
 }) {
+  const schemeRules = useSchemeRules();
+  const activeRules = schemeRules.ruleSet;
   const first = group.files[0];
   const { items: savedResults } = useResults();
   const { profile } = useProfile();
@@ -210,18 +216,22 @@ export function ResultReview({
 
   const subjectFrom = (row: DraftRow): ResultSubject => {
     const base = rowToSubject(parsedFrom(row), row.id, catalogueFor(row.subjectCode));
+    const typed = row.credits !== '';
     return {
       ...base,
       gradeLetter: row.gradeLetter === '' ? base.gradeLetter : row.gradeLetter,
-      credits:
-        row.credits === ''
-          ? (base.credits ?? rememberedCredits(row.subjectCode))
-          : Number(row.credits),
+      credits: typed ? Number(row.credits) : (base.credits ?? rememberedCredits(row.subjectCode)),
       hasSee: row.hasSee === '' ? base.hasSee : row.hasSee === 'yes',
+      /*
+       * A credit the student TYPED is theirs, even on a row the catalogue
+       * matched. Left as `catalogue`, it was shown as "catalogue" and promoted
+       * into reference credits on other screens (§14).
+       */
+      ...(typed ? { provenance: 'manual' as const } : {}),
     };
   };
   const enrichmentFor = (row: DraftRow): RowEnrichment =>
-    enrichRow(subjectFrom(row), resolveSubject(subjectIndex, row.subjectCode), ruleSet);
+    enrichRow(subjectFrom(row), resolveSubject(subjectIndex, row.subjectCode), activeRules);
 
   /*
    * A page that printed a semester outside 1–8 is refused, not re-filed: picking
@@ -247,12 +257,36 @@ export function ResultReview({
       row,
       enrichment,
       needsAnswer,
-      unresolved:
-        enrichment.credits.value === null || enrichment.grade.value === null || needsAnswer,
+      /*
+       * TWO DIFFERENT THINGS, NEVER MERGED. "Needs review" is a contradiction
+       * or a question only the student can answer. A value nobody knows yet —
+       * credits, a letter the card does not print — is merely incomplete: it
+       * keeps the row out of SGPA and is said plainly, not as a warning.
+       */
+      unresolved: enrichment.conflict !== null || needsAnswer,
+      incomplete: enrichment.credits.value === null || enrichment.grade.value === null,
     };
   });
+  /*
+   * A row with a conflict OPENS ITSELF, once, and then stays open until the
+   * student closes it. Tying `open` to the conflict directly closed the row the
+   * moment an edit cleared it — unmounting the field being typed into.
+   */
+  const conflicted = enriched
+    .filter((entry) => entry.enrichment.conflict !== null)
+    .map((entry) => entry.row.id)
+    .join('|');
+  useEffect(() => {
+    if (conflicted === '') return;
+    setOpenRows((current) => {
+      const next = new Set(current);
+      for (const id of conflicted.split('|')) next.add(id);
+      return next.size === current.size ? current : next;
+    });
+  }, [conflicted]);
   const unresolvedCount = enriched.filter((entry) => entry.unresolved).length;
-  const resolvedCount = enriched.length - unresolvedCount;
+  const incompleteCount = enriched.filter((entry) => !entry.unresolved && entry.incomplete).length;
+  const resolvedCount = enriched.length - unresolvedCount - incompleteCount;
   const unreadable = group.files.flatMap((file) => file.card.unreadableRows);
   const seat = first?.card.seatNumber ?? null;
   const usn = profile?.usn ?? null;
@@ -270,8 +304,9 @@ export function ResultReview({
         id: newId(),
         profileId,
         semester: Number(semester),
-        schemeId: ruleSet.schemeId,
-        ruleSetId: ruleSet.id,
+        // Filed under the student's scheme; pinned only to rules that exist.
+        schemeId: schemeRules.schemeId,
+        ruleSetId: activeRules?.id ?? null,
         sgpaAsserted: null,
         subjects,
         /*
@@ -362,6 +397,7 @@ export function ResultReview({
           <Badge tone="success" icon={<CheckCircle2 />}>
             {resolvedCount} resolved
           </Badge>
+          {incompleteCount > 0 && <Badge tone="neutral">{incompleteCount} incomplete</Badge>}
           {unresolvedCount > 0 && (
             <Badge tone="warning" icon={<AlertTriangle />}>
               {unresolvedCount} needs review
@@ -371,10 +407,17 @@ export function ResultReview({
       }
     >
       {unresolvedCount > 0 && (
-        <Callout tone="warning" title="Partial result.">
-          {formatCount(unresolvedCount, 'course')} could not be resolved — credits, a grade or the
-          final-exam question is missing, so those rows carry no grade point. The rest are
-          unaffected, and everything is saved as read either way.
+        <Callout tone="warning" title="Check these against the card.">
+          {formatCount(unresolvedCount, 'course')} {unresolvedCount === 1 ? 'has' : 'have'} marks
+          that disagree — with each other or with the printed result — or a question only you can
+          answer. Nothing is worked out from them until they agree.
+        </Callout>
+      )}
+      {incompleteCount > 0 && (
+        <Callout tone="info" title="Partial result.">
+          {formatCount(incompleteCount, 'course')} {incompleteCount === 1 ? 'has' : 'have'} no known
+          credits or grade, so {incompleteCount === 1 ? 'it carries' : 'they carry'} no grade point.
+          Everything is saved as read either way.
         </Callout>
       )}
       {blocked !== null && <Callout tone="warning">{blocked}</Callout>}
@@ -472,7 +515,7 @@ export function ResultReview({
                       <span className="min-w-0">
                         <span className="flex items-center gap-2">
                           <span className="truncate text-[13px] font-medium text-ink">{name}</span>
-                          {unresolved && <Badge tone="warning">Unresolved</Badge>}
+                          {unresolved && <Badge tone="warning">Check</Badge>}
                         </span>
                         <span className="block font-mono text-[11px] text-ink-3">
                           {row.subjectCode}
@@ -577,21 +620,52 @@ export function ResultReview({
                           options={withNone(STATUS_OPTIONS)}
                         />
                       </Field>
-                      <Field label={`Credits ${position}`} hint="Only if you know it.">
+                      {/*
+                        CREDITS ONCE. The value GradTools knows sits in the
+                        field as its placeholder, with who vouches for it; a
+                        typed figure replaces it and becomes the student's own.
+                      */}
+                      <Field
+                        label={`Credits ${position}`}
+                        hint={
+                          row.credits !== ''
+                            ? 'Your own record.'
+                            : enrichment.credits.value !== null
+                              ? `${String(enrichment.credits.value)} — ${enrichment.credits.source ?? ''}. The card does not print credits.`
+                              : 'Not provided by the document. Type it if you know it.'
+                        }
+                      >
                         <Input
                           inputMode="decimal"
                           value={row.credits}
+                          placeholder={
+                            enrichment.credits.value === null
+                              ? undefined
+                              : String(enrichment.credits.value)
+                          }
                           onChange={(event) => update(row.id, { credits: event.target.value })}
                         />
                       </Field>
                       <Field label={`Grade ${position}`} hint="Only if the card prints one.">
-                        <Select
-                          value={toNone(row.gradeLetter)}
-                          onValueChange={(value) =>
-                            update(row.id, { gradeLetter: fromNone(value) })
-                          }
-                          options={withNone(GRADE_OPTIONS)}
-                        />
+                        {activeRules === undefined ? (
+                          /* No verified letters for this scheme: the printed one, as printed. */
+                          <Input
+                            value={row.gradeLetter}
+                            onChange={(event) =>
+                              update(row.id, {
+                                gradeLetter: event.target.value.trim().toUpperCase(),
+                              })
+                            }
+                          />
+                        ) : (
+                          <Select
+                            value={toNone(row.gradeLetter)}
+                            onValueChange={(value) =>
+                              update(row.id, { gradeLetter: fromNone(value) })
+                            }
+                            options={withNone(gradeOptionsFor(activeRules))}
+                          />
+                        )}
                       </Field>
                       {needsAnswer && (
                         <Field
@@ -611,16 +685,24 @@ export function ResultReview({
                         </Field>
                       )}
                     </div>
+                    {enrichment.conflict !== null && (
+                      <p role="status" className="mt-3 text-[13px] font-medium text-warning">
+                        {enrichment.conflict}
+                      </p>
+                    )}
                     <Resolved row={row} enrichment={enrichment} />
                     <p className="mt-3 truncate font-mono text-[11px] text-ink-3">
                       <span className="font-sans font-medium text-ink-2">Read from</span>{' '}
                       {row.sourceLine}
                     </p>
-                    {row.warnings.map((warning) => (
-                      <p key={warning.kind} className="mt-1 text-[12px] text-warning">
-                        {warning.message}
-                      </p>
-                    ))}
+                    {/* A total mismatch is worked out live, above, from what is in the fields now. */}
+                    {row.warnings
+                      .filter((warning) => warning.kind !== 'total_mismatch')
+                      .map((warning) => (
+                        <p key={warning.kind} className="mt-1 text-[12px] text-warning">
+                          {warning.message}
+                        </p>
+                      ))}
                     <div className="mt-3 flex justify-end">
                       <Button
                         size="sm"
@@ -691,14 +773,8 @@ function Resolved({
   readonly row: DraftRow;
   readonly enrichment: RowEnrichment;
 }) {
-  const { credits, grade, gradePoint, courseKind } = enrichment;
+  const { grade, gradePoint, courseKind } = enrichment;
   const items = [
-    {
-      term: 'Credits',
-      missing: credits.value === null,
-      value: credits.value === null ? 'Unavailable' : String(credits.value),
-      why: credits.value === null ? credits.reason : credits.source,
-    },
     {
       term: 'Assessment',
       missing: courseKind.kind === null,
@@ -707,7 +783,7 @@ function Resolved({
         courseKind.kind === null
           ? 'Answer the final-exam question above to settle it.'
           : courseKind.from === 'catalogue'
-            ? 'VTU catalogue'
+            ? 'GradTools catalogue'
             : courseKind.from === 'grade'
               ? 'From the printed grade'
               : 'From the marks',
@@ -715,7 +791,7 @@ function Resolved({
     {
       term: 'Grade',
       missing: grade.value === null,
-      value: grade.value ?? 'Requires review',
+      value: grade.value ?? 'Not known',
       why: grade.value === null ? grade.reason : grade.source,
     },
     {

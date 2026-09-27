@@ -7,6 +7,7 @@
  * nothing.
  */
 
+import { SchemeNotice, useSchemeRules } from '../../hooks/useSchemeRules.js';
 import {
   calculateCGPA,
   calculateClass,
@@ -53,6 +54,7 @@ const ruleSet = vtu2022RuleSet;
 type Tab = 'figures' | 'calculator';
 
 export function AcademicsPage() {
+  const rules = useSchemeRules();
   const [params, setParams] = useSearchParams();
   const tab: Tab = params.get('tab') === 'calculator' ? 'calculator' : 'figures';
   return (
@@ -77,7 +79,14 @@ export function AcademicsPage() {
         ]}
         className="self-start"
       />
-      {tab === 'figures' ? <Figures /> : <CalculatorPanel />}
+      {/* Every figure and calculator here is a 2022 rule (useSchemeRules). */}
+      {!rules.builtIn ? (
+        <SchemeNotice rules={rules} what="SGPA, CGPA and the calculators" />
+      ) : tab === 'figures' ? (
+        <Figures />
+      ) : (
+        <CalculatorPanel />
+      )}
     </div>
   );
 }

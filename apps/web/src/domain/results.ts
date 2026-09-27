@@ -308,6 +308,31 @@ export interface SubjectEvaluation {
   readonly computedGrade: GradeReading | null;
   /** Set when both exist and name different letters. */
   readonly gradeDisagrees: boolean;
+  /**
+   * The card PRINTS a pass or a fail, and the marks as read say the opposite.
+   *
+   * The printed result is the university's statement and decides `backlog`;
+   * the marks are a reading of the card, and a reading can be wrong (OCR drops
+   * a digit, a column is misplaced). So a disagreement is a thing to check, not
+   * a failed course — and no letter is worked out from marks that contradict
+   * the card.
+   */
+  readonly statusConflict: boolean;
+}
+
+/**
+ * What a printed result column says about passing, when it says anything.
+ *
+ * Only P and F are read. Every other status a card prints (absent, withheld,
+ * not eligible…) is kept as printed and decides nothing here — its meaning is
+ * scheme-specific, and guessing it would put a course in or out of the
+ * backlog count on a guess.
+ */
+export function printedPass(status: string | null): boolean | null {
+  const printed = status?.trim().toUpperCase() ?? '';
+  if (printed === 'P' || printed === 'PASS') return true;
+  if (printed === 'F' || printed === 'FAIL') return false;
+  return null;
 }
 
 function sourceGradeOf(subject: ResultSubject, ruleSet: RuleSet | undefined): GradeReading | null {
@@ -366,6 +391,7 @@ export function evaluateResultSubject(
     sourceGrade,
     computedGrade: null,
     gradeDisagrees: false,
+    statusConflict: false,
   } as const;
 
   if (ruleSet === undefined) {
@@ -445,15 +471,21 @@ export function evaluateResultSubject(
     }
   }
 
+  const printed = printedPass(subject.resultStatus);
+  const statusConflict = printed !== null && printed !== outcome.value.passed;
+  if (statusConflict) computedGrade = null;
+
   return {
     ...base,
     courseKind: kind,
     outcome: outcome.value,
-    backlog: outcome.value.backlog,
+    /* The card's own P or F decides; the marks decide only where it printed neither. */
+    backlog: printed === null ? outcome.value.backlog : !printed,
     unavailableReason: null,
     computedGrade,
     gradeDisagrees:
       sourceGrade !== null && computedGrade !== null && sourceGrade.letter !== computedGrade.letter,
+    statusConflict,
   };
 }
 

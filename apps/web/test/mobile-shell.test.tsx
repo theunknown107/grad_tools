@@ -58,15 +58,28 @@ function keyboard(open: boolean): void {
 }
 
 describe('the top of the app', () => {
-  it('has no bar: no fill, no rule, just the page', () => {
+  it('has no bar: the controls scroll with the page, on no fill and no rule', () => {
     shell();
     const header = document.querySelector('header') as HTMLElement;
-    expect(header.className).not.toMatch(/gt-bar|bg-|border-b/);
-    // Still clear of the status bar.
+    // Inside the scroll area, so no hard edge cuts the content off beneath it.
+    expect(header.closest('#gt-main')).not.toBeNull();
+    // No surface on a phone; only from md does it pin on the page colour.
+    const phone = header.className.split(/\s+/).filter((name) => !name.startsWith('md:'));
+    expect(phone.join(' ')).not.toMatch(/gt-bar|\bbg-|border-b|sticky|fixed/);
     expect(header.className).toContain('pt-[var(--gt-safe-top)]');
   });
 
-  it('floats each control as its own 44px bubble', () => {
+  it('keeps a strip of page colour behind the status bar, and nothing more', () => {
+    shell();
+    const scrim = [...document.querySelectorAll<HTMLElement>('[aria-hidden="true"]')].find(
+      (element) => (element.getAttribute('class') ?? '').includes('h-[var(--gt-safe-top)]'),
+    ) as HTMLElement;
+    expect(scrim).not.toBeNull();
+    expect(scrim.getAttribute('aria-hidden')).toBe('true');
+    expect(scrim.className).toContain('pointer-events-none');
+  });
+
+  it('floats each control as its own compact bubble with a full-size touch ring', () => {
     shell();
     const header = document.querySelector('header') as HTMLElement;
     for (const name of [/^search$/i, /switch to (light|dark) theme/i, /^notifications/i]) {
@@ -74,16 +87,19 @@ describe('the top of the app', () => {
         name.source.includes('notifications') ? 'link' : 'button',
         { name },
       );
+      // The size lives in --gt-bubble-size (36px); the 44px target in .gt-hit.
       expect(control.className).toContain('gt-bubble');
-      expect(control.className).toContain('size-11');
+      expect(control.className).toContain('gt-hit');
+      expect(control.className).not.toMatch(/\bsize-\d/);
     }
-    // The logo and the profile are bubbles of the same size.
     const home = within(header).getByRole('link', { name: 'GradTools home' });
+    expect(home.className).toContain('gt-hit');
     expect((home.querySelector('[data-testid="gradtools-logo"]') as HTMLElement).style.width).toBe(
-      '44px',
+      '36px',
     );
     const profile = within(header).getByRole('link', { name: 'Open profile' });
-    expect((profile.firstElementChild as HTMLElement).style.width).toBe('44px');
+    expect(profile.className).toContain('gt-hit');
+    expect((profile.firstElementChild as HTMLElement).style.width).toBe('36px');
   });
 });
 
@@ -248,15 +264,16 @@ describe('an app with no server configured', () => {
     const sent = vi.spyOn(globalThis, 'fetch');
     renderWith(
       <>
-        <SchemeField />
+        <SchemeField value="vtu-2022" onChange={() => undefined} />
         <BranchField value="" onChange={() => undefined} />
       </>,
     );
-    expect(await screen.findByText(/no branch list\. type yours/i)).toBeTruthy();
-    expect(await screen.findByText(/built into the app\. not connected/i)).toBeTruthy();
+    // The branch list is the transcribed 2022 one: offered with no request at all.
+    expect(await screen.findByRole('combobox', { name: /branch/i })).toBeTruthy();
+    expect(screen.getByText(/2022-scheme branch list, as transcribed/i)).toBeTruthy();
+    // The scheme list is versioned into the app: it needs no server either.
+    expect(screen.getByText(/GradTools calculates figures for this scheme/i)).toBeTruthy();
     expect(screen.queryByText(/could not be loaded/i)).toBeNull();
-    // Retrying cannot reach a server that does not exist.
-    expect(screen.queryByRole('button', { name: /look for branches again/i })).toBeNull();
     expect(sent).not.toHaveBeenCalled();
     sent.mockRestore();
   });

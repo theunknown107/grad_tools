@@ -48,7 +48,7 @@ function card(rows: readonly string[], semester = 4, extra: readonly string[] = 
 const GOOD_ROW = 'BQAS401  ANALYSIS AND DESIGN OF ALGORITHMS   44  36  80  P  2026-07-23';
 
 describe('reading one row', () => {
-  const read = (text: string) => parseRow({ text, page: 1 }, true);
+  const read = (text: string) => parseRow({ text, page: 1 }, 'vtu-2022');
 
   it('reads code, title, three marks, status and date', () => {
     const row = read(GOOD_ROW);
@@ -111,7 +111,7 @@ describe('reading one row', () => {
   });
 
   it('does not flag a later-scheme code for a student on that scheme', () => {
-    const row = parseRow({ text: '1BQAS401  ALGORITHMS  44  36  80  P', page: 1 }, false);
+    const row = parseRow({ text: '1BQAS401  ALGORITHMS  44  36  80  P', page: 1 }, 'vtu-2025');
     expect(row?.warnings).toEqual([]);
   });
 
@@ -208,7 +208,7 @@ describe('a parsed row becoming a result subject', () => {
      * The whole of OQ-049 applied to an import: a provisional card prints no
      * grade, no grade point and no credits, so the stored row has none.
      */
-    const row = parseRow({ text: GOOD_ROW, page: 1 }, true);
+    const row = parseRow({ text: GOOD_ROW, page: 1 }, 'vtu-2022');
     const subject = rowToSubject(row as never, 's1', null);
 
     expect(subject).toMatchObject({ internal: 44, external: 36, total: 80, resultStatus: 'P' });
@@ -219,13 +219,13 @@ describe('a parsed row becoming a result subject', () => {
   });
 
   it('takes credits and SEE applicability from the catalogue where it covers the subject', () => {
-    const row = parseRow({ text: GOOD_ROW, page: 1 }, true);
+    const row = parseRow({ text: GOOD_ROW, page: 1 }, 'vtu-2022');
     const subject = rowToSubject(row as never, 's1', { credits: 4, hasSee: true });
     expect(subject).toMatchObject({ credits: 4, hasSee: true, provenance: 'catalogue' });
   });
 
   it('falls back to the code when no title was printed', () => {
-    const row = parseRow({ text: 'BQAS404     45  49  94  P', page: 1 }, true);
+    const row = parseRow({ text: 'BQAS404     45  49  94  P', page: 1 }, 'vtu-2022');
     expect(rowToSubject(row as never, 's1', null).subjectTitle).toBe('BQAS404');
   });
 });
@@ -235,7 +235,7 @@ describe('what the rules engine makes of an imported row', () => {
     line: string,
     reference: { credits: number | null; hasSee: boolean | null },
   ) => {
-    const row = parseRow({ text: line, page: 1 }, true);
+    const row = parseRow({ text: line, page: 1 }, 'vtu-2022');
     return evaluateResultSubject(rowToSubject(row as never, 's1', reference), vtu2022RuleSet);
   };
 
@@ -287,7 +287,7 @@ describe('what the rules engine makes of an imported row', () => {
  * The values are invented. Only the SHAPES are real.
  */
 describe('rows as recognition actually delivers them', () => {
-  const read = (text: string) => parseRow({ text, page: 1 }, true);
+  const read = (text: string) => parseRow({ text, page: 1 }, 'vtu-2022');
 
   it('reads a row whose columns are separated by the table rule', () => {
     /*
@@ -344,7 +344,7 @@ describe('rows as recognition actually delivers them', () => {
 });
 
 describe('a row carrying more numbers than it has columns', () => {
-  const read = (text: string) => parseRow({ text, page: 1 }, true);
+  const read = (text: string) => parseRow({ text, page: 1 }, 'vtu-2022');
 
   it('prefers a run that adds up over the rightmost one', () => {
     /*

@@ -7,7 +7,7 @@
  * with its reason and the save is refused until it does.
  */
 
-import { vtu2022RuleSet } from '@gradtools/academic-rules';
+import { useSchemeRules } from '../../hooks/useSchemeRules.js';
 import type { Subject } from '@gradtools/shared-types';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -31,7 +31,6 @@ import { useSubjects } from '../../hooks/useReference.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { SEMESTER_OPTIONS } from '../import/CalendarReview.js';
 
-const ruleSet = vtu2022RuleSet;
 const NONE = '__none__';
 const MANUAL = '__manual__';
 
@@ -126,6 +125,8 @@ export function ResultEditor({
   readonly onSave: (result: SemesterResult) => void;
   readonly onCancel: () => void;
 }) {
+  const schemeRules = useSchemeRules();
+  const activeRules = schemeRules.ruleSet;
   const [semester, setSemester] = useState(String(existing?.semester ?? initialSemester ?? 3));
   const [sgpaAsserted, setSgpaAsserted] = useState(
     existing === null || existing.sgpaAsserted === null ? '' : String(existing.sgpaAsserted),
@@ -164,8 +165,16 @@ export function ResultEditor({
 
   const duplicate = taken.includes(Number(semester));
   const rows = subjects.map((draft) => ({ draft, subject: toSubject(draft, announcedOn) }));
+  /*
+   * Mark limits are scheme rules (2022's CIE is out of 50; 2018's out of 40).
+   * A scheme without verified rules is recorded as printed and is not checked
+   * against limits GradTools does not hold.
+   */
   const issues = new Map(
-    rows.map(({ draft, subject }) => [draft.id, validateResultSubject(subject, ruleSet)]),
+    rows.map(({ draft, subject }) => [
+      draft.id,
+      activeRules === undefined ? [] : validateResultSubject(subject, activeRules),
+    ]),
   );
   const invalid = [...issues.values()].some((list) => list.length > 0);
   const errorFor = (id: string, field: ResultSubjectField): string | undefined =>
@@ -180,8 +189,9 @@ export function ResultEditor({
       id: existing?.id ?? newId(),
       profileId,
       semester: Number(semester),
-      schemeId: existing?.schemeId ?? ruleSet.schemeId,
-      ruleSetId: existing?.ruleSetId ?? ruleSet.id,
+      // A result is filed under the student's scheme, and pinned only to rules that exist.
+      schemeId: existing?.schemeId ?? schemeRules.schemeId,
+      ruleSetId: existing?.ruleSetId ?? activeRules?.id ?? null,
       sgpaAsserted: sgpaAsserted.trim() === '' ? null : Number(sgpaAsserted),
       subjects: rows.map((row) => row.subject),
       createdAt: existing?.createdAt ?? nowIso(),
@@ -191,7 +201,7 @@ export function ResultEditor({
 
   const gradeOptions = [
     { value: NONE, label: '—' },
-    ...[...ruleSet.gradeBands, ...ruleSet.specialGrades].map((grade) => ({
+    ...[...(activeRules?.gradeBands ?? []), ...(activeRules?.specialGrades ?? [])].map((grade) => ({
       value: grade.letter,
       label: grade.letter,
     })),
@@ -361,13 +371,23 @@ export function ResultEditor({
                   />
                 </Field>
                 <Field label={`Grade ${position}`} hint="Only if printed.">
-                  <Select
-                    value={draft.gradeLetter === '' ? NONE : draft.gradeLetter}
-                    onValueChange={(value) =>
-                      update(draft.id, { gradeLetter: value === NONE ? '' : value })
-                    }
-                    options={gradeOptions}
-                  />
+                  {activeRules === undefined ? (
+                    /* No verified letters for this scheme: the printed one, as printed. */
+                    <Input
+                      value={draft.gradeLetter}
+                      onChange={(event) =>
+                        update(draft.id, { gradeLetter: event.target.value.trim().toUpperCase() })
+                      }
+                    />
+                  ) : (
+                    <Select
+                      value={draft.gradeLetter === '' ? NONE : draft.gradeLetter}
+                      onValueChange={(value) =>
+                        update(draft.id, { gradeLetter: value === NONE ? '' : value })
+                      }
+                      options={gradeOptions}
+                    />
+                  )}
                 </Field>
               </div>
             </li>

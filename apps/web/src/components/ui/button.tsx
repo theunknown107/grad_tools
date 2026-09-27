@@ -100,7 +100,7 @@ export const iconButtonVariants = cva(
       },
       /** A floating control on the page itself (the top of the app has no bar). */
       bubble: {
-        true: 'gt-bubble size-11 text-ink [&_svg:not([class*=size-])]:size-5',
+        true: 'gt-bubble gt-hit text-ink',
         false: '',
       },
     },
@@ -125,7 +125,11 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       ref={ref}
       aria-label={label}
       title={label}
-      className={cn(iconButtonVariants({ size, active, bubble }), className)}
+      // A bubble is sized by --gt-bubble-size alone, never also by a size utility.
+      className={cn(
+        iconButtonVariants({ size: bubble === true ? null : size, active, bubble }),
+        className,
+      )}
       {...(asChild ? {} : { type: type ?? 'button' })}
       {...props}
     />

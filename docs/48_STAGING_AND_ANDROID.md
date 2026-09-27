@@ -198,7 +198,7 @@ pnpm --filter @gradtools/web android:open    # opens Android Studio
 
 | Surface | Inset |
 | --- | --- |
-| Top controls (no bar), sidebar, landing header | top: the row of bubbles starts below the status bar; the page itself runs behind it |
+| Top controls (no bar), sidebar, landing header | top: the controls sit inside the scroll area below the status bar and scroll away with the page on a phone; a page-coloured strip covers only the status bar (pinned on the page colour from `md`) |
 | App shell, bottom nav | left and right: notches and rounded corners in landscape |
 | Bottom nav, sheets, toasts, main scroll padding | bottom: the gesture bar |
 
@@ -267,7 +267,7 @@ Nothing is tied to a frame rate:
 
 Not implemented, only prepared:
 
-- **Materials are CSS classes, not per-component styling.** `.gt-glass` covers controls; `.gt-bubble` is every floating top control (the app has no top bar — logo, search, theme, notifications and profile each float on the page); `.gt-bar` is the bottom bar and the landing header.
+- **Materials are CSS classes, not per-component styling.** `.gt-glass` covers controls; `.gt-bubble` is every floating top control — 36px visible (`--gt-bubble-size`), 44px touch target (`.gt-hit`, `--gt-hit-size`) — (the app has no top bar: logo, search, theme, notifications and profile each float on the page); `.gt-bar` is the bottom bar and the landing header.
 - **A glass layer is a change in `index.css` only.** Swap the fill, the filter and the highlight in `.gt-bubble`, `.gt-bar` and `.gt-glass`; no component changes. `.gt-bubble` is solid today, with a reduced-transparency rule already in place.
 - **Every material stays legible with `backdrop-filter` disabled.** The fill carries it, and `.gt-bar` drops to an opaque panel under `prefers-reduced-transparency`.
 - **Rules for whoever adds it:**

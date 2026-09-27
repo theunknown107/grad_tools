@@ -267,7 +267,7 @@ export function DocumentImport({
         patch(id, {
           status: 'read',
           reading,
-          file: { fileName, card: parseResultCard(reading.lines) },
+          file: { fileName, card: parseResultCard(reading.lines, { profileSchemeId: schemeId }) },
         });
         return;
       default:

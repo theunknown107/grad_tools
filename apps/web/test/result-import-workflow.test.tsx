@@ -302,12 +302,18 @@ describe('importing one result PDF', () => {
     renderWith(<ImportPage />, { repositories: bundle });
 
     await choose(user);
-    await openRow(user);
-    expect(await screen.findByText(/does not match the component marks/i)).toBeTruthy();
+    // A row whose marks disagree opens by itself, and says what to check.
+    expect(
+      await screen.findByText(
+        'The marks do not add up: 44 + 36 = 80, but 90 was read. Check them against the card.',
+      ),
+    ).toBeTruthy();
 
     const total = screen.getByLabelText(/total 1/i);
     await user.clear(total);
     await user.type(total, '80');
+    // Worked out from the fields as they are now, not from the first reading.
+    expect(screen.queryByText(/do not add up/i)).toBeNull();
     await user.click(screen.getByRole('button', { name: /confirm and save/i }));
 
     expect(peek.results()[0]?.subjects[0]?.total).toBe(80);
@@ -580,6 +586,47 @@ describe('an import that cannot finish', () => {
       expect(['GET', undefined]).toContain(init?.method);
     }
     sent.mockRestore();
+  });
+});
+
+describe('a student on a scheme GradTools has no rules for', () => {
+  it('files the result under their own scheme, pins no rules, and invents no grade', async () => {
+    setCard(5, ['18CS51  MANAGEMENT AND ENTREPRENEURSHIP  38  52  90  P']);
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories({
+      profile: {
+        id: asStudentProfileId('p-2018'),
+        authUserId: null,
+        displayName: 'Test Student',
+        usn: null,
+        collegeName: null,
+        programme: null,
+        schemeId: 'vtu-2018',
+        branch: null,
+        currentSemester: 5,
+        createdAt: '',
+        updatedAt: '',
+      },
+    });
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+    // Its own scheme's code: read, and not flagged as another scheme's.
+    expect(await screen.findByText('18CS51')).toBeTruthy();
+    expect(screen.queryByText(/different VTU scheme/i)).toBeNull();
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
+
+    const saved = peek.results()[0];
+    expect(saved?.schemeId).toBe('vtu-2018');
+    expect(saved?.ruleSetId).toBeNull();
+    expect(saved?.subjects[0]).toMatchObject({
+      subjectCode: '18CS51',
+      internal: 38,
+      external: 52,
+      total: 90,
+      resultStatus: 'P',
+      gradeLetter: null,
+    });
   });
 });
 

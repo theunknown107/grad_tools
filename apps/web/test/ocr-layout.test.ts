@@ -227,6 +227,37 @@ describe('the header row keeps its first course', () => {
   });
 });
 
+describe('a title that wraps onto a second line, read word by word', () => {
+  /*
+   * The physical-device card saved "ANALYSIS & DESIGN OF": OCR returns one box
+   * per WORD, and the wrapped remainder was sorted into the row by x alone,
+   * landing between the words of the title. Synthetic boxes; the geometry of a
+   * printed VTU card.
+   */
+  const box = (text: string, x0: number, y0: number, x1: number, y1: number): OcrWord => ({
+    text,
+    bbox: { x0, y0, x1, y1 },
+    confidence: 95,
+  });
+
+  it('keeps the wrapped words together, at the end of the title, before the marks', () => {
+    const words: OcrWord[] = [
+      box('BCS401', 61, 227, 141, 254),
+      box('ANALYSIS', 210, 231, 300, 245),
+      box('&', 306, 231, 316, 245),
+      box('DESIGN', 322, 231, 392, 245),
+      box('OF', 398, 231, 420, 245),
+      box('44', 556, 227, 580, 254),
+      box('36', 661, 231, 680, 245),
+      box('80', 761, 231, 780, 245),
+      box('P', 851, 231, 862, 245),
+      box('ALGORITHMS', 210, 258, 335, 272),
+    ];
+    const lines = ocrPageToLines(words, 700).lines.map((line) => line.text);
+    expect(lines).toEqual(['BCS401 ANALYSIS & DESIGN OF ALGORITHMS 44 36 80 P']);
+  });
+});
+
 describe('confidence is reported, never acted on', () => {
   it('summarises per-word confidence without discarding anything', () => {
     /*

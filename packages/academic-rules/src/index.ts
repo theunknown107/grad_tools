@@ -75,3 +75,10 @@ export { calculateRequiredMarks, calculateRequiredSGPA } from './targets.js';
 
 export { vtu2022RuleSet, VTU_2022_RULE_SET_ID } from './rulesets/vtu-2022.js';
 export { getActiveRuleSetForScheme, getRuleSet, listRuleSets } from './rulesets/registry.js';
+export {
+  VTU_SCHEMES,
+  getScheme,
+  schemeSupport,
+  type AcademicScheme,
+  type SchemeSupport,
+} from './schemes.js';

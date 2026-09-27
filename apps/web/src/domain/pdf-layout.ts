@@ -168,22 +168,46 @@ export function itemsToLines(items: readonly PositionedText[], page = 1): Import
     return line.every((run) => above.some((column) => Math.abs(run.x - column.x) <= slack));
   };
 
-  const merged: PositionedText[][] = [];
+  /* A row, and the wrapped lines that belong to it — kept apart until ordered. */
+  const merged: { readonly base: PositionedText[]; readonly wraps: PositionedText[][] }[] = [];
   for (const row of rows) {
     const previous = merged[merged.length - 1];
-    if (previous !== undefined && continues(row, previous)) {
-      previous.push(...row);
+    if (previous !== undefined && continues(row, previous.base)) {
+      previous.wraps.push([...row]);
       continue;
     }
-    merged.push([...row]);
+    merged.push({ base: [...row], wraps: [] });
   }
 
-  return merged.map((row) => {
+  const byX = (a: PositionedText, b: PositionedText): number => a.x - b.x;
+  return merged.map(({ base, wraps }) => {
     /*
-     * By column, and within a column top to bottom: that puts a wrapped title
-     * back together in the middle of its row, where the marks still follow it.
+     * A WRAPPED LINE STAYS WHOLE, AT THE END OF THE CELL IT WRAPPED FROM.
+     *
+     * Sorting everything by x put a wrapped title back into its row — for a
+     * PDF, whose runs are whole phrases. OCR gives one item per WORD, and the
+     * same sort interleaved them: "ANALYSIS ALGORITHMS & DESIGN OF". So the row
+     * is ordered by x, and each wrapped line, itself in x order, goes at the
+     * END OF THE CELL it stands under: from the row item it starts beneath,
+     * through the words that follow at word spacing, up to the first gap wide
+     * enough to be a column — so the marks still follow the whole title.
      */
-    const ordered = [...row].sort((a, b) => a.x - b.x || b.y - a.y);
+    const ordered = [...base].sort(byX);
+    const cellGap = medianHeight(ordered) * SPACE_THRESHOLD * 4;
+    for (const wrap of wraps) {
+      const line = [...wrap].sort(byX);
+      const start = line[0]?.x ?? 0;
+      let at = ordered.findIndex((item) => item.x > start + tolerance);
+      at = at === -1 ? ordered.length : at;
+      /* Walk to the end of the cell: while the next word follows at word spacing. */
+      while (at < ordered.length && at > 0) {
+        const before = ordered[at - 1] as PositionedText;
+        const next = ordered[at] as PositionedText;
+        if (next.x - (before.x + before.width) > cellGap) break;
+        at += 1;
+      }
+      ordered.splice(at, 0, ...line);
+    }
     const gapThreshold = medianHeight(ordered) * SPACE_THRESHOLD;
 
     let text = '';

@@ -9,6 +9,7 @@
  * invented. The standing card shows what is known instead.
  */
 
+import { SchemeNotice, useSchemeRules } from '../../hooks/useSchemeRules.js';
 import {
   calculateAttendance,
   calculateClassesCanMiss,
@@ -104,7 +105,25 @@ function subjectName(code: string, subjects: readonly SemesterSubject[]): string
   return subjects.find((subject) => subject.code === code)?.title ?? null;
 }
 
+/**
+ * Attendance, gated on the scheme. Every verdict on this page — the 85% line,
+ * the DX floor, what may be missed — is a 2022 rule, so a profile on another
+ * scheme sees that plainly rather than figures judged by the wrong regulation.
+ */
 export function AttendancePage() {
+  const rules = useSchemeRules();
+  if (!rules.builtIn) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Attendance" />
+        <SchemeNotice rules={rules} what="Attendance requirements" />
+      </div>
+    );
+  }
+  return <AttendanceBody />;
+}
+
+function AttendanceBody() {
   const { items, loading, save, remove } = useAttendance();
   const { items: ledger, save: saveEntry } = useAttendanceLedger();
   const { profile } = useProfile();
