@@ -602,10 +602,10 @@ reaches a cloud backup.
 | A decoder that never returns (worker killed, engine wedged, a crafted file) | `lib/deadline.ts`: engine start 90s, each OCR pass 90s, each PDF read/render 60s. A timed-out OCR worker is terminated. Every file ends `read` or `failed`; Cancel settles the in-flight pass and closes the engine |
 | Malicious PDF | pdf.js with no eval, no font faces, no system fonts, no worker fetch; text extracted, never rendered into the DOM; the page canvas is only handed to OCR |
 | Malicious HTML | `DOMParser` document: scripts never execute, handlers never fire, nothing loads; only text nodes are read (`result-file.test.ts` pins it). Never inserted into the page |
-| Hostile images, decompression bombs | Byte cap before decode; decode by the browser's `createImageBitmap`; the bitmap is downscaled and closed. **Accepted residual:** a small file with enormous declared dimensions can still exhaust the tab's memory during decode — self-inflicted (the student chose the file), no data exposure |
+| Hostile images, decompression bombs | Byte cap, then the DIMENSIONS are read from the header (PNG IHDR, JPEG frame header — not its EXIF thumbnail — WebP VP8/VP8L/VP8X; `lib/image-header.ts`) before any decode: more than 64MP or an edge past 16,384px is refused, and an image whose size cannot be read is not decoded at all. Only then `createImageBitmap`; the bitmap is downscaled and closed. A 50MP phone photo passes |
 | SVG | Not accepted (not in the signature list) |
 | Leaking content through errors or logs | No `console` use in the pipeline; tesseract's logger and error handler are silent; the UI shows only fixed messages, and an unexpected error becomes "This file could not be read." (pinned by test). The filename is shown to the student and used for nothing else |
-| OCR worker left running | Closed when a batch ends, on Cancel, on Done and on unmount; a closed or timed-out session is replaced, never reused |
+| OCR worker left running | Closed when a batch ends, on Cancel, on Done and on unmount; a closed or timed-out session is replaced, never reused. The raw Web Worker is captured the moment tesseract.js constructs it (`captureWorkers`), so a start that fails or times out — which never hands its worker back — is terminated at once |
 
 **The root cause of the hang.** The Android asset packager gunzips any `.gz`
 asset and drops the extension, so the APK held `eng.traineddata` while the
@@ -613,6 +613,14 @@ engine asked for `eng.traineddata.gz` (404). tesseract.js 7 reports a model
 load failure only to `errorHandler` and otherwise swallows it — `createWorker`
 never settles. Fixed three ways: the model is vendored uncompressed (same name
 on web and APK), `errorHandler` now fails the start at once, and the start
-deadline backstops anything else. **Known residual:** a start that fails this
-way never hands back its worker, so it cannot be terminated; each failed
-attempt can leave one idle worker until the page closes.
+deadline backstops anything else. The worker of a failed start is terminated
+immediately (above); no orphan is left.
+
+**A layout defect found by the same review.** With its scoring brought back
+to what is actually saved, `tests/ocr-qa.mjs` showed a clean synthetic card
+saving three courses of four. OCR reports ink boxes, so in a recognised header
+`Code` sat higher than `Subject`; the wrapped-cell rule compared against the
+line's first word by height instead of its leftmost, and glued the first
+course row onto the header. Fixed in `pdf-layout.ts` (leftmost word), pinned by
+`ocr-layout.test.ts` with the engine's own boxes; the harness now requires all
+four courses and zero wrong values.

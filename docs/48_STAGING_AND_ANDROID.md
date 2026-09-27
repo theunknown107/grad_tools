@@ -214,9 +214,9 @@ pnpm --filter @gradtools/web android:open    # opens Android Studio
   device test showed) or only the visual viewport shrinks, and it does not hide
   for focus alone (hardware keyboard, IME dismissed with the back gesture).
   Event-driven; nothing polls. Hidden, not unmounted, so scroll is kept.
-  Known edge: the first rotation made with the keyboard already open reads as
-  closed until the keyboard is reopened. A native IME signal
-  (`@capacitor/keyboard`) was considered and not added.
+  A rotation made with the keyboard up borrows the new orientation's full
+  height from the other orientation (the axes swap), so the bar stays hidden
+  through it. A native IME signal (`@capacitor/keyboard`) was not added.
 - **Dropdowns, menus and popovers** keep a measured distance from each edge
   (`collisionInsets()`): the safe-area insets, the bottom bar while it shows,
   and whatever a keyboard covers of the visual viewport. Selects open

@@ -105,6 +105,51 @@ describe('the bottom bar and the keyboard', () => {
     expect(bottomBar().hidden).toBe(false);
   });
 
+  it('stays aside through a rotation made with the keyboard up, without a flicker', () => {
+    renderWith(
+      <AppShell>
+        <input aria-label="Branch" />
+      </AppShell>,
+    );
+    act(() => {
+      screen.getByRole('textbox', { name: 'Branch' }).focus();
+    });
+    keyboard(true);
+    expect(bottomBar().hidden).toBe(true);
+
+    /*
+     * Landscape, keyboard still up: a width never seen before, whose only
+     * height so far is the shrunken one. Two events, because a second one at
+     * the same size is where a baseline learned from the shrunken height
+     * would bring the bar back.
+     */
+    const seen: boolean[] = [];
+    for (let event = 0; event < 2; event += 1) {
+      act(() => {
+        viewport.width = 780;
+        viewport.height = 150;
+        viewport.dispatchEvent(new Event('resize'));
+      });
+      seen.push(bottomBar().hidden);
+    }
+    expect(seen).toEqual([true, true]);
+
+    // The keyboard closes in landscape: the bar comes back.
+    act(() => {
+      viewport.height = 390;
+      viewport.dispatchEvent(new Event('resize'));
+    });
+    expect(bottomBar().hidden).toBe(false);
+
+    // And back to portrait with the keyboard closed, it stays.
+    act(() => {
+      viewport.width = 390;
+      viewport.height = 780;
+      viewport.dispatchEvent(new Event('resize'));
+    });
+    expect(bottomBar().hidden).toBe(false);
+  });
+
   it('does not hide for focus alone — a hardware keyboard leaves the screen whole', () => {
     renderWith(
       <AppShell>

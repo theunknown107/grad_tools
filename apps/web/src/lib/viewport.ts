@@ -24,10 +24,16 @@
  * dismissed with the back gesture, leaves the field focused and the screen
  * whole, and the navigation must come back.
  *
- * ponytail: the baseline is the tallest height seen per viewport width, so
- * the first rotation made WITH the keyboard already open has no baseline for
- * the new width and reads as closed until the keyboard is reopened. A native
- * IME signal (@capacitor/keyboard) removes that edge if it ever matters.
+ * ROTATION WITH THE KEYBOARD UP. The baseline is the tallest height seen at a
+ * width, so a rotation made while the keyboard is open reaches a width whose
+ * only height ever seen is the shrunken one — and used to read as closed. But a
+ * rotation swaps the axes: the new orientation's full height is the old one's
+ * width, less whatever the screen's own chrome takes, which is exactly how far
+ * the new width exceeds the old full height. So an unseen orientation borrows
+ * its baseline from the other one. In the edge-to-edge app the chrome term is
+ * zero and the estimate is exact; in a browser with an address bar it errs
+ * low, which can only make the detection more cautious, never hide the bar
+ * without a keyboard.
  */
 
 import { useSyncExternalStore } from 'react';
@@ -70,11 +76,30 @@ function visible(): { readonly width: number; readonly height: number } {
 /** The tallest visible height seen at each width (a rotation changes width). */
 const baselines = new Map<number, number>();
 
+/**
+ * This width's full height, estimated from the other orientation's baseline.
+ * Only an entry whose full height is close to this width is the same screen
+ * rotated (within a quarter — the chrome is never that large); else null.
+ */
+function rotatedBaseline(width: number): number | null {
+  let best: number | null = null;
+  let closest = width / 4;
+  for (const [otherWidth, otherHeight] of baselines) {
+    if (otherWidth === width) continue;
+    const chrome = width - otherHeight;
+    if (Math.abs(chrome) > closest) continue;
+    closest = Math.abs(chrome);
+    best = otherWidth - Math.max(0, chrome);
+  }
+  return best;
+}
+
 export function isKeyboardOpen(): boolean {
   const { width, height } = visible();
   const key = Math.round(width);
-  const baseline = Math.max(baselines.get(key) ?? 0, height);
-  baselines.set(key, baseline);
+  const seen = Math.max(baselines.get(key) ?? 0, height);
+  baselines.set(key, seen);
+  const baseline = Math.max(seen, rotatedBaseline(key) ?? 0);
   return editableFocused() && baseline - height > KEYBOARD_MIN_PX;
 }
 
@@ -95,6 +120,8 @@ function subscribe(listener: () => void): () => void {
     window.addEventListener('resize', update);
     document.addEventListener('focusin', update);
     document.addEventListener('focusout', update);
+    // Belt and braces: a rotation also resizes, but not in the same frame everywhere.
+    screen.orientation?.addEventListener('change', update);
   }
   listeners.add(listener);
   return () => {
@@ -104,6 +131,7 @@ function subscribe(listener: () => void): () => void {
     window.removeEventListener('resize', update);
     document.removeEventListener('focusin', update);
     document.removeEventListener('focusout', update);
+    screen.orientation?.removeEventListener('change', update);
   };
 }
 
