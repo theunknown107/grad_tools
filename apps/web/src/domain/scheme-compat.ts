@@ -27,24 +27,12 @@
  * nothing rather than guessing.
  */
 
+import { codeScheme } from '@gradtools/vtu-catalogue';
+
 export type CompatibilityStatus = 'same' | 'equivalence' | 'mismatch' | 'unknown';
 
-const YEAR_PREFIX: Readonly<Record<string, string>> = {
-  '21': 'vtu-2021',
-  '18': 'vtu-2018',
-  '17': 'vtu-2017',
-  '15': 'vtu-2015',
-  '10': 'vtu-2010',
-};
-
-/** The scheme a course code's shape belongs to, or null when the shape says nothing. */
-export function codeScheme(code: string): string | null {
-  const normalized = code.trim().toUpperCase();
-  if (/^1B[A-Z]/.test(normalized)) return 'vtu-2025';
-  if (/^B[A-Z]/.test(normalized)) return 'vtu-2022';
-  const year = /^(\d{2})[A-Z]/.exec(normalized)?.[1];
-  return year === undefined ? null : (YEAR_PREFIX[year] ?? null);
-}
+/** The scheme a course code's shape belongs to (@gradtools/vtu-catalogue). */
+export { codeScheme };
 
 const TO_2018 = new Set(['vtu-2010', 'vtu-2015', 'vtu-2017']);
 

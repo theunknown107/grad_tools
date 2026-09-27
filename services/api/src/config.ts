@@ -46,6 +46,20 @@ const configSchema = z.object({
     .min(32, 'OPERATOR_TOKEN must be at least 32 characters; generate it randomly')
     .optional(),
 
+  /**
+   * The Gemini API key for AI document reading. **SECRET.** Server-only: read
+   * from the environment and never a `VITE_` variable, so no browser bundle or
+   * APK can hold it. Unset, the AI reading route does not exist (404) and the
+   * app reads documents on the device only.
+   */
+  GEMINI_API_KEY: z.string().min(1).optional(),
+
+  /**
+   * The model that reads documents. Changing it is a deliberate configuration
+   * change; the service never falls back to another model on its own.
+   */
+  GEMINI_DOCUMENT_MODEL: z.string().min(1).max(60).default('gemini-2.5-flash'),
+
   /** Secret. Never logged, never returned by any endpoint. */
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 

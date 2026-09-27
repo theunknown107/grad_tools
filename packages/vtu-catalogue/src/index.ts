@@ -7,6 +7,7 @@
  * package so there is exactly one implementation of what a VTU scheme says.
  */
 export type { PositionedText } from './positioned-text.js';
+export { codeScheme } from './code-scheme.js';
 export {
   parseScheme,
   schemePages,

@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <style>@media (prefers-color-scheme: dark) { :root > path { color: #fff } }</style>
-  <path fill="currentColor" d="M50.58 15.27A25 25 0 1 0 57 32L44.5 32A12.5 12.5 0 1 1 41.29 23.64ZM33 32 45 42 57 32 45 22Z" />
+  <path fill="currentColor" d="M50 16 90 36 50 56 10 36Z" />
+  <path fill="none" stroke="currentColor" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" d="M20 41V60" />
+  <path fill="none" stroke="currentColor" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" d="M32 50V67L50 79 68 67V56H48" />
 </svg>
