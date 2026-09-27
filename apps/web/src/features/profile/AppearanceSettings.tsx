@@ -27,7 +27,7 @@ const SWATCH: Record<Accent, { label: string; light: string; dark: string }> = {
   mono: { label: 'Mono', light: '#1b1a17', dark: '#f4f3f1' },
   violet: { label: 'Violet', light: '#5b4cc4', dark: '#8f80f0' },
   matrix: { label: 'Matrix', light: '#2a7147', dark: '#4bbd7f' },
-  crimson: { label: 'Crimson', light: '#c8102e', dark: '#f04d63' },
+  crimson: { label: 'Crimson', light: '#8b0015', dark: '#bd1a33' },
   turquoise: { label: 'Turquoise', light: '#0a7580', dark: '#35c2cf' },
   ocean: { label: 'Ocean', light: '#2b6cb0', dark: '#5ea1e6' },
   amber: { label: 'Amber', light: '#8f5d12', dark: '#e0a848' },

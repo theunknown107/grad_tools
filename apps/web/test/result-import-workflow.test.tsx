@@ -34,6 +34,8 @@ const extractions = new Map<
   { lines: ImportLine[]; hasTextLayer: boolean; placed?: PlacedText[] }
 >();
 let failWith: string | null = null;
+/** A raw error, as a parser bug would throw — its text must never reach the screen. */
+let failPlain: string | null = null;
 
 /*
  * Hoisted so the mock factory and the tests share ONE error class. Throwing a
@@ -49,6 +51,7 @@ vi.mock('../src/lib/pdf-text.js', () => ({
   PdfReadError,
   extractPdfLines: vi.fn(async () => {
     if (failWith !== null) throw new PdfReadError(failWith);
+    if (failPlain !== null) throw new Error(failPlain);
     const next = [...extractions.values()][0];
     return Promise.resolve({
       lines: next?.lines ?? [],
@@ -81,6 +84,8 @@ vi.mock('../src/lib/pdf-text.js', () => ({
  */
 let ocrLines: ImportLine[] = [];
 let ocrFailsWith: string | null = null;
+/** The engine accepts a page and never answers — a worker the WebView killed. */
+let ocrHangs = false;
 const ocrCalls = { started: 0, recognised: 0, closed: 0 };
 
 const { OcrError } = vi.hoisted(() => ({ OcrError: class OcrError extends Error {} }));
@@ -104,6 +109,7 @@ vi.mock('../src/lib/ocr.js', () => ({
     ocrCalls.started += 1;
     return Promise.resolve({
       recognize: (_canvas: unknown, page = 1) => {
+        if (ocrHangs) return new Promise(() => undefined);
         ocrCalls.recognised += 1;
         return Promise.resolve({
           lines: ocrLines.map((line) => ({ ...line, page })),
@@ -197,7 +203,12 @@ async function choose(
   const opener = screen.queryByRole('button', { name: /add academic document/i });
   if (opener !== null) await user.click(opener);
   const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-  const file = new File(['%PDF-1.4'], name, { type });
+  /* The pipeline reads a file's own first bytes, so a fixture carries real ones. */
+  const SIGNATURES: Record<string, BlobPart> = {
+    'image/jpeg': new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+    'image/png': new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  };
+  const file = new File([SIGNATURES[type] ?? '%PDF-1.4'], name, { type });
   Object.defineProperty(file, 'arrayBuffer', { value: () => Promise.resolve(new ArrayBuffer(8)) });
   /*
    * The list is built by hand and `change` dispatched directly. `user.upload`
@@ -219,6 +230,8 @@ async function choose(
 
 beforeEach(() => {
   failWith = null;
+  failPlain = null;
+  ocrHangs = false;
   ocrLines = [];
   ocrFailsWith = null;
   ocrCalls.started = 0;
@@ -475,6 +488,98 @@ describe('a scan, a photo, and a file that cannot be read', () => {
 
     await choose(user, 'broken.pdf');
     expect(await screen.findByText(/could not be opened as a PDF/i)).toBeTruthy();
+  });
+});
+
+describe('an import that cannot finish', () => {
+  it('can be cancelled in place, and the file tried again', async () => {
+    ocrHangs = true;
+    ocrLines = cardLines(4, ROWS);
+    const user = userEvent.setup();
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
+
+    await choose(user, 'card.jpg', 'image/jpeg');
+    expect(await screen.findByText(/reading the text in this picture/i)).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+    expect(await screen.findByText(/cancelled before this file was read/i)).toBeTruthy();
+    // The engine went with the work, and the screen is no longer busy.
+    expect(ocrCalls.closed).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /^done$/i })).toBeTruthy();
+
+    ocrHangs = false;
+    await user.click(screen.getByRole('button', { name: /try card\.jpg again/i }));
+    expect(await screen.findByText(/rows read from a picture/i)).toBeTruthy();
+    expect(screen.queryByText(/cancelled before/i)).toBeNull();
+  });
+
+  it('closes the engine as soon as the batch is read, not when the page closes', async () => {
+    ocrLines = cardLines(4, ROWS);
+    const user = userEvent.setup();
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
+
+    await choose(user, 'card.jpg', 'image/jpeg');
+    await screen.findByText(/rows read from a picture/i);
+    await waitFor(() => {
+      expect(ocrCalls.closed).toBe(1);
+    });
+  });
+
+  it('ends in a failure, not a spinner, when the bytes cannot be read', async () => {
+    const user = userEvent.setup();
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
+    const opener = screen.queryByRole('button', { name: /add academic document/i });
+    if (opener !== null) await user.click(opener);
+
+    const file = new File(['%PDF-1.4'], 'gone.pdf', { type: 'application/pdf' });
+    // An Android content URI that stopped being readable after it was chosen.
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: () => Promise.reject(new DOMException('gone', 'NotReadableError')),
+    });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    Object.defineProperty(input, 'files', {
+      value: {
+        0: file,
+        length: 1,
+        item: () => file,
+        [Symbol.iterator]: [file][Symbol.iterator].bind([file]),
+      },
+      configurable: true,
+    });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(await screen.findByText(/this file could not be read/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^done$/i })).toBeTruthy();
+  });
+
+  it("never shows a parser error's own text, which could carry the document", async () => {
+    failPlain = 'Unexpected token near "Test Student 1XX22CS001"';
+    const user = userEvent.setup();
+    renderWith(<ImportPage />, { repositories: createMemoryRepositories().bundle });
+
+    await choose(user, 'odd.pdf');
+    expect(await screen.findByText(/this file could not be read/i)).toBeTruthy();
+    expect(document.body.textContent).not.toContain('1XX22CS001');
+  });
+
+  it('sends nothing about the document over the network', async () => {
+    const sent = vi.spyOn(globalThis, 'fetch');
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+    await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
+    await waitFor(() => {
+      expect(peek.results()).toHaveLength(1);
+    });
+
+    // Reads of public reference data only: no body, no write method.
+    for (const [, init] of sent.mock.calls) {
+      expect(init?.body ?? null).toBeNull();
+      expect(['GET', undefined]).toContain(init?.method);
+    }
+    sent.mockRestore();
   });
 });
 

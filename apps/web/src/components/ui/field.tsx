@@ -22,6 +22,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react';
 import { cn } from '../../lib/cn.js';
+import { collisionInsets } from '../../lib/viewport.js';
 
 /*
  * An invalid control is marked with a RING, not a border colour: the unlayered
@@ -200,10 +201,19 @@ export const Select = forwardRef<
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
           position="popper"
+          side="bottom"
           sideOffset={6}
-          collisionPadding={8}
+          /*
+           * The college list opened UPWARD over the status bar on a phone: it
+           * was allowed the whole available height, so below the field was
+           * never enough and it flipped. Capped, it opens down wherever
+           * 18rem fits and scrolls inside; it flips only when it truly does
+           * not fit, and the measured insets keep it clear of the status bar,
+           * the bottom bar and the keyboard in either direction.
+           */
+          collisionPadding={collisionInsets()}
           data-slot="popup"
-          className="z-[95] max-h-(--radix-select-content-available-height) min-w-[var(--radix-select-trigger-width)] animate-pop overflow-hidden rounded-xl border border-line bg-raised shadow-e3"
+          className="z-[95] max-h-[min(var(--radix-select-content-available-height),18rem)] max-w-[calc(100vw-1rem)] min-w-[var(--radix-select-trigger-width)] animate-pop overflow-hidden rounded-xl border border-line bg-raised shadow-e3"
         >
           <SelectPrimitive.Viewport className="p-1">
             {options.map((option) => (

@@ -186,19 +186,27 @@
   --ring: #4bbd7f;
 }
 
+/* Blood red — deep, and used as an accent only. Measured (WCAG 2.x):
+   light — white on #8b0015 9.96, #8b0015 on canvas 8.91, on its weak fill 7.86;
+   dark  — white on #bd1a33 6.25, #bd1a33 on canvas 3.22 and on panel 3.08 (the
+   non-text 3:1 floor, test/theme.test.ts), #e8697c on panel 6.19, on its weak
+   fill 5.82.
+   Dark keeps a deep FILL with white text rather than lifting the fill to pink:
+   a pale fill was what read as bright on a phone. Text and icons use the lifted
+   ink, which is what needs the contrast. */
 [data-accent='crimson'] {
-  --accent: #c8102e;
-  --accent-weak: #fbdde2;
-  --accent-ink: #a8102e;
+  --accent: #8b0015;
+  --accent-weak: #f6dfe2;
+  --accent-ink: #8b0015;
   --accent-contrast: #ffffff;
-  --ring: #dc143c;
+  --ring: #8b0015;
 }
 .dark[data-accent='crimson'] {
-  --accent: #f04d63;
-  --accent-weak: #350a11;
-  --accent-ink: #f4a6b1;
-  --accent-contrast: #0e0e11;
-  --ring: #f04d63;
+  --accent: #bd1a33;
+  --accent-weak: #2c0a11;
+  --accent-ink: #e8697c;
+  --accent-contrast: #ffffff;
+  --ring: #e8697c;
 }
 
 [data-accent='turquoise'] {
@@ -504,6 +512,27 @@
     background-color: var(--panel);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+}
+
+/* ------------------------------------------------------- Bubble material.
+     The top of the app has no bar: the page runs to the display edges and
+     each control floats on it as its own bubble (logo, search, theme,
+     notifications, profile). This is that one surface. Solid today; a later
+     glass treatment changes the fill and filter HERE — never the header —
+     and keeps the reduced-transparency fallback. No shadow: the hairline and
+     the fill carry it. */
+.gt-bubble {
+  background-color: color-mix(in oklab, var(--raised) var(--gt-bubble-opacity, 100%), transparent);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+}
+.gt-bubble:hover {
+  background-color: var(--sunken);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .gt-bubble {
+    background-color: var(--raised);
   }
 }
 

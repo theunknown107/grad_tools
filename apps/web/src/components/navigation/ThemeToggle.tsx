@@ -11,7 +11,7 @@ import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme.js';
 import { IconButton } from '../ui/button.js';
 
-export function ThemeToggle() {
+export function ThemeToggle({ bubble = false }: { readonly bubble?: boolean }) {
   const { resolved, toggleAppearance } = useTheme();
   const dark = resolved === 'dark';
   return (
@@ -19,6 +19,7 @@ export function ThemeToggle() {
       label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
       aria-pressed={dark}
       onClick={toggleAppearance}
+      bubble={bubble}
       className="relative overflow-hidden"
     >
       <Sun

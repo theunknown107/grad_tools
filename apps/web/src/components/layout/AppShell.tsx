@@ -28,6 +28,7 @@ import { Avatar, initialsOf } from '../ui/page.js';
 import { BottomSheet } from '../ui/sheet.js';
 import { TooltipProvider } from '../ui/tooltip.js';
 import { DESTINATIONS, MOBILE_TABS, NAV_GROUPS, isActive } from './nav.js';
+import { useKeyboardOpen } from '../../lib/viewport.js';
 
 const COLLAPSE_KEY = 'gradtools:v1:sidebar';
 
@@ -342,7 +343,15 @@ function TopBar({
 }) {
   const openCommand = useOpenCommand();
   return (
-    <header className="sticky top-0 z-40 flex h-[calc(4rem+var(--gt-safe-top))] shrink-0 items-center gap-3 gt-bar border-b border-line px-4 pt-[var(--gt-safe-top)] sm:px-6">
+    /*
+     * NO BAR. On a phone the old full-width panel read as one grey slab and
+     * cost 64px of every screen. The page now runs to the display edges and
+     * each control floats on it as its own bubble (`.gt-bubble`). Nothing
+     * scrolls underneath — <main> is the scroll container — so no backdrop is
+     * needed. The safe-area top still pads the row: the app draws behind the
+     * status bar, and the controls must not.
+     */
+    <header className="z-40 flex h-[calc(3.5rem+var(--gt-safe-top))] shrink-0 items-center gap-2 px-4 pt-[var(--gt-safe-top)] sm:px-6">
       <IconButton
         label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         aria-expanded={!collapsed}
@@ -355,11 +364,11 @@ function TopBar({
 
       <Link
         to="/"
-        className="flex items-center gap-2 rounded-lg md:hidden"
+        className="flex min-h-11 items-center gap-2.5 rounded-full pr-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:hidden"
         aria-label="GradTools home"
       >
-        <GradToolsLogo />
-        <span className="hidden font-semibold tracking-[-0.01em] min-[380px]:inline">
+        <GradToolsLogo size={44} round />
+        <span className="hidden text-[17px] font-semibold tracking-[-0.01em] min-[380px]:inline">
           GradTools
         </span>
       </Link>
@@ -379,14 +388,15 @@ function TopBar({
         </span>
       </button>
 
-      <div className="ml-auto flex items-center gap-1">
-        <IconButton label="Search" onClick={openCommand} className="sm:hidden">
+      <div className="ml-auto flex items-center gap-1.5">
+        <IconButton label="Search" onClick={openCommand} bubble className="sm:hidden">
           <Search />
         </IconButton>
-        <ThemeToggle />
+        <ThemeToggle bubble />
         <div className="relative">
           <IconButton
             asChild
+            bubble
             label={unread > 0 ? `Notifications, ${String(unread)} unread` : 'Notifications'}
           >
             <Link to="/notifications">
@@ -396,7 +406,7 @@ function TopBar({
           {unread > 0 && (
             <span
               aria-hidden="true"
-              className="tnum pointer-events-none absolute top-1 right-1 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-semibold text-canvas"
+              className="tnum pointer-events-none absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-semibold text-canvas"
             >
               {unread > 9 ? '9+' : unread}
             </span>
@@ -405,9 +415,9 @@ function TopBar({
         <Link
           to="/profile"
           aria-label="Open profile"
-          className="ml-1 rounded-full ring-offset-2 ring-offset-panel focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="rounded-full ring-offset-2 ring-offset-canvas focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <Avatar initials={initials} size={34} />
+          <Avatar initials={initials} size={44} />
         </Link>
       </div>
     </header>
@@ -426,9 +436,17 @@ function MobileBottomNav({
   readonly unread: number;
 }) {
   const { pathname } = useLocation();
+  /*
+   * Out of the way while a keyboard is up: it rode on top of the keyboard and
+   * covered the field being typed in. Hidden, not unmounted — nothing below
+   * it re-renders and the page keeps its scroll position.
+   */
+  const keyboardOpen = useKeyboardOpen();
   return (
     <nav
       aria-label="Main"
+      data-bottom-bar
+      hidden={keyboardOpen}
       className="fixed inset-x-0 bottom-0 z-40 gt-bar border-t border-line pr-[var(--gt-safe-right)] pl-[var(--gt-safe-left)] [--gt-bar-opacity:98%] md:hidden"
     >
       <div className="grid grid-cols-5">
@@ -500,7 +518,14 @@ function MobileNavSheet({
   const { preference, setAppearance } = useTheme();
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title="Go to" className="md:hidden">
-      <nav aria-label="All destinations">
+      {/*
+        NAVIGATION, NOT A DASHBOARD. This was a two-column grid of bordered
+        pills — on a phone, twelve competing buttons. It is now one column of
+        plain rows under quiet group headings: the icon, the name, and the
+        sidebar's own pill for "you are here". Same destinations, same order,
+        from the one list in nav.ts.
+      */}
+      <nav aria-label="All destinations" className="flex flex-col gap-5">
         {/*
           ADD DOCUMENT LEADS THE SHEET.
           It is the most linked-to destination in the app — eleven in-app
@@ -510,70 +535,51 @@ function MobileNavSheet({
           middle position that costs nothing.
         */}
         {IMPORT_DESTINATION !== undefined && (
-          <NavLink
-            to={IMPORT_DESTINATION.to}
-            onClick={() => onOpenChange(false)}
-            aria-current={isActive(IMPORT_DESTINATION.to, pathname) ? 'page' : undefined}
-            className={cn(
-              'mb-4 flex min-h-12 items-center gap-2.5 rounded-xl border p-3 text-sm font-medium transition-colors',
-              isActive(IMPORT_DESTINATION.to, pathname)
-                ? 'border-accent bg-accent-weak text-accent-ink'
-                : 'border-line bg-raised text-ink-2 hover:bg-sunken',
-            )}
-          >
-            <IMPORT_DESTINATION.icon className="size-[18px] shrink-0" aria-hidden="true" />
-            <span className="truncate">{IMPORT_DESTINATION.label}</span>
-            <span className="ml-auto truncate text-[11px] font-normal text-ink-3">
-              {IMPORT_DESTINATION.description}
-            </span>
-          </NavLink>
+          <SheetRow
+            item={IMPORT_DESTINATION}
+            active={isActive(IMPORT_DESTINATION.to, pathname)}
+            detail={IMPORT_DESTINATION.description}
+            onNavigate={() => onOpenChange(false)}
+          />
         )}
         {NAV_GROUPS.map((group) => (
-          <div key={group} className="mb-4">
-            <div className="mb-1 px-2 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase">
+          <section key={group} aria-labelledby={`sheet-${group}`}>
+            <h3
+              id={`sheet-${group}`}
+              className="mb-1 px-3 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase"
+            >
               {group}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+            </h3>
+            <ul className="flex flex-col">
               {DESTINATIONS.filter(
                 (destination) => destination.group === group && destination.to !== IMPORT_PATH,
-              ).map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.to, pathname);
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.to === '/'}
-                    onClick={() => onOpenChange(false)}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex min-h-12 items-center gap-2.5 rounded-xl border p-3 text-sm font-medium transition-colors',
-                      active
-                        ? 'border-accent bg-accent-weak text-accent-ink'
-                        : 'border-line bg-raised text-ink-2 hover:bg-sunken',
-                    )}
-                  >
-                    <Icon className="size-[18px] shrink-0" aria-hidden="true" />
-                    <span className="truncate">{item.label}</span>
-                    {item.to === '/notifications' && unread > 0 && (
-                      <span className="tnum ml-auto text-[11px] font-semibold text-danger">
-                        {unread}
-                      </span>
-                    )}
-                  </NavLink>
-                );
-              })}
-            </div>
-          </div>
+              ).map((item) => (
+                <li key={item.to}>
+                  <SheetRow
+                    item={item}
+                    active={isActive(item.to, pathname)}
+                    count={item.to === '/notifications' && unread > 0 ? unread : null}
+                    onNavigate={() => onOpenChange(false)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
         ))}
       </nav>
-      <div
-        className="mb-1 px-2 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase"
+
+      <h3
         id="sheet-appearance"
+        className="mt-5 mb-2 px-3 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase"
       >
         Appearance
-      </div>
-      <div className="flex gap-2" role="group" aria-labelledby="sheet-appearance">
+      </h3>
+      {/* One segmented control rather than three bordered buttons. */}
+      <div
+        className="grid grid-cols-3 gap-1 rounded-full bg-sunken p-1"
+        role="group"
+        aria-labelledby="sheet-appearance"
+      >
         {APPEARANCES.map((option) => (
           <button
             key={option}
@@ -581,10 +587,10 @@ function MobileNavSheet({
             aria-pressed={preference.appearance === option}
             onClick={() => setAppearance(option)}
             className={cn(
-              'min-h-11 flex-1 rounded-lg border py-2 text-[13px] font-medium transition-colors',
+              'min-h-11 rounded-full text-[13px] font-medium transition-colors',
               preference.appearance === option
-                ? 'border-accent bg-accent-weak text-accent-ink'
-                : 'border-line text-ink-2 hover:bg-sunken',
+                ? 'bg-raised text-ink shadow-e1'
+                : 'text-ink-3 hover:text-ink-2',
             )}
           >
             {APPEARANCE_LABEL[option]}
@@ -592,6 +598,49 @@ function MobileNavSheet({
         ))}
       </div>
     </BottomSheet>
+  );
+}
+
+/** One destination in the More sheet: a plain row, never a bordered pill. */
+function SheetRow({
+  item,
+  active,
+  detail,
+  count = null,
+  onNavigate,
+}: {
+  readonly item: (typeof DESTINATIONS)[number];
+  readonly active: boolean;
+  readonly detail?: string;
+  readonly count?: number | null;
+  readonly onNavigate: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <NavLink
+      to={item.to}
+      end={item.to === '/'}
+      onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'flex min-h-12 items-center gap-3 rounded-lg px-3 text-[15px] font-medium transition-colors',
+        active ? 'bg-accent-weak text-accent-ink' : 'text-ink hover:bg-sunken',
+      )}
+    >
+      <Icon
+        className={cn('size-5 shrink-0', active ? 'text-accent-ink' : 'text-ink-3')}
+        aria-hidden="true"
+      />
+      <span className="min-w-0 flex-1 py-2">
+        <span className="block truncate">{item.label}</span>
+        {detail !== undefined && (
+          <span className="block truncate text-[12px] font-normal text-ink-3">{detail}</span>
+        )}
+      </span>
+      {count !== null && (
+        <span className="tnum text-[12px] font-semibold text-danger">{count}</span>
+      )}
+    </NavLink>
   );
 }
 

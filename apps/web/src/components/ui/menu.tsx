@@ -7,6 +7,7 @@ import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn.js';
+import { collisionInsets } from '../../lib/viewport.js';
 
 const popupClass =
   'z-[95] min-w-44 overflow-hidden rounded-xl border border-line bg-raised p-1 shadow-e3 outline-none data-[state=open]:animate-pop';
@@ -29,7 +30,7 @@ export function DropdownMenuContent({
         data-slot="popup"
         align={align}
         sideOffset={6}
-        collisionPadding={8}
+        collisionPadding={collisionInsets()}
         className={cn(popupClass, className)}
       >
         {children}
@@ -102,7 +103,7 @@ export function PopoverContent({
         data-slot="popup"
         align={align}
         sideOffset={6}
-        collisionPadding={8}
+        collisionPadding={collisionInsets()}
         className={cn(popupClass, 'p-3', className)}
       >
         {children}

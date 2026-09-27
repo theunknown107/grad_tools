@@ -9,7 +9,7 @@
  *
  * tesseract.js builds two of its asset URLs by STRING CONCATENATION:
  *
- *     `${langPath}/${lang}.traineddata.gz`
+ *     `${langPath}/${lang}.traineddata`
  *     `${corePath}/tesseract-core-simd-lstm.wasm.js`
  *
  * so both need a directory whose filenames survive intact. A bundler import
@@ -38,7 +38,8 @@
  * Runs from `prebuild` and `predev`, and is idempotent.
  */
 import { createRequire } from 'node:module';
-import { copyFile, mkdir, stat } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { gunzipSync } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -79,6 +80,25 @@ async function vendor(from, to) {
   return { to, bytes: source, copied: true };
 }
 
+/**
+ * The model, stored UNCOMPRESSED.
+ *
+ * It used to be copied as `eng.traineddata.gz` and fetched with `gzip: true`.
+ * The Android build's asset packager gunzips any `.gz` asset and drops the
+ * extension, so the APK held `eng.traineddata` while the engine asked for
+ * `eng.traineddata.gz`: a 404, which tesseract.js swallows during start-up —
+ * `createWorker` then never settles, and on the phone every photo sat at
+ * "Waiting to be read…" forever. One uncompressed file has the same name on
+ * the web and in the APK. It is 5MB rather than 2.8MB on disk; hosts compress
+ * it in transit, and the engine caches it after the first use.
+ */
+async function vendorModel(from, to) {
+  const model = gunzipSync(await readFile(from));
+  if ((await sizeOf(to)) === model.length) return { to, bytes: model.length, copied: false };
+  await writeFile(to, model);
+  return { to, bytes: model.length, copied: true };
+}
+
 const main = async () => {
   await mkdir(OUT, { recursive: true });
 
@@ -102,13 +122,19 @@ const main = async () => {
      * 2.8MB against 10.9MB, and the larger file's extra size is the LEGACY
      * engine data, which is not used here at all.
      */
-    [join(engDir, '4.0.0_best_int', 'eng.traineddata.gz'), join(OUT, 'eng.traineddata.gz')],
+    [
+      join(engDir, '4.0.0_best_int', 'eng.traineddata.gz'),
+      join(OUT, 'eng.traineddata'),
+      vendorModel,
+    ],
     ...CORE_FILES.map((file) => [join(coreDir, file), join(OUT, file)]),
   ];
 
   let total = 0;
-  for (const [from, to] of jobs) {
-    const result = await vendor(from, to);
+  // The compressed copy an earlier version vendored; nothing asks for it now.
+  await rm(join(OUT, 'eng.traineddata.gz'), { force: true });
+  for (const [from, to, copy = vendor] of jobs) {
+    const result = await copy(from, to);
     total += result.bytes;
     console.log(
       `  ${result.copied ? 'copied ' : 'present'}  ${(result.bytes / 1024 / 1024).toFixed(2)} MB  ${result.to.slice(OUT.length + 1)}`,

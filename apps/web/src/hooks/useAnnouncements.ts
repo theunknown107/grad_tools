@@ -23,7 +23,7 @@ import {
 } from '../domain/notifications.js';
 import { sortForStudent, type StudentContext } from '../domain/announcements.js';
 import { useRepositories } from '../repositories/context.js';
-import { apiBaseUrl } from '../repositories/reference.js';
+import { NOT_CONNECTED, apiBaseUrl, apiConfigured } from '../repositories/reference.js';
 import { publish, storeFor, useShared, type SharedStore } from './shared-store.js';
 import { useProfile, useSemesters } from './useCollection.js';
 import { buildSemesterViews, currentSemester } from '../domain/academics.js';
@@ -94,6 +94,7 @@ const PAGE_SIZE = 100;
  * missing its older half must not be presented as complete.
  */
 async function fetchWholeFeed(query: string): Promise<{ data: Announcement[]; total: number }> {
+  if (!apiConfigured()) throw new Error(NOT_CONNECTED);
   const data: Announcement[] = [];
   const seen = new Set<string>();
   let total = 0;
@@ -132,10 +133,13 @@ function requestFeed(store: SharedStore<FeedSnapshot>, query: string): Promise<F
       },
       // A feed that cannot be reached says so; it does not show an empty
       // state, which would read as "there is nothing to tell you".
-      (): FeedSnapshot => ({
+      (cause: unknown): FeedSnapshot => ({
         ...store.snapshot,
         loading: false,
-        error: 'Could not reach the GradTools server.',
+        error:
+          cause instanceof Error && cause.message === NOT_CONNECTED
+            ? `${NOT_CONNECTED} Announcements need one.`
+            : 'Could not reach the GradTools server.',
       }),
     )
     .finally(() => {

@@ -572,3 +572,47 @@ key** because a right-to-left override can reorder a rendered line. It does not
 strip them from the stored text, because rewriting extracted text is exactly the
 invention M10B §9 forbids — and escaping belongs at render time, where React
 does it.
+
+## 13.28 Document import on a phone — threat model (post-APK hardening)
+
+Trigger: on a real Samsung SM-A356E every photo and scanned PDF stayed at
+"Reading your document…" forever. That was a correctness bug (below), but an
+import pipeline that can stop without an outcome is also a place where a
+hostile file could hold the app, so the whole path was reviewed.
+
+**Where a document goes.** Chosen file → `sniffKind` (first 1KB) → one of
+three decoders, all in this tab: pdf.js (text layer, or pages rendered for
+OCR), tesseract.js (a Web Worker, WASM, assets from our own origin only), or
+`DOMParser` for a saved HTML page. The review shows what was read; saving
+writes the *parsed* result to IndexedDB on the device. **The file, its bytes and
+its extracted text are never sent anywhere**: no request carries them (pinned by
+`result-import-workflow.test.tsx`), there is no server-side document storage,
+and nothing is written to `localStorage`, the filesystem or an object URL.
+A signed-in student's sync sends only `SYNCED_FIELDS` of the saved result —
+never the file, the filename or the source text. Result provenance
+(`ResultSource`) records kind, session, time and parser version, not the
+document. The OCR model (not student data) is cached by tesseract.js in
+IndexedDB. Android Auto Backup is off (`allowBackup="false"`), so none of this
+reaches a cloud backup.
+
+| Threat | Control |
+|---|---|
+| A file that lies about itself (extension, MIME type, UUID-named Android picks) | `sniffKind` decides by signature (`%PDF-`, JPEG, PNG, WebP); HTML only when declared and matching no binary format. The decoder still refuses content it cannot parse |
+| Oversized input | 10MB PDF, 20 pages, 20,000 text items/page; 20MB image, decoded and downscaled to 2000px; 5MB HTML; 4 scanned pages; 12 files per batch — named constants in `pdf-text.ts`, `ocr.ts`, `result-file.ts` |
+| A decoder that never returns (worker killed, engine wedged, a crafted file) | `lib/deadline.ts`: engine start 90s, each OCR pass 90s, each PDF read/render 60s. A timed-out OCR worker is terminated. Every file ends `read` or `failed`; Cancel settles the in-flight pass and closes the engine |
+| Malicious PDF | pdf.js with no eval, no font faces, no system fonts, no worker fetch; text extracted, never rendered into the DOM; the page canvas is only handed to OCR |
+| Malicious HTML | `DOMParser` document: scripts never execute, handlers never fire, nothing loads; only text nodes are read (`result-file.test.ts` pins it). Never inserted into the page |
+| Hostile images, decompression bombs | Byte cap before decode; decode by the browser's `createImageBitmap`; the bitmap is downscaled and closed. **Accepted residual:** a small file with enormous declared dimensions can still exhaust the tab's memory during decode — self-inflicted (the student chose the file), no data exposure |
+| SVG | Not accepted (not in the signature list) |
+| Leaking content through errors or logs | No `console` use in the pipeline; tesseract's logger and error handler are silent; the UI shows only fixed messages, and an unexpected error becomes "This file could not be read." (pinned by test). The filename is shown to the student and used for nothing else |
+| OCR worker left running | Closed when a batch ends, on Cancel, on Done and on unmount; a closed or timed-out session is replaced, never reused |
+
+**The root cause of the hang.** The Android asset packager gunzips any `.gz`
+asset and drops the extension, so the APK held `eng.traineddata` while the
+engine asked for `eng.traineddata.gz` (404). tesseract.js 7 reports a model
+load failure only to `errorHandler` and otherwise swallows it — `createWorker`
+never settles. Fixed three ways: the model is vendored uncompressed (same name
+on web and APK), `errorHandler` now fails the start at once, and the start
+deadline backstops anything else. **Known residual:** a start that fails this
+way never hands back its worker, so it cannot be terminated; each failed
+attempt can leave one idle worker until the page closes.
