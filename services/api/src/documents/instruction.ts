@@ -38,6 +38,8 @@ export const DOCUMENT_TURN = 'Transcribe the attached document according to the 
  * The JSON Schema keywords Gemini's structured output accepts. Everything else
  * that zod emits (`$schema`, `pattern`, length bounds) is dropped here and
  * enforced instead by validating the reply with the zod schema itself.
+ * `maxItems` is dropped too: gemini-3.8-flash rejects it (400 INVALID_ARGUMENT);
+ * the array caps are still enforced by the zod schema.
  */
 const KEPT = new Set([
   'type',
@@ -50,7 +52,6 @@ const KEPT = new Set([
   'additionalProperties',
   'minimum',
   'maximum',
-  'maxItems',
 ]);
 
 export function forGemini(schema: unknown): unknown {

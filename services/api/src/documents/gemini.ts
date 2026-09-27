@@ -11,7 +11,7 @@
  * side as an object that outlives the request, and there is nothing to delete.
  */
 
-import { ApiError as GeminiApiError, GoogleGenAI } from '@google/genai';
+import { ApiError as GeminiApiError, GoogleGenAI, ThinkingLevel } from '@google/genai';
 import type { AiDocumentMimeType } from '@gradtools/shared-types';
 import { DOCUMENT_TURN, EXTRACTION_INSTRUCTION, GEMINI_RESPONSE_SCHEMA } from './instruction.js';
 
@@ -49,7 +49,14 @@ export function classifyReaderError(error: unknown, signal: AbortSignal): Docume
 export function createGeminiReader(options: {
   readonly apiKey: string;
   readonly model: string;
+  readonly thinkingLevel: 'minimal' | 'low' | 'medium' | 'high';
 }): DocumentReader {
+  const thinkingLevel = {
+    minimal: ThinkingLevel.MINIMAL,
+    low: ThinkingLevel.LOW,
+    medium: ThinkingLevel.MEDIUM,
+    high: ThinkingLevel.HIGH,
+  }[options.thinkingLevel];
   const client = new GoogleGenAI({ apiKey: options.apiKey });
   return async (document, signal) => {
     try {
@@ -73,8 +80,8 @@ export function createGeminiReader(options: {
           systemInstruction: EXTRACTION_INSTRUCTION,
           responseMimeType: 'application/json',
           responseJsonSchema: GEMINI_RESPONSE_SCHEMA,
-          temperature: 0,
-          candidateCount: 1,
+          /* Gemini 3 sampling is left at the model's defaults (no temperature, topP, topK). */
+          thinkingConfig: { thinkingLevel },
           abortSignal: signal,
         },
       });

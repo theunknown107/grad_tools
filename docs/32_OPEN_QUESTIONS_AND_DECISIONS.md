@@ -2735,16 +2735,23 @@ no request is needed for either.
 
 AI document reading is a second import path, not a replacement: signed-in
 only, off by default, server-side Gemini (`GEMINI_DOCUMENT_MODEL`, default
-`gemini-2.5-flash`, never switched silently), strict schema, deterministic
+`gemini-3.8-flash`, never switched silently), strict schema, deterministic
 recognition gate, and the ordinary on-device review before anything is saved.
 The on-device parser stays for offline use; no model ships in the APK. The
 AI returns source values only; catalogue and calculated values are added on
 the device and labelled. docs/13 §13.29.
 
-### OQ-067 — Which Gemini model the project can use · **open**
+### OQ-067 — Which Gemini model the project can use · **resolved**
 
 On 2026-09-27 the configured key's call to `gemini-2.5-flash` returned
 `404 NOT_FOUND: "This model models/gemini-2.5-flash is no longer available to
 new users. Please update your code to use models/gemini-3.8-flash…"`, though
 the model is still listed for the key. Changing `GEMINI_DOCUMENT_MODEL` is the
 owner's decision; the service reports the model as unavailable until then.
+
+**Resolved:** the owner moved the default to `gemini-3.8-flash` with
+`GEMINI_THINKING_LEVEL=low`. Gemini 3 needs no `temperature`/`candidateCount`,
+and rejects `maxItems` in the response schema (400 INVALID_ARGUMENT), so the
+array caps are enforced by the zod schema alone. A synthetic result card read
+correctly (17 s). The free tier allows 20 requests a day per model and returns
+503 under load — not a basis for production.
