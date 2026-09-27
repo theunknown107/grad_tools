@@ -58,7 +58,13 @@ const configSchema = z.object({
    * The model that reads documents. Changing it is a deliberate configuration
    * change; the service never falls back to another model on its own.
    */
-  GEMINI_DOCUMENT_MODEL: z.string().min(1).max(60).default('gemini-2.5-flash'),
+  GEMINI_DOCUMENT_MODEL: z.string().min(1).max(60).default('gemini-3.8-flash'),
+
+  /**
+   * How much the model reasons before answering. Routine extraction needs
+   * little: `low` keeps latency and cost predictable.
+   */
+  GEMINI_THINKING_LEVEL: z.enum(['minimal', 'low', 'medium', 'high']).default('low'),
 
   /** Secret. Never logged, never returned by any endpoint. */
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),

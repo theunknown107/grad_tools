@@ -163,7 +163,7 @@ function review(over: Partial<AiReview>): AiReview {
     documentType: 'RESULT_CARD',
     resultCard: CARD,
     timetable: null,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     ...over,
   };
 }

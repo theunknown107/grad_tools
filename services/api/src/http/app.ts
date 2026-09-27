@@ -242,6 +242,7 @@ export function createApp(
             createGeminiReader({
               apiKey: config.GEMINI_API_KEY,
               model: config.GEMINI_DOCUMENT_MODEL,
+              thinkingLevel: config.GEMINI_THINKING_LEVEL,
             }),
           model: config.GEMINI_DOCUMENT_MODEL,
         }),

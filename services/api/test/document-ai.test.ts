@@ -285,7 +285,11 @@ describe('what the model is given', () => {
     }));
     vi.resetModules();
     const { createGeminiReader } = await import('../src/documents/gemini.js');
-    const reader = createGeminiReader({ apiKey: 'test-key-not-real', model: 'gemini-2.5-flash' });
+    const reader = createGeminiReader({
+      apiKey: 'test-key-not-real',
+      model: 'gemini-3.8-flash',
+      thinkingLevel: 'low',
+    });
     await reader({ bytes: CARD_PNG, mimeType: 'image/png' }, new AbortController().signal);
     vi.doUnmock('@google/genai');
 
@@ -294,7 +298,12 @@ describe('what the model is given', () => {
       contents: { parts: Record<string, unknown>[] }[];
       config: Record<string, unknown>;
     };
-    expect(call.model).toBe('gemini-2.5-flash');
+    expect(call.model).toBe('gemini-3.8-flash');
+    // Gemini 3: a low thinking level, and none of the 2.x sampling parameters.
+    expect(call.config.thinkingConfig).toEqual({ thinkingLevel: 'LOW' });
+    for (const legacy of ['temperature', 'topP', 'topK', 'candidateCount']) {
+      expect(call.config[legacy]).toBeUndefined();
+    }
     expect(call.config.systemInstruction).toBe(EXTRACTION_INSTRUCTION);
     expect(call.config.responseMimeType).toBe('application/json');
     for (const capability of ['tools', 'toolConfig', 'automaticFunctionCalling', 'cachedContent']) {
@@ -419,7 +428,7 @@ describe('when the provider fails', () => {
       'an unavailable model',
       'model_unavailable',
       503,
-      /model \(gemini-2\.5-flash\) is not available/,
+      /model \(gemini-3\.8-flash\) is not available/,
     ],
     ['a rate limit', 'rate_limited', 429, /busy/],
     ['a service error', 'service', 503, /unavailable right now/],
@@ -436,7 +445,7 @@ describe('when the provider fails', () => {
       new Promise((_, reject) => {
         signal.addEventListener('abort', () => reject(new Error('aborted')));
       });
-    await expect(readDocument(CARD_PNG, never, 'gemini-2.5-flash', 20)).rejects.toMatchObject({
+    await expect(readDocument(CARD_PNG, never, 'gemini-3.8-flash', 20)).rejects.toMatchObject({
       failure: 'timeout',
     });
   });
@@ -456,7 +465,6 @@ describe('the schema the model is constrained to', () => {
       'additionalProperties',
       'minimum',
       'maximum',
-      'maxItems',
     ]);
     const walk = (node: unknown): void => {
       if (Array.isArray(node)) return node.forEach(walk);
