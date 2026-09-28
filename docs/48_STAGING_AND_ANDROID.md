@@ -298,3 +298,32 @@ Not implemented, only prepared:
    - reference data loads;
    - backgrounding the app for over a minute and returning refreshes the clock and inbox.
 9. `pnpm verify` is green on the commit that was deployed.
+
+## Staging smoke test (synthetic data only)
+
+Walk this once against the deployed staging stack, signed in as a throwaway
+account, using only invented documents (the `BQ`-prefixed synthetic fixtures,
+never a real USN or grade card). It expands the checklist above into the full
+user flow; each step is pass/fail.
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | Sign up with a synthetic email | Account created; session established |
+| 2 | Reload the page while signed in | Session persists (no re-login) — `autoRefreshToken`/`persistSession` |
+| 3 | Sign out | Session cleared; `/api/v1/me` calls now 401 |
+| 4 | Sign back in; set up a profile (college, branch, scheme) | Profile saved and reloads |
+| 5 | Import a timetable (synthetic PDF) offline (AI off) | Parsed on device; nothing leaves the app |
+| 6 | Import a result card (synthetic PDF) offline | Rows parsed; conflicts/marks flagged in review |
+| 7 | Offline parser with the network disabled | Still reads a text-layer PDF; no request attempted |
+| 8 | Turn on "Read with AI"; import a synthetic image | Server extracts, or a fixed "temporarily unavailable / Offline mode" message when the free model is unavailable |
+| 9 | Review → confirm | Nothing saved until confirm; on confirm the record appears |
+| 10 | Reload the dashboard | Saved results/timetable persist |
+| 11 | Open Announcements | Public feed loads; an external "Open the original" link is http(s) only |
+| 12 | `GET /health` and `/health/ready` | `200 ok` and `200 ready` (or `503 degraded` if the DB is down) |
+| 13 | `POST /api/v1/announcements/entry` with no token | `404` (no operator) or `401` (no header) |
+| 14 | Trigger an error (oversized/invalid upload) | A clear message; no stack trace, provider text, key, or document content |
+| 15 | Kill the network mid-action, then restore it | The app recovers; no corrupted local state |
+| 16 | Install the debug APK; repeat 1–11 against staging | `VITE_API_URL` points at the staging API; same behaviour as web |
+
+Any step that fails is a staging blocker. None of these can be run from the
+repository alone — they require the external stack from the checklist above.
