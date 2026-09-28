@@ -811,6 +811,60 @@ describe('resolving a grid abbreviation to a subject', () => {
     expect(resolved.resolution).toBe('unknown');
     expect(resolved.reason).toContain('ZZZ');
   });
+
+  it('offers a cell one letter off one subject as a match to CHECK, never as identified', () => {
+    /*
+     * The real Semester 5 grid prints ESEVM; its subject table's title gives
+     * ESEWM. The code is offered with a reason, and the class is flagged.
+     */
+    const dictionary = readDictionary([
+      'BQAS508 Environmental Studies and E-waste Management Prof. A One 1+0+0 1+0+0',
+      ...table,
+    ]);
+    const resolved = resolveGridSubject(dictionary, 'ESEVM');
+    expect(resolved).toMatchObject({ subjectCode: 'BQAS508', resolution: 'near' });
+    expect(resolved.reason).toContain('ESEWM');
+    expect(resolved.reason).toMatch(/check it/);
+  });
+
+  it('never near-matches a short abbreviation, or one close to two subjects', () => {
+    // Three letters or fewer: CNL and CSL are different labs, not a typo.
+    expect(resolveGridSubject(readDictionary(table), 'CXL').resolution).toBe('unknown');
+    const two = readDictionary([
+      'BQAS508 Environmental Studies and E-waste Management Prof. A One 1+0+0 1+0+0',
+      'BQAS509 Environmental Studies and E-vision Waste Prof. B Two 1+0+0 1+0+0',
+    ]);
+    expect(resolveGridSubject(two, 'ESEVM')).toMatchObject({
+      subjectCode: null,
+      resolution: 'unknown',
+    });
+  });
+});
+
+describe('a block written out in words that the subject table never lists', () => {
+  it('is an activity under its printed name — not an unidentified subject', () => {
+    const parsed = parseTimetable(
+      page(
+        dayRow('MONDAY', 660, [
+          'MAT',
+          'Value added Course',
+          'BREAK',
+          'ZZQ',
+          null,
+          'LUNCH',
+          null,
+          null,
+        ]),
+      ),
+    );
+    const activity = parsed.classes.find((entry) => entry.initials === 'Value added Course');
+    expect(activity).toMatchObject({ subjectCode: null, resolution: 'activity' });
+    // No code is invented, and it is not listed as something to identify...
+    expect(parsed.warnings.join(' ')).not.toMatch(/Value added/i);
+    // ...while a genuinely undefined abbreviation still is.
+    expect(parsed.classes.find((entry) => entry.initials === 'ZZQ')?.resolution).toBe('unknown');
+    expect(parsed.warnings.join(' ')).toMatch(/never says what ZZQ is/);
+  });
 });
 
 describe('a subject table that wraps its titles', () => {

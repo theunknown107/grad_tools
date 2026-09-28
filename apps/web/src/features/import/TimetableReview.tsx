@@ -14,12 +14,27 @@ import {
   relateTimetable,
   slotsForBatch,
   timetableEntry,
+  type GridClass,
   type ParsedTimetable,
   type SavedTimetable,
+  type SubjectResolution,
 } from '../../domain/timetable-import.js';
 import { WEEKDAYS, type TimetableSlot } from '../../domain/types.js';
 import { newId, nowIso } from '../../lib/id.js';
 import { Recorded, ReviewCard, SaveFooter, saveFailure, type SaveState } from './ReviewCard.js';
+
+/** Where each class's subject came from, in the words the review shows. */
+const SOURCE: Record<SubjectResolution, string> = {
+  declared: 'From the timetable’s subject list',
+  initialism: 'Initials match the timetable’s subject list',
+  near: 'Needs review — closest match',
+  ambiguous: 'Needs review — more than one match',
+  activity: 'Activity, as printed',
+  unknown: 'Needs review — not identified',
+};
+
+const needsReview = (entry: GridClass): boolean =>
+  entry.resolution === 'near' || entry.resolution === 'ambiguous' || entry.resolution === 'unknown';
 
 export function TimetableReview({
   fileName,
@@ -167,6 +182,17 @@ export function TimetableReview({
           </ul>
         </Callout>
       )}
+      {parsed.classes.some(needsReview) && (
+        <Callout tone="warning" title="Check these classes before saving:">
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {parsed.classes.filter(needsReview).map((entry) => (
+              <li key={`${entry.day}-${entry.start}-${entry.batch ?? ''}-${entry.sourceText}`}>
+                {entry.day} {entry.start} · printed “{entry.sourceText}” — {entry.unresolvedReason}
+              </li>
+            ))}
+          </ul>
+        </Callout>
+      )}
       {needsBatch(parsed) && (
         <Card className="p-5">
           <Field
@@ -203,6 +229,38 @@ export function TimetableReview({
             ))}
           </CardRows>
         </Card>
+      )}
+      {parsed.classes.length > 0 && (
+        <details className="rounded-lg border border-line bg-panel px-4 py-3 text-[13px]">
+          <summary className="cursor-pointer font-medium text-ink">
+            How each class was read ({parsed.classes.length})
+          </summary>
+          <ul className="mt-3 divide-y divide-line">
+            {parsed.classes.map((entry) => (
+              <li
+                key={`${entry.day}-${entry.start}-${entry.batch ?? ''}-${entry.sourceText}`}
+                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2"
+              >
+                <span className="w-24 shrink-0 font-mono text-[12px] text-ink-3">
+                  {entry.day} {entry.start}
+                </span>
+                <span className="min-w-0 flex-1 text-ink">
+                  “{entry.sourceText}”
+                  {entry.subjectCode !== null && (
+                    <span className="text-ink-2"> → {entry.subjectCode}</span>
+                  )}
+                  {entry.batch !== null && (
+                    <span className="text-ink-2"> · batch {entry.batch}</span>
+                  )}
+                  {entry.room !== null && <span className="text-ink-2"> · room {entry.room}</span>}
+                </span>
+                <Badge tone={needsReview(entry) ? 'warning' : 'neutral'}>
+                  {SOURCE[entry.resolution]}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
       <SaveFooter
         error={error}

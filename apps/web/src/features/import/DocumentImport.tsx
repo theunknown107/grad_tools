@@ -115,6 +115,8 @@ interface FileState {
   /** Read by the AI service rather than on the device (and what its gate found). */
   readonly ai: boolean;
   readonly aiNote: string | null;
+  /** What recognition is doing right now, from the reader itself: "page 2 of 3". */
+  readonly progress: string | null;
   readonly file: ImportedFile | null;
   readonly calendar: ParsedCalendar | null;
   readonly timetable: ParsedTimetable | null;
@@ -135,7 +137,7 @@ function fileMeta(entry: FileState): string {
   if (entry.status === 'queued') return 'Waiting for the text recogniser…';
   if (entry.status === 'preparing')
     return 'Preparing the text recogniser — the first time takes longer on a phone…';
-  if (entry.status === 'recognising') return 'Reading the text in this picture…';
+  if (entry.status === 'recognising') return entry.progress ?? 'Reading the text in this picture…';
   if (entry.status === 'reading') return 'Checking the file type and structure…';
   const via = entry.ai ? ` · read by AI${entry.aiNote === null ? '' : ` — ${entry.aiNote}`}` : '';
   const kind =
@@ -318,6 +320,7 @@ export function DocumentImport({
       source: file,
       ai: false,
       aiNote: null,
+      progress: null,
       file: null,
       calendar: null,
       timetable: null,
@@ -440,7 +443,15 @@ export function DocumentImport({
         const reading =
           item.kind === 'image'
             ? await readImageFile(item.file, recognize)
-            : await readPdfFile(item.data ?? (await item.file.arrayBuffer()), recognize);
+            : await readPdfFile(
+                item.data ?? (await item.file.arrayBuffer()),
+                recognize,
+                (page, total) => {
+                  patch(item.id, {
+                    progress: `Reading the text on page ${String(page)} of ${String(total)}…`,
+                  });
+                },
+              );
         store(item.id, item.file.name, reading);
       } catch (cause) {
         fail(item.id, cause);
@@ -539,6 +550,11 @@ export function DocumentImport({
         </Card>
       )}
       <FileDropzone busy={busy} onFiles={(chosen) => void read(chosen)} />
+      {!(aiAvailable && useAi) && (
+        <p className="-mt-3 text-[12px] text-ink-3">
+          Offline mode: your file stays on this device, and no internet connection is required.
+        </p>
+      )}
 
       {files.length > 0 && (
         <Card className="overflow-hidden">

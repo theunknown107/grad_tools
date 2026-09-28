@@ -28,6 +28,7 @@ import { Field, Input, Select } from '../../components/ui/field.js';
 import type { asStudentProfileId } from '../../domain/identity.js';
 import { COURSE_KIND_LABEL, enrichRow, type RowEnrichment } from '../../domain/enrichment.js';
 import { resolveCourseKind } from '../../domain/exams.js';
+import { checkMarks, type MarksCheck } from '../../domain/marks-check.js';
 import { rowToSubject, type ParsedRow } from '../../domain/result-import.js';
 import {
   blockingReason,
@@ -53,6 +54,12 @@ import { Recorded, ReviewCard, SaveFooter, saveFailure, type SaveState } from '.
 
 /** Recorded on each imported result, so a later parser fix can tell which readings predate it. */
 const PARSER_VERSION = 'vtu-result-card/1';
+
+/** A mark as typed or read; anything but a whole number is "not read". */
+const markOf = (value: string): number | null =>
+  /^\d{1,3}$/.test(value.trim()) ? Number(value) : null;
+
+const FIELD_LABEL = { internal: 'Internal', external: 'External', total: 'Total' } as const;
 
 const sameUsn = (a: string, b: string): boolean =>
   a.trim().toUpperCase() === b.trim().toUpperCase();
@@ -253,17 +260,20 @@ export function ResultReview({
   const enriched = rows.map((row) => {
     const enrichment = enrichmentFor(row);
     const needsAnswer = needsSeeAnswer(row, catalogueFor(row.subjectCode)?.hasSee ?? null);
+    /* Arithmetic, not a rule: checked for every scheme, verified rules or not. */
+    const marks = checkMarks(markOf(row.internal), markOf(row.external), markOf(row.total));
     return {
       row,
       enrichment,
       needsAnswer,
+      marks,
       /*
        * TWO DIFFERENT THINGS, NEVER MERGED. "Needs review" is a contradiction
        * or a question only the student can answer. A value nobody knows yet —
        * credits, a letter the card does not print — is merely incomplete: it
        * keeps the row out of SGPA and is said plainly, not as a warning.
        */
-      unresolved: enrichment.conflict !== null || needsAnswer,
+      unresolved: enrichment.conflict !== null || needsAnswer || marks.agreement === 'inconsistent',
       incomplete: enrichment.credits.value === null || enrichment.grade.value === null,
     };
   });
@@ -273,7 +283,9 @@ export function ResultReview({
    * moment an edit cleared it — unmounting the field being typed into.
    */
   const conflicted = enriched
-    .filter((entry) => entry.enrichment.conflict !== null)
+    .filter(
+      (entry) => entry.enrichment.conflict !== null || entry.marks.agreement === 'inconsistent',
+    )
     .map((entry) => entry.row.id)
     .join('|');
   useEffect(() => {
@@ -497,7 +509,7 @@ export function ResultReview({
           <span className="text-right">Result</span>
         </div>
         <ul className="divide-y divide-line">
-          {enriched.map(({ row, enrichment, needsAnswer, unresolved }, index) => {
+          {enriched.map(({ row, enrichment, needsAnswer, unresolved, marks }, index) => {
             const position = String(index + 1);
             const open = needsAnswer || openRows.has(row.id);
             const name = row.subjectTitle === '' ? row.subjectCode : row.subjectTitle;
@@ -690,6 +702,11 @@ export function ResultReview({
                         {enrichment.conflict}
                       </p>
                     )}
+                    <MarksNote
+                      marks={marks}
+                      said={enrichment.conflict !== null}
+                      onUse={(field, value) => update(row.id, { [field]: String(value) })}
+                    />
                     <Resolved row={row} enrichment={enrichment} />
                     <p className="mt-3 truncate font-mono text-[11px] text-ink-3">
                       <span className="font-sans font-medium text-ink-2">Read from</span>{' '}
@@ -741,6 +758,50 @@ export function ResultReview({
         }
       />
     </ReviewCard>
+  );
+}
+
+/**
+ * Marks that do not add up, for any scheme — and, where exactly one lost or
+ * doubled digit explains it, that reading, offered as a button. Never applied
+ * on its own: the student compares with the document and chooses.
+ */
+function MarksNote({
+  marks,
+  said,
+  onUse,
+}: {
+  readonly marks: MarksCheck;
+  /** The rule-based conflict above already says the marks disagree. */
+  readonly said: boolean;
+  readonly onUse: (field: 'internal' | 'external' | 'total', value: number) => void;
+}) {
+  if (marks.agreement !== 'inconsistent') return null;
+  const { candidate } = marks;
+  return (
+    <div role="status" className="mt-3 text-[13px] text-warning">
+      {!said && (
+        <p className="font-medium">
+          The marks do not add up: they give a total of {marks.computedTotal}. Check them against
+          the document.
+        </p>
+      )}
+      {candidate !== null && (
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-ink-2">
+          <span>
+            {FIELD_LABEL[candidate.field]} was read as <strong>{candidate.read}</strong> — possibly{' '}
+            <strong>{candidate.possible}</strong>, if a digit was lost or doubled in the scan.
+          </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => onUse(candidate.field, candidate.possible)}
+          >
+            Use {candidate.possible}
+          </Button>
+        </p>
+      )}
+    </div>
   );
 }
 
