@@ -16,6 +16,7 @@
  */
 
 import { z } from 'zod';
+import { httpUrlSchema } from './url.js';
 
 /* -------------------------------------------------------------------------- */
 /* Provenance                                                                 */
@@ -28,7 +29,7 @@ import { z } from 'zod';
  * (docs/14 §14.10). The API cannot emit one because the schema forbids it.
  */
 export const provenanceSchema = z.object({
-  sourceUrl: z.string().url(),
+  sourceUrl: httpUrlSchema,
   sourceClause: z.string().nullable(),
   verifiedAt: z.string(),
   verifiedBy: z.string().nullable(),
@@ -331,6 +332,7 @@ export const API_ROUTES = {
 /* Sources, rights and documents (M5)                                         */
 /* -------------------------------------------------------------------------- */
 
+export * from './url.js';
 export * from './sources.js';
 
 /* -------------------------------------------------------------------------- */
