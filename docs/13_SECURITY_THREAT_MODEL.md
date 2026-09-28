@@ -662,3 +662,25 @@ AI-read row says so. The gate cannot tell a genuine document from a
 well-made fake. A document can still bias the extraction (injected text that
 makes a value wrong); the strict schema, the gate and human review contain it,
 they do not prevent it.
+
+## 13.30 Free-only document AI through OpenRouter
+
+When `OPENROUTER_API_KEY` is set it replaces Gemini as the reader behind the
+same route, guard, schema, gate and review (§13.29). What it adds is a cost
+and privacy gate that runs **before every read** (`documents/openrouter.ts`):
+
+| Rule | Enforcement |
+|---|---|
+| $0 only | The model's live endpoint metadata is fetched (no inference). An endpoint counts only if EVERY metered price — prompt, completion, request, image, anything listed — is present and exactly 0. Missing or unreadable = not free. The `:free` name is ignored. No free endpoint → the document is not sent |
+| The router agrees | The request carries `provider.max_price` 0 on every item, `allow_fallbacks: false`, `require_parameters: true`. Never `models`, `route`, `openrouter/*` routers, plugins or tools |
+| A reply that cost money | `usage.cost > 0` is refused and logged as `document_ai_nonzero_cost` |
+| Private routing | `DOCUMENT_AI_REQUIRE_ZDR` (default true): the model needs a free endpoint on OpenRouter's zero-data-retention list, and the request carries `provider.zdr: true` and `data_collection: "deny"`. `false` is for synthetic local testing and refused in staging/alpha |
+| Capability | Image input, text-only output, and JSON output (`json_schema` when every usable endpoint enforces one, else JSON mode with the schema in the fixed instruction). The reply still passes the strict zod schema |
+| Fallback | `DOCUMENT_AI_SECONDARY_MODEL` is tried only when the primary is ineligible or unavailable, after the same checks; never after a 429 |
+| Rate limits | After a 429 nothing is sent until OpenRouter's reset (or 60 s); no retry loop |
+| PDFs | Never sent: the device renders page 1 to PNG (`renderPdfPage`), so no cloud PDF parser — including OpenRouter's paid ones — is involved |
+
+The student sees one of two fixed messages ("…temporarily unavailable. You can
+use Offline mode instead." / "…busy right now…"); model, provider and status
+go to the diagnostic log only, never document content. `tsx
+scripts/document-ai-models.ts` prints the live candidate table (metadata only).

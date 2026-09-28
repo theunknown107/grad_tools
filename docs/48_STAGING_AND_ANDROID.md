@@ -54,6 +54,10 @@ Authority: docs/13 §13.4a · docs/25 §25.4 · docs/45 · DEC-051 · OQ-064 · 
 | `SUPABASE_URL` | for accounts | Same as `VITE_SUPABASE_URL` |
 | `SUPABASE_DB_URL` | for accounts | **secret.** Must log in as `authenticator`, or the API refuses to start |
 | `SUPABASE_ADMIN_DB_URL` | no | **secret.** Used only for account deletion |
+| `OPENROUTER_API_KEY` | no | **secret.** Free-model AI reading (docs/13 §13.30); takes precedence over Gemini. Every read is refused unless the model is live-verified $0 |
+| `DOCUMENT_AI_PRIMARY_MODEL` | no | Default `qwen/qwen3.8-27b:free` (DEC-056) |
+| `DOCUMENT_AI_SECONDARY_MODEL` | no | Tried only if the primary is ineligible/unavailable, after the same checks |
+| `DOCUMENT_AI_REQUIRE_ZDR` | no | Default `true`. `false` only for synthetic local testing; refused in staging/alpha |
 | `GEMINI_API_KEY` | no | **secret.** Enables AI document reading for signed-in students (docs/13 §13.29). Unset: the route does not exist. Free tier: synthetic documents only |
 | `GEMINI_DOCUMENT_MODEL` | no | Default `gemini-3.8-flash`; never switched automatically (see OQ-067) |
 | `GEMINI_THINKING_LEVEL` | no | `minimal` \| `low` \| `medium` \| `high`; default `low` for predictable latency and cost |

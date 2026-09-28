@@ -15,8 +15,18 @@ import {
   aiTimetableToParsed,
 } from '../src/domain/ai-import.js';
 import { DocumentImport } from '../src/features/import/DocumentImport.js';
+import { readWithAi } from '../src/repositories/document-ai.js';
 import { AuthContextValueProvider } from './helpers/auth-harness.js';
 import { createMemoryRepositories, renderWith } from './helpers.js';
+
+/* The free AI models take images: a PDF is rendered on the device, never sent as a PDF. */
+const renderedPage = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: 'image/png' });
+vi.mock('../src/lib/pdf-text.js', async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  renderPdfPage: vi.fn(() =>
+    Promise.resolve({ toBlob: (done: (blob: Blob) => void) => done(renderedPage) }),
+  ),
+}));
 
 afterEach(() => {
   cleanup();
@@ -224,7 +234,8 @@ describe('reading with AI', () => {
     renderImport(true);
     const toggle = await screen.findByRole('switch', { name: /read with ai/i });
     expect(toggle.getAttribute('aria-checked')).toBe('false');
-    expect(screen.getByText(/Google’s Gemini AI service/)).toBeTruthy();
+    expect(screen.getByText(/third-party AI service/)).toBeTruthy();
+    expect(screen.getByText(/Off is Offline mode/)).toBeTruthy();
 
     // Off: the photo is read on the device and nothing is sent anywhere.
     await addPhoto();
@@ -271,5 +282,17 @@ describe('reading with AI', () => {
     await addPhoto();
     expect(await screen.findByText(/could not recognise this as a VTU result card/i)).toBeTruthy();
     expect(peek.results()).toHaveLength(0);
+  });
+});
+
+describe('a PDF read with AI', () => {
+  it('leaves the device as a rendered page image, not as the PDF', async () => {
+    const calls = serve(review({}));
+    const pdf = new File([new TextEncoder().encode('%PDF-1.7 synthetic')], 'card.pdf', {
+      type: 'application/pdf',
+    });
+    await readWithAi(pdf, 'synthetic-token');
+    const sent = calls.find((call) => call.url.endsWith('/api/v1/me/documents/extract'));
+    expect(sent?.init?.body).toBe(renderedPage);
   });
 });

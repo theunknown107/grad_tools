@@ -66,6 +66,29 @@ const configSchema = z.object({
    */
   GEMINI_THINKING_LEVEL: z.enum(['minimal', 'low', 'medium', 'high']).default('low'),
 
+  /**
+   * The OpenRouter API key for FREE-model document reading (docs/13 §13.30).
+   * **SECRET**, server-only, like GEMINI_API_KEY. When set, OpenRouter is the
+   * document reader (it takes precedence over Gemini); every read is refused
+   * unless the model is verified $0 for every item at that moment.
+   */
+  OPENROUTER_API_KEY: z.string().min(1).optional(),
+
+  /** OpenRouter model ids. Never `openrouter/*` routers; see `assessModel`. */
+  DOCUMENT_AI_PRIMARY_MODEL: z.string().min(1).max(100).default('qwen/qwen3.8-27b:free'),
+  /** Tried only when the primary is ineligible or unavailable — never on a 429. */
+  DOCUMENT_AI_SECONDARY_MODEL: z.string().min(1).max(100).optional(),
+
+  /**
+   * Route only to zero-data-retention endpoints that deny data collection.
+   * `false` is for local development with SYNTHETIC documents only, and is
+   * refused in deployed environments (`assertSafeExposure`).
+   */
+  DOCUMENT_AI_REQUIRE_ZDR: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
+
   /** Secret. Never logged, never returned by any endpoint. */
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 
@@ -172,6 +195,11 @@ export function assertSafeExposure(config: Config, env: NodeJS.ProcessEnv = proc
   if (insecure.length > 0) {
     problems.push(
       `Every WEB_ORIGIN must use https:// in ${config.APP_ENV}: ${insecure.join(', ')}`,
+    );
+  }
+  if (!config.DOCUMENT_AI_REQUIRE_ZDR) {
+    problems.push(
+      `DOCUMENT_AI_REQUIRE_ZDR=false is for synthetic local testing, not ${config.APP_ENV}.`,
     );
   }
   if (problems.length > 0) {

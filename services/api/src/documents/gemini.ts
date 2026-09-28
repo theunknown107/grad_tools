@@ -23,7 +23,12 @@ export type DocumentReader = (
 
 /** Why a read failed — in categories safe to show, never the provider's text. */
 export type ReaderFailure =
-  'not_configured' | 'model_unavailable' | 'rate_limited' | 'timeout' | 'service';
+  | 'not_configured'
+  | 'model_unavailable'
+  | 'rate_limited'
+  | 'timeout'
+  | 'service'
+  | 'unsupported_type';
 
 export class DocumentReaderError extends Error {
   constructor(readonly failure: ReaderFailure) {
