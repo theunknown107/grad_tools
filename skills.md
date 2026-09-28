@@ -229,6 +229,11 @@ Keep these layers separate; do not collapse them into one component.
   values in the ordinary review; nothing is saved before confirmation. Never
   log document bytes or model replies; never send real student documents to
   a free-tier key.
+- **Free-only AI (DEC-056):** OpenRouter reads are gated by `assessModel`
+  before EVERY request — every price present and 0, image input, JSON output,
+  a ZDR endpoint — plus `max_price` 0 in the request. Never `openrouter/*`
+  routers, `models` fallbacks, plugins or tools; never a retry loop after a 429. Check the live table with `scripts/document-ai-models.ts` (metadata
+  only) before changing `DOCUMENT_AI_PRIMARY_MODEL`.
 - **Provenance words** are fixed: "From the document", "Calculated (2022
   rules)", "GradTools catalogue", "Your own record". "Needs review" is only a
   real conflict or an unanswered question; unknown values are "incomplete".

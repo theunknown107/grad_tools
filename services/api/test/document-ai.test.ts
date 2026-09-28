@@ -422,21 +422,19 @@ describe('when the provider fails', () => {
     () =>
       Promise.reject(new DocumentReaderError(failure));
 
+  const OFFLINE = /^AI reading is temporarily unavailable\. You can use Offline mode instead\.$/;
   it.each([
-    ['an invalid key', 'not_configured', 503, /not configured correctly/],
-    [
-      'an unavailable model',
-      'model_unavailable',
-      503,
-      /model \(gemini-3\.8-flash\) is not available/,
-    ],
-    ['a rate limit', 'rate_limited', 429, /busy/],
-    ['a service error', 'service', 503, /unavailable right now/],
+    ['an invalid key', 'not_configured', 503, OFFLINE],
+    ['an unavailable model', 'model_unavailable', 503, OFFLINE],
+    ['a rate limit', 'rate_limited', 429, /busy right now\. You can use Offline mode instead/],
+    ['a service error', 'service', 503, OFFLINE],
   ] as const)('reports %s in fixed words', async (_name, failure, status, message) => {
     const { app, logs } = appWith(failing(failure));
     const response = await post(app, Buffer.from(CARD_PNG));
     expect(response.status).toBe(status);
     expect(response.body.error.message).toMatch(message);
+    // Never the model, the provider or the key in anything the student sees.
+    expect(response.body.error.message).not.toMatch(/gemini|qwen|openrouter|429/i);
     expect(logs()).not.toContain('test-key-not-real');
   });
 

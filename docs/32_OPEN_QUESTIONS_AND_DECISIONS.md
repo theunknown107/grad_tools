@@ -2755,3 +2755,22 @@ and rejects `maxItems` in the response schema (400 INVALID_ARGUMENT), so the
 array caps are enforced by the zod schema alone. A synthetic result card read
 correctly (17 s). The free tier allows 20 requests a day per model and returns
 503 under load — not a basis for production.
+
+### DEC-056 — Free-only OpenRouter reader; ZDR required outside local testing
+
+Document AI uses OpenRouter free models, gated before every read by live $0
+pricing, image+JSON capability and zero-data-retention routing (docs/13
+§13.30). Primary `qwen/qwen3.8-27b:free` — on 2026-09-28 the only one of 21
+free catalog models meeting every hard requirement (image input,
+`structured_outputs`, a ZDR endpoint). No secondary: no other free model has a
+ZDR endpoint. Gemini stays as the reader when only `GEMINI_API_KEY` is set.
+
+### OQ-068 — The primary model's extraction quality is unmeasured · **open**
+
+The 2026-09-28 benchmark (synthetic fixtures, one request per model per
+fixture, no retries) got an upstream 429 from Qwen's only provider, so its
+quality is not yet measured. The one model that answered, the anonymous
+`stealth/space-bunny-alpha`, read the result card exactly (26/26 fields, no
+invented grade/credits, no identifier) but timed out on the timetable, and has
+no ZDR endpoint. Re-run `scripts/document-ai-benchmark.ts
+qwen/qwen3.8-27b:free` before relying on the primary.

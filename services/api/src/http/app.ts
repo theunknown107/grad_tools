@@ -19,6 +19,7 @@ import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { createStudentRouter } from '../routes/me.js';
 import { createDocumentRouter } from '../routes/documents.js';
 import { createGeminiReader, type DocumentReader } from '../documents/gemini.js';
+import { createOpenRouterReader } from '../documents/openrouter.js';
 import { createAccountDeleter, createCloudClient } from '../db/cloud.js';
 import { startListening } from '../monitor/realtime.js';
 import { authConfigFor, createVerifier } from '../auth/session.js';
@@ -229,24 +230,35 @@ export function createApp(
 
   if (student !== undefined) {
     /*
-     * AI document reading: signed-in only, and only where a Gemini key is
-     * configured. Without the key the route does not exist, and documents are
-     * read on the device only (docs/13 §13.29).
+     * AI document reading: signed-in only, and only where an AI key is
+     * configured — OpenRouter (free models only, §13.30) before Gemini. With
+     * neither, the route does not exist and documents are read on the device
+     * only (docs/13 §13.29).
      */
-    if (config.GEMINI_API_KEY !== undefined) {
-      app.use(
-        createDocumentRouter({
-          verify: student.verify,
-          reader:
-            cloud?.documentReader ??
-            createGeminiReader({
-              apiKey: config.GEMINI_API_KEY,
-              model: config.GEMINI_DOCUMENT_MODEL,
+    const openRouterKey = config.OPENROUTER_API_KEY;
+    const geminiKey = config.GEMINI_API_KEY;
+    if (openRouterKey !== undefined || geminiKey !== undefined) {
+      const model =
+        openRouterKey !== undefined
+          ? config.DOCUMENT_AI_PRIMARY_MODEL
+          : config.GEMINI_DOCUMENT_MODEL;
+      const reader =
+        cloud?.documentReader ??
+        (openRouterKey !== undefined
+          ? createOpenRouterReader({
+              apiKey: openRouterKey,
+              models: [config.DOCUMENT_AI_PRIMARY_MODEL, config.DOCUMENT_AI_SECONDARY_MODEL].filter(
+                (id): id is string => id !== undefined,
+              ),
+              requireZdr: config.DOCUMENT_AI_REQUIRE_ZDR,
+              log: (event) => logger.warn(event),
+            })
+          : createGeminiReader({
+              apiKey: geminiKey ?? '',
+              model,
               thinkingLevel: config.GEMINI_THINKING_LEVEL,
-            }),
-          model: config.GEMINI_DOCUMENT_MODEL,
-        }),
-      );
+            }));
+      app.use(createDocumentRouter({ verify: student.verify, reader, model }));
     }
     app.use(
       createStudentRouter({

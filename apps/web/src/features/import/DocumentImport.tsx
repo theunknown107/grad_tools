@@ -339,7 +339,7 @@ export function DocumentImport({
 
   /*
    * AI READING: the file goes to the GradTools server, which sends it to the
-   * configured Gemini model. What comes back is the document's own values,
+   * configured AI model. What comes back is the document's own values,
    * already checked by the server's recognition gate — and it lands in exactly
    * the review the on-device path uses, with nothing saved until confirmed.
    */
@@ -531,7 +531,7 @@ export function DocumentImport({
         <Card className="px-5 py-4">
           <SwitchRow
             title="Read with AI"
-            description="Sends each PDF or photo you add to the GradTools server, which passes it to Google’s Gemini AI service to read. Off: GradTools reads it on this device and nothing leaves. Either way, nothing is saved until you confirm it."
+            description="Sends each photo you add (a PDF as a picture of its first page) to the GradTools server, which passes it to a third-party AI service to read. Off is Offline mode: GradTools reads it on this device and nothing leaves. Either way, nothing is saved until you confirm it."
             checked={useAi}
             onCheckedChange={setUseAi}
             disabled={busy}
