@@ -20,7 +20,7 @@ import { createStudentRouter } from '../routes/me.js';
 import { createDocumentRouter } from '../routes/documents.js';
 import { createGeminiReader, type DocumentReader } from '../documents/gemini.js';
 import { createOpenRouterReader } from '../documents/openrouter.js';
-import { createAccountDeleter, createCloudClient } from '../db/cloud.js';
+import { assertCloudRoleIsSafe, createAccountDeleter, createCloudClient } from '../db/cloud.js';
 import { startListening } from '../monitor/realtime.js';
 import { authConfigFor, createVerifier } from '../auth/session.js';
 import { createAnnouncementRouter } from '../routes/announcements.js';
@@ -228,6 +228,14 @@ export function createApp(
         }
       : undefined);
 
+  /*
+   * The runtime cloud connection, exposed for the startup safety check
+   * (`assertStartupSafety`). It is the SAME client the student routes use — the
+   * guard must run against the connection that will actually serve data, not a
+   * second one. Undefined when no student cloud is configured.
+   */
+  app.locals.cloudSql = student?.sql;
+
   if (student !== undefined) {
     /*
      * AI document reading: signed-in only, and only where an AI key is
@@ -292,4 +300,23 @@ export function createApp(
   app.use(errorHandler);
 
   return app;
+}
+
+/**
+ * Fail-fast dependency check, run at startup before the server accepts traffic.
+ *
+ * The student cloud connection MUST use a role that cannot bypass RLS
+ * (`authenticator`), because RLS is the entire authorization model for student
+ * data (docs/13 §13.17). `assertCloudRoleIsSafe` proves that against the live
+ * connection; wiring it here — on the same client `createApp` gave the student
+ * routes — is what turns "documented" into "enforced". A misconfigured
+ * `SUPABASE_DB_URL` (e.g. `postgres`/`service_role`, which carry `bypassrls`)
+ * makes this reject, and `main.ts` exits rather than serve data with RLS off.
+ *
+ * A no-op when no student cloud is configured: there is nothing to serve and
+ * nothing to guard.
+ */
+export async function assertStartupSafety(app: Express): Promise<void> {
+  const cloudSql = app.locals.cloudSql as Sql | undefined;
+  if (cloudSql !== undefined) await assertCloudRoleIsSafe(cloudSql);
 }
