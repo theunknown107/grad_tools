@@ -5,6 +5,7 @@
  */
 
 import type { Explanation } from '@gradtools/academic-rules';
+import { externalHref } from '../../lib/external-url.js';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
@@ -62,7 +63,7 @@ export function ExplanationDisclosure({
             <strong className="font-semibold text-ink-2">{explanation.clause}</strong>
             <br />
             <a
-              href={explanation.sourceUrl}
+              href={externalHref(explanation.sourceUrl)}
               target="_blank"
               rel="noreferrer noopener"
               className="inline-flex items-center gap-1 font-medium text-accent-ink underline-offset-4 hover:underline"

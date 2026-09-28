@@ -9,6 +9,7 @@
  */
 
 import { getScheme } from '@gradtools/academic-rules';
+import { externalHref } from '../../lib/external-url.js';
 import { DEFAULT_SCHEME_ID } from '../../hooks/useSchemeRules.js';
 import {
   Building2,
@@ -670,7 +671,7 @@ function SubjectsPanel({ semester }: { readonly semester: number | null }) {
           <p className="flex flex-wrap items-center gap-2 border-t border-line px-6 py-3 text-[12px] text-ink-3">
             {formatCount(subjects.state.data.length, 'verified subject')} ·
             <a
-              href={subjects.state.data[0]?.provenance.sourceUrl}
+              href={externalHref(subjects.state.data[0]?.provenance.sourceUrl)}
               target="_blank"
               rel="noreferrer noopener"
               className="inline-flex items-center gap-1 font-medium text-accent-ink underline-offset-4 hover:underline"

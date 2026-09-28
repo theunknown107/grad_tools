@@ -6,6 +6,7 @@
  */
 
 import { Bell, BellRing, Check, ExternalLink, FileText } from 'lucide-react';
+import { externalHref } from '../../lib/external-url.js';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { AnnouncementCategory } from '@gradtools/shared-types';
@@ -96,7 +97,7 @@ function FromVtuRow({
   const unread = notification.state === 'unread';
   return (
     <a
-      href={notification.sourceUrl}
+      href={externalHref(notification.sourceUrl)}
       target="_blank"
       rel="noreferrer noopener"
       onClick={() => {

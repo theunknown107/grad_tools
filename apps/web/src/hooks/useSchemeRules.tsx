@@ -20,6 +20,7 @@ import {
   type RuleSet,
 } from '@gradtools/academic-rules';
 import { Link } from 'react-router-dom';
+import { externalHref } from '../lib/external-url.js';
 import { Callout } from '../components/ui/feedback.js';
 import { useProfile } from './useCollection.js';
 
@@ -68,7 +69,11 @@ export function SchemeNotice({
       {rules.scheme !== undefined && (
         <>
           The{' '}
-          <a href={rules.scheme.regulationUrl} target="_blank" rel="noopener noreferrer">
+          <a
+            href={externalHref(rules.scheme.regulationUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             {name} regulation
           </a>{' '}
           is VTU’s own statement of its rules.{' '}

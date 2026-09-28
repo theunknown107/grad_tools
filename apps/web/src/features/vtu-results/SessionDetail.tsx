@@ -8,6 +8,7 @@
  */
 
 import type { VtuResultCard, VtuResultSession } from '@gradtools/vtu-catalogue';
+import { externalHref } from '../../lib/external-url.js';
 import { Copy, ExternalLink, FileUp } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -107,7 +108,7 @@ export function SessionDetail({
             <Step n={1} title="Open the official result page">
               <Button asChild variant="primary" size="sm" icon={<ExternalLink />}>
                 <a
-                  href={session.url}
+                  href={externalHref(session.url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => onOpened(session.id)}

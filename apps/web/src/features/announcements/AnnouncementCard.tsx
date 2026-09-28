@@ -1,4 +1,5 @@
 import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
+import { externalHref } from '../../lib/external-url.js';
 import {
   CalendarDays,
   CircleAlert,
@@ -188,15 +189,17 @@ export function AnnouncementCard({
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-3">
           <span>{announcement.publisher}</span>
           {!relevant && targeted && <span>Not for your branch or semester</span>}
-          {announcement.canonicalUrl !== null && (
+          {/* Only a safe http(s) URL becomes a link; a script-scheme URL is
+              dropped entirely rather than rendered as a dead link. */}
+          {externalHref(announcement.canonicalUrl) !== undefined && (
             <a
-              href={announcement.canonicalUrl}
+              href={externalHref(announcement.canonicalUrl)}
               target="_blank"
               rel="noopener noreferrer nofollow"
               className="inline-flex items-center gap-1 font-medium text-accent-ink underline-offset-4 hover:underline"
             >
               <ExternalLink className="size-3.5" aria-hidden="true" />
-              Open the original on {hostOf(announcement.canonicalUrl)}
+              Open the original on {hostOf(announcement.canonicalUrl ?? '')}
               <span className="sr-only"> (opens in a new tab)</span>
             </a>
           )}

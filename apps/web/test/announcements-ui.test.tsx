@@ -176,6 +176,23 @@ describe('the announcements page', () => {
     expect(link.getAttribute('target')).toBe('_blank');
   });
 
+  /*
+   * A SCRIPT-SCHEME URL NEVER BECOMES A LINK (docs/13). `z.string().url()` used
+   * to accept `javascript:`; a value that reaches the card from sync or older
+   * data is dropped here rather than rendered as a clickable script URI.
+   */
+  it('does not render a link for a javascript: canonicalUrl', async () => {
+    // The runtime value is hostile even though the field's type is a URL string.
+    mockFeed([announcement({ canonicalUrl: 'javascript:alert(document.cookie)' as string })]);
+    renderWith(<AnnouncementsPage />);
+
+    expect(await screen.findByText('Semester 4 results announced')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Open the original/ })).toBeNull();
+    for (const anchor of Array.from(document.querySelectorAll('a'))) {
+      expect(anchor.getAttribute('href') ?? '').not.toMatch(/javascript:/i);
+    }
+  });
+
   it('says so when there is nothing to show', async () => {
     mockFeed([]);
     renderWith(<AnnouncementsPage />);
