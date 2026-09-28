@@ -240,6 +240,12 @@ Keep these layers separate; do not collapse them into one component.
 - **Keyboard and popups:** `useKeyboardOpen()` and `collisionInsets()` in
   `lib/viewport.ts` are the only keyboard/edge logic. Every Radix popup passes
   `collisionPadding={collisionInsets()}`; never a fixed pixel padding.
+- **Offline reading (DEC-057):** measure on real documents first (private,
+  counts only), then change the parser; keep document-local legends first,
+  `near`/`activity` resolutions visible in review, and marks candidates as
+  buttons, never auto-applied. `test/timetable-golden.test.ts` is the SGB
+  regression: change its golden JSON only with a stated reason. The offline
+  path must make no request of any kind (`test/offline-pipeline.test.ts`).
 - **Document import always terminates.** Anything waiting on a worker goes
   through `withDeadline` (`lib/deadline.ts`); a file's kind comes from
   `sniffKind` (its bytes), never its name or MIME type. The OCR model is

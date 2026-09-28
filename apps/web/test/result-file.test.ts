@@ -169,9 +169,14 @@ describe('a PDF that is a scan', () => {
     state.pageCount = 2;
     const recognize = recognizer(page(CARD));
 
-    const reading = await readPdfFile(new ArrayBuffer(8), recognize);
+    const progress: string[] = [];
+    const reading = await readPdfFile(new ArrayBuffer(8), recognize, (at, total) =>
+      progress.push(`${String(at)}/${String(total)}`),
+    );
 
     expect(state.rendered).toEqual([1, 2]);
+    // Progress is the reader's own count of pages, reported as each one starts.
+    expect(progress).toEqual(['1/2', '2/2']);
     expect(recognize).toHaveBeenCalledTimes(2);
     expect(reading.source).toBe('ocr');
     expect(reading.pageCount).toBe(2);
@@ -380,12 +385,16 @@ describe('a saved result page', () => {
 
   it('never runs the page: scripts and handlers are inert, and their text is not read', async () => {
     const hits = globalThis as { __ranHead?: boolean; __ranBody?: boolean; __ranHandler?: boolean };
+    const network = vi.fn();
+    vi.stubGlobal('fetch', network);
+    vi.stubGlobal('XMLHttpRequest', network);
     const reading = await readHtmlFile(
       htmlFile(
         vtuPage(
           [['BQAS401', 'ALGORITHMS', '44', '36', '80', 'P', '2026-07-23']],
           `<script>window.__ranBody = true; document.body.innerHTML = ''; throw new Error('ran');</script>
-<img src="x.png" onerror="window.__ranHandler = true"><iframe srcdoc="<p>framed</p>"></iframe>`,
+<img src="x.png" onerror="window.__ranHandler = true"><iframe srcdoc="<p>framed</p>"></iframe>
+<img src="https://example.invalid/pixel.png"><link rel="stylesheet" href="https://example.invalid/s.css">`,
         ),
       ),
     );
@@ -394,6 +403,9 @@ describe('a saved result page', () => {
     expect(hits.__ranHead).toBeUndefined();
     expect(hits.__ranBody).toBeUndefined();
     expect(hits.__ranHandler).toBeUndefined();
+    // Nothing the page references is contacted: it is read, never loaded.
+    expect(network).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
     const all = reading.lines.map((line) => line.text).join(' ');
     expect(all).not.toMatch(/__ran|throw|framed|color:red/);
     expect(parseResultCard(reading.lines).rows).toHaveLength(1);

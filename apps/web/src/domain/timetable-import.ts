@@ -107,7 +107,11 @@ export interface GridClass {
    * says what CN is". All three used to look identical — a null code.
    */
   readonly resolution: SubjectResolution;
-  /** Null exactly when `subjectCode` is not. Shown to the student verbatim. */
+  /**
+   * What a person should know before trusting this class, shown verbatim: why
+   * it has no code, or — for a `near` match — why its code needs checking.
+   * Null for a class the document identifies outright.
+   */
   readonly unresolvedReason: string | null;
   /** What the cell actually said, always. */
   readonly initials: string;
@@ -660,6 +664,10 @@ const SKIPPABLE = new Set(['of', 'and', 'the', 'for', 'in', 'to', 'with', 'a', '
  *
  * At most two candidates per title, and a caller that accepts a match only when
  * exactly one subject in the document produces it.
+ *
+ * (`resolveGridSubject` has one further tier, `near`, for a cell ONE LETTER off
+ * a unique candidate. It is not part of this exact match: it is flagged for
+ * review on the class itself and never presented as identified.)
  */
 export function initialismsFor(title: string): readonly string[] {
   /*
@@ -694,8 +702,17 @@ function candidatesFrom(title: string): readonly string[] {
   return [...new Set([build(true), build(false)])].filter((value) => value.length >= 2);
 }
 
-/** How a grid cell's subject came to be pinned to a code, or why it was not. */
-export type SubjectResolution = 'declared' | 'initialism' | 'ambiguous' | 'unknown';
+/**
+ * How a grid cell's subject came to be pinned to a code, or why it was not.
+ *
+ * `near` HAS a code and still needs a person: the cell is one letter away from
+ * exactly one abbreviation this document derives. `activity` has no code and
+ * needs none: a block the grid writes out in words ("Value added Course") that
+ * the subject table never lists — kept under its printed name, never given an
+ * invented code, and not counted as an unidentified subject.
+ */
+export type SubjectResolution =
+  'declared' | 'initialism' | 'near' | 'ambiguous' | 'activity' | 'unknown';
 
 export interface ResolvedSubject {
   readonly subjectCode: string | null;
@@ -713,7 +730,12 @@ export interface ResolvedSubject {
  *      column, that is the answer and nothing else is consulted.
  *   2. A UNIQUE TITLE INITIALISM. Derived by `initialismsFor`, accepted only
  *      when exactly ONE subject in this document produces it.
- *   3. NOTHING. Two subjects producing the same abbreviation is `ambiguous` and
+ *   3. ONE LETTER OFF ONE SUBJECT — `near`. The printed "ESEVM" against a
+ *      subject whose title gives "ESEWM": same length (at least four letters),
+ *      exactly one letter different, and exactly one subject in the document
+ *      that close. The code is offered WITH a reason, and the review marks the
+ *      class for checking; it is never shown as identified.
+ *   4. NOTHING. Two subjects producing the same abbreviation is `ambiguous` and
  *      says which two; none producing it is `unknown`. Neither invents a code,
  *      and the class is kept either way so a person can identify it themselves.
  */
@@ -788,6 +810,22 @@ export function resolveGridSubject(
         `${derived.map((entry) => entry.subjectCode).join(' or ')} — ` +
         'this timetable does not say which.',
     };
+  }
+
+  if (wanted.length >= 4 && /^[A-Z]+$/.test(wanted)) {
+    const oneOff = (candidate: string) =>
+      candidate.length === wanted.length &&
+      [...candidate].filter((letter, index) => letter !== wanted[index]).length === 1;
+    const near = dictionary.filter((entry) => candidates(entry).some(oneOff));
+    if (near.length === 1) {
+      const entry = near[0] as DictionaryEntry;
+      const closest = candidates(entry).find(oneOff) ?? '';
+      return {
+        subjectCode: entry.subjectCode,
+        resolution: 'near',
+        reason: `"${wanted}" is not in this timetable's subject list. The closest is "${closest}" (${entry.subjectCode}), one letter different — check it.`,
+      };
+    }
   }
 
   return {
@@ -1034,7 +1072,14 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
    * and no day name. A day row ends the block, which is what stops the window
    * swallowing Monday.
    */
-  const CLOCK = /\d{1,2}[:.]\d{2}/;
+  /*
+   * A DATE IS NOT A CLOCK. "With effective from: 12.09.2026" printed directly
+   * above the grid contains "12.09", and read as a clock it made the date line
+   * part of the header block — its text then bridged four time columns into
+   * one and the grid lost half its hours. A clock is not part of a longer
+   * dotted, coloned or slashed number.
+   */
+  const CLOCK = /(?<![\d.:/])\d{1,2}[:.]\d{2}(?![.:/]\d)/;
   const isHeaderRow = (index: number) => {
     const row = rows[index];
     if (row === undefined) return false;
@@ -1567,17 +1612,28 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
        * real document's "Mini project" is exactly that.
        */
       const spelled = resolveGridSubject(dictionary, label);
+      /*
+       * WRITTEN OUT IN WORDS, AND NOT IN THE SUBJECT TABLE: AN ACTIVITY. A cell
+       * in lower case or of several words is a name, not an abbreviation this
+       * document forgot to define — "Value added Course", "Placement &
+       * Training". It is kept under that name (§14, §15) rather than reported
+       * as an unidentified subject.
+       */
+      const written = /[a-z]/.test(label) || /\s/.test(label.trim());
 
       classes.push({
         day,
         start: slot.start,
         end,
         subjectCode: spelled.subjectCode,
-        resolution: spelled.subjectCode === null ? 'unknown' : spelled.resolution,
+        resolution:
+          spelled.subjectCode !== null ? spelled.resolution : written ? 'activity' : 'unknown',
         unresolvedReason:
           spelled.subjectCode !== null
-            ? null
-            : 'This cell is not a subject abbreviation this timetable defines. Check it against the printed timetable.',
+            ? spelled.reason
+            : written
+              ? "Printed as an activity, not a subject in this timetable's subject list. Kept under its printed name."
+              : 'This cell is not a subject abbreviation this timetable defines. Check it against the printed timetable.',
         initials: label.slice(0, 20),
         batch: null,
         room: trailing?.[2]?.toUpperCase() ?? null,
@@ -1666,7 +1722,18 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
    * document is silent about them or merely ambiguous, is — and both facts now
    * exist on the class itself.
    */
-  const unresolved = teaching.filter((entry) => entry.subjectCode === null);
+  const unresolved = teaching.filter(
+    (entry) => entry.subjectCode === null && entry.resolution !== 'activity',
+  );
+  const nearly = [
+    ...new Set(teaching.filter((entry) => entry.resolution === 'near').map((e) => e.initials)),
+  ];
+  if (nearly.length > 0) {
+    warnings.push(
+      `${nearly.join(', ')} ${nearly.length === 1 ? 'is' : 'are'} not in this timetable's subject list and ` +
+        `${nearly.length === 1 ? 'was' : 'were'} matched to the closest abbreviation it has. Check ${nearly.length === 1 ? 'it' : 'them'} before saving.`,
+    );
+  }
   if (unresolved.length > 0 && dictionary.length > 0) {
     const ambiguous = [
       ...new Set(
@@ -1719,7 +1786,10 @@ export function parseTimetable(placed: readonly PlacedLike[]): ParsedTimetable {
    * document that clears them is worth offering; one that does not is offered
    * with the truth attached rather than withheld.
    */
-  const resolved = teaching.filter((entry) => entry.subjectCode !== null).length;
+  /* An activity is identified — as an activity. Only unidentified subjects count against. */
+  const resolved = teaching.filter(
+    (entry) => entry.subjectCode !== null || entry.resolution === 'activity',
+  ).length;
   const teachingSlots = withBreaks.filter((slot) => !slot.isBreak).length;
   const daysSeen = new Set(teaching.map((entry) => entry.day)).size;
   const coverage: TimetableCoverage = {

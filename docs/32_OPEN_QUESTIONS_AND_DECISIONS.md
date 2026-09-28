@@ -2774,3 +2774,32 @@ quality is not yet measured. The one model that answered, the anonymous
 invented grade/credits, no identifier) but timed out on the timetable, and has
 no ZDR endpoint. Re-run `scripts/document-ai-benchmark.ts
 qwen/qwen3.8-27b:free` before relying on the primary.
+
+### DEC-057 — Offline reading: fix what measurement shows, keep the pipeline
+
+The offline pipeline already separates file safety, classification, text
+layer before OCR, page-by-page OCR, geometry-based layout and document-local
+legends. This milestone changed only what measurement on the real documents
+(private, counts only) showed was wrong:
+
+- **Photographed pages are deskewed from their own words** (`skewOf`,
+  ocr-layout.ts): a 1.5° tilt had turned every result row into several lines.
+- **A date is not a clock** in a timetable header: "With effective from:
+  12.09.2026" directly above the grid had joined the header and merged four
+  time columns.
+- **Timetable cells say where they came from**: `activity` for a block written
+  in words that the subject list never defines (kept under its printed name,
+  no code); `near` for a cell one letter off exactly one abbreviation the
+  document derives (offered with a reason, flagged, never shown as
+  identified). The review lists every class's source and every class to check.
+- **Marks that do not add up are shown for every scheme** (`checkMarks`), with
+  a single-digit candidate ("4 — possibly 44") offered as a button, never
+  applied on its own.
+- Truthful page progress for scans; an explicit offline statement.
+
+Measured on identical OCR output, old → new: real timetable (text layer)
+unidentified classes 7 → 0; scanned timetable time columns 4 → 8, session
+recall 9.7% → 32.3%; result-card OCR course recall 36.8% → 45.6% with no
+false rows. Still open: digits lost to blur in photographs, a dense
+timetable's legend at 2000px, and photographed timetable headers — work for
+measured preprocessing profiles, not for guesses.

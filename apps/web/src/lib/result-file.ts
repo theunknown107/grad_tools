@@ -320,6 +320,8 @@ export function betterReading(first: OcrPageResult, second: OcrPageResult): OcrP
 export async function readPdfFile(
   data: ArrayBuffer,
   recognize: Recognize | null,
+  /** Called as each scanned page starts being recognised — real progress, never estimated. */
+  onPage?: (page: number, total: number) => void,
 ): Promise<FileReading> {
   /*
    * A COPY PER READ. pdf.js transfers the array it is given to its worker,
@@ -360,6 +362,7 @@ export async function readPdfFile(
    */
   const pages: OcrPageResult[] = [];
   for (let number = 1; number <= extraction.pageCount; number += 1) {
+    onPage?.(number, extraction.pageCount);
     const canvas = await withDeadline(
       renderPdfPage(data.slice(0), number),
       PDF_READ_MS,

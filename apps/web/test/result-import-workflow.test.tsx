@@ -319,6 +319,24 @@ describe('importing one result PDF', () => {
     expect(peek.results()[0]?.subjects[0]?.total).toBe(80);
   });
 
+  it('offers the reading a lost digit explains, and applies it only when chosen', async () => {
+    // "44" read as "4": nothing is changed until the student picks it.
+    setCard(4, ['BQAS401  ALGORITHMS  4  36  80  P  2026-07-23']);
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user);
+    expect(await screen.findByText(/internal was read as/i)).toBeTruthy();
+    expect((screen.getByLabelText(/internal 1/i) as HTMLInputElement).value).toBe('4');
+
+    await user.click(screen.getByRole('button', { name: 'Use 44' }));
+    expect((screen.getByLabelText(/internal 1/i) as HTMLInputElement).value).toBe('44');
+    expect(screen.queryByText(/do not add up/i)).toBeNull();
+    await user.click(screen.getByRole('button', { name: /confirm and save/i }));
+    expect(peek.results()[0]?.subjects[0]?.internal).toBe(44);
+  });
+
   it('lets a row be removed rather than forcing all of it', async () => {
     // PARTIAL SUCCESS within one card (§33): two rows read, one kept.
     const user = userEvent.setup();
