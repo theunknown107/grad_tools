@@ -251,6 +251,27 @@ describe('the reply is untrusted input', () => {
       { ...RESULT_REPLY, resultCard: { ...RESULT_REPLY.resultCard, semester: 'IV' } },
     ],
     ['a missing field', { documentType: 'RESULT_CARD', resultCard: RESULT_REPLY.resultCard }],
+    [
+      // Resource-exhaustion via structured output: the array cap must reject it.
+      'an oversized array of courses',
+      {
+        ...RESULT_REPLY,
+        resultCard: {
+          ...RESULT_REPLY.resultCard,
+          courses: Array.from({ length: 41 }, () => RESULT_REPLY.resultCard?.courses[0]),
+        },
+      },
+    ],
+    [
+      'an oversized string field',
+      {
+        ...RESULT_REPLY,
+        resultCard: {
+          ...RESULT_REPLY.resultCard,
+          courses: [{ ...RESULT_REPLY.resultCard?.courses[0], sourceCourseName: 'A'.repeat(5000) }],
+        },
+      },
+    ],
   ];
 
   for (const [name, reply] of cases) {
