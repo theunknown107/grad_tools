@@ -124,7 +124,15 @@ DATABASE_URL=… pnpm --filter @gradtools/api seed
 ### 4. Supabase staging project
 
 - A **new** project, separate from production. Never copy production data into it.
-- Apply `services/api/src/db/supabase/0001…` onward in order. **Never apply `0000_local_substrate.sql`**, because it would redefine Supabase's own `auth` schema.
+- Apply `services/api/src/db/supabase/0001…` onward in order. **Never apply `0000_local_substrate.sql`**, because it would redefine Supabase's own `auth` schema. There are ten to apply: `0001_student_cloud.sql` through `0010_profile_academic_identity.sql`.
+  - **Apply them as the project owner, not as `authenticator`.** They create tables and policies, which `authenticator` cannot; the runtime connection is a different, lower-privilege role (below). The reference-DB runner (`pnpm --filter @gradtools/api migrate`) does **not** apply these — it targets `DATABASE_URL`, a separate database. Apply the student schema by hand, in order, via the Supabase SQL editor (paste each file) or `psql` as the owner:
+    ```
+    for f in services/api/src/db/supabase/00[0-1][0-9]_*.sql; do
+      [ "$(basename "$f")" = "0000_local_substrate.sql" ] && continue
+      psql "$SUPABASE_OWNER_URL" -v ON_ERROR_STOP=1 -f "$f"    # owner/service connection, NOT the API's authenticator
+    done
+    ```
+    `SUPABASE_OWNER_URL` is a one-off provisioning connection (the project's `postgres`/service credentials); it is **not** an application variable and is never given to the running API.
 - Test accounts must be synthetic: invented names, no real USNs, no real results.
 - Auth → URL configuration:
   - Site URL: `https://<static-site>`
