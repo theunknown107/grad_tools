@@ -264,7 +264,7 @@ export function createOpenRouterReader(options: OpenRouterReaderOptions): Docume
             until: blockedUntil,
             detail: await providerDetail(response),
           });
-          throw new DocumentReaderError('rate_limited');
+          throw new DocumentReaderError('rate_limited', blockedUntil);
         }
         if (response.status === 401 || response.status === 402 || response.status === 403) {
           log({
@@ -292,10 +292,12 @@ export function createOpenRouterReader(options: OpenRouterReaderOptions): Docume
           choices?: { message?: { content?: unknown } }[];
           error?: unknown;
         };
-        /* A reply that says it cost money is refused, and said out loud. */
+        /* A reply that says it cost money is refused, and said out loud. A
+           distinct class so the router can quarantine the provider, not just
+           cool it down. */
         if (typeof body.usage?.cost === 'number' && body.usage.cost > 0) {
           log({ event: 'document_ai_nonzero_cost', model, cost: body.usage.cost });
-          throw new DocumentReaderError('service');
+          throw new DocumentReaderError('non_zero_cost');
         }
         const content = body.choices?.[0]?.message?.content;
         if (body.error !== undefined || typeof content !== 'string') {
@@ -306,7 +308,16 @@ export function createOpenRouterReader(options: OpenRouterReaderOptions): Docume
         return content;
       } catch (error) {
         if (error instanceof DocumentReaderError) {
-          if (error.failure === 'rate_limited' || error.failure === 'not_configured') throw error;
+          // A rate limit, a config/auth problem, or a cost breach is not fixed
+          // by trying the next model of the same provider — surface it so the
+          // router can cool down or quarantine.
+          if (
+            error.failure === 'rate_limited' ||
+            error.failure === 'not_configured' ||
+            error.failure === 'non_zero_cost'
+          ) {
+            throw error;
+          }
           last = error;
           continue;
         }

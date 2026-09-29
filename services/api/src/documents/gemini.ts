@@ -28,10 +28,18 @@ export type ReaderFailure =
   | 'rate_limited'
   | 'timeout'
   | 'service'
+  | 'non_zero_cost'
   | 'unsupported_type';
 
 export class DocumentReaderError extends Error {
-  constructor(readonly failure: ReaderFailure) {
+  /**
+   * @param retryAt Epoch ms a rate-limited provider may be tried again, when the
+   *   provider gave a reset time. Non-sensitive: no key, document or reply.
+   */
+  constructor(
+    readonly failure: ReaderFailure,
+    readonly retryAt?: number,
+  ) {
     super(`Document reading failed: ${failure}`);
     this.name = 'DocumentReaderError';
   }

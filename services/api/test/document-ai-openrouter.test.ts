@@ -328,7 +328,7 @@ describe('provider trouble', () => {
     const { read, events } = reader({ 'free/one:free': model('free/one:free') }, [
       ok('{}', 0.0001),
     ]);
-    await expect(read(PNG, signal())).rejects.toMatchObject({ failure: 'service' });
+    await expect(read(PNG, signal())).rejects.toMatchObject({ failure: 'non_zero_cost' });
     expect(events).toContainEqual(expect.objectContaining({ event: 'document_ai_nonzero_cost' }));
   });
 

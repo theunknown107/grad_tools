@@ -20,6 +20,7 @@ import { createStudentRouter } from '../routes/me.js';
 import { createDocumentRouter } from '../routes/documents.js';
 import { createGeminiReader, type DocumentReader } from '../documents/gemini.js';
 import { createOpenRouterReader } from '../documents/openrouter.js';
+import { createProviderRouter, type Provider } from '../documents/router.js';
 import { assertCloudRoleIsSafe, createAccountDeleter, createCloudClient } from '../db/cloud.js';
 import { startListening } from '../monitor/realtime.js';
 import { authConfigFor, createVerifier } from '../auth/session.js';
@@ -38,6 +39,53 @@ import { errorHandler, notFoundHandler } from './errors.js';
 function redactQuery(url: string | undefined): string | undefined {
   if (url === undefined || !url.includes('search=')) return url;
   return url.replace(/([?&]search=)[^&]*/g, '$1[redacted]');
+}
+
+/**
+ * The approved document-AI provider registry for this deployment, composed into
+ * one router (docs/13 §13.31). OpenRouter is preferred (it proves $0 per read);
+ * Gemini is included ONLY when the operator has approved it as zero-cost for
+ * this deployment, because it cannot prove $0 mechanically. Returns `null` when
+ * no approved provider is configured — the AI route then does not mount and the
+ * app reads documents on the device only.
+ */
+function buildDocumentReader(config: Config, logger: Logger): DocumentReader | null {
+  const providers: Provider[] = [];
+  if (config.OPENROUTER_API_KEY !== undefined) {
+    providers.push({
+      id: 'openrouter',
+      model: config.DOCUMENT_AI_PRIMARY_MODEL,
+      reader: createOpenRouterReader({
+        apiKey: config.OPENROUTER_API_KEY,
+        models: [config.DOCUMENT_AI_PRIMARY_MODEL, config.DOCUMENT_AI_SECONDARY_MODEL].filter(
+          (id): id is string => id !== undefined,
+        ),
+        requireZdr: config.DOCUMENT_AI_REQUIRE_ZDR,
+        log: (event) => logger.warn(event),
+      }),
+      capabilities: { image: true, structuredOutput: true },
+      policy: { zeroCost: 'verified-per-read', enabled: true },
+      priority: 1,
+    });
+  }
+  // Gemini only when the deployment has explicitly asserted it is zero-cost:
+  // it cannot verify $0 per request, so it fails closed otherwise (§13.31).
+  if (config.GEMINI_API_KEY !== undefined && config.GEMINI_ZERO_COST_APPROVED) {
+    providers.push({
+      id: 'gemini',
+      model: config.GEMINI_DOCUMENT_MODEL,
+      reader: createGeminiReader({
+        apiKey: config.GEMINI_API_KEY,
+        model: config.GEMINI_DOCUMENT_MODEL,
+        thinkingLevel: config.GEMINI_THINKING_LEVEL,
+      }),
+      capabilities: { image: true, structuredOutput: true },
+      policy: { zeroCost: 'deployment-approved', enabled: true },
+      priority: 2,
+    });
+  }
+  if (providers.length === 0) return null;
+  return createProviderRouter(providers, { log: (event) => logger.warn(event) });
 }
 
 export function createApp(
@@ -243,30 +291,22 @@ export function createApp(
      * neither, the route does not exist and documents are read on the device
      * only (docs/13 §13.29).
      */
-    const openRouterKey = config.OPENROUTER_API_KEY;
-    const geminiKey = config.GEMINI_API_KEY;
-    if (openRouterKey !== undefined || geminiKey !== undefined) {
-      const model =
-        openRouterKey !== undefined
-          ? config.DOCUMENT_AI_PRIMARY_MODEL
-          : config.GEMINI_DOCUMENT_MODEL;
-      const reader =
-        cloud?.documentReader ??
-        (openRouterKey !== undefined
-          ? createOpenRouterReader({
-              apiKey: openRouterKey,
-              models: [config.DOCUMENT_AI_PRIMARY_MODEL, config.DOCUMENT_AI_SECONDARY_MODEL].filter(
-                (id): id is string => id !== undefined,
-              ),
-              requireZdr: config.DOCUMENT_AI_REQUIRE_ZDR,
-              log: (event) => logger.warn(event),
-            })
-          : createGeminiReader({
-              apiKey: geminiKey ?? '',
-              model,
-              thinkingLevel: config.GEMINI_THINKING_LEVEL,
-            }));
-      app.use(createDocumentRouter({ verify: student.verify, reader, model }));
+    // The route exists only where an AI key is configured — never on a mere
+    // injected reader — so "no key" means no route (404), unchanged. When it
+    // does exist, the reader is the injected one (tests) or the approved
+    // provider router; a router with no approved provider (e.g. Gemini present
+    // but not zero-cost-approved) yields null, and the route stays absent.
+    const aiKeyConfigured =
+      config.OPENROUTER_API_KEY !== undefined || config.GEMINI_API_KEY !== undefined;
+    if (aiKeyConfigured) {
+      const reader = cloud?.documentReader ?? buildDocumentReader(config, logger);
+      if (reader !== null) {
+        const model =
+          config.OPENROUTER_API_KEY !== undefined
+            ? config.DOCUMENT_AI_PRIMARY_MODEL
+            : config.GEMINI_DOCUMENT_MODEL;
+        app.use(createDocumentRouter({ verify: student.verify, reader, model }));
+      }
     }
     app.use(
       createStudentRouter({
