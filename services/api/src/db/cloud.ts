@@ -34,9 +34,11 @@
  * than the only one (M9 §15).
  *
  * The trust boundary is therefore the CONNECTION STRING, and it is documented
- * as such: it must name `authenticator`, a role with no `bypassrls` and no
- * inherited privileges. `postgres` and `service_role` both bypass RLS and would
- * silently turn every policy in the schema into decoration.
+ * as such: it must log in as a role with no `bypassrls` and no inherited
+ * privileges — the Supabase `authenticator` role, or a dedicated login role
+ * (e.g. `gradtools_runtime`) granted membership in `authenticated` where the
+ * host reserves `authenticator` (docs/48). `postgres` and `service_role` both
+ * bypass RLS and would silently turn every policy in the schema into decoration.
  */
 
 import postgres from 'postgres';
@@ -44,7 +46,8 @@ import type { Sql } from './client.js';
 import type { Session } from '../auth/session.js';
 
 export interface CloudClientOptions {
-  /** An `authenticator`-role connection string. Never `postgres`, never `service_role`. */
+  /** A non-bypassrls login role's connection string (`authenticator` or a
+   *  dedicated role granted `authenticated`). Never `postgres`/`service_role`. */
   readonly url: string;
   readonly max?: number;
 }

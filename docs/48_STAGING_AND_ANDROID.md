@@ -137,7 +137,13 @@ DATABASE_URL=… pnpm --filter @gradtools/api seed
 - Auth → URL configuration:
   - Site URL: `https://<static-site>`
   - Redirect allowlist: `https://<static-site>/account`
-- `SUPABASE_DB_URL` must connect as `authenticator` (docs/25 §25.15). Setting its password on a hosted project is a Supabase dashboard or SQL step that has not been exercised here.
+- `SUPABASE_DB_URL` must connect as a role that **cannot bypass RLS** — the startup guard refuses `bypassrls`/superuser. On a hosted project you cannot use `authenticator` directly: it is a reserved role and the project owner is **not** a superuser, so `ALTER ROLE authenticator … PASSWORD` fails with `"authenticator" is a reserved role, only superusers can modify it`. Instead create a dedicated login role (verified on staging 2026-09-29):
+  ```sql
+  -- as the owner (SUPABASE_OWNER_URL), once:
+  CREATE ROLE gradtools_runtime LOGIN NOINHERIT NOBYPASSRLS PASSWORD '<generated>';
+  GRANT authenticated TO gradtools_runtime;
+  ```
+  Then `SUPABASE_DB_URL` is the Session-Pooler URI for `gradtools_runtime.<project-ref>` (port 5432, `sslmode=require`). `NOINHERIT` means it holds no student-table access until `withUser` runs `SET LOCAL ROLE authenticated`; membership in `authenticated` is what permits that switch, and RLS via `auth.uid()` applies exactly as for `authenticator`. Never point `SUPABASE_DB_URL` at `postgres`/`service_role`/`SUPABASE_OWNER_URL`.
 - Still outstanding from docs/25 §25.15: Google/Apple provider setup and leaked-password protection.
 
 ### 5. CORS

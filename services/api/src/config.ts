@@ -112,10 +112,14 @@ const configSchema = z.object({
   /**
    * The student-cloud connection string. **SECRET.**
    *
-   * It must name the `authenticator` role. `postgres` and `service_role` both
-   * carry `bypassrls` and would turn every RLS policy in the schema into
-   * decoration — the API asserts this at startup and refuses to boot otherwise
-   * (docs/13 §13.17).
+   * It must log in as a role that cannot bypass RLS: the Supabase `authenticator`
+   * role, or — on a hosted project, where `authenticator` is reserved and the
+   * owner cannot set its password — a dedicated login role (e.g.
+   * `gradtools_runtime`: LOGIN, NOINHERIT, NOBYPASSRLS) granted membership in
+   * `authenticated`. `postgres` and `service_role` both carry `bypassrls` and
+   * would turn every RLS policy in the schema into decoration — the API asserts
+   * the role cannot bypass RLS at startup and refuses to boot otherwise
+   * (docs/13 §13.17, docs/48).
    */
   SUPABASE_DB_URL: z.string().min(1).optional(),
 
