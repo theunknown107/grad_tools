@@ -61,6 +61,7 @@ function toApiError(failure: ReadFailure): ApiError {
       );
     case 'not_configured':
     case 'model_unavailable':
+    case 'non_zero_cost':
     case 'service':
       return new ApiError('DEPENDENCY_UNAVAILABLE', UNAVAILABLE);
   }

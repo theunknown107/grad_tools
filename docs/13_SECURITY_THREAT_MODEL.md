@@ -684,3 +684,39 @@ The student sees one of two fixed messages ("…temporarily unavailable. You can
 use Offline mode instead." / "…busy right now…"); model, provider and status
 go to the diagnostic log only, never document content. `tsx
 scripts/document-ai-models.ts` prints the live candidate table (metadata only).
+
+## 13.31 The document-AI provider router
+
+One request can now try more than one approved provider. `documents/router.ts`
+composes the provider readers (`createOpenRouterReader`, `createGeminiReader`)
+into a single `DocumentReader` and, per request, tries the approved providers in
+a fixed server-side priority order, returning the first reply that passes the
+strict schema. It is deliberately tiny — a fallback layer, not a gateway.
+
+**The router cannot weaken any provider's guarantees.** Each reader still
+enforces its own policy (OpenRouter: live $0 verification, ZDR,
+`data_collection: deny`, `max_price: 0`, `allow_fallbacks: false`, non-zero-cost
+rejection; Gemini: server-only key, no tools/search/URL-context/Files-API). The
+router passes no option that could disable any of that, and it can only pick
+among providers already on the approved list — a "fallback" is always to the
+next equally-constrained provider, never a looser one.
+
+| Concern | Behaviour |
+|---|---|
+| Selection | Server-side priority order only. The client sends a document; it cannot name a provider, model, order, price ceiling, ZDR mode, or retry count |
+| Approved registry | An explicit allowlist built in `app.ts`. OpenRouter (priority 1). Gemini (priority 2) **only** when `GEMINI_ZERO_COST_APPROVED=true` — it cannot prove $0 per request, so it fails closed by default rather than becoming an accidental paid fallback. No dynamic provider discovery |
+| Capability | Only providers that take an image and produce structured output are eligible; a text-only provider is never sent a document |
+| Shared validation | The router and `read.ts` call the ONE validator (`validateAiReply` = JSON parse + strict `aiExtractionSchema`); an invalid reply is a provider failure that triggers fallback, never a repaired or partial result |
+| Failure classes | `rate_limited` (cooldown until the provider's reset, or 60s), `non_zero_cost` (quarantine 24h — a policy breach, never retried), `not_configured` (5-min cooldown), `timeout`/`service`/`model_unavailable`/`invalid_reply` (exponential cooldown, capped 60s), `unsupported_type` (STOP — a document problem, no fallback) |
+| Circuit breaker | Per-provider, in-process (no Redis/DB/polling): CLOSED → cooldown/OPEN on failure → the next real request is the HALF-OPEN probe → CLOSED on success. Health carries no document, key or reply |
+| Bounded fallback | At most 3 provider attempts per request; aborting the request stops the chain |
+| Exhaustion | All approved providers failing throws the same `DocumentReaderError` the single-provider path did, so the client drops to the offline parser |
+| Diagnostics | Only provider id, model, task, failure class, attempt, cooldown — never keys, headers, document bytes, OCR text, prompts or replies |
+| Authority | `recognize()` and the deterministic academic engine remain downstream in `read.ts`; the router never decides document type or academic facts |
+
+**Adding a provider** is one `Provider` entry (reader + capabilities + a reviewed
+policy) in `app.ts` — the extraction pipeline, schema and route do not change.
+Arbitrary "free model" discovery is not allowed: a provider is added only after
+its terms, privacy/ZDR, image + structured-output support, and zero-cost policy
+are verified. OmniRoute informed these patterns (provider abstraction, capability
+registry, circuit breaker, quota/reset handling) but is **not** a dependency.
