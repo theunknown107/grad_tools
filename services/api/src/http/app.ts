@@ -18,7 +18,7 @@ import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { createStudentRouter } from '../routes/me.js';
 import { createDocumentRouter } from '../routes/documents.js';
-import { createGeminiReader, type DocumentReader } from '../documents/gemini.js';
+import { type DocumentReader } from '../documents/gemini.js';
 import { createOpenRouterReader } from '../documents/openrouter.js';
 import { createProviderRouter, type Provider } from '../documents/router.js';
 import { assertCloudRoleIsSafe, createAccountDeleter, createCloudClient } from '../db/cloud.js';
@@ -68,22 +68,11 @@ function buildDocumentReader(config: Config, logger: Logger): DocumentReader | n
       priority: 1,
     });
   }
-  // Gemini only when the deployment has explicitly asserted it is zero-cost:
-  // it cannot verify $0 per request, so it fails closed otherwise (§13.31).
-  if (config.GEMINI_API_KEY !== undefined && config.GEMINI_ZERO_COST_APPROVED) {
-    providers.push({
-      id: 'gemini',
-      model: config.GEMINI_DOCUMENT_MODEL,
-      reader: createGeminiReader({
-        apiKey: config.GEMINI_API_KEY,
-        model: config.GEMINI_DOCUMENT_MODEL,
-        thinkingLevel: config.GEMINI_THINKING_LEVEL,
-      }),
-      capabilities: { image: true, structuredOutput: true },
-      policy: { zeroCost: 'deployment-approved', enabled: true },
-      priority: 2,
-    });
-  }
+  // Gemini is deliberately NOT a routed provider: it cannot prove $0 per request
+  // (its API exposes no per-request cost), and a boolean flag is not a zero-cost
+  // guarantee. Under the zero-cost invariant it is ineligible and the reader is
+  // left unwired (§13.31). If Gemini ever exposes a per-request cost, a
+  // `verified-per-read` reader could be added here — an env flag never suffices.
   if (providers.length === 0) return null;
   return createProviderRouter(providers, { log: (event) => logger.warn(event) });
 }
@@ -294,18 +283,20 @@ export function createApp(
     // The route exists only where an AI key is configured — never on a mere
     // injected reader — so "no key" means no route (404), unchanged. When it
     // does exist, the reader is the injected one (tests) or the approved
-    // provider router; a router with no approved provider (e.g. Gemini present
-    // but not zero-cost-approved) yields null, and the route stays absent.
+    // provider router; a router with no eligible provider (e.g. only Gemini,
+    // which cannot prove $0) yields null, and the route stays absent.
     const aiKeyConfigured =
       config.OPENROUTER_API_KEY !== undefined || config.GEMINI_API_KEY !== undefined;
     if (aiKeyConfigured) {
       const reader = cloud?.documentReader ?? buildDocumentReader(config, logger);
       if (reader !== null) {
-        const model =
-          config.OPENROUTER_API_KEY !== undefined
-            ? config.DOCUMENT_AI_PRIMARY_MODEL
-            : config.GEMINI_DOCUMENT_MODEL;
-        app.use(createDocumentRouter({ verify: student.verify, reader, model }));
+        app.use(
+          createDocumentRouter({
+            verify: student.verify,
+            reader,
+            model: config.DOCUMENT_AI_PRIMARY_MODEL,
+          }),
+        );
       }
     }
     app.use(
