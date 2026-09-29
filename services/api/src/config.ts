@@ -67,18 +67,6 @@ const configSchema = z.object({
   GEMINI_THINKING_LEVEL: z.enum(['minimal', 'low', 'medium', 'high']).default('low'),
 
   /**
-   * Gemini cannot prove $0 per request the way OpenRouter can (no live pricing
-   * check), so the router treats it as a paid provider — and therefore excludes
-   * it — unless the operator explicitly asserts the deployment's Gemini
-   * configuration is free-tier. Default `false`: fail closed rather than invent
-   * a billing guarantee (docs/13 §13.31).
-   */
-  GEMINI_ZERO_COST_APPROVED: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((value) => value === 'true'),
-
-  /**
    * The OpenRouter API key for FREE-model document reading (docs/13 §13.30).
    * **SECRET**, server-only, like GEMINI_API_KEY. When set, OpenRouter is the
    * document reader (it takes precedence over Gemini); every read is refused

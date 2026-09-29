@@ -61,7 +61,6 @@ Authority: docs/13 §13.4a · docs/25 §25.4 · docs/45 · DEC-051 · OQ-064 · 
 | `GEMINI_API_KEY` | no | **secret.** Enables AI document reading for signed-in students (docs/13 §13.29). Unset: the route does not exist. Free tier: synthetic documents only |
 | `GEMINI_DOCUMENT_MODEL` | no | Default `gemini-3.8-flash`; never switched automatically (see OQ-067) |
 | `GEMINI_THINKING_LEVEL` | no | `minimal` \| `low` \| `medium` \| `high`; default `low` for predictable latency and cost |
-| `GEMINI_ZERO_COST_APPROVED` | no | `true` to let the provider router use Gemini. Default `false`: Gemini can't prove $0 per request, so it is excluded (fails closed) unless the operator asserts the deployment's Gemini tier is free (docs/13 §13.31) |
 | `LOG_LEVEL` | no | `info` |
 | `INGESTION_ENABLED` | no | `false` |
 

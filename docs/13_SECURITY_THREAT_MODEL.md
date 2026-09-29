@@ -704,7 +704,7 @@ next equally-constrained provider, never a looser one.
 | Concern | Behaviour |
 |---|---|
 | Selection | Server-side priority order only. The client sends a document; it cannot name a provider, model, order, price ceiling, ZDR mode, or retry count |
-| Approved registry | An explicit allowlist built in `app.ts`. OpenRouter (priority 1). Gemini (priority 2) **only** when `GEMINI_ZERO_COST_APPROVED=true` — it cannot prove $0 per request, so it fails closed by default rather than becoming an accidental paid fallback. No dynamic provider discovery |
+| Approved registry | An explicit allowlist built in `app.ts`. **OpenRouter only** (priority 1): it proves $0 against live pricing on every read. **Gemini is not routable** — its API exposes no per-request cost, so $0 cannot be mechanically established, and a boolean flag is not a guarantee; it is left unwired and fails closed. Eligibility requires `policy.zeroCost === 'verified-per-read'`; a flag-asserted (`deployment-approved`) provider is never selected. No dynamic provider discovery |
 | Capability | Only providers that take an image and produce structured output are eligible; a text-only provider is never sent a document |
 | Shared validation | The router and `read.ts` call the ONE validator (`validateAiReply` = JSON parse + strict `aiExtractionSchema`); an invalid reply is a provider failure that triggers fallback, never a repaired or partial result |
 | Failure classes | `rate_limited` (cooldown until the provider's reset, or 60s), `non_zero_cost` (quarantine 24h — a policy breach, never retried), `not_configured` (5-min cooldown), `timeout`/`service`/`model_unavailable`/`invalid_reply` (exponential cooldown, capped 60s), `unsupported_type` (STOP — a document problem, no fallback) |

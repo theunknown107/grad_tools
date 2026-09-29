@@ -191,3 +191,50 @@ describe('cancellation and safe diagnostics', () => {
     }
   });
 });
+
+describe('zero-cost eligibility (Gemini hardening)', () => {
+  it('never selects a flag-asserted (deployment-approved) provider, even alone', async () => {
+    // What a boolean GEMINI_ZERO_COST_APPROVED flag would have produced.
+    const gemini = provider({
+      reader: ok(VALID),
+      priority: 1,
+      policy: { zeroCost: 'deployment-approved', enabled: true },
+    });
+    await expect(createProviderRouter([gemini])(DOC, signal())).rejects.toBeInstanceOf(
+      DocumentReaderError,
+    );
+    expect(gemini.reader).not.toHaveBeenCalled(); // filtered out before any call → offline
+  });
+
+  it('prefers the $0-proven provider and ignores the flag-asserted one entirely', async () => {
+    const gemini = provider({
+      reader: ok(VALID),
+      priority: 1, // higher priority, but ineligible
+      policy: { zeroCost: 'deployment-approved', enabled: true },
+    });
+    const openrouter = provider({ reader: ok(VALID), priority: 2 }); // verified-per-read
+    expect(await createProviderRouter([gemini, openrouter])(DOC, signal())).toBe(VALID);
+    expect(gemini.reader).not.toHaveBeenCalled();
+    expect(openrouter.reader).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes only $0-proven (verified-per-read) providers', async () => {
+    const verified = provider({ reader: ok(VALID) });
+    expect(await createProviderRouter([verified])(DOC, signal())).toBe(VALID);
+    expect(verified.reader).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('no environment flag grants Gemini zero-cost', () => {
+  it('loadConfig exposes no GEMINI_ZERO_COST_APPROVED flag', async () => {
+    const { loadConfig } = await import('../src/config.js');
+    const config = loadConfig({
+      DATABASE_URL: 'postgres://unused@127.0.0.1:1/unused',
+      NODE_ENV: 'test',
+      APP_ENV: 'test',
+      GEMINI_API_KEY: 'test-key-not-real',
+      GEMINI_ZERO_COST_APPROVED: 'true', // ignored: no such setting exists
+    });
+    expect((config as Record<string, unknown>).GEMINI_ZERO_COST_APPROVED).toBeUndefined();
+  });
+});

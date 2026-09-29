@@ -36,9 +36,13 @@ export interface ProviderCapabilities {
 /** Config-time eligibility. Privacy/ZDR is enforced inside the reader itself. */
 export interface ProviderPolicy {
   /**
-   * `verified-per-read`: the reader proves $0 against live metadata on every
-   * call (OpenRouter). `deployment-approved`: the operator has asserted the
-   * configured model/tier is free (Gemini) — never assumed, opted in by config.
+   * How the provider's $0 cost is established. ONLY `verified-per-read` is
+   * eligible for routing: the reader proves $0 against the provider's own live
+   * pricing on every call (OpenRouter). `deployment-approved` is what a mere
+   * boolean flag would assert — an operator's word, not a mechanical guarantee —
+   * and the router treats it as INELIGIBLE. Unknown/unprovable cost never routes
+   * (docs/13 §13.31). A provider (e.g. Gemini) that cannot prove $0 per request
+   * therefore cannot be selected, no matter what any flag says.
    */
   readonly zeroCost: 'verified-per-read' | 'deployment-approved';
   readonly enabled: boolean;
@@ -122,10 +126,18 @@ export function createProviderRouter(
     return row;
   };
 
-  // Both current providers take images and produce structured output; a future
-  // text-only provider would be filtered out here and never see a document.
+  // Eligibility is fail-closed: a provider must be enabled, take an image and
+  // produce structured output, AND prove $0 per read. A provider whose cost is
+  // only flag-asserted (`deployment-approved`) is never selected — a boolean can
+  // never establish zero-cost (docs/13 §13.31).
   const candidates = providers
-    .filter((p) => p.policy.enabled && p.capabilities.image && p.capabilities.structuredOutput)
+    .filter(
+      (p) =>
+        p.policy.enabled &&
+        p.policy.zeroCost === 'verified-per-read' &&
+        p.capabilities.image &&
+        p.capabilities.structuredOutput,
+    )
     .sort((a, b) => a.priority - b.priority);
 
   return async (document, signal) => {
