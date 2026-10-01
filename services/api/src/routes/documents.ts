@@ -22,6 +22,7 @@ import { requireSession, type Verifier } from '../auth/session.js';
 import type { DocumentReader } from '../documents/gemini.js';
 import { DocumentReadError, readDocument, type ReadFailure } from '../documents/read.js';
 import { ApiError } from '../http/errors.js';
+import { createDocumentLimiter } from '../http/rate-limit.js';
 
 export interface DocumentRouterDeps {
   readonly verify: Verifier;
@@ -73,6 +74,9 @@ export function createDocumentRouter(deps: DocumentRouterDeps): Router {
 
   router.post(
     DOCUMENT_AI_ROUTES.extract,
+    // The expensive path: a materially stricter per-IP limit than the /api/v1
+    // baseline, applied before auth so a flood cannot even reach verification.
+    createDocumentLimiter(),
     guard,
     express.raw({ type: () => true, limit: AI_DOCUMENT_MAX_BYTES }),
     async (req: Request, res: Response) => {

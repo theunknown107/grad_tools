@@ -17,6 +17,7 @@ import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { createStudentRouter } from '../routes/me.js';
+import { createApiLimiter } from './rate-limit.js';
 import { createDocumentRouter } from '../routes/documents.js';
 import { type DocumentReader } from '../documents/gemini.js';
 import { createOpenRouterReader } from '../documents/openrouter.js';
@@ -102,6 +103,16 @@ export function createApp(
   // Express advertises itself by default; there is no reason to tell an
   // attacker which framework and version to look up (docs/13 §13.5).
   app.disable('x-powered-by');
+
+  /*
+   * ONE trusted proxy hop. Render terminates TLS at its edge and forwards the
+   * real client IP as the left-most `X-Forwarded-For` entry; `trust proxy, 1`
+   * makes `req.ip` that client address rather than the proxy's. It trusts
+   * exactly one hop, so a client cannot forge its address by prepending its own
+   * `X-Forwarded-For` — the rate limiter (F1) keys on `req.ip`, so this must be
+   * correct or every caller would share one bucket (docs/13, M22).
+   */
+  app.set('trust proxy', 1);
 
   /*
    * `<`, `>` and `&` are emitted as \uXXXX escapes in every JSON response.
@@ -212,6 +223,15 @@ export function createApp(
       },
     }),
   );
+
+  /*
+   * Rate limiting (F1). Scoped to `/api/v1` so liveness/readiness below are
+   * NEVER throttled — a limiter that can 429 a health probe would make the
+   * platform kill a healthy container. The document-AI route adds a second,
+   * stricter limiter of its own (routes/documents.ts). In-memory, per-instance
+   * (see rate-limit.ts).
+   */
+  app.use('/api/v1', createApiLimiter());
 
   /*
    * Liveness. Performs NO dependency checks by design: a liveness probe that
