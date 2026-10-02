@@ -43,7 +43,7 @@ describe('FileDropzone', () => {
     render(<FileDropzone onFiles={vi.fn()} />);
     // On the surface, not in a tooltip: a person needs to know before they
     // go looking for the file, not after the refusal.
-    expect(screen.getByText(/PDF · JPEG · PNG · WebP/i)).toBeTruthy();
+    expect(screen.getByText(/PDF · DOCX · XLSX/i)).toBeTruthy();
   });
 
   it('is operable from the keyboard alone', async () => {
@@ -93,12 +93,12 @@ describe('FileDropzone', () => {
     render(<FileDropzone onFiles={onFiles} />);
 
     dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
-      makeFile('timetable.docx', 'application/vnd.openxmlformats'),
+      makeFile('clip.mp4', 'video/mp4'),
     ]);
 
     // NAMED. "Unsupported file" tells a person who dropped four nothing about
     // which one was the problem.
-    expect(screen.getByText(/timetable\.docx/)).toBeTruthy();
+    expect(screen.getByText(/clip\.mp4/)).toBeTruthy();
     expect(onFiles).not.toHaveBeenCalled();
   });
 
@@ -109,39 +109,41 @@ describe('FileDropzone', () => {
     const pdf = makeFile('sem3.pdf', 'application/pdf');
     dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
       pdf,
-      makeFile('notes.docx', 'application/vnd.openxmlformats'),
+      makeFile('clip.mp4', 'video/mp4'),
     ]);
 
     /*
-     * A batch is not all-or-nothing. Refusing three good result cards because a
-     * fourth file was a Word document would make the person do the whole thing
-     * again for no reason.
+     * A batch is not all-or-nothing. Refusing a good result card because another
+     * file was a video would make the person do the whole thing again for no
+     * reason.
      */
     expect(onFiles).toHaveBeenCalledOnce();
     expect(onFiles.mock.calls[0]?.[0]).toEqual([pdf]);
-    expect(screen.getByText(/notes\.docx/)).toBeTruthy();
+    expect(screen.getByText(/clip\.mp4/)).toBeTruthy();
   });
 
   it('announces the refusal rather than only drawing it', () => {
     render(<FileDropzone onFiles={vi.fn()} />);
     dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
-      makeFile('marks.docx', 'application/vnd.openxmlformats'),
+      makeFile('clip.mp4', 'video/mp4'),
     ]);
 
     // It appeared in response to something the person just did, so it is live.
     const region = screen.getByRole('status');
-    expect(region.textContent).toMatch(/marks\.docx/);
+    expect(region.textContent).toMatch(/clip\.mp4/);
   });
 
-  it('says what to do about a Word document instead of only refusing it', () => {
-    render(<FileDropzone onFiles={vi.fn()} />);
-    dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
-      makeFile('timetable.docx', 'application/vnd.openxmlformats'),
-    ]);
+  it('accepts a Word document now that DOCX is read directly', () => {
+    const onFiles = vi.fn();
+    render(<FileDropzone onFiles={onFiles} />);
+    const docx = makeFile('timetable.docx', 'application/vnd.openxmlformats');
+    dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [docx]);
 
-    // The supplied Semester 5 timetable is a DOCX, so this is the commonest
-    // refusal there is; "no" alone would leave the student stuck.
-    expect(screen.getByRole('status').textContent).toMatch(/saved as a PDF/i);
+    // The old surface refused DOCX and told the student to export a PDF; it is
+    // now read directly, so the file goes straight to the pipeline.
+    expect(onFiles).toHaveBeenCalledOnce();
+    expect(onFiles.mock.calls[0]?.[0]).toEqual([docx]);
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('stops accepting while the pipeline is reading, and says so', () => {
@@ -162,7 +164,7 @@ describe('FileDropzone', () => {
     const user = userEvent.setup();
     render(<FileDropzone onFiles={vi.fn()} />);
     dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
-      makeFile('marks.docx', 'application/vnd.openxmlformats'),
+      makeFile('clip.mp4', 'video/mp4'),
     ]);
 
     await user.click(screen.getByRole('button', { name: 'Dismiss' }));

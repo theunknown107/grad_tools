@@ -43,6 +43,21 @@ const pdfTimedOut = (): Error =>
 /** How the lines were obtained. Shown to the student, not just logged. */
 export type ReadSource = 'text' | 'ocr';
 
+/**
+ * Where a reading came from, kept for the record — never presented as a claim of
+ * academic correctness. A parser extracting text cleanly says nothing about
+ * whether the marks it read are the marks the university awarded.
+ */
+export interface ReadProvenance {
+  /** The extraction engine, e.g. `officeparser`, `pdfjs`, `tesseract`, `builtin`. */
+  readonly engine: string;
+  readonly engineVersion: string;
+  /** The source format as a short label, e.g. `docx`, `pdf`, `csv`. */
+  readonly format: string;
+  /** How the text was obtained, e.g. `text-extraction`, `ocr`, `text`. */
+  readonly mode: string;
+}
+
 export interface FileReading {
   readonly lines: readonly ImportLine[];
   /**
@@ -58,6 +73,8 @@ export interface FileReading {
   /** OCR only, and null when nothing was recognised. Never shown as accuracy. */
   readonly meanConfidence: number | null;
   readonly lowConfidenceWords: number;
+  /** Where this reading came from. Optional; the PDF/image/HTML paths omit it. */
+  readonly provenance?: ReadProvenance;
 }
 
 /**
@@ -80,24 +97,47 @@ export type Recognize = (
  */
 export const MAX_OCR_PAGES = 4;
 
+export type FileKind = 'pdf' | 'image' | 'html' | 'office' | 'text' | 'unsupported';
+
+/** Office/ODF formats routed to officeParser, which then validates the container. */
+const OFFICE_EXT = /\.(docx|xlsx|pptx|odt|ods|odp|odg|rtf)$/;
+const OFFICE_MIME = new Set([
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'application/vnd.oasis.opendocument.presentation',
+  'application/vnd.oasis.opendocument.graphics',
+  'application/rtf',
+  'text/rtf',
+]);
+/** Plain delimited/markdown/text exports, read without loading officeParser. */
+const TEXT_EXT = /\.(csv|tsv|md|markdown|txt)$/;
+const TEXT_MIME = new Set(['text/plain', 'text/csv', 'text/tab-separated-values', 'text/markdown']);
+
 /** What kind of file this is, by type first and extension second. */
-export function fileKind(file: File): 'pdf' | 'image' | 'html' | 'unsupported' {
+export function fileKind(file: File): FileKind {
   const type = file.type.toLowerCase();
   if (type === 'application/pdf') return 'pdf';
   if (type === 'image/jpeg' || type === 'image/png' || type === 'image/webp') return 'image';
   if (type === 'text/html') return 'html';
+  if (OFFICE_MIME.has(type)) return 'office';
+  if (TEXT_MIME.has(type)) return 'text';
 
   /*
    * Some Android file pickers hand over an empty type. The extension is a weak
    * signal, so it is used only to CHOOSE A DECODER — never as evidence about
-   * the contents, which the decoder itself establishes.
+   * the contents, which the decoder itself establishes. For Office/ODF that
+   * decoder is officeParser, which reads the magic bytes and validates the
+   * container, so a mislabelled extension is caught there and refused cleanly.
    */
-  if (type === '') {
-    const name = file.name.toLowerCase();
-    if (name.endsWith('.pdf')) return 'pdf';
-    if (/\.(jpe?g|png|webp)$/.test(name)) return 'image';
-    if (/\.html?$/.test(name)) return 'html';
-  }
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.pdf')) return 'pdf';
+  if (/\.(jpe?g|png|webp)$/.test(name)) return 'image';
+  if (/\.html?$/.test(name)) return 'html';
+  if (OFFICE_EXT.test(name)) return 'office';
+  if (TEXT_EXT.test(name)) return 'text';
   return 'unsupported';
 }
 
@@ -122,7 +162,17 @@ export async function sniffKind(file: File): Promise<ReturnType<typeof fileKind>
   if (starts(0xff, 0xd8, 0xff)) return 'image';
   if (starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image';
   if (ascii(0, 'RIFF') && ascii(8, 'WEBP')) return 'image';
-  return fileKind(file) === 'html' ? 'html' : 'unsupported';
+  // A ZIP container (OOXML docx/xlsx/pptx, ODF odt/ods/odp/odg) or an RTF — the
+  // office decoder runs and officeParser validates the real type from the bytes.
+  if (starts(0x50, 0x4b, 0x03, 0x04)) return 'office';
+  if (ascii(0, '{\\rtf')) return 'office';
+  // No binary signature matched. Only the signature-LESS formats may be accepted
+  // on their declaration/extension: a saved HTML page and the plain-text exports
+  // (CSV, TSV, Markdown, plain text). A file that merely CLAIMS to be a PDF, an
+  // image or a ZIP-based Office document but carries no such signature is refused
+  // — the bytes, not the name, decide for every format that has a signature.
+  const declared = fileKind(file);
+  return declared === 'html' || declared === 'text' ? declared : 'unsupported';
 }
 
 /**
