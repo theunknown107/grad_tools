@@ -67,6 +67,7 @@ import {
 import { useAuth } from '../auth/AuthContext.js';
 import { SwitchRow } from '../../components/ui/field.js';
 import { PdfReadError } from '../../lib/pdf-text.js';
+import { OfficeReadError, readOfficeFile, readTextFile } from '../../lib/office-extract.js';
 import {
   HtmlReadError,
   readHtmlFile,
@@ -300,6 +301,7 @@ export function DocumentImport({
         cause instanceof PdfReadError ||
         cause instanceof OcrError ||
         cause instanceof HtmlReadError ||
+        cause instanceof OfficeReadError ||
         cause instanceof DocumentAiError
           ? cause.message
           : 'This file could not be read.',
@@ -398,12 +400,23 @@ export function DocumentImport({
             patch(entry.id, {
               status: 'failed',
               error:
-                'GradTools reads PDFs, photos (JPG, PNG, WebP) and result pages saved as HTML. This file is none of these.',
+                'GradTools reads PDFs, photos (JPG, PNG, WebP), Office and OpenDocument files (DOCX, XLSX, PPTX, ODT, ODS, ODP), and result exports saved as HTML, CSV, Markdown or plain text. This file is none of these.',
             });
             return;
           }
           if (kind === 'html') {
             store(entry.id, file.name, await readHtmlFile(file));
+            return;
+          }
+          // Office/ODF and plain-text files are read on the device into the same
+          // lines everything else produces. Like HTML they are already text, so
+          // they never go through the AI path and never leave the device.
+          if (kind === 'text') {
+            store(entry.id, file.name, await readTextFile(file));
+            return;
+          }
+          if (kind === 'office') {
+            store(entry.id, file.name, await readOfficeFile(await file.arrayBuffer(), file.name));
             return;
           }
           // A saved web page is text already: it never needs AI and never leaves.

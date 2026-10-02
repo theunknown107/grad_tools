@@ -189,6 +189,18 @@ export default tseslint.config(
   },
 
   {
+    // Test-fixture generators are run by hand under Node to (re)produce the
+    // committed binary fixtures; they print progress and use Node's Buffer.
+    files: ['apps/*/test/fixtures/**/*.mjs'],
+    languageOptions: {
+      globals: { console: 'readonly', process: 'readonly', Buffer: 'readonly' },
+    },
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  {
     // Measurement scripts are run by hand against a local corpus and report to
     // a terminal. Printing IS their output (M10B §27, §45).
     files: ['services/*/scripts/**/*.ts'],

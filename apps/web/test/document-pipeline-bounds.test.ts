@@ -228,8 +228,8 @@ describe('what a file is, from its own bytes', () => {
 
   it('treats a file as HTML only when it says so and is no binary format', async () => {
     await expect(sniffKind(file('<html></html>', 'r.html', 'text/html'))).resolves.toBe('html');
-    await expect(sniffKind(file('<html></html>', 'r.txt', 'text/plain'))).resolves.toBe(
-      'unsupported',
-    );
+    // A plain-text file is no longer unsupported — it is read on the device as a
+    // text export; it is simply not treated as HTML.
+    await expect(sniffKind(file('<html></html>', 'r.txt', 'text/plain'))).resolves.toBe('text');
   });
 });

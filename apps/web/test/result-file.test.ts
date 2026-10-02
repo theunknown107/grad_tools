@@ -123,7 +123,10 @@ describe('choosing a reader', () => {
      */
     expect(fileKind(new File([''], 'card.JPEG', { type: '' }))).toBe('image');
     expect(fileKind(new File([''], 'card.pdf', { type: '' }))).toBe('pdf');
-    expect(fileKind(new File([''], 'notes.txt', { type: '' }))).toBe('unsupported');
+    expect(fileKind(new File([''], 'notes.txt', { type: '' }))).toBe('text');
+    expect(fileKind(new File([''], 'marks.docx', { type: '' }))).toBe('office');
+    expect(fileKind(new File([''], 'sheet.xlsx', { type: '' }))).toBe('office');
+    expect(fileKind(new File([''], 'export.csv', { type: '' }))).toBe('text');
     expect(fileKind(new File([''], 'Result.HTM', { type: '' }))).toBe('html');
   });
 
@@ -132,8 +135,10 @@ describe('choosing a reader', () => {
   });
 
   it('refuses anything else rather than guessing', () => {
-    const doc = new File([''], 'marks.docx', { type: 'application/msword' });
-    expect(fileKind(doc)).toBe('unsupported');
+    expect(fileKind(new File([''], 'malware.exe', { type: 'application/octet-stream' }))).toBe(
+      'unsupported',
+    );
+    expect(fileKind(new File([''], 'clip.mp4', { type: 'video/mp4' }))).toBe('unsupported');
   });
 });
 
