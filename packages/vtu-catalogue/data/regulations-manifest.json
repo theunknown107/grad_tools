@@ -3,8 +3,8 @@
   "generatedAt": "2026-10-02",
   "description": "Provenance manifest of official VTU B.E./B.Tech regulation documents. Source bytes are a local HTTrack harvest (gitignored) plus two documents resolved from official VTU URLs. This file is tracked metadata, not the binaries.",
   "harvestDir": "VTU Harvested Data (Regulations)/Data  (local, gitignored)",
-  "count": 32,
-  "verifiedCount": 11,
+  "count": 33,
+  "verifiedCount": 12,
   "caveat": "verified=false means a valid PDF whose content is a scanned image (ocr_status=scanned) or only partially readable; its classification rests on source URL + filename + context, not read content. No regulation content was invented. effective_date/applicable_batch are null where the document does not establish them.",
   "documents": [
     {
@@ -546,6 +546,24 @@
       "ocr_status": "text_layer",
       "modifies": null,
       "notes": null
+    },
+    {
+      "filename": "5262-1.pdf",
+      "scheme": "2025",
+      "document_type": "SCHEME_OF_TEACHING",
+      "title": "VTU Scheme of Teaching and Examination 2025 (OBE/CBCS, effective 2025-26)",
+      "source_url": "https://vtu.ac.in/wp-content/uploads/2026/01/5262-1.pdf",
+      "official_source_page": "https://vtu.ac.in/b-e-scheme-syllabus/",
+      "publication_date": "2026-01",
+      "effective_date": "2025-26",
+      "applicable_batch": "Admitted 2025-26 onwards",
+      "pages": 425,
+      "sha256": "2c9db49fc2947bb8257b77fc924fa94ed0fec98cd2504effbe43ecafc8ead158",
+      "bytes": 6530125,
+      "verified": true,
+      "ocr_status": "text_layer",
+      "modifies": null,
+      "notes": "Combined 2025 Scheme of Teaching for all programmes (1082 course codes, 1B* family). Text-extractable; identified as the 2025 catalogue source. NOT yet ingested into the course catalogue: it is not listed on the scheme-syllabus page (no discovery-graph entry) and per-branch 2025 sources (pdf/2025syll3to8/*, pdf/2025commsyll3to8/*) remain unacquired; CSBS 2025 scheme (34csbssch.pdf) is scanned. Catalogue extraction + verification is pending."
     },
     {
       "filename": "B.E.B.Tech2025.pdf",

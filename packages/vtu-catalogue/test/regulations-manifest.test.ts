@@ -20,6 +20,7 @@ const DOC_TYPES = new Set([
   'PROJECT_RULE',
   'INTERNSHIP_RULE',
   'ANNEXURE',
+  'SCHEME_OF_TEACHING',
   'OTHER',
 ]);
 const OCR_STATUS = new Set(['text_layer', 'partial', 'scanned']);
