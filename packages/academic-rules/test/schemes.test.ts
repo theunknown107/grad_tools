@@ -27,8 +27,14 @@ describe('the VTU schemes', () => {
   });
 
   it('supports exactly the schemes whose verified rules are in this build', () => {
-    expect(schemeSupport('vtu-2022')).toBe('supported');
-    for (const id of ['vtu-2025', 'vtu-2021', 'vtu-2018', 'vtu-2017', 'vtu-2015', 'vtu-2010']) {
+    // 2022 and 2025 have verified, active rule sets (22OB / 25OB official PDFs).
+    for (const id of ['vtu-2022', 'vtu-2025']) {
+      expect(schemeSupport(id)).toBe('supported');
+      expect(getActiveRuleSetForScheme(id)).toBeDefined();
+    }
+    // The older schemes are recorded (can be chosen on a profile) but not yet
+    // supported: their regulations are scanned image PDFs not verified here.
+    for (const id of ['vtu-2021', 'vtu-2018', 'vtu-2017', 'vtu-2015', 'vtu-2010']) {
       expect(schemeSupport(id)).toBe('recognised');
       expect(getActiveRuleSetForScheme(id)).toBeUndefined();
     }
