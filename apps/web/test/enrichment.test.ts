@@ -59,8 +59,9 @@ describe('what a reviewed row resolves to', () => {
      */
     const enriched = enrichRow(subject({ credits: 4, hasSee: true }), null, ruleSet);
 
-    expect(enriched.grade).toMatchObject({ value: 'A+', source: '2022 rule set' });
-    expect(enriched.gradePoint).toMatchObject({ value: 9, source: '2022 rule set' });
+    expect(enriched.grade).toMatchObject({ value: 'A+', source: 'Calculated (2022 rules)' });
+    expect(enriched.gradePoint).toMatchObject({ value: 9, source: 'Calculated (2022 rules)' });
+    expect(enriched.conflict).toBeNull();
     expect(enriched.credits.value).toBe(4);
     expect(enriched.complete).toBe(true);
   });
@@ -71,8 +72,10 @@ describe('what a reviewed row resolves to', () => {
       null,
       ruleSet,
     );
-    expect(enriched.grade).toMatchObject({ value: 'O', source: 'Printed on the card' });
+    expect(enriched.grade).toMatchObject({ value: 'O', source: 'From the document' });
     expect(enriched.gradePoint.value).toBe(10);
+    // The printed O and the marks' A+ disagree: shown, as a thing to check.
+    expect(enriched.conflict).toMatch(/card prints O, but the marks give A\+/);
   });
 
   it('never labels a figure the student supplied as the catalogue’s', () => {
@@ -88,7 +91,7 @@ describe('what a reviewed row resolves to', () => {
     );
     expect(enriched.credits.value).toBe(3);
     expect(enriched.credits.source).toBe('Your own record');
-    expect(enriched.credits.source).not.toBe('VTU catalogue');
+    expect(enriched.credits.source).not.toBe('GradTools catalogue');
   });
 
   it('falls back to what the student recorded for the same code elsewhere', () => {
@@ -139,13 +142,55 @@ describe('what a reviewed row resolves to', () => {
      * silent P would print a pass on a course to be re-sat; a silent F would
      * understate an SGPA under the other reading.
      */
-    const failed = subject({ credits: 4, hasSee: true, internal: 12, external: 30, total: 42 });
+    const failed = subject({
+      credits: 4,
+      hasSee: true,
+      internal: 12,
+      external: 30,
+      total: 42,
+      resultStatus: 'F',
+    });
     const enriched = enrichRow(failed, null, ruleSet);
 
     expect(enriched.grade.value).toBeNull();
     expect(enriched.grade.reason).toMatch(/did not pass/i);
     expect(enriched.grade.reason).toMatch(/OQ-054/);
     expect(enriched.gradePoint.value).toBeNull();
+    // A course that failed, and was printed as failed, is not a conflict.
+    expect(enriched.conflict).toBeNull();
+  });
+
+  it('reads 4 + 36 printed as 80 as marks to check, never as a failed course', () => {
+    /*
+     * The physical-device case: OCR dropped a digit (44 read as 4). The card
+     * printed P. Nothing failed — the reading disagrees with itself, so no
+     * grade is worked out and the row says exactly what to check.
+     */
+    const enriched = enrichRow(
+      subject({ credits: 3, hasSee: true, internal: 4, external: 36, total: 80 }),
+      null,
+      ruleSet,
+    );
+    expect(enriched.conflict).toBe(
+      'The marks do not add up: 4 + 36 = 40, but 80 was read. Check them against the card.',
+    );
+    expect(enriched.grade.value).toBeNull();
+    expect(enriched.grade.reason).not.toMatch(/did not pass/i);
+  });
+
+  it('lets the printed Pass stand, and flags marks that would not pass', () => {
+    const passed = subject({
+      credits: 4,
+      hasSee: true,
+      internal: 12,
+      external: 30,
+      total: 42,
+      resultStatus: 'P',
+    });
+    const enriched = enrichRow(passed, null, ruleSet);
+    expect(enriched.conflict).toMatch(/card says Pass, but the marks as read would not pass/);
+    expect(enriched.grade.value).toBeNull();
+    expect(enriched.grade.reason).not.toMatch(/did not pass/i);
   });
 
   it('resolves nothing at all without a rule set, and says which part is missing', () => {

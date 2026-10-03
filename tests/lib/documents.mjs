@@ -57,7 +57,9 @@ export function makePdf(pages, { width = 612, height = 792 } = {}) {
     '<< /Type /Catalog /Pages 2 0 R >>',
     `<< /Type /Pages /Kids [${kids}] /Count ${String(pages.length)} >>`,
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-    ...contents.map((content) => `<< /Length ${String(content.length)} >>\nstream\n${content}\nendstream`),
+    ...contents.map(
+      (content) => `<< /Length ${String(content.length)} >>\nstream\n${content}\nendstream`,
+    ),
     ...pages.map(
       (_, index) =>
         `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${String(width)} ${String(height)}]` +
@@ -119,7 +121,10 @@ export function resultPdf(semester, rows) {
 export function multiPageResultPdf(semester, firstPage, secondPage) {
   return makePdf([
     [...cardHeading(semester), ...cardRows(firstPage)],
-    [{ text: 'VTU PROVISIONAL RESULTS OF UG / PG EXAMINATION', x: 60, y: 750 }, ...cardRows(secondPage, { from: 700 })],
+    [
+      { text: 'VTU PROVISIONAL RESULTS OF UG / PG EXAMINATION', x: 60, y: 750 },
+      ...cardRows(secondPage, { from: 700 }),
+    ],
   ]);
 }
 
@@ -172,9 +177,17 @@ export function calendarPdf({
 
   if (withPaperwork) {
     const y = 660 - rows.length * 20 - 30;
-    placed.push({ text: 'Note : As per Notification No. EX/BGM/598/2026-27/4718 dt. 05/12/2026', x: 60, y });
+    placed.push({
+      text: 'Note : As per Notification No. EX/BGM/598/2026-27/4718 dt. 05/12/2026',
+      x: 60,
+      y,
+    });
     placed.push({ text: 'Ref No. EX/ACA/2026-27 dated 01/08/2026', x: 60, y: y - 18 });
-    placed.push({ text: 'Copy to: The Principal, all affiliated colleges — 01/09/2026', x: 60, y: y - 36 });
+    placed.push({
+      text: 'Copy to: The Principal, all affiliated colleges — 01/09/2026',
+      x: 60,
+      y: y - 36,
+    });
   }
 
   return makePdf([placed]);
@@ -208,7 +221,11 @@ export function semesterCalendarPdf({ holiday = null, academicYear = '2026-27' }
 export function examSchedulePdf() {
   const placed = [
     { text: 'Visvesvaraya Technological University, Belagavi', x: 60, y: 750 },
-    { text: 'Draft Time Table for Eligible Students of B.E. III & IV Examinations, Dec.2026', x: 60, y: 730 },
+    {
+      text: 'Draft Time Table for Eligible Students of B.E. III & IV Examinations, Dec.2026',
+      x: 60,
+      y: 730,
+    },
     { text: 'Date, Day', x: 60, y: 700 },
     { text: 'III - Semester', x: 260, y: 700 },
     { text: 'IV - Semester', x: 420, y: 700 },

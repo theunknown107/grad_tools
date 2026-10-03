@@ -136,7 +136,7 @@ Token rules: single-use (`consumed_at` set inside the same transaction that crea
 | GET | `/attendance` | session | All attendance records |
 | PUT | `/attendance/:subjectCode` | owner | Upsert attendance for a course |
 | DELETE | `/attendance/:subjectCode` | owner | Remove |
-| GET | `/backlogs` | session | Derived backlogs |
+| GET | `/backlogs` | session | Derived backlogs. **Superseded by `OQ-056`** (M6 two-source model; see `08` §8.13): not built; backlogs are student-recorded, not derived |
 | GET | `/timetable` | session | Slots |
 | PUT | `/timetable` | session | Replace the whole timetable |
 | GET | `/preferences` | session | Preferences |
@@ -431,8 +431,8 @@ the content type.
 |---|---|
 | TLS | Enforced; HSTS with preload |
 | Headers | `helmet`: CSP, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` |
-| CORS | Explicit origin allowlist; `credentials: true`; no wildcard |
-| CSRF | `SameSite=Lax` + `Origin`/`Sec-Fetch-Site` check on all state-changing methods |
+| CORS | Explicit origin allowlist, no wildcard; `credentials: false`, and the methods the API actually serves — a preflight for a student POST/PUT/PATCH/DELETE is answered for an allowlisted origin and for no other |
+| CSRF | No cookie carries authority: every authenticated call presents a bearer token the page must hold, so a cross-site request has nothing ambient to ride on. The origin allowlist is what a browser is told; the token is what the API checks |
 | Body limit | 1 MB JSON; 20 MB multipart on the upload endpoint only |
 | Validation | Zod on body, query and params — no handler reads an unvalidated value |
 | Authorization | Explicit guard per handler; a route without one fails a lint rule and a test |
@@ -534,7 +534,7 @@ student-facing app uses.
 
 ## 10.14 Endpoints — Announcements (M7)
 
-Two public reads, two loopback writes.
+Three public reads, two operator writes.
 
 ### `GET /api/v1/announcements`
 
@@ -563,11 +563,13 @@ cacheable, contains no student data.
 An unpublished announcement is **404, not 403**. "It exists but you may not see
 it" is itself information about unreleased content.
 
-### `POST /api/v1/announcements/entry` — loopback only
+### `POST /api/v1/announcements/entry` — operator token
 
-Operator entry. Reachable only from the machine running the API, the same
-boundary the document routes use. **There is deliberately no public
-unauthenticated write.**
+Operator entry. Requires `Authorization: Bearer <OPERATOR_TOKEN>`; any missing,
+malformed or wrong token is the same `401 UNAUTHENTICATED`. When the deployment
+sets no `OPERATOR_TOKEN` the route is not mounted and answers `404`. **There is
+deliberately no public unauthenticated write.** (Originally loopback-only;
+superseded by the token — docs/13 §13.4a, docs/48.)
 
 The endpoint accepts no verification or publication state. An entry arrives
 `draft` / `unpublished` exactly as a fetched notice would, and is invisible to
@@ -575,9 +577,11 @@ students until a separate act publishes it. Storing a notice and vouching for it
 are different decisions; collapsing them would mean anything typed in was
 published by the act of typing it.
 
-### `POST /api/v1/announcements/:id/publish` — loopback only
+### `POST /api/v1/announcements/:id/publish` — operator token
 
-Requires `verifiedBy`. An unattributed verification is not a verification.
+Same authorization as entry. Requires `verifiedBy`, which is a label the
+operator writes, not an authenticated identity: there is one operator
+credential, not per-person accounts. An unattributed verification is not a verification.
 
 ### Not built, and why
 
@@ -585,7 +589,7 @@ Requires `verifiedBy`. An unattributed verification is not a verification.
 |---|---|
 | `GET /api/v1/notifications` | Needs a server-side student identity Stage 1 does not have (§9.16) |
 | `GET /api/v1/notifications/unread-count` | Same. Unread is computed on the device |
-| Any announcement write without loopback | Would be an unauthenticated public write to student-visible content |
+| Any announcement write without the operator token | Would be an unauthenticated public write to student-visible content |
 
 ## 10.15 Endpoints — The question-paper library (M8)
 

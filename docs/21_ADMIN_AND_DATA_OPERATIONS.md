@@ -410,9 +410,14 @@ POST /api/v1/announcements/entry     → draft, unpublished, invisible
 POST /api/v1/announcements/:id/publish (verifiedBy) → verified, published
 ```
 
-Both are **loopback-only** — reachable from the machine running the API and
-nowhere else, the same boundary the document routes use. There is no public
-write and no admin UI in Stage 1.
+Both require `Authorization: Bearer <OPERATOR_TOKEN>` and are not mounted at
+all when the deployment sets no `OPERATOR_TOKEN` (originally loopback-only;
+see docs/13 §13.4a). There is no public write and no admin UI. `verifiedBy` is
+a label, not an identity — there is one operator credential, not accounts.
+
+```
+curl -X POST "$API/api/v1/announcements/<id>/publish"   -H "Authorization: Bearer $OPERATOR_TOKEN" -H 'Content-Type: application/json'   -d '{"verifiedBy":"<operator name>"}'
+```
 
 **Entry cannot publish.** The two acts are separate because storing a notice and
 vouching for it are different decisions; collapsing them would mean anything

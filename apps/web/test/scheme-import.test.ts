@@ -469,7 +469,9 @@ describe('a row whose code cell names more than one code', () => {
    * EVERY VALUE IS SYNTHETIC.
    */
   it('reads a cell that slashes two whole codes together', () => {
-    const parsed = parseScheme(page(row(322, 'BQQ358x/BQQL358x', 'Invented Enhancement Course', 1)));
+    const parsed = parseScheme(
+      page(row(322, 'BQQ358x/BQQL358x', 'Invented Enhancement Course', 1)),
+    );
 
     expect(parsed.courses.map((course) => [course.code, course.viaAlternativeTo])).toEqual([
       ['BQQ358x', null],
@@ -543,9 +545,11 @@ describe('a code cell the PDF broke apart', () => {
       { text: '456x', x: COL.code + 21, y: 322, width: 21, height: HEIGHT },
     ];
     const parsed = parseScheme(
-      page([...row(322, 'BQQIGNORED', 'Invented Enhancement Course', 1), ...pieces].filter(
-        (item) => item.text !== 'BQQIGNORED',
-      )),
+      page(
+        [...row(322, 'BQQIGNORED', 'Invented Enhancement Course', 1), ...pieces].filter(
+          (item) => item.text !== 'BQQIGNORED',
+        ),
+      ),
     );
 
     expect(parsed.courses.map((course) => course.code)).toEqual(['BQQ456x']);
@@ -560,9 +564,11 @@ describe('a code cell the PDF broke apart', () => {
       { text: '456x', x: COL.code + 60, y: 322, width: 21, height: HEIGHT },
     ];
     const parsed = parseScheme(
-      page([...row(322, 'BQQIGNORED', 'Invented Course', 1), ...pieces].filter(
-        (item) => item.text !== 'BQQIGNORED',
-      )),
+      page(
+        [...row(322, 'BQQIGNORED', 'Invented Course', 1), ...pieces].filter(
+          (item) => item.text !== 'BQQIGNORED',
+        ),
+      ),
     );
     expect(parsed.courses).toHaveLength(0);
   });
@@ -689,7 +695,11 @@ describe('a credit the row prints off its own baseline', () => {
       at('50', COL.see, 322),
     ];
     const parsed = parseScheme(
-      page(row(398, 'BQQ400', 'Invented Course Zero', 3), row(360, 'BQQ401', 'Invented Course One', 4), bare),
+      page(
+        row(398, 'BQQ400', 'Invented Course Zero', 3),
+        row(360, 'BQQ401', 'Invented Course One', 4),
+        bare,
+      ),
     );
     expect(parsed.courses.map((course) => course.code)).not.toContain('BQQ403');
   });
@@ -1251,12 +1261,7 @@ describe('a row that prints two codes, each with the code it supersedes', () => 
    */
 
   /** The row as the document sets it: the cell WRAPS after the slash. */
-  const kannadaRow = (
-    heading: string,
-    head: string,
-    tail: string,
-    title: string,
-  ): SchemePage[] => [
+  const kannadaRow = (heading: string, head: string, tail: string, title: string): SchemePage[] => [
     {
       page: 1,
       items: [
@@ -1315,10 +1320,7 @@ describe('a row that prints two codes, each with the code it supersedes', () => 
      */
     const parsed = physics();
 
-    expect(parsed.courses.map((course) => course.code).sort()).toEqual([
-      '1BKBK109',
-      '1BKSK109',
-    ]);
+    expect(parsed.courses.map((course) => course.code).sort()).toEqual(['1BKBK109', '1BKSK109']);
   });
 
   it('charges the semester once, not once per code', () => {
@@ -1383,7 +1385,11 @@ describe('a row that prints two codes, each with the code it supersedes', () => 
      */
     expect(physics().courses.every((course) => course.semester === 1)).toBe(true);
     expect(chemistry().courses.every((course) => course.semester === 2)).toBe(true);
-    expect(chemistry().courses.map((c) => c.code).sort()).toEqual(['1BKBK209', '1BKSK209']);
+    expect(
+      chemistry()
+        .courses.map((c) => c.code)
+        .sort(),
+    ).toEqual(['1BKBK209', '1BKSK209']);
   });
 
   it('refuses a half-written pair rather than reading one side of it', () => {

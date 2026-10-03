@@ -17,7 +17,12 @@ import { AttendancePage } from '../src/features/attendance/AttendancePage.js';
 import { TimetablePage } from '../src/features/timetable/TimetablePage.js';
 import { DashboardPage } from '../src/features/dashboard/DashboardPage.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
-import type { AttendanceRecord, StudentProfile, TimetableSlot } from '../src/domain/types.js';
+import type {
+  AttendanceRecord,
+  LedgerEntry,
+  StudentProfile,
+  TimetableSlot,
+} from '../src/domain/types.js';
 import type { SavedCalendar } from '../src/domain/calendar-import.js';
 import { localDay } from '../src/lib/format.js';
 import { createMemoryRepositories, renderWith } from './helpers.js';
@@ -89,15 +94,28 @@ function slot(subjectCode: string): TimetableSlot {
   };
 }
 
+/**
+ * A course row records a class through its ⋯ menu.
+ *
+ * The page opens on TODAY, where a class is marked against its date. This is
+ * the other path: the per-course list, for a class with no hour to point at.
+ */
+async function recordClass(outcome: 'attended' | 'missed'): Promise<void> {
+  await userEvent.click(await screen.findByRole('radio', { name: /^courses$/i }));
+  await userEvent.click(await screen.findByRole('button', { name: /more actions for/i }));
+  await userEvent.click(
+    await screen.findByRole('menuitem', { name: new RegExp(`mark a class ${outcome}`, 'i') }),
+  );
+}
+
 describe('recording a class from the attendance page', () => {
   it('raises both counts when the class was attended', async () => {
-    const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories({
       attendance: [attendance('BCS501', 30, 40)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
 
-    await user.click(await screen.findByRole('button', { name: /mark a class attended/i }));
+    await recordClass('attended');
 
     expect(peek.attendance()[0]).toMatchObject({ attended: 31, conducted: 41 });
   });
@@ -105,13 +123,12 @@ describe('recording a class from the attendance page', () => {
   it('raises only the classes held when it was missed', async () => {
     // A missed class still HAPPENED. Leaving `conducted` alone would quietly
     // preserve the percentage, which treats attendance as a score.
-    const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories({
       attendance: [attendance('BCS501', 30, 40)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
 
-    await user.click(await screen.findByRole('button', { name: /mark a class missed/i }));
+    await recordClass('missed');
 
     expect(peek.attendance()[0]).toMatchObject({ attended: 30, conducted: 41 });
   });
@@ -128,7 +145,7 @@ describe('recording a class from the attendance page', () => {
     });
     renderWith(<AttendancePage />, { repositories: bundle });
 
-    await user.click(await screen.findByRole('button', { name: /mark a class attended/i }));
+    await recordClass('attended');
     expect(peek.attendance()[0]).toMatchObject({ attended: 31, conducted: 41 });
 
     await user.click(await screen.findByRole('button', { name: /^undo$/i }));
@@ -138,12 +155,13 @@ describe('recording a class from the attendance page', () => {
   it('updates the figure the student came to read', async () => {
     // 30 of 40 is 75%; 31 of 41 is above it. The percentage comes from the
     // rules engine, so the row and the marking cannot disagree.
-    const user = userEvent.setup();
     const { bundle } = createMemoryRepositories({ attendance: [attendance('BCS501', 30, 40)] });
     renderWith(<AttendancePage />, { repositories: bundle });
+    await userEvent.click(await screen.findByRole('radio', { name: /^courses$/i }));
 
     expect((await screen.findAllByText('75.0%')).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('button', { name: /mark a class attended/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /more actions for/i }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /mark a class attended/i }));
     expect(screen.queryByText('75.0%')).toBeNull();
     // 31 of 41 is 75.6%, still from calculateAttendance rather than from here.
     expect(screen.getAllByText('75.6%').length).toBeGreaterThan(0);
@@ -158,7 +176,7 @@ describe('recording a class from the attendance page', () => {
  * student is looking at is one click; every guarantee below is unchanged.
  */
 async function openToday(): Promise<void> {
-  await userEvent.click(await screen.findByRole('tab', { name: /^day/i }));
+  await userEvent.click(await screen.findByRole('radio', { name: /^day$/i }));
 }
 
 describe("recording a class from today's timetable", () => {
@@ -231,6 +249,24 @@ describe("recording a class from today's timetable", () => {
 /* M10A.11 — the daily loop, and what must never happen twice                  */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The per-class rows the ledger holds.
+ *
+ * These assertions used to read `classMarks`, which was a 14-day duplicate
+ * guard rather than history. The guarantee is unchanged — one row per class per
+ * date, whatever the caller does — but the row is now the durable record the
+ * figures are derived from (domain/attendance).
+ */
+function occurrences(
+  peek: ReturnType<typeof createMemoryRepositories>['peek'],
+): readonly { date: string; classId: string; outcome: string }[] {
+  return peek
+    .attendanceLedger()
+    .filter(
+      (entry): entry is Extract<LedgerEntry, { kind: 'occurrence' }> => entry.kind === 'occurrence',
+    );
+}
+
 /** Today as the marks store it: the device's own day, not UTC's (§13). */
 const todayDate = localDay();
 
@@ -279,7 +315,7 @@ describe('a class cannot be counted twice', () => {
     await user.click(button);
 
     expect(peek.attendance()[0]).toMatchObject({ attended: 31, conducted: 41 });
-    expect(peek.classMarks()).toHaveLength(1);
+    expect(occurrences(peek)).toHaveLength(1);
   });
 
   it('still knows what was marked after the student walks away and comes back', async () => {
@@ -327,7 +363,7 @@ describe('a class cannot be counted twice', () => {
     await user.click(buttons[1] as HTMLElement);
 
     expect(peek.attendance()[0]).toMatchObject({ attended: 32, conducted: 42 });
-    expect(peek.classMarks()).toHaveLength(2);
+    expect(occurrences(peek)).toHaveLength(2);
   });
 });
 
@@ -347,7 +383,8 @@ describe('correcting what was marked', () => {
 
     // The class happened either way: `conducted` rose once, not twice.
     expect(peek.attendance()[0]).toMatchObject({ attended: 30, conducted: 41 });
-    expect(peek.classMarks()[0]).toMatchObject({ outcome: 'missed' });
+    expect(occurrences(peek)).toHaveLength(1);
+    expect(occurrences(peek)[0]).toMatchObject({ outcome: 'missed' });
   });
 
   it('takes the mark back entirely, counts and all', async () => {
@@ -369,7 +406,7 @@ describe('correcting what was marked', () => {
     await user.click(await screen.findByRole('button', { name: /^undo$/i }));
 
     expect(peek.attendance()[0]).toMatchObject({ attended: 30, conducted: 40 });
-    expect(peek.classMarks()).toHaveLength(0);
+    expect(occurrences(peek)).toHaveLength(0);
     expect(
       screen.getByRole('button', { name: /mark BCS501 attended/i }).getAttribute('aria-pressed'),
     ).toBe('false');
@@ -446,7 +483,10 @@ describe('which timetable am I looking at', () => {
     renderWith(<TimetablePage />, { repositories: bundle });
     await openToday();
 
-    expect(await screen.findByText(/5 SEM CSE A · R2 · from 15 Jul 2026/)).toBeTruthy();
+    // Class, revision and start date, each as its own label.
+    expect(await screen.findByText('5 SEM CSE A')).toBeTruthy();
+    expect(screen.getByText('R2')).toBeTruthy();
+    expect(screen.getByText('from 15 Jul 2026')).toBeTruthy();
   });
 
   it('says so when a later revision is also stored', async () => {
@@ -543,13 +583,16 @@ describe('what did I mark, seen from the dashboard', () => {
     const { bundle } = createMemoryRepositories({
       profile: profile(),
       timetable: [slot('BCS501')],
-      classMarks: [
+      attendanceLedger: [
         {
+          kind: 'occurrence',
           id: `${todayDate}:t-BCS501`,
-          profileId,
+          classId: 't-BCS501',
           date: todayDate,
-          slotId: 't-BCS501',
           subjectCode: 'BCS501',
+          subjectTitle: 'Software Engineering',
+          startTime: '09:00',
+          endTime: '10:00',
           outcome: 'attended',
           markedAt: `${todayDate}T10:00:00.000Z`,
         },
@@ -557,7 +600,7 @@ describe('what did I mark, seen from the dashboard', () => {
     });
     renderWith(<DashboardPage />, { repositories: bundle });
 
-    expect(await screen.findByText(/attended/)).toBeTruthy();
+    expect(await screen.findByText(/^attended$/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /mark BCS501 attended/i })).toBeNull();
   });
 });

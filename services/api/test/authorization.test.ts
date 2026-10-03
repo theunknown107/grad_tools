@@ -30,7 +30,7 @@ import type { Express } from 'express';
 import postgres from 'postgres';
 import { loadConfig } from '../src/config.js';
 import type { Sql } from '../src/db/client.js';
-import { createApp } from '../src/http/app.js';
+import { assertStartupSafety, createApp } from '../src/http/app.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { createLogger } from '../src/observability/logger.js';
 import { assertCloudRoleIsSafe, withUser } from '../src/db/cloud.js';
@@ -212,6 +212,44 @@ describeDb('the authorization matrix', () => {
       const [row] = await cloud<{ user: string }[]>`SELECT current_user AS user`;
       expect(row?.user).toBe('authenticator');
     });
+
+    /*
+     * THE GUARD IS ACTUALLY WIRED INTO STARTUP.
+     *
+     * `assertCloudRoleIsSafe` is unit-tested above; this proves the app's real
+     * initialization path runs it, against the same connection the student
+     * routes use. Without this, a `postgres`/`service_role` SUPABASE_DB_URL
+     * would boot and serve student data with RLS silently bypassed.
+     */
+    const appWithCloud = (cloudSql: Sql): Express =>
+      createApp(
+        loadConfig({ DATABASE_URL: DATABASE_URL as string, NODE_ENV: 'test', APP_ENV: 'test' }),
+        sql,
+        createLogger('silent', false),
+        { sql: cloudSql, verify: fakeVerifier() },
+      );
+
+    it('startup safety passes with the authenticator connection', async () => {
+      await expect(assertStartupSafety(appWithCloud(cloud))).resolves.toBeUndefined();
+    });
+
+    it('startup safety fails with a role that bypasses RLS, leaking no connection string', async () => {
+      const app = appWithCloud(admin);
+      await expect(assertStartupSafety(app)).rejects.toThrow(/bypasses row-level security/);
+      const message = await assertStartupSafety(app).catch((e: unknown) =>
+        e instanceof Error ? e.message : String(e),
+      );
+      expect(message).not.toMatch(/postgres:\/\/|password|@/);
+    });
+
+    it('startup safety is a no-op when no student cloud is configured', async () => {
+      const app = createApp(
+        loadConfig({ DATABASE_URL: DATABASE_URL as string, NODE_ENV: 'test', APP_ENV: 'test' }),
+        sql,
+        createLogger('silent', false),
+      );
+      await expect(assertStartupSafety(app)).resolves.toBeUndefined();
+    });
   });
 
   /* ------------------------------------------------------------------------ */
@@ -373,8 +411,10 @@ describeDb('the authorization matrix', () => {
     /* ---------------------------------------------------------------- */
 
     it('cannot see another student’s manual result row', async () => {
-      const mine = await withUser(cloud, sessionFor(B), (tx) =>
-        tx<{ id: string }[]>`SELECT id::text FROM result_subjects`,
+      const mine = await withUser(
+        cloud,
+        sessionFor(B),
+        (tx) => tx<{ id: string }[]>`SELECT id::text FROM result_subjects`,
       );
       expect(mine).toHaveLength(0);
 
@@ -464,8 +504,10 @@ describeDb('the authorization matrix', () => {
         UPDATE result_subjects SET catalogue_code = 'BQAS502'
         WHERE id = ${ids.aResultSubject}::uuid
       `;
-      const seen = await withUser(cloud, sessionFor(B), (tx) =>
-        tx<{ catalogue_code: string | null }[]>`SELECT catalogue_code FROM result_subjects`,
+      const seen = await withUser(
+        cloud,
+        sessionFor(B),
+        (tx) => tx<{ catalogue_code: string | null }[]>`SELECT catalogue_code FROM result_subjects`,
       );
       expect(seen).toHaveLength(0);
     });

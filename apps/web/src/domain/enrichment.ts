@@ -34,7 +34,7 @@
 import { isOk, resolveGrade, type RuleSet } from '@gradtools/academic-rules';
 import { creditsFor, type CreditsFrom, type SubjectIdentity } from './subjects.js';
 import { resolveCourseKind, type CourseKind, type ResolvedCourseKind } from './exams.js';
-import { resolveSubjectGrade } from './results.js';
+import { evaluateResultSubject, printedPass, resolveSubjectGrade } from './results.js';
 import type { ResultSubject } from './types.js';
 
 /* -------------------------------------------------------------------------- */
@@ -50,7 +50,13 @@ import type { ResultSubject } from './types.js';
  * back.
  */
 export const CREDIT_SOURCE_LABEL: Readonly<Record<CreditsFrom, string>> = {
-  catalogue: 'VTU catalogue',
+  /*
+   * GradTools' own transcription of VTU scheme tables — not a statement VTU
+   * made about this student's programme. A code's row can come from another
+   * programme's table (BCS401's is the CSBS scheme's), so the label names who
+   * is vouching for it.
+   */
+  catalogue: 'GradTools catalogue',
   yours: 'Your own record',
 };
 
@@ -82,6 +88,13 @@ export interface RowEnrichment {
   readonly gradePoint: ResolvedField<number>;
   /** True when every part a student needs is known. */
   readonly complete: boolean;
+  /**
+   * A REAL contradiction a person has to settle — the marks do not add up, or
+   * contradict the printed result, or the printed letter differs from the one
+   * the marks give. Null otherwise. A value that is merely not known is not a
+   * conflict and never produces one: "needs review" means something disagrees.
+   */
+  readonly conflict: string | null;
 }
 
 function unresolved<T>(reason: string): ResolvedField<T> {
@@ -131,30 +144,52 @@ export function enrichRow(
 
   const resolvedGrade = resolveSubjectGrade(subject, ruleSet);
 
+  const evaluation = ruleSet === undefined ? null : evaluateResultSubject(subject, ruleSet);
+  const printed = printedPass(subject.resultStatus);
+
+  let conflict: string | null = null;
+  if (evaluation?.totalDisagrees === true) {
+    conflict = `The marks do not add up: ${String(subject.internal)} + ${String(subject.external)} = ${String(evaluation.computedTotal)}, but ${String(subject.total)} was read. Check them against the card.`;
+  } else if (evaluation?.statusConflict === true) {
+    conflict =
+      printed === true
+        ? 'The card says Pass, but the marks as read would not pass. Check them against the card.'
+        : 'The card says Fail, but the marks as read would pass. Check them against the card.';
+  } else if (evaluation?.gradeDisagrees === true) {
+    conflict = `The card prints ${evaluation.sourceGrade?.letter ?? ''}, but the marks give ${evaluation.computedGrade?.letter ?? ''}. Check them against the card.`;
+  }
+
   let grade: ResolvedField<string>;
   if (resolvedGrade !== null) {
     grade = {
       value: resolvedGrade.letter,
-      source: resolvedGrade.from === 'card' ? 'Printed on the card' : '2022 rule set',
+      source: resolvedGrade.from === 'card' ? 'From the document' : 'Calculated (2022 rules)',
       reason: null,
     };
-  } else if (ruleSet === undefined) {
+  } else if (ruleSet === undefined || evaluation === null) {
     grade = unresolved('The rule set this semester was graded under is not available here.');
+  } else if (conflict !== null) {
+    /* Nothing is worked out from marks that contradict themselves or the card. */
+    grade = unresolved('Not worked out until the conflict below is settled.');
   } else if (kind.hasSee === null && kind.kind === null) {
     grade = unresolved(
-      'Requires review — whether this course had a semester-end exam is not recorded, and an external of 0 reads the same either way.',
+      'Not known — whether this course had a semester-end exam is not recorded, and an external of 0 reads the same either way.',
     );
   } else if (subject.internal === null || subject.external === null) {
-    grade = unresolved('Requires review — the marks this grade would come from are incomplete.');
-  } else {
+    grade = unresolved('Not known — the marks it would come from are incomplete.');
+  } else if (evaluation.outcome !== null && evaluation.backlog === true) {
     /*
-     * The course was evaluated and did not pass. OQ-054: the supplied
-     * regulations band the letter by percentage AND separately require each
-     * head, and do not say which the grade card prints for a course that
-     * failed a head. Nothing is chosen here.
+     * The course genuinely did not pass. OQ-054: the supplied regulations band
+     * the letter by percentage AND separately require each head, and do not say
+     * which the grade card prints for a course that failed a head. Nothing is
+     * chosen here.
      */
     grade = unresolved(
-      'Requires review — this course did not pass, and the regulations do not state the letter a failed course carries (OQ-054).',
+      'Not known — this course did not pass, and the regulations do not state the letter a failed course carries (OQ-054).',
+    );
+  } else {
+    grade = unresolved(
+      evaluation.unavailableReason ?? 'Not known — no grade could be worked out from these marks.',
     );
   }
 
@@ -165,11 +200,11 @@ export function enrichRow(
     gradePoint = unresolved('Follows the grade.');
   } else if (subject.gradePoint !== null) {
     /* A card that prints its own point is stating a fact; it wins. */
-    gradePoint = { value: subject.gradePoint, source: 'Printed on the card', reason: null };
+    gradePoint = { value: subject.gradePoint, source: 'From the document', reason: null };
   } else {
     const band = resolveGrade(grade.value, ruleSet);
     gradePoint = isOk(band)
-      ? { value: band.value.points, source: '2022 rule set', reason: null }
+      ? { value: band.value.points, source: 'Calculated (2022 rules)', reason: null }
       : unresolved(
           `The rule set gives no point value for "${grade.value}" — it is recorded, not scored.`,
         );
@@ -184,5 +219,6 @@ export function enrichRow(
       credits.value !== null &&
       grade.value !== null &&
       (gradePoint.value !== null || kind.countsTowardGpa === false),
+    conflict,
   };
 }

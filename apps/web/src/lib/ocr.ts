@@ -36,6 +36,8 @@
  */
 
 import { ocrPageToLines, type OcrPageResult, type OcrWord } from '../domain/ocr-layout.js';
+import { ENGINE_START_MS, RECOGNITION_MS, withDeadline } from './deadline.js';
+import { IMAGE_HEADER_BYTES, decodable, imageDimensions } from './image-header.js';
 
 /** Where `vendor-ocr-assets.mjs` puts the engine, on our own origin. */
 const ASSET_BASE = '/ocr';
@@ -94,6 +96,22 @@ export async function decodeImage(blob: Blob): Promise<DecodedImage> {
   if (blob.size > MAX_IMAGE_BYTES) {
     throw new OcrError(
       `That image is larger than ${String(MAX_IMAGE_BYTES / 1024 / 1024)}MB. A photo of a result card is normally a few megabytes.`,
+    );
+  }
+
+  /*
+   * THE SIZE IS CHECKED BEFORE THE DECODE, from the header. Decoding allocates
+   * width × height × 4 bytes whatever the file size, so a tiny file declaring
+   * enormous dimensions would exhaust memory inside the decoder, before any
+   * check on the decoded image could run (lib/image-header.ts).
+   */
+  const size = imageDimensions(
+    new Uint8Array(await blob.slice(0, IMAGE_HEADER_BYTES).arrayBuffer()),
+  );
+  if (size === null) throw new OcrError('This image could not be opened.');
+  if (!decodable(size)) {
+    throw new OcrError(
+      `This image is ${String(size.width)}×${String(size.height)} pixels — too large to read safely on this device. A photo at the camera's normal setting will work.`,
     );
   }
 
@@ -276,8 +294,14 @@ export interface OcrSession {
     page?: number,
     options?: { readonly sparse?: boolean },
   ): Promise<OcrPageResult>;
-  /** Always call this. A worker left running holds the engine in memory. */
+  /**
+   * Always call this. A worker left running holds the engine in memory.
+   * Anything still waiting on the worker is rejected, so no caller is left
+   * awaiting a worker that no longer exists.
+   */
   close(): Promise<void>;
+  /** True once closed — by the caller, or because a pass ran out of time. */
+  readonly closed: boolean;
 }
 
 /**
@@ -287,12 +311,58 @@ export interface OcrSession {
  * downloads the engine: it is a separate chunk, and the ~6.5MB of worker, core
  * and model is fetched on first use and then cached by the browser (§7).
  */
+/**
+ * Runs `create` and returns every Web Worker it constructed synchronously.
+ * `Worker` is restored before this returns, whatever `create` does.
+ */
+export function captureWorkers<T>(create: () => T): { result: T; workers: Worker[] } {
+  const workers: Worker[] = [];
+  const Original = globalThis.Worker;
+  if (typeof Original !== 'function') return { result: create(), workers };
+  globalThis.Worker = class extends Original {
+    constructor(...args: ConstructorParameters<typeof Worker>) {
+      super(...args);
+      workers.push(this);
+    }
+  };
+  try {
+    return { result: create(), workers };
+  } finally {
+    globalThis.Worker = Original;
+  }
+}
+
 export async function startOcr(): Promise<OcrSession> {
   const { createWorker } = await import('tesseract.js');
 
-  let worker;
-  try {
-    worker = await createWorker('eng', 1, {
+  /*
+   * FAIL FAST, BECAUSE tesseract.js WILL NOT. `createWorker` settles only
+   * through its load → loadLanguage → initialize chain, which ends in
+   * `.catch(() => {})`: a failure to load the model or initialise the engine is
+   * swallowed and the promise never settles. The one place such a failure
+   * surfaces is `errorHandler` — so during start-up it rejects the start.
+   * (Its argument can carry engine output; it is never logged or shown.)
+   */
+  let failStart: (error: OcrError) => void = () => undefined;
+  const startFailed = new Promise<never>((_, reject) => {
+    failStart = reject;
+  });
+  startFailed.catch(() => undefined);
+
+  /*
+   * WE OWN THE WORKER FROM THE MOMENT IT EXISTS.
+   *
+   * A start that fails never hands back the object that could terminate it,
+   * so a failed attempt used to leave an idle Web Worker — engine and model in
+   * memory — alive until the page closed. `createWorker` constructs its Worker
+   * synchronously, before its first `await` (tesseract.js 7,
+   * src/createWorker.js → spawnWorker), so it is captured at construction:
+   * `Worker` is swapped for a recording subclass for exactly the duration of
+   * that synchronous call and restored in `finally`. JavaScript is single-
+   * threaded, so nothing else can construct a Worker in that window.
+   */
+  const spawned = captureWorkers(() =>
+    createWorker('eng', 1, {
       /*
        * All three, explicitly. Any one left unset silently reaches jsDelivr,
        * and the request would carry the fact that a student is reading a result
@@ -301,12 +371,38 @@ export async function startOcr(): Promise<OcrSession> {
       workerPath: `${ASSET_BASE}/worker.min.js`,
       corePath: ASSET_BASE,
       langPath: ASSET_BASE,
-      gzip: true,
+      // Uncompressed: an APK cannot hold a `.gz` asset under its own name
+      // (scripts/vendor-ocr-assets.mjs explains the device failure).
+      gzip: false,
       // Nothing is logged: the callback would otherwise carry document text.
       logger: () => undefined,
-      errorHandler: () => undefined,
-    });
-  } catch {
+      errorHandler: () => {
+        failStart(
+          new OcrError(
+            'The text recogniser could not start. You can still enter this result by hand.',
+          ),
+        );
+      },
+    }),
+  );
+  const starting = spawned.result;
+
+  let worker: Awaited<typeof starting>;
+  try {
+    worker = await withDeadline(
+      Promise.race([starting, startFailed]),
+      ENGINE_START_MS,
+      () =>
+        new OcrError(
+          'The text recogniser did not start on this device. Try again, or enter this result by hand.',
+        ),
+    );
+  } catch (cause) {
+    // Failed, or timed out: the worker is terminated now, not when the page closes.
+    for (const raw of spawned.workers) raw.terminate();
+    // And a start that finishes after we gave up must not leave its worker behind.
+    void starting.then((late) => late.terminate()).catch(() => undefined);
+    if (cause instanceof OcrError) throw cause;
     throw new OcrError(
       'The text recogniser could not start. You can still enter this result by hand.',
     );
@@ -315,18 +411,19 @@ export async function startOcr(): Promise<OcrSession> {
   let closed = false;
   /* Sequential by construction: each call awaits the previous one's turn. */
   let queue: Promise<unknown> = Promise.resolve();
+  /* Every caller still waiting, so closing can release them. */
+  const waiting = new Set<(error: Error) => void>();
 
-  return {
+  const session: OcrSession = {
+    get closed() {
+      return closed;
+    },
+
     async recognize(canvas, page = 1, options = {}) {
       if (closed) throw new OcrError('This import was cancelled.');
 
       const turn = queue.then(async () => {
         if (closed) throw new OcrError('This import was cancelled.');
-        /*
-         * Set per call rather than per worker, and set BOTH ways round: the
-         * engine keeps whatever it was last told, so a sparse pass would leak
-         * into the next document in the same batch.
-         */
         /*
          * Set per call, and set BOTH ways round: the engine keeps whatever it
          * was last told, so a sparse pass would otherwise leak into the next
@@ -376,15 +473,38 @@ export async function startOcr(): Promise<OcrSession> {
       });
 
       queue = turn.catch(() => undefined);
-      return turn;
+
+      let release: (error: Error) => void = () => undefined;
+      const released = new Promise<never>((_, reject) => {
+        release = reject;
+      });
+      waiting.add(release);
+      try {
+        return await withDeadline(Promise.race([turn, released]), RECOGNITION_MS, () => {
+          /*
+           * A pass that never returns means the worker is gone or wedged. It is
+           * terminated rather than trusted with the next page.
+           */
+          // After this error has settled the race, so it is the one reported.
+          queueMicrotask(() => void session.close());
+          return new OcrError(
+            'Reading this page took too long on this device. Try again, or try a smaller or clearer copy of the document.',
+          );
+        });
+      } finally {
+        waiting.delete(release);
+      }
     },
 
     async close() {
       if (closed) return;
       closed = true;
+      for (const release of waiting) release(new OcrError('This import was cancelled.'));
+      waiting.clear();
       // Awaited so the worker is gone before the caller moves on; a terminate
       // that is merely started can outlive the screen that owned it.
-      await worker.terminate();
+      await worker.terminate().catch(() => undefined);
     },
   };
+  return session;
 }

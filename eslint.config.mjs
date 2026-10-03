@@ -11,6 +11,8 @@ export default tseslint.config(
       'docs/**',
       // Vendored, minified OCR engine. Not ours to lint or to fix.
       'apps/web/public/ocr/**',
+      // Generated Capacitor project; its assets/public is a copy of dist.
+      'apps/web/android/**',
       // QA output and private validation scratch. Gitignored, never shipped.
       '.qa-*/**',
       // Anywhere, not only at the root: the harnesses that need a workspace's
@@ -140,11 +142,15 @@ export default tseslint.config(
     // tests/visual-qa.mjs is a Node QA harness. Its page.evaluate callbacks are
     // serialised and executed inside Chromium, so it legitimately references
     // both Node globals (console, process) and browser globals (document).
-    files: ['tests/**/*.mjs'],
+    // `tools/research/*.mjs` are one-off Node research harnesses that harvest
+    // and parse official VTU PDFs. Nothing in the application imports them.
+    files: ['tests/**/*.mjs', 'tools/research/**/*.mjs'],
     languageOptions: {
       globals: {
         console: 'readonly',
         process: 'readonly',
+        fetch: 'readonly',
+        setTimeout: 'readonly',
         document: 'readonly',
         getComputedStyle: 'readonly',
         window: 'readonly',
@@ -152,6 +158,8 @@ export default tseslint.config(
         globalThis: 'readonly',
         localStorage: 'readonly',
         sessionStorage: 'readonly',
+        /* A harness that seeds the app's own storage before the page loads. */
+        indexedDB: 'readonly',
         ArrayBuffer: 'readonly',
         Blob: 'readonly',
         /* Node side: a harness reads real files to feed the page. */
@@ -174,6 +182,18 @@ export default tseslint.config(
     files: ['apps/*/scripts/**/*.mjs'],
     languageOptions: {
       globals: { console: 'readonly', process: 'readonly' },
+    },
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  {
+    // Test-fixture generators are run by hand under Node to (re)produce the
+    // committed binary fixtures; they print progress and use Node's Buffer.
+    files: ['apps/*/test/fixtures/**/*.mjs'],
+    languageOptions: {
+      globals: { console: 'readonly', process: 'readonly', Buffer: 'readonly' },
     },
     rules: {
       'no-console': 'off',

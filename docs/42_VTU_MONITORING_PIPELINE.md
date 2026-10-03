@@ -145,6 +145,10 @@ runs. It is **not** per-user crawling: no student's request fetches anything
    which is the correct behaviour, and is a gap, and is recorded here rather
    than hidden behind a default.
 
+   *Later:* the Profile now collects it, and its list includes PG programmes
+   for notice matching only; academic support stays B.E./B.Tech, eight
+   semesters (`32` OQ-055).
+
 ## Tests
 
 71 new, all green; 1930 in the suite, up from 1859.

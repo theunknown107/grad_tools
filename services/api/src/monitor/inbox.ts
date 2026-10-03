@@ -66,7 +66,7 @@ const COLUMNS = (sql: Sql) => sql`
   to_char(published_at, 'YYYY-MM-DD') AS "publishedAt",
   reason,
   state,
-  to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MSOF') AS "createdAt"
+  to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt"
 `;
 
 /**

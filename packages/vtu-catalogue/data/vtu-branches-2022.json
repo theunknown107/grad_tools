@@ -1,0 +1,320 @@
+{
+  "source": {
+    "url": "https://vtu.ac.in/b-e-scheme-syllabus/",
+    "retrievedAt": "2026-09-25",
+    "method": "one-time transcription",
+    "reviewed": false,
+    "section": "UG Scheme and Syllabus 3rd to 8th Semester (2022 Scheme)",
+    "note": "Read once; no scraper, nothing fetches at build or run time (VTU terms reportedly withhold permission for data-mining robots). Labels and scheme-PDF URLs are as printed; the page prints no branch codes, so none are recorded. `id` is a GradTools key (branches are internal taxonomy, migration 0003); `cse` is the pre-existing key for \"Computer Science & Engineering\". A null schemeUrl means the page lists the programme with no scheme link. Passed through a text-extraction model: check against the live page before `reviewed` becomes true.",
+    "schemesListed": [
+      "BBA and BCA Scheme and Syllabus (2026)",
+      "UG Engineering Scheme and Syllabus 2025 (1st & 2nd semesters)",
+      "UG 3rd to 8th semesters Scheme and Syllabus (2025)(Engg)",
+      "UG Scheme and Syllabus (I&II semesters) (2022 Scheme)",
+      "UG Scheme and Syllabus 3rd to 8th Semester (2022 Scheme)",
+      "UG Scheme and Syllabus (2010 & 2014 Scheme)",
+      "B.E Scheme & Syllabus I to III Semester (CBCS 2015-16 Scheme)",
+      "B.E Scheme & Syllabus IV Semester (CBCS 2015-16 Scheme)"
+    ],
+    "firstYearStreams2022": [
+      {
+        "labelAsPrinted": "Civil Engineering Stream (CV/EV/TR/CC)",
+        "schemeUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf"
+      },
+      {
+        "labelAsPrinted": "CSE Stream Scheme (CSE/ISC/BT)",
+        "schemeUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf"
+      },
+      {
+        "labelAsPrinted": "Electrical Engg Science Streams (EEE/ECE/ETC/BM/IE/ML)",
+        "schemeUrl": "https://vtu.ac.in/pdf/2022syll/elecsch.pdf"
+      },
+      {
+        "labelAsPrinted": "Mechanical Engineering Streams (AE/AS/AU/ME/IP/IM/CH/SX/TX)",
+        "schemeUrl": "https://vtu.ac.in/pdf/2022syll/mechsch.pdf"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "id": "civil-engineering",
+      "labelAsPrinted": "Civil engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/civsch.pdf"
+    },
+    {
+      "id": "ceramics-and-cement-technology",
+      "labelAsPrinted": "Ceramics and Cement Technology",
+      "schemeUrl": null
+    },
+    {
+      "id": "construction-technology-and-management",
+      "labelAsPrinted": "Construction Technology & Management",
+      "schemeUrl": null
+    },
+    {
+      "id": "environmental-engineering",
+      "labelAsPrinted": "Environmental Engineering",
+      "schemeUrl": null
+    },
+    {
+      "id": "mining-engineering",
+      "labelAsPrinted": "Mining Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/miningsch.pdf"
+    },
+    {
+      "id": "cse",
+      "labelAsPrinted": "Computer Science & Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38csesch.pdf"
+    },
+    {
+      "id": "computer-science-and-technology",
+      "labelAsPrinted": "Computer Science & Technology",
+      "schemeUrl": null
+    },
+    {
+      "id": "computer-engineering",
+      "labelAsPrinted": "Computer Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38cesch.pdf"
+    },
+    {
+      "id": "artificial-intelligence-and-data-science",
+      "labelAsPrinted": "Artificial Intelligence & Data Science",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38aidssch.pdf"
+    },
+    {
+      "id": "artificial-intelligence-and-machine-learning",
+      "labelAsPrinted": "Artificial Intelligence and Machine Learning",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38aimlsch.pdf"
+    },
+    {
+      "id": "biotechnology",
+      "labelAsPrinted": "Biotechnology",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/biotechsch.pdf"
+    },
+    {
+      "id": "computer-and-communication-engineering",
+      "labelAsPrinted": "Computer & Communication Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38ccesch.pdf"
+    },
+    {
+      "id": "computer-science-and-business-system",
+      "labelAsPrinted": "Computer Science & Business System",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf"
+    },
+    {
+      "id": "computer-science-and-design",
+      "labelAsPrinted": "Computer Science & Design",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38csdsch.pdf"
+    },
+    {
+      "id": "computer-science-and-engineering-iot",
+      "labelAsPrinted": "Computer Science & Engineering (IoT)",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38iotsch.pdf"
+    },
+    {
+      "id": "cse-artificial-intelligence-and-machine-learning",
+      "labelAsPrinted": "CSE (Artificial Intelligence & Machine Learning)",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38cseaimlsch.pdf"
+    },
+    {
+      "id": "cse-artificial-intelligence",
+      "labelAsPrinted": "CSE (Artificial Intelligence)",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38cseaisch.pdf"
+    },
+    {
+      "id": "cse-cyber-security",
+      "labelAsPrinted": "CSE (Cyber Security)",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38cybersch.pdf"
+    },
+    {
+      "id": "cse-data-science",
+      "labelAsPrinted": "CSE (Data Science)",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38csedssch.pdf"
+    },
+    {
+      "id": "cse-iot-and-cyber-security-including-block-chain-technology",
+      "labelAsPrinted": "CSE (IoT & Cyber Security including Block Chain Technology)",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38csebctsch.pdf"
+    },
+    {
+      "id": "data-science",
+      "labelAsPrinted": "Data Science",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38dssch.pdf"
+    },
+    {
+      "id": "information-science-and-engineering",
+      "labelAsPrinted": "Information Science & Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38issch.pdf"
+    },
+    {
+      "id": "computer-science",
+      "labelAsPrinted": "Computer Science",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/38cssch.pdf"
+    },
+    {
+      "id": "electronics-and-communication-engg",
+      "labelAsPrinted": "Electronics & Communication Engg",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/ecesch.pdf"
+    },
+    {
+      "id": "biomedical-engineering",
+      "labelAsPrinted": "Biomedical Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/biomedsch.pdf"
+    },
+    {
+      "id": "electrical-and-electronics-engineering",
+      "labelAsPrinted": "Electrical & Electronics Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/34eesch.pdf"
+    },
+    {
+      "id": "electronics-and-instrumentation-engineering",
+      "labelAsPrinted": "Electronics & Instrumentation Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/34eisch.pdf"
+    },
+    {
+      "id": "electronics-and-telecommunication-engg",
+      "labelAsPrinted": "Electronics & Telecommunication Engg",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/etsch.pdf"
+    },
+    {
+      "id": "telecommunication-engineering",
+      "labelAsPrinted": "Telecommunication Engineering",
+      "schemeUrl": null
+    },
+    {
+      "id": "industrial-iot",
+      "labelAsPrinted": "Industrial IoT",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/indiotsch.pdf"
+    },
+    {
+      "id": "medical-electronics-engineering",
+      "labelAsPrinted": "Medical Electronics Engineering",
+      "schemeUrl": null
+    },
+    {
+      "id": "electronics-engg-vlsi-design-and-technology",
+      "labelAsPrinted": "Electronics Engg (VLSI Design and Technology)",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/vlsisch.pdf"
+    },
+    {
+      "id": "electronics-communication-advanced-communication-technology",
+      "labelAsPrinted": "Electronics Communication (Advanced Communication Technology)",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/actsch.pdf"
+    },
+    {
+      "id": "electronics-and-computer-engineering",
+      "labelAsPrinted": "Electronics and Computer Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/enccsch.pdf"
+    },
+    {
+      "id": "aeronautical-engineering",
+      "labelAsPrinted": "Aeronautical Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/aeroch.pdf"
+    },
+    {
+      "id": "aerospace-engineering",
+      "labelAsPrinted": "Aerospace Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/34aerossch.pdf"
+    },
+    {
+      "id": "agricultural-engineering",
+      "labelAsPrinted": "Agricultural Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/34agrisch.pdf"
+    },
+    {
+      "id": "automation-and-robotics",
+      "labelAsPrinted": "Automation and Robotics",
+      "schemeUrl": null
+    },
+    {
+      "id": "automobile-engineering",
+      "labelAsPrinted": "Automobile Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/autosch.pdf"
+    },
+    {
+      "id": "chemical-engineering",
+      "labelAsPrinted": "Chemical Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/chemsch.pdf"
+    },
+    {
+      "id": "industrial-and-production-engineering",
+      "labelAsPrinted": "Industrial & Production Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/ipesch.pdf"
+    },
+    {
+      "id": "industrial-engineering-and-management",
+      "labelAsPrinted": "Industrial Engineering & Management",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/iemsch.pdf"
+    },
+    {
+      "id": "manufacturing-science-and-engineering",
+      "labelAsPrinted": "Manufacturing Science & Engineering",
+      "schemeUrl": null
+    },
+    {
+      "id": "marine-engineering",
+      "labelAsPrinted": "Marine Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/34marinesch.pdf"
+    },
+    {
+      "id": "mechanical-and-smart-manufacturing",
+      "labelAsPrinted": "Mechanical & Smart Manufacturing",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/smmsch.pdf"
+    },
+    {
+      "id": "mechanical-engineering",
+      "labelAsPrinted": "Mechanical Engineering",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/mecsch.pdf"
+    },
+    {
+      "id": "mechatronics",
+      "labelAsPrinted": "Mechatronics",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/34mechasch.pdf"
+    },
+    {
+      "id": "petrochem-engineering",
+      "labelAsPrinted": "Petrochem Engineering",
+      "schemeUrl": null
+    },
+    {
+      "id": "robotics-and-automation",
+      "labelAsPrinted": "Robotics & Automation",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/robosch.pdf"
+    },
+    {
+      "id": "robotics-and-artificial-intelligence",
+      "labelAsPrinted": "Robotics and Artificial Intelligence",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/raisch.pdf"
+    },
+    {
+      "id": "silk-technology",
+      "labelAsPrinted": "Silk Technology",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/silksch.pdf"
+    },
+    {
+      "id": "textile-technology",
+      "labelAsPrinted": "Textile Technology",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/textsch.pdf"
+    },
+    {
+      "id": "energy-engineering",
+      "labelAsPrinted": "Energy Engineering",
+      "schemeUrl": null
+    },
+    {
+      "id": "smart-agritech",
+      "labelAsPrinted": "Smart Agritech",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/smartsch.pdf"
+    },
+    {
+      "id": "b-design",
+      "labelAsPrinted": "B.Design",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/bdesignsch.pdf"
+    },
+    {
+      "id": "b-design-interior-design",
+      "labelAsPrinted": "B.Design (Interior Design)",
+      "schemeUrl": "https://vtu.ac.in/pdf/2022_3to8/bdesignidsch12.pdf"
+    }
+  ]
+}

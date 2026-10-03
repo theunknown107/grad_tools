@@ -206,14 +206,15 @@ describe('the panel itself', () => {
     });
   });
 
-  it('lets the student mark it read', async () => {
+  it('marks it read when the student opens it', async () => {
     const { FromVtuPanelForTest } = await import('./helpers/from-vtu-harness.js');
     render(<FromVtuPanelForTest signedIn />);
 
-    const button = await screen.findByRole('button', { name: /^mark read$/i });
-    await userEvent.click(button);
+    // As in the design, the row is one control: opening the notice reads it.
+    expect(await screen.findByRole('img', { name: 'Unread' })).toBeTruthy();
+    await userEvent.click(screen.getByRole('link', { name: /official source/i }));
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /^mark read$/i })).toBeNull();
+      expect(screen.queryByRole('img', { name: 'Unread' })).toBeNull();
     });
   });
 });
