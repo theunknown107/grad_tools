@@ -16,17 +16,23 @@ import {
 } from '../src/domain/ai-import.js';
 import { DocumentImport } from '../src/features/import/DocumentImport.js';
 import { readWithAi } from '../src/repositories/document-ai.js';
+import { extractPdfLines } from '../src/lib/pdf-text.js';
 import { AuthContextValueProvider } from './helpers/auth-harness.js';
 import { createMemoryRepositories, renderWith } from './helpers.js';
 
 /* The free AI models take images: a PDF is rendered on the device, never sent as a PDF. */
 const renderedPage = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: 'image/png' });
-vi.mock('../src/lib/pdf-text.js', async (original) => ({
-  ...(await original<Record<string, unknown>>()),
-  renderPdfPage: vi.fn(() =>
-    Promise.resolve({ toBlob: (done: (blob: Blob) => void) => done(renderedPage) }),
-  ),
-}));
+vi.mock('../src/lib/pdf-text.js', async (original) => {
+  const actual = await original<Record<string, unknown>>();
+  return {
+    ...actual,
+    renderPdfPage: vi.fn(() =>
+      Promise.resolve({ toBlob: (done: (blob: Blob) => void) => done(renderedPage) }),
+    ),
+    // Overridable per test; defaults to the real extractor so other tests are unaffected.
+    extractPdfLines: vi.fn(actual['extractPdfLines'] as never),
+  };
+});
 
 afterEach(() => {
   cleanup();
@@ -282,6 +288,57 @@ describe('reading with AI', () => {
     await addPhoto();
     expect(await screen.findByText(/could not recognise this as a VTU result card/i)).toBeTruthy();
     expect(peek.results()).toHaveLength(0);
+  });
+
+  /*
+   * AI IS AN ENHANCEMENT, NOT A DEPENDENCY. When the student opted into AI but
+   * the provider is unavailable (here a 503), the upload must NOT fail: GradTools
+   * falls back to the on-device parser, keeps the deterministic result, shows a
+   * non-blocking notice, and still reaches a confirmable review.
+   */
+  it('falls back to the on-device parser, and keeps the result, when AI is unavailable', async () => {
+    // The AI endpoint is down (503); everything else 404s as usual.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url).endsWith('/api/v1/me/documents/extract')
+          ? new Response(JSON.stringify({ error: { message: 'busy' } }), { status: 503 })
+          : new Response('{}', { status: 404 }),
+      ),
+    );
+    // A digital PDF whose text the deterministic parser reads into a result card.
+    vi.mocked(extractPdfLines).mockResolvedValueOnce({
+      lines: [
+        { text: 'University Seat Number : 1XX22CS001', page: 1 },
+        { text: 'Semester : 4', page: 1 },
+        { text: 'Subject Code Subject Name Internal Marks External Marks Total Result', page: 1 },
+        { text: 'BCS401 ANALYSIS AND DESIGN OF ALGORITHMS 44 36 80 P', page: 1 },
+        { text: 'BCS402 MICROCONTROLLERS 41 30 71 P', page: 1 },
+        { text: 'BCS403 OPERATING SYSTEMS 42 35 77 P', page: 1 },
+      ],
+      placed: [],
+      pageCount: 1,
+      hasTextLayer: true,
+    });
+
+    renderImport(true);
+    await userEvent.setup().click(await screen.findByRole('switch', { name: /read with ai/i }));
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const pdf = new File([new TextEncoder().encode('%PDF-1.7')], 'card.pdf', {
+      type: 'application/pdf',
+    });
+    Object.defineProperty(input, 'files', {
+      value: { 0: pdf, length: 1, item: () => pdf, [Symbol.iterator]: [pdf][Symbol.iterator].bind([pdf]) },
+      configurable: true,
+    });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // The deterministic result survived the AI outage, with a clear non-blocking notice…
+    expect(await screen.findByText(/AI-assisted recovery was unavailable/i)).toBeTruthy();
+    expect(screen.getByText(/rows read/i)).toBeTruthy();
+    // …and the import is still usable: review reached, not a hard failure.
+    expect(screen.queryByText(/could not be read/i)).toBeNull();
+    expect(await screen.findByRole('button', { name: /confirm and save/i })).toBeTruthy();
   });
 });
 

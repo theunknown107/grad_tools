@@ -116,6 +116,12 @@ interface FileState {
   /** Read by the AI service rather than on the device (and what its gate found). */
   readonly ai: boolean;
   readonly aiNote: string | null;
+  /**
+   * True when the student asked for AI recovery but the provider was unavailable
+   * (timeout, 429, 5xx, offline, invalid reply) and GradTools fell back to the
+   * on-device parser. Non-blocking: the deterministic result is still shown.
+   */
+  readonly aiUnavailable: boolean;
   /** What recognition is doing right now, from the reader itself: "page 2 of 3". */
   readonly progress: string | null;
   readonly file: ImportedFile | null;
@@ -141,6 +147,9 @@ function fileMeta(entry: FileState): string {
   if (entry.status === 'recognising') return entry.progress ?? 'Reading the text in this picture…';
   if (entry.status === 'reading') return 'Checking the file type and structure…';
   const via = entry.ai ? ` · read by AI${entry.aiNote === null ? '' : ` — ${entry.aiNote}`}` : '';
+  const aiDown = entry.aiUnavailable
+    ? ' · AI-assisted recovery was unavailable, so the standard parser was used — please check any unresolved fields against your document'
+    : '';
   const kind =
     entry.calendar !== null
       ? 'Academic calendar'
@@ -151,14 +160,26 @@ function fileMeta(entry: FileState): string {
           : entry.scheme !== null
             ? 'Scheme of teaching'
             : 'Result card';
-  if (entry.file === null) return `${kind}${via}`;
+  if (entry.file === null) return `${kind}${via}${aiDown}`;
   const rows = entry.file.card.rows.length;
   if (entry.ai) return `${kind} · ${String(rows)} rows${via} · check them against the card`;
-  if (entry.reading?.source !== 'ocr') return `${kind} · ${String(rows)} rows read`;
+  if (entry.reading?.source !== 'ocr') return `${kind} · ${String(rows)} rows read${aiDown}`;
   const doubtful = entry.reading.lowConfidenceWords;
   return doubtful === 0
-    ? `${kind} · ${String(rows)} rows read from a picture · check them against the card`
-    : `${kind} · ${String(rows)} rows read from a picture · ${String(doubtful)} words were unclear`;
+    ? `${kind} · ${String(rows)} rows read from a picture · check them against the card${aiDown}`
+    : `${kind} · ${String(rows)} rows read from a picture · ${String(doubtful)} words were unclear${aiDown}`;
+}
+
+/**
+ * AI recovery could not run (provider timeout, 429, 5xx/503, offline, invalid
+ * reply, circuit breaker) — as opposed to AI running and rejecting the document.
+ * The first falls back to the on-device parser; the second is shown to the user.
+ */
+class AiUnavailableError extends Error {
+  constructor() {
+    super('AI recovery is unavailable');
+    this.name = 'AiUnavailableError';
+  }
 }
 
 export function DocumentImport({
@@ -322,6 +343,7 @@ export function DocumentImport({
       source: file,
       ai: false,
       aiNote: null,
+      aiUnavailable: false,
       progress: null,
       file: null,
       calendar: null,
@@ -350,8 +372,15 @@ export function DocumentImport({
    */
   const readViaAi = async (id: string, file: File): Promise<void> => {
     const token = adapter === null ? null : await adapter.accessToken();
-    if (token === null) throw new DocumentAiError('Sign in again to read with AI.');
-    const review = await readWithAi(file, token);
+    // No usable session for the AI call → treat as AI-unavailable and fall back.
+    if (token === null) throw new AiUnavailableError();
+    let review: Awaited<ReturnType<typeof readWithAi>>;
+    try {
+      review = await readWithAi(file, token);
+    } catch {
+      // Any transport/provider/HTTP failure → AI is unavailable; fall back.
+      throw new AiUnavailableError();
+    }
     if (review.recognition === 'UNRECOGNIZED_DOCUMENT') {
       throw new DocumentAiError(
         `GradTools could not recognise this as a VTU result card or class timetable. ${review.evidence[0] ?? ''}`.trim(),
@@ -419,23 +448,43 @@ export function DocumentImport({
             store(entry.id, file.name, await readOfficeFile(await file.arrayBuffer(), file.name));
             return;
           }
-          // A saved web page is text already: it never needs AI and never leaves.
+          /*
+           * AI RECOVERY IS AN ENHANCEMENT, NOT A DEPENDENCY. When the student
+           * opted in, try it — but if the provider is unavailable (timeout, 429,
+           * 5xx/503, offline, invalid reply, circuit breaker), fall through to
+           * the on-device parser instead of failing the import. The deterministic
+           * result is never lost, review still appears, and a non-blocking notice
+           * (`aiUnavailable`) tells the student the standard parser was used.
+           */
+          let aiFellBack = false;
           if (viaAi) {
-            await readViaAi(entry.id, file);
-            return;
+            try {
+              await readViaAi(entry.id, file);
+              return;
+            } catch (aiCause) {
+              // Provider unavailable → fall through to the parser. A recognition
+              // verdict (AI ran, document not a result/timetable) is a real
+              // answer for the student, so it is not swallowed here.
+              if (!(aiCause instanceof AiUnavailableError)) throw aiCause;
+              aiFellBack = true;
+            }
           }
+          const fallbackNote: Partial<FileState> = aiFellBack ? { aiUnavailable: true } : {};
           if (kind === 'image') {
             queue.push({ id: entry.id, file, kind });
-            patch(entry.id, { status: 'queued', image: true });
+            patch(entry.id, { status: 'queued', image: true, ...fallbackNote });
             return;
           }
+          // Flag the fallback while the entry is still 'reading' (patch only
+          // applies to a working entry); store() then merges 'read' over it.
+          if (aiFellBack) patch(entry.id, { aiUnavailable: true });
           const data = await file.arrayBuffer();
           try {
             store(entry.id, file.name, await readPdfFile(data, null));
           } catch (cause) {
             if (cause instanceof PdfReadError && cause.message.includes('no selectable text')) {
               queue.push({ id: entry.id, file, kind, data });
-              patch(entry.id, { status: 'queued' });
+              patch(entry.id, { status: 'queued', ...fallbackNote });
               return;
             }
             throw cause;
