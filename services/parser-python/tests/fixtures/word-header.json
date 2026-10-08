@@ -1,0 +1,1210 @@
+{
+  "name": "word-header",
+  "family": "A",
+  "about": "Word-authored header (start / \"to\" / end rows, punctuated p.m), \"With effective from\", roman class heading, vertical breaks.",
+  "lines": [
+    "EXAMPLE COLLEGE OF ENGINEERING",
+    "With effective from: 09.09.2026 III (A) - Timetable for the Academic year 2026-27 (R1)",
+    "10:00 am 10:55 am 11:50 am 12:10 pm 1:05 pm 2:00 pm 3:10 pm 4:05 p.m",
+    "to to to to to to to to",
+    "10:55 am 11:50 am 12:10 pm 1:05 pm 2:00 pm 3:10 pm 4:05 pm 5:00 p.m",
+    "S L",
+    "MCS DDCO H OS DSA U DSL-B1/OSL-B2",
+    "Monday",
+    "LH-201 LH-201 LH-201 LH-201",
+    "O N",
+    "DSA MCS DDCO SCR OS",
+    "Tuesday R C",
+    "LH-201 LH-201 LH-201",
+    "T H",
+    "OS DSA MCS DDCO OSL-B1/DSL-B2",
+    "Wednesday B",
+    "LH-201 LH-201 LH-201 LH-201",
+    "R",
+    "DDCO OS DSA MCS Library",
+    "Thursday",
+    "LH-201 LH-201 E A K LH-201",
+    "BCS301 Mathematics for Computer Science Prof. P. Alpha 3+2+0 3+2+0",
+    "BCS302 Digital Design and Computer Organization Prof. Q. Beta 3+0+2 3+0+2",
+    "BCS303 Operating Systems Dr. R. Gamma 3+0+2 3+0+2",
+    "BCS304 Data Structures and Applications Prof. S. Delta 3+0+0 3+0+0",
+    "BCSL305 Data Structures Lab Prof. S. Delta 0+0+2 0+0+2",
+    "BCSL306 Operating Systems Lab Dr. R. Gamma 0+0+2 0+0+2",
+    "BSCK307 Social Connect and Responsibility Prof. T. Epsilon 0+0+1 0+0+1"
+  ],
+  "placed": [
+    {
+      "text": "EXAMPLE COLLEGE OF ENGINEERING",
+      "x": 280,
+      "y": 680,
+      "width": 186.7199999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "With effective from: 09.09.2026",
+      "x": 60,
+      "y": 640,
+      "width": 138.40000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 198.40000000000006,
+      "y": 640,
+      "width": 131.59999999999994,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "III (A) - Timetable for the Academic year 2026-27 (R1)",
+      "x": 330,
+      "y": 640,
+      "width": 238.96999999999986,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:00 am",
+      "x": 130,
+      "y": 576,
+      "width": 41.690000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "to",
+      "x": 145,
+      "y": 566,
+      "width": 8.34,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:55 am",
+      "x": 130,
+      "y": 556,
+      "width": 41.690000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:55 am",
+      "x": 220,
+      "y": 576,
+      "width": 41.690000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "to",
+      "x": 235,
+      "y": 566,
+      "width": 8.34,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "11:50 am",
+      "x": 220,
+      "y": 556,
+      "width": 41.690000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "11:50 am",
+      "x": 298,
+      "y": 576,
+      "width": 41.689999999999976,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "to",
+      "x": 313,
+      "y": 566,
+      "width": 8.34,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "12:10 pm",
+      "x": 298,
+      "y": 556,
+      "width": 41.689999999999976,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "12:10 pm",
+      "x": 370,
+      "y": 576,
+      "width": 41.689999999999976,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "to",
+      "x": 385,
+      "y": 566,
+      "width": 8.34,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "1:05 pm",
+      "x": 373,
+      "y": 556,
+      "width": 36.129999999999974,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "1:05 pm",
+      "x": 463,
+      "y": 576,
+      "width": 36.129999999999974,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "to",
+      "x": 475,
+      "y": 566,
+      "width": 8.34,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "2:00 pm",
+      "x": 463,
+      "y": 556,
+      "width": 36.129999999999974,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "2:00 pm",
+      "x": 546,
+      "y": 576,
+      "width": 36.129999999999974,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "to",
+      "x": 558,
+      "y": 566,
+      "width": 8.34,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "3:10 pm",
+      "x": 546,
+      "y": 556,
+      "width": 36.129999999999974,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "3:10 pm",
+      "x": 633,
+      "y": 576,
+      "width": 36.129999999999974,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "to",
+      "x": 645,
+      "y": 566,
+      "width": 8.34,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "4:05 pm",
+      "x": 633,
+      "y": 556,
+      "width": 36.129999999999974,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "4:05 p.m",
+      "x": 740,
+      "y": 576,
+      "width": 38.909999999999975,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "to",
+      "x": 755,
+      "y": 566,
+      "width": 8.34,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "5:00 p.m",
+      "x": 740,
+      "y": 556,
+      "width": 38.909999999999975,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Monday",
+      "x": 40,
+      "y": 500,
+      "width": 35.57000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 75.57000000000001,
+      "y": 500,
+      "width": 67.42999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MCS",
+      "x": 143,
+      "y": 507,
+      "width": 22.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 135,
+      "y": 493,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "DDCO",
+      "x": 230,
+      "y": 507,
+      "width": 29.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 225,
+      "y": 493,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "OS",
+      "x": 385,
+      "y": 507,
+      "width": 14.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 375,
+      "y": 493,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "DSA",
+      "x": 473,
+      "y": 507,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 465,
+      "y": 493,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "DSL-B1/OSL-B2",
+      "x": 673,
+      "y": 507,
+      "width": 73.36000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Tuesday",
+      "x": 40,
+      "y": 460,
+      "width": 38.35000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 78.35000000000001,
+      "y": 460,
+      "width": 64.64999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "DSA",
+      "x": 143,
+      "y": 467,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 135,
+      "y": 453,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MCS",
+      "x": 233,
+      "y": 467,
+      "width": 22.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 225,
+      "y": 453,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "DDCO",
+      "x": 380,
+      "y": 467,
+      "width": 29.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 375,
+      "y": 453,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "SCR",
+      "x": 473,
+      "y": 467,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 494.11000000000007,
+      "y": 467,
+      "width": 150.88999999999993,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "OS",
+      "x": 645,
+      "y": 467,
+      "width": 14.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Wednesday",
+      "x": 40,
+      "y": 420,
+      "width": 52.80000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 92.80000000000001,
+      "y": 420,
+      "width": 52.19999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "OS",
+      "x": 145,
+      "y": 427,
+      "width": 14.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 135,
+      "y": 413,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "DSA",
+      "x": 233,
+      "y": 427,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 225,
+      "y": 413,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MCS",
+      "x": 383,
+      "y": 427,
+      "width": 22.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 375,
+      "y": 413,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "DDCO",
+      "x": 470,
+      "y": 427,
+      "width": 29.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 465,
+      "y": 413,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "OSL-B1/DSL-B2",
+      "x": 673,
+      "y": 427,
+      "width": 73.36,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Thursday",
+      "x": 40,
+      "y": 380,
+      "width": 41.68000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 81.68,
+      "y": 380,
+      "width": 58.31999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "DDCO",
+      "x": 140,
+      "y": 387,
+      "width": 29.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 135,
+      "y": 373,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "OS",
+      "x": 235,
+      "y": 387,
+      "width": 14.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 225,
+      "y": 373,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "DSA",
+      "x": 383,
+      "y": 387,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-201",
+      "x": 375,
+      "y": 373,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MCS",
+      "x": 473,
+      "y": 387,
+      "width": 22.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 495.22,
+      "y": 387,
+      "width": 137.77999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Library",
+      "x": 633,
+      "y": 387,
+      "width": 30.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "S",
+      "x": 315,
+      "y": 526,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "H",
+      "x": 315,
+      "y": 504,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "O",
+      "x": 315,
+      "y": 482,
+      "width": 7.78,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "R",
+      "x": 315,
+      "y": 460,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "T",
+      "x": 315,
+      "y": 438,
+      "width": 6.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "B",
+      "x": 315,
+      "y": 416,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "R",
+      "x": 315,
+      "y": 394,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "E",
+      "x": 315,
+      "y": 372,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "A",
+      "x": 315,
+      "y": 350,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "K",
+      "x": 315,
+      "y": 328,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "L",
+      "x": 560,
+      "y": 526,
+      "width": 5.5600000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "U",
+      "x": 560,
+      "y": 504,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "N",
+      "x": 560,
+      "y": 482,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "C",
+      "x": 560,
+      "y": 460,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "H",
+      "x": 560,
+      "y": 438,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS301 Mathematics for Computer Science Prof. P. Alpha 3+2+0 3+2+0",
+      "x": 60,
+      "y": 250,
+      "width": 322.93999999999977,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS302 Digital Design and Computer Organization Prof. Q. Beta 3+0+2 3+0+2",
+      "x": 60,
+      "y": 234,
+      "width": 350.17999999999984,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS303 Operating Systems Dr. R. Gamma 3+0+2 3+0+2",
+      "x": 60,
+      "y": 218,
+      "width": 254.5600000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS304 Data Structures and Applications Prof. S. Delta 3+0+0 3+0+0",
+      "x": 60,
+      "y": 202,
+      "width": 310.1699999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCSL305 Data Structures Lab Prof. S. Delta 0+0+2 0+0+2",
+      "x": 60,
+      "y": 186,
+      "width": 259.03999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCSL306 Operating Systems Lab Dr. R. Gamma 0+0+2 0+0+2",
+      "x": 60,
+      "y": 170,
+      "width": 279.58,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BSCK307 Social Connect and Responsibility Prof. T. Epsilon 0+0+1 0+0+1",
+      "x": 60,
+      "y": 154,
+      "width": 331.27999999999986,
+      "height": 10,
+      "page": 1
+    }
+  ],
+  "expected": {
+    "classification": {
+      "type": "college_timetable",
+      "reason": "This looks like a class timetable.",
+      "signals": [
+        "weekday columns",
+        "time table heading"
+      ]
+    },
+    "timetable": {
+      "context": {
+        "className": "III (A)",
+        "semester": 3,
+        "academicYear": "2026-27",
+        "revision": "R1",
+        "effectiveFrom": "2026-09-09",
+        "room": null
+      },
+      "slots": [
+        [
+          "10:00",
+          "10:55",
+          false
+        ],
+        [
+          "10:55",
+          "11:50",
+          false
+        ],
+        [
+          "11:50",
+          "12:10",
+          true
+        ],
+        [
+          "12:10",
+          "13:05",
+          false
+        ],
+        [
+          "13:05",
+          "14:00",
+          false
+        ],
+        [
+          "14:00",
+          "15:10",
+          true
+        ],
+        [
+          "15:10",
+          "16:05",
+          false
+        ],
+        [
+          "16:05",
+          "17:00",
+          false
+        ]
+      ],
+      "dictionary": [
+        [
+          "BCS301",
+          "Mathematics for Computer Science",
+          null,
+          "Prof. P. Alpha",
+          "3+2+0",
+          "3+2+0"
+        ],
+        [
+          "BCS302",
+          "Digital Design and Computer Organization",
+          null,
+          "Prof. Q. Beta",
+          "3+0+2",
+          "3+0+2"
+        ],
+        [
+          "BCS303",
+          "Operating Systems",
+          null,
+          "Dr. R. Gamma",
+          "3+0+2",
+          "3+0+2"
+        ],
+        [
+          "BCS304",
+          "Data Structures and Applications",
+          null,
+          "Prof. S. Delta",
+          "3+0+0",
+          "3+0+0"
+        ],
+        [
+          "BCSL305",
+          "Data Structures Lab",
+          null,
+          "Prof. S. Delta",
+          "0+0+2",
+          "0+0+2"
+        ],
+        [
+          "BCSL306",
+          "Operating Systems Lab",
+          null,
+          "Dr. R. Gamma",
+          "0+0+2",
+          "0+0+2"
+        ],
+        [
+          "BSCK307",
+          "Social Connect and Responsibility",
+          null,
+          "Prof. T. Epsilon",
+          "0+0+1",
+          "0+0+1"
+        ]
+      ],
+      "classes": [
+        [
+          "Mon",
+          "10:00",
+          "10:55",
+          "BCS301",
+          "initialism",
+          "MCS",
+          null,
+          "LH-201",
+          1,
+          null,
+          "MCS LH-201"
+        ],
+        [
+          "Mon",
+          "10:55",
+          "11:50",
+          "BCS302",
+          "initialism",
+          "DDCO",
+          null,
+          "LH-201",
+          1,
+          null,
+          "DDCO LH-201"
+        ],
+        [
+          "Mon",
+          "12:10",
+          "13:05",
+          "BCS303",
+          "initialism",
+          "OS",
+          null,
+          "LH-201",
+          1,
+          null,
+          "OS LH-201"
+        ],
+        [
+          "Mon",
+          "13:05",
+          "14:00",
+          "BCS304",
+          "initialism",
+          "DSA",
+          null,
+          "LH-201",
+          1,
+          null,
+          "DSA LH-201"
+        ],
+        [
+          "Mon",
+          "16:05",
+          "17:00",
+          "BCSL305",
+          "initialism",
+          "DSL",
+          "B1",
+          null,
+          1,
+          null,
+          "DSL-B1/OSL-B2"
+        ],
+        [
+          "Mon",
+          "16:05",
+          "17:00",
+          "BCSL306",
+          "initialism",
+          "OSL",
+          "B2",
+          null,
+          1,
+          null,
+          "DSL-B1/OSL-B2"
+        ],
+        [
+          "Tue",
+          "10:00",
+          "10:55",
+          "BCS304",
+          "initialism",
+          "DSA",
+          null,
+          "LH-201",
+          1,
+          null,
+          "DSA LH-201"
+        ],
+        [
+          "Tue",
+          "10:55",
+          "11:50",
+          "BCS301",
+          "initialism",
+          "MCS",
+          null,
+          "LH-201",
+          1,
+          null,
+          "MCS LH-201"
+        ],
+        [
+          "Tue",
+          "12:10",
+          "13:05",
+          "BCS302",
+          "initialism",
+          "DDCO",
+          null,
+          "LH-201",
+          1,
+          null,
+          "DDCO LH-201"
+        ],
+        [
+          "Tue",
+          "13:05",
+          "14:00",
+          "BSCK307",
+          "initialism",
+          "SCR",
+          null,
+          null,
+          1,
+          null,
+          "SCR"
+        ],
+        [
+          "Tue",
+          "15:10",
+          "16:05",
+          "BCS303",
+          "initialism",
+          "OS",
+          null,
+          null,
+          1,
+          null,
+          "OS"
+        ],
+        [
+          "Wed",
+          "10:00",
+          "10:55",
+          "BCS303",
+          "initialism",
+          "OS",
+          null,
+          "LH-201",
+          1,
+          null,
+          "OS LH-201"
+        ],
+        [
+          "Wed",
+          "10:55",
+          "11:50",
+          "BCS304",
+          "initialism",
+          "DSA",
+          null,
+          "LH-201",
+          1,
+          null,
+          "DSA LH-201"
+        ],
+        [
+          "Wed",
+          "12:10",
+          "13:05",
+          "BCS301",
+          "initialism",
+          "MCS",
+          null,
+          "LH-201",
+          1,
+          null,
+          "MCS LH-201"
+        ],
+        [
+          "Wed",
+          "13:05",
+          "14:00",
+          "BCS302",
+          "initialism",
+          "DDCO",
+          null,
+          "LH-201",
+          1,
+          null,
+          "DDCO LH-201"
+        ],
+        [
+          "Wed",
+          "16:05",
+          "17:00",
+          "BCSL306",
+          "initialism",
+          "OSL",
+          "B1",
+          null,
+          1,
+          null,
+          "OSL-B1/DSL-B2"
+        ],
+        [
+          "Wed",
+          "16:05",
+          "17:00",
+          "BCSL305",
+          "initialism",
+          "DSL",
+          "B2",
+          null,
+          1,
+          null,
+          "OSL-B1/DSL-B2"
+        ],
+        [
+          "Thu",
+          "10:00",
+          "10:55",
+          "BCS302",
+          "initialism",
+          "DDCO",
+          null,
+          "LH-201",
+          1,
+          null,
+          "DDCO LH-201"
+        ],
+        [
+          "Thu",
+          "10:55",
+          "11:50",
+          "BCS303",
+          "initialism",
+          "OS",
+          null,
+          "LH-201",
+          1,
+          null,
+          "OS LH-201"
+        ],
+        [
+          "Thu",
+          "12:10",
+          "13:05",
+          "BCS304",
+          "initialism",
+          "DSA",
+          null,
+          "LH-201",
+          1,
+          null,
+          "DSA LH-201"
+        ],
+        [
+          "Thu",
+          "13:05",
+          "14:00",
+          "BCS301",
+          "initialism",
+          "MCS",
+          null,
+          null,
+          1,
+          null,
+          "MCS"
+        ],
+        [
+          "Thu",
+          "15:10",
+          "16:05",
+          null,
+          "activity",
+          "Library",
+          null,
+          null,
+          1,
+          "Printed as an activity, not a subject in this timetable's subject list. Kept under its printed name.",
+          "Library"
+        ]
+      ],
+      "batches": [
+        "B1",
+        "B2"
+      ],
+      "conflicts": [],
+      "coverage": {
+        "cellsFound": 22,
+        "cellsResolved": 22,
+        "slotsFound": 8,
+        "dictionaryEntries": 7,
+        "looksComplete": true
+      },
+      "warnings": []
+    }
+  }
+}

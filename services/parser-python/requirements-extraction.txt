@@ -1,0 +1,17 @@
+# Optional dependencies for the RAW-INGESTION layer (gradtools_parser.reader).
+#
+# The CORE parser (classify/timetable/layout/models/dictionary/ocr_recovery)
+# needs NONE of these — it is pure standard library and stays that way. These are
+# imported lazily, only when reading a raw PDF/PNG/JPG, so installing them is a
+# developer/server setup step, never a parse-time download.
+#
+#   pip install -r requirements-extraction.txt
+#
+# OCR additionally needs the Tesseract BINARY on PATH (not a pip package):
+#   Windows:  install "Tesseract-OCR" (UB-Mannheim build) and add it to PATH
+#   Debian:   apt-get install tesseract-ocr
+# Without it, scanned-PDF/image reads raise OcrUnavailable and refuse safely.
+
+PyMuPDF>=1.24        # PDF text spans + bounding boxes + rasterisation (import: fitz)
+Pillow>=10           # image decode + preprocessing
+pytesseract>=0.3.10  # thin wrapper over the Tesseract binary (bbox + confidence)

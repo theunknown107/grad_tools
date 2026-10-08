@@ -1,0 +1,1686 @@
+{
+  "name": "sgb-structure",
+  "family": "A",
+  "about": "Senior-semester departmental grid: wrapped header, vertical SHORT BREAK/LUNCH, rooms under cells, merged labs and mini project, undeclared initials column, a wrapped title.",
+  "lines": [
+    "S. S. Example Trust’s",
+    "EXAMPLE INSTITUTE OF TECHNOLOGY",
+    "Department of Computer Science and Business System",
+    "With effective from: 12.09.2026 V (B) - Timetable for the Academic year 2026-27 (R0)",
+    "10:00 - 10:55 - 11:50 - 12:10 - 1:05 - 2:00 - 3:10 - 4:05 -",
+    "Day/Hour 10:55am 11:50am 12:10pm 1:05pm 2:00pm 3:10pm 4:05pm 5:00pm",
+    "S L",
+    "RMIPR CN FM TOC-T ----Mini project---",
+    "Monday",
+    "LH-302 LH-302 H LH-302 LH-302 U",
+    "CN RMIPR O TOC Value added N ESEVM TOC-T",
+    "Tuesday",
+    "LH-302 LH-302 R LH-302 Course C",
+    "FM MRMM T TOC ESEVM H CNL-B1/CSL-B2",
+    "Wednesday",
+    "LH-302 LH-302 LH-302 OJAS TEJOMAYI",
+    "B B",
+    "RMIPR MRMM R TOC Value added R CSL-B1/CNL-B2",
+    "Thursday",
+    "LH-302 LH-302 LH-302 Course OJAS TEJOMAYI",
+    "E E",
+    "TOC FM CN RMIPR MRMM FM",
+    "Friday A A",
+    "LH-302 LH-302 LH-302 LH-302",
+    "K K",
+    "Value added Placement & Training",
+    "Saturday",
+    "Course",
+    "Subject code - Initials - Name Faculty name",
+    "BCB501 Fundamentals of Management Prof. A. Example 3+0+0 3+0+0",
+    "BCS502 Computer Networks(T/L) Prof. B. Sample 3+0+2 3+0+2",
+    "BCSL502-Computer Networks Lab Prof. B. Sample 0+0+2 0+0+2",
+    "BCS503 Theory of Computation Dr. C. Placeholder 3+2+0 3+2+0",
+    "BCSL504-Computational Statistics Lab Prof. D. Fictional 0+0+2 0+0+2",
+    "BCB515A Marketing Research & Marketing",
+    "Prof. E. Invented 3+0+0 3+0+0",
+    "Management",
+    "BRMK557 Research Methodology and IPR Prof. F. Madeup 2+0+0 2+0+0",
+    "BESK508 Environmental Studies and E-waste Management Prof. G. Unreal 1+0+0 1+0+0",
+    "BCB586-Mini project Prof. H. Nobody 0+0+2 0+0+2"
+  ],
+  "placed": [
+    {
+      "text": "S. S. Example Trust’s",
+      "x": 380,
+      "y": 670,
+      "width": 96.13999999999993,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "EXAMPLE INSTITUTE OF TECHNOLOGY",
+      "x": 300,
+      "y": 655,
+      "width": 191.1499999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Department of Computer Science and Business System",
+      "x": 290,
+      "y": 640,
+      "width": 247.31999999999985,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "With effective from: 12.09.2026",
+      "x": 60,
+      "y": 620,
+      "width": 138.40000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 198.40000000000006,
+      "y": 620,
+      "width": 131.59999999999994,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "V (B) - Timetable for the Academic year 2026-27 (R0)",
+      "x": 330,
+      "y": 620,
+      "width": 237.29999999999984,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Day/Hour",
+      "x": 40,
+      "y": 560,
+      "width": 42.230000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 82.23,
+      "y": 560,
+      "width": 50.769999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:00 -",
+      "x": 133,
+      "y": 566,
+      "width": 31.130000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:55am",
+      "x": 133,
+      "y": 556,
+      "width": 38.910000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 171.91000000000003,
+      "y": 556,
+      "width": 51.089999999999975,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:55 -",
+      "x": 223,
+      "y": 566,
+      "width": 31.130000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "11:50am",
+      "x": 223,
+      "y": 556,
+      "width": 38.910000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 261.91,
+      "y": 556,
+      "width": 39.089999999999975,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "11:50 -",
+      "x": 301,
+      "y": 566,
+      "width": 31.129999999999974,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "12:10pm",
+      "x": 301,
+      "y": 556,
+      "width": 38.910000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 339.90999999999997,
+      "y": 556,
+      "width": 33.09000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "12:10 -",
+      "x": 373,
+      "y": 566,
+      "width": 31.129999999999974,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "1:05pm",
+      "x": 375,
+      "y": 556,
+      "width": 33.35,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 408.34999999999997,
+      "y": 556,
+      "width": 56.650000000000034,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "1:05 -",
+      "x": 465,
+      "y": 566,
+      "width": 25.569999999999972,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "2:00pm",
+      "x": 465,
+      "y": 556,
+      "width": 33.35,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 498.34999999999997,
+      "y": 556,
+      "width": 49.650000000000034,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "2:00 -",
+      "x": 548,
+      "y": 566,
+      "width": 25.569999999999972,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "3:10pm",
+      "x": 548,
+      "y": 556,
+      "width": 33.35,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 581.3499999999998,
+      "y": 556,
+      "width": 53.650000000000205,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "3:10 -",
+      "x": 635,
+      "y": 566,
+      "width": 25.569999999999972,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "4:05pm",
+      "x": 635,
+      "y": 556,
+      "width": 33.35,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 668.3499999999998,
+      "y": 556,
+      "width": 76.6500000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "4:05 -",
+      "x": 745,
+      "y": 566,
+      "width": 25.569999999999972,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "5:00pm",
+      "x": 745,
+      "y": 556,
+      "width": 33.35,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Monday",
+      "x": 40,
+      "y": 500,
+      "width": 35.57000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 75.57000000000001,
+      "y": 500,
+      "width": 62.42999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "RMIPR",
+      "x": 138,
+      "y": 507,
+      "width": 32.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 135,
+      "y": 493,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CN",
+      "x": 235,
+      "y": 507,
+      "width": 14.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 225,
+      "y": 493,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "FM",
+      "x": 385,
+      "y": 507,
+      "width": 14.440000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 375,
+      "y": 493,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC-T",
+      "x": 468,
+      "y": 507,
+      "width": 30.549999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 465,
+      "y": 493,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "----Mini project---",
+      "x": 658,
+      "y": 507,
+      "width": 74.42999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Tuesday",
+      "x": 40,
+      "y": 460,
+      "width": 38.35000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 78.35000000000001,
+      "y": 460,
+      "width": 66.64999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CN",
+      "x": 145,
+      "y": 467,
+      "width": 14.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 135,
+      "y": 453,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "RMIPR",
+      "x": 228,
+      "y": 467,
+      "width": 32.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 225,
+      "y": 453,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC",
+      "x": 383,
+      "y": 467,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 375,
+      "y": 453,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Value added",
+      "x": 453,
+      "y": 467,
+      "width": 56.149999999999984,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Course",
+      "x": 465,
+      "y": 453,
+      "width": 32.230000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ESEVM",
+      "x": 638,
+      "y": 467,
+      "width": 35.01,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 673.0099999999999,
+      "y": 467,
+      "width": 74.99000000000012,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC-T",
+      "x": 748,
+      "y": 467,
+      "width": 30.549999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Wednesday",
+      "x": 40,
+      "y": 420,
+      "width": 52.80000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 92.80000000000001,
+      "y": 420,
+      "width": 52.19999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "FM",
+      "x": 145,
+      "y": 427,
+      "width": 14.440000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 135,
+      "y": 413,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MRMM",
+      "x": 230,
+      "y": 427,
+      "width": 32.21,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 225,
+      "y": 413,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC",
+      "x": 383,
+      "y": 427,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 375,
+      "y": 413,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ESEVM",
+      "x": 468,
+      "y": 427,
+      "width": 35.01,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 503.01000000000005,
+      "y": 427,
+      "width": 169.98999999999995,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CNL-B1/CSL-B2",
+      "x": 673,
+      "y": 427,
+      "width": 73.35000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Thursday",
+      "x": 40,
+      "y": 380,
+      "width": 41.68000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 81.68,
+      "y": 380,
+      "width": 56.31999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "RMIPR",
+      "x": 138,
+      "y": 387,
+      "width": 32.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 135,
+      "y": 373,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MRMM",
+      "x": 230,
+      "y": 387,
+      "width": 32.21,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 225,
+      "y": 373,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC",
+      "x": 383,
+      "y": 387,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 375,
+      "y": 373,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Value added",
+      "x": 453,
+      "y": 387,
+      "width": 56.149999999999984,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Course",
+      "x": 465,
+      "y": 373,
+      "width": 32.230000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CSL-B1/CNL-B2",
+      "x": 673,
+      "y": 387,
+      "width": 73.35000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Friday",
+      "x": 40,
+      "y": 340,
+      "width": 27.78,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 67.78,
+      "y": 340,
+      "width": 75.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC",
+      "x": 143,
+      "y": 347,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 135,
+      "y": 333,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "FM",
+      "x": 235,
+      "y": 347,
+      "width": 14.440000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 225,
+      "y": 333,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CN",
+      "x": 385,
+      "y": 347,
+      "width": 14.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 375,
+      "y": 333,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "RMIPR",
+      "x": 468,
+      "y": 347,
+      "width": 32.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LH-302",
+      "x": 465,
+      "y": 333,
+      "width": 32.790000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MRMM",
+      "x": 640,
+      "y": 347,
+      "width": 32.21,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 672.2100000000002,
+      "y": 347,
+      "width": 82.78999999999985,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "FM",
+      "x": 755,
+      "y": 347,
+      "width": 14.440000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Saturday",
+      "x": 40,
+      "y": 300,
+      "width": 40.02,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 80.02000000000001,
+      "y": 300,
+      "width": 132.98,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Value added",
+      "x": 213,
+      "y": 307,
+      "width": 56.15000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Course",
+      "x": 225,
+      "y": 293,
+      "width": 32.230000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Placement & Training",
+      "x": 385,
+      "y": 307,
+      "width": 95.58999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "S",
+      "x": 315,
+      "y": 516,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "H",
+      "x": 315,
+      "y": 494,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "O",
+      "x": 315,
+      "y": 472,
+      "width": 7.78,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "R",
+      "x": 315,
+      "y": 450,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "T",
+      "x": 315,
+      "y": 428,
+      "width": 6.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "B",
+      "x": 315,
+      "y": 406,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "R",
+      "x": 315,
+      "y": 384,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "E",
+      "x": 315,
+      "y": 362,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "A",
+      "x": 315,
+      "y": 340,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "K",
+      "x": 315,
+      "y": 318,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "L",
+      "x": 560,
+      "y": 516,
+      "width": 5.5600000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "U",
+      "x": 560,
+      "y": 494,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "N",
+      "x": 560,
+      "y": 472,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "C",
+      "x": 560,
+      "y": 450,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "H",
+      "x": 560,
+      "y": 428,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "B",
+      "x": 560,
+      "y": 406,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "R",
+      "x": 560,
+      "y": 384,
+      "width": 7.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "E",
+      "x": 560,
+      "y": 362,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "A",
+      "x": 560,
+      "y": 340,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "K",
+      "x": 560,
+      "y": 318,
+      "width": 6.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCB501 Fundamentals of Management Prof. A. Example 3+0+0 3+0+0",
+      "x": 60,
+      "y": 232,
+      "width": 315.72999999999985,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS502 Computer Networks(T/L) Prof. B. Sample 3+0+2 3+0+2",
+      "x": 60,
+      "y": 216,
+      "width": 284.57,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCSL502-Computer Networks Lab Prof. B. Sample 0+0+2 0+0+2",
+      "x": 60,
+      "y": 200,
+      "width": 289.0299999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS503 Theory of Computation Dr. C. Placeholder 3+2+0 3+2+0",
+      "x": 60,
+      "y": 184,
+      "width": 288.47999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCSL504-Computational Statistics Lab Prof. D. Fictional 0+0+2 0+0+2",
+      "x": 60,
+      "y": 168,
+      "width": 311.8199999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCB515A Marketing Research & Marketing",
+      "x": 60,
+      "y": 152,
+      "width": 192.29000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Prof. E. Invented 3+0+0 3+0+0",
+      "x": 60,
+      "y": 136,
+      "width": 136.77000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Management",
+      "x": 60,
+      "y": 120,
+      "width": 58.360000000000014,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BRMK557 Research Methodology and IPR Prof. F. Madeup 2+0+0 2+0+0",
+      "x": 60,
+      "y": 104,
+      "width": 326.83999999999986,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BESK508 Environmental Studies and E-waste Management Prof. G. Unreal 1+0+0 1+0+0",
+      "x": 60,
+      "y": 88,
+      "width": 397.4299999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCB586-Mini project Prof. H. Nobody 0+0+2 0+0+2",
+      "x": 60,
+      "y": 72,
+      "width": 227.89000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "OJAS",
+      "x": 640,
+      "y": 413,
+      "width": 26.120000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 666.1199999999999,
+      "y": 413,
+      "width": 73.88000000000011,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TEJOMAYI",
+      "x": 740,
+      "y": 413,
+      "width": 50.010000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "OJAS",
+      "x": 640,
+      "y": 373,
+      "width": 26.120000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 666.1199999999999,
+      "y": 373,
+      "width": 73.88000000000011,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TEJOMAYI",
+      "x": 740,
+      "y": 373,
+      "width": 50.010000000000005,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Subject code - Initials - Name",
+      "x": 60,
+      "y": 250,
+      "width": 130.60000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 190.60000000000005,
+      "y": 250,
+      "width": 329.4,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Faculty name",
+      "x": 520,
+      "y": 250,
+      "width": 60.01999999999998,
+      "height": 10,
+      "page": 1
+    }
+  ],
+  "expected": {
+    "classification": {
+      "type": "college_timetable",
+      "reason": "This looks like a class timetable.",
+      "signals": [
+        "weekday columns",
+        "a time-of-day grid",
+        "time table heading"
+      ]
+    },
+    "timetable": {
+      "context": {
+        "className": "V (B)",
+        "semester": 5,
+        "academicYear": "2026-27",
+        "revision": "R0",
+        "effectiveFrom": "2026-09-12",
+        "room": null
+      },
+      "slots": [
+        [
+          "10:00",
+          "10:55",
+          false
+        ],
+        [
+          "10:55",
+          "11:50",
+          false
+        ],
+        [
+          "11:50",
+          "12:10",
+          true
+        ],
+        [
+          "12:10",
+          "13:05",
+          false
+        ],
+        [
+          "13:05",
+          "14:00",
+          false
+        ],
+        [
+          "14:00",
+          "15:10",
+          true
+        ],
+        [
+          "15:10",
+          "16:05",
+          false
+        ],
+        [
+          "16:05",
+          "17:00",
+          false
+        ]
+      ],
+      "dictionary": [
+        [
+          "BCB501",
+          "Fundamentals of Management",
+          null,
+          "Prof. A. Example",
+          "3+0+0",
+          "3+0+0"
+        ],
+        [
+          "BCS502",
+          "Computer Networks(T/L)",
+          null,
+          "Prof. B. Sample",
+          "3+0+2",
+          "3+0+2"
+        ],
+        [
+          "BCSL502",
+          "Computer Networks Lab",
+          null,
+          "Prof. B. Sample",
+          "0+0+2",
+          "0+0+2"
+        ],
+        [
+          "BCS503",
+          "Theory of Computation",
+          null,
+          "Dr. C. Placeholder",
+          "3+2+0",
+          "3+2+0"
+        ],
+        [
+          "BCSL504",
+          "Computational Statistics Lab",
+          null,
+          "Prof. D. Fictional",
+          "0+0+2",
+          "0+0+2"
+        ],
+        [
+          "BCB515A",
+          "Marketing Research & Marketing Management",
+          null,
+          "Prof. E. Invented",
+          "3+0+0",
+          "3+0+0"
+        ],
+        [
+          "BRMK557",
+          "Research Methodology and IPR",
+          null,
+          "Prof. F. Madeup",
+          "2+0+0",
+          "2+0+0"
+        ],
+        [
+          "BESK508",
+          "Environmental Studies and E-waste Management",
+          null,
+          "Prof. G. Unreal",
+          "1+0+0",
+          "1+0+0"
+        ],
+        [
+          "BCB586",
+          "Mini project",
+          null,
+          "Prof. H. Nobody",
+          "0+0+2",
+          "0+0+2"
+        ]
+      ],
+      "classes": [
+        [
+          "Mon",
+          "10:00",
+          "10:55",
+          "BRMK557",
+          "initialism",
+          "RMIPR",
+          null,
+          "LH-302",
+          1,
+          null,
+          "RMIPR LH-302"
+        ],
+        [
+          "Mon",
+          "10:55",
+          "11:50",
+          "BCS502",
+          "initialism",
+          "CN",
+          null,
+          "LH-302",
+          1,
+          null,
+          "CN LH-302"
+        ],
+        [
+          "Mon",
+          "12:10",
+          "13:05",
+          "BCB501",
+          "initialism",
+          "FM",
+          null,
+          "LH-302",
+          1,
+          null,
+          "FM LH-302"
+        ],
+        [
+          "Mon",
+          "13:05",
+          "14:00",
+          "BCS503",
+          "initialism",
+          "TOC",
+          null,
+          "LH-302",
+          1,
+          null,
+          "TOC-T LH-302"
+        ],
+        [
+          "Mon",
+          "15:10",
+          "17:00",
+          "BCB586",
+          "declared",
+          "Mini project",
+          null,
+          null,
+          2,
+          null,
+          "Mini project"
+        ],
+        [
+          "Tue",
+          "10:00",
+          "10:55",
+          "BCS502",
+          "initialism",
+          "CN",
+          null,
+          "LH-302",
+          1,
+          null,
+          "CN LH-302"
+        ],
+        [
+          "Tue",
+          "10:55",
+          "11:50",
+          "BRMK557",
+          "initialism",
+          "RMIPR",
+          null,
+          "LH-302",
+          1,
+          null,
+          "RMIPR LH-302"
+        ],
+        [
+          "Tue",
+          "12:10",
+          "13:05",
+          "BCS503",
+          "initialism",
+          "TOC",
+          null,
+          "LH-302",
+          1,
+          null,
+          "TOC LH-302"
+        ],
+        [
+          "Tue",
+          "13:05",
+          "14:00",
+          null,
+          "activity",
+          "Value added Course",
+          null,
+          null,
+          1,
+          "Printed as an activity, not a subject in this timetable's subject list. Kept under its printed name.",
+          "Value added Course"
+        ],
+        [
+          "Tue",
+          "15:10",
+          "16:05",
+          "BESK508",
+          "near",
+          "ESEVM",
+          null,
+          null,
+          1,
+          "\"ESEVM\" is not in this timetable's subject list. The closest is \"ESEWM\" (BESK508), one letter different — check it.",
+          "ESEVM"
+        ],
+        [
+          "Tue",
+          "16:05",
+          "17:00",
+          "BCS503",
+          "initialism",
+          "TOC",
+          null,
+          null,
+          1,
+          null,
+          "TOC-T"
+        ],
+        [
+          "Wed",
+          "10:00",
+          "10:55",
+          "BCB501",
+          "initialism",
+          "FM",
+          null,
+          "LH-302",
+          1,
+          null,
+          "FM LH-302"
+        ],
+        [
+          "Wed",
+          "10:55",
+          "11:50",
+          "BCB515A",
+          "initialism",
+          "MRMM",
+          null,
+          "LH-302",
+          1,
+          null,
+          "MRMM LH-302"
+        ],
+        [
+          "Wed",
+          "12:10",
+          "13:05",
+          "BCS503",
+          "initialism",
+          "TOC",
+          null,
+          "LH-302",
+          1,
+          null,
+          "TOC LH-302"
+        ],
+        [
+          "Wed",
+          "13:05",
+          "14:00",
+          "BESK508",
+          "near",
+          "ESEVM",
+          null,
+          null,
+          1,
+          "\"ESEVM\" is not in this timetable's subject list. The closest is \"ESEWM\" (BESK508), one letter different — check it.",
+          "ESEVM"
+        ],
+        [
+          "Wed",
+          "15:10",
+          "17:00",
+          "BCSL502",
+          "initialism",
+          "CNL",
+          "B1",
+          "OJAS",
+          2,
+          null,
+          "CNL-B1/CSL-B2 OJAS TEJOMAYI"
+        ],
+        [
+          "Wed",
+          "15:10",
+          "17:00",
+          "BCSL504",
+          "initialism",
+          "CSL",
+          "B2",
+          "TEJOMAYI",
+          2,
+          null,
+          "CNL-B1/CSL-B2 OJAS TEJOMAYI"
+        ],
+        [
+          "Thu",
+          "10:00",
+          "10:55",
+          "BRMK557",
+          "initialism",
+          "RMIPR",
+          null,
+          "LH-302",
+          1,
+          null,
+          "RMIPR LH-302"
+        ],
+        [
+          "Thu",
+          "10:55",
+          "11:50",
+          "BCB515A",
+          "initialism",
+          "MRMM",
+          null,
+          "LH-302",
+          1,
+          null,
+          "MRMM LH-302"
+        ],
+        [
+          "Thu",
+          "12:10",
+          "13:05",
+          "BCS503",
+          "initialism",
+          "TOC",
+          null,
+          "LH-302",
+          1,
+          null,
+          "TOC LH-302"
+        ],
+        [
+          "Thu",
+          "13:05",
+          "14:00",
+          null,
+          "activity",
+          "Value added Course",
+          null,
+          null,
+          1,
+          "Printed as an activity, not a subject in this timetable's subject list. Kept under its printed name.",
+          "Value added Course"
+        ],
+        [
+          "Thu",
+          "15:10",
+          "17:00",
+          "BCSL504",
+          "initialism",
+          "CSL",
+          "B1",
+          "OJAS",
+          2,
+          null,
+          "CSL-B1/CNL-B2 OJAS TEJOMAYI"
+        ],
+        [
+          "Thu",
+          "15:10",
+          "17:00",
+          "BCSL502",
+          "initialism",
+          "CNL",
+          "B2",
+          "TEJOMAYI",
+          2,
+          null,
+          "CSL-B1/CNL-B2 OJAS TEJOMAYI"
+        ],
+        [
+          "Fri",
+          "10:00",
+          "10:55",
+          "BCS503",
+          "initialism",
+          "TOC",
+          null,
+          "LH-302",
+          1,
+          null,
+          "TOC LH-302"
+        ],
+        [
+          "Fri",
+          "10:55",
+          "11:50",
+          "BCB501",
+          "initialism",
+          "FM",
+          null,
+          "LH-302",
+          1,
+          null,
+          "FM LH-302"
+        ],
+        [
+          "Fri",
+          "12:10",
+          "13:05",
+          "BCS502",
+          "initialism",
+          "CN",
+          null,
+          "LH-302",
+          1,
+          null,
+          "CN LH-302"
+        ],
+        [
+          "Fri",
+          "13:05",
+          "14:00",
+          "BRMK557",
+          "initialism",
+          "RMIPR",
+          null,
+          "LH-302",
+          1,
+          null,
+          "RMIPR LH-302"
+        ],
+        [
+          "Fri",
+          "15:10",
+          "16:05",
+          "BCB515A",
+          "initialism",
+          "MRMM",
+          null,
+          null,
+          1,
+          null,
+          "MRMM"
+        ],
+        [
+          "Fri",
+          "16:05",
+          "17:00",
+          "BCB501",
+          "initialism",
+          "FM",
+          null,
+          null,
+          1,
+          null,
+          "FM"
+        ],
+        [
+          "Sat",
+          "10:55",
+          "11:50",
+          null,
+          "activity",
+          "Value added Course",
+          null,
+          null,
+          1,
+          "Printed as an activity, not a subject in this timetable's subject list. Kept under its printed name.",
+          "Value added Course"
+        ],
+        [
+          "Sat",
+          "12:10",
+          "14:00",
+          null,
+          "activity",
+          "Placement & Training",
+          null,
+          null,
+          2,
+          "Printed as an activity, not a subject in this timetable's subject list. Kept under its printed name.",
+          "Placement & Training"
+        ]
+      ],
+      "batches": [
+        "B1",
+        "B2"
+      ],
+      "conflicts": [],
+      "coverage": {
+        "cellsFound": 31,
+        "cellsResolved": 31,
+        "slotsFound": 8,
+        "dictionaryEntries": 9,
+        "looksComplete": true
+      },
+      "warnings": [
+        "ESEVM is not in this timetable's subject list and was matched to the closest abbreviation it has. Check it before saving."
+      ]
+    }
+  }
+}
