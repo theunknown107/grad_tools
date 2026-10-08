@@ -1,0 +1,1388 @@
+{
+  "name": "csbs-semester-one",
+  "family": "B",
+  "about": "First-semester grid: CLASS/TIME-TABLE (R2)/ROOM/W.E.F header, declared initials column, horizontal BREAK/LUNCH cells, batch rotations PHYE1/POPE2 and MAT LAB(E1+E2).",
+  "lines": [
+    "EXAMPLE INSTITUTE OF TECHNOLOGY",
+    "CLASS: I (E) CSBS SEMESTER I TIME-TABLE (R2)",
+    "ACADEMIC YEAR: 2026-27 ROOM NO.: B205 W.E.F: 07/11/2026",
+    "10:00-10:55am 10:55-11:50am 11:50-12.10pm 12.10-1:05pm 1:05-02:00pm 2:00-03:10pm 03:10-04:05pm 04:05-05:00pm",
+    "ESC MAT BREAK PHY POP LUNCH ETC",
+    "MONDAY",
+    "PHYE1/POPE2 ENG BREAK MAT ICO LUNCH MAT LAB(E1+E2)",
+    "TUESDAY",
+    "POPE1/PHYE2 MAT BREAK IDT ESC LUNCH PHY",
+    "WEDNESDAY",
+    "MAT POP BREAK ETC ENG LUNCH ESC",
+    "THURSDAY",
+    "PHY ESC BREAK POP MAT LUNCH ICO",
+    "FRIDAY",
+    "BQATS101 Mathematics-I for CSE Stream MAT Prof. Anita R 2+2+2 2+2+2",
+    "BQHYS102 Applied Physics for CSE stream PHY Prof. Bala V 2+2+2 2+2+2",
+    "BQOPS103 Principles of Programming POP Prof. Chandra M 3+0+2 2+0+2",
+    "BQSCK104B Introduction to Electrical ESC Prof. Divya K 4+0+0 3+0+0",
+    "BQTCK105I Introduction to Cyber Security ETC Dr. Esha G 2+0+2 2+0+2",
+    "BENGK106 Communicative English ENG Prof. Farah N 1+0+0 1+0+0",
+    "BICOK107 Indian Constitution ICO Prof. Gopal S 1+0+0 1+0+0",
+    "BIDTK158 Innovation and Design Thinking IDT Prof. Hema T 1+0+0 1+0+0"
+  ],
+  "placed": [
+    {
+      "text": "EXAMPLE INSTITUTE OF TECHNOLOGY",
+      "x": 60,
+      "y": 680,
+      "width": 191.14999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CLASS: I (E) CSBS SEMESTER I",
+      "x": 60,
+      "y": 660,
+      "width": 150.60000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 210.59999999999994,
+      "y": 660,
+      "width": 189.40000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TIME-TABLE (R2)",
+      "x": 400,
+      "y": 660,
+      "width": 81.11999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ACADEMIC YEAR: 2026-27",
+      "x": 60,
+      "y": 640,
+      "width": 125.04000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 185.04000000000002,
+      "y": 640,
+      "width": 414.96,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ROOM NO.: B205",
+      "x": 600,
+      "y": 640,
+      "width": 80.57999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "W.E.F: 07/11/2026",
+      "x": 600,
+      "y": 620,
+      "width": 83.38,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:00-10:55am",
+      "x": 118,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 185.26000000000005,
+      "y": 566,
+      "width": 22.739999999999952,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:55-11:50am",
+      "x": 208,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 275.26,
+      "y": 566,
+      "width": 10.740000000000009,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "11:50-12.10pm",
+      "x": 286,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 353.25999999999993,
+      "y": 566,
+      "width": 6.740000000000066,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "12.10-1:05pm",
+      "x": 360,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 421.69999999999993,
+      "y": 566,
+      "width": 28.300000000000068,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "1:05-02:00pm",
+      "x": 450,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 511.69999999999993,
+      "y": 566,
+      "width": 21.300000000000068,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "2:00-03:10pm",
+      "x": 533,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 594.6999999999996,
+      "y": 566,
+      "width": 23.30000000000041,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "03:10-04:05pm",
+      "x": 618,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 685.2599999999995,
+      "y": 566,
+      "width": 42.740000000000464,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "04:05-05:00pm",
+      "x": 728,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MONDAY",
+      "x": 40,
+      "y": 520,
+      "width": 43.89,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 83.89,
+      "y": 520,
+      "width": 59.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ESC",
+      "x": 143,
+      "y": 527,
+      "width": 20.56,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 163.55999999999997,
+      "y": 527,
+      "width": 69.44000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 233,
+      "y": 527,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 254.11,
+      "y": 527,
+      "width": 51.889999999999986,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BREAK",
+      "x": 306,
+      "y": 527,
+      "width": 33.900000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 339.9000000000001,
+      "y": 527,
+      "width": 43.09999999999991,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "PHY",
+      "x": 383,
+      "y": 527,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 403.56000000000006,
+      "y": 527,
+      "width": 69.43999999999994,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "POP",
+      "x": 473,
+      "y": 527,
+      "width": 21.119999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 494.12,
+      "y": 527,
+      "width": 56.879999999999995,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LUNCH",
+      "x": 551,
+      "y": 527,
+      "width": 34.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 585.44,
+      "y": 527,
+      "width": 57.559999999999945,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ETC",
+      "x": 643,
+      "y": 527,
+      "width": 20,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TUESDAY",
+      "x": 40,
+      "y": 490,
+      "width": 47.230000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 87.23,
+      "y": 490,
+      "width": 35.769999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "PHYE1/POPE2",
+      "x": 123,
+      "y": 497,
+      "width": 68.92000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 191.91999999999993,
+      "y": 497,
+      "width": 41.08000000000007,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ENG",
+      "x": 233,
+      "y": 497,
+      "width": 21.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 254.67,
+      "y": 497,
+      "width": 51.33000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BREAK",
+      "x": 306,
+      "y": 497,
+      "width": 33.900000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 339.9000000000001,
+      "y": 497,
+      "width": 43.09999999999991,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 383,
+      "y": 497,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 404.11,
+      "y": 497,
+      "width": 68.88999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ICO",
+      "x": 473,
+      "y": 497,
+      "width": 17.78,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 490.78,
+      "y": 497,
+      "width": 60.22000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LUNCH",
+      "x": 551,
+      "y": 497,
+      "width": 34.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 585.44,
+      "y": 497,
+      "width": 84.55999999999995,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT LAB(E1+E2)",
+      "x": 670,
+      "y": 497,
+      "width": 79.74999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "WEDNESDAY",
+      "x": 40,
+      "y": 460,
+      "width": 64.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 104.45,
+      "y": 460,
+      "width": 18.549999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "POPE1/PHYE2",
+      "x": 123,
+      "y": 467,
+      "width": 68.92,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 191.91999999999993,
+      "y": 467,
+      "width": 41.08000000000007,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 233,
+      "y": 467,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 254.11,
+      "y": 467,
+      "width": 51.889999999999986,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BREAK",
+      "x": 306,
+      "y": 467,
+      "width": 33.900000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 339.9000000000001,
+      "y": 467,
+      "width": 43.09999999999991,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "IDT",
+      "x": 383,
+      "y": 467,
+      "width": 16.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 399.11,
+      "y": 467,
+      "width": 73.88999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ESC",
+      "x": 473,
+      "y": 467,
+      "width": 20.56,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 493.56000000000006,
+      "y": 467,
+      "width": 57.43999999999994,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LUNCH",
+      "x": 551,
+      "y": 467,
+      "width": 34.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 585.44,
+      "y": 467,
+      "width": 57.559999999999945,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "PHY",
+      "x": 643,
+      "y": 467,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "THURSDAY",
+      "x": 40,
+      "y": 430,
+      "width": 55,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 95,
+      "y": 430,
+      "width": 48,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 143,
+      "y": 437,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 164.11,
+      "y": 437,
+      "width": 68.88999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "POP",
+      "x": 233,
+      "y": 437,
+      "width": 21.119999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 254.11999999999998,
+      "y": 437,
+      "width": 51.880000000000024,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BREAK",
+      "x": 306,
+      "y": 437,
+      "width": 33.900000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 339.9000000000001,
+      "y": 437,
+      "width": 43.09999999999991,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ETC",
+      "x": 383,
+      "y": 437,
+      "width": 20,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 403.00000000000006,
+      "y": 437,
+      "width": 69.99999999999994,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ENG",
+      "x": 473,
+      "y": 437,
+      "width": 21.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 494.67,
+      "y": 437,
+      "width": 56.329999999999984,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LUNCH",
+      "x": 551,
+      "y": 437,
+      "width": 34.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 585.44,
+      "y": 437,
+      "width": 57.559999999999945,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ESC",
+      "x": 643,
+      "y": 437,
+      "width": 20.56,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "FRIDAY",
+      "x": 40,
+      "y": 400,
+      "width": 36.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 76.67,
+      "y": 400,
+      "width": 66.33,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "PHY",
+      "x": 143,
+      "y": 407,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 163.55999999999997,
+      "y": 407,
+      "width": 69.44000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ESC",
+      "x": 233,
+      "y": 407,
+      "width": 20.56,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 253.55999999999997,
+      "y": 407,
+      "width": 52.440000000000026,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BREAK",
+      "x": 306,
+      "y": 407,
+      "width": 33.900000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 339.9000000000001,
+      "y": 407,
+      "width": 43.09999999999991,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "POP",
+      "x": 383,
+      "y": 407,
+      "width": 21.119999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 404.12,
+      "y": 407,
+      "width": 68.88,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 473,
+      "y": 407,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 494.11,
+      "y": 407,
+      "width": 56.889999999999986,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "LUNCH",
+      "x": 551,
+      "y": 407,
+      "width": 34.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 585.44,
+      "y": 407,
+      "width": 57.559999999999945,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ICO",
+      "x": 643,
+      "y": 407,
+      "width": 17.78,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BQATS101 Mathematics-I for CSE Stream MAT Prof. Anita R 2+2+2 2+2+2",
+      "x": 60,
+      "y": 300,
+      "width": 334.5899999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BQHYS102 Applied Physics for CSE stream PHY Prof. Bala V 2+2+2 2+2+2",
+      "x": 60,
+      "y": 284,
+      "width": 337.93999999999977,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BQOPS103 Principles of Programming POP Prof. Chandra M 3+0+2 2+0+2",
+      "x": 60,
+      "y": 268,
+      "width": 334.5999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BQSCK104B Introduction to Electrical ESC Prof. Divya K 4+0+0 3+0+0",
+      "x": 60,
+      "y": 252,
+      "width": 314.5999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BQTCK105I Introduction to Cyber Security ETC Dr. Esha G 2+0+2 2+0+2",
+      "x": 60,
+      "y": 236,
+      "width": 325.7099999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BENGK106 Communicative English ENG Prof. Farah N 1+0+0 1+0+0",
+      "x": 60,
+      "y": 220,
+      "width": 308.46999999999986,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BICOK107 Indian Constitution ICO Prof. Gopal S 1+0+0 1+0+0",
+      "x": 60,
+      "y": 204,
+      "width": 279.0499999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BIDTK158 Innovation and Design Thinking IDT Prof. Hema T 1+0+0 1+0+0",
+      "x": 60,
+      "y": 188,
+      "width": 332.3899999999999,
+      "height": 10,
+      "page": 1
+    }
+  ],
+  "expected": {
+    "classification": {
+      "type": "college_timetable",
+      "reason": "This looks like a class timetable.",
+      "signals": [
+        "weekday columns",
+        "with effect from",
+        "a time-of-day grid",
+        "a lunch or break row"
+      ]
+    },
+    "timetable": {
+      "context": {
+        "className": "I (E) CSBS SEMESTER I",
+        "semester": 1,
+        "academicYear": "2026-27",
+        "revision": "R2",
+        "effectiveFrom": "2026-11-07",
+        "room": "B205"
+      },
+      "slots": [
+        [
+          "10:00",
+          "10:55",
+          false
+        ],
+        [
+          "10:55",
+          "11:50",
+          false
+        ],
+        [
+          "11:50",
+          "12:10",
+          true
+        ],
+        [
+          "12:10",
+          "13:05",
+          false
+        ],
+        [
+          "13:05",
+          "14:00",
+          false
+        ],
+        [
+          "14:00",
+          "15:10",
+          true
+        ],
+        [
+          "15:10",
+          "16:05",
+          false
+        ],
+        [
+          "16:05",
+          "17:00",
+          false
+        ]
+      ],
+      "dictionary": [
+        [
+          "BQATS101",
+          "Mathematics-I for CSE Stream",
+          "MAT",
+          "Prof. Anita R",
+          "2+2+2",
+          "2+2+2"
+        ],
+        [
+          "BQHYS102",
+          "Applied Physics for CSE stream",
+          "PHY",
+          "Prof. Bala V",
+          "2+2+2",
+          "2+2+2"
+        ],
+        [
+          "BQOPS103",
+          "Principles of Programming",
+          "POP",
+          "Prof. Chandra M",
+          "3+0+2",
+          "2+0+2"
+        ],
+        [
+          "BQSCK104B",
+          "Introduction to Electrical",
+          "ESC",
+          "Prof. Divya K",
+          "4+0+0",
+          "3+0+0"
+        ],
+        [
+          "BQTCK105I",
+          "Introduction to Cyber Security",
+          "ETC",
+          "Dr. Esha G",
+          "2+0+2",
+          "2+0+2"
+        ],
+        [
+          "BENGK106",
+          "Communicative English",
+          "ENG",
+          "Prof. Farah N",
+          "1+0+0",
+          "1+0+0"
+        ],
+        [
+          "BICOK107",
+          "Indian Constitution",
+          "ICO",
+          "Prof. Gopal S",
+          "1+0+0",
+          "1+0+0"
+        ],
+        [
+          "BIDTK158",
+          "Innovation and Design Thinking",
+          "IDT",
+          "Prof. Hema T",
+          "1+0+0",
+          "1+0+0"
+        ]
+      ],
+      "classes": [
+        [
+          "Mon",
+          "10:00",
+          "10:55",
+          "BQSCK104B",
+          "declared",
+          "ESC",
+          null,
+          null,
+          1,
+          null,
+          "ESC"
+        ],
+        [
+          "Mon",
+          "10:55",
+          "11:50",
+          "BQATS101",
+          "declared",
+          "MAT",
+          null,
+          null,
+          1,
+          null,
+          "MAT"
+        ],
+        [
+          "Mon",
+          "12:10",
+          "13:05",
+          "BQHYS102",
+          "declared",
+          "PHY",
+          null,
+          null,
+          1,
+          null,
+          "PHY"
+        ],
+        [
+          "Mon",
+          "13:05",
+          "14:00",
+          "BQOPS103",
+          "declared",
+          "POP",
+          null,
+          null,
+          1,
+          null,
+          "POP"
+        ],
+        [
+          "Mon",
+          "15:10",
+          "16:05",
+          "BQTCK105I",
+          "declared",
+          "ETC",
+          null,
+          null,
+          1,
+          null,
+          "ETC"
+        ],
+        [
+          "Tue",
+          "10:00",
+          "10:55",
+          "BQHYS102",
+          "declared",
+          "PHY",
+          "E1",
+          null,
+          1,
+          null,
+          "PHYE1/POPE2"
+        ],
+        [
+          "Tue",
+          "10:00",
+          "10:55",
+          "BQOPS103",
+          "declared",
+          "POP",
+          "E2",
+          null,
+          1,
+          null,
+          "PHYE1/POPE2"
+        ],
+        [
+          "Tue",
+          "10:55",
+          "11:50",
+          "BENGK106",
+          "declared",
+          "ENG",
+          null,
+          null,
+          1,
+          null,
+          "ENG"
+        ],
+        [
+          "Tue",
+          "12:10",
+          "13:05",
+          "BQATS101",
+          "declared",
+          "MAT",
+          null,
+          null,
+          1,
+          null,
+          "MAT"
+        ],
+        [
+          "Tue",
+          "13:05",
+          "14:00",
+          "BICOK107",
+          "declared",
+          "ICO",
+          null,
+          null,
+          1,
+          null,
+          "ICO"
+        ],
+        [
+          "Tue",
+          "16:05",
+          "17:00",
+          "BQATS101",
+          "declared",
+          "MAT",
+          "E1",
+          null,
+          1,
+          null,
+          "MAT LAB(E1+E2)"
+        ],
+        [
+          "Tue",
+          "16:05",
+          "17:00",
+          "BQATS101",
+          "declared",
+          "MAT",
+          "E2",
+          null,
+          1,
+          null,
+          "MAT LAB(E1+E2)"
+        ],
+        [
+          "Wed",
+          "10:00",
+          "10:55",
+          "BQOPS103",
+          "declared",
+          "POP",
+          "E1",
+          null,
+          1,
+          null,
+          "POPE1/PHYE2"
+        ],
+        [
+          "Wed",
+          "10:00",
+          "10:55",
+          "BQHYS102",
+          "declared",
+          "PHY",
+          "E2",
+          null,
+          1,
+          null,
+          "POPE1/PHYE2"
+        ],
+        [
+          "Wed",
+          "10:55",
+          "11:50",
+          "BQATS101",
+          "declared",
+          "MAT",
+          null,
+          null,
+          1,
+          null,
+          "MAT"
+        ],
+        [
+          "Wed",
+          "12:10",
+          "13:05",
+          "BIDTK158",
+          "declared",
+          "IDT",
+          null,
+          null,
+          1,
+          null,
+          "IDT"
+        ],
+        [
+          "Wed",
+          "13:05",
+          "14:00",
+          "BQSCK104B",
+          "declared",
+          "ESC",
+          null,
+          null,
+          1,
+          null,
+          "ESC"
+        ],
+        [
+          "Wed",
+          "15:10",
+          "16:05",
+          "BQHYS102",
+          "declared",
+          "PHY",
+          null,
+          null,
+          1,
+          null,
+          "PHY"
+        ],
+        [
+          "Thu",
+          "10:00",
+          "10:55",
+          "BQATS101",
+          "declared",
+          "MAT",
+          null,
+          null,
+          1,
+          null,
+          "MAT"
+        ],
+        [
+          "Thu",
+          "10:55",
+          "11:50",
+          "BQOPS103",
+          "declared",
+          "POP",
+          null,
+          null,
+          1,
+          null,
+          "POP"
+        ],
+        [
+          "Thu",
+          "12:10",
+          "13:05",
+          "BQTCK105I",
+          "declared",
+          "ETC",
+          null,
+          null,
+          1,
+          null,
+          "ETC"
+        ],
+        [
+          "Thu",
+          "13:05",
+          "14:00",
+          "BENGK106",
+          "declared",
+          "ENG",
+          null,
+          null,
+          1,
+          null,
+          "ENG"
+        ],
+        [
+          "Thu",
+          "15:10",
+          "16:05",
+          "BQSCK104B",
+          "declared",
+          "ESC",
+          null,
+          null,
+          1,
+          null,
+          "ESC"
+        ],
+        [
+          "Fri",
+          "10:00",
+          "10:55",
+          "BQHYS102",
+          "declared",
+          "PHY",
+          null,
+          null,
+          1,
+          null,
+          "PHY"
+        ],
+        [
+          "Fri",
+          "10:55",
+          "11:50",
+          "BQSCK104B",
+          "declared",
+          "ESC",
+          null,
+          null,
+          1,
+          null,
+          "ESC"
+        ],
+        [
+          "Fri",
+          "12:10",
+          "13:05",
+          "BQOPS103",
+          "declared",
+          "POP",
+          null,
+          null,
+          1,
+          null,
+          "POP"
+        ],
+        [
+          "Fri",
+          "13:05",
+          "14:00",
+          "BQATS101",
+          "declared",
+          "MAT",
+          null,
+          null,
+          1,
+          null,
+          "MAT"
+        ],
+        [
+          "Fri",
+          "15:10",
+          "16:05",
+          "BICOK107",
+          "declared",
+          "ICO",
+          null,
+          null,
+          1,
+          null,
+          "ICO"
+        ]
+      ],
+      "batches": [
+        "E1",
+        "E2"
+      ],
+      "conflicts": [],
+      "coverage": {
+        "cellsFound": 28,
+        "cellsResolved": 28,
+        "slotsFound": 8,
+        "dictionaryEntries": 8,
+        "looksComplete": true
+      },
+      "warnings": []
+    }
+  }
+}
