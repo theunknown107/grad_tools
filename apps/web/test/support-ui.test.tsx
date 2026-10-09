@@ -18,6 +18,8 @@ import { AuthProvider } from '../src/features/auth/AuthContext.js';
 import { ThemeProvider } from '../src/hooks/useTheme.js';
 import { TooltipProvider } from '../src/components/ui/tooltip.js';
 import { SupportPanel } from '../src/features/support/SupportPanel.js';
+import { PreLoginReport } from '../src/features/support/PreLoginReport.js';
+import { SignInPage } from '../src/features/auth/SignInPage.js';
 import type { AuthAdapter } from '../src/repositories/cloud/supabase.js';
 import type { Identity } from '../src/domain/auth.js';
 import { readValue } from '../src/repositories/local/store.js';
@@ -162,5 +164,109 @@ describe('reporting a problem', () => {
     expect(await screen.findByText(/you're offline|will be sent/i)).toBeTruthy();
     const queued = (await readValue<unknown[]>('user-support-a', 'supportQueue')) ?? [];
     expect(queued).toHaveLength(1); // retained, exactly once — no report→fail→report loop
+  });
+});
+
+describe('reporting a problem before signing in', () => {
+  function renderPreLogin() {
+    return render(
+      <MemoryRouter>
+        <ThemeProvider>
+          <TooltipProvider>
+            <PreLoginReport />
+          </TooltipProvider>
+        </ThemeProvider>
+      </MemoryRouter>,
+    );
+  }
+
+  /** A fetch stub capturing the POST; configurable status. */
+  function stubAnon(status = 201) {
+    const calls: { url: string; init?: RequestInit | undefined }[] = [];
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      calls.push({ url: String(url), init });
+      if (status === 201) {
+        return new Response(JSON.stringify({ incidentId: 'GT-ERR-ABC123' }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('nope', { status });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return calls;
+  }
+
+  async function fileAnon(category = 'Sign-in / Account') {
+    await userEvent.click(await screen.findByRole('button', { name: 'Report a problem' }));
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Problem category' }));
+    await userEvent.click(await screen.findByRole('option', { name: category }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send report' }));
+  }
+
+  it('appears on the sign-in screen without opening the form', async () => {
+    render(
+      <MemoryRouter>
+        <ThemeProvider>
+          <TooltipProvider>
+            <AuthProvider adapter={adapterFor(false)}>
+              <SignInPage />
+            </AuthProvider>
+          </TooltipProvider>
+        </ThemeProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('button', { name: 'Report a problem' })).toBeTruthy();
+    // The sign-in form is still usable (the report form is collapsed).
+    expect(screen.getByLabelText('Email')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Send report' })).toBeNull();
+  });
+
+  it('submits with no Authorization header and shows the Incident ID (no Support ID)', async () => {
+    const calls = stubAnon(201);
+    renderPreLogin();
+    await fileAnon('Sync');
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    const { url, init } = calls[0]!;
+    expect(url).toMatch(/\/api\/v1\/support-reports$/);
+    const headers = new Headers(init?.headers);
+    expect(headers.get('Authorization')).toBeNull(); // unauthenticated
+    expect(headers.get('X-GradTools-Platform')).toBe('web'); // safe correlation only
+    const body = JSON.parse(String(init?.body));
+    expect(body.category).toBe('sync');
+    expect(JSON.stringify(body)).not.toMatch(/token|usn|marks|password|cookie/i);
+
+    expect(await screen.findByText('GT-ERR-ABC123')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy Incident ID' })).toBeTruthy();
+    expect(screen.queryByText(/GT-[0-9A-HJKMNP-TV-Z]{8}/)).toBeNull(); // no Support ID
+  });
+
+  it('requires a category before it can send', async () => {
+    stubAnon(201);
+    renderPreLogin();
+    await userEvent.click(await screen.findByRole('button', { name: 'Report a problem' }));
+    expect(
+      (screen.getByRole('button', { name: 'Send report' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it('shows a rate-limit message on 429', async () => {
+    stubAnon(429);
+    renderPreLogin();
+    await fileAnon('Sync');
+    expect(await screen.findByText(/too many reports/i)).toBeTruthy();
+  });
+
+  it('shows a network-error message when the request throws', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch');
+      }),
+    );
+    renderPreLogin();
+    await fileAnon('Sync');
+    expect(await screen.findByText(/offline|couldn.t send/i)).toBeTruthy();
   });
 });
