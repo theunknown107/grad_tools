@@ -152,6 +152,78 @@ describeDb('support and observability', () => {
     });
   });
 
+  describe('an anonymous (pre-login) report', () => {
+    const ANON = 'GT-00000000';
+
+    it('is accepted with no session and returns an Incident ID but no Support ID', async () => {
+      const res = await request(app)
+        .post('/api/v1/support-reports')
+        .send({ category: 'sign_in', description: 'cannot sign in', context: { platform: 'web' } });
+      expect(res.status).toBe(201);
+      expect(res.body.incidentId).toMatch(/^GT-ERR-[0-9A-HJKMNP-TV-Z]{6}$/);
+      expect(res.body.supportId).toBeUndefined();
+      expect(Object.keys(res.body)).toEqual(['incidentId']);
+      // A rate-limit header proves it sits under the shared /api/v1 limiter.
+      expect(res.headers['ratelimit-limit'] ?? res.headers['ratelimit']).toBeDefined();
+    });
+
+    it('records no auth_user_id and creates no support_reports row', async () => {
+      const res = await request(app)
+        .post('/api/v1/support-reports')
+        .send({ category: 'app_android', description: 'app crashes on open' });
+      const [event] = await sql<
+        { auth_user_id: string | null; support_id: string; event_type: string }[]
+      >`
+        SELECT auth_user_id, support_id, event_type FROM support_events WHERE incident_id = ${res.body.incidentId}`;
+      expect(event?.auth_user_id).toBeNull();
+      expect(event?.support_id).toBe(ANON);
+      expect(event?.event_type).toBe('USER_REPORT');
+      const reports =
+        await sql`SELECT 1 FROM support_reports WHERE incident_id = ${res.body.incidentId}`;
+      expect(reports).toHaveLength(0);
+    });
+
+    it('rejects unknown/sensitive fields and malformed input', async () => {
+      const bad = [
+        { category: 'sync', usn: '1XX', token: 'secret' }, // unknown top-level fields
+        { category: 'sync', context: { usn: '1XX', platform: 'web' } }, // smuggled context field
+        { category: 'not_a_category' }, // invalid enum
+        { description: 'no category' }, // missing required category
+        {}, // empty
+      ];
+      for (const body of bad) {
+        const res = await request(app).post('/api/v1/support-reports').send(body);
+        expect(res.status).toBe(400);
+      }
+    });
+
+    it('rejects an oversized description and accepts an empty one', async () => {
+      const tooLong = await request(app)
+        .post('/api/v1/support-reports')
+        .send({ category: 'other', description: 'x'.repeat(1001) });
+      expect(tooLong.status).toBe(400);
+      const empty = await request(app).post('/api/v1/support-reports').send({ category: 'other' });
+      expect(empty.status).toBe(201);
+    });
+
+    it('does not create a support_reports row for any anonymous handle', async () => {
+      await request(app).post('/api/v1/support-reports').send({ category: 'results' });
+      const anon = await sql`SELECT 1 FROM support_reports WHERE support_id = ${ANON}`;
+      expect(anon).toHaveLength(0);
+    });
+  });
+
+  describe('existing authorization is unchanged', () => {
+    it('the authenticated report route still needs a session', async () => {
+      expect(
+        (await request(app).post('/api/v1/me/support-reports').send({ category: 'other' })).status,
+      ).toBe(401);
+    });
+    it('the operator routes still need the operator token', async () => {
+      expect((await request(app).get('/api/v1/operator/support/overview')).status).toBe(401);
+    });
+  });
+
   describe('what a report stores — the privacy guarantee', () => {
     it('keeps only allowlisted context keys, never academic content or secrets', async () => {
       const res = await request(app)
@@ -281,7 +353,12 @@ describeDb('support and observability', () => {
 
       // The async record lands shortly after the response.
       const incidentId = res.body.error.incidentId;
-      type Row = { event_type: string; severity: string; app_version: string | null; route: string };
+      type Row = {
+        event_type: string;
+        severity: string;
+        app_version: string | null;
+        route: string;
+      };
       let row: Row | undefined;
       for (let i = 0; i < 20 && row === undefined; i++) {
         [row] = await sql<Row[]>`

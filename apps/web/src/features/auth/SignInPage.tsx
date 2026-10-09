@@ -15,6 +15,7 @@ import { Card } from '../../components/ui/card.js';
 import { Callout } from '../../components/ui/feedback.js';
 import { Field, Input, PasswordInput } from '../../components/ui/field.js';
 import { Segmented } from '../../components/ui/segmented.js';
+import { PreLoginReport } from '../support/PreLoginReport.js';
 import { useAuth } from './AuthContext.js';
 
 type Mode = 'sign_in' | 'create' | 'recover';
@@ -249,6 +250,7 @@ export function SignInPage() {
         </Link>{' '}
         Nothing you have entered will be sent anywhere.
       </p>
+      <PreLoginReport />
     </Frame>
   );
 }

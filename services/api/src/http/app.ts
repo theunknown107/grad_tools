@@ -37,7 +37,11 @@ import {
 } from '../auth/clerk.js';
 import { createAnnouncementRouter } from '../routes/announcements.js';
 import { createReferenceRouter } from '../routes/reference.js';
-import { createSupportRouter, createOperatorSupportRouter } from '../routes/support.js';
+import {
+  createSupportRouter,
+  createOperatorSupportRouter,
+  createPublicSupportRouter,
+} from '../routes/support.js';
 import { newIncidentId } from '../support/id.js';
 import { recordEventSafe } from '../support/store.js';
 import { createErrorHandler, notFoundHandler, type IncidentRecorder } from './errors.js';
@@ -272,6 +276,13 @@ export function createApp(
   });
 
   app.use(createAnnouncementRouter(sql, { operatorToken: config.OPERATOR_TOKEN }));
+
+  /*
+   * Public problem reporting (no session), so someone who cannot sign in can
+   * still report it. Mounted unconditionally — it needs only the reference
+   * database — and rate-limited by the `/api/v1` limiter above.
+   */
+  app.use(createPublicSupportRouter(sql));
   /*
    * STUDENT ROUTES ARE MOUNTED ONLY WHERE A CLOUD EXISTS.
    *

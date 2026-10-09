@@ -153,6 +153,50 @@ export async function createReport(sql: Sql, input: ReportInput): Promise<Suppor
   };
 }
 
+/**
+ * Records an UNAUTHENTICATED problem report — for someone who cannot sign in,
+ * which is the whole reason they are reporting.
+ *
+ * There is NO session, so: the subject is undefined (support_id is the fixed
+ * anonymous handle and `auth_user_id` is NULL), and NO `support_reports` row is
+ * written — those rows are owned by a verified user. It is a USER_REPORT
+ * incident only, and the caller gets back just the Incident ID. The write is a
+ * hard insert (not best-effort), so a database outage surfaces as a normal
+ * error rather than a fabricated id.
+ */
+export async function createAnonymousReport(
+  sql: Sql,
+  input: {
+    readonly category: SupportCategory;
+    readonly description?: string | undefined;
+    readonly context?: SupportContext | undefined;
+  },
+): Promise<string> {
+  const incidentId = newIncidentId();
+  const context = input.context;
+  await recordEvent(sql, {
+    eventType: 'USER_REPORT',
+    severity: 'info',
+    subject: undefined,
+    incidentId,
+    requestId: context?.requestId,
+    route: context?.route,
+    httpStatus: context?.httpStatus,
+    errorCode: context?.errorCode,
+    platform: context?.platform,
+    appVersion: context?.appVersion,
+    metadata: {
+      category: input.category,
+      anonymous: true,
+      ...(input.description !== undefined && input.description !== ''
+        ? { description: input.description }
+        : {}),
+      ...safeMetadata(context),
+    },
+  });
+  return incidentId;
+}
+
 /** The full safe context stored on a report row (columns + allowlisted bag). */
 function safeContext(context: SupportContext | undefined): SafeBag {
   if (context === undefined) return {};

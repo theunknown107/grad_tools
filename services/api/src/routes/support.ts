@@ -17,6 +17,7 @@ import {
   OPERATOR_SUPPORT_ROUTES,
   SUPPORT_ROUTES,
   supportReportInputSchema,
+  type AnonymousSupportReport,
   type SupportReportList,
 } from '@gradtools/shared-types';
 import type { Sql } from '../db/client.js';
@@ -24,7 +25,7 @@ import { requireOperator } from '../auth/operator.js';
 import { requireSession, sessionOf, type SessionSource } from '../auth/session.js';
 import { notFound } from '../http/errors.js';
 import { supportIdFor } from '../support/id.js';
-import { createReport, listOwnReports } from '../support/store.js';
+import { createAnonymousReport, createReport, listOwnReports } from '../support/store.js';
 import * as operator from '../support/operator.js';
 
 export interface SupportRouterDeps {
@@ -69,6 +70,39 @@ export function createSupportRouter(deps: SupportRouterDeps): Router {
     res.json(body);
   });
 
+  return router;
+}
+
+/**
+ * Public-facing: `POST /api/v1/support-reports`, UNAUTHENTICATED.
+ *
+ * For someone who cannot sign in. No session, no bearer token, no Support ID in
+ * or out — just an Incident ID back. The body is the SAME strict schema as the
+ * authenticated report (category + short description + allowlisted context), so
+ * unknown or sensitive fields are rejected, not stored. It never reveals whether
+ * any account exists. Rate limiting is the shared `/api/v1` limiter applied in
+ * `createApp`, so this needs none of its own.
+ */
+export function createPublicSupportRouter(sql: Sql): Router {
+  const router = Router();
+  router.post(
+    SUPPORT_ROUTES.anonymousReport,
+    (_req, res, next) => {
+      res.setHeader('Cache-Control', 'no-store');
+      next();
+    },
+    express.json({ limit: '16kb' }),
+    async (req: Request, res: Response) => {
+      const input = supportReportInputSchema.parse(req.body);
+      const incidentId = await createAnonymousReport(sql, {
+        category: input.category,
+        description: input.description,
+        context: input.context,
+      });
+      const body: AnonymousSupportReport = { incidentId };
+      res.status(201).json(body);
+    },
+  );
   return router;
 }
 
