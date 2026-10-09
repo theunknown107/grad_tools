@@ -58,11 +58,11 @@ describeDb('results and their subjects', () => {
   });
 
   beforeEach(async () => {
-    await admin`DELETE FROM auth.users WHERE id IN (${A}::uuid, ${B}::uuid)`;
+    await admin`DELETE FROM accounts WHERE id IN (${A}, ${B})`;
     await admin`
-      INSERT INTO auth.users (id, email) VALUES
-        (${A}::uuid, 'synthetic-a@example.test'),
-        (${B}::uuid, 'synthetic-b@example.test')
+      INSERT INTO accounts (id) VALUES
+        (${A}),
+        (${B})
     `;
     profileA =
       (await withUser(cloud, sessionFor(A), (tx) => upsertProfile(tx, { schemeId: 'vtu-2022' })))
@@ -596,8 +596,7 @@ describeDb('results and their subjects', () => {
         withUser(
           cloud,
           sessionFor(A),
-          (tx) =>
-            tx`UPDATE result_subjects SET auth_user_id = ${B}::uuid WHERE id = ${subjectId}::uuid`,
+          (tx) => tx`UPDATE result_subjects SET auth_user_id = ${B} WHERE id = ${subjectId}::uuid`,
         ),
       ).rejects.toThrow(/row-level security|foreign key/i);
     });

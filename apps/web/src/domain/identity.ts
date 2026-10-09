@@ -32,7 +32,7 @@
  * The Supabase (or any provider) user row is NOT the academic profile.
  * Keeping them 1:1 but distinct is what later permits:
  *   - deleting an account without destroying academic records
- *   - changing identity provider (Google -> Apple) without re-keying data
+ *   - changing identity provider (e.g. email -> Google) without re-keying data
  *   - linking multiple providers to one profile
  *   - changing the email address
  *   - editing academic metadata independently of identity
@@ -62,7 +62,7 @@ export function asStudentProfileId(value: string): StudentProfileId {
 }
 
 /** FUTURE — identity providers the roadmap anticipates. Not implemented. */
-export type AuthProvider = 'google' | 'apple' | 'email';
+export type AuthProvider = 'google' | 'email';
 
 /**
  * FUTURE — the shape an authenticated user would take.

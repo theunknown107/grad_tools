@@ -31,8 +31,11 @@ const adapter: AuthAdapter = {
   signUpWithPassword: async () => ({ error: null, needsConfirmation: true }),
   signInWithProvider: async () => ({ error: null }),
   sendRecovery: async () => ({ error: null }),
+  updatePassword: async () => ({ error: null }),
+  completeDeepLink: async () => ({ error: null }),
   signOut: async () => {},
   onChange: () => () => {},
+  onPasswordRecovery: () => () => {},
 };
 
 afterEach(cleanup);

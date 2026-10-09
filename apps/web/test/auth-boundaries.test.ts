@@ -89,10 +89,10 @@ describe('what an account syncs', () => {
 
 describe('what the app says about a sign-in method', () => {
   /*
-   * Google and Apple exist in code and are enabled per project in the
-   * provider's dashboard. Where a build's project has not enabled one, the
-   * student must be told that — not "something went wrong", which invites them
-   * to keep pressing a button that cannot work yet (docs/25 §25.16).
+   * Google exists in code and is enabled per project in the provider's
+   * dashboard. Where a build's project has not enabled it, the student must be
+   * told that — not "something went wrong", which invites them to keep pressing
+   * a button that cannot work yet (docs/25 §25.16).
    */
   it('says a method is unavailable rather than blaming the student', async () => {
     const source = await readFile(from('src/repositories/cloud/supabase.ts'), 'utf8');

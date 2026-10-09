@@ -26,6 +26,7 @@ import { AuthProvider } from '../src/features/auth/AuthContext.js';
 import { ThemeProvider } from '../src/hooks/useTheme.js';
 import { TooltipProvider } from '../src/components/ui/tooltip.js';
 import { SignInPage } from '../src/features/auth/SignInPage.js';
+import { ResetPasswordPage } from '../src/features/auth/ResetPasswordPage.js';
 import { AccountPage } from '../src/features/auth/AccountPage.js';
 import type { AuthAdapter } from '../src/repositories/cloud/supabase.js';
 import type { Identity } from '../src/domain/auth.js';
@@ -64,6 +65,14 @@ function fakeAdapter(initial: Identity | null = null): AuthAdapter & { calls: st
       calls.push(`recover:${email}`);
       return { error: null };
     },
+    async updatePassword() {
+      calls.push('updatePassword');
+      return { error: null };
+    },
+    async completeDeepLink() {
+      calls.push('completeDeepLink');
+      return { error: null };
+    },
     async signOut() {
       calls.push('signOut');
       identity = null;
@@ -72,6 +81,11 @@ function fakeAdapter(initial: Identity | null = null): AuthAdapter & { calls: st
     onChange(listener) {
       listeners.push(listener);
       return () => listeners.splice(listeners.indexOf(listener), 1);
+    },
+    onPasswordRecovery() {
+      return () => {
+        /* No recovery events are simulated here; the reset test uses a session. */
+      };
     },
   };
 }
@@ -105,13 +119,39 @@ afterEach(() => {
 /* -------------------------------------------------------------------------- */
 
 describe('the sign-in screen', () => {
-  it('offers Google, Apple and email', async () => {
+  it('offers Google and email, and no longer Apple', async () => {
     renderAuth(<SignInPage />, fakeAdapter());
 
     expect(await screen.findByRole('button', { name: /Continue with Google/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Continue with Apple/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Continue with Apple/i })).toBeNull();
+    expect(screen.queryByText(/apple/i)).toBeNull();
     expect(screen.getByLabelText('Email')).toBeTruthy();
     expect(screen.getByLabelText('Password')).toBeTruthy();
+  });
+
+  it('calls the Google provider when its button is used', async () => {
+    const adapter = fakeAdapter();
+    renderAuth(<SignInPage />, adapter);
+
+    await userEvent.click(await screen.findByRole('button', { name: /Continue with Google/ }));
+    expect(adapter.calls).toContain('oauth:google');
+  });
+
+  it('toggles password visibility without submitting the form', async () => {
+    renderAuth(<SignInPage />, fakeAdapter());
+
+    const password = await screen.findByLabelText('Password');
+    expect(password.getAttribute('type')).toBe('password');
+
+    const show = screen.getByRole('button', { name: 'Show password' });
+    // A show/hide control must never be a submit button.
+    expect(show.getAttribute('type')).toBe('button');
+
+    await userEvent.click(show);
+    expect(password.getAttribute('type')).toBe('text');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hide password' }));
+    expect(password.getAttribute('type')).toBe('password');
   });
 
   /*
@@ -160,6 +200,99 @@ describe('the sign-in screen', () => {
     renderAuth(<SignInPage />, null);
     expect(await screen.findByText(/Accounts are not available in this build/)).toBeTruthy();
     expect(screen.queryByLabelText('Password')).toBeNull();
+  });
+});
+
+/* A code-based provider (Clerk): confirmation and recovery finish on this card. */
+describe('the sign-in screen with emailed codes', () => {
+  function codeAdapter() {
+    const base = fakeAdapter();
+    return Object.assign(base, {
+      async verifyCode(code: string) {
+        base.calls.push(`verify:${code}`);
+        return { error: null };
+      },
+      async resetWithCode(code: string) {
+        base.calls.push(`reset:${code}`);
+        return { error: null };
+      },
+    });
+  }
+
+  it('asks for the emailed code after creating an account', async () => {
+    const adapter = codeAdapter();
+    renderAuth(<SignInPage />, adapter);
+    await userEvent.click(await screen.findByRole('radio', { name: 'Create' }));
+    await userEvent.type(screen.getByLabelText('Email'), 'new@example.test');
+    await userEvent.type(screen.getByLabelText(/^Password/), 'synthetic-pw');
+    await userEvent.click(screen.getByRole('button', { name: 'Create an account' }));
+
+    const code = await screen.findByLabelText('Code from your email');
+    expect(code.getAttribute('autocomplete')).toBe('one-time-code');
+    await userEvent.type(code, '123456');
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm code' }));
+    await waitFor(() => expect(adapter.calls).toContain('verify:123456'));
+  });
+
+  it('resets with a code and a new password, without revealing the account', async () => {
+    const adapter = codeAdapter();
+    renderAuth(<SignInPage />, adapter);
+    await userEvent.click(await screen.findByRole('radio', { name: 'Recover' }));
+    await userEvent.type(screen.getByLabelText('Email'), 'nobody@example.test');
+    await userEvent.click(screen.getByRole('button', { name: 'Recover your account' }));
+
+    expect((await screen.findByText(/If that address has an account/)).textContent).not.toMatch(
+      /not found|no account/i,
+    );
+    await userEvent.type(screen.getByLabelText('Code from your email'), '654321');
+    const password = screen.getByLabelText(/^New password/);
+    expect(password.getAttribute('autocomplete')).toBe('new-password');
+    await userEvent.type(password, 'synthetic-new-pw');
+    await userEvent.click(screen.getByRole('button', { name: 'Set new password' }));
+    await waitFor(() => expect(adapter.calls).toContain('reset:654321'));
+  });
+
+  it('hides Google, with the reason, where the provider cannot work', async () => {
+    renderAuth(
+      <SignInPage />,
+      Object.assign(fakeAdapter(), {
+        providerUnavailable: 'Not available in the Android app yet.',
+      }),
+    );
+    expect(await screen.findByText('Not available in the Android app yet.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Continue with Google/ })).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Resetting a password                                                       */
+/* -------------------------------------------------------------------------- */
+
+describe('the reset-password screen', () => {
+  const recovering: Identity = { userId: 'user-a', email: 'a@example.test', provider: 'email' };
+
+  it('sets a new password from the recovery session, with a visibility toggle', async () => {
+    const adapter = fakeAdapter(recovering);
+    renderAuth(<ResetPasswordPage />, adapter, '/reset-password');
+
+    const password = await screen.findByLabelText('New password');
+    expect(password.getAttribute('type')).toBe('password');
+    await userEvent.click(screen.getByRole('button', { name: 'Show password' }));
+    expect(password.getAttribute('type')).toBe('text');
+
+    await userEvent.type(password, 'a-new-password');
+    await userEvent.click(screen.getByRole('button', { name: 'Update password' }));
+
+    await waitFor(() => {
+      expect(adapter.calls).toContain('updatePassword');
+    });
+    expect(await screen.findByText(/password has been changed/i)).toBeTruthy();
+  });
+
+  it('explains an expired link when there is no recovery session', async () => {
+    renderAuth(<ResetPasswordPage />, fakeAdapter(null), '/reset-password');
+    expect(await screen.findByText(/reset link is invalid or has already been used/i)).toBeTruthy();
+    expect(screen.queryByLabelText('New password')).toBeNull();
   });
 });
 

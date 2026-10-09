@@ -1,6 +1,10 @@
 /**
- * Sign in — email/password, Google or Apple through the configured adapter.
+ * Sign in — email/password or Google through the configured adapter.
  * Signing in uploads nothing by itself; First sync asks what to do next.
+ *
+ * With a code-based provider (Clerk) two extra steps appear on this card:
+ * `code` (confirm a new account or a new device with the emailed code) and
+ * `reset` (the emailed recovery code plus a new password).
  */
 
 import { useState, type FormEvent, type ReactNode } from 'react';
@@ -9,11 +13,12 @@ import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
 import { Callout } from '../../components/ui/feedback.js';
-import { Field, Input } from '../../components/ui/field.js';
+import { Field, Input, PasswordInput } from '../../components/ui/field.js';
 import { Segmented } from '../../components/ui/segmented.js';
 import { useAuth } from './AuthContext.js';
 
 type Mode = 'sign_in' | 'create' | 'recover';
+type Step = 'form' | 'code' | 'reset';
 const HEADING: Record<Mode, string> = {
   sign_in: 'Sign in',
   create: 'Create an account',
@@ -48,6 +53,8 @@ export function SignInPage() {
   const [mode, setMode] = useState<Mode>('sign_in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [step, setStep] = useState<Step>('form');
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -77,26 +84,41 @@ export function SignInPage() {
     setError(null);
     setNotice(null);
     try {
-      if (mode === 'recover') {
+      if (step === 'code') {
+        setError((await adapter.verifyCode!(code.trim())).error);
+      } else if (step === 'reset') {
+        setError((await adapter.resetWithCode!(code.trim(), password)).error);
+      } else if (mode === 'recover') {
         const { error: failure } = await adapter.sendRecovery(email);
         setError(failure);
-        if (failure === null)
+        if (failure === null && adapter.resetWithCode !== undefined) {
+          setPassword('');
+          setStep('reset');
+          setNotice('If that address has an account, a reset code is on its way.');
+        } else if (failure === null)
           setNotice('If that address has an account, a recovery link is on its way.');
       } else if (mode === 'create') {
         const result = await adapter.signUpWithPassword(email, password);
         setError(result.error);
-        if (result.error === null && result.needsConfirmation)
+        if (result.error === null && result.needsConfirmation && adapter.verifyCode !== undefined) {
+          setStep('code');
+          setNotice(`We emailed a code to ${email}. Enter it to confirm your address.`);
+        } else if (result.error === null && result.needsConfirmation)
           setNotice('Check your email to confirm your address, then sign in.');
       } else {
-        const { error: failure } = await adapter.signInWithPassword(email, password);
-        setError(failure);
+        const result = await adapter.signInWithPassword(email, password);
+        setError(result.error);
+        if (result.error === null && result.needsCode === true) {
+          setStep('code');
+          setNotice(`This looks like a new device. We emailed a code to ${email}.`);
+        }
       }
     } finally {
       setBusy(false);
     }
   };
 
-  const withProvider = async (provider: 'google' | 'apple'): Promise<void> => {
+  const withProvider = async (provider: 'google'): Promise<void> => {
     setBusy(true);
     setError(null);
     const { error: failure } = await adapter.signInWithProvider(provider);
@@ -114,6 +136,8 @@ export function SignInPage() {
         value={mode}
         onChange={(next) => {
           setMode(next);
+          setStep('form');
+          setCode('');
           setError(null);
           setNotice(null);
         }}
@@ -129,36 +153,58 @@ export function SignInPage() {
         its own. Afterwards you choose what happens to the records already on this device, and you
         can keep them here.
       </p>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        <Button disabled={busy} onClick={() => void withProvider('google')}>
-          Continue with Google
-        </Button>
-        <Button disabled={busy} onClick={() => void withProvider('apple')}>
-          Continue with Apple
-        </Button>
-      </div>
-      <div className="my-5 flex items-center gap-3 text-[12px] text-ink-3" aria-hidden="true">
-        <span className="h-px flex-1 bg-line" /> or use an email address{' '}
-        <span className="h-px flex-1 bg-line" />
-      </div>
+      {step === 'form' && adapter.providerUnavailable === undefined && (
+        <>
+          <div className="mt-4">
+            <Button disabled={busy} className="w-full" onClick={() => void withProvider('google')}>
+              Continue with Google
+            </Button>
+          </div>
+          <div className="my-5 flex items-center gap-3 text-[12px] text-ink-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-line" /> or use an email address{' '}
+            <span className="h-px flex-1 bg-line" />
+          </div>
+        </>
+      )}
+      {step === 'form' && adapter.providerUnavailable !== undefined && (
+        <p className="mt-4 mb-5 text-[12px] text-ink-3">{adapter.providerUnavailable}</p>
+      )}
       <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">
-        <Field label="Email">
-          <Input
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </Field>
-        {mode !== 'recover' && (
-          <Field
-            label="Password"
-            {...(mode === 'create' ? { hint: 'At least eight characters.' } : {})}
-          >
+        {step !== 'form' && (
+          <Field label="Code from your email">
             <Input
-              type="password"
-              autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              pattern="[0-9]{6}"
+              maxLength={6}
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+            />
+          </Field>
+        )}
+        {step === 'form' && (
+          <Field label="Email">
+            <Input
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </Field>
+        )}
+        {((step === 'form' && mode !== 'recover') || step === 'reset') && (
+          <Field
+            label={step === 'reset' ? 'New password' : 'Password'}
+            {...(mode === 'create' || step === 'reset'
+              ? { hint: 'At least eight characters.' }
+              : {})}
+          >
+            <PasswordInput
+              autoComplete={
+                mode === 'create' || step === 'reset' ? 'new-password' : 'current-password'
+              }
               required
               minLength={8}
               value={password}
@@ -173,8 +219,28 @@ export function SignInPage() {
         )}
         {notice !== null && <Callout role="status">{notice}</Callout>}
         <Button type="submit" variant="primary" loading={busy} className="w-full">
-          {busy ? 'Working…' : HEADING[mode]}
+          {busy
+            ? 'Working…'
+            : step === 'code'
+              ? 'Confirm code'
+              : step === 'reset'
+                ? 'Set new password'
+                : HEADING[mode]}
         </Button>
+        {step !== 'form' && (
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => {
+              setStep('form');
+              setCode('');
+              setError(null);
+              setNotice(null);
+            }}
+          >
+            Start again
+          </Button>
+        )}
       </form>
       <p className="mt-5 text-[12px] text-ink-3">
         Prefer to stay local?{' '}

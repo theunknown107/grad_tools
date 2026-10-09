@@ -310,7 +310,7 @@ export async function materialize(
               id, auth_user_id, source_family, external_id, content_hash,
               category, importance, title, source_url, published_at, reason, run_id
             ) VALUES (
-              ${id}::uuid, ${recipient.userId}::uuid, ${item.family}, ${item.externalId},
+              ${id}::uuid, ${recipient.userId}, ${item.family}, ${item.externalId},
               ${item.contentHash}, ${item.category}, ${item.importance},
               ${item.title}, ${item.url}, ${item.publishedAt},
               ${verdict.reason}, ${runId}

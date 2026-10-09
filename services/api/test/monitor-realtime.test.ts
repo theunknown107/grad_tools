@@ -233,15 +233,15 @@ describeDb('the doorbell', () => {
      * owns the enrolments it depends on: synthetic students only, never real ones.
      */
     await admin`
-      DELETE FROM auth.users
-       WHERE id IN (${A}::uuid, ${B}::uuid)
-          OR email LIKE 'synthetic-fanout-%@example.test'
-          OR email LIKE 'synthetic-rt-%@example.test'
+      DELETE FROM accounts
+       WHERE id IN (${A}, ${B})
+          OR id LIKE 'aaaaaaaa-2222-%' OR id LIKE 'bbbbbbbb-2222-%'
+          OR id LIKE 'cccccccc-2222-%' OR id LIKE 'dddddddd-2222-%'
     `;
     await admin`
-      INSERT INTO auth.users (id, email) VALUES
-        (${A}::uuid, 'synthetic-rt-a@example.test'),
-        (${B}::uuid, 'synthetic-rt-b@example.test')
+      INSERT INTO accounts (id) VALUES
+        (${A}),
+        (${B})
     `;
     run = 0;
   });

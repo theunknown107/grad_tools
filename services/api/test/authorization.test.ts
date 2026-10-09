@@ -128,11 +128,11 @@ describeDb('the authorization matrix', () => {
   });
 
   beforeEach(async () => {
-    await admin`DELETE FROM auth.users WHERE id IN (${A}::uuid, ${B}::uuid)`;
+    await admin`DELETE FROM accounts WHERE id IN (${A}, ${B})`;
     await admin`
-      INSERT INTO auth.users (id, email) VALUES
-        (${A}::uuid, 'synthetic-a@example.test'),
-        (${B}::uuid, 'synthetic-b@example.test')
+      INSERT INTO accounts (id) VALUES
+        (${A}),
+        (${B})
     `;
 
     for (const [user, key] of [
@@ -519,7 +519,7 @@ describeDb('the authorization matrix', () => {
           cloud,
           sessionFor(A),
           (tx) =>
-            tx`UPDATE semester_records SET auth_user_id = ${B}::uuid WHERE id = ${ids.aSemester}::uuid`,
+            tx`UPDATE semester_records SET auth_user_id = ${B} WHERE id = ${ids.aSemester}::uuid`,
         ),
       ).rejects.toThrow(/row-level security/);
     });

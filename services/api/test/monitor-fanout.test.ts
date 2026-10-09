@@ -123,18 +123,18 @@ describeDb('server-side notification fanout', () => {
 
   afterAll(async () => {
     // Leave no enrolled synthetic student for a later file's fanout to notify.
-    await admin`DELETE FROM auth.users WHERE email LIKE 'synthetic-fanout-%@example.test'`;
+    await admin`DELETE FROM accounts WHERE id IN (${A}, ${B}) OR id LIKE 'cccccccc-2222-%' OR id LIKE 'dddddddd-2222-%'`;
     await Promise.all([sql.end(), cloud.end(), admin.end(), monitor.end()]);
   });
 
   beforeEach(async () => {
     await sql`DELETE FROM source_items`;
     await sql`DELETE FROM monitor_runs`;
-    await admin`DELETE FROM auth.users WHERE email LIKE 'synthetic-fanout-%'`;
+    await admin`DELETE FROM accounts WHERE id IN (${A}, ${B}) OR id LIKE 'cccccccc-2222-%' OR id LIKE 'dddddddd-2222-%'`;
     await admin`
-      INSERT INTO auth.users (id, email) VALUES
-        (${A}::uuid, 'synthetic-fanout-a@example.test'),
-        (${B}::uuid, 'synthetic-fanout-b@example.test')
+      INSERT INTO accounts (id) VALUES
+        (${A}),
+        (${B})
     `;
     run = 0;
   });
@@ -383,8 +383,8 @@ describeDb('server-side notification fanout', () => {
         const id = `cccccccc-2222-4000-8000-0000000${String(index).padStart(5, '0')}`;
         users.push(id);
         await admin`
-          INSERT INTO auth.users (id, email)
-          VALUES (${id}::uuid, ${`synthetic-fanout-${String(index)}@example.test`})
+          INSERT INTO accounts (id)
+          VALUES (${id})
         `;
         await enrol(id, { schemeId: '2022', programme: 'B.E.', currentSemester: 5 });
       }
@@ -408,7 +408,7 @@ describeDb('server-side notification fanout', () => {
         expect(timetables, `user ${id}`).toHaveLength(1);
       }
 
-      await admin`DELETE FROM auth.users WHERE id = ANY(${admin.array(users)}::uuid[])`;
+      await admin`DELETE FROM accounts WHERE id = ANY(${admin.array(users)})`;
     });
 
     /* §113, §59. A genuine revision is news; a rerun of it is not. */
@@ -681,8 +681,8 @@ describeDb('server-side notification fanout', () => {
         const id = `dddddddd-2222-4000-8000-0000000${String(index).padStart(5, '0')}`;
         users.push(id);
         await admin`
-          INSERT INTO auth.users (id, email)
-          VALUES (${id}::uuid, ${`synthetic-fanout-page-${String(index)}@example.test`})
+          INSERT INTO accounts (id)
+          VALUES (${id})
         `;
         await enrol(id, { schemeId: '2022', programme: 'B.E.', currentSemester: 5 });
       }
@@ -702,7 +702,7 @@ describeDb('server-side notification fanout', () => {
       for (const id of users) expect(seen).toContain(id);
       expect(new Set(seen).size).toBe(seen.length);
 
-      await admin`DELETE FROM auth.users WHERE id = ANY(${admin.array(users)}::uuid[])`;
+      await admin`DELETE FROM accounts WHERE id = ANY(${admin.array(users)})`;
     });
   });
 

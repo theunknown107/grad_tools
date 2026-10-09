@@ -30,7 +30,7 @@
 export interface Identity {
   readonly userId: string;
   readonly email: string | null;
-  /** `google` | `apple` | `email`. Shown in settings, never trusted. */
+  /** `google` | `email`. Shown in settings, never trusted. */
   readonly provider: string | null;
 }
 

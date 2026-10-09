@@ -9,7 +9,7 @@
  */
 
 import cors from 'cors';
-import express, { type Express } from 'express';
+import express, { type Express, type RequestHandler } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { randomUUID } from 'node:crypto';
@@ -22,12 +22,25 @@ import { createDocumentRouter } from '../routes/documents.js';
 import { type DocumentReader } from '../documents/gemini.js';
 import { createOpenRouterReader } from '../documents/openrouter.js';
 import { createProviderRouter, type Provider } from '../documents/router.js';
-import { assertCloudRoleIsSafe, createAccountDeleter, createCloudClient } from '../db/cloud.js';
+import {
+  assertCloudRoleIsSafe,
+  createAccountDeleter,
+  createCloudClient,
+  createSupabaseIdentityDeleter,
+} from '../db/cloud.js';
 import { startListening } from '../monitor/realtime.js';
-import { authConfigFor, createVerifier } from '../auth/session.js';
+import { authConfigFor, createVerifier, type SessionSource } from '../auth/session.js';
+import {
+  clerkAuthenticator,
+  createClerkIdentityDeleter,
+  createClerkMiddleware,
+} from '../auth/clerk.js';
 import { createAnnouncementRouter } from '../routes/announcements.js';
 import { createReferenceRouter } from '../routes/reference.js';
-import { errorHandler, notFoundHandler } from './errors.js';
+import { createSupportRouter, createOperatorSupportRouter } from '../routes/support.js';
+import { newIncidentId } from '../support/id.js';
+import { recordEventSafe } from '../support/store.js';
+import { createErrorHandler, notFoundHandler, type IncidentRecorder } from './errors.js';
 
 /**
  * The URL as it may be written to a log.
@@ -92,7 +105,10 @@ export function createApp(
    */
   cloud?: {
     readonly sql: Sql;
-    readonly verify: ReturnType<typeof createVerifier>;
+    /** The ONE authority this deployment trusts: Clerk (request) or legacy Supabase (token). */
+    readonly verify: SessionSource;
+    /** Runs before the student routes — `clerkMiddleware()` under Clerk. */
+    readonly middleware?: RequestHandler;
     readonly deleteAccount?: (userId: string) => Promise<boolean>;
     /** A stand-in for the Gemini reader, for tests. The route still needs GEMINI_API_KEY. */
     readonly documentReader?: DocumentReader;
@@ -263,27 +279,68 @@ export function createApp(
    * nothing else — there is no half-configured state in which `/api/v1/me`
    * exists but cannot authorize anybody (docs/25 §25.15).
    */
-  const student =
+  /*
+   * ONE AUTHORITY PER DEPLOYMENT (CLERK-AUTH-MIGRATION-V1).
+   *
+   * With Clerk configured, Clerk is the only authority: `clerkMiddleware()`
+   * verifies requests and Supabase-issued tokens are not accepted at all.
+   * Without it, the legacy Supabase verifier stays in force (rollback path).
+   * Never both — there is no state in which either provider's token works.
+   * The database (Supabase 0012) is keyed by the text subject either way.
+   */
+  const clerkKeys =
+    config.CLERK_SECRET_KEY !== undefined && config.CLERK_PUBLISHABLE_KEY !== undefined
+      ? { secretKey: config.CLERK_SECRET_KEY, publishableKey: config.CLERK_PUBLISHABLE_KEY }
+      : undefined;
+  const cloudDbUrl = config.SUPABASE_DB_URL;
+  const student: typeof cloud =
     cloud ??
-    (config.SUPABASE_URL !== undefined && config.SUPABASE_DB_URL !== undefined
-      ? {
-          sql: createCloudClient({ url: config.SUPABASE_DB_URL }),
-          verify: createVerifier(authConfigFor(config.SUPABASE_URL)),
-          /*
-           * Account deletion needs to reach `auth.users`, which the student
-           * connection cannot write. Where no admin connection is configured
-           * the route reports itself unavailable rather than half working
-           * (docs/25 §25.15).
-           */
-          ...(config.SUPABASE_ADMIN_DB_URL === undefined
-            ? {}
-            : {
-                deleteAccount: createAccountDeleter(
-                  createCloudClient({ url: config.SUPABASE_ADMIN_DB_URL, max: 2 }),
-                ),
+    (cloudDbUrl === undefined
+      ? undefined
+      : clerkKeys !== undefined
+        ? (() => {
+            const cloudSql = createCloudClient({ url: cloudDbUrl });
+            return {
+              sql: cloudSql,
+              verify: clerkAuthenticator,
+              middleware: createClerkMiddleware({
+                ...clerkKeys,
+                authorizedParties: (config.CLERK_AUTHORIZED_PARTIES ?? '')
+                  .split(',')
+                  .map((origin) => origin.trim())
+                  .filter((origin) => origin !== ''),
               }),
-        }
-      : undefined);
+              /* Data under RLS as the student, then the Clerk user via Clerk's backend. */
+              deleteAccount: createAccountDeleter(
+                cloudSql,
+                createClerkIdentityDeleter(clerkKeys.secretKey),
+              ),
+            };
+          })()
+        : config.SUPABASE_URL !== undefined
+          ? (() => {
+              const cloudSql = createCloudClient({ url: cloudDbUrl });
+              return {
+                sql: cloudSql,
+                verify: createVerifier(authConfigFor(config.SUPABASE_URL)),
+                /*
+                 * LEGACY: the `auth.users` login can only be removed over an
+                 * admin connection. Without one, deletion reports itself
+                 * unavailable rather than deleting data and leaving the login.
+                 */
+                ...(config.SUPABASE_ADMIN_DB_URL === undefined
+                  ? {}
+                  : {
+                      deleteAccount: createAccountDeleter(
+                        cloudSql,
+                        createSupabaseIdentityDeleter(
+                          createCloudClient({ url: config.SUPABASE_ADMIN_DB_URL, max: 2 }),
+                        ),
+                      ),
+                    }),
+              };
+            })()
+          : undefined);
 
   /*
    * The runtime cloud connection, exposed for the startup safety check
@@ -294,6 +351,9 @@ export function createApp(
   app.locals.cloudSql = student?.sql;
 
   if (student !== undefined) {
+    /* Clerk verifies the request here, before any signed-in route reads `getAuth(req)`. */
+    if (student.middleware !== undefined) app.use(student.middleware);
+
     /*
      * AI document reading: signed-in only, and only where an AI key is
      * configured — OpenRouter (free models only, §13.30) before Gemini. With
@@ -328,6 +388,13 @@ export function createApp(
     );
 
     /*
+     * Problem reports (OBSERVABILITY-AND-SUPPORT-V1). Authenticated, self-only,
+     * and stored in the reference database (`sql`) rather than the student
+     * cloud — operational data an operator must read across users.
+     */
+    app.use(createSupportRouter({ sql, verify: student.verify }));
+
+    /*
      * ONE `LISTEN` FOR THE PROCESS (Phase 7B.5 §16, §29).
      *
      * The monitoring worker is a different process, so its notifications reach
@@ -347,8 +414,65 @@ export function createApp(
 
   app.use(createReferenceRouter(sql));
 
+  /*
+   * Operator observability API (OBSERVABILITY-AND-SUPPORT-V1). Mounted only
+   * when an operator token is configured, behind the same bearer gate as the
+   * announcement operator writes; otherwise its routes 404 like any other.
+   */
+  if (config.OPERATOR_TOKEN !== undefined) {
+    app.use(createOperatorSupportRouter(sql, config.OPERATOR_TOKEN));
+  }
+
   app.use(notFoundHandler);
-  app.use(errorHandler);
+
+  /*
+   * The error handler records a support incident for a 5xx (echoing its
+   * Incident ID to the client) and a security signal for a tripped rate limit.
+   * Both are fire-and-forget against the reference database: a telemetry
+   * failure never changes the response, and the id is generated synchronously
+   * so the student always has one to quote.
+   */
+  const recorder: IncidentRecorder = {
+    recordFault(ctx) {
+      const incidentId = newIncidentId();
+      void recordEventSafe(
+        sql,
+        {
+          eventType: 'API_5XX',
+          severity: 'error',
+          incidentId,
+          subject: ctx.subject,
+          requestId: ctx.requestId,
+          route: ctx.route,
+          httpStatus: ctx.httpStatus,
+          errorCode: 'INTERNAL_ERROR',
+          platform: ctx.platform,
+          appVersion: ctx.appVersion,
+          metadata: { reference: ctx.reference },
+        },
+        logger,
+      );
+      return incidentId;
+    },
+    recordSecurity(ctx) {
+      void recordEventSafe(
+        sql,
+        {
+          eventType: 'RATE_LIMIT_TRIGGERED',
+          severity: 'security',
+          subject: ctx.subject,
+          requestId: ctx.requestId,
+          route: ctx.route,
+          httpStatus: ctx.httpStatus,
+          errorCode: 'RATE_LIMITED',
+          platform: ctx.platform,
+          appVersion: ctx.appVersion,
+        },
+        logger,
+      );
+    },
+  };
+  app.use(createErrorHandler(recorder));
 
   return app;
 }

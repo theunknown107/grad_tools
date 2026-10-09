@@ -22,9 +22,8 @@
  * it, so nobody without the token can put a name on a publication.
  */
 
-import { Router, type NextFunction, type Request, type Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import express from 'express';
-import { createHash, timingSafeEqual } from 'node:crypto';
 import {
   SOURCE_ROUTES,
   announcementCategorySchema,
@@ -35,35 +34,12 @@ import type { Sql } from '../db/client.js';
 import * as queries from '../db/queries.js';
 import { normalizeAnnouncement } from '../announcements/normalize.js';
 import { publishAnnouncement, upsertAnnouncement } from '../announcements/store.js';
+import { requireOperator } from '../auth/operator.js';
 import { ApiError, notFound } from '../http/errors.js';
 
 /** A page a phone can render and a server can produce without straining. */
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
-
-/** Hashing both sides first gives equal-length buffers, so the comparison is constant-time. */
-function digest(value: string): Buffer {
-  return createHash('sha256').update(value).digest();
-}
-
-/**
- * Admits a request only if it carries the operator token.
- *
- * One answer for every failure — missing header, wrong scheme, wrong token —
- * so the endpoint cannot be used to tell a near guess from a far one.
- */
-function requireOperator(token: string) {
-  const expected = digest(token);
-  return (req: Request, _res: Response, next: NextFunction): void => {
-    const header = req.headers.authorization ?? '';
-    const presented = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
-    if (presented === '' || !timingSafeEqual(digest(presented), expected)) {
-      next(new ApiError('UNAUTHENTICATED', 'Operator authorization is required.'));
-      return;
-    }
-    next();
-  };
-}
 
 export function createAnnouncementRouter(
   sql: Sql,

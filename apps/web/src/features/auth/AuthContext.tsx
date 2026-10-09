@@ -109,6 +109,39 @@ export function AuthProvider({
     return adapter.onChange(settle);
   }, [adapter, refresh, settle]);
 
+  /*
+   * NATIVE AUTH CALLBACK (Android app only).
+   *
+   * In the Capacitor WebView a provider/email link cannot return to the page's
+   * `https://localhost` origin, so those flows redirect to the custom-scheme
+   * deep link `gradtools://auth/callback`, which an intent-filter routes here.
+   * `@capacitor/app` is imported lazily and only on native, so the web bundle
+   * and web behaviour are untouched. Handles both cold start (getLaunchUrl) and
+   * an already-running app (appUrlOpen); exchanges the code, then refreshes.
+   */
+  useEffect(() => {
+    const cap = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+    if (adapter === null || typeof cap?.isNativePlatform !== 'function' || !cap.isNativePlatform())
+      return;
+    let remove: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      const { App } = await import('@capacitor/app');
+      const complete = (url: string): void => {
+        void adapter.completeDeepLink(url).then(() => refresh());
+      };
+      const launch = await App.getLaunchUrl();
+      if (!cancelled && launch?.url !== undefined) complete(launch.url);
+      const sub = await App.addListener('appUrlOpen', (event) => complete(event.url));
+      if (cancelled) void sub.remove();
+      else remove = () => void sub.remove();
+    })();
+    return () => {
+      cancelled = true;
+      remove?.();
+    };
+  }, [adapter, refresh]);
+
   const signOut = useCallback(async () => {
     if (adapter !== null) await adapter.signOut();
     /*

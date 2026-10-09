@@ -107,6 +107,7 @@ export async function withUser<T>(
   sql: Sql,
   session: Session,
   work: (tx: Sql) => Promise<T>,
+  { provision = true }: { readonly provision?: boolean } = {},
 ): Promise<T> {
   return sql.begin(async (tx) => {
     const claims = JSON.stringify({
@@ -120,36 +121,61 @@ export async function withUser<T>(
     await tx`SELECT set_config('role', 'authenticated', true)`;
     await tx`SELECT set_config('request.jwt.claims', ${claims}, true)`;
 
+    /*
+     * THE ACCOUNT EXISTS BEFORE ANYTHING IS WRITTEN UNDER IT (Supabase 0012).
+     *
+     * Every student table references `accounts`, so a first sign-in creates
+     * the row here. Its id is the column DEFAULT — the verified `sub` set just
+     * above — so no value from the request reaches this statement, and the
+     * policy would refuse any other id anyway.
+     */
+    if (provision) {
+      await tx`INSERT INTO accounts DEFAULT VALUES ON CONFLICT (id) DO NOTHING`;
+    }
+
     return work(tx as unknown as Sql);
   }) as Promise<T>;
 }
 
 /**
- * Deletes an account and everything in it.
+ * Deletes an account and everything in it — WITHOUT elevated rights.
  *
- * THE ONE OPERATION THIS API PERFORMS WITH ELEVATED RIGHTS, and it is
- * deliberately narrow:
+ *   1. As the student, under RLS, their own `accounts` row is deleted. The
+ *      policy reaches nothing else, and every student table cascades from that
+ *      row by foreign key, so there is no list of tables here to fall out of
+ *      date (M9 §34). The id is the VERIFIED session subject — the route passes
+ *      `sessionOf(req).userId`, never anything a client sent.
+ *   2. Then the identity itself is removed at the provider (`deleteIdentity`:
+ *      Clerk's backend API, or `auth.users` for a legacy Supabase deployment).
+ *      Data first: a failure here leaves a login with nothing behind it, which
+ *      a retry cleans up — the reverse order could orphan data nobody can reach.
  *
- *   - it removes exactly one `auth.users` row, named by the id in a VERIFIED
- *     session — never by anything a client sent;
- *   - every student table cascades from that row by foreign key, so there is no
- *     list of tables here to fall out of date (M9 §34);
- *   - it is a single named function rather than a general escape hatch, so
- *     there is no privileged query helper for anything else to reach for.
- *
- * `auth.users` lives in a schema the `authenticated` role cannot write, which
- * is why this needs its own connection. If a lower-privilege route becomes
- * available — Supabase's admin API behind a per-user token, say — it should
- * REPLACE this rather than sit beside it (M9 §44).
- *
- * Returns false when no row matched, so a caller can tell "deleted" from
- * "there was nothing to delete" without a second query.
+ * Idempotent: a retry after a provider failure deletes no rows (already gone)
+ * and retries the identity. Returns whether any data existed.
  */
-export function createAccountDeleter(adminSql: Sql): (userId: string) => Promise<boolean> {
+export function createAccountDeleter(
+  cloudSql: Sql,
+  deleteIdentity?: (userId: string) => Promise<void>,
+): (userId: string) => Promise<boolean> {
   return async function deleteAccount(userId: string): Promise<boolean> {
-    const rows = await adminSql`
-      DELETE FROM auth.users WHERE id = ${userId}::uuid RETURNING id
-    `;
+    const rows = await withUser(
+      cloudSql,
+      { userId, token: '', claims: { sub: userId } },
+      (tx) => tx`DELETE FROM accounts WHERE id = (SELECT auth.jwt() ->> 'sub') RETURNING id`,
+      { provision: false },
+    );
+    if (deleteIdentity !== undefined) await deleteIdentity(userId);
     return rows.length > 0;
+  };
+}
+
+/**
+ * The legacy Supabase identity deleter: removes the `auth.users` login over a
+ * privileged connection. Only for a deployment still on Supabase Auth; a Clerk
+ * deployment deletes the user through Clerk's backend instead (auth/clerk.ts).
+ */
+export function createSupabaseIdentityDeleter(adminSql: Sql): (userId: string) => Promise<void> {
+  return async function deleteIdentity(userId: string): Promise<void> {
+    await adminSql`DELETE FROM auth.users WHERE id::text = ${userId}`;
   };
 }

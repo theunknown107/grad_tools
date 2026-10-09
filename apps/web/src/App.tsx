@@ -12,6 +12,7 @@ import { Route, Routes } from 'react-router-dom';
 import { AppShell, Disclaimer } from './components/layout/AppShell.js';
 import { PageSkeleton } from './components/ui/skeleton.js';
 import { DashboardPage } from './features/dashboard/DashboardPage.js';
+import { clerkPublishableKey } from './repositories/cloud/clerk.js';
 
 /*
  * Every destination but the dashboard is its own chunk: the landing route
@@ -37,6 +38,11 @@ const AttendancePage = page(
 const AccountPage = page(() => import('./features/auth/AccountPage.js'), 'AccountPage');
 const FirstSyncPage = page(() => import('./features/auth/FirstSyncPage.js'), 'FirstSyncPage');
 const SignInPage = page(() => import('./features/auth/SignInPage.js'), 'SignInPage');
+const ResetPasswordPage = page(
+  () => import('./features/auth/ResetPasswordPage.js'),
+  'ResetPasswordPage',
+);
+const SsoCallbackPage = page(() => import('./features/auth/ClerkAuth.js'), 'SsoCallbackPage');
 const ExamsPage = page(() => import('./features/exams/ExamsPage.js'), 'ExamsPage');
 const ImportPage = page(() => import('./features/import/ImportPage.js'), 'ImportPage');
 const LandingPage = page(() => import('./features/landing/LandingPage.js'), 'LandingPage');
@@ -99,6 +105,10 @@ function ShellRoutes() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/setup" element={<SetupPage />} />
           <Route path="/sign-in" element={<SignInPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          {clerkPublishableKey() !== null && (
+            <Route path="/sso-callback" element={<SsoCallbackPage />} />
+          )}
           <Route path="/account" element={<AccountPage />} />
           <Route path="/first-sync" element={<FirstSyncPage />} />
           <Route path="*" element={<NotFoundPage />} />

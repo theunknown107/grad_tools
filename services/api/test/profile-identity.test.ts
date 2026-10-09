@@ -105,13 +105,13 @@ describeDb('PUT /me/profile with the academic identity', () => {
   });
 
   afterAll(async () => {
-    await admin`DELETE FROM auth.users WHERE id = ${A}::uuid`;
+    await admin`DELETE FROM accounts WHERE id = ${A}`;
     await Promise.all([cloud.end(), admin.end(), sql.end()]);
   });
 
   beforeEach(async () => {
-    await admin`DELETE FROM auth.users WHERE id = ${A}::uuid`;
-    await admin`INSERT INTO auth.users (id, email) VALUES (${A}::uuid, 'synthetic-a1@example.test')`;
+    await admin`DELETE FROM accounts WHERE id = ${A}`;
+    await admin`INSERT INTO accounts (id) VALUES (${A})`;
   });
 
   it('creates and returns the stated fields, then updates them', async () => {
@@ -200,7 +200,7 @@ describeDb('PUT /me/profile with the academic identity', () => {
     expect(updated.status).toBe(200);
 
     const rows = await admin<{ count: string }[]>`
-      SELECT count(*)::text AS count FROM semester_results WHERE auth_user_id = ${A}::uuid
+      SELECT count(*)::text AS count FROM semester_results WHERE auth_user_id = ${A}
     `;
     expect(rows[0]?.count).toBe('1');
   });

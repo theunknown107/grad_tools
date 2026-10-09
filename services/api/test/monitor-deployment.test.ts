@@ -85,8 +85,8 @@ describeDb('deployment readiness', () => {
     clearListeners();
     await sql`DELETE FROM source_items`;
     await sql`DELETE FROM monitor_runs`;
-    await admin`DELETE FROM auth.users WHERE id = ${A}::uuid`;
-    await admin`INSERT INTO auth.users (id, email) VALUES (${A}::uuid, 'synthetic-deploy@example.test')`;
+    await admin`DELETE FROM accounts WHERE id = ${A}`;
+    await admin`INSERT INTO accounts (id) VALUES (${A})`;
     run = 0;
   });
 
