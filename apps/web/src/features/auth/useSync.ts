@@ -26,7 +26,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { STUDENT_ROUTES, type CloudProfile, type ProfileInput } from '@gradtools/shared-types';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
-import { apiBaseUrl } from '../../repositories/reference.js';
+import { authorizedFetch } from '../../lib/api.js';
 import { useRepositories } from '../../repositories/context.js';
 import { useAuth } from './AuthContext.js';
 import { IDLE_SYNC, type SyncState } from '../../domain/auth.js';
@@ -375,19 +375,8 @@ export function useSync(): SyncApi {
   }, [scope]);
 
   const authorized = useCallback(
-    async (path: string, init?: RequestInit): Promise<Response | null> => {
-      if (adapter === null) return null;
-      const token = await adapter.accessToken();
-      if (token === null) return null;
-      return fetch(`${apiBaseUrl()}${path}`, {
-        ...init,
-        headers: {
-          ...(init?.headers ?? {}),
-          Authorization: `Bearer ${token}`,
-          ...(init?.body === undefined ? {} : { 'Content-Type': 'application/json' }),
-        },
-      });
-    },
+    (path: string, init?: RequestInit): Promise<Response | null> =>
+      authorizedFetch(adapter, path, init),
     [adapter],
   );
 

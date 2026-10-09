@@ -124,12 +124,39 @@ const configSchema = z.object({
   SUPABASE_DB_URL: z.string().min(1).optional(),
 
   /**
-   * A privileged connection used for ONE operation: deleting an account, which
-   * has to remove a row from `auth.users`. **SECRET.** Optional, and where it
-   * is absent account deletion reports itself unavailable rather than half
-   * working (M9 §34, §44).
+   * LEGACY (Supabase Auth only): a privileged connection used to remove the
+   * `auth.users` login when an account is deleted. **SECRET.** Account DATA is
+   * deleted without elevated rights since Supabase 0012; under Clerk this is
+   * not used at all.
    */
   SUPABASE_ADMIN_DB_URL: z.string().min(1).optional(),
+
+  /* -- Clerk: the authentication authority (CLERK-AUTH-MIGRATION-V1) ------- */
+
+  /**
+   * Clerk's secret key. **SECRET, SERVER ONLY** — never a `VITE_` variable,
+   * never in the web or Android bundle. Its presence (with the publishable key)
+   * makes Clerk the ONLY authority this API trusts: Supabase-issued sessions
+   * are then not accepted at all, so there is no half-migrated state in which
+   * either provider's token works.
+   */
+  CLERK_SECRET_KEY: z
+    .string()
+    .regex(/^sk_(test|live)_/, 'CLERK_SECRET_KEY must be a Clerk secret key (sk_...)')
+    .optional(),
+
+  /** Clerk's publishable key (`pk_...`). PUBLIC — the same value the web app uses. */
+  CLERK_PUBLISHABLE_KEY: z
+    .string()
+    .regex(/^pk_(test|live)_/, 'CLERK_PUBLISHABLE_KEY must be a Clerk publishable key (pk_...)')
+    .optional(),
+
+  /**
+   * Comma-separated web origins whose Clerk session tokens are accepted (the
+   * token's `azp`), e.g. `https://grad-tools.vercel.app,http://localhost:5173`.
+   * PUBLIC. Recommended in production.
+   */
+  CLERK_AUTHORIZED_PARTIES: z.string().optional(),
 
   /**
    * Master switch for all external source polling. Defaults off in every
@@ -164,6 +191,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
 
   const { WEB_ORIGIN, ...rest } = parsed.data;
+
+  // Half a Clerk configuration must not silently fall back to another authority.
+  if ((rest.CLERK_SECRET_KEY === undefined) !== (rest.CLERK_PUBLISHABLE_KEY === undefined)) {
+    throw new Error(
+      'Invalid environment configuration:\n  CLERK_SECRET_KEY and CLERK_PUBLISHABLE_KEY must be set together.',
+    );
+  }
 
   return {
     ...rest,

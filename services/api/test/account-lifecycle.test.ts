@@ -9,7 +9,7 @@
  *
  * A student signs in, signs out, and signs in again — possibly months later,
  * possibly from another device, possibly with a different email shown on the
- * screen because Apple's private relay rotates it. None of that may produce a
+ * screen because a provider-issued private relay rotates it. None of that may produce a
  * second profile or a second copy of their academic records.
  *
  * The only thing that decides whose records these are is `auth_user_id`. Not
@@ -46,16 +46,17 @@ describeDb('an account across sign-ins', () => {
   let cloud: Sql;
   let admin: Sql;
   /*
-   * Deletion removes the `auth.users` row and lets the foreign keys cascade,
-   * which needs a schema the `authenticated` role cannot write — the same
-   * privileged path the route uses, not a test shortcut (db/cloud.ts).
+   * Deletion removes the student's own `accounts` row AS THE STUDENT, under
+   * RLS, over the ordinary `authenticator` connection, and lets the foreign
+   * keys cascade — the same path the route uses, with no elevated rights
+   * (db/cloud.ts, Supabase 0012).
    */
   let deleteAccount: (userId: string) => Promise<boolean>;
 
   beforeAll(async () => {
     admin = postgres(CLOUD_ADMIN_URL as string, { max: 2 }) as unknown as Sql;
     cloud = postgres(CLOUD_URL as string, { max: 5, prepare: false }) as unknown as Sql;
-    deleteAccount = createAccountDeleter(admin);
+    deleteAccount = createAccountDeleter(cloud);
   }, 60_000);
 
   afterAll(async () => {
@@ -63,11 +64,11 @@ describeDb('an account across sign-ins', () => {
   });
 
   beforeEach(async () => {
-    await admin`DELETE FROM auth.users WHERE id IN (${A}::uuid, ${B}::uuid)`;
+    await admin`DELETE FROM accounts WHERE id IN (${A}, ${B})`;
     await admin`
-      INSERT INTO auth.users (id, email) VALUES
-        (${A}::uuid, 'synthetic-a@example.test'),
-        (${B}::uuid, 'synthetic-b@example.test')
+      INSERT INTO accounts (id) VALUES
+        (${A}),
+        (${B})
     `;
   });
 
@@ -88,7 +89,7 @@ describeDb('an account across sign-ins', () => {
     }
 
     const rows = await admin<{ count: string }[]>`
-      SELECT count(*)::text AS count FROM student_profiles WHERE auth_user_id = ${A}::uuid
+      SELECT count(*)::text AS count FROM student_profiles WHERE auth_user_id = ${A}
     `;
     expect(rows[0]?.count).toBe('1');
   });
@@ -130,8 +131,16 @@ describeDb('an account across sign-ins', () => {
     );
     if (before.kind !== 'saved') throw new Error('first save failed');
 
-    /* The same person, now signing in with a different address on the token. */
-    await admin`UPDATE auth.users SET email = 'renamed-a@example.test' WHERE id = ${A}::uuid`;
+    /*
+     * The same person, now with a different address at the identity provider.
+     * Since 0012 the database holds no email at all — only the subject — so a
+     * changed address cannot reach ownership even in principle.
+     */
+    const emailColumns = await admin<{ count: string }[]>`
+      SELECT count(*)::text AS count FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'accounts' AND column_name ILIKE '%email%'
+    `;
+    expect(emailColumns[0]?.count).toBe('0');
 
     const after = await withUser(cloud, sessionFor(A), (sql) =>
       upsertProfile(sql, {
@@ -143,7 +152,7 @@ describeDb('an account across sign-ins', () => {
     expect(after.kind).toBe('saved');
 
     const rows = await admin<{ count: string }[]>`
-      SELECT count(*)::text AS count FROM student_profiles WHERE auth_user_id = ${A}::uuid
+      SELECT count(*)::text AS count FROM student_profiles WHERE auth_user_id = ${A}
     `;
     expect(rows[0]?.count).toBe('1');
   });
@@ -177,10 +186,10 @@ describeDb('an account across sign-ins', () => {
     await deleteAccount(A);
 
     const gone = await admin<{ count: string }[]>`
-      SELECT count(*)::text AS count FROM student_profiles WHERE auth_user_id = ${A}::uuid
+      SELECT count(*)::text AS count FROM student_profiles WHERE auth_user_id = ${A}
     `;
     const survives = await admin<{ count: string }[]>`
-      SELECT count(*)::text AS count FROM student_profiles WHERE auth_user_id = ${B}::uuid
+      SELECT count(*)::text AS count FROM student_profiles WHERE auth_user_id = ${B}
     `;
     expect(gone[0]?.count).toBe('0');
     expect(survives[0]?.count).toBe('1');
@@ -197,7 +206,7 @@ describeDb('an account across sign-ins', () => {
      * no longer exists. The row is put back to model the same person signing
      * up again — a NEW account that happens to reuse the id, holding nothing.
      */
-    await admin`INSERT INTO auth.users (id, email) VALUES (${A}::uuid, 'synthetic-a@example.test')`;
+    await admin`INSERT INTO accounts (id) VALUES (${A})`;
 
     const after = await withUser(cloud, sessionFor(A), (sql) => readProfile(sql));
     expect(after).toBeNull();

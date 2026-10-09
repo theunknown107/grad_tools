@@ -26,6 +26,7 @@
     "vtu:validate": "tsx scripts/vtu-validate.ts"
   },
   "dependencies": {
+    "@clerk/express": "2.1.77",
     "@google/genai": "^2.24.0",
     "@gradtools/academic-rules": "workspace:*",
     "@gradtools/shared-types": "workspace:*",

@@ -105,7 +105,7 @@ describe('the profile header', () => {
   });
 
   it('shows no address when the session carries none', async () => {
-    /* Apple's private relay, and any provider that returns no address. */
+    /* A provider-issued private relay, and any provider that returns no address. */
     signedIn(null);
     render(profile());
     await screen.findAllByText('1AB22CS001');

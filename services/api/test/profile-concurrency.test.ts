@@ -44,13 +44,13 @@ describeDb('profile writes that overlap', () => {
   });
 
   afterAll(async () => {
-    await admin`DELETE FROM auth.users WHERE id = ${C}::uuid`;
+    await admin`DELETE FROM accounts WHERE id = ${C}`;
     await Promise.all([cloud.end(), admin.end()]);
   });
 
   beforeEach(async () => {
-    await admin`DELETE FROM auth.users WHERE id = ${C}::uuid`;
-    await admin`INSERT INTO auth.users (id, email) VALUES (${C}::uuid, 'synthetic-c1@example.test')`;
+    await admin`DELETE FROM accounts WHERE id = ${C}`;
+    await admin`INSERT INTO accounts (id) VALUES (${C})`;
   });
 
   const as = <T>(work: (tx: Sql) => Promise<T>) => withUser(cloud, session, work);
@@ -144,7 +144,7 @@ describeDb('profile writes that overlap', () => {
     expect(first).toMatchObject({ kind: 'saved', profile: { displayName: 'First' } });
     expect(second).toMatchObject({ kind: 'conflict', server: { displayName: 'First' } });
     const rows = await admin<{ count: number }[]>`
-      SELECT count(*)::int AS count FROM student_profiles WHERE auth_user_id = ${C}::uuid
+      SELECT count(*)::int AS count FROM student_profiles WHERE auth_user_id = ${C}
     `;
     expect(rows[0]?.count).toBe(1);
   });

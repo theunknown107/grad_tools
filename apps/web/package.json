@@ -17,7 +17,9 @@
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",
+    "@capacitor/app": "^8.1.2",
     "@capacitor/core": "8.5.2",
+    "@clerk/react": "6.17.7",
     "@gradtools/academic-rules": "workspace:*",
     "@gradtools/shared-types": "workspace:*",
     "@gradtools/vtu-catalogue": "workspace:*",

@@ -243,6 +243,12 @@ export const errorResponseSchema = z.object({
     message: z.string(),
     details: z.array(z.object({ field: z.string(), issue: z.string() })).optional(),
     reference: z.string(),
+    /**
+     * A user-facing Incident ID (`GT-ERR-XXXXXX`) for a persisted incident —
+     * present only on reportable server faults, so a student can quote it.
+     * Distinct from `reference`, which is an internal log correlation id.
+     */
+    incidentId: z.string().optional(),
   }),
 });
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
@@ -346,3 +352,9 @@ export * from './student.js';
 /* -------------------------------------------------------------------------- */
 
 export * from './document-ai.js';
+
+/* -------------------------------------------------------------------------- */
+/* Support and observability (OBSERVABILITY-AND-SUPPORT-V1)                    */
+/* -------------------------------------------------------------------------- */
+
+export * from './support.js';

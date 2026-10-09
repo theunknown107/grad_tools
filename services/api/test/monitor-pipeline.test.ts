@@ -10,7 +10,7 @@
  * Postgres, because RLS is Postgres.
  *
  * SYNTHETIC CONTENT ONLY. The fixtures are written for this suite and the two
- * students are `auth.users` rows created and deleted by it.
+ * students are `accounts` rows created and deleted by it.
  */
 
 import postgres from 'postgres';
@@ -78,11 +78,11 @@ describeDb('the VTU monitoring pipeline', () => {
   beforeEach(async () => {
     await sql`DELETE FROM source_items`;
     await sql`DELETE FROM monitor_runs`;
-    await admin`DELETE FROM auth.users WHERE id IN (${A}::uuid, ${B}::uuid)`;
+    await admin`DELETE FROM accounts WHERE id IN (${A}, ${B})`;
     await admin`
-      INSERT INTO auth.users (id, email) VALUES
-        (${A}::uuid, 'synthetic-monitor-a@example.test'),
-        (${B}::uuid, 'synthetic-monitor-b@example.test')
+      INSERT INTO accounts (id) VALUES
+        (${A}),
+        (${B})
     `;
     run = 0;
   });
@@ -419,7 +419,7 @@ describeDb('the VTU monitoring pipeline', () => {
         withUser(
           cloud,
           sessionFor(A),
-          (tx) => tx`UPDATE source_notifications SET auth_user_id = ${B}::uuid`,
+          (tx) => tx`UPDATE source_notifications SET auth_user_id = ${B}`,
         ),
       ).rejects.toThrow();
     });

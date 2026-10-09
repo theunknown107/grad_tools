@@ -18,14 +18,14 @@
 
 import express, { Router, type Request, type Response } from 'express';
 import { AI_DOCUMENT_MAX_BYTES, DOCUMENT_AI_ROUTES } from '@gradtools/shared-types';
-import { requireSession, type Verifier } from '../auth/session.js';
+import { requireSession, type SessionSource } from '../auth/session.js';
 import type { DocumentReader } from '../documents/gemini.js';
 import { DocumentReadError, readDocument, type ReadFailure } from '../documents/read.js';
 import { ApiError } from '../http/errors.js';
 import { createDocumentLimiter } from '../http/rate-limit.js';
 
 export interface DocumentRouterDeps {
-  readonly verify: Verifier;
+  readonly verify: SessionSource;
   readonly reader: DocumentReader;
   readonly model: string;
 }

@@ -47,7 +47,8 @@ import {
   unreadCount,
 } from '../monitor/inbox.js';
 import { addListener, forClient, MAX_CONNECTIONS_PER_USER } from '../monitor/realtime.js';
-import { requireSession, sessionOf, type Verifier } from '../auth/session.js';
+import { requireSession, sessionOf, type SessionSource } from '../auth/session.js';
+import { supportIdFor } from '../support/id.js';
 import { ApiError, notFound } from '../http/errors.js';
 import {
   COLLECTION_TABLES,
@@ -59,7 +60,7 @@ import {
 
 export interface StudentRouterDeps {
   readonly cloud: Sql;
-  readonly verify: Verifier;
+  readonly verify: SessionSource;
   /**
    * Present only where an admin connection is configured. Returns false when
    * the account was already gone, so "deleted" and "there was nothing to
@@ -105,6 +106,12 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
             ?.provider === 'string'
             ? (session.claims as { app_metadata: { provider: string } }).app_metadata.provider
             : null,
+        /*
+         * The Support ID a student quotes when reporting a problem. Derived
+         * from the verified subject (support/id.ts), so it exposes neither the
+         * Clerk user id nor the Supabase uuid, and is stable for this account.
+         */
+        supportId: supportIdFor(session.userId),
       },
       profile,
       /* A student with no cloud profile has not finished onboarding. */
@@ -271,9 +278,10 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
    * Delete the account and everything in it.
    *
    * COMPLETE DELETION IS THE DEFAULT and there is no retention exception
-   * (M9 §34). Removing the `auth.users` row cascades through every student
-   * table by foreign key, so there is no list of tables here to fall out of
-   * date — the schema deletes itself.
+   * (M9 §34). Removing the `accounts` row (as the user, under RLS) cascades
+   * through every student table by foreign key, so there is no list of tables
+   * here to fall out of date — the schema deletes itself. Only then is the
+   * identity (the Clerk user) deleted, server-side (db/cloud.ts).
    *
    * Local data on the device is NOT touched by this route, and the interface
    * says so: it is the student's copy, on their machine, and deleting the cloud

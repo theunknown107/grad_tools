@@ -10,12 +10,13 @@ import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as LabelPrimitive from '@radix-ui/react-label';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import {
   cloneElement,
   forwardRef,
   isValidElement,
   useId,
+  useState,
   type InputHTMLAttributes,
   type ReactElement,
   type ReactNode,
@@ -118,6 +119,46 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
     );
   },
 );
+
+/**
+ * A password input with a show/hide toggle.
+ *
+ * Defaults to `type="password"`; the eye button flips it to `text` and back. It
+ * is a real `<input type=password>` with the caller's `autoComplete`, so
+ * password managers and autofill behave exactly as on a plain password field —
+ * the toggle only changes how the typed characters are displayed, it never
+ * reads or reveals a stored password. The toggle is `type="button"` (never
+ * submits the form), keyboard-reachable, and announces its state via its
+ * accessible label and `aria-pressed`.
+ *
+ * `Field` clones its single child to inject `id`/`aria-*`; those land on the
+ * inner `<input>` because this component spreads `...props` onto it, so the
+ * label and any hint/error stay associated with the real control.
+ */
+export const PasswordInput = forwardRef<
+  HTMLInputElement,
+  Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>
+>(function PasswordInput({ className, ...props }, ref) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <Input ref={ref} type={visible ? 'text' : 'password'} className={cn('pr-10', className)} {...props} />
+      <button
+        type="button"
+        onClick={() => setVisible((shown) => !shown)}
+        aria-label={visible ? 'Hide password' : 'Show password'}
+        aria-pressed={visible}
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-ink-3 transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+      >
+        {visible ? (
+          <EyeOff className="size-4" aria-hidden="true" />
+        ) : (
+          <Eye className="size-4" aria-hidden="true" />
+        )}
+      </button>
+    </div>
+  );
+});
 
 export const Textarea = forwardRef<
   HTMLTextAreaElement,

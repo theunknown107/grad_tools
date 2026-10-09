@@ -13,6 +13,7 @@ import {
   Download,
   GraduationCap,
   Info,
+  LifeBuoy,
   LogOut,
   Palette,
   RefreshCw,
@@ -35,14 +36,15 @@ import type { ConflictResolution } from '../../domain/sync.js';
 import { cn } from '../../lib/cn.js';
 import { NotificationSettings } from '../announcements/NotificationsPage.js';
 import { AppearanceSettings } from '../profile/AppearanceSettings.js';
+import { SupportPanel } from '../support/SupportPanel.js';
 import { AcademicSettings, SupportNote } from '../profile/ProfilePage.js';
 import { useAuth } from './AuthContext.js';
 import { DivergenceCard } from './DivergenceCard.js';
+import { LegacyDataOffer } from './LegacyDataOffer.js';
 import { useSync } from './useSync.js';
 
 const PROVIDER_LABEL: Record<string, string> = {
   google: 'Google',
-  apple: 'Apple',
   email: 'Email and password',
 };
 
@@ -119,6 +121,7 @@ const SECTIONS = [
   { key: 'academic', label: 'Academic', icon: GraduationCap },
   { key: 'data', label: 'Data & privacy', icon: Database },
   { key: 'notifications', label: 'Notifications', icon: Bell },
+  { key: 'support', label: 'Help & Support', icon: LifeBuoy },
   { key: 'about', label: 'About', icon: Info },
 ] as const satisfies readonly { key: string; label: string; icon: LucideIcon }[];
 type SectionKey = (typeof SECTIONS)[number]['key'];
@@ -165,6 +168,8 @@ export function AccountPage() {
         }
       />
 
+      <LegacyDataOffer />
+
       {state.status === 'expired' && (
         <Callout tone="warning">Your session has expired. Sign in again to resume syncing.</Callout>
       )}
@@ -209,6 +214,9 @@ export function AccountPage() {
           {section === 'appearance' && <AppearanceSettings />}
           {section === 'academic' && <AcademicSettings />}
           {section === 'notifications' && <NotificationSettings />}
+          {section === 'support' && (
+            <SupportPanel activeIncidentId={params.get('incident') ?? undefined} />
+          )}
           {section === 'data' &&
             (identity === null ? (
               <Card className="p-6">
@@ -268,12 +276,6 @@ export function AccountPage() {
                       </dd>
                     </div>
                   </dl>
-                  {identity.email !== null && identity.provider === 'apple' && (
-                    <p className="mt-4 text-[12px] text-ink-3">
-                      Apple may give apps a private relay address rather than your real one.
-                      GradTools only uses it to show you which account this is.
-                    </p>
-                  )}
                   <div className="mt-5 flex flex-wrap gap-2">
                     <Button
                       icon={<RefreshCw />}

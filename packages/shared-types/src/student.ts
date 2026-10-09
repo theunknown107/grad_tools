@@ -36,13 +36,14 @@ import { z } from 'zod';
  * Who the signed-in person is, as the app is allowed to know them.
  *
  * `email` is DISPLAY ONLY and is never an identity key (M9 §12, §47). It can
- * change, it can be an Apple private relay address, and it can differ between
- * providers for the same human. `userId` is the only thing anything joins on.
+ * change, it can be a provider-issued private relay address, and it can differ
+ * between providers for the same human. `userId` is the only thing anything
+ * joins on.
  */
 export const authIdentitySchema = z.object({
   userId: z.string().min(1),
   email: z.string().nullable(),
-  /** `google`, `apple`, `email` — shown in account settings, never trusted. */
+  /** `google`, `email` — shown in account settings, never trusted. */
   provider: z.string().nullable(),
 });
 
