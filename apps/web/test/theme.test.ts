@@ -60,6 +60,7 @@ describe('reading a stored preference', () => {
       accent: 'turquoise',
       reducedMotion: false,
       density: 'comfortable',
+      buttonStyle: 'glass',
     };
     writeStoredTheme(storage, preference);
     expect(readStoredTheme(storage)).toEqual(preference);
@@ -86,6 +87,7 @@ describe('reading a stored preference', () => {
       accent: 'rose',
       reducedMotion: false,
       density: 'comfortable',
+      buttonStyle: 'glass',
     });
   });
 
@@ -98,6 +100,7 @@ describe('reading a stored preference', () => {
       accent: DEFAULT_THEME.accent,
       reducedMotion: false,
       density: 'comfortable',
+      buttonStyle: 'glass',
     });
   });
 
@@ -118,6 +121,7 @@ describe('reading a stored preference', () => {
         accent: 'emerald',
         reducedMotion: false,
         density: 'comfortable',
+        buttonStyle: 'glass',
       }),
     ).not.toThrow();
   });
@@ -135,6 +139,7 @@ describe('applying a preference to the document', () => {
       accent: 'amber',
       reducedMotion: false,
       density: 'comfortable',
+      buttonStyle: 'glass',
     });
     expect(root.getAttribute('data-theme')).toBe('dark');
     expect(root.getAttribute('data-accent')).toBe('amber');
@@ -151,15 +156,50 @@ describe('applying a preference to the document', () => {
       accent: 'violet',
       reducedMotion: false,
       density: 'comfortable',
+      buttonStyle: 'glass',
     });
     applyTheme(root, {
       appearance: 'system',
       accent: 'violet',
       reducedMotion: false,
       density: 'comfortable',
+      buttonStyle: 'glass',
     });
     expect(root.hasAttribute('data-theme')).toBe(false);
     expect(root.style.colorScheme).toBe('light dark');
+  });
+});
+
+describe('the Liquid Glass button-style preference', () => {
+  const base = {
+    appearance: 'light',
+    accent: 'mono',
+    reducedMotion: false,
+    density: 'comfortable',
+  } as const;
+
+  it('defaults to glass and round-trips opaque', () => {
+    expect(DEFAULT_THEME.buttonStyle).toBe('glass');
+    const storage = memoryStorage();
+    writeStoredTheme(storage, { ...base, buttonStyle: 'opaque' });
+    expect(readStoredTheme(storage).buttonStyle).toBe('opaque');
+  });
+
+  it('reads an absent or unknown stored value as glass (added-later contract)', () => {
+    expect(
+      readStoredTheme(memoryStorage(JSON.stringify({ appearance: 'light' }))).buttonStyle,
+    ).toBe('glass');
+    expect(
+      readStoredTheme(memoryStorage(JSON.stringify({ buttonStyle: 'frosted' }))).buttonStyle,
+    ).toBe('glass');
+  });
+
+  it('stamps data-button-style only when OFF (opaque), so glass needs no rule', () => {
+    const root = document.createElement('html');
+    applyTheme(root, { ...base, buttonStyle: 'opaque' });
+    expect(root.getAttribute('data-button-style')).toBe('opaque');
+    applyTheme(root, { ...base, buttonStyle: 'glass' });
+    expect(root.hasAttribute('data-button-style')).toBe(false);
   });
 });
 

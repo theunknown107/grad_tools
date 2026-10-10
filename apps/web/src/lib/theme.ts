@@ -38,6 +38,14 @@ export type Density = (typeof DENSITIES)[number];
 export type Appearance = (typeof APPEARANCES)[number];
 
 /**
+ * The visual treatment for GradTools' glass surfaces (the `gt-glass*` button
+ * variants and the search bar). `glass` keeps the Liquid Glass translucency;
+ * `opaque` renders those surfaces solid. Presentation only, device-scoped.
+ */
+export const BUTTON_STYLES = ['glass', 'opaque'] as const;
+export type ButtonStyle = (typeof BUTTON_STYLES)[number];
+
+/**
  * The curated accents.
  *
  * A fixed list, not a colour picker (M9.6 §10). Every entry is contrast-checked
@@ -88,6 +96,8 @@ export interface ThemePreference {
    */
   readonly reducedMotion: boolean;
   readonly density: Density;
+  /** Glass surfaces on (Liquid Glass) or off (opaque). Defaults to glass. */
+  readonly buttonStyle: ButtonStyle;
 }
 
 /**
@@ -106,6 +116,8 @@ export const DEFAULT_THEME: ThemePreference = {
   reducedMotion: false,
   /* The roomier of the two, which is what every screen was designed against. */
   density: 'comfortable',
+  /* Liquid Glass by default; a person can switch to Opaque in Appearance. */
+  buttonStyle: 'glass',
 };
 
 /** Device-scoped on purpose — see the header. */
@@ -150,6 +162,7 @@ export function readStoredTheme(storage: Pick<Storage, 'getItem'>): ThemePrefere
     accent: accentFrom(record['accent']),
     reducedMotion: record['reducedMotion'] === true,
     density: record['density'] === 'compact' ? 'compact' : DEFAULT_THEME.density,
+    buttonStyle: record['buttonStyle'] === 'opaque' ? 'opaque' : DEFAULT_THEME.buttonStyle,
   };
 }
 
@@ -206,6 +219,11 @@ export function applyTheme(root: HTMLElement, preference: ThemePreference): void
      the stylesheet's compact block is then a plain selector. */
   if (preference.density === 'compact') root.setAttribute('data-density', 'compact');
   else root.removeAttribute('data-density');
+  /* Glass is the default, so only the OFF state carries an attribute — the
+     stylesheet's opaque override is then a plain selector, and glass needs no
+     rule of its own (same convention as motion/density above). */
+  if (preference.buttonStyle === 'opaque') root.setAttribute('data-button-style', 'opaque');
+  else root.removeAttribute('data-button-style');
 }
 
 /** Which appearance `system` currently resolves to. */
