@@ -175,19 +175,35 @@ export const syncRecordSchema = z.object({
 
 export type SyncRecord = z.infer<typeof syncRecordSchema>;
 
+/**
+ * The largest record batch one push may carry.
+ *
+ * SECURITY (zod SNYK-JS-ZOD-20510278, no upstream fix): `$ZodArray` accumulates
+ * an issue per failing element with no cap, so an unbounded `z.array()` on an
+ * externally-controlled body lets a large malformed array exhaust memory. This
+ * bound caps that accumulation. It sits far above any legitimate full first
+ * sync (realistically low hundreds across all collections, and the server's
+ * 1 MB body limit already caps the count) so it never rejects a valid request.
+ * ponytail: if a device ever needs to push more, chunk the client push rather
+ * than raising this.
+ */
+export const MAX_SYNC_PUSH_RECORDS = 2000;
+
 /** What a device sends up. */
 export const syncPushSchema = z.object({
-  records: z.array(
-    z.object({
-      id: z.string().uuid(),
-      collection: syncCollectionSchema,
-      /** The revision this device last saw. Absent means "I believe this is new". */
-      baseRevision: z.number().int().positive().nullable(),
-      /** True when the device is deleting it. */
-      deleted: z.boolean().default(false),
-      data: z.record(z.string(), z.unknown()),
-    }),
-  ),
+  records: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        collection: syncCollectionSchema,
+        /** The revision this device last saw. Absent means "I believe this is new". */
+        baseRevision: z.number().int().positive().nullable(),
+        /** True when the device is deleting it. */
+        deleted: z.boolean().default(false),
+        data: z.record(z.string(), z.unknown()),
+      }),
+    )
+    .max(MAX_SYNC_PUSH_RECORDS),
 });
 
 export type SyncPush = z.infer<typeof syncPushSchema>;
