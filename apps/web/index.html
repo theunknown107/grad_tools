@@ -58,6 +58,7 @@
           root.setAttribute('data-accent', accents.indexOf(accent) !== -1 ? accent : 'mono');
           if (saved.density === 'compact') root.setAttribute('data-density', 'compact');
           if (saved.reducedMotion === true) root.setAttribute('data-motion', 'reduced');
+          if (saved.buttonStyle === 'opaque') root.setAttribute('data-button-style', 'opaque');
         } catch (error) {
           /* Storage blocked or corrupt: light + mono from the stylesheet. */
         }

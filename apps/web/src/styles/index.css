@@ -700,6 +700,27 @@
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
+/* ------------------------------------------------------- Glass OFF.
+     The Appearance "Liquid Glass → Off" control (data-button-style="opaque")
+     and reduced motion render the glass surfaces solid: no backdrop-filter, no
+     translucency. Plain selectors, so the default (glass) is untouched, and the
+     tokens are theme- and accent-aware so the solid result stays legible. */
+:root[data-button-style='opaque'] .gt-glass,
+:root[data-motion='reduced'] .gt-glass {
+  background-image: none;
+  background-color: var(--raised);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-button-style='opaque'] .gt-glass-primary,
+:root[data-motion='reduced'] .gt-glass-primary {
+  background-image: none;
+  background-color: var(--accent);
+  color: var(--accent-contrast);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 /* ------------------------------------------------------- Metric material.
      Monochrome instrument tile: surface + hairline + micro-highlight. No
      accent, no stripe, no glow — neutral in every accent theme. */

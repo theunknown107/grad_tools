@@ -25,6 +25,7 @@ import {
   writeStoredTheme,
   type Accent,
   type Appearance,
+  type ButtonStyle,
   type Density,
   type ThemePreference,
 } from '../lib/theme.js';
@@ -53,6 +54,7 @@ export interface UseThemeResult {
   readonly setAccent: (accent: Accent) => void;
   readonly setReducedMotion: (reducedMotion: boolean) => void;
   readonly setDensity: (density: Density) => void;
+  readonly setButtonStyle: (buttonStyle: ButtonStyle) => void;
 }
 
 const ThemeContext = createContext<UseThemeResult | null>(null);
@@ -99,6 +101,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       setAccent: (accent) => update({ accent }),
       setReducedMotion: (reducedMotion) => update({ reducedMotion }),
       setDensity: (density) => update({ density }),
+      setButtonStyle: (buttonStyle) => update({ buttonStyle }),
     }),
     [preference, resolved, update],
   );

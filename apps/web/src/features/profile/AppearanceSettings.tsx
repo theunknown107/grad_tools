@@ -13,7 +13,13 @@ import * as RadioGroup from '@radix-ui/react-radio-group';
 import { useState } from 'react';
 import { useTheme } from '../../hooks/useTheme.js';
 import { cn } from '../../lib/cn.js';
-import { ACCENTS, type Accent, type Appearance, type Density } from '../../lib/theme.js';
+import {
+  ACCENTS,
+  type Accent,
+  type Appearance,
+  type ButtonStyle,
+  type Density,
+} from '../../lib/theme.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
@@ -65,8 +71,15 @@ const THEME_OPTIONS: readonly {
 ];
 
 export function AppearanceSettings() {
-  const { preference, resolved, setAppearance, setAccent, setDensity, setReducedMotion } =
-    useTheme();
+  const {
+    preference,
+    resolved,
+    setAppearance,
+    setAccent,
+    setDensity,
+    setReducedMotion,
+    setButtonStyle,
+  } = useTheme();
 
   return (
     <div className="flex flex-col gap-4">
@@ -207,6 +220,24 @@ export function AppearanceSettings() {
                 },
               ]}
             />
+          </div>
+          <div className="border-t border-line pt-4">
+            <Segmented<ButtonStyle>
+              label="Liquid Glass"
+              value={preference.buttonStyle}
+              onChange={(buttonStyle) => {
+                setButtonStyle(buttonStyle);
+                toast(buttonStyle === 'glass' ? 'Liquid Glass on' : 'Liquid Glass off');
+              }}
+              options={[
+                { value: 'glass', label: 'On' },
+                { value: 'opaque', label: 'Off' },
+              ]}
+            />
+            <div className="mt-1.5 text-[12px] text-ink-3">
+              Liquid Glass gives primary buttons and the search bar a translucent treatment. Off
+              renders them solid; reduced motion always falls back to solid.
+            </div>
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-line pt-4">
             <div>
