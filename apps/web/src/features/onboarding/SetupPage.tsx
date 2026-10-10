@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
+import { Callout } from '../../components/ui/feedback.js';
 import { Field, Input } from '../../components/ui/field.js';
 import { PageHeader } from '../../components/ui/page.js';
 import { PageSkeleton } from '../../components/ui/skeleton.js';
@@ -59,10 +60,16 @@ function Setup({
   const [branch, setBranch] = useState(profile?.branch ?? '');
   const [scheme, setScheme] = useState(profile?.schemeId || DEFAULT_SCHEME_ID);
   const years = useAcademicYears(profile);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const trimmed = name.trim();
 
-  /** Writes what was stated; a setup that stated nothing writes nothing. */
+  /**
+   * Writes what was stated; a setup that stated nothing writes nothing. A failed
+   * save is surfaced and NOT mistaken for success: we only enter the app once
+   * the write resolves (or there was nothing to write).
+   */
   const finish = async (withAcademic: boolean): Promise<void> => {
     const patch: Partial<StudentProfile> = {
       displayName: trimmed === '' ? null : trimmed,
@@ -79,8 +86,16 @@ function Setup({
         : {}),
     };
     const stated = Object.values(patch).some((value) => value !== null && value !== undefined);
-    if (profile !== null || stated) await save(withChanges(profile, patch));
-    void navigate('/');
+    setSaving(true);
+    setSaveError(null);
+    try {
+      if (profile !== null || stated) await save(withChanges(profile, patch));
+      void navigate('/');
+    } catch {
+      setSaveError('We couldn’t save your details. Check your connection and try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -172,12 +187,27 @@ function Setup({
               <YearFields years={years} />
               <CollegeField value={college} onChange={setCollege} />
             </div>
+            <p className="text-[12px] text-ink-3">
+              You can skip this. Features that read your scheme and branch — such as grading
+              imported results — stay unconfigured until you add these details, in Setup or on your
+              profile.
+            </p>
+            {saveError !== null && (
+              <Callout tone="warning" role="alert">
+                {saveError}
+              </Callout>
+            )}
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => void finish(false)}>
+              <Button variant="ghost" disabled={saving} onClick={() => void finish(false)}>
                 Skip
               </Button>
-              <Button type="submit" variant="primary" disabled={years.error !== null}>
-                Save
+              <Button
+                type="submit"
+                variant="primary"
+                loading={saving}
+                disabled={years.error !== null || saving}
+              >
+                {saveError === null ? 'Save' : 'Try again'}
               </Button>
             </div>
           </form>
