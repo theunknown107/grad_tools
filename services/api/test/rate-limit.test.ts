@@ -52,6 +52,18 @@ describe('baseline /api/v1 limiter', () => {
     expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
   });
 
+  it('emits IETF standard RateLimit headers (draft-7), not legacy X-RateLimit-*', async () => {
+    const app = appWith(5);
+    const res = await ip(app, '203.0.113.50');
+    expect(res.status).toBe(200);
+    // express-rate-limit `standardHeaders: 'draft-7'` → combined RateLimit + RateLimit-Policy.
+    expect(res.headers['ratelimit']).toBeDefined();
+    expect(res.headers['ratelimit-policy']).toBeDefined();
+    // `legacyHeaders: false` → no X-RateLimit-* noise.
+    expect(res.headers['x-ratelimit-limit']).toBeUndefined();
+    expect(res.headers['x-ratelimit-remaining']).toBeUndefined();
+  });
+
   it('keys per IP: independent clients do not share a bucket', async () => {
     const app = appWith(1);
     expect((await ip(app, '198.51.100.1')).status).toBe(200); // client A uses its one
