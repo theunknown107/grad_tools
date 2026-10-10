@@ -245,3 +245,76 @@ describe('college review state', () => {
     expect(screen.queryByText(NOT_CHECKED)).toBeNull();
   });
 });
+
+/*
+ * Slice 3: the student-details step reached as onboarding (/onboarding). Same
+ * component as /setup, so the walk-through and skip behaviour above apply; these
+ * cover what Slice 3 added — a failed save is never mistaken for success, and
+ * revisiting never blanks an existing profile.
+ */
+describe('onboarding save failures and resume', () => {
+  it('surfaces a save failure, stays put, and then succeeds on retry', async () => {
+    const memory = createMemoryRepositories();
+    let fail = true;
+    const realSave = memory.bundle.profile.save.bind(memory.bundle.profile);
+    memory.bundle.profile.save = async (next) => {
+      if (fail) {
+        fail = false;
+        throw new Error('offline');
+      }
+      await realSave(next);
+    };
+    renderWith(
+      <Routes>
+        <Route path="/onboarding" element={<SetupPage />} />
+        <Route path="/" element={<p>Home</p>} />
+      </Routes>,
+      { repositories: memory.bundle, route: '/onboarding' },
+    );
+    const user = userEvent.setup();
+    await screen.findByLabelText(/your name/i); // wait past the loading skeleton
+    await click(/^skip$/i); // name step → academic step
+    await user.type(screen.getByLabelText(/^usn/i), '1xx22cs001'); // something stated, so it saves
+    await click(/^save$/i);
+
+    expect(await screen.findByText(/couldn’t save your details/i)).toBeTruthy();
+    expect(screen.queryByText('Home')).toBeNull(); // a failed save did not enter the app
+
+    await click(/try again/i);
+    await screen.findByText('Home');
+    expect(memory.peek.profile()).toMatchObject({ usn: '1XX22CS001' });
+  });
+
+  it('prefills an existing profile and preserves it when the academic step is skipped', async () => {
+    const existing: StudentProfile = {
+      id: asStudentProfileId('p0'),
+      authUserId: null,
+      displayName: 'Asha Rao',
+      usn: '1XX22CS001',
+      collegeName: 'Synthetic Institute of Technology',
+      schemeId: 'vtu-2022',
+      programme: null,
+      branch: 'Computer Science and Engineering',
+      currentSemester: null,
+      admissionYear: 2022,
+      expectedPassoutYear: 2026,
+      entryRoute: 'puc',
+      identityConfirmedAt: '2026-01-01T00:00:00.000Z',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const memory = renderSetup({ profile: existing });
+    const nameInput = await screen.findByLabelText<HTMLInputElement>(/your name/i);
+    expect(nameInput.value).toBe('Asha Rao');
+    await click(/^skip$/i); // to the academic step
+    expect(screen.getByLabelText<HTMLInputElement>(/^usn/i).value).toBe('1XX22CS001');
+    await click(/^skip$/i); // skip academic — must not blank the stored profile
+    await screen.findByText('Home');
+    expect(memory.peek.profile()).toMatchObject({
+      displayName: 'Asha Rao',
+      usn: '1XX22CS001',
+      collegeName: 'Synthetic Institute of Technology',
+      branch: 'Computer Science and Engineering',
+    });
+  });
+});

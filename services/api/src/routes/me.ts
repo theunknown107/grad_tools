@@ -30,9 +30,12 @@ import { Router, type Request, type Response } from 'express';
 import express from 'express';
 import { z } from 'zod';
 import {
+  CURRENT_TERMS,
   STUDENT_ROUTES,
+  TERMS_ROUTES,
   profileInputSchema,
   syncPushSchema,
+  termsAcceptanceInputSchema,
   type CloudProfile,
   type SyncOutcome,
   type SyncRecord,
@@ -49,6 +52,7 @@ import {
 import { addListener, forClient, MAX_CONNECTIONS_PER_USER } from '../monitor/realtime.js';
 import { requireSession, sessionOf, type SessionSource } from '../auth/session.js';
 import { supportIdFor } from '../support/id.js';
+import { acceptTerms, readAcceptance } from '../account/terms-store.js';
 import { ApiError, notFound } from '../http/errors.js';
 import {
   COLLECTION_TABLES,
@@ -95,7 +99,12 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
    */
   router.get(STUDENT_ROUTES.me, guard, async (req: Request, res: Response) => {
     const session = sessionOf(req);
-    const profile = await withUser(deps.cloud, session, (tx) => readProfile(tx));
+    // Profile and Terms acceptance are read in ONE RLS-scoped transaction, so the
+    // onboarding gate sees a consistent view of both in a single round trip.
+    const { profile, terms } = await withUser(deps.cloud, session, async (tx) => ({
+      profile: await readProfile(tx),
+      terms: await readAcceptance(tx, CURRENT_TERMS.version),
+    }));
 
     res.json({
       identity: {
@@ -116,8 +125,46 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
       profile,
       /* A student with no cloud profile has not finished onboarding. */
       onboarded: profile !== null,
+      /*
+       * Terms gate state (TERMS-AND-ONBOARDING). `currentVersion` is what the
+       * client must have accepted; `terms` is this account's acceptance of it,
+       * or null. The onboarding gate reads this — never localStorage.
+       */
+      termsCurrentVersion: CURRENT_TERMS.version,
+      terms,
     });
   });
+
+  /* ---------------------------------------------------------------------- */
+  /* Terms & Conditions acceptance                                          */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Records the authenticated user's acceptance of the CURRENT Terms version.
+   *
+   * The client sends the exact version it displayed; any other version is
+   * refused, so a stale tab cannot record acceptance of terms the user never
+   * saw. The write is RLS-scoped to the verified subject and idempotent, and the
+   * stored record (version + timestamp) is returned so the client can confirm it
+   * persisted before advancing — acceptance is never assumed on the client.
+   */
+  router.post(
+    TERMS_ROUTES.acceptance,
+    guard,
+    express.json({ limit: '4kb' }),
+    async (req: Request, res: Response) => {
+      const session = sessionOf(req);
+      const { version } = termsAcceptanceInputSchema.parse(req.body);
+      if (version !== CURRENT_TERMS.version) {
+        throw new ApiError(
+          'VALIDATION_FAILED',
+          'Those are not the current Terms. Reload and try again.',
+        );
+      }
+      const acceptance = await withUser(deps.cloud, session, (tx) => acceptTerms(tx, version));
+      res.status(201).json(acceptance);
+    },
+  );
 
   /* ---------------------------------------------------------------------- */
   /* The profile                                                            */

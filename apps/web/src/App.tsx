@@ -12,6 +12,7 @@ import { Route, Routes } from 'react-router-dom';
 import { AppShell, Disclaimer } from './components/layout/AppShell.js';
 import { PageSkeleton } from './components/ui/skeleton.js';
 import { DashboardPage } from './features/dashboard/DashboardPage.js';
+import { OnboardingGate } from './features/onboarding/OnboardingGate.js';
 import { clerkPublishableKey } from './repositories/cloud/clerk.js';
 
 /*
@@ -55,6 +56,7 @@ const ResultDetailPage = page(
 const ResultsPage = page(() => import('./features/results/ResultsPage.js'), 'ResultsPage');
 const SemestersPage = page(() => import('./features/semesters/SemestersPage.js'), 'SemestersPage');
 const SetupPage = page(() => import('./features/onboarding/SetupPage.js'), 'SetupPage');
+const TermsPage = page(() => import('./features/onboarding/TermsPage.js'), 'TermsPage');
 const GetResultPage = page(
   () => import('./features/vtu-results/GetResultPage.js'),
   'GetResultPage',
@@ -88,32 +90,36 @@ function ShellRoutes() {
         </Disclaimer>
       }
     >
-      <Suspense fallback={<PageSkeleton label="Loading page" />}>
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/announcements" element={<AnnouncementsPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/semesters" element={<SemestersPage />} />
-          <Route path="/academics" element={<AcademicsPage />} />
-          <Route path="/attendance" element={<AttendancePage />} />
-          <Route path="/results" element={<ResultsPage />} />
-          <Route path="/results/get" element={<GetResultPage />} />
-          <Route path="/results/:semester" element={<ResultDetailPage />} />
-          <Route path="/import" element={<ImportPage />} />
-          <Route path="/timetable" element={<TimetablePage />} />
-          <Route path="/exams" element={<ExamsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/setup" element={<SetupPage />} />
-          <Route path="/sign-in" element={<SignInPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          {clerkPublishableKey() !== null && (
-            <Route path="/sso-callback" element={<SsoCallbackPage />} />
-          )}
-          <Route path="/account" element={<AccountPage />} />
-          <Route path="/first-sync" element={<FirstSyncPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Suspense>
+      <OnboardingGate>
+        <Suspense fallback={<PageSkeleton label="Loading page" />}>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/announcements" element={<AnnouncementsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/semesters" element={<SemestersPage />} />
+            <Route path="/academics" element={<AcademicsPage />} />
+            <Route path="/attendance" element={<AttendancePage />} />
+            <Route path="/results" element={<ResultsPage />} />
+            <Route path="/results/get" element={<GetResultPage />} />
+            <Route path="/results/:semester" element={<ResultDetailPage />} />
+            <Route path="/import" element={<ImportPage />} />
+            <Route path="/timetable" element={<TimetablePage />} />
+            <Route path="/exams" element={<ExamsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/setup" element={<SetupPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/onboarding" element={<SetupPage />} />
+            <Route path="/sign-in" element={<SignInPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            {clerkPublishableKey() !== null && (
+              <Route path="/sso-callback" element={<SsoCallbackPage />} />
+            )}
+            <Route path="/account" element={<AccountPage />} />
+            <Route path="/first-sync" element={<FirstSyncPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
+      </OnboardingGate>
     </AppShell>
   );
 }
