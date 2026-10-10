@@ -720,3 +720,35 @@ Arbitrary "free model" discovery is not allowed: a provider is added only after
 its terms, privacy/ZDR, image + structured-output support, and zero-cost policy
 are verified. OmniRoute informed these patterns (provider abstraction, capability
 registry, circuit breaker, quota/reset handling) but is **not** a dependency.
+
+## 13.32 Universal-input review — source → sink → control (staging hardening pass)
+
+A repository-wide pass over the highest-risk input paths, tracing each from
+source to sink and recording the control that makes it safe. The rule: an input
+is untrusted until validated for its purpose, authorized for its operation,
+bounded to safe limits, and encoded for its destination — regardless of who or
+what produced it. This pass found **no unresolved confirmed or plausible defect**
+in the surfaces below; it records the verified controls so a regression is
+visible, not re-discovered.
+
+| Source → sink | Threat | Control (verified) | Status |
+|---|---|---|---|
+| Any value → React render | DOM/HTML XSS | React escaping; the only `dangerouslySetInnerHTML` (`GradToolsLogo`, `LaunchSplash`) injects a **static** `svg?raw` build import, never input | Confirmed safe |
+| Request body/params → Postgres | SQL injection | `postgres.js` tagged templates (parameterized); the sole `sql.unsafe` is a hardcoded table-alias in the operator-only `vtu:validate` CLI, value still parameterized | Confirmed safe |
+| User URL → server `fetch` | SSRF / redirect | `fetchSource` gates on `checkDestination` (rejects private/loopback hosts) + `redirect:'manual'` + timeout; not yet wired to any route | Confirmed safe (pre-emptive) |
+| Redirect targets | Open redirect | Auth redirects are `window.location.origin` + fixed paths; no user-controlled `next`/target | Confirmed safe |
+| Clerk JWT / session → `/api/v1/*` | AuthN/Z, IDOR | Verified `sub` → `accounts.id`; per-table RLS own-row; `UNAUTHENTICATED` is one opaque code; operator routes gated by `OPERATOR_TOKEN` (routes 404 when unset) | Confirmed (tests: authorization/account/clerk/terms = 55) |
+| Terms acceptance → gate/store | Version bypass | Server-verified acceptance vs exact `CURRENT_TERMS.version`; POST-then-`/me`-verify; append-only RLS table; failed persistence denies access | Confirmed (onboarding-gate 15, terms 8) |
+| Request bodies | Resource exhaustion | `express.json` limits (1 MB global · 128 KB announcements · 4 KB terms); AI doc `express.raw` **and** post-decode `AI_DOCUMENT_MAX_BYTES`; sync-push array `.max(2000)`; pagination `limit` server-capped to `MAX_LIMIT` | Confirmed |
+| Cross-origin requests | CORS misconfig | Explicit `allowedOrigins` allowlist; `credentials:false`; no ACAO for unapproved origins; config fails closed (every origin must be `https://` outside dev) | Confirmed (api.test CORS allow/deny; live staging probe) |
+| `/api/v1/*` abuse | Rate/cost | `express-rate-limit` IETF `RateLimit`/`RateLimit-Policy` (draft-7) + `Retry-After` on 429; stricter limiter on the AI route; keyed on `req.ip` under `trust proxy, 1` | Confirmed (rate-limit tests + live headers) |
+| Logs / error bodies | Secret/PII leak | Typed `{error:{code,message,reference,incidentId?}}`; internal detail never sent; logger redacts `password`/`token` | Confirmed (api.test redaction) |
+| Client office/CSV import | Decompression / parse | Client-side (self-DoS only); `MAX_TEXT_BYTES = 5 MB` + fixed parse ceilings | Mitigated (low severity — browser-local) |
+| Web bundle / source maps | Secret exposure | No server secret in shipped `.js`; source maps carry env-var **names**/comments only, not values; publishable Clerk key is public by design | Confirmed safe (maps are source-readable — a hardening note, not a leak) |
+
+**Blocked — require staging/credentials (not inferable from local tests):**
+- Supabase `gradtools_runtime` role flags (no RLS-bypass / no superuser), `SET LOCAL ROLE authenticated` behaviour, monitor-view grants — need a staging DB read.
+- A real authenticated **Snyk** scan — CLI not installed/authenticated here; `pnpm audit` = 1 moderate (`uuid@7.0.3`, dev/build-only, deferred).
+- In-browser verification of the deployed gate and Liquid Glass toggle.
+
+No input path in this pass was left with a silently unresolved serious finding; the open items are access-gated verifications, not code defects.
