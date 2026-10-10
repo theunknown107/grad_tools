@@ -18,6 +18,7 @@ import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { createStudentRouter } from '../routes/me.js';
 import { createApiLimiter } from './rate-limit.js';
+import { buildOpenApiDocument, OPENAPI_ROUTE } from './openapi.js';
 import { createDocumentRouter } from '../routes/documents.js';
 import { type DocumentReader } from '../documents/gemini.js';
 import { createOpenRouterReader } from '../documents/openrouter.js';
@@ -273,6 +274,16 @@ export function createApp(
       status: databaseUp ? 'ready' : 'degraded',
       checks: { database: databaseUp ? 'up' : 'down' },
     });
+  });
+
+  /*
+   * The API's own OpenAPI 3.1 description. Public and read-only: it DESCRIBES the
+   * surface (so an agent can discover it), it does not expose any protected
+   * operation — each of those keeps its real guard. Built once per process.
+   */
+  const openApiDocument = buildOpenApiDocument();
+  app.get(OPENAPI_ROUTE, (_req, res) => {
+    res.json(openApiDocument);
   });
 
   app.use(createAnnouncementRouter(sql, { operatorToken: config.OPERATOR_TOKEN }));

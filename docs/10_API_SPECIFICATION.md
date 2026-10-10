@@ -15,6 +15,10 @@
 4. **Resource IDs in paths are always verified against the session.** An ID present in a URL or body is never sufficient authorization.
 5. **Server recomputes.** Any academic value sent by a client is recomputed server-side before persistence; the response returns the server's value.
 
+### Machine-readable contract (OpenAPI 3.1)
+
+A machine-readable OpenAPI 3.1 description of this surface is served at **`GET /api/v1/openapi.json`** (public — it describes the API, it grants no access). It is generated in-process from the SAME route constants and Zod schemas the handlers use (`services/api/src/http/openapi.ts`, no generator dependency — Zod 4's `z.toJSONSchema`), so it cannot drift from the implementation without `services/api/test/openapi.test.ts` failing. It documents the versioning policy above, the standard error envelope (§10.3), per-operation authentication, and the IETF `RateLimit` / `Retry-After` response headers the `/api/v1` limiter emits.
+
 ## 10.2 Authentication
 
 Session cookie, set at magic-link consumption:
