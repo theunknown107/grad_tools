@@ -20,8 +20,11 @@ export default defineConfig({
     // The schema is dropped and recreated ONCE, before any file runs. Doing it
     // per-file let two files' hooks interleave and one find its tables gone.
     globalSetup: ['./test/global-setup.ts'],
-    // One worker, so files genuinely serialise against the shared database.
-    // fileParallelism alone did not prevent two files migrating at once.
-    poolOptions: { forks: { singleFork: true }, threads: { singleThread: true } },
+    // Vitest 4 removed `poolOptions` (the old `singleFork`/`singleThread`). Its
+    // v4 equivalent `maxWorkers: 1` can't be set on one project only (it clashes
+    // with the other projects' `sequence.groupOrder`), and the suite already
+    // serialises these files against the shared database via `fileParallelism:
+    // false` above — confirmed by the full DB suite passing. So no pool override
+    // is needed here.
   },
 });

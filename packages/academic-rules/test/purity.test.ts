@@ -1,3 +1,10 @@
+/// <reference types="node" />
+/*
+ * `import.meta.url` below is typed by @types/node's ImportMeta augmentation.
+ * The package sets `types: []` on purpose (zero ambient type surface), so this
+ * one file opts back into Node's types explicitly rather than relying on an
+ * ambient .d.ts leaking through node_modules hoisting.
+ */
 /**
  * Purity guard for the academic-rules package.
  *
