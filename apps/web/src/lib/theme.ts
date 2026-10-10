@@ -31,7 +31,7 @@ export const APPEARANCES = ['light', 'dark', 'system'] as const;
  *
  * The design offers the same pair. `compact` tightens the spacing scale by the
  * ratio its own density uses; it deliberately does not shrink controls — see
- * the note beside the scale in tokens.css.
+ * the compact-density block in styles/index.css.
  */
 export const DENSITIES = ['comfortable', 'compact'] as const;
 export type Density = (typeof DENSITIES)[number];
@@ -178,8 +178,9 @@ export function writeStoredTheme(
  * Applies the preference to the document element.
  *
  * `data-theme` is set only for an EXPLICIT choice. Under `system` the attribute
- * is removed, which is what lets the `prefers-color-scheme` blocks in
- * tokens.css take over — the three-state contract docs/05 §5.10 describes.
+ * is removed; the `.dark` class then follows the device's colour scheme (the
+ * pre-paint script and `ThemeProvider` both resolve it) — the three-state
+ * contract docs/05 §5.10 describes.
  *
  * `color-scheme` is set alongside it so the browser's own surfaces — form
  * controls, scrollbars, the canvas behind the page — follow the choice. Without

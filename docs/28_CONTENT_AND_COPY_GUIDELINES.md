@@ -227,6 +227,8 @@ The most important paragraph in the product, appearing wherever a student expect
 
 Direct, unapologetic, and it establishes the product's boundaries as a deliberate stance rather than a shortcoming.
 
+**Superseded by `OQ-056`:** "backlogs" in the quoted paragraph implies they are derived from results. Backlogs are recorded by the student; a result gives SGPA, CGPA, the failed courses on it and marks analysis. Drop "backlogs" from the list if this paragraph is shipped.
+
 ## 28.12 Experimental and Alpha labelling
 
 | Stage | Persistent banner |

@@ -64,11 +64,7 @@ function slotRow(y: number, code: string, title: string, credits: number): Posit
  * case real: a title read by x-position alone runs straight through the divider
  * into its neighbour.
  */
-function optionRow(
-  y: number,
-  left: [string, string],
-  right?: [string, string],
-): PositionedText[] {
+function optionRow(y: number, left: [string, string], right?: [string, string]): PositionedText[] {
   return [
     at(left[0], 60, y),
     at(left[1], 130, y),

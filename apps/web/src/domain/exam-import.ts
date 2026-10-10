@@ -349,9 +349,10 @@ function columnsOf(rows: readonly PositionedText[][]): Column[] {
 
 /** `III - Semester`, `V-Semester`, `Semester V`. */
 function semesterOf(text: string): number | null {
-  const match = /\b(I{1,3}|IV|VI{0,3}|VIII)\b\s*[-–—]?\s*semester|semester\s*[-–—]?\s*\b(I{1,3}|IV|VI{0,3}|VIII)\b/i.exec(
-    text,
-  );
+  const match =
+    /\b(I{1,3}|IV|VI{0,3}|VIII)\b\s*[-–—]?\s*semester|semester\s*[-–—]?\s*\b(I{1,3}|IV|VI{0,3}|VIII)\b/i.exec(
+      text,
+    );
   if (match === null) return null;
   const roman = (match[1] ?? match[2] ?? '').toUpperCase();
   return ROMAN[roman] ?? null;
@@ -384,7 +385,9 @@ export function parseExamTimetable(pages: readonly ExamPage[]): ParsedExamTimeta
     examCycle: CYCLE.exec(joined)?.[1]?.replace(/\s+/g, ' ').trim() ?? null,
     publicationState: PUBLICATION.exec(joined)?.[1]?.toLowerCase() ?? null,
     notification: NOTIFICATION.exec(joined)?.[1] ?? null,
-    schemes: [...new Set(columns.map((column) => column.scheme).filter((s): s is string => s !== null))],
+    schemes: [
+      ...new Set(columns.map((column) => column.scheme).filter((s): s is string => s !== null)),
+    ],
   };
 
   if (columns.length === 0) {
@@ -420,8 +423,8 @@ export function parseExamTimetable(pages: readonly ExamPage[]): ParsedExamTimeta
 
     /* The weekday the row prints beside its date, kept as printed. */
     const weekday =
-      /\b(mon|tues|tue|wednes|wed|thurs|thur|thu|fri|satur|sat|sun)[a-z]*\b/i
-        .exec(line)?.[0] ?? null;
+      /\b(mon|tues|tue|wednes|wed|thurs|thur|thu|fri|satur|sat|sun)[a-z]*\b/i.exec(line)?.[0] ??
+      null;
 
     for (const column of columns) {
       const cells = row.filter(
@@ -536,7 +539,11 @@ export type ExamTimetableRelation =
  * who decides.
  */
 export function relateExamTimetable(
-  incoming: { readonly fingerprint: string; readonly examCycle: string | null; readonly publicationState: string | null },
+  incoming: {
+    readonly fingerprint: string;
+    readonly examCycle: string | null;
+    readonly publicationState: string | null;
+  },
   saved: readonly SavedExamTimetable[],
 ): ExamTimetableRelation {
   const duplicate = saved.find((entry) => entry.fingerprint === incoming.fingerprint);
@@ -609,7 +616,11 @@ export function examRelevance(event: ExamEventReading, audience: ExamAudience): 
   if (event.scheme !== null && audience.scheme !== null && event.scheme !== audience.scheme) {
     return 'not_applicable';
   }
-  if (event.semester !== null && audience.semester !== null && event.semester !== audience.semester) {
+  if (
+    event.semester !== null &&
+    audience.semester !== null &&
+    event.semester !== audience.semester
+  ) {
     /*
      * An earlier semester can still be theirs — a backlog paper is sat with
      * the juniors — but only when they actually owe one of its courses.

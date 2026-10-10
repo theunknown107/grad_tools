@@ -53,13 +53,38 @@ export type StorageKey =
   | 'calendars'
   /** Which import produced the active timetable, and its revision (M10A.8). */
   | 'timetableImports'
-  /** What the student said happened to today's scheduled classes (M10A.11). */
+  /**
+   * LEGACY, READ ONCE. The pre-ledger duplicate guard (M10A.11). The v0 -> v1
+   * upgrade migrates whatever is here into the ledger and then deletes it;
+   * nothing in the app writes it any more.
+   */
   | 'classMarks'
+  /** The attendance ledger: openings, class occurrences and adjustments (v1). */
+  | 'attendanceLedger'
+  /** What one date did to the recurring week. Device-local. */
+  | 'timetableOverrides'
+  /** Synced aggregates seen and not adopted. Device-local, never published. */
+  | 'remoteSnapshots'
+  /**
+   * Which data model this device is on.
+   *
+   * Absent or 0 is the pre-ledger device, which keeps syncing attendance
+   * counters exactly as it always did. 1 means the ledger is authoritative
+   * here, and is written LAST by the upgrade so a half-migrated device can
+   * never start behaving as though it were finished.
+   */
+  | 'schemaVersion'
   | 'schemeCourses'
   | 'examTimetables'
   | 'examEvents'
   /** Sync bookkeeping: the cursor and the pending queue (M9 §40). */
-  | 'syncState';
+  | 'syncState'
+  /**
+   * Problem reports written while offline, awaiting send (support V1 §17).
+   * Minimal payloads only — category, optional short text, safe context. Never
+   * a token or academic data.
+   */
+  | 'supportQueue';
 
 /**
  * Whose data a read or write concerns.
@@ -72,9 +97,9 @@ export type AccountScope = string | null;
 /**
  * The prefix for one account's data.
  *
- * The auth user id goes in verbatim. It is a uuid from a verified token, never
- * anything a student typed, so it cannot contain a separator that would let one
- * scope read another's keys.
+ * The auth user id goes in verbatim. It is a subject from a verified session (a
+ * Supabase uuid, or a Clerk `user_…` id), never anything a student typed, so it
+ * cannot contain a separator that would let one scope read another's keys.
  */
 export function scopePrefix(scope: AccountScope): string {
   return scope === null ? `${PREFIX}anon:` : `${PREFIX}u:${scope}:`;
@@ -155,6 +180,108 @@ export async function scopeHasData(scope: AccountScope): Promise<boolean> {
     return all.some((key) => typeof key === 'string' && key.startsWith(prefix));
   } catch {
     return false;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Legacy account data (CLERK-PRE-PRODUCTION-VERIFICATION)                     */
+/* -------------------------------------------------------------------------- */
+
+/** A Supabase-era subject. Clerk ids are `user_…`, so the two never collide. */
+const LEGACY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Per-device bookkeeping that belongs to the OLD account's cloud state, never copied. */
+const NOT_COPIED = new Set(['syncState', 'remoteSnapshots']);
+
+/** Keys that say nothing about whether a scope holds a student's records. */
+const NOT_RECORDS = new Set([
+  'syncState',
+  'remoteSnapshots',
+  'schemaVersion',
+  'notificationState',
+  'notificationPreferences',
+]);
+
+const isEmptyValue = (value: unknown): boolean =>
+  value === null ||
+  value === undefined ||
+  (Array.isArray(value) && value.length === 0) ||
+  (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0);
+
+async function entriesOf(scope: AccountScope): Promise<[string, unknown][]> {
+  const prefix = scopePrefix(scope);
+  const owned = (await keys()).filter(
+    (key): key is string => typeof key === 'string' && key.startsWith(prefix),
+  );
+  return Promise.all(
+    owned.map(async (key) => [key.slice(prefix.length), await get(key)] as [string, unknown]),
+  );
+}
+
+/**
+ * True when a scope holds a student's records. Opening a page on a fresh
+ * account writes empty placeholders (an empty ledger, a schema version); those
+ * are not records.
+ */
+export async function scopeHoldsRecords(scope: AccountScope): Promise<boolean> {
+  try {
+    return (await entriesOf(scope)).some(
+      ([key, value]) => !NOT_RECORDS.has(key) && !isEmptyValue(value),
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Supabase-era account scopes on this device, other than `current`, that hold
+ * records. After the Clerk cutover the same student signs in under a NEW id,
+ * so their old records are here but under a scope nothing reads any more.
+ */
+export async function legacyScopesWithRecords(current: string): Promise<string[]> {
+  try {
+    const ids = new Set<string>();
+    for (const key of await keys()) {
+      if (typeof key !== 'string' || !key.startsWith(`${PREFIX}u:`)) continue;
+      const id = key.slice(`${PREFIX}u:`.length).split(':')[0] ?? '';
+      if (id !== current && LEGACY_ID.test(id)) ids.add(id);
+    }
+    const found: string[] = [];
+    for (const id of ids) if (await scopeHoldsRecords(id)) found.push(id);
+    return found;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * COPIES a legacy scope's records into an account scope that holds none.
+ *
+ * - A copy, never a move: the legacy scope is untouched, so nothing can be
+ *   lost here. Removing it is a separate, confirmed act (`clearScope`).
+ * - Refused when the target already holds records: there is no merge, so
+ *   nothing of the new account can be overwritten.
+ * - The old account's sync bookkeeping is NOT copied, so the next sync treats
+ *   every copied record as new and uploads it to the new account.
+ * - The legacy `schemaVersion` IS copied (or the target's removed), so
+ *   pre-ledger data still runs its upgrade instead of being misread.
+ * - All or nothing: on any failure the target is restored to what it was.
+ */
+export async function copyLegacyScope(from: string, to: string): Promise<number> {
+  if (!LEGACY_ID.test(from) || from === to) throw new Error('Not a legacy account scope.');
+  if (await scopeHoldsRecords(to)) throw new Error('This account already holds records.');
+
+  const before = await entriesOf(to);
+  const source = (await entriesOf(from)).filter(([key]) => !NOT_COPIED.has(key));
+  const target = scopePrefix(to);
+  try {
+    if (!source.some(([key]) => key === 'schemaVersion')) await del(`${target}schemaVersion`);
+    for (const [key, value] of source) await set(`${target}${key}`, value);
+    return source.length;
+  } catch (error) {
+    await clearScope(to);
+    for (const [key, value] of before) await set(`${target}${key}`, value);
+    throw error;
   }
 }
 

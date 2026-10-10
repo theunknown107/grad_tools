@@ -1,0 +1,544 @@
+{
+  "name": "no-dictionary",
+  "family": "B",
+  "about": "A grid whose subject table is missing.",
+  "lines": [
+    "EXAMPLE INSTITUTE OF TECHNOLOGY",
+    "CLASS: V (C) EXAMPLE SEMESTER V TIME TABLE",
+    "W.E.F: 01/10/2026",
+    "10:00-10:55am 10:55-11:50am 11:50-12.10pm 12.10-1:05pm 1:05-02:00pm 2:00-03:10pm 03:10-04:05pm 04:05-05:00pm",
+    "MAT PHY CHE",
+    "MONDAY",
+    "PHY MAT ENG",
+    "TUESDAY",
+    "CHE ENG MAT",
+    "WEDNESDAY"
+  ],
+  "placed": [
+    {
+      "text": "EXAMPLE INSTITUTE OF TECHNOLOGY",
+      "x": 60,
+      "y": 680,
+      "width": 191.14999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CLASS: V (C) EXAMPLE SEMESTER V",
+      "x": 60,
+      "y": 660,
+      "width": 178.94,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 238.9399999999999,
+      "y": 660,
+      "width": 161.0600000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TIME TABLE",
+      "x": 400,
+      "y": 660,
+      "width": 58.34999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "W.E.F: 01/10/2026",
+      "x": 600,
+      "y": 640,
+      "width": 83.38,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:00-10:55am",
+      "x": 118,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 185.26000000000005,
+      "y": 566,
+      "width": 22.739999999999952,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:55-11:50am",
+      "x": 208,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 275.26,
+      "y": 566,
+      "width": 10.740000000000009,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "11:50-12.10pm",
+      "x": 286,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 353.25999999999993,
+      "y": 566,
+      "width": 6.740000000000066,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "12.10-1:05pm",
+      "x": 360,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 421.69999999999993,
+      "y": 566,
+      "width": 28.300000000000068,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "1:05-02:00pm",
+      "x": 450,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 511.69999999999993,
+      "y": 566,
+      "width": 21.300000000000068,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "2:00-03:10pm",
+      "x": 533,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 594.6999999999996,
+      "y": 566,
+      "width": 23.30000000000041,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "03:10-04:05pm",
+      "x": 618,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 685.2599999999995,
+      "y": 566,
+      "width": 42.740000000000464,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "04:05-05:00pm",
+      "x": 728,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MONDAY",
+      "x": 40,
+      "y": 520,
+      "width": 43.89,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 83.89,
+      "y": 520,
+      "width": 59.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 143,
+      "y": 527,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 164.11,
+      "y": 527,
+      "width": 68.88999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "PHY",
+      "x": 233,
+      "y": 527,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 253.55999999999997,
+      "y": 527,
+      "width": 129.44000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CHE",
+      "x": 383,
+      "y": 527,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TUESDAY",
+      "x": 40,
+      "y": 490,
+      "width": 47.230000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 87.23,
+      "y": 490,
+      "width": 55.769999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "PHY",
+      "x": 143,
+      "y": 497,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 163.55999999999997,
+      "y": 497,
+      "width": 69.44000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 233,
+      "y": 497,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 254.11,
+      "y": 497,
+      "width": 128.89,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ENG",
+      "x": 383,
+      "y": 497,
+      "width": 21.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "WEDNESDAY",
+      "x": 40,
+      "y": 460,
+      "width": 64.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 104.45,
+      "y": 460,
+      "width": 38.55,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CHE",
+      "x": 143,
+      "y": 467,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 164.10999999999999,
+      "y": 467,
+      "width": 68.89000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ENG",
+      "x": 233,
+      "y": 467,
+      "width": 21.67,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 254.67,
+      "y": 467,
+      "width": 128.33,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 383,
+      "y": 467,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    }
+  ],
+  "expected": {
+    "classification": {
+      "type": "college_timetable",
+      "reason": "This looks like a class timetable.",
+      "signals": [
+        "weekday columns",
+        "with effect from",
+        "a time-of-day grid",
+        "time table heading"
+      ]
+    },
+    "timetable": {
+      "context": {
+        "className": "V (C) EXAMPLE SEMESTER V",
+        "semester": 5,
+        "academicYear": null,
+        "revision": null,
+        "effectiveFrom": "2026-10-01",
+        "room": null
+      },
+      "slots": [
+        [
+          "10:00",
+          "10:55",
+          false
+        ],
+        [
+          "10:55",
+          "11:50",
+          false
+        ],
+        [
+          "11:50",
+          "12:10",
+          false
+        ],
+        [
+          "12:10",
+          "13:05",
+          false
+        ],
+        [
+          "13:05",
+          "14:00",
+          false
+        ],
+        [
+          "14:00",
+          "15:10",
+          false
+        ],
+        [
+          "15:10",
+          "16:05",
+          false
+        ],
+        [
+          "16:05",
+          "17:00",
+          false
+        ]
+      ],
+      "dictionary": [],
+      "classes": [
+        [
+          "Mon",
+          "10:00",
+          "10:55",
+          null,
+          "unknown",
+          "MAT",
+          null,
+          null,
+          1,
+          "\"MAT\" is not defined anywhere on this timetable.",
+          "MAT"
+        ],
+        [
+          "Mon",
+          "10:55",
+          "11:50",
+          null,
+          "unknown",
+          "PHY",
+          null,
+          null,
+          1,
+          "\"PHY\" is not defined anywhere on this timetable.",
+          "PHY"
+        ],
+        [
+          "Mon",
+          "12:10",
+          "13:05",
+          null,
+          "unknown",
+          "CHE",
+          null,
+          null,
+          1,
+          "\"CHE\" is not defined anywhere on this timetable.",
+          "CHE"
+        ],
+        [
+          "Tue",
+          "10:00",
+          "10:55",
+          null,
+          "unknown",
+          "PHY",
+          null,
+          null,
+          1,
+          "\"PHY\" is not defined anywhere on this timetable.",
+          "PHY"
+        ],
+        [
+          "Tue",
+          "10:55",
+          "11:50",
+          null,
+          "unknown",
+          "MAT",
+          null,
+          null,
+          1,
+          "\"MAT\" is not defined anywhere on this timetable.",
+          "MAT"
+        ],
+        [
+          "Tue",
+          "12:10",
+          "13:05",
+          null,
+          "unknown",
+          "ENG",
+          null,
+          null,
+          1,
+          "\"ENG\" is not defined anywhere on this timetable.",
+          "ENG"
+        ],
+        [
+          "Wed",
+          "10:00",
+          "10:55",
+          null,
+          "unknown",
+          "CHE",
+          null,
+          null,
+          1,
+          "\"CHE\" is not defined anywhere on this timetable.",
+          "CHE"
+        ],
+        [
+          "Wed",
+          "10:55",
+          "11:50",
+          null,
+          "unknown",
+          "ENG",
+          null,
+          null,
+          1,
+          "\"ENG\" is not defined anywhere on this timetable.",
+          "ENG"
+        ],
+        [
+          "Wed",
+          "12:10",
+          "13:05",
+          null,
+          "unknown",
+          "MAT",
+          null,
+          null,
+          1,
+          "\"MAT\" is not defined anywhere on this timetable.",
+          "MAT"
+        ]
+      ],
+      "batches": [],
+      "conflicts": [],
+      "coverage": {
+        "cellsFound": 9,
+        "cellsResolved": 0,
+        "slotsFound": 8,
+        "dictionaryEntries": 0,
+        "looksComplete": false
+      },
+      "warnings": [
+        "The subject table on this timetable could not be read, so the initials in the grid cannot be matched to subject codes.",
+        "Only part of this timetable could be read — 0 of 9 classes, across 8 of its time columns. Check it against the printed timetable, or add the rest by hand."
+      ]
+    }
+  }
+}

@@ -219,15 +219,34 @@ const run = async () => {
   });
   context.on('request', (request) => requests.push(request.url()));
 
-  const page = await context.newPage();
   const errors = [];
-  page.on('console', (m) => {
-    if (m.type() === 'error') errors.push(m.text());
-  });
-  page.on('pageerror', (e) => errors.push(String(e)));
+  const watch = (target) => {
+    target.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text());
+    });
+    target.on('pageerror', (e) => errors.push(String(e)));
+    return target;
+  };
+  const page = watch(await context.newPage());
+
+  /**
+   * A second, EMPTY device. Saving is part of what is checked, and a device
+   * that already holds semester 4 correctly refuses a second semester 4 — so a
+   * scenario that saves again needs a device of its own.
+   */
+  const extraContexts = [];
+  const freshPage = async () => {
+    const extra = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+      colorScheme: scheme,
+    });
+    extra.on('request', (request) => requests.push(request.url()));
+    extraContexts.push(extra);
+    return watch(await extra.newPage());
+  };
 
   const openImport = async (target) => {
-    await target.goto(`${ORIGIN}/results`);
+    await target.goto(`${ORIGIN}/import`);
     await target.waitForTimeout(500);
     const opener = target.getByRole('button', { name: /add academic document/i });
     if (await opener.count()) await opener.first().click();
@@ -269,29 +288,69 @@ const run = async () => {
   await openImport(page);
   const clean = await feedImage(page, { name: 'card.png', scale: 1 });
 
-  const readBack = async (target) => {
-    const value = async (label) => {
-      const field = target.getByLabel(label).first();
-      return (await field.count()) === 0 ? null : field.inputValue();
-    };
-    const semesterHeading = await target.locator('#main').innerText();
-    const rows = [];
-    for (let i = 1; i <= 12; i += 1) {
-      const code = await value(new RegExp(`^Subject code ${String(i)}$`, 'i'));
-      if (code === null) break;
-      rows.push({
-        code,
-        title: await value(new RegExp(`^Subject name ${String(i)}$`, 'i')),
-        internal: await value(new RegExp(`^Internal ${String(i)}$`, 'i')),
-        external: await value(new RegExp(`^External ${String(i)}$`, 'i')),
-        total: await value(new RegExp(`^Total ${String(i)}$`, 'i')),
-        status: await value(new RegExp(`^Result ${String(i)}$`, 'i')),
-      });
+  /*
+   * WHAT IS SCORED IS WHAT GETS SAVED.
+   *
+   * This used to scrape inputs labelled "Subject code 1", "Internal 1"… from
+   * the review — markup the review no longer has, so every field scored
+   * "missing" and the harness reported nothing read while the engine had read
+   * the card. The contract that matters is the record a student ends up with:
+   * so the review is confirmed exactly as a student would ("Confirm and save N
+   * courses"), and the SemesterResult written to this device is read back from
+   * IndexedDB and compared with the truth, field by field.
+   */
+  const RESULTS_KEY = 'gradtools:v1:anon:results';
+  const savedResults = (target) =>
+    target.evaluate(
+      (key) =>
+        new Promise((resolve) => {
+          const open = indexedDB.open('keyval-store');
+          open.onerror = () => resolve([]);
+          open.onsuccess = () => {
+            const db = open.result;
+            if (!db.objectStoreNames.contains('keyval')) return resolve([]);
+            const get = db.transaction('keyval').objectStore('keyval').get(key);
+            get.onsuccess = () => resolve(Array.isArray(get.result) ? get.result : []);
+            get.onerror = () => resolve([]);
+          };
+        }),
+      RESULTS_KEY,
+    );
+
+  const saveAndRead = async (target) => {
+    const confirm = target.getByRole('button', { name: /confirm and save \d+ courses?/i }).first();
+    if ((await confirm.count()) === 0 || (await confirm.isDisabled())) {
+      return { saved: false, semester: null, rows: [] };
     }
-    return { rows, semester: /Semester (\d)/.exec(semesterHeading)?.[1] ?? null };
+    const before = (await savedResults(target)).length;
+    await confirm.click();
+    let results = [];
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      results = await savedResults(target);
+      if (results.length > before) break;
+      await target.waitForTimeout(100);
+    }
+    const saved = results.length > before ? results[results.length - 1] : null;
+    if (saved === null) return { saved: false, semester: null, rows: [] };
+    const text = (value) => (value === null || value === undefined ? null : String(value));
+    return {
+      saved: true,
+      semester: text(saved.semester),
+      rows: (saved.subjects ?? []).map((subject) => ({
+        code: text(subject.subjectCode),
+        title: text(subject.subjectTitle),
+        internal: text(subject.internal),
+        external: text(subject.external),
+        total: text(subject.total),
+        status: text(subject.resultStatus),
+      })),
+    };
   };
 
-  const read = await readBack(page);
+  /* The review is checked BEFORE saving: a save leaves it. */
+  const reviewText = await page.locator('#gt-main').innerText();
+  const read = await saveAndRead(page);
+  expect(read.saved, 'OCR: the review of a clean synthetic card could not be confirmed and saved');
 
   /*
    * SCORED PER FIELD, in three buckets rather than one percentage.
@@ -312,8 +371,8 @@ const run = async () => {
   );
 
   const FIELDS = ['code', 'title', 'internal', 'external', 'total', 'status'];
-  for (const [index, truth] of TRUTH.rows.entries()) {
-    const got = read.rows[index];
+  for (const truth of TRUTH.rows) {
+    const got = read.rows.find((row) => row.code?.toUpperCase() === truth.code);
     for (const field of FIELDS) {
       const value = got?.[field] ?? null;
       if (value === null || value === '') bump(field, 'missing');
@@ -322,6 +381,21 @@ const run = async () => {
     }
   }
 
+  /*
+   * A WRONG value is the failure this workflow exists to prevent: a mark that
+   * looks right and is not. On a clean card none is acceptable, and neither is
+   * a course the card printed going unsaved.
+   */
+  expect(
+    read.rows.length === TRUTH.rows.length,
+    `OCR: a clean card saved ${String(read.rows.length)} courses, the card printed ${String(TRUTH.rows.length)}`,
+  );
+  const wrong = Object.entries(tally).filter(([, counts]) => counts.wrong > 0);
+  expect(
+    wrong.length === 0,
+    `OCR: a clean card saved WRONG values in: ${wrong.map(([field]) => field).join(', ')}`,
+  );
+
   const report = {
     generatedAt: new Date().toISOString(),
     note: 'Synthetic cards, rendered by the browser. Not a claim about real VTU cards.',
@@ -329,6 +403,7 @@ const run = async () => {
     imageBytes: clean.bytes,
     rowsExpected: TRUTH.rows.length,
     rowsRead: read.rows.length,
+    saved: read.saved,
     perField: tally,
   };
 
@@ -336,12 +411,22 @@ const run = async () => {
     read.rows.length > 0,
     `OCR: nothing at all was read from a clean synthetic card (${String(clean.ms)}ms)`,
   );
+  expect(
+    read.semester === TRUTH.semester,
+    `OCR: the saved result is for semester ${String(read.semester)}, the card printed ${TRUTH.semester}`,
+  );
+  /* A saved row the card never printed is an invented course. */
+  const known = new Set(TRUTH.rows.map((row) => row.code));
+  const invented = read.rows.filter((row) => !known.has(row.code?.toUpperCase() ?? ''));
+  expect(
+    invented.length === 0,
+    `OCR: the saved result has rows the card never printed: ${invented.map((row) => row.code).join(', ')}`,
+  );
 
   /* -------------------------------------------------------------------- */
   /* 2. The page says the figures came from a picture                     */
   /* -------------------------------------------------------------------- */
 
-  const reviewText = await page.locator('#main').innerText();
   expect(
     /check every mark against the card/i.test(reviewText),
     'OCR: the review did not say the figures were read from a picture',
@@ -397,8 +482,9 @@ const run = async () => {
    * canvas. A document with no text layer must be RENDERED before it can be
    * read — and a text PDF must never take this route, which §6 below checks.
    */
-  await openImport(page);
-  const jpegUrl = await page.evaluate(DRAW, {
+  const scanPage = await freshPage();
+  await openImport(scanPage);
+  const jpegUrl = await scanPage.evaluate(DRAW, {
     truth: TRUTH,
     blur: 0,
     skew: 0,
@@ -406,18 +492,18 @@ const run = async () => {
     mime: 'image/jpeg',
   });
   const scanned = scannedPdf(Buffer.from(jpegUrl.split(',')[1], 'base64'), 1000, 700);
-  await page
+  await scanPage
     .locator('input[type="file"]')
     .first()
     .setInputFiles({ name: 'scan.pdf', mimeType: 'application/pdf', buffer: scanned });
-  await page
+  await scanPage
     .locator('text=/rows read from a picture|could not|Failed/i')
     .first()
     .waitFor({ timeout: 180_000 })
     .catch(() => undefined);
 
-  const scannedRead = await readBack(page);
-  const scannedText = await page.locator('#main').innerText();
+  const scannedText = await scanPage.locator('#gt-main').innerText();
+  const scannedRead = await saveAndRead(scanPage);
   expect(
     scannedRead.rows.length === TRUTH.rows.length,
     `OCR: a scanned PDF yielded ${String(scannedRead.rows.length)} rows, expected ${String(TRUTH.rows.length)}`,
@@ -426,7 +512,9 @@ const run = async () => {
     /check every mark against the card/i.test(scannedText),
     'OCR: a scanned PDF was not marked as read from a picture',
   );
+  expect(scannedRead.saved, 'OCR: the review of a scanned PDF could not be confirmed and saved');
   report.scannedPdf = {
+    saved: scannedRead.saved,
     rowsRead: scannedRead.rows.length,
     codes: scannedRead.rows.map((row) => row.code),
   };
@@ -437,7 +525,7 @@ const run = async () => {
 
   await openImport(page);
   await feedImage(page, { name: 'blurred.png', blur: 6, scale: 1 });
-  const blurredText = await page.locator('#main').innerText();
+  const blurredText = await page.locator('#gt-main').innerText();
   expect(
     /could not be made out|Failed|rows read from a picture/i.test(blurredText),
     'OCR: a heavily blurred card produced neither a reading nor a refusal',
@@ -456,12 +544,13 @@ const run = async () => {
   await feedImage(page, { name: 'tiny.png', scale: 0.3 });
   expect(
     /cannot be read reliably|could not be made out|Failed/i.test(
-      await page.locator('#main').innerText(),
+      await page.locator('#gt-main').innerText(),
     ),
     'OCR: a card too small to read was not refused',
   );
 
   await context.close();
+  for (const extra of extraContexts) await extra.close();
 
   /* -------------------------------------------------------------------- */
   /* 7. The import surface, at every width, both themes                   */

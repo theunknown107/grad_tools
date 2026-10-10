@@ -12,7 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeResultSubject } from '../src/domain/results.js';
 import userEvent from '@testing-library/user-event';
-import { screen, within } from '@testing-library/dom';
+import { screen, waitFor, within } from '@testing-library/dom';
 import { cleanup } from '@testing-library/react';
 import { App } from '../src/App.js';
 import { DashboardPage } from '../src/features/dashboard/DashboardPage.js';
@@ -21,10 +21,27 @@ import { AttendancePage } from '../src/features/attendance/AttendancePage.js';
 import { ResultsPage } from '../src/features/results/ResultsPage.js';
 import { TimetablePage } from '../src/features/timetable/TimetablePage.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
-import type { AttendanceRecord, SemesterResult } from '../src/domain/types.js';
-import { createMemoryRepositories, renderWith } from './helpers.js';
+import type { AttendanceRecord, SemesterResult, StudentProfile } from '../src/domain/types.js';
+import { Route, Routes } from 'react-router-dom';
+import { ResultDetailPage } from '../src/features/results/ResultDetailPage.js';
+import { choose, createMemoryRepositories, renderWith } from './helpers.js';
 
 const profileId = asStudentProfileId('p1');
+
+/* A record needs a semester; with none set, Add course asks (attendance-semester). */
+const inSemesterFive: StudentProfile = {
+  id: profileId,
+  authUserId: null,
+  displayName: null,
+  usn: null,
+  collegeName: null,
+  programme: null,
+  schemeId: 'vtu-2022',
+  branch: null,
+  currentSemester: 5,
+  createdAt: '',
+  updatedAt: '',
+};
 
 function attendance(
   id: string,
@@ -120,15 +137,92 @@ describe('dashboard', () => {
     renderWith(<DashboardPage />, { repositories: bundle });
 
     /*
-     * The approved design carries the CGPA twice: once as the hero's standing
-     * figure and once in the comparable metric row. Both must show the rules
-     * engine's number, so this asserts on ALL of them rather than picking one.
+     * The CGPA is said ONCE, as the hero's standing figure. The strip below
+     * carries the percentage that follows from it rather than repeating it.
      */
-    const figures = await screen.findAllByText('8.75');
-    expect(figures.length).toBeGreaterThan(0);
+    const hero = await screen.findByRole('region', { name: /^Good (morning|afternoon|evening)/ });
+    expect(within(hero).getByText('8.75')).toBeTruthy();
+    const strip = screen.getByTestId('standing-strip');
+    expect(within(strip).queryByText('8.75')).toBeNull();
     // 8.75 x 10 = 87.5%, per 22OB 6.7. NOT (8.75-0.75)x10 = 80.0%.
-    expect(screen.getByText('87.5%')).toBeTruthy();
+    expect(within(strip).getByRole('group', { name: 'Percentage' }).textContent).toMatch(/87\.5%/);
     expect(screen.queryByText('80.0%')).toBeNull();
+  });
+
+  it('lays the standing out as one ruled strip of five figures', async () => {
+    renderWith(<DashboardPage />);
+    const strip = await screen.findByTestId('standing-strip');
+    const names = within(strip)
+      .getAllByRole('group')
+      .map(
+        (group) =>
+          document.getElementById(group.getAttribute('aria-labelledby') ?? '')?.textContent,
+      );
+    expect(names).toEqual([
+      'Percentage',
+      'Latest SGPA',
+      'Credits earned',
+      'Backlogs',
+      'Attendance',
+    ]);
+    /*
+     * One container, six cells: no cell carries tile chrome of its own. The
+     * rules are the strip's background through a 1px gap, so there is no
+     * divider element for a screen reader to announce.
+     */
+    for (const cell of within(strip).getAllByRole('group')) {
+      expect(cell.className).not.toMatch(/\bgt-metric\b|\brounded-/);
+    }
+    expect(strip.querySelector('hr, [role="separator"]')).toBeNull();
+  });
+
+  it('states semester progress once, as a progress bar in the hero', async () => {
+    const { bundle } = createMemoryRepositories({
+      results: [
+        result('r1', 1, null, [{ code: 'A1', credits: 4, grade: 'A' }]),
+        result('r2', 2, null, [{ code: 'B1', credits: 4, grade: 'O' }]),
+      ],
+    });
+    renderWith(<DashboardPage />, { repositories: bundle });
+
+    /*
+     * One accessible statement: the bar, named and valued in the units the
+     * eye reads ("2 of 8"), not a bare percentage. The visible "2/8" row is
+     * hidden from assistive tech so it is not heard a second time.
+     */
+    const bars = await screen.findAllByRole('progressbar', { name: 'Semesters graded' });
+    expect(bars).toHaveLength(1);
+    expect(bars[0]?.getAttribute('aria-valuetext')).toBe('2 of 8');
+    expect(screen.getByText('2/8').closest('[aria-hidden="true"]')).not.toBeNull();
+    // And the strip no longer repeats it.
+    const strip = screen.getByTestId('standing-strip');
+    expect(within(strip).queryByText(/\d\/8/)).toBeNull();
+  });
+
+  it('says how many semesters are marked complete when that differs from graded', async () => {
+    const { bundle } = createMemoryRepositories({
+      results: [result('r1', 1, null, [{ code: 'A1', credits: 4, grade: 'A' }])],
+      semesters: [1, 2].map((number) => ({
+        id: `sem-${String(number)}`,
+        profileId,
+        number,
+        status: 'completed' as const,
+        startedOn: null,
+        completedOn: null,
+        updatedAt: '',
+      })),
+    });
+    renderWith(<DashboardPage />, { repositories: bundle });
+    const hero = await screen.findByRole('region', { name: /^Good (morning|afternoon|evening)/ });
+    expect(within(hero).getByText('2 semesters marked complete')).toBeTruthy();
+  });
+
+  it('keeps the hero one region, with no card nested inside it', async () => {
+    renderWith(<DashboardPage />);
+    const hero = await screen.findByRole('region', { name: /^Good (morning|afternoon|evening)/ });
+    // The standing figure sits in a ruled column, not a bordered panel.
+    expect(hero.querySelector('.bg-panel, .rounded-xl')).toBeNull();
+    expect(within(hero).getByText('Semesters graded')).toBeTruthy();
   });
 
   it('surfaces only the courses that need attention', async () => {
@@ -199,7 +293,7 @@ describe('dashboard', () => {
       const marks = await screen.findAllByText('Next');
       expect(marks).toHaveLength(1);
       // The 11:00 class, not the 09:00 one that is already over.
-      expect(marks[0]?.closest('li')?.textContent).toContain('NEXTUP');
+      expect(marks[0]?.closest('[aria-current="true"]')?.textContent).toContain('NEXTUP');
     });
 
     it('marks the class in progress rather than skipping to the one after it', async () => {
@@ -208,7 +302,7 @@ describe('dashboard', () => {
       renderWith(<DashboardPage />, { repositories: bundle });
 
       const marks = await screen.findAllByText('Next');
-      expect(marks[0]?.closest('li')?.textContent).toContain('NEXTUP');
+      expect(marks[0]?.closest('[aria-current="true"]')?.textContent).toContain('NEXTUP');
     });
 
     it('marks nothing once the day is over', async () => {
@@ -234,7 +328,7 @@ describe('dashboard', () => {
  * calculator tab; their assertions are unchanged.
  */
 async function openCalculator(): Promise<void> {
-  await userEvent.click(await screen.findByRole('tab', { name: /calculator/i }));
+  await userEvent.click(await screen.findByRole('radio', { name: /calculator/i }));
 }
 
 /**
@@ -246,7 +340,7 @@ async function openCalculator(): Promise<void> {
  */
 async function openCalculatorMode(mode: RegExp): Promise<void> {
   await openCalculator();
-  await userEvent.click(await screen.findByRole('tab', { name: mode }));
+  await userEvent.click(await screen.findByRole('radio', { name: mode }));
 }
 
 describe('SGPA calculator', () => {
@@ -256,15 +350,12 @@ describe('SGPA calculator', () => {
     await openCalculator();
 
     // Two 4-credit courses at A (8) and A+ (9): 68/8 = 8.50
-    await user.selectOptions(screen.getByLabelText(/credits, course 1/i), '4');
-    await user.selectOptions(screen.getByLabelText(/grade, course 1/i), 'A');
-    await user.selectOptions(screen.getByLabelText(/credits, course 2/i), '4');
-    await user.selectOptions(screen.getByLabelText(/grade, course 2/i), 'A+');
-    // Row labels are positional and renumber after each removal, so removing
-    // "course 3" three times clears rows 3, 4 and 5.
-    for (let i = 0; i < 3; i += 1) {
-      await user.click(screen.getByRole('button', { name: /remove course 3/i }));
-    }
+    await choose(/credits, course 1/i, '4');
+    await choose(/grade, course 1/i, /^A \(/);
+    await choose(/credits, course 2/i, '4');
+    await choose(/grade, course 2/i, /^A\+ \(/);
+    // The design starts with three rows; removing the third leaves the two above.
+    await user.click(screen.getByRole('button', { name: /remove course 3/i }));
 
     expect(await screen.findByText('8.50')).toBeTruthy();
   });
@@ -272,8 +363,10 @@ describe('SGPA calculator', () => {
   it('exposes the derivation with its regulation clause', async () => {
     renderWith(<AcademicsPage />);
     await openCalculator();
-    const disclosures = await screen.findAllByText(/how was this calculated/i);
+    const disclosures = await screen.findAllByRole('button', { name: /how was this calculated/i });
     expect(disclosures.length).toBeGreaterThan(0);
+    // Closed by default: the derivation is one press away, not on the page.
+    await userEvent.click(disclosures[0] as HTMLElement);
     expect(screen.getAllByText(/22OB 6.6\(2a\)/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/SGPA = Sum\(Ci x Gi\) \/ Sum\(Ci\)/).length).toBeGreaterThan(0);
   });
@@ -282,11 +375,13 @@ describe('SGPA calculator', () => {
     const user = userEvent.setup();
     renderWith(<AcademicsPage />);
     await openCalculator();
-    expect(screen.getByLabelText(/subject code, course 5/i)).toBeTruthy();
+    // Two columns per row, as in the design: credits and grade.
+    expect(screen.getByRole('combobox', { name: /credits, course 3/i })).toBeTruthy();
+    expect(screen.queryByLabelText(/subject code/i)).toBeNull();
     await user.click(screen.getByRole('button', { name: /add course/i }));
-    expect(screen.getByLabelText(/subject code, course 6/i)).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: /remove course 6/i }));
-    expect(screen.queryByLabelText(/subject code, course 6/i)).toBeNull();
+    expect(screen.getByRole('combobox', { name: /grade, course 4/i })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: /remove course 4/i }));
+    expect(screen.queryByRole('combobox', { name: /grade, course 4/i })).toBeNull();
   });
 });
 
@@ -302,7 +397,7 @@ describe('CGPA calculator', () => {
 
     expect(await screen.findByText('8.20')).toBeTruthy();
     // The regulation's own worked example: CGPA 8.20 -> 82.0% (22OB 6.7).
-    expect(screen.getByText('82.0%')).toBeTruthy();
+    expect(screen.getByText(/Percentage · 82\.0%/)).toBeTruthy();
     expect(screen.getByText(/first class with distinction/i)).toBeTruthy();
     // The obsolete (CGPA - 0.75) x 10 conversion would be 74.5%.
     expect(screen.queryByText('74.5%')).toBeNull();
@@ -329,20 +424,40 @@ describe('CGPA calculator', () => {
  * planner the row's own button opens — the row carries the percentage, the
  * planner carries what to do about it. The guarantees below are unchanged.
  */
+/**
+ * The by-course list, which now sits behind its own tab.
+ *
+ * The screen opens on TODAY — the day's classes, ready to mark, which is what
+ * the product is opened for. The per-course figures are one click away, and
+ * every guarantee below is unchanged.
+ */
+async function openCourses(): Promise<void> {
+  await userEvent.click(await screen.findByRole('radio', { name: /^courses$/i }));
+}
+
+async function openAddCourse(): Promise<void> {
+  const [button] = await screen.findAllByRole('button', { name: /add a course/i });
+  await userEvent.click(button as HTMLElement);
+  await screen.findByRole('dialog', { name: /add a course/i });
+}
+
 async function openPlanner(): Promise<void> {
+  await openCourses();
   await userEvent.click(await screen.findByRole('button', { name: /plan against/i }));
 }
 
 describe('attendance', () => {
   it('adds a course and persists it through the repository', async () => {
     const user = userEvent.setup();
-    const { bundle, peek } = createMemoryRepositories();
+    const { bundle, peek } = createMemoryRepositories({ profile: inSemesterFive });
     renderWith(<AttendancePage />, { repositories: bundle });
+    await openAddCourse();
 
     await user.type(screen.getByLabelText(/^subject code$/i), 'BCS304');
     await user.type(screen.getByLabelText(/^attended$/i), '45');
     await user.type(screen.getByLabelText(/^conducted$/i), '50');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
+    await openCourses();
 
     /*
      * M9.6F added an OVERALL standing figure above the subject rows, so a
@@ -354,19 +469,21 @@ describe('attendance', () => {
     expect((await screen.findAllByText('90.0%')).length).toBeGreaterThan(0);
     expect(peek.attendance()).toHaveLength(1);
     expect(peek.attendance()[0]?.subjectCode).toBe('BCS304');
+    expect(peek.attendance()[0]?.semester).toBe(5);
   });
 
   it('rejects attended greater than conducted rather than storing it', async () => {
     const user = userEvent.setup();
-    const { bundle, peek } = createMemoryRepositories();
+    const { bundle, peek } = createMemoryRepositories({ profile: inSemesterFive });
     renderWith(<AttendancePage />, { repositories: bundle });
+    await openAddCourse();
 
     await user.type(screen.getByLabelText(/^subject code$/i), 'BCS304');
     await user.type(screen.getByLabelText(/^attended$/i), '52');
     await user.type(screen.getByLabelText(/^conducted$/i), '50');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
 
-    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect((await screen.findByRole('alert')).textContent).toMatch(/cannot be more than/i);
     expect(peek.attendance()).toHaveLength(0);
   });
 
@@ -375,6 +492,7 @@ describe('attendance', () => {
       attendance: [attendance('a1', 'BCS301', 45, 50)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
 
     // The row carries the percentage; the planner behind it carries the answer.
     expect((await screen.findAllByText('90.0%')).length).toBeGreaterThan(0);
@@ -390,6 +508,7 @@ describe('attendance', () => {
       attendance: [attendance('a1', 'BCSL305', 30, 50)], // 60%
     });
     renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
 
     expect((await screen.findAllByText(/dx risk/i)).length).toBeGreaterThan(0);
     expect(screen.getByText(/discretionary, not\s+automatic/i)).toBeTruthy();
@@ -400,6 +519,7 @@ describe('attendance', () => {
       attendance: [attendance('a1', 'BCS301', 48, 50)],
     });
     const { container } = renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
     await screen.findAllByText('96.0%');
     const text = container.textContent ?? '';
     expect(text).not.toMatch(/you should (skip|bunk)/i);
@@ -408,47 +528,52 @@ describe('attendance', () => {
 });
 
 describe('bunk planner', () => {
-  it('projects the resulting attendance from planned misses', async () => {
-    const user = userEvent.setup();
+  it('says how many classes it takes to recover, from the rules engine', async () => {
     const { bundle } = createMemoryRepositories({
-      attendance: [attendance('a1', 'BCS301', 45, 50)],
+      attendance: [attendance('a1', 'BCS301', 30, 40)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
     await openPlanner();
 
-    const planned = await screen.findByLabelText(/classes still to be held/i);
-    const missed = screen.getByLabelText(/classes you would miss/i);
-    await user.clear(planned);
-    await user.type(planned, '10');
-    await user.clear(missed);
-    await user.type(missed, '2');
-
-    // (45 + 8) / (50 + 10) = 88.33%
-    expect(await screen.findByText('88.3%')).toBeTruthy();
+    // 30 of 40 at an 85% requirement: (30 + n) / (40 + n) >= 0.85 first holds at n = 27.
+    const dialog = await screen.findByRole('dialog', { name: /bunk planner/i });
+    expect(within(dialog).getByText(/attend the next 27 classes to recover/i)).toBeTruthy();
+    expect(within(dialog).getByText('75.0%')).toBeTruthy();
+    expect(within(dialog).getByText('85.0%')).toBeTruthy();
   });
 
-  it('refuses to plan more misses than classes remaining', async () => {
+  it('closes without changing the record', async () => {
     const user = userEvent.setup();
-    const { bundle } = createMemoryRepositories({
+    const { bundle, peek } = createMemoryRepositories({
       attendance: [attendance('a1', 'BCS301', 45, 50)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
     await openPlanner();
 
-    const planned = await screen.findByLabelText(/classes still to be held/i);
-    const missed = screen.getByLabelText(/classes you would miss/i);
-    await user.clear(planned);
-    await user.type(planned, '2');
-    await user.clear(missed);
-    await user.type(missed, '9');
-
-    expect(await screen.findByText(/cannot miss more classes than will be held/i)).toBeTruthy();
+    // The design's footer Close, beside the header's × which carries the same name.
+    const dialog = await screen.findByRole('dialog', { name: /bunk planner/i });
+    const closes = within(dialog).getAllByRole('button', { name: /^close$/i });
+    await user.click(closes[closes.length - 1] as HTMLElement);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(peek.attendance()[0]).toMatchObject({ attended: 45, conducted: 50 });
   });
 });
 
 /* -------------------------------------------------------------------------- */
 /* Results                                                                    */
 /* -------------------------------------------------------------------------- */
+
+function renderResults(bundle: ReturnType<typeof createMemoryRepositories>['bundle']) {
+  return renderWith(
+    <Routes>
+      <Route path="/results" element={<ResultsPage />} />
+      <Route path="/results/:semester" element={<ResultDetailPage />} />
+    </Routes>,
+    { repositories: bundle, route: '/results' },
+  );
+}
 
 describe('results', () => {
   /*
@@ -473,7 +598,7 @@ describe('results', () => {
       results: [result('r1', semester, null, subjects)],
     });
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderResults(bundle);
 
     /*
      * M9.6E split this page into Overview and Semesters tabs, and the approved
@@ -482,8 +607,10 @@ describe('results', () => {
      * renders, and no padding row is invented — the test just navigates the way
      * a person does to reach them.
      */
-    await user.click(await screen.findByRole('tab', { name: /semesters/i }));
-    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
+    await user.click(await screen.findByRole('radio', { name: /semesters/i }));
+    await user.click(
+      (await screen.findAllByRole('link', { name: /open the full record/i }))[0] as HTMLElement,
+    );
 
     await screen.findAllByText(subjects[0]?.code as string);
     for (const subject of subjects) {
@@ -506,10 +633,14 @@ describe('results', () => {
       ],
     });
     const user = userEvent.setup();
-    renderWith(<ResultsPage />, { repositories: bundle });
+    renderResults(bundle);
 
-    await user.click(await screen.findByRole('tab', { name: /semesters/i }));
-    await user.click(await screen.findByRole('button', { name: /open the full record/i }));
+    // The list states the policy once, before any record is opened.
+    expect(await screen.findByText(/shows both rather than picking one/i)).toBeTruthy();
+    await user.click(await screen.findByRole('radio', { name: /semesters/i }));
+    await user.click(
+      (await screen.findAllByRole('link', { name: /open the full record/i }))[0] as HTMLElement,
+    );
 
     // The computed figure now also appears in the Overview ledger, so both
     // views can show it; what matters is that BOTH figures are present.
@@ -528,7 +659,6 @@ describe('results', () => {
      * (M9.3 §24).
      */
     expect(screen.getByText(/these disagree/i)).toBeTruthy();
-    expect(screen.getByText(/shows both rather than picking one/i)).toBeTruthy();
   });
 
   it('does not flag a disagreement when the figures match', async () => {
@@ -558,7 +688,7 @@ describe('results', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<ResultsPage />, { repositories: bundle });
 
-    await user.click(screen.getByRole('button', { name: /add a semester/i }));
+    await user.click(await screen.findByRole('button', { name: /add a semester/i }));
     await user.type(screen.getByLabelText(/subject code 1/i), 'BCS301');
     await user.click(screen.getByRole('button', { name: /save semester/i }));
 
@@ -571,14 +701,20 @@ describe('results', () => {
 /* Timetable                                                                  */
 /* -------------------------------------------------------------------------- */
 
+async function openAddClass(): Promise<HTMLElement> {
+  await userEvent.click(await screen.findByRole('button', { name: /add class/i }));
+  return screen.findByRole('dialog');
+}
+
 describe('timetable', () => {
   it('adds a class and persists it', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<TimetablePage />, { repositories: bundle });
+    const dialog = await openAddClass();
 
-    await user.type(screen.getByLabelText(/^subject code$/i), 'BCS301');
-    await user.click(screen.getByRole('button', { name: /add class/i }));
+    await user.type(within(dialog).getByLabelText(/^subject code$/i), 'BCS301');
+    await user.click(within(dialog).getByRole('button', { name: /add class/i }));
 
     expect(peek.timetable()).toHaveLength(1);
     expect(peek.timetable()[0]?.subjectCode).toBe('BCS301');
@@ -593,7 +729,7 @@ describe('timetable', () => {
      * that Radix mounts on selection, and opening it is both what a person
      * does and what makes the assertion mean something.
      */
-    await user.click(await screen.findByRole('tab', { name: /week/i }));
+    await user.click(await screen.findByRole('radio', { name: /week/i }));
     expect(await screen.findAllByText('BCS301')).toBeTruthy();
   });
 
@@ -601,11 +737,12 @@ describe('timetable', () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<TimetablePage />, { repositories: bundle });
+    const dialog = await openAddClass();
 
-    await user.type(screen.getByLabelText(/^subject code$/i), 'BCS301');
-    await user.clear(screen.getByLabelText(/^ends$/i));
-    await user.type(screen.getByLabelText(/^ends$/i), '08:00');
-    await user.click(screen.getByRole('button', { name: /add class/i }));
+    await user.type(within(dialog).getByLabelText(/^subject code$/i), 'BCS301');
+    await user.clear(within(dialog).getByLabelText(/^ends$/i));
+    await user.type(within(dialog).getByLabelText(/^ends$/i), '08:00');
+    await user.click(within(dialog).getByRole('button', { name: /add class/i }));
 
     expect(await screen.findByText(/end time must be after the start time/i)).toBeTruthy();
     expect(peek.timetable()).toHaveLength(0);
@@ -634,12 +771,14 @@ describe('timetable', () => {
      * test is unchanged and is what actually matters: reaching another day
      * must be possible with BUTTONS, never with a swipe alone (docs/27 §27.8).
      */
-    await userEvent.click(await screen.findByRole('tab', { name: /^day/i }));
+    await userEvent.click(await screen.findByRole('radio', { name: /^day$/i }));
+    const days = within(screen.getByRole('radiogroup', { name: /^day$/i }));
+    // Today's chip reads "Thu · today"; the day name always leads.
     for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']) {
-      expect(screen.getByRole('button', { name: day })).toBeTruthy();
+      expect(days.getByRole('radio', { name: new RegExp(`^${day}`) })).toBeTruthy();
     }
-    await userEvent.click(screen.getByRole('button', { name: 'Mon' }));
-    expect(screen.getByRole('button', { name: 'Mon' }).getAttribute('aria-pressed')).toBe('true');
+    await userEvent.click(days.getByRole('radio', { name: /^Tue/ }));
+    expect(days.getByRole('radio', { name: /^Tue/ }).getAttribute('aria-checked')).toBe('true');
   });
 });
 
@@ -748,18 +887,21 @@ describe('navigation', () => {
 describe('local persistence', () => {
   it('round-trips data through the repository boundary', async () => {
     const user = userEvent.setup();
-    const { bundle } = createMemoryRepositories();
+    const { bundle } = createMemoryRepositories({ profile: inSemesterFive });
 
     const first = renderWith(<AttendancePage />, { repositories: bundle });
+    await openAddCourse();
     await user.type(screen.getByLabelText(/^subject code$/i), 'BCS404');
     await user.type(screen.getByLabelText(/^attended$/i), '20');
     await user.type(screen.getByLabelText(/^conducted$/i), '20');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
+    await openCourses();
     await screen.findAllByText('100.0%');
     first.unmount();
 
     // A fresh mount reads from the same repository, exactly as a page reload would.
     renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
     /*
      * findAllByText, not findBy: the reference rebuild put a per-course card
      * above the list, so a saved course now legitimately appears twice — once

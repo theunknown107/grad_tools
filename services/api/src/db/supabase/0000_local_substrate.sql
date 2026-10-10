@@ -101,6 +101,28 @@ AS $$
   )::uuid
 $$;
 
+-- ---------------------------------------------------------------------------
+-- auth.jwt()
+-- ---------------------------------------------------------------------------
+--
+-- Supabase's own definition: the whole verified claim set as jsonb. Policies
+-- since 0012 compare `auth.jwt() ->> 'sub'` as TEXT, because the identity
+-- provider's subject is not a uuid — a Clerk user id is `user_...` — and
+-- `auth.uid()` casts to uuid, which would raise on every such request.
+
+CREATE OR REPLACE FUNCTION auth.jwt()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT coalesce(
+    nullif(current_setting('request.jwt.claim', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')
+  )::jsonb
+$$;
+
 GRANT USAGE ON SCHEMA auth TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION auth.jwt() TO anon, authenticated;
 GRANT SELECT ON auth.users TO authenticated;

@@ -16,6 +16,7 @@
  */
 
 import { z } from 'zod';
+import { httpUrlSchema } from './url.js';
 
 /* -------------------------------------------------------------------------- */
 /* Provenance                                                                 */
@@ -28,7 +29,7 @@ import { z } from 'zod';
  * (docs/14 §14.10). The API cannot emit one because the schema forbids it.
  */
 export const provenanceSchema = z.object({
-  sourceUrl: z.string().url(),
+  sourceUrl: httpUrlSchema,
   sourceClause: z.string().nullable(),
   verifiedAt: z.string(),
   verifiedBy: z.string().nullable(),
@@ -86,6 +87,8 @@ export const collegeSchema = z.object({
   code: z.string().nullable(),
   isAutonomous: z.boolean(),
   city: z.string().nullable(),
+  /** The vtu-catalogue transcription id, or null for a row not from the catalogue. */
+  catalogueId: z.string().nullable(),
 });
 export type College = z.infer<typeof collegeSchema>;
 
@@ -240,6 +243,12 @@ export const errorResponseSchema = z.object({
     message: z.string(),
     details: z.array(z.object({ field: z.string(), issue: z.string() })).optional(),
     reference: z.string(),
+    /**
+     * A user-facing Incident ID (`GT-ERR-XXXXXX`) for a persisted incident —
+     * present only on reportable server faults, so a student can quote it.
+     * Distinct from `reference`, which is an internal log correlation id.
+     */
+    incidentId: z.string().optional(),
   }),
 });
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
@@ -329,6 +338,7 @@ export const API_ROUTES = {
 /* Sources, rights and documents (M5)                                         */
 /* -------------------------------------------------------------------------- */
 
+export * from './url.js';
 export * from './sources.js';
 
 /* -------------------------------------------------------------------------- */
@@ -336,3 +346,21 @@ export * from './sources.js';
 /* -------------------------------------------------------------------------- */
 
 export * from './student.js';
+
+/* -------------------------------------------------------------------------- */
+/* AI document reading (source values only)                                   */
+/* -------------------------------------------------------------------------- */
+
+export * from './document-ai.js';
+
+/* -------------------------------------------------------------------------- */
+/* Support and observability (OBSERVABILITY-AND-SUPPORT-V1)                    */
+/* -------------------------------------------------------------------------- */
+
+export * from './support.js';
+
+/* -------------------------------------------------------------------------- */
+/* Terms & Conditions and onboarding (TERMS-AND-ONBOARDING)                    */
+/* -------------------------------------------------------------------------- */
+
+export * from './terms.js';

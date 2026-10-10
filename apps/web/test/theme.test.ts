@@ -5,7 +5,7 @@
  *
  * The contrast block is the important half. Five accents times two appearances
  * is ten palettes, and nobody is going to eyeball ten palettes on every change.
- * So the ratios are COMPUTED FROM tokens.css: the test parses the stylesheet
+ * So the ratios are COMPUTED FROM index.css: the test parses the stylesheet
  * that ships, not a copy of the values, which means a hue edited in CSS is
  * checked here without anyone remembering to update a fixture.
  */
@@ -55,7 +55,12 @@ describe('reading a stored preference', () => {
 
   it('round-trips a written preference', () => {
     const storage = memoryStorage();
-    const preference: ThemePreference = { appearance: 'dark', accent: 'turquoise', reducedMotion: false, density: 'comfortable' };
+    const preference: ThemePreference = {
+      appearance: 'dark',
+      accent: 'turquoise',
+      reducedMotion: false,
+      density: 'comfortable',
+    };
     writeStoredTheme(storage, preference);
     expect(readStoredTheme(storage)).toEqual(preference);
   });
@@ -108,7 +113,12 @@ describe('reading a stored preference', () => {
 
     expect(readStoredTheme(hostile)).toEqual(DEFAULT_THEME);
     expect(() =>
-      writeStoredTheme(hostile, { appearance: 'dark', accent: 'emerald', reducedMotion: false, density: 'comfortable' }),
+      writeStoredTheme(hostile, {
+        appearance: 'dark',
+        accent: 'emerald',
+        reducedMotion: false,
+        density: 'comfortable',
+      }),
     ).not.toThrow();
   });
 });
@@ -120,7 +130,12 @@ describe('reading a stored preference', () => {
 describe('applying a preference to the document', () => {
   it('stamps data-theme for an explicit choice', () => {
     const root = document.createElement('html');
-    applyTheme(root, { appearance: 'dark', accent: 'amber', reducedMotion: false, density: 'comfortable' });
+    applyTheme(root, {
+      appearance: 'dark',
+      accent: 'amber',
+      reducedMotion: false,
+      density: 'comfortable',
+    });
     expect(root.getAttribute('data-theme')).toBe('dark');
     expect(root.getAttribute('data-accent')).toBe('amber');
     expect(root.style.colorScheme).toBe('dark');
@@ -129,10 +144,20 @@ describe('applying a preference to the document', () => {
   it('REMOVES data-theme under system, so prefers-color-scheme can win', () => {
     // The three-state contract: the absence of the attribute is what hands
     // control to the media query. Setting data-theme="system" would match no
-    // block in tokens.css and silently strand the page on the dark defaults.
+    // meaningful value and leave the device's preference unapplied.
     const root = document.createElement('html');
-    applyTheme(root, { appearance: 'dark', accent: 'violet', reducedMotion: false, density: 'comfortable' });
-    applyTheme(root, { appearance: 'system', accent: 'violet', reducedMotion: false, density: 'comfortable' });
+    applyTheme(root, {
+      appearance: 'dark',
+      accent: 'violet',
+      reducedMotion: false,
+      density: 'comfortable',
+    });
+    applyTheme(root, {
+      appearance: 'system',
+      accent: 'violet',
+      reducedMotion: false,
+      density: 'comfortable',
+    });
     expect(root.hasAttribute('data-theme')).toBe(false);
     expect(root.style.colorScheme).toBe('light dark');
   });
@@ -161,49 +186,24 @@ describe('resolving what system means', () => {
  * runs this file through a transform whose module URL is not a file URL, and
  * the project may be invoked from the repo root or from apps/web.
  */
-const TOKENS = ['src/styles/tokens.css', 'apps/web/src/styles/tokens.css']
+const STYLESHEET = ['src/styles/index.css', 'apps/web/src/styles/index.css']
   .map((candidate) => resolve(process.cwd(), candidate))
   .find((candidate) => existsSync(candidate));
-if (TOKENS === undefined) throw new Error('tokens.css not found from ' + process.cwd());
-const CSS = readFileSync(TOKENS, 'utf8');
+if (STYLESHEET === undefined) throw new Error('index.css not found from ' + process.cwd());
+const CSS = readFileSync(STYLESHEET, 'utf8');
 
 /**
- * Pulls `--name: #hex;` out of the first block whose selector matches.
- *
- * `selector` is a LITERAL CSS selector; every regex metacharacter is escaped
- * here so call sites stay readable and cannot get the escaping wrong.
+ * Pulls `--name: #hex;` out of the first block whose selector is exactly
+ * `selector` at the start of a line. `selector` is literal; metacharacters are
+ * escaped here so call sites stay readable.
  */
 function tokenIn(selector: string, name: string): string {
   const literal = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const block = new RegExp(`${literal}\\s*\\{([^}]*)\\}`).exec(CSS);
+  const block = new RegExp(`(?:^|\\n)${literal}\\s*\\{([^}]*)\\}`).exec(CSS);
   if (block === null) throw new Error(`no block for ${selector}`);
-  const found = new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`).exec(block[1] ?? '');
+  const found = new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})\\b`).exec(block[1] ?? '');
   if (found === null) throw new Error(`no --${name} in ${selector}`);
   return found[1] as string;
-}
-
-/**
- * The colour a `--surface` actually paints, whichever way it is declared.
- *
- * This used to demand a TRANSLUCENT white and composite it, because every
- * surface was glass over the ground. The reference rebuild made surfaces
- * opaque and the helper threw rather than adapting: it had been pinned to one
- * implementation of a material rather than to the question being asked, which
- * is only ever "what colour does text land on".
- *
- * Both forms resolve here, so every assertion below keeps testing the colour a
- * browser paints without caring how the token was written.
- */
-function surfaceIn(selector: string, ground: string): string {
-  const literal = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const block = new RegExp(`${literal}\\s*\\{([^}]*)\\}`).exec(CSS);
-  if (block === null) throw new Error(`no block for ${selector}`);
-  const body = block[1] ?? '';
-  const translucent = /--surface:\s*rgb\(255 255 255 \/ ([\d.]+)%\)/.exec(body);
-  if (translucent !== null) return overlayWhite(ground, Number(translucent[1]) / 100);
-  const opaque = /--surface:\s*(#[0-9a-fA-F]{6})/.exec(body);
-  if (opaque !== null) return opaque[1] as string;
-  throw new Error(`no readable --surface in ${selector}`);
 }
 
 function channel(component: number): number {
@@ -211,24 +211,14 @@ function channel(component: number): number {
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 
-function rgbOf(hex: string): readonly [number, number, number] {
+function luminance(hex: string): number {
   const value = hex.replace('#', '');
-  return [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16)) as unknown as readonly [
+  const [r, g, b] = [0, 2, 4].map((i) => channel(parseInt(value.slice(i, i + 2), 16))) as [
     number,
     number,
     number,
   ];
-}
-
-/** White at `alpha` composited over `hex` — what the eye actually receives. */
-function overlayWhite(hex: string, alpha: number): string {
-  const blended = rgbOf(hex).map((c) => Math.round(c * (1 - alpha) + 255 * alpha));
-  return `#${blended.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
-}
-
-function luminance(hex: string): number {
-  const [r, g, b] = rgbOf(hex);
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 function contrast(a: string, b: string): number {
@@ -236,130 +226,92 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+const HALVES = [
+  { name: 'light', root: ':root', accentPrefix: '' },
+  { name: 'dark', root: '.dark', accentPrefix: '.dark' },
+] as const;
+
+const GROUNDS = ['canvas', 'panel', 'raised'] as const;
+
 describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
-  const darkBg = tokenIn(':root', 'bg');
-  const lightBg = tokenIn(":root[data-theme='light']", 'bg');
-
-  /*
-   * The effective surface: the translucent white composited over its ground.
-   * A surface is the lightest thing an accent lands on in dark mode and the
-   * darkest in light mode, so testing the composite covers the worst case in
-   * both appearances.
-   */
-  const darkSurface = surfaceIn(':root', darkBg);
-  const lightSurface = surfaceIn(":root[data-theme='light']", lightBg);
-
-  it('reads the grounds it is about to test against', () => {
-    // M9.6C: a blue-black environment, not the M9.4 violet-black.
-    // Rebuilt to the reference: a neutral near-black, not the blue-black.
-    expect(darkBg).toBe('#070708');
-    /*
-     * Deepened twice for the same reason, and the second time with a
-     * measurement rather than a judgement.
-     *
-     * M10A.9 moved it from #f4f6fb to #e7ebf5. That was still not enough: a
-     * white translucent surface over #e7ebf5 composited to #f9fbfe, which is
-     * 1.15:1 against the ground — the SAME ratio the dark theme gets between
-     * #05070d and #161921. Equal ratios are not equal steps, because vision
-     * compresses luminance differences near white and not near black, so the
-     * light theme read as one flat sheet while the dark theme read as layers.
-     *
-     * #dae0ec has tone of its own, which is what a translucent surface needs
-     * in order to look lighter than something.
-     */
-    expect(lightBg).toBe('#f4f2ee');
+  it('ships the monochrome light ground by default', () => {
+    expect(tokenIn(':root', 'canvas')).toBe('#f4f2ee');
+    expect(tokenIn('.dark', 'canvas')).toBe('#070708');
+    // The default accent is mono: the same near-black as body text.
+    expect(tokenIn(':root', 'accent')).toBe(tokenIn(':root', 'text-primary'));
   });
 
-  it('composites surfaces rather than assuming a flat fill', () => {
-    // Surfaces are translucent now; if one ever goes back to being an opaque
-    // hex, `surfaceAlphaIn` throws and this whole block fails loudly rather
-    // than silently checking the wrong colour.
-    expect(darkSurface).not.toBe(darkBg);
-    expect(lightSurface).not.toBe(lightBg);
-  });
-
-  it('keeps a card distinguishable from the ground it sits on', () => {
-    /*
-     * THE DEFECT THIS FILE DID NOT CATCH BEFORE.
-     *
-     * "Not equal" was the whole test, and a surface can differ from its ground
-     * by an amount nobody can see. The light theme shipped at 1.15:1 — the same
-     * ratio the dark theme has — and looked like one flat sheet, because near
-     * white a given luminance ratio is a much smaller perceived step than the
-     * same ratio near black.
-     *
-     * WHAT CHANGED WITH THE REFERENCE REBUILD: a card is no longer defined by
-     * its fill alone. The old glass panels had no real outline, so luminance
-     * was the only thing separating them and the floor had to be high. The
-     * reference draws an explicit hairline around an opaque card, and its
-     * surfaces sit much closer to the ground than glass ever did.
-     *
-     * So this checks the mechanism the design actually uses: a surface step
-     * that is real but small, AND a border that stands off the surface it
-     * outlines. Keeping the old luminance-only floor would fail a card that is
-     * perfectly visible, which is measuring the wrong thing rather than
-     * measuring nothing.
-     */
-    expect(contrast(lightSurface, lightBg)).toBeGreaterThanOrEqual(1.08);
-    expect(contrast(darkSurface, darkBg)).toBeGreaterThanOrEqual(1.05);
-
-    const lightBorder = tokenIn(":root[data-theme='light']", 'border');
-    const darkBorder = tokenIn(':root', 'border');
-    expect(contrast(lightBorder, lightSurface)).toBeGreaterThanOrEqual(1.15);
-    expect(contrast(darkBorder, darkSurface)).toBeGreaterThanOrEqual(1.15);
-  });
-
-  it.each([...ACCENTS])('%s clears 4.5:1 everywhere it is used', (accent) => {
-    /*
-     * Unqualified, because the accent blocks are. They used to be scoped to
-     * `:root`, which meant `data-accent` on anything else matched nothing —
-     * and the accent picker's swatches, each of which sets the attribute on
-     * itself, all painted the root's colour.
-     *
-     * EVERY ACCENT NOW HAS TWO HALVES. `mono` is the default and is near-black
-     * on the light ground and near-white on the dark one, so a single value per
-     * accent cannot exist: each half is checked against the ground and the card
-     * of the appearance it belongs to.
-     */
-    const selector = `[data-accent='${accent}']`;
-    const onDark = tokenIn(selector, 'a-on-dark');
-    const onLight = tokenIn(selector, 'a-on-light');
-
-    // Accent text on both dark grounds.
-    expect(contrast(onDark, darkBg)).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(onDark, darkSurface)).toBeGreaterThanOrEqual(4.5);
-    // Accent text on both light grounds.
-    expect(contrast(onLight, lightBg)).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(onLight, lightSurface)).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it.each([...ACCENTS])('%s carries a legible label on its own fill', (accent) => {
-    /*
-     * The primary button, in both appearances.
-     *
-     * This used to assert WHITE on the fill, which was the wrong pair twice
-     * over: it never checked the dark appearance at all, and it assumed a
-     * label colour rather than reading the one the stylesheet ships. Three of
-     * the approved accents — turquoise, amber and emerald — are light enough
-     * that a white label measures 3.6-3.9:1 against them, so they carry a
-     * near-black label instead. Reading `--a-contrast-*` checks what a person
-     * actually sees, and it holds every accent to AA without any of them being
-     * shifted off the hue the design approved.
-     */
-    const selector = `[data-accent='${accent}']`;
-    for (const half of ['light', 'dark'] as const) {
-      const fill = tokenIn(selector, `a-fill-${half}`);
-      const label = tokenIn(selector, `a-contrast-${half}`);
-      expect(contrast(label, fill)).toBeGreaterThanOrEqual(4.5);
+  it.each(HALVES)('$name: every text tone reads on every surface', ({ root }) => {
+    for (const ground of GROUNDS) {
+      const bg = tokenIn(root, ground);
+      for (const ink of ['text-primary', 'text-secondary', 'text-muted']) {
+        expect(contrast(tokenIn(root, ink), bg), `${ink} on ${ground}`).toBeGreaterThanOrEqual(4.5);
+      }
     }
   });
 
+  it.each(HALVES)('$name: status colours read as text and on their own tint', ({ root }) => {
+    for (const tone of ['schedule', 'progress', 'success', 'warning', 'danger', 'info']) {
+      const ink = tokenIn(root, tone);
+      expect(
+        contrast(ink, tokenIn(root, `${tone}-weak`)),
+        `${tone} on its tint`,
+      ).toBeGreaterThanOrEqual(4.5);
+      for (const ground of GROUNDS) {
+        expect(contrast(ink, tokenIn(root, ground)), `${tone} on ${ground}`).toBeGreaterThanOrEqual(
+          4.5,
+        );
+      }
+    }
+  });
+
+  it.each(HALVES)('$name: a card border stands off the surface it outlines', ({ root }) => {
+    expect(contrast(tokenIn(root, 'border'), tokenIn(root, 'raised'))).toBeGreaterThanOrEqual(1.15);
+    expect(contrast(tokenIn(root, 'panel'), tokenIn(root, 'canvas'))).toBeGreaterThanOrEqual(1.04);
+  });
+
+  it.each([...ACCENTS])(
+    '%s: accent text and filled labels clear 4.5:1 in both appearances',
+    (accent) => {
+      for (const { name, root, accentPrefix } of HALVES) {
+        const selector = `${accentPrefix}[data-accent='${accent}']`;
+        const ink = tokenIn(selector, 'accent-ink');
+        for (const ground of GROUNDS) {
+          expect(
+            contrast(ink, tokenIn(root, ground)),
+            `${name} accent-ink on ${ground}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+        const fill = tokenIn(selector, 'accent');
+        const label = tokenIn(selector, 'accent-contrast');
+        expect(contrast(label, fill), `${name} label on fill`).toBeGreaterThanOrEqual(4.5);
+        // A filled control must still be visible as a shape against the page.
+        expect(
+          contrast(fill, tokenIn(root, 'canvas')),
+          `${name} fill on canvas`,
+        ).toBeGreaterThanOrEqual(3);
+      }
+    },
+  );
+
   it('checks every accent the product offers, not a subset', () => {
-    // Guards the loops above: adding an accent to ACCENTS without adding a
-    // block to tokens.css must fail here rather than ship unchecked.
     expect(ACCENTS.length).toBe(12);
     for (const accent of ACCENTS) {
-      expect(CSS).toContain(`data-accent='${accent}'`);
+      expect(CSS).toContain(`\n[data-accent='${accent}']`);
+      expect(CSS).toContain(`\n.dark[data-accent='${accent}']`);
+    }
+  });
+
+  it('never lets an accent block touch surfaces or status colours', () => {
+    const accentBlocks = CSS.match(/\n(?:\.dark)?\[data-accent='[a-z]+'\]\s*\{[^}]*\}/g) ?? [];
+    expect(accentBlocks.length).toBe(24);
+    for (const block of accentBlocks) {
+      const names = [...block.matchAll(/--([a-z-]+):/g)].map((m) => m[1]);
+      expect(
+        names.every((n) =>
+          ['accent', 'accent-weak', 'accent-ink', 'accent-contrast', 'ring'].includes(n ?? ''),
+        ),
+      ).toBe(true);
     }
   });
 

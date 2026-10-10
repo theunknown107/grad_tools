@@ -1,12 +1,16 @@
 /**
  * Configuration, and the exposure guard.
  *
- * Authority: docs/13 §T-19 · docs/25 §25.4.1 · M5A §6
+ * Authority: docs/13 §T-19 · docs/25 §25.4.1 · docs/48
  *
- * No database. The guard is a pure function of config plus environment, which
- * is what lets every refusal path be tested without starting a server — and
- * this is a control that must be proven rather than assumed, because the cost
- * of it being wrong is an anonymous document service on the network.
+ * No database. The guard is a pure function of config plus environment, so
+ * every refusal path is tested without starting a server.
+ *
+ * The guard used to refuse any public bind, because the announcement operator
+ * writes were unauthenticated and the bind address was their only protection.
+ * They now require OPERATOR_TOKEN (see announcements.test.ts), so a public
+ * bind is allowed; what a deployed environment must get right instead is its
+ * browser origin list.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -22,57 +26,59 @@ describe('configuration', () => {
   it('refuses to start without a database url', () => {
     expect(() => loadConfig({})).toThrow(/DATABASE_URL/);
   });
+
+  it('has no operator token unless one is configured', () => {
+    expect(loadConfig(BASE).OPERATOR_TOKEN).toBeUndefined();
+  });
+
+  it('refuses an operator token too short to be generated', () => {
+    expect(() => loadConfig({ ...BASE, OPERATOR_TOKEN: 'hunter2' })).toThrow(/OPERATOR_TOKEN/);
+    expect(loadConfig({ ...BASE, OPERATOR_TOKEN: 'x'.repeat(32) }).OPERATOR_TOKEN).toHaveLength(32);
+  });
 });
 
 describe('exposure guard', () => {
-  const config = (host: string) => loadConfig({ ...BASE, HOST: host });
+  const env = (extra: Record<string, string>) => ({ ...BASE, ...extra });
 
-  it.each(['127.0.0.1', '127.0.0.53', 'localhost', '::1', '[::1]'])(
-    'allows the loopback address %s',
-    (host) => {
-      expect(() => {
-        assertSafeExposure(config(host), {});
-      }).not.toThrow();
-    },
-  );
-
-  /*
-   * The case this guard exists for. Stage 1 private document routes are
-   * unauthenticated by design, so a wildcard bind publishes an anonymous
-   * read-and-write document service.
-   */
-  it.each(['0.0.0.0', '::', '192.168.1.50', '10.0.0.4'])(
-    'refuses to start on the public address %s',
-    (host) => {
-      expect(() => {
-        assertSafeExposure(config(host), {});
-      }).toThrow(/unauthenticated private document routes/);
-    },
-  );
-
-  it('explains what to do instead of only refusing', () => {
-    try {
-      assertSafeExposure(config('0.0.0.0'), {});
-      expect.unreachable('should have thrown');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      expect(message).toContain('HOST=127.0.0.1');
-      expect(message).toContain('ALLOW_PUBLIC_BIND');
-      // Says why CORS is not the answer, because that is the assumption a
-      // reader is most likely to arrive with.
-      expect(message).toContain('CORS');
-    }
-  });
-
-  it('allows a public bind only when it is opted into deliberately', () => {
+  /* Nothing unauthenticated remains, so the bind address is not the control. */
+  it.each(['127.0.0.1', '0.0.0.0', '::', '10.0.0.4'])('allows binding %s', (host) => {
+    const vars = env({ HOST: host });
     expect(() => {
-      assertSafeExposure(config('0.0.0.0'), { ALLOW_PUBLIC_BIND: 'true' });
+      assertSafeExposure(loadConfig(vars), vars);
     }).not.toThrow();
   });
 
-  it.each(['false', '1', 'yes', 'TRUE', ''])('does not accept %s as an opt-in', (value) => {
+  it('leaves local development on its http default', () => {
     expect(() => {
-      assertSafeExposure(config('0.0.0.0'), { ALLOW_PUBLIC_BIND: value });
-    }).toThrow();
+      assertSafeExposure(loadConfig(BASE), BASE);
+    }).not.toThrow();
+  });
+
+  it.each(['staging', 'alpha'])('requires %s to set WEB_ORIGIN explicitly', (appEnv) => {
+    const vars = env({ APP_ENV: appEnv });
+    expect(() => {
+      assertSafeExposure(loadConfig(vars), vars);
+    }).toThrow(/WEB_ORIGIN must be set explicitly/);
+  });
+
+  it('refuses a plain-http origin in a deployed environment', () => {
+    const vars = env({
+      APP_ENV: 'staging',
+      WEB_ORIGIN: 'https://staging.example.test,http://x.test',
+    });
+    expect(() => {
+      assertSafeExposure(loadConfig(vars), vars);
+    }).toThrow(/https:\/\/.*http:\/\/x\.test/s);
+  });
+
+  it('accepts HTTPS origins, including the Android app at https://localhost', () => {
+    const vars = env({
+      APP_ENV: 'staging',
+      HOST: '0.0.0.0',
+      WEB_ORIGIN: 'https://staging.example.test,https://localhost',
+    });
+    expect(() => {
+      assertSafeExposure(loadConfig(vars), vars);
+    }).not.toThrow();
   });
 });

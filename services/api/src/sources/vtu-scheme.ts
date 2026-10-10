@@ -502,8 +502,7 @@ export const vtuSchemeAdapter: SourceAdapter & {
          * document itself carries.
          */
         schemeYear:
-          schemeYearOf(item.title, url) ??
-          (section === null ? null : sectionYearOf(section.title)),
+          schemeYearOf(item.title, url) ?? (section === null ? null : sectionYearOf(section.title)),
         /*
          * A label that opens with a course code names a course, never a
          * degree. It can still be read as a stream below, which is where a
@@ -511,8 +510,7 @@ export const vtuSchemeAdapter: SourceAdapter & {
          */
         programme:
           label !== null && !COMMON.test(label) && !LABEL_IS_A_COURSE.test(label) ? label : null,
-        semesters:
-          semestersOf(linkText) ?? (section === null ? null : semestersOf(section.title)),
+        semesters: semestersOf(linkText) ?? (section === null ? null : semestersOf(section.title)),
         section,
         common: label === null ? COMMON.test(item.title) : COMMON.test(label),
         streamLabel: label !== null && /\bstream\b/i.test(label) ? label : null,

@@ -332,10 +332,7 @@ const run = async () => {
     const safe = await adviceFor('BXXX501');
     expect(/can miss/i.test(safe), `the safe course offered no allowance: ${safe.slice(0, 90)}`);
     const short = await adviceFor('BXXX505');
-    expect(
-      /attend/i.test(short),
-      `the short course offered no recovery: ${short.slice(0, 90)}`,
-    );
+    expect(/attend/i.test(short), `the short course offered no recovery: ${short.slice(0, 90)}`);
   });
 
   await check('Attendance: the overall standing leads the page', async () => {
@@ -475,10 +472,16 @@ const run = async () => {
      * full record. Both halves are asserted: the tab switches to the cards,
      * and a card opens the subjects it names.
      */
-    const cards = await page.locator('[role="tabpanel"]').filter({ hasText: /Semester\s*1/i }).count();
+    const cards = await page
+      .locator('[role="tabpanel"]')
+      .filter({ hasText: /Semester\s*1/i })
+      .count();
     expect(cards > 0, 'the Semesters tab showed no semester cards');
 
-    await page.getByRole('button', { name: /Semester 1.*open the full record/i }).first().click();
+    await page
+      .getByRole('button', { name: /Semester 1.*open the full record/i })
+      .first()
+      .click();
     await page.waitForTimeout(500);
     const after = await page.locator('#main').innerText();
     expect(/BXXX301/.test(after), 'opening a semester did not reveal its subject rows');
@@ -665,7 +668,10 @@ const run = async () => {
      * order is unchanged and still matters, so the check opens the form and
      * asserts Academic still leads it.
      */
-    await page.getByRole('button', { name: /Edit profile/i }).first().click();
+    await page
+      .getByRole('button', { name: /Edit profile/i })
+      .first()
+      .click();
     await page.waitForTimeout(500);
     const current = await page.locator('button[aria-current="true"]').first().innerText();
     expect(/Academic/i.test(current), `default section was ${current}`);
@@ -719,7 +725,10 @@ const run = async () => {
      * lists semester cards, and a card opens that semester's record. The sheet
      * is opened from a subject row inside it.
      */
-    await phone.getByRole('button', { name: /Semester 1.*open the full record/i }).first().click();
+    await phone
+      .getByRole('button', { name: /Semester 1.*open the full record/i })
+      .first()
+      .click();
     await phone.waitForTimeout(600);
     /*
      * Scoped to #main. `aria-haspopup="dialog"` is also carried by the theme

@@ -32,9 +32,31 @@ import { classifyDocument } from '../domain/document-type.js';
 import { parseTimetable } from '../domain/timetable-import.js';
 import { decodeImage, normalizeContrast, OcrError } from './ocr.js';
 import { extractPdfLines, renderPdfPage, PdfReadError, type PlacedText } from './pdf-text.js';
+import { PDF_READ_MS, withDeadline } from './deadline.js';
+
+/** pdf.js runs in a worker; one that dies silently must not hang the import. */
+const pdfTimedOut = (): Error =>
+  new PdfReadError(
+    'Reading this PDF took too long on this device. Try again, or try another copy of the document.',
+  );
 
 /** How the lines were obtained. Shown to the student, not just logged. */
 export type ReadSource = 'text' | 'ocr';
+
+/**
+ * Where a reading came from, kept for the record — never presented as a claim of
+ * academic correctness. A parser extracting text cleanly says nothing about
+ * whether the marks it read are the marks the university awarded.
+ */
+export interface ReadProvenance {
+  /** The extraction engine, e.g. `officeparser`, `pdfjs`, `tesseract`, `builtin`. */
+  readonly engine: string;
+  readonly engineVersion: string;
+  /** The source format as a short label, e.g. `docx`, `pdf`, `csv`. */
+  readonly format: string;
+  /** How the text was obtained, e.g. `text-extraction`, `ocr`, `text`. */
+  readonly mode: string;
+}
 
 export interface FileReading {
   readonly lines: readonly ImportLine[];
@@ -51,6 +73,8 @@ export interface FileReading {
   /** OCR only, and null when nothing was recognised. Never shown as accuracy. */
   readonly meanConfidence: number | null;
   readonly lowConfidenceWords: number;
+  /** Where this reading came from. Optional; the PDF/image/HTML paths omit it. */
+  readonly provenance?: ReadProvenance;
 }
 
 /**
@@ -73,23 +97,82 @@ export type Recognize = (
  */
 export const MAX_OCR_PAGES = 4;
 
+export type FileKind = 'pdf' | 'image' | 'html' | 'office' | 'text' | 'unsupported';
+
+/** Office/ODF formats routed to officeParser, which then validates the container. */
+const OFFICE_EXT = /\.(docx|xlsx|pptx|odt|ods|odp|odg|rtf)$/;
+const OFFICE_MIME = new Set([
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'application/vnd.oasis.opendocument.presentation',
+  'application/vnd.oasis.opendocument.graphics',
+  'application/rtf',
+  'text/rtf',
+]);
+/** Plain delimited/markdown/text exports, read without loading officeParser. */
+const TEXT_EXT = /\.(csv|tsv|md|markdown|txt)$/;
+const TEXT_MIME = new Set(['text/plain', 'text/csv', 'text/tab-separated-values', 'text/markdown']);
+
 /** What kind of file this is, by type first and extension second. */
-export function fileKind(file: File): 'pdf' | 'image' | 'unsupported' {
+export function fileKind(file: File): FileKind {
   const type = file.type.toLowerCase();
   if (type === 'application/pdf') return 'pdf';
   if (type === 'image/jpeg' || type === 'image/png' || type === 'image/webp') return 'image';
+  if (type === 'text/html') return 'html';
+  if (OFFICE_MIME.has(type)) return 'office';
+  if (TEXT_MIME.has(type)) return 'text';
 
   /*
    * Some Android file pickers hand over an empty type. The extension is a weak
    * signal, so it is used only to CHOOSE A DECODER — never as evidence about
-   * the contents, which the decoder itself establishes.
+   * the contents, which the decoder itself establishes. For Office/ODF that
+   * decoder is officeParser, which reads the magic bytes and validates the
+   * container, so a mislabelled extension is caught there and refused cleanly.
    */
-  if (type === '') {
-    const name = file.name.toLowerCase();
-    if (name.endsWith('.pdf')) return 'pdf';
-    if (/\.(jpe?g|png|webp)$/.test(name)) return 'image';
-  }
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.pdf')) return 'pdf';
+  if (/\.(jpe?g|png|webp)$/.test(name)) return 'image';
+  if (/\.html?$/.test(name)) return 'html';
+  if (OFFICE_EXT.test(name)) return 'office';
+  if (TEXT_EXT.test(name)) return 'text';
   return 'unsupported';
+}
+
+/**
+ * What a file IS, from its first bytes — not from its name or declared type.
+ *
+ * A name and a MIME type are claims the file makes about itself. Android's
+ * pickers routinely hand over a photo named only by a UUID, with or without a
+ * type, and a renamed file can claim anything. The signature decides which
+ * decoder runs; the decoder itself still refuses content it cannot parse.
+ * HTML has no signature, so a file is treated as HTML only when it says it is
+ * AND looks like no binary format — it is then parsed inert, never rendered.
+ */
+export async function sniffKind(file: File): Promise<ReturnType<typeof fileKind>> {
+  // The PDF header may sit anywhere in the first kilobyte (ISO 32000 §7.5.2).
+  const head = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
+  const starts = (...bytes: number[]): boolean => bytes.every((byte, at) => head[at] === byte);
+  const ascii = (from: number, text: string): boolean =>
+    [...text].every((char, at) => head[from + at] === char.charCodeAt(0));
+
+  if (new TextDecoder('latin1').decode(head).includes('%PDF-')) return 'pdf';
+  if (starts(0xff, 0xd8, 0xff)) return 'image';
+  if (starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image';
+  if (ascii(0, 'RIFF') && ascii(8, 'WEBP')) return 'image';
+  // A ZIP container (OOXML docx/xlsx/pptx, ODF odt/ods/odp/odg) or an RTF — the
+  // office decoder runs and officeParser validates the real type from the bytes.
+  if (starts(0x50, 0x4b, 0x03, 0x04)) return 'office';
+  if (ascii(0, '{\\rtf')) return 'office';
+  // No binary signature matched. Only the signature-LESS formats may be accepted
+  // on their declaration/extension: a saved HTML page and the plain-text exports
+  // (CSV, TSV, Markdown, plain text). A file that merely CLAIMS to be a PDF, an
+  // image or a ZIP-based Office document but carries no such signature is refused
+  // — the bytes, not the name, decide for every format that has a signature.
+  const declared = fileKind(file);
+  return declared === 'html' || declared === 'text' ? declared : 'unsupported';
 }
 
 /**
@@ -134,10 +217,7 @@ function droppedRows(lines: readonly ImportLine[]): number {
 const UNREADABLE =
   'The text on this could not be made out. A sharper, straighter photo in better light may work — or enter this result by hand.';
 
-function summarise(
-  pages: readonly OcrPageResult[],
-  pageCount: number,
-): FileReading {
+function summarise(pages: readonly OcrPageResult[], pageCount: number): FileReading {
   const words = pages.reduce((sum, page) => sum + page.wordCount, 0);
   const weighted = pages.reduce(
     (sum, page) => sum + (page.meanConfidence ?? 0) * page.wordCount,
@@ -290,6 +370,8 @@ export function betterReading(first: OcrPageResult, second: OcrPageResult): OcrP
 export async function readPdfFile(
   data: ArrayBuffer,
   recognize: Recognize | null,
+  /** Called as each scanned page starts being recognised — real progress, never estimated. */
+  onPage?: (page: number, total: number) => void,
 ): Promise<FileReading> {
   /*
    * A COPY PER READ. pdf.js transfers the array it is given to its worker,
@@ -298,7 +380,7 @@ export async function readPdfFile(
    * scan as unreadable. One copy of a few hundred kilobytes is the cheap side
    * of that trade.
    */
-  const extraction = await extractPdfLines(data.slice(0));
+  const extraction = await withDeadline(extractPdfLines(data.slice(0)), PDF_READ_MS, pdfTimedOut);
   if (extraction.hasTextLayer) {
     return {
       lines: extraction.lines,
@@ -330,7 +412,12 @@ export async function readPdfFile(
    */
   const pages: OcrPageResult[] = [];
   for (let number = 1; number <= extraction.pageCount; number += 1) {
-    const canvas = await renderPdfPage(data.slice(0), number);
+    onPage?.(number, extraction.pageCount);
+    const canvas = await withDeadline(
+      renderPdfPage(data.slice(0), number),
+      PDF_READ_MS,
+      pdfTimedOut,
+    );
     pages.push(await recognizeBothWays(canvas, number, recognize));
     // Releasing the backing store now, rather than waiting for the collector to
     // notice, is what keeps peak memory at one page instead of all of them.
@@ -340,4 +427,141 @@ export async function readPdfFile(
 
   if (!pages.some(isWorthReviewing)) throw new OcrError(UNREADABLE);
   return summarise(pages, extraction.pageCount);
+}
+
+/* -------------------------------------------------------------------------- */
+/* A saved web page                                                           */
+/* -------------------------------------------------------------------------- */
+
+/** A saved result page is tens of kilobytes; anything this size is not one. */
+export const MAX_HTML_BYTES = 5 * 1024 * 1024;
+
+export class HtmlReadError extends Error {}
+
+/** Elements whose text is never page content. */
+const SKIPPED = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'HEAD', 'IFRAME', 'OBJECT']);
+
+/** Elements that end a line of text. Everything else is inline. */
+const BLOCKS = new Set([
+  'ADDRESS',
+  'ARTICLE',
+  'ASIDE',
+  'BLOCKQUOTE',
+  'BR',
+  'CAPTION',
+  'DD',
+  'DIV',
+  'DL',
+  'DT',
+  'FIELDSET',
+  'FIGCAPTION',
+  'FIGURE',
+  'FOOTER',
+  'FORM',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'HEADER',
+  'HR',
+  'LI',
+  'MAIN',
+  'NAV',
+  'OL',
+  'P',
+  'PRE',
+  'SECTION',
+  'TABLE',
+  'TBODY',
+  'TD',
+  'TFOOT',
+  'TH',
+  'THEAD',
+  'UL',
+]);
+
+/**
+ * A table row, in either of the shapes a result page uses: a real `<tr>`, or
+ * the `divTableRow` / `role="row"` divs the VTU page lays its marks out with.
+ *
+ * A row that CONTAINS another row is a layout wrapper, not a data row, and is
+ * walked like any other block — flattening it would fuse a whole page into one
+ * line.
+ */
+function isRow(element: Element): boolean {
+  const shaped =
+    element.tagName === 'TR' ||
+    element.getAttribute('role') === 'row' ||
+    /tablerow/i.test(element.getAttribute('class') ?? '');
+  return (
+    shaped &&
+    element.querySelector('tr, [role="row"], [class*="ableRow"], [class*="ablerow"]') === null
+  );
+}
+
+const squash = (text: string): string => text.replace(/\s+/g, ' ').trim();
+
+/**
+ * A saved result page (Save page as → HTML), as lines.
+ *
+ * PARSED, NEVER RENDERED. `DOMParser` builds an inert document: its scripts do
+ * not run, its event handlers never fire, and its images, styles and frames are
+ * never fetched — the page is read as text on this device and nothing it
+ * references is contacted.
+ *
+ * Each table row becomes ONE line, its cells joined by spaces, which is exactly
+ * the shape `parseResultCard` reads from a PDF's text layer: code, title,
+ * marks, status, date. Other block text becomes a line of its own, so the
+ * headings (`University Seat Number`, `Semester : 4`) arrive as they do there.
+ */
+export async function readHtmlFile(file: File): Promise<FileReading> {
+  if (file.size > MAX_HTML_BYTES) {
+    throw new HtmlReadError(
+      'This web page is too large to be a saved result page. Save the result page itself (Save page as → HTML only), or print it to a PDF.',
+    );
+  }
+  const document = new DOMParser().parseFromString(await file.text(), 'text/html');
+
+  const lines: string[] = [];
+  let pending = '';
+  const flush = (): void => {
+    const text = squash(pending);
+    if (text !== '') lines.push(text);
+    pending = '';
+  };
+  const walk = (node: Node): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      pending += node.textContent ?? '';
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const element = node as Element;
+    if (SKIPPED.has(element.tagName)) return;
+    if (isRow(element)) {
+      flush();
+      const cells = [...element.children]
+        .filter((cell) => !SKIPPED.has(cell.tagName))
+        .map((cell) => squash(cell.textContent ?? ''))
+        .filter((text) => text !== '');
+      if (cells.length > 0) lines.push(cells.join(' '));
+      return;
+    }
+    const block = BLOCKS.has(element.tagName);
+    if (block) flush();
+    element.childNodes.forEach(walk);
+    if (block) flush();
+  };
+  if (document.body !== null) walk(document.body);
+  flush();
+
+  return {
+    lines: lines.map((text) => ({ text, page: 1 })),
+    placed: [],
+    source: 'text',
+    pageCount: 1,
+    meanConfidence: null,
+    lowConfidenceWords: 0,
+  };
 }

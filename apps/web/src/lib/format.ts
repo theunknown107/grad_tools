@@ -23,6 +23,19 @@ export function formatCount(value: number, singular: string, plural = `${singula
   return `${String(value)} ${value === 1 ? singular : plural}`;
 }
 
+/**
+ * The short form a programme goes by, as the design writes it in eyebrows and
+ * badges: "Computer Science & Business Systems" -> "CSBS". A name that is
+ * already short (or has no words to take initials from) is returned as is.
+ */
+export function branchCode(name: string): string {
+  const words = name
+    .split(/[\s/,-]+/)
+    .filter((word) => word !== '' && !/^(and|&|of|in|the|for)$/i.test(word));
+  if (words.length < 2) return name;
+  return words.map((word) => word[0]?.toUpperCase() ?? '').join('');
+}
+
 /** "09:30" -> "9:30 am". Times are stored 24-hour and displayed locally. */
 export function formatTime(value: string): string {
   const [rawHour, rawMinute] = value.split(':');

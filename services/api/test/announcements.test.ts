@@ -178,6 +178,10 @@ describe('normalisation', () => {
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const describeDb = DATABASE_URL === undefined ? describe.skip : describe;
 
+/** A generated-looking operator credential; synthetic, test-only. */
+const OPERATOR_TOKEN = 'test-operator-token-0123456789abcdef0123456789';
+const OPERATOR = { Authorization: `Bearer ${OPERATOR_TOKEN}` };
+
 describeDb('announcements against PostgreSQL', () => {
   let sql: Sql;
   let app: Express;
@@ -187,7 +191,11 @@ describeDb('announcements against PostgreSQL', () => {
     sql = createClient(DATABASE_URL as string);
     await runMigrations(sql);
     await seed(sql);
-    app = createApp(loadConfig({ DATABASE_URL, NODE_ENV: 'test', APP_ENV: 'test' }), sql, logger);
+    app = createApp(
+      loadConfig({ DATABASE_URL, NODE_ENV: 'test', APP_ENV: 'test', OPERATOR_TOKEN }),
+      sql,
+      logger,
+    );
   }, 60_000);
 
   afterAll(async () => {
@@ -229,6 +237,55 @@ describeDb('announcements against PostgreSQL', () => {
       audience: (overrides.audience ?? {}) as never,
     });
   }
+
+  /* ---- paging --------------------------------------------------------- */
+
+  /*
+   * The client reads the whole feed by offset. Notices that tie on both
+   * timestamps (one insert transaction gives every row the same created_at)
+   * must still come back exactly once across the pages.
+   */
+  it('pages through notices that tie on both timestamps without repeating or skipping one', async () => {
+    const ids: string[] = [];
+    for (let index = 0; index < 9; index += 1) {
+      const outcome = await store({ title: `Tied notice ${String(index)}` });
+      await publishAnnouncement(sql, outcome.id, 'operator');
+      ids.push(outcome.id);
+    }
+    await sql`UPDATE announcements SET created_at = '2026-09-01T00:00:00Z'`;
+
+    const seen: string[] = [];
+    for (let offset = 0; offset < 9; offset += 2) {
+      const response = await request(app).get(
+        `/api/v1/announcements?limit=2&offset=${String(offset)}`,
+      );
+      expect(response.body.total).toBe(9);
+      seen.push(...(response.body.data as { id: string }[]).map((item) => item.id));
+    }
+    expect(seen).toHaveLength(9);
+    expect(new Set(seen)).toEqual(new Set(ids));
+  });
+
+  /*
+   * The app refreshes the feed when a student returns to the tab. A cached
+   * response with a lifetime would answer that refresh from the browser and
+   * hide a notice published since, so the feed is public but revalidated on
+   * every use — and an unchanged feed costs a 304, not a body.
+   */
+  it('lets a refresh reach the server, and answers an unchanged feed with a 304', async () => {
+    const outcome = await store({ title: 'Cached notice' });
+    await publishAnnouncement(sql, outcome.id, 'operator');
+
+    const first = await request(app).get('/api/v1/announcements');
+    expect(first.headers['cache-control']).toBe('public, max-age=0, must-revalidate');
+    const etag = first.headers['etag'] as string | undefined;
+    expect(etag).toBeTruthy();
+
+    const again = await request(app)
+      .get('/api/v1/announcements')
+      .set('If-None-Match', etag as string);
+    expect(again.status).toBe(304);
+  });
 
   /* ---- the publication gate ------------------------------------------- */
 
@@ -449,7 +506,7 @@ describeDb('announcements against PostgreSQL', () => {
 
   describe('operator entry', () => {
     it('stores an entry, unpublished', async () => {
-      const response = await request(app).post('/api/v1/announcements/entry').send({
+      const response = await request(app).post('/api/v1/announcements/entry').set(OPERATOR).send({
         publisher: 'Demo College (synthetic)',
         title: 'Internal assessment schedule',
         category: 'college_notice',
@@ -463,7 +520,7 @@ describeDb('announcements against PostgreSQL', () => {
 
     /* The caller cannot publish. Storing and vouching are separate acts. */
     it('ignores any attempt to publish through the entry route', async () => {
-      const response = await request(app).post('/api/v1/announcements/entry').send({
+      const response = await request(app).post('/api/v1/announcements/entry').set(OPERATOR).send({
         publisher: 'X',
         title: 'Sneaky',
         category: 'general',
@@ -476,7 +533,7 @@ describeDb('announcements against PostgreSQL', () => {
     });
 
     it('refuses an entry with an unsafe link', async () => {
-      const response = await request(app).post('/api/v1/announcements/entry').send({
+      const response = await request(app).post('/api/v1/announcements/entry').set(OPERATOR).send({
         publisher: 'X',
         title: 'Bad link',
         category: 'general',
@@ -488,12 +545,13 @@ describeDb('announcements against PostgreSQL', () => {
     it('refuses an entry with no title', async () => {
       const response = await request(app)
         .post('/api/v1/announcements/entry')
+        .set(OPERATOR)
         .send({ publisher: 'X', title: '', category: 'general' });
       expect(response.status).toBe(400);
     });
 
     it('strips markup from an entered body', async () => {
-      const created = await request(app).post('/api/v1/announcements/entry').send({
+      const created = await request(app).post('/api/v1/announcements/entry').set(OPERATOR).send({
         publisher: 'X',
         title: 'Has markup',
         category: 'general',
@@ -510,18 +568,79 @@ describeDb('announcements against PostgreSQL', () => {
     it('publishes only when a verifier is named', async () => {
       const created = await request(app)
         .post('/api/v1/announcements/entry')
+        .set(OPERATOR)
         .send({ publisher: 'X', title: 'Needs a name', category: 'general' });
 
       const anonymous = await request(app)
         .post(`/api/v1/announcements/${created.body.id}/publish`)
+        .set(OPERATOR)
         .send({});
       expect(anonymous.status).toBe(400);
 
       const named = await request(app)
         .post(`/api/v1/announcements/${created.body.id}/publish`)
+        .set(OPERATOR)
         .send({ verifiedBy: 'operator' });
       expect(named.status).toBe(200);
       expect((await request(app).get('/api/v1/announcements')).body.total).toBe(1);
+    });
+  });
+
+  /* ---- operator authorization ----------------------------------------- */
+
+  /*
+   * THE WRITES ARE NOT PUBLIC (docs/13 §T-19). They used to rely on the API
+   * binding to loopback; a public deployment has to bind every interface, so
+   * the protection is now the operator token itself.
+   */
+  describe('operator authorization', () => {
+    const entry = { publisher: 'X', title: 'Unauthorised', category: 'general' };
+
+    it.each([
+      ['no Authorization header', {}],
+      ['a wrong token', { Authorization: `Bearer ${'y'.repeat(OPERATOR_TOKEN.length)}` }],
+      ['the right token without Bearer', { Authorization: OPERATOR_TOKEN }],
+    ])('refuses entry with %s, and stores nothing', async (_label, headers) => {
+      const response = await request(app)
+        .post('/api/v1/announcements/entry')
+        .set(headers)
+        .send(entry);
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHENTICATED');
+      const [row] = await sql<
+        { count: number }[]
+      >`SELECT count(*)::int AS count FROM announcements`;
+      expect(row?.count).toBe(0);
+    });
+
+    it('refuses publication without the token, and nothing becomes visible', async () => {
+      const created = await request(app)
+        .post('/api/v1/announcements/entry')
+        .set(OPERATOR)
+        .send(entry);
+      const response = await request(app)
+        .post(`/api/v1/announcements/${created.body.id}/publish`)
+        .send({ verifiedBy: 'Someone else' });
+      expect(response.status).toBe(401);
+      expect((await request(app).get('/api/v1/announcements')).body.total).toBe(0);
+    });
+
+    it('does not mount the writes at all when no operator is configured', async () => {
+      const bare = createApp(
+        loadConfig({ DATABASE_URL, NODE_ENV: 'test', APP_ENV: 'test' }),
+        sql,
+        logger,
+      );
+      expect((await request(bare).post('/api/v1/announcements/entry').send(entry)).status).toBe(
+        404,
+      );
+      const id = '00000000-0000-4000-8000-000000000000';
+      const publish = await request(bare)
+        .post(`/api/v1/announcements/${id}/publish`)
+        .send({ verifiedBy: 'x' });
+      expect(publish.status).toBe(404);
+      // The public reads are unaffected.
+      expect((await request(bare).get('/api/v1/announcements')).status).toBe(200);
     });
   });
 

@@ -24,6 +24,7 @@ import {
   normalizeResultSubject,
   semesterBacklogs,
   resolveSubjectGrade,
+  semesterCsv,
   semesterSgpa,
   sgpaInputs,
   validateResultSubject,
@@ -614,6 +615,105 @@ describe('SGPA from a semester', () => {
       { subjectCode: 'BCS401', reason: 'no grade' },
     ]);
   });
+
+  /* A passed 4-credit A+ (9 points) beside each failed row below. */
+  const passed = subject({
+    id: 'p',
+    subjectCode: 'BCS402',
+    internal: 44,
+    external: 36,
+    total: 80,
+    hasSee: true,
+    credits: 4,
+  });
+
+  it('counts a printed F as 0 points with its credits in the denominator', () => {
+    const printed = subject({ id: 'f', subjectCode: 'BCS401', credits: 4, gradeLetter: 'F' });
+    // (9x4 + 0x4) / 8 = 4.5 — an F is a real attempt (docs/16 §16.4).
+    expect(semesterSgpa(result([passed, printed]), ruleSet).sgpa).toBe(4.5);
+  });
+
+  it('grades F where every reading agrees: F band, CIE passed, SEE sat (OQ-054)', () => {
+    /*
+     * Total 35 bands to F under 22OB 6.1 and fails the overall head, so
+     * "band by percentage" and "a failed course is F" both say F. CIE 25
+     * passed (not DX); external 10 > 0 (sat, not AB). Only the SEE head and
+     * the total failed.
+     */
+    const failed = subject({
+      id: 'f',
+      subjectCode: 'BCS401',
+      internal: 25,
+      external: 10,
+      total: 35,
+      hasSee: true,
+      credits: 4,
+    });
+    expect(resolveSubjectGrade(failed, ruleSet)).toEqual({ letter: 'F', from: 'computed' });
+    const { sgpa, inputs } = semesterSgpa(result([passed, failed]), ruleSet);
+    expect(inputs.complete).toBe(true);
+    expect(sgpa).toBe(4.5);
+  });
+
+  it('still refuses a failed course whose total bands to a passing letter (F or P?)', () => {
+    // SEE 15 is below 35% of 50; the total of 40 bands to P. OQ-054 proper.
+    const failed = subject({
+      id: 'f',
+      subjectCode: 'BCS401',
+      internal: 25,
+      external: 15,
+      total: 40,
+      hasSee: true,
+      credits: 4,
+    });
+    expect(resolveSubjectGrade(failed, ruleSet)).toBeNull();
+    expect(sgpaInputs(result([passed, failed]), ruleSet).missing).toEqual([
+      { subjectCode: 'BCS401', reason: 'no grade' },
+    ]);
+  });
+
+  it('still refuses a CIE shortfall (DX?) and an external of 0 (AB?)', () => {
+    const shortfall = subject({
+      id: 'f1',
+      subjectCode: 'BCS401',
+      internal: 12,
+      external: 20,
+      total: 32,
+      hasSee: true,
+      credits: 4,
+    });
+    const absent = subject({
+      id: 'f2',
+      subjectCode: 'BCS403',
+      internal: 30,
+      external: 0,
+      total: 30,
+      hasSee: true,
+      credits: 4,
+    });
+    expect(resolveSubjectGrade(shortfall, ruleSet)).toBeNull();
+    expect(resolveSubjectGrade(absent, ruleSet)).toBeNull();
+    expect(semesterSgpa(result([passed, shortfall, absent]), ruleSet).sgpa).toBeNull();
+  });
+
+  it('still refuses a row whose SEE applicability or marks are unknown', () => {
+    const unknownSee = subject({
+      id: 'u1',
+      subjectCode: 'BCS401',
+      internal: 25,
+      external: 0,
+      total: 25,
+      hasSee: null,
+      credits: 4,
+    });
+    const noMarks = subject({ id: 'u2', subjectCode: 'BCS403', hasSee: true, credits: 4 });
+    expect(resolveSubjectGrade(unknownSee, ruleSet)).toBeNull();
+    expect(resolveSubjectGrade(noMarks, ruleSet)).toBeNull();
+    expect(sgpaInputs(result([passed, unknownSee, noMarks]), ruleSet).missing).toEqual([
+      { subjectCode: 'BCS401', reason: 'no grade' },
+      { subjectCode: 'BCS403', reason: 'no grade' },
+    ]);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -732,5 +832,100 @@ describe('a link to the catalogue, and taking it back', () => {
       provenance: 'manual',
     });
     expect(row.catalogueCode).toBeNull();
+  });
+});
+
+describe('semesterCsv', () => {
+  const base = normalizeResultSubject({
+    id: 'x',
+    subjectCode: 'BCS401',
+    subjectTitle: 'Algorithms',
+  });
+  const result = (subjects: ReturnType<typeof normalizeResultSubject>[]) =>
+    ({
+      id: 'r4',
+      profileId: 'p',
+      semester: 4,
+      schemeId: 'vtu-2022',
+      ruleSetId: vtu2022RuleSet.id,
+      sgpaAsserted: null,
+      subjects,
+      createdAt: '',
+      updatedAt: '',
+    }) as unknown as SemesterResult;
+
+  it('writes the printed values and leaves the unknown ones empty', () => {
+    const csv = semesterCsv(
+      result([
+        {
+          ...base,
+          internal: 44,
+          external: 36,
+          total: 80,
+          credits: 4,
+          gradeLetter: 'A',
+          resultStatus: 'P',
+        },
+      ]),
+      vtu2022RuleSet,
+    );
+    expect(csv.split('\r\n')[0]).toBe(
+      'Semester,Code,Course,Internal,External,Total,Credits,Grade,Result',
+    );
+    expect(csv.split('\r\n')[1]).toBe('4,BCS401,Algorithms,44,36,80,4,A,P');
+    const blank = semesterCsv(result([base]), vtu2022RuleSet).split('\r\n')[1];
+    expect(blank).toBe('4,BCS401,Algorithms,,,,,,');
+  });
+
+  it('quotes commas and quotes, and never lets a title run as a formula', () => {
+    const csv = semesterCsv(
+      result([
+        { ...base, subjectTitle: 'Design, "Analysis"' },
+        { ...base, id: 'y', subjectTitle: '=HYPERLINK("http://x")' },
+      ]),
+      vtu2022RuleSet,
+    ).split('\r\n');
+    expect(csv[1]).toContain('"Design, ""Analysis"""');
+    expect(csv[2]).toContain(`"'=HYPERLINK(""http://x"")"`);
+  });
+});
+
+describe('semesterSgpa grade points', () => {
+  it('reports the credit-weighted sum behind the SGPA, and nothing when there is no SGPA', () => {
+    const subject = (id: string, credits: number | null, gradeLetter: string | null) =>
+      normalizeResultSubject({
+        id,
+        subjectCode: `BCS30${id}`,
+        subjectTitle: id,
+        credits,
+        gradeLetter,
+      });
+    const semester = (subjects: ReturnType<typeof normalizeResultSubject>[]) =>
+      ({
+        id: 'r',
+        profileId: 'p',
+        semester: 3,
+        schemeId: 'vtu-2022',
+        ruleSetId: vtu2022RuleSet.id,
+        sgpaAsserted: null,
+        subjects,
+        createdAt: '',
+        updatedAt: '',
+      }) as unknown as SemesterResult;
+
+    // 4 × A (8) + 3 × O (10) = 62.
+    const graded = semesterSgpa(
+      semester([subject('1', 4, 'A'), subject('2', 3, 'O')]),
+      vtu2022RuleSet,
+    );
+    expect(graded.gradePoints).toBe(62);
+    expect(graded.sgpa).toBeCloseTo(62 / 7, 2);
+
+    const partial = semesterSgpa(
+      semester([subject('1', 4, 'A'), subject('2', null, null)]),
+      vtu2022RuleSet,
+    );
+    expect(partial.sgpa).toBeNull();
+    expect(partial.gradePoints).toBeNull();
   });
 });

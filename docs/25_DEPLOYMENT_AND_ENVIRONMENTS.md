@@ -133,27 +133,26 @@ Client-side variables are prefixed `VITE_` and contain **no secrets**; a build-t
 
 **`INGESTION_ENABLED` defaults to off in every environment.** Combined with the per-source `enabled` flag and the robots constraint (`09` §9.7), three independent things must be true before any external request is made. This is deliberate belt-and-braces on the highest-consequence external behaviour.
 
-### 25.4.1 HOST — a security control, not a convenience (M5A)
+### 25.4.1 HOST, OPERATOR_TOKEN and the deployed-environment guard
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `HOST` | `127.0.0.1` | The interface the API binds to |
-| `ALLOW_PUBLIC_BIND` | unset | Deliberate override for a deployment that authenticates the private routes some other way |
+| `HOST` | `127.0.0.1` | The interface the API binds to. The Dockerfile sets `0.0.0.0` |
+| `OPERATOR_TOKEN` | unset | **SECRET.** Bearer credential for announcement entry and publication. Unset: those routes are not mounted (404). Minimum 32 characters, generated |
 | `DOCUMENT_STORAGE_ROOT` | `./.local-storage` | Object-store root. Must be outside the repository and outside any served directory |
 
-Stage 1 has no authentication, so the private document routes are
-unauthenticated by design. The bind address is what keeps them off the network,
-and **CORS is not a substitute** — it is a browser policy that `curl` ignores.
+The bind address **used to be** the security control (`ALLOW_PUBLIC_BIND`,
+§13.4a): unauthenticated operator writes were kept off the network by binding
+loopback. It no longer is. No route is unauthenticated — operator writes need
+`OPERATOR_TOKEN`, `/api/v1/me` needs a Supabase session, the rest are public
+reads — so binding publicly is safe, and `ALLOW_PUBLIC_BIND` no longer exists.
+**CORS is still not a control**: it is a browser policy that `curl` ignores.
 
-`assertSafeExposure()` runs before the server listens and **refuses to start**
-on a non-loopback `HOST` unless `ALLOW_PUBLIC_BIND=true` is set on purpose. A
-misconfiguration is therefore a loud startup failure, consistent with how the
-rest of §25.4 treats configuration.
-
-**Production must set `HOST` explicitly** rather than inheriting a default. The
-loopback default is correct for local and experimental use; it is not a
-deployment strategy, and silently assuming localhost in production would hide a
-decision that ought to be made.
+`assertSafeExposure()` runs before the server listens. In `APP_ENV=staging` or
+`alpha` it **refuses to start** unless `WEB_ORIGIN` is set explicitly and every
+origin in it is `https://` — the `http://localhost:5173` default would silently
+refuse the real web app. The Android app's origin, `https://localhost`,
+qualifies. Staging and Android setup: `docs/48_STAGING_AND_ANDROID.md`.
 
 ### 25.4.2 The OCR worker process (M5A.3)
 
@@ -361,11 +360,11 @@ default.
 announcement source — the gate is terms status in the database, not
 configuration, so it cannot be opened by editing an environment (§14.15).
 
-### The loopback boundary
+### The operator boundary
 
-`POST /announcements/entry` and `/publish` are reachable only from the machine
-running the API. **Any deployment that puts a proxy in front of the API must not
-forward these paths**, exactly as for the document routes.
+`POST /announcements/entry` and `/publish` require `OPERATOR_TOKEN` and do not
+exist without it (§25.4.1). *Originally loopback-only; superseded by the token
+in the deployment-readiness change.*
 
 ## 25.14 M8 deployment notes
 
@@ -395,10 +394,9 @@ else works. That is the first thing to check if a hosted paper looks blank.
 
 ### The loopback boundary
 
-Unchanged. The document routes — import, process, extract, review — stay
-reachable only from the machine running the API, and any proxy in front of the
-API must not forward them. The three library reads and the file route are the
-public surface M8 adds.
+*Historical.* The document routes — import, process, extract, review — were
+reachable only from the machine running the API. They are no longer mounted by
+the API at all (§13.4a); the library reads are the public surface.
 
 ## 25.15 M9 deployment — the student cloud
 

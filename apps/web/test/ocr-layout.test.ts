@@ -25,6 +25,7 @@ import {
   isWorthReviewing,
   LOW_CONFIDENCE,
   ocrPageToLines,
+  skewOf,
   wordsToPositioned,
   type OcrWord,
 } from '../src/domain/ocr-layout.js';
@@ -184,6 +185,80 @@ describe('rows from OCR words', () => {
   });
 });
 
+describe('the header row keeps its first course', () => {
+  /*
+   * The exact boxes the real engine returned for a synthetic card's header and
+   * first course row (tests/ocr-qa.mjs). `Code` sits two pixels higher than
+   * `Subject`, so it — not the leftmost word — came first in the header row;
+   * measured against it, the course row beneath looked like a wrapped cell and
+   * was merged into the header. The card saved three courses of four.
+   */
+  const box = (text: string, x0: number, y0: number, x1: number, y1: number): OcrWord => ({
+    text,
+    bbox: { x0, y0, x1, y1 },
+    confidence: 95,
+  });
+  const WORDS: OcrWord[] = [
+    box('Semester', 60, 140, 150, 155),
+    box(':', 158, 143, 162, 155),
+    box('4', 170, 140, 180, 155),
+    box('Subject', 61, 191, 122, 206),
+    box('Code', 127, 191, 168, 203),
+    box('Subject', 211, 191, 272, 206),
+    box('Name', 277, 191, 322, 203),
+    box('Internal', 561, 187, 620, 212),
+    box('External', 661, 187, 726, 212),
+    box('Total', 761, 187, 798, 212),
+    box('Result', 851, 191, 902, 203),
+    box('BQAS401', 61, 227, 141, 254),
+    box('ALGORITHMS', 210, 231, 335, 245),
+    box('44', 556, 227, 580, 254),
+    box('36', 661, 231, 680, 245),
+    box('80', 761, 231, 780, 245),
+    box('P', 851, 231, 862, 245),
+  ];
+
+  it('is not mistaken for the wrapped remainder of the header', () => {
+    const lines = ocrPageToLines(WORDS, 700).lines.map((line) => line.text);
+    expect(lines).toContain('Subject Code Subject Name Internal External Total Result');
+    expect(lines).toContain('BQAS401 ALGORITHMS 44 36 80 P');
+    expect(
+      parseResultCard(ocrPageToLines(WORDS, 700).lines).rows.map((row) => row.subjectCode),
+    ).toEqual(['BQAS401']);
+  });
+});
+
+describe('a title that wraps onto a second line, read word by word', () => {
+  /*
+   * The physical-device card saved "ANALYSIS & DESIGN OF": OCR returns one box
+   * per WORD, and the wrapped remainder was sorted into the row by x alone,
+   * landing between the words of the title. Synthetic boxes; the geometry of a
+   * printed VTU card.
+   */
+  const box = (text: string, x0: number, y0: number, x1: number, y1: number): OcrWord => ({
+    text,
+    bbox: { x0, y0, x1, y1 },
+    confidence: 95,
+  });
+
+  it('keeps the wrapped words together, at the end of the title, before the marks', () => {
+    const words: OcrWord[] = [
+      box('BCS401', 61, 227, 141, 254),
+      box('ANALYSIS', 210, 231, 300, 245),
+      box('&', 306, 231, 316, 245),
+      box('DESIGN', 322, 231, 392, 245),
+      box('OF', 398, 231, 420, 245),
+      box('44', 556, 227, 580, 254),
+      box('36', 661, 231, 680, 245),
+      box('80', 761, 231, 780, 245),
+      box('P', 851, 231, 862, 245),
+      box('ALGORITHMS', 210, 258, 335, 272),
+    ];
+    const lines = ocrPageToLines(words, 700).lines.map((line) => line.text);
+    expect(lines).toEqual(['BCS401 ANALYSIS & DESIGN OF ALGORITHMS 44 36 80 P']);
+  });
+});
+
 describe('confidence is reported, never acted on', () => {
   it('summarises per-word confidence without discarding anything', () => {
     /*
@@ -232,5 +307,72 @@ describe('whether a page is worth showing at all', () => {
   it('accepts a page with enough confident words', () => {
     const good = Array.from({ length: 40 }, (_, i) => word(`w${String(i)}`, 10, i * 20, 88));
     expect(isWorthReviewing(ocrPageToLines(good, PAGE_HEIGHT))).toBe(true);
+  });
+});
+
+describe('a photographed page that is not level', () => {
+  /*
+   * MEASURED on real result cards photographed 1.5° off level: every row came
+   * back unreadable, because each printed row drifted ~50px across the page
+   * and split into several "lines". Synthetic words, turned by the same angle.
+   */
+  const turn = (degrees: number, words: readonly OcrWord[]): OcrWord[] => {
+    const a = (degrees * Math.PI) / 180;
+    return words.map((word) => {
+      const cx = (word.bbox.x0 + word.bbox.x1) / 2 - 1000;
+      const cy = (word.bbox.y0 + word.bbox.y1) / 2 - 700;
+      const w = word.bbox.x1 - word.bbox.x0;
+      const h = word.bbox.y1 - word.bbox.y0;
+      const x = cx * Math.cos(a) - cy * Math.sin(a) + 1000;
+      const y = cx * Math.sin(a) + cy * Math.cos(a) + 700;
+      return { ...word, bbox: { x0: x - w / 2, y0: y - h / 2, x1: x + w / 2, y1: y + h / 2 } };
+    });
+  };
+  const row = (y: number, cells: readonly [string, number][]): OcrWord[] =>
+    cells.map(([text, x]) => ({
+      text,
+      bbox: { x0: x, y0: y, x1: x + text.length * 18, y1: y + 22 },
+      confidence: 90,
+    }));
+  const CARD = [
+    ...row(400, [
+      ['BQAS401', 60],
+      ['ALGORITHMS', 330],
+      ['44', 1100],
+      ['36', 1300],
+      ['80', 1500],
+      ['P', 1700],
+    ]),
+    ...row(440, [
+      ['BQAS402', 60],
+      ['NETWORKS', 330],
+      ['41', 1100],
+      ['30', 1300],
+      ['71', 1500],
+      ['P', 1700],
+    ]),
+    ...row(480, [
+      ['BQAS403', 60],
+      ['DATABASES', 330],
+      ['38', 1100],
+      ['12', 1300],
+      ['50', 1500],
+      ['F', 1700],
+    ]),
+  ];
+
+  it('is read level again, so each printed row is still one row', () => {
+    const lines = ocrPageToLines(turn(1.5, CARD), 1400).lines.map((line) => line.text);
+    expect(lines).toEqual([
+      'BQAS401 ALGORITHMS 44 36 80 P',
+      'BQAS402 NETWORKS 41 30 71 P',
+      'BQAS403 DATABASES 38 12 50 F',
+    ]);
+    expect(lines).toEqual(ocrPageToLines(turn(-1.5, CARD), 1400).lines.map((line) => line.text));
+  });
+
+  it('leaves a level page exactly as it was', () => {
+    expect(skewOf(CARD)).toBe(0);
+    expect(ocrPageToLines(CARD, 1400).placed[0]).toMatchObject({ x: 60, y: 1400 - 411 });
   });
 });

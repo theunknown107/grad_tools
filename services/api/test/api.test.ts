@@ -18,6 +18,7 @@ import request from 'supertest';
 import { Writable } from 'node:stream';
 import type { Express } from 'express';
 import { API_ROUTES } from '@gradtools/shared-types';
+import { VTU_BRANCHES_2022, VTU_COLLEGES } from '@gradtools/vtu-catalogue/data';
 import { loadConfig } from '../src/config.js';
 import { createClient, type Sql } from '../src/db/client.js';
 import { runMigrations } from '../src/db/migrate.js';
@@ -278,9 +279,73 @@ describeDb('reference API', () => {
       expect(Number(rows[0]?.count)).toBe(0);
     });
 
-    it('seeds no colleges, because none has been verified', async () => {
-      const rows = await sql<{ count: string }[]>`SELECT count(*) AS count FROM colleges`;
-      expect(Number(rows[0]?.count)).toBe(0);
+    it('seeds the transcribed colleges as unpublished drafts with autonomy unknown', async () => {
+      const rows = await sql<
+        { total: string; published: string; asserted: string; keyed: string }[]
+      >`
+        SELECT count(*) AS total,
+               count(*) FILTER (WHERE publication = 'published') AS published,
+               count(*) FILTER (WHERE is_autonomous IS NOT NULL) AS asserted,
+               count(DISTINCT catalogue_id) AS keyed
+        FROM colleges WHERE source_url = ${VTU_COLLEGES.source.url}
+      `;
+      expect(Number(rows[0]?.total)).toBe(VTU_COLLEGES.entries.length);
+      expect(Number(rows[0]?.keyed)).toBe(VTU_COLLEGES.entries.length);
+      expect(Number(rows[0]?.published)).toBe(0);
+      expect(Number(rows[0]?.asserted)).toBe(0);
+    });
+
+    it('refuses to publish a college whose autonomy is unknown', async () => {
+      await expect(sql`
+        UPDATE colleges
+           SET verification = 'verified', verified_at = now(), publication = 'published'
+         WHERE catalogue_id = ${VTU_COLLEGES.entries[0]!.id}
+      `).rejects.toThrow(/colleges_publish_requires_known_autonomy/);
+    });
+
+    it('keeps the provenance a reviewer verified when re-seeded', async () => {
+      const id = VTU_COLLEGES.entries[1]!.id;
+      await sql`
+        UPDATE colleges SET verification = 'verified', verified_at = now(),
+          source_url = 'https://example.org/reviewed', source_clause = 'reviewed copy'
+        WHERE catalogue_id = ${id}
+      `;
+      try {
+        await seed(sql);
+        const [row] = await sql<{ source_url: string; verification: string }[]>`
+          SELECT source_url, source_clause, verification FROM colleges WHERE catalogue_id = ${id}
+        `;
+        expect(row).toMatchObject({
+          source_url: 'https://example.org/reviewed',
+          source_clause: 'reviewed copy',
+          verification: 'verified',
+        });
+      } finally {
+        await sql`UPDATE colleges SET verification = 'draft', verified_at = NULL WHERE catalogue_id = ${id}`;
+        await seed(sql);
+      }
+    });
+
+    it('resets the review of a row whose transcription changed', async () => {
+      const entry = VTU_COLLEGES.entries[2]!;
+      await sql`
+        UPDATE colleges SET name = 'Stale Name', verification = 'verified', verified_at = now(),
+          verified_by = 'a reviewer', source_url = 'https://example.org/reviewed'
+        WHERE catalogue_id = ${entry.id}
+      `;
+      await seed(sql);
+      const [row] = await sql<Record<string, unknown>[]>`
+        SELECT name, verification, publication, verified_at, verified_by, source_url
+        FROM colleges WHERE catalogue_id = ${entry.id}
+      `;
+      expect(row).toEqual({
+        name: entry.name,
+        verification: 'draft',
+        publication: 'unpublished',
+        verified_at: null,
+        verified_by: null,
+        source_url: VTU_COLLEGES.source.url,
+      });
     });
   });
 
@@ -506,7 +571,9 @@ describeDb('reference API', () => {
       expect((universities.body.data as { id: string }[]).map((u) => u.id)).toEqual(['vtu']);
 
       const branches = await request(app).get('/api/v1/branches');
-      expect((branches.body.data as { id: string }[]).map((b) => b.id)).toEqual(['cse']);
+      expect((branches.body.data as { id: string }[]).map((b) => b.id).sort()).toEqual(
+        VTU_BRANCHES_2022.entries.map((b) => b.id).sort(),
+      );
     });
   });
 
@@ -599,6 +666,24 @@ describeDb('reference API', () => {
         false,
       );
       await sql`DELETE FROM colleges WHERE name = 'Draft College'`;
+    });
+
+    it('serves the catalogue id with each published college', async () => {
+      await sql`
+        INSERT INTO colleges (university_id, name, is_autonomous, source_url,
+                              verification, verified_at, publication, catalogue_id)
+        VALUES ('vtu', 'Catalogued College', false, 'https://example.org/x',
+                'verified', now(), 'published', 'test-catalogued')
+      `;
+      try {
+        const res = await request(app).get('/api/v1/colleges');
+        const college = (res.body.data as { name: string; catalogueId: string | null }[]).find(
+          (c) => c.name === 'Catalogued College',
+        );
+        expect(college?.catalogueId).toBe('test-catalogued');
+      } finally {
+        await sql`DELETE FROM colleges WHERE catalogue_id = 'test-catalogued'`;
+      }
     });
   });
 
@@ -870,6 +955,47 @@ describeDb('reference API', () => {
         .get('/api/v1/universities')
         .set('Origin', 'http://localhost:5173');
       expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+    });
+
+    /*
+     * THE WEB APP'S OWN ORIGIN MUST BE ABLE TO WRITE.
+     *
+     * A browser asks before it sends a POST, a PUT, a PATCH or a DELETE, and
+     * an answer that omits the method it asked about means the request is
+     * never made. This said GET, HEAD, OPTIONS from the milestone where the
+     * API served only public reads, so the entire mutating half of the student
+     * cloud — pushing a sync, saving a profile, marking a notice read,
+     * deleting an account — was unreachable from the app's own origin.
+     */
+    it('answers a preflight for every method the student routes serve', async () => {
+      for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+        const res = await request(app)
+          .options('/api/v1/me/sync')
+          .set('Origin', 'http://localhost:5173')
+          .set('Access-Control-Request-Method', method)
+          .set('Access-Control-Request-Headers', 'authorization,content-type');
+
+        expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+        expect(res.headers['access-control-allow-methods']).toContain(method);
+      }
+    });
+
+    /* And the origin remains the thing that gates it, not the method list. */
+    it('answers no preflight at all for an origin that is not allowed', async () => {
+      const res = await request(app)
+        .options('/api/v1/me/sync')
+        .set('Origin', 'https://evil.example.com')
+        .set('Access-Control-Request-Method', 'POST');
+
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    });
+
+    /* Bearer tokens, never cookies: there is no ambient authority to ride on. */
+    it('never allows credentialed cross-origin requests', async () => {
+      const res = await request(app)
+        .get('/api/v1/universities')
+        .set('Origin', 'http://localhost:5173');
+      expect(res.headers['access-control-allow-credentials']).toBeUndefined();
     });
 
     it('resists SQL injection through a path parameter', async () => {

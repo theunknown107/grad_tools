@@ -37,6 +37,12 @@ export interface SyncBookkeeping {
   readonly cursor: string | null;
   readonly records: Readonly<Record<string, RecordSyncMeta>>;
   readonly lastSyncedAt: string | null;
+  /**
+   * The cloud profile's revision when this device last agreed with it, and a
+   * fingerprint of the profile input at that moment (OQ-062). Kept out of
+   * `records`: anything there that is absent locally is pushed as a deletion.
+   */
+  readonly profile?: { readonly revision: number; readonly fingerprint: string };
 }
 
 export const EMPTY_BOOKKEEPING: SyncBookkeeping = {
@@ -301,7 +307,7 @@ export function afterPull(
     delete records[deletion.id];
   }
 
-  return { cursor, records, lastSyncedAt: new Date().toISOString() };
+  return { ...bookkeeping, cursor, records, lastSyncedAt: new Date().toISOString() };
 }
 
 /**
