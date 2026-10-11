@@ -5,11 +5,18 @@
  * design's. The landing page sits outside the shell (it carries its own
  * navigation and footer). `/` stays the dashboard: GradTools is local-first,
  * so a returning student lands on their own data.
+ *
+ * THE AUTH SCREENS STAND ALONE. Sign-in, terms, first-run setup and recovery
+ * render through `AuthLayout` — not inside `AppShell`. A signed-out visitor to
+ * a build with a provider configured sees only the sign-in, never the app's
+ * sidebar and bars behind a lock. `OnboardingGate` wraps the shell (not the
+ * reverse), so the shell is never mounted for someone who may not see it.
  */
 
-import { lazy, Suspense, type ComponentType } from 'react';
+import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { AppShell, Disclaimer } from './components/layout/AppShell.js';
+import { AuthLayout } from './components/layout/AuthLayout.js';
 import { PageSkeleton } from './components/ui/skeleton.js';
 import { DashboardPage } from './features/dashboard/DashboardPage.js';
 import { OnboardingGate } from './features/onboarding/OnboardingGate.js';
@@ -63,6 +70,15 @@ const GetResultPage = page(
 );
 const TimetablePage = page(() => import('./features/timetable/TimetablePage.js'), 'TimetablePage');
 
+/** A lazy auth screen, framed standalone (no shell) with a themed fallback. */
+function Auth({ children }: { readonly children: ReactNode }) {
+  return (
+    <AuthLayout>
+      <Suspense fallback={<PageSkeleton label="Loading" />}>{children}</Suspense>
+    </AuthLayout>
+  );
+}
+
 export function App() {
   return (
     <Routes>
@@ -74,6 +90,49 @@ export function App() {
           </Suspense>
         }
       />
+      {/* Auth screens stand alone, outside the shell (see file header). */}
+      <Route
+        path="/sign-in"
+        element={
+          <Auth>
+            <SignInPage />
+          </Auth>
+        }
+      />
+      <Route
+        path="/terms"
+        element={
+          <Auth>
+            <TermsPage />
+          </Auth>
+        }
+      />
+      <Route
+        path="/onboarding"
+        element={
+          <Auth>
+            <SetupPage />
+          </Auth>
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <Auth>
+            <ResetPasswordPage />
+          </Auth>
+        }
+      />
+      {clerkPublishableKey() !== null && (
+        <Route
+          path="/sso-callback"
+          element={
+            <Auth>
+              <SsoCallbackPage />
+            </Auth>
+          }
+        />
+      )}
       <Route path="*" element={<ShellRoutes />} />
     </Routes>
   );
@@ -81,16 +140,17 @@ export function App() {
 
 function ShellRoutes() {
   return (
-    <AppShell
-      footer={
-        <Disclaimer>
-          Experimental version. GradTools is an independent student project and is not affiliated
-          with, endorsed by, or connected to Visvesvaraya Technological University. Academic figures
-          follow the VTU 2022 regulations (22OB) and each one can show the clause it came from.
-        </Disclaimer>
-      }
-    >
-      <OnboardingGate>
+    <OnboardingGate>
+      <AppShell
+        footer={
+          <Disclaimer>
+            Experimental version. GradTools is an independent student project and is not affiliated
+            with, endorsed by, or connected to Visvesvaraya Technological University. Academic
+            figures follow the VTU 2022 regulations (22OB) and each one can show the clause it came
+            from.
+          </Disclaimer>
+        }
+      >
         <Suspense fallback={<PageSkeleton label="Loading page" />}>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
@@ -107,19 +167,12 @@ function ShellRoutes() {
             <Route path="/exams" element={<ExamsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/setup" element={<SetupPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/onboarding" element={<SetupPage />} />
-            <Route path="/sign-in" element={<SignInPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            {clerkPublishableKey() !== null && (
-              <Route path="/sso-callback" element={<SsoCallbackPage />} />
-            )}
             <Route path="/account" element={<AccountPage />} />
             <Route path="/first-sync" element={<FirstSyncPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
-      </OnboardingGate>
-    </AppShell>
+      </AppShell>
+    </OnboardingGate>
   );
 }

@@ -145,6 +145,13 @@ export interface AuthAdapter {
   resetWithCode?(code: string, password: string): Promise<{ error: string | null }>;
   /** Set when provider sign-in cannot work on this platform: the reason, in words. */
   readonly providerUnavailable?: string;
+  /**
+   * The provider's minimum length for a NEW password (create / reset), so the
+   * sign-in screen states the real requirement rather than guessing. Absent → a
+   * sensible default (8). This mirrors the provider's configured policy; it does
+   * not define one. It is NOT applied when signing in with an existing password.
+   */
+  readonly passwordMinLength?: number;
   signUpWithPassword(
     email: string,
     password: string,

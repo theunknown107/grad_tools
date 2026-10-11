@@ -22,6 +22,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+              Native OAuth return. Google refuses OAuth in a WebView, so Google
+              sign-in opens the system browser and returns to this custom-scheme
+              deep link; @capacitor/app routes it to the running app (singleTask),
+              where the Clerk adapter completes the sign-in. The matching URL must
+              be allow-listed in the Clerk dashboard.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gradtools" android:host="auth" />
+            </intent-filter>
+
         </activity>
 
         <provider

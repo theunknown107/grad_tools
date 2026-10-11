@@ -164,9 +164,13 @@ describe('the sign-in screen', () => {
     expect(explainer.textContent).toContain('not');
   });
 
-  it('makes staying local a real, visible option', async () => {
+  it('offers no local-only bypass when a provider is configured (the gate is enforced)', async () => {
+    // The standalone Clerk gate locks the app behind sign-in, so a "keep using
+    // without an account" escape — which the gate would immediately bounce back —
+    // is gone. A no-provider build never reaches this screen.
     renderAuth(<SignInPage />, fakeAdapter());
-    expect(await screen.findByText(/Keep using GradTools without an account/)).toBeTruthy();
+    await screen.findByLabelText('Email');
+    expect(screen.queryByText(/Keep using GradTools without an account/)).toBeNull();
   });
 
   /*
