@@ -79,6 +79,12 @@ export function SignInPage() {
     );
   }
 
+  // The provider's real minimum for a NEW password (create / reset). Signing in
+  // with an existing password is never held to this — an account made under an
+  // older policy must still be able to sign in.
+  const passwordMin = adapter.passwordMinLength ?? 8;
+  const settingNewPassword = mode === 'create' || step === 'reset';
+
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
     setBusy(true);
@@ -198,16 +204,14 @@ export function SignInPage() {
         {((step === 'form' && mode !== 'recover') || step === 'reset') && (
           <Field
             label={step === 'reset' ? 'New password' : 'Password'}
-            {...(mode === 'create' || step === 'reset'
-              ? { hint: 'At least eight characters.' }
-              : {})}
+            {...(settingNewPassword ? { hint: `At least ${String(passwordMin)} characters.` } : {})}
           >
             <PasswordInput
-              autoComplete={
-                mode === 'create' || step === 'reset' ? 'new-password' : 'current-password'
-              }
+              autoComplete={settingNewPassword ? 'new-password' : 'current-password'}
               required
-              minLength={8}
+              // Enforce the length only when CHOOSING a password; never gate an
+              // existing one on sign-in (it may predate the current policy).
+              {...(settingNewPassword ? { minLength: passwordMin } : {})}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
@@ -243,13 +247,13 @@ export function SignInPage() {
           </Button>
         )}
       </form>
-      <p className="mt-5 text-[12px] text-ink-3">
-        Prefer to stay local?{' '}
-        <Link to="/" className="font-medium text-accent-ink underline-offset-4 hover:underline">
-          Keep using GradTools without an account.
-        </Link>{' '}
-        Nothing you have entered will be sent anywhere.
-      </p>
+      {/*
+        NO LOCAL-ONLY ESCAPE HERE. When a provider is configured the gate locks
+        the app behind sign-in, so a "keep using without an account" link would
+        lead to a page the gate immediately bounces back. A build with no
+        provider never reaches this screen (the adapter === null branch above
+        returns first), so the link has no audience and is gone.
+      */}
       <PreLoginReport />
     </Frame>
   );

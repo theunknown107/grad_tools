@@ -31,20 +31,28 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const sentinels = (
-  <Routes>
-    <Route path="/" element={<div>APP HOME</div>} />
-    <Route path="/sign-in" element={<div>SIGN IN</div>} />
-    <Route path="/terms" element={<div>TERMS ROUTE</div>} />
-    <Route path="/onboarding" element={<div>ONBOARDING</div>} />
-  </Routes>
-);
-
+/**
+ * Mirrors App.tsx: the auth screens (/sign-in, /terms, /onboarding) are
+ * standalone routes ABOVE the gate; the gate wraps only the app shell ("*"), so
+ * its redirects land on sibling routes exactly as they do in the real app.
+ */
 function renderGate(route: string, adapter: AuthAdapter | null) {
   return render(
     <MemoryRouter initialEntries={[route]}>
       <AuthProvider adapter={adapter}>
-        <OnboardingGate>{sentinels}</OnboardingGate>
+        <Routes>
+          <Route path="/sign-in" element={<div>SIGN IN</div>} />
+          <Route path="/terms" element={<div>TERMS ROUTE</div>} />
+          <Route path="/onboarding" element={<div>ONBOARDING</div>} />
+          <Route
+            path="*"
+            element={
+              <OnboardingGate>
+                <div>APP HOME</div>
+              </OnboardingGate>
+            }
+          />
+        </Routes>
       </AuthProvider>
     </MemoryRouter>,
   );
@@ -59,25 +67,15 @@ describe('OnboardingGate', () => {
     expect(fetchMock).not.toHaveBeenCalled(); // it never asked the server
   });
 
-  it('sends a signed-out user off a protected route to sign-in', async () => {
-    renderGate('/', fakeAdapter(false));
+  it('sends a signed-out user to the standalone sign-in screen, not the shell', async () => {
+    renderGate('/import', fakeAdapter(false));
     expect(await screen.findByText('SIGN IN')).toBeTruthy();
+    expect(screen.queryByText('APP HOME')).toBeNull(); // the shell never mounted
   });
 
-  it('lets a signed-out user reach a public route', async () => {
-    renderGate('/terms', fakeAdapter(false));
-    expect(await screen.findByText('TERMS ROUTE')).toBeTruthy();
-  });
-
-  it('holds a signed-in user who has not accepted at /terms', async () => {
+  it('holds a signed-in user who has not accepted by redirecting to /terms', async () => {
     stubMe({ termsAccepted: false });
     renderGate('/', fakeAdapter(true));
-    expect(await screen.findByText('TERMS ROUTE')).toBeTruthy();
-  });
-
-  it('redirects an unaccepted user to /terms even from /onboarding (terms over skip)', async () => {
-    stubMe({ termsAccepted: false });
-    renderGate('/onboarding', fakeAdapter(true));
     expect(await screen.findByText('TERMS ROUTE')).toBeTruthy();
   });
 
@@ -94,12 +92,6 @@ describe('OnboardingGate', () => {
     stubMe({ termsAccepted: true });
     renderGate('/', fakeAdapter(true));
     expect(await screen.findByText('APP HOME')).toBeTruthy();
-  });
-
-  it('moves an already-accepted user off /terms to the next stage', async () => {
-    stubMe({ termsAccepted: true });
-    renderGate('/terms', fakeAdapter(true));
-    expect(await screen.findByText('ONBOARDING')).toBeTruthy();
   });
 
   it('refuses access and offers a retry when /me cannot be confirmed', async () => {
