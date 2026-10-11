@@ -1,5 +1,25 @@
 apply plugin: 'com.android.application'
 
+// ---------------------------------------------------------------------------
+// Release signing (local — Option A). The keystore and its passwords live
+// OUTSIDE the repo; a git-ignored keystore.properties (see
+// keystore.properties.example) holds the absolute path and credentials and is
+// loaded only if present. Debug builds never need it. A RELEASE build without
+// VALID signing fails loudly (taskGraph check below) rather than emitting an
+// unsigned, undistributable APK. No secret is ever hard-coded here.
+// ---------------------------------------------------------------------------
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+def releaseSigningValid =
+    keystorePropertiesFile.exists() &&
+    ['storeFile', 'storePassword', 'keyAlias', 'keyPassword'].every {
+        keystoreProperties.getProperty(it)?.trim()
+    } &&
+    file(keystoreProperties.getProperty('storeFile') ?: '/nonexistent').exists()
+
 android {
     namespace = "app.gradtools"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,11 +36,39 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (releaseSigningValid) {
+            release {
+                storeFile file(keystoreProperties.getProperty('storeFile'))
+                storePassword keystoreProperties.getProperty('storePassword')
+                keyAlias keystoreProperties.getProperty('keyAlias')
+                keyPassword keystoreProperties.getProperty('keyPassword')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (releaseSigningValid) {
+                signingConfig signingConfigs.release
+            }
         }
+    }
+}
+
+// A release build MUST be signed. Requested without valid signing → fail with an
+// actionable message instead of producing an unsigned, undistributable APK.
+gradle.taskGraph.whenReady { graph ->
+    def buildingRelease = graph.allTasks.any { t ->
+        t.name in ['assembleRelease', 'bundleRelease', 'packageRelease']
+    }
+    if (buildingRelease && !releaseSigningValid) {
+        throw new GradleException(
+            "Release signing is not configured or is incomplete. Create a git-ignored " +
+            "apps/web/android/keystore.properties (copy keystore.properties.example) with: " +
+            "storeFile (ABSOLUTE path to your .jks), storePassword, keyAlias, keyPassword."
+        )
     }
 }
 
