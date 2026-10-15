@@ -22,7 +22,7 @@ import { CURRENT_TERMS } from '@gradtools/shared-types';
 import { AuthProvider } from '../src/features/auth/AuthContext.js';
 import { OnboardingGate } from '../src/features/onboarding/OnboardingGate.js';
 import { TermsPage } from '../src/features/onboarding/TermsPage.js';
-import { fakeAdapter, restoringAdapter, stubMe, stubTermsAccept } from './helpers/auth-harness.js';
+import { fakeAdapter, stubTermsAccept } from './helpers/auth-harness.js';
 import type { AuthAdapter } from '../src/repositories/cloud/supabase.js';
 
 afterEach(() => {
@@ -32,81 +32,41 @@ afterEach(() => {
 });
 
 /**
- * Mirrors App.tsx: the auth screens (/sign-in, /terms, /onboarding) are
- * standalone routes ABOVE the gate; the gate wraps only the app shell ("*"), so
- * its redirects land on sibling routes exactly as they do in the real app.
+ * Local-first: the gate NEVER blocks. GradTools is usable in every auth state,
+ * so a failed Clerk init or a signed-out visitor is never locked out of the app
+ * (the incident). Auth and Terms are enforced at the cloud boundary (useSync,
+ * AccountPage), not here.
  */
 function renderGate(route: string, adapter: AuthAdapter | null) {
   return render(
     <MemoryRouter initialEntries={[route]}>
       <AuthProvider adapter={adapter}>
-        <Routes>
-          <Route path="/sign-in" element={<div>SIGN IN</div>} />
-          <Route path="/terms" element={<div>TERMS ROUTE</div>} />
-          <Route path="/onboarding" element={<div>ONBOARDING</div>} />
-          <Route
-            path="*"
-            element={
-              <OnboardingGate>
-                <div>APP HOME</div>
-              </OnboardingGate>
-            }
-          />
-        </Routes>
+        <OnboardingGate>
+          <div>APP HOME</div>
+        </OnboardingGate>
       </AuthProvider>
     </MemoryRouter>,
   );
 }
 
-describe('OnboardingGate', () => {
-  it('is inert with no provider configured: the app stays local-first', async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
+describe('OnboardingGate (local-first access)', () => {
+  it('renders the app with no provider configured', async () => {
     renderGate('/', null);
     expect(await screen.findByText('APP HOME')).toBeTruthy();
-    expect(fetchMock).not.toHaveBeenCalled(); // it never asked the server
   });
 
-  it('sends a signed-out user to the standalone sign-in screen, not the shell', async () => {
-    renderGate('/import', fakeAdapter(false));
-    expect(await screen.findByText('SIGN IN')).toBeTruthy();
-    expect(screen.queryByText('APP HOME')).toBeNull(); // the shell never mounted
+  it('renders the app for a SIGNED-OUT user when a provider is configured (never locks out)', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    renderGate('/', fakeAdapter(false));
+    expect(await screen.findByText('APP HOME')).toBeTruthy();
+    // The gate asks the server nothing — it does not gate on account state.
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('holds a signed-in user who has not accepted by redirecting to /terms', async () => {
-    stubMe({ termsAccepted: false });
-    renderGate('/', fakeAdapter(true));
-    expect(await screen.findByText('TERMS ROUTE')).toBeTruthy();
-  });
-
-  it('re-gates to /terms when a newer version is unaccepted, without repeating the profile', async () => {
-    // Profile is complete/onboarded, but the CURRENT terms version is unaccepted
-    // (server returns terms:null for a bumped version). Terms takes precedence;
-    // the gate never touches the (server-held) profile.
-    stubMe({ termsAccepted: false, onboarded: true, profile: { displayName: 'Asha' } });
-    renderGate('/', fakeAdapter(true));
-    expect(await screen.findByText('TERMS ROUTE')).toBeTruthy();
-  });
-
-  it('lets a signed-in user who has accepted into the app', async () => {
-    stubMe({ termsAccepted: true });
+  it('renders the app for a signed-in user, whatever the terms state', async () => {
     renderGate('/', fakeAdapter(true));
     expect(await screen.findByText('APP HOME')).toBeTruthy();
-  });
-
-  it('refuses access and offers a retry when /me cannot be confirmed', async () => {
-    stubMe({ ok: false });
-    renderGate('/', fakeAdapter(true));
-    expect(await screen.findByText(/couldn’t load your account/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /try again/i })).toBeTruthy();
-    expect(screen.queryByText('APP HOME')).toBeNull();
-  });
-
-  it('waits (never redirects) while the session is still restoring', async () => {
-    renderGate('/', restoringAdapter());
-    expect(await screen.findByText(/checking your session/i)).toBeTruthy();
-    expect(screen.queryByText('APP HOME')).toBeNull();
-    expect(screen.queryByText('SIGN IN')).toBeNull();
   });
 });
 

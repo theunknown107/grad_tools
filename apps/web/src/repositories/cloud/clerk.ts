@@ -40,27 +40,20 @@ function isNativeApp(): boolean {
 const NATIVE_AUTH_CALLBACK = 'gradtools://auth/callback';
 
 /**
- * A native OAuth round-trip is only honoured if THIS app started one. The deep
- * link `gradtools://auth/callback` is BROWSABLE, so any installed app can fire
- * it; without this guard a hostile app could drive the WebView to `/sso-callback`
- * (an annoyance — it cannot forge a session, Clerk validates the handshake
- * server-side, but it should not be possible at all). A timestamp in
- * `localStorage` is set when we open the provider and consumed on return: it
- * survives the Custom Tab overlay and a cold start, and expires so a stale one
- * cannot be replayed.
+ * Deep-link defense. `gradtools://auth/callback` is a BROWSABLE deep link any
+ * installed app can fire, so a callback is honoured ONLY if THIS app recently
+ * started a native OAuth — a single-use, expiring `localStorage` marker, checked
+ * and cleared on return (`completeDeepLink`). Native Google is currently DISABLED
+ * (`signInWithProvider` on native refuses), so nothing sets the marker and every
+ * deep link is rejected — the correct posture. The guard stays so the defense is
+ * already in place when a supported native flow lands; it never forges a session
+ * (Clerk verifies the handshake server-side), and it fails CLOSED.
  */
 const OAUTH_PENDING_KEY = 'gradtools:v1:oauth-pending';
 const OAUTH_PENDING_TTL_MS = 10 * 60_000;
 
-function markOauthPending(): void {
-  try {
-    localStorage.setItem(OAUTH_PENDING_KEY, String(Date.now()));
-  } catch {
-    /* Storage blocked: the return leg falls back to being accepted, below. */
-  }
-}
-
-/** True if we started a native OAuth recently. Clears the marker either way. */
+/** True only if a native OAuth was started recently; clears the marker, and
+ *  rejects (fails closed) when storage is unavailable. */
 function consumeOauthPending(): boolean {
   try {
     const raw = localStorage.getItem(OAUTH_PENDING_KEY);
@@ -69,8 +62,7 @@ function consumeOauthPending(): boolean {
     const started = Number(raw);
     return Number.isFinite(started) && Date.now() - started < OAUTH_PENDING_TTL_MS;
   } catch {
-    // Storage unavailable: don't lock a real user out of finishing sign-in.
-    return true;
+    return false;
   }
 }
 
@@ -174,6 +166,17 @@ export function createClerkAdapter(clerk: Clerk): AuthAdapter {
     // minimum for a new password (create / reset), not a guessed one.
     passwordMinLength: CLERK_PASSWORD_MIN_LENGTH,
 
+    // Google OAuth is unavailable inside the Android WebView: Google blocks
+    // WebView OAuth, and clerk-js rejects a custom-scheme redirect
+    // (`invalid_url_scheme`). The button is hidden on native with this reason;
+    // email/password and emailed-code recovery stay fully functional.
+    ...(isNativeApp()
+      ? {
+          providerUnavailable:
+            'Google sign-in isn’t available in the Android app yet. Use email and password here, or sign in with Google on the website.',
+        }
+      : {}),
+
     async current() {
       await whenLoaded(clerk);
       return toIdentity(clerk);
@@ -247,30 +250,18 @@ export function createClerkAdapter(clerk: Clerk): AuthAdapter {
     async signInWithProvider(provider) {
       if (isNativeApp()) {
         /*
-         * Google refuses OAuth inside an embedded WebView, so the WebView never
-         * drives it. Instead we create the OAuth sign-in with the custom-scheme
-         * deep link as its return, then open Clerk's provider URL in the SYSTEM
-         * browser (a Custom Tab), where Google is happy. Google returns to
-         * `gradtools://auth/callback`, the intent-filter wakes the app, and
-         * `completeDeepLink` finishes. The deep link must be allow-listed in the
-         * Clerk dashboard, or Clerk refuses the redirect.
+         * DISABLED ON NATIVE (see `providerUnavailable`, which hides the button).
+         * clerk-js (the web SDK, @clerk/react 6.x) rejects a custom-scheme
+         * `redirectUrl` with `invalid_url_scheme` — it accepts only http/https —
+         * and Google blocks OAuth inside a WebView, so there is no supported
+         * clerk-js Capacitor flow to launch from here. Refuse cleanly rather than
+         * send the student to a Google/Clerk error page. A real native flow needs
+         * Clerk's native SDK (not usable inside a Capacitor WebView) and is
+         * tracked separately; email/password and recovery remain available.
          */
-        return attempt(async () => {
-          const signIn = clerk.client!.signIn;
-          await signIn.create({
-            strategy: `oauth_${provider}`,
-            redirectUrl: NATIVE_AUTH_CALLBACK,
-            actionCompleteRedirectUrl: NATIVE_AUTH_CALLBACK,
-          });
-          const external = signIn.firstFactorVerification.externalVerificationRedirectURL;
-          if (external === null || external === undefined) {
-            return { error: 'Could not start Google sign-in. Try again.' };
-          }
-          markOauthPending();
-          const { Browser } = await import('@capacitor/browser');
-          await Browser.open({ url: external.toString() });
-          return { error: null };
-        });
+        return {
+          error: 'Google sign-in isn’t available in the Android app yet. Use email and password.',
+        };
       }
       return attempt(async () => {
         // A redirect, not a popup: mobile browsers block popups by default.

@@ -264,7 +264,7 @@ export function AccountPage() {
                       <dd className="mt-1">
                         <Badge
                           tone={
-                            sync.state.status === 'failed'
+                            sync.state.status === 'failed' || sync.state.status === 'needs_terms'
                               ? 'warning'
                               : sync.state.status === 'synced'
                                 ? 'success'
@@ -286,6 +286,19 @@ export function AccountPage() {
                       Sync now
                     </Button>
                   </div>
+                  {sync.state.status === 'needs_terms' && (
+                    <Callout tone="warning" className="mt-4">
+                      Syncing needs the latest Terms &amp; Conditions. Your records stay safe on
+                      this device meanwhile.{' '}
+                      <Link
+                        to="/terms"
+                        className="font-medium text-accent-ink underline-offset-4 hover:underline"
+                      >
+                        Review &amp; accept the Terms
+                      </Link>{' '}
+                      to turn syncing on.
+                    </Callout>
+                  )}
                 </Card>
                 <Card className="p-6">
                   <SectionTitle>Sign out</SectionTitle>

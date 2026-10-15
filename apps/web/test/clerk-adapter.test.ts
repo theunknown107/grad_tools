@@ -182,27 +182,17 @@ describe('Google', () => {
     expect(adapter.providerUnavailable).toBeUndefined();
   });
 
-  it('opens the system browser for Google inside the Android app (WebView-safe)', async () => {
+  it('is disabled inside the Android app with a clear reason (WebView/clerk-js reject it)', async () => {
     vi.stubGlobal('Capacitor', { isNativePlatform: () => true });
     const { adapter, signIn } = fakeClerk();
-    signIn.create.mockResolvedValue(undefined);
-    const { Browser } = await import('@capacitor/browser');
 
-    expect(await adapter.signInWithProvider('google')).toEqual({ error: null });
-    // Creates the OAuth sign-in with the custom-scheme deep link as its return…
-    expect(signIn.create).toHaveBeenCalledWith({
-      strategy: 'oauth_google',
-      redirectUrl: 'gradtools://auth/callback',
-      actionCompleteRedirectUrl: 'gradtools://auth/callback',
-    });
-    // …and opens Clerk's provider URL in the SYSTEM browser, never the WebView.
-    expect(Browser.open).toHaveBeenCalledWith({
-      url: 'https://big-cardinal-4283.accounts.dev/oauth',
-    });
+    const result = await adapter.signInWithProvider('google');
+    expect(result.error).toMatch(/available in the Android app/i);
+    // It attempts NO Clerk OAuth call, native or web — fails closed.
+    expect(signIn.create).not.toHaveBeenCalled();
     expect(signIn.authenticateWithRedirect).not.toHaveBeenCalled();
-    // A native OAuth was started, so the callback guard's pending marker is set.
-    expect(localStorage.getItem('gradtools:v1:oauth-pending')).not.toBeNull();
-    expect(adapter.providerUnavailable).toBeUndefined();
+    // The button is hidden via providerUnavailable.
+    expect(adapter.providerUnavailable).toMatch(/Android app/i);
   });
 });
 

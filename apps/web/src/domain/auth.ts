@@ -85,7 +85,10 @@ export type SyncStatus =
   | 'offline'
   | 'failed'
   /** Changes are waiting for a person to resolve them. Not an error. */
-  | 'conflicts';
+  | 'conflicts'
+  /** Signed in, but the current Terms are unaccepted — cloud sync is withheld
+   * until they are. Local data is untouched and the app stays usable. */
+  | 'needs_terms';
 
 export interface SyncState {
   readonly status: SyncStatus;
@@ -130,6 +133,7 @@ export const SYNC_LABEL: Record<SyncStatus, string> = {
   offline: 'Offline — changes are saved here',
   failed: 'Sync failed',
   conflicts: 'Needs your attention',
+  needs_terms: 'Accept the latest Terms to sync',
 };
 
 /* -------------------------------------------------------------------------- */
