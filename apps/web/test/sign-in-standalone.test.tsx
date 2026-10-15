@@ -39,10 +39,9 @@ describe('standalone sign-in', () => {
     expect(screen.getByLabelText(/email/i)).toBeTruthy();
   });
 
-  it('offers no local-only bypass out of the gate', () => {
+  it('offers a local-first way back to the app (an account is optional)', () => {
     renderSignIn();
-    expect(screen.queryByText(/without an account/i)).toBeNull();
-    expect(screen.queryByRole('link', { name: /keep using gradtools/i })).toBeNull();
+    expect(screen.getByRole('link', { name: /keep using gradtools/i })).toBeTruthy();
   });
 });
 

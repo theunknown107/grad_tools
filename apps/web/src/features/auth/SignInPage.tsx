@@ -248,12 +248,17 @@ export function SignInPage() {
         )}
       </form>
       {/*
-        NO LOCAL-ONLY ESCAPE HERE. When a provider is configured the gate locks
-        the app behind sign-in, so a "keep using without an account" link would
-        lead to a page the gate immediately bounces back. A build with no
-        provider never reaches this screen (the adapter === null branch above
-        returns first), so the link has no audience and is gone.
+        Local-first: an account is optional. A signed-out student can always keep
+        using GradTools on this device, so the way back to the app stays here —
+        signing in is a choice, never a gate that locks them out of their data.
       */}
+      <p className="mt-5 text-[12px] text-ink-3">
+        Prefer to stay local?{' '}
+        <Link to="/" className="font-medium text-accent-ink underline-offset-4 hover:underline">
+          Keep using GradTools without an account.
+        </Link>{' '}
+        Nothing you have entered will be sent anywhere.
+      </p>
       <PreLoginReport />
     </Frame>
   );
