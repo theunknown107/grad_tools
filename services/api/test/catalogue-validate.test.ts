@@ -142,6 +142,32 @@ describeDb('validating the catalogue', () => {
     expect(result.passed).toBe(true);
   });
 
+  it('fails a scheme year the catalogue holds no courses for', async () => {
+    /*
+     * §39 asks for `--scheme 2025` to run beside `--scheme 2022`. Run against a
+     * catalogue that has never ingested 2025, every scheme-scoped check had
+     * nothing to look at and stayed quiet, so the run finished with no
+     * failures and the terminal printed VALIDATION PASSED.
+     *
+     * §48 and §74 gate publication on that verdict, which made "no data at
+     * all" indistinguishable from "validated clean" at exactly the moment the
+     * distinction matters.
+     */
+    if (sql === null) return;
+    const result = await validateCatalogue(sql, { schemeYear: '2025' });
+
+    expect(result.passed).toBe(false);
+    expect(failures(result.findings).join(' ')).toMatch(/no courses are stored for the 2025/);
+  });
+
+  it('still passes the scheme it does hold', async () => {
+    // The guard above must be about the REQUESTED scheme, not about any scheme
+    // being absent: 2022 is ingested and validates exactly as before (§52).
+    if (sql === null) return;
+    const result = await validateCatalogue(sql, { schemeYear: '2022' });
+    expect(result.passed).toBe(true);
+  });
+
   it('fails a course whose provenance points at nothing', async () => {
     // §25. A value with no traceable source is indistinguishable from one
     // somebody typed.
@@ -455,5 +481,68 @@ describe('the credits a semester of one document holds', () => {
 
   it('counts nothing from another semester', () => {
     expect(creditsStoredFor([{ ...course('BQQ301', 3), semester: 3 }], [], 4)).toBe(0);
+  });
+});
+
+describeDb('validating one scheme while another is stored beside it', () => {
+  /*
+   * §5's invariant is that adding a scheme does not disturb the one beside it,
+   * and the validator is the thing that has to be able to prove it. It could
+   * not: `--scheme 2025` named the scheme and only two of its eight checks
+   * listened. The rest counted and reported every row in the table, so the
+   * first real 2025 run failed on a 2022 alias and two 2022 conflicts — rows
+   * that have nothing to do with the catalogue being validated, that no 2025
+   * run can do anything about, and that made a clean 2025 result impossible
+   * to obtain or to trust.
+   *
+   * The seeded catalogue is entirely 2022, so a 2025 validation must see an
+   * empty catalogue and say so, and must not borrow one row of it.
+   */
+  beforeAll(async () => {
+    if (sql !== null) await runMigrations(sql);
+  });
+
+  beforeEach(async () => {
+    if (sql === null) return;
+    await sql`TRUNCATE source_document_versions, catalogue_courses, catalogue_syllabi,
+      catalogue_option_groups, catalogue_conflicts, catalogue_aliases, academic_streams CASCADE`;
+    await seed();
+  });
+
+  it('counts nothing from another scheme', async () => {
+    if (sql === null) return;
+    const result = await validateCatalogue(sql, { schemeYear: '2025' });
+    const said = result.findings.map((finding) => finding.message);
+
+    expect(said).toContain('0 syllabi, 0 modules, 0 topics');
+    expect(said).toContain('0 groups, 0 memberships');
+    expect(said).toContain('0 aliases');
+  });
+
+  it('does not report another scheme’s conflict against this one', async () => {
+    if (sql === null) return;
+    await sql`INSERT INTO catalogue_conflicts (scheme_year, code, field)
+              VALUES ('2022', 'BQQ301', 'credits')`;
+
+    const mine = await validateCatalogue(sql, { schemeYear: '2025' });
+    const theirs = await validateCatalogue(sql, { schemeYear: '2022' });
+
+    expect(mine.findings.map((f) => f.message)).toContain('no open source conflicts');
+    expect(theirs.findings.map((f) => f.message)).toContain(
+      '1 open source conflicts, recorded and not resolved',
+    );
+  });
+
+  it('still sees every scheme when no scheme is named', async () => {
+    /*
+     * Scoping must narrow a named request, not quietly hide rows from the
+     * whole-catalogue run that has no year to filter by.
+     */
+    if (sql === null) return;
+    const result = await validateCatalogue(sql, {});
+
+    expect(result.findings.map((finding) => finding.message)).toContain(
+      '1 syllabi, 1 modules, 1 topics',
+    );
   });
 });

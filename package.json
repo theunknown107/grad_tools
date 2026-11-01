@@ -34,6 +34,7 @@
     "vtu:monitor": "pnpm --filter @gradtools/api vtu:monitor",
     "vtu:normalize": "pnpm --filter @gradtools/api vtu:normalize",
     "vtu:smoke": "pnpm --filter @gradtools/api vtu:smoke",
+    "vtu:supply": "pnpm --filter @gradtools/api vtu:supply",
     "vtu:sync": "pnpm --filter @gradtools/api vtu:sync",
     "vtu:validate": "pnpm --filter @gradtools/api vtu:validate"
   },

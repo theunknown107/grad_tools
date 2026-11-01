@@ -346,3 +346,144 @@ describe('what sits where a title would', () => {
     expect(course.courseTitle.value).not.toBe('16-2-2023');
   });
 });
+
+describe('the 2025 syllabus template', () => {
+  /*
+   * Every case here is how `34cscommsyll.pdf` — the 2025 CS common syllabus,
+   * 59 pages, nine courses — is actually typeset. Before these, that document
+   * produced NOTHING: it extracted cleanly as text and the run reported
+   * "syllabi 0" beside "extraction text", which is indistinguishable from a
+   * syllabus containing no courses.
+   */
+
+  it('reads a code carrying the 2025 generation digit', () => {
+    /*
+     * The code shape here was its own narrower copy of the one in
+     * `scheme-import.ts`, and the two drifted. `1BMATCS301` misses the old one
+     * twice over: the leading `1` has nowhere to go, and `BMATCS` is six
+     * letters where five were allowed.
+     */
+    const course = one([
+      'Course Code 1BMATCS301 Scheme 2025',
+      'Credits 4 Total Marks 100',
+      'Course objectives:',
+    ]);
+
+    expect(course.courseCode).toMatchObject({ value: '1BMATCS301', state: 'resolved' });
+  });
+
+  it('reads the code from a value cell that shares its line', () => {
+    /*
+     * This template puts two label/value pairs on one row and typesets the
+     * labels two points above their values, so the line splits as
+     *
+     *     "Course Code Scheme"
+     *     "1BCS305 2025"
+     *
+     * The value line is not JUST a code, which is what the reader demanded.
+     * `1BCS305` was then read by nothing, and DATA STRUCTURES AND APPLICATIONS
+     * was the one course of nine that produced no syllabus at all.
+     */
+    const course = one([
+      'Course Code Scheme',
+      '1BCS305 2025',
+      'Credits 3 Total Marks 100',
+      'Course objectives:',
+    ]);
+
+    expect(course.courseCode).toMatchObject({ value: '1BCS305', state: 'resolved' });
+  });
+
+  it('takes the name printed above the header table', () => {
+    /*
+     * This template neither labels the title nor prints it on the semester's
+     * own line — the name sits above the table. With neither reading
+     * available the title came from the cell beside the semester, so
+     * `1BMATCS301` was titled "Type of Course ASC", and marked `resolved`,
+     * which is this parser's word for "the document says so".
+     */
+    const course = one([
+      'Probability, Distributions and Statistics',
+      'Course Code 1BMATCS301 Scheme 2025',
+      'Type of Course ASC Semester 3',
+      'Credits 4 Total Marks 100',
+      'Course objectives:',
+    ]);
+
+    expect(course.courseTitle).toMatchObject({
+      value: 'Probability, Distributions and Statistics',
+      state: 'resolved',
+    });
+    expect(course.semester.value).toBe(3);
+  });
+
+  it('does not take the name from the running page header', () => {
+    /*
+     * "IPCC (4 Credits) template30.03.2026 1" is printed above the title on
+     * EVERY page of the document. Reading down from the top of the block took
+     * that stamp as the name of seven of the eight courses then being read.
+     * The name is the last thing before the header table begins.
+     */
+    const course = one([
+      'IPCC (4 Credits) template30.03.2026 1',
+      'OBJECT ORIENTED PROGRAMMING WITH JAVA',
+      'Course Code 1BCS302 Scheme 2025',
+      'Type of course IPCC Semester 3',
+      'Credits 4 Total Marks 100',
+      'Course objectives:',
+    ]);
+
+    expect(course.courseTitle.value).toBe('OBJECT ORIENTED PROGRAMMING WITH JAVA');
+  });
+
+  it('never titles a course with its own code cell', () => {
+    /*
+     * A line opening with a course code is the header's VALUE cell, and the
+     * letters inside the code satisfy the "has words in it" test a title
+     * candidate has to pass. That is how DATA STRUCTURES AND APPLICATIONS came
+     * to be titled "1BCS305 2025".
+     */
+    const course = one([
+      'DATA STRUCTURES AND APPLICATIONS',
+      'Course Code Scheme',
+      '1BCS305 2025',
+      'Type of Course PCC Semester 3',
+      'Credits 3 Total Marks 100',
+      'Course objectives:',
+    ]);
+
+    expect(course.courseTitle.value).toBe('DATA STRUCTURES AND APPLICATIONS');
+  });
+
+  it('prefers a figure inside its plausible range to one outside it', () => {
+    /*
+     * The credits label appears twice on these pages: once in the table, and
+     * once in that running header, where "Credits" is followed by
+     * ") template30". Taking the FIRST line carrying the label read the
+     * credits of seven of this document's nine courses as 30, 20 or 300 from
+     * page furniture, while "Credits 4" sat further down in the table.
+     *
+     * The out-of-range reading is still kept when it is the ONLY one (§5); it
+     * is simply no longer allowed to beat a reading that is in range.
+     */
+    const course = one([
+      'IPCC (4 Credits) template30.03.2026 1',
+      'OBJECT ORIENTED PROGRAMMING WITH JAVA',
+      'Course Code 1BCS302 Scheme 2025',
+      'Credits 4 Total Marks 100',
+      'Course objectives:',
+    ]);
+
+    expect(course.credits).toMatchObject({ value: 4, state: 'resolved' });
+  });
+
+  it('still reports an implausible figure when that is all the page states', () => {
+    const course = one([
+      'Course Code 1BCS302 Scheme 2025',
+      'Credits 300',
+      'Course objectives:',
+    ]);
+
+    expect(course.credits).toMatchObject({ value: 300, state: 'ambiguous' });
+  });
+});

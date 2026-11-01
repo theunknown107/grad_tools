@@ -235,6 +235,59 @@ so their courses shared an identity and overwrote each other. Of 57 courses read
 from the Civil scheme, 4 survived. Adding the stream took the catalogue from 160
 courses to 187.
 
+### Scheme years
+
+**A scheme year is a namespace, not a label.** `BCS502` in the 2022 scheme and
+`1BCS302` in the 2025 one are two courses, and a code that happened to be
+spelled identically in both would still be two rows. The year is the first
+segment of a course's identity, of a syllabus's, and of every alias and
+conflict, so schemes coexist without either overwriting the other.
+
+The year is **stored at normalization time from what the document states** —
+its own heading, then the URL path it was filed under. It is never inferred
+later from a filename, a retrieval date, or a student's admission year, and it
+is never inferred from a course code: the leading digit of the 2025 family
+marks a generation, but the *heading* is what states the year.
+
+One pipeline serves all of them. `vtu:sync --scheme <year>` and
+`vtu:validate --scheme <year>` take the year as a filter; there is no
+per-year crawler, parser or table. Adding 2026 requires no schema change.
+
+The course-code grammar is shared, with the generation digit optional:
+
+```ts
+const CODE_SHAPE = String.raw`1?B[A-Z]{2,7}\d{3}[A-Za-z]?`;
+```
+
+`BMATS101` and `1BMATDIP310` both match, and neither is rewritten into the
+other. Isolation comes from the identity key, not from refusing to read one
+family — a reader that discards a row produces a missing course, not a
+correctly-filed one.
+
+Asked to validate a scheme year it holds no courses for, `vtu:validate` FAILS.
+Every scheme-scoped rule is quiet when it has nothing to look at, so an
+un-ingested scheme otherwise finished with zero failures and printed
+`VALIDATION PASSED` — and the publish rules gate on that verdict.
+
+See [47_VTU_2025_COVERAGE.md](47_VTU_2025_COVERAGE.md) for the 2025 position.
+
+### Supplying a document (Mode B)
+
+```
+pnpm vtu:supply --file <path> --url <the official VTU URL>
+```
+
+For a document somebody already holds, when the registry does not permit
+fetching it. It never fetches — the URL is a provenance claim, recorded so the
+document can be cited and later compared against the official copy — and it
+writes the same store and manifest the downloader writes, so extraction,
+normalization and validation cannot tell the difference except by reading the
+`acquisition` field that says so.
+
+`acquisition` is `live` or `supplied`, and ABSENT on entries written before the
+field existed. Absent is read as neither: stamping old rows `live` would invent
+a provenance claim about bytes nobody can re-examine.
+
 ## vtu:sync
 
 ```
@@ -323,6 +376,11 @@ as a command, conflict persistence, elective option groups and alias
 persistence — were all built by `cbdaa38` and `ab574b4`, and the entry stayed
 behind. What follows is what is actually still open.*
 
+- **No 2025 scheme data exists.** The model, the reader, the commands and the
+  isolation tests all handle a second scheme year; no 2025 document has been
+  acquired, because the acquisition gate refuses vtu.ac.in and unblocking it is
+  a terms review (OQ-006) rather than a code change. 2025 is `NO SOURCE`, not
+  `CANDIDATE`.
 - **Coverage is one programme deep.** The listing offers 1134 PDFs across 275
   programme labels; the store holds 20 documents and the catalogue 187 courses,
   for CSBS plus the first-year CSE, Civil and Mechanical/Electrical stream

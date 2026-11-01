@@ -12,6 +12,7 @@
  * tempt someone into fetching during a test run.
  */
 
+import { readdir, readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import type { Source } from '@gradtools/shared-types';
 import { detectChanges, hashItem, type NormalizedItem } from '../src/sources/adapter.js';
@@ -409,5 +410,151 @@ describe('the door every outbound fetch goes through', () => {
     await expect(requireFetchPermission(null, 'vtu-scheme-syllabus')).rejects.toThrow(
       /not permission/i,
     );
+  });
+
+  it('is called by every script that reaches the network', async () => {
+    /*
+     * THE AUDIT, AS A TEST INSTEAD OF AS A ONE-OFF.
+     *
+     * The original defect was never a wrong rule — it was four scripts that
+     * did not consult it, found by reading them once. Reading them once does
+     * not keep them read, and `vtu:download` was still ungated long after the
+     * other three were fixed: the one script whose entire purpose is
+     * retrieving documents. `isFetchableUrl` looks like a guard and is the
+     * opposite of one, since it confirms the host IS vtu.ac.in.
+     *
+     * So the audit runs on every suite. A new script that fetches and forgets
+     * the door fails here rather than in somebody's traffic logs.
+     */
+    const dir = new URL('../scripts/', import.meta.url);
+    const names = (await readdir(dir)).filter((name) => name.endsWith('.ts'));
+    expect(names.length).toBeGreaterThan(5);
+
+    const ungated: string[] = [];
+    for (const name of names) {
+      const source = await readFile(new URL(name, dir), 'utf8');
+      /* `downloadAll` is a fetch too — it is where the requests actually go. */
+      const reaches = /\bfetch\(|\bdownloadAll\(/.test(source);
+      if (reaches && !source.includes('requireFetchPermission')) ungated.push(name);
+    }
+    expect(ungated).toEqual([]);
+  });
+
+  it('leaves the supplied-document door with no network access at all', async () => {
+    /*
+     * Mode B's whole value is that it does not fetch. A `--url` on
+     * `vtu:supply` is a provenance CLAIM about bytes somebody already holds;
+     * the day it becomes something the script goes and retrieves, the gate has
+     * been routed around by the one tool written to make routing around it
+     * unnecessary.
+     */
+    const source = await readFile(new URL('../scripts/vtu-supply.ts', import.meta.url), 'utf8');
+    expect(source).not.toMatch(/\bfetch\(/);
+    expect(source).not.toMatch(/\bdownloadAll\(/);
+  });
+
+  it('gates the artifact on the scheme it claims, and says so out loud', async () => {
+    /*
+     * AN ARTIFACT IS A PUBLICATION. Writing one used to need nothing but the
+     * flag, so a catalogue that failed its own validation could be emitted,
+     * committed and shipped, with the failure living only in a terminal
+     * nobody kept.
+     *
+     * Three things have to hold together, and a source audit is how a script
+     * with a top-level `main()` can be held to them at all:
+     *
+     *   - the verdict is asked for BEFORE the file is written;
+     *   - the scheme validated is the scheme REQUESTED, not the database at
+     *     large — a passing 2022 says nothing about a 2025 artifact;
+     *   - `--force` exists, is explicit, and is reported rather than silent.
+     */
+    const source = await readFile(new URL('../scripts/vtu-sync.ts', import.meta.url), 'utf8');
+
+    expect(source).toMatch(/gateEmission\(/);
+    /* The requested scheme is what reaches the validator. */
+    expect(source).toMatch(/gateEmission\(\s*wantYear\s*,/);
+    expect(source).toMatch(/validateCatalogue\(sql, \{ schemeYear \}\)/);
+    /* The write is guarded by the verdict, not merely informed by it. */
+    expect(source).toMatch(/!emitRefused/);
+    /* The override is opt-in and lands in the report. */
+    expect(source).toMatch(/has\('force'\)/);
+    expect(source).toMatch(/report\.emit = /);
+  });
+
+  it('emits only the aliases of the scheme being written', async () => {
+    /*
+     * The alias table went out whole regardless of `--scheme`, so a 2025
+     * artifact carried the 2022 equivalence BCSL358D -> BCS358D — whose own
+     * evidence line cites the 2022 CSBS syllabus — with no year on it to give
+     * it away. An alias is a statement about one scheme's codes.
+     */
+    const source = await readFile(new URL('../scripts/vtu-sync.ts', import.meta.url), 'utf8');
+
+    expect(source).toMatch(/COURSE_ALIASES\.filter\(/);
+    expect(source).toMatch(/alias\.schemeYear === wantYear/);
+    /* And the year travels with each emitted row. */
+    expect(source).toMatch(/schemeYear: alias\.schemeYear/);
+  });
+
+  it('serialises the artifact under the identity the database uses', async () => {
+    /*
+     * `catalogue_courses` is unique on (scheme, programme, stream, semester,
+     * code). The artifact deduplicated on the same thing WITHOUT the stream,
+     * so the two first-year cycles — which differ only by stream — collapsed
+     * into one another on the way out.
+     */
+    const source = await readFile(new URL('../scripts/vtu-sync.ts', import.meta.url), 'utf8');
+
+    expect(source).toMatch(/const seen = new Map<string, CatalogueCourse>\(\)/);
+    expect(source).toMatch(/courseKey\(/);
+    expect(source).toMatch(/course\.streamId \?\? null/);
+  });
+
+  it('sends the resolved first year to the artifact, not only to the database', async () => {
+    /*
+     * The resolution wrote to the database through a collection the emit never
+     * read, so the artifact shipped first-year PLACEHOLDERS — `1BMATX101`,
+     * which no result card prints — and not the concrete courses they resolve
+     * to. A 2025 first-year card would have matched nothing, against a
+     * catalogue that appeared to cover the semester.
+     *
+     * The push has to sit INSIDE the resolution loop and before the database
+     * write, so a run with no database still emits a correct catalogue.
+     */
+    const source = await readFile(new URL('../scripts/vtu-sync.ts', import.meta.url), 'utf8');
+    const loop = source.slice(source.indexOf('for (const resolved of resolution.resolved)'));
+    const pushAt = loop.indexOf('courses.push(');
+    const upsertAt = loop.indexOf('upsertCourse(');
+
+    expect(pushAt).toBeGreaterThan(-1);
+    expect(upsertAt).toBeGreaterThan(-1);
+    expect(pushAt).toBeLessThan(upsertAt);
+    /* The emitted row carries the cycle and cites the placeholder it came from. */
+    expect(loop.slice(pushAt, upsertAt)).toMatch(/streamId,/);
+    expect(loop.slice(pushAt, upsertAt)).toMatch(/relatedCode: resolved\.slotCode/);
+  });
+
+  it('reaches the downloader from exactly one place in the sync', async () => {
+    /*
+     * `vtu:supply` gives a person a way to put an official document into the
+     * store without fetching it, and for a while nothing could USE one: the
+     * only route from the store to the database ran through `vtu:sync`, whose
+     * gate stands in front of the downloader unconditionally. A supplied
+     * document could be stored, hashed and extracted and never reach a
+     * catalogue. The gate was right; the pipeline had no door.
+     *
+     * `--supplied-only` is that door, and it works by NOT CALLING the
+     * downloader — there is then no option it can pass wrongly and no socket
+     * it can open. That is only true while the call site stays single: a
+     * second `downloadAll(` reachable from another branch would mean the flag
+     * no longer describes what the run does, which is the failure this
+     * catches.
+     */
+    const source = await readFile(new URL('../scripts/vtu-sync.ts', import.meta.url), 'utf8');
+
+    expect(source.match(/\bdownloadAll\(/g)).toHaveLength(1);
+    expect(source).toMatch(/suppliedOnly/);
+    /* And the listing it replaces keeps its own gate. */
+    expect(source).toMatch(/requireFetchPermission/);
   });
 });
