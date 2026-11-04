@@ -329,6 +329,140 @@
   --ring: #94a3b8;
 }
 
+/* Original August 2026 palettes (177a23e, docs/51_THEMES.md). Only the accents of
+   the first theme system are restored, from its hue stops: light uses the fill
+   (white text on it, `--a-fill`) and the light-ground text stop
+   (`--a-on-light`); dark uses the dark-ground stop (`--a-on-dark`), which is
+   what that system itself set `--accent` to in dark. Its violet-black surfaces
+   are NOT restored, so these sit on the current ground. */
+[data-accent='original-violet'] {
+  --accent: #6d4de0;
+  --accent-weak: #ede8fc;
+  --accent-ink: #5b34d4;
+  --accent-contrast: #ffffff;
+  --ring: #6d4de0;
+}
+.dark[data-accent='original-violet'] {
+  --accent: #a48bff;
+  --accent-weak: #1d1733;
+  --accent-ink: #a48bff;
+  --accent-contrast: #0e0e11;
+  --ring: #a48bff;
+}
+
+[data-accent='original-cyan'] {
+  --accent: #0e7490;
+  --accent-weak: #e0f4f8;
+  --accent-ink: #0b6f86;
+  --accent-contrast: #ffffff;
+  --ring: #0e7490;
+}
+.dark[data-accent='original-cyan'] {
+  --accent: #55d6e8;
+  --accent-weak: #0d2a30;
+  --accent-ink: #55d6e8;
+  --accent-contrast: #0e0e11;
+  --ring: #55d6e8;
+}
+
+[data-accent='original-amber'] {
+  --accent: #a3620a;
+  --accent-weak: #fbf0dd;
+  --accent-ink: #8a5206;
+  --accent-contrast: #ffffff;
+  --ring: #a3620a;
+}
+.dark[data-accent='original-amber'] {
+  --accent: #f0b445;
+  --accent-weak: #2b1f0b;
+  --accent-ink: #f0b445;
+  --accent-contrast: #0e0e11;
+  --ring: #f0b445;
+}
+
+[data-accent='original-rose'] {
+  --accent: #be123c;
+  --accent-weak: #fdeaef;
+  --accent-ink: #b3164a;
+  --accent-contrast: #ffffff;
+  --ring: #be123c;
+}
+.dark[data-accent='original-rose'] {
+  --accent: #ff8fa3;
+  --accent-weak: #2d1418;
+  --accent-ink: #ff8fa3;
+  --accent-contrast: #0e0e11;
+  --ring: #ff8fa3;
+}
+
+[data-accent='original-green'] {
+  --accent: #15803d;
+  --accent-weak: #e4f5ec;
+  --accent-ink: #0f6b42;
+  --accent-contrast: #ffffff;
+  --ring: #15803d;
+}
+.dark[data-accent='original-green'] {
+  --accent: #4fd9a0;
+  --accent-weak: #10281f;
+  --accent-ink: #4fd9a0;
+  --accent-contrast: #0e0e11;
+  --ring: #4fd9a0;
+}
+
+/* Crimson tinted — new. Its accent block follows the rule every accent
+   follows; its SURFACES are set by the two `html` blocks after it, the one
+   deliberate exception to "an accent never touches surfaces" (theme.test.ts
+   checks its own contrast against its own grounds). Near-black with a red
+   cast, one crimson accent with white text on it, pink only for highlights
+   (accent text, ring). Its danger leans orange so a below-85% status never
+   reads as the brand colour. */
+[data-accent='crimson-tinted'] {
+  --accent: #b0142f;
+  --accent-weak: #f6dbe0;
+  --accent-ink: #9a1029;
+  --accent-contrast: #ffffff;
+  --ring: #b0142f;
+}
+.dark[data-accent='crimson-tinted'] {
+  --accent: #dc2a47;
+  --accent-weak: #3a1520;
+  --accent-ink: #ff8da0;
+  --accent-contrast: #ffffff;
+  --ring: #ff8da0;
+}
+html[data-accent='crimson-tinted'] {
+  --canvas: #f5eef0;
+  --panel: #fdf9fa;
+  --raised: #ffffff;
+  --sunken: #efe5e8;
+  --text-primary: #1d0f13;
+  --text-secondary: #57424a;
+  --text-muted: #6a5159;
+  --text-inverse: #fdf9fa;
+  --border: #ead9de;
+  --border-strong: #dcc4cb;
+  --danger: #a3361a;
+  --danger-weak: #f7ddd2;
+  --shadow-sm: 0 1px 2px rgba(60, 8, 20, 0.06);
+  --shadow-md: 0 4px 14px -4px rgba(60, 8, 20, 0.12), 0 1px 3px rgba(60, 8, 20, 0.06);
+  --shadow-lg: 0 18px 48px -12px rgba(60, 8, 20, 0.24), 0 4px 12px rgba(60, 8, 20, 0.08);
+}
+html.dark[data-accent='crimson-tinted'] {
+  --canvas: #0b0709;
+  --panel: #170d11;
+  --raised: #201318;
+  --sunken: #070405;
+  --text-primary: #f8eef1;
+  --text-secondary: #cbb6bd;
+  --text-muted: #a9939b;
+  --text-inverse: #170d11;
+  --border: #33212a;
+  --border-strong: #4a2f39;
+  --danger: #ff8f5e;
+  --danger-weak: #33190f;
+}
+
 /* Chart family — a single-hue luminance ramp derived from the active accent,
    so Mono charts are grayscale and colour themes stay one hue. */
 :root,
@@ -698,6 +832,104 @@
 .dark .gt-glass-primary:hover {
   background-color: color-mix(in srgb, var(--accent) 26%, transparent);
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* ------------------------------------------------------- Floating glass.
+     The navigation layer from the approved design: the phone's floating tab
+     capsule and Mark-today button, and the sidebar panel. Glass is for
+     navigation and controls only — content stays on solid surfaces, so
+     nothing glass ever sits on glass. A highlight along the top edge and a
+     hairline rim carry the material; the fill alone keeps it legible with no
+     backdrop-filter (reduced transparency, or an old WebView). */
+.gt-float {
+  background-color: color-mix(in oklab, var(--panel) 78%, transparent);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, white 28%, transparent),
+    transparent 46%
+  );
+  border: 1px solid color-mix(in oklab, var(--border-strong) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 70%, transparent),
+    var(--shadow-md);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
+}
+.dark .gt-float {
+  background-color: color-mix(in oklab, var(--panel) 74%, transparent);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, white 7%, transparent),
+    transparent 46%
+  );
+  border-color: color-mix(in oklab, white 12%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 12%, transparent),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.5),
+    var(--shadow-lg);
+}
+/* The Mark-today button: the accent as glass, on the same rim. */
+.gt-orb {
+  color: var(--accent-contrast);
+  background-color: var(--accent);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, white 22%, transparent),
+    transparent 55%
+  );
+  border: 1px solid color-mix(in oklab, var(--accent) 70%, black);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 45%, transparent),
+    0 10px 24px -10px color-mix(in oklab, var(--accent) 70%, transparent),
+    var(--shadow-md);
+}
+
+/* Crimson tinted keeps its atmosphere: one static red field behind the glass,
+   painted once, never animated. */
+html[data-accent='crimson-tinted'] .gt-shell {
+  background-image:
+    radial-gradient(60% 45% at 0% 0%, rgba(176, 20, 47, 0.1), transparent 70%),
+    radial-gradient(50% 40% at 100% 100%, rgba(150, 20, 90, 0.07), transparent 70%);
+}
+html.dark[data-accent='crimson-tinted'] .gt-shell {
+  background-image:
+    radial-gradient(60% 45% at 0% 0%, rgba(122, 16, 38, 0.42), transparent 70%),
+    radial-gradient(50% 40% at 100% 100%, rgba(88, 14, 56, 0.32), transparent 70%);
+}
+
+/* Reduced transparency — the in-app switch (data-transparency) does exactly
+   what the operating-system setting does: every glass surface goes opaque. */
+[data-transparency='reduced'] .gt-bar {
+  background-color: var(--panel);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+[data-transparency='reduced'] .gt-bubble {
+  background-color: var(--raised);
+}
+[data-transparency='reduced'] .gt-glass,
+[data-transparency='reduced'] .gt-glass-primary,
+[data-transparency='reduced'] .gt-float {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+[data-transparency='reduced'] .gt-float,
+[data-transparency='reduced'] .dark .gt-float {
+  background-color: var(--panel);
+}
+[data-transparency='reduced'] .gt-shell {
+  background-image: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .gt-float,
+  .dark .gt-float {
+    background-color: var(--panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .gt-shell {
+    background-image: none;
+  }
 }
 
 /* ------------------------------------------------------- Metric material.

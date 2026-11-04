@@ -1,10 +1,11 @@
 /**
- * Account → Settings → Appearance — the design's Theme, Accent, Interface and Preview
- * cards.
+ * Account → Settings → Appearance — the design's Theme, Palette, Interface and
+ * Preview cards.
  *
- * Light / Dark / System, one of twelve accents (Mono by default), density and
- * reduced motion. Device-local only: never synced, and nothing here can reach
- * an academic figure — the accent recolours interactive states, never grades,
+ * Light / Dark / System, one of eighteen palettes in three groups (Mono by
+ * default; docs/51_THEMES.md), density, reduced motion and reduced
+ * transparency. Device-local only: never synced, and nothing here can reach an
+ * academic figure — the palette recolours interactive states, never grades,
  * credits or GPA.
  */
 
@@ -13,7 +14,14 @@ import * as RadioGroup from '@radix-ui/react-radio-group';
 import { useState } from 'react';
 import { useTheme } from '../../hooks/useTheme.js';
 import { cn } from '../../lib/cn.js';
-import { ACCENTS, type Accent, type Appearance, type Density } from '../../lib/theme.js';
+import {
+  ACCENTS,
+  ACCENT_GROUPS,
+  ACCENT_INFO,
+  accentName,
+  type Appearance,
+  type Density,
+} from '../../lib/theme.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
@@ -21,22 +29,6 @@ import { toast } from '../../components/ui/feedback.js';
 import { Input, Switch } from '../../components/ui/field.js';
 import { SectionTitle } from '../../components/ui/page.js';
 import { Segmented } from '../../components/ui/segmented.js';
-
-/** Swatch colours, the same values the stylesheet uses for each accent. */
-const SWATCH: Record<Accent, { label: string; light: string; dark: string }> = {
-  mono: { label: 'Mono', light: '#1b1a17', dark: '#f4f3f1' },
-  violet: { label: 'Violet', light: '#5b4cc4', dark: '#8f80f0' },
-  matrix: { label: 'Matrix', light: '#2a7147', dark: '#4bbd7f' },
-  crimson: { label: 'Crimson', light: '#8b0015', dark: '#bd1a33' },
-  turquoise: { label: 'Turquoise', light: '#0a7580', dark: '#35c2cf' },
-  ocean: { label: 'Ocean', light: '#2b6cb0', dark: '#5ea1e6' },
-  amber: { label: 'Amber', light: '#8f5d12', dark: '#e0a848' },
-  rose: { label: 'Rose', light: '#be2f65', dark: '#f0709b' },
-  indigo: { label: 'Indigo', light: '#4338ca', dark: '#818cf8' },
-  emerald: { label: 'Emerald', light: '#047857', dark: '#34d399' },
-  solar: { label: 'Solar', light: '#a14a08', dark: '#f0932e' },
-  slate: { label: 'Slate', light: '#475569', dark: '#94a3b8' },
-};
 
 const THEME_OPTIONS: readonly {
   value: Appearance;
@@ -65,8 +57,15 @@ const THEME_OPTIONS: readonly {
 ];
 
 export function AppearanceSettings() {
-  const { preference, resolved, setAppearance, setAccent, setDensity, setReducedMotion } =
-    useTheme();
+  const {
+    preference,
+    resolved,
+    setAppearance,
+    setAccent,
+    setDensity,
+    setReducedMotion,
+    setReducedTransparency,
+  } = useTheme();
 
   return (
     <div className="flex flex-col gap-4">
@@ -124,12 +123,14 @@ export function AppearanceSettings() {
       </Card>
 
       <Card className="p-6" aria-labelledby="appearance-accent">
-        <SectionTitle id="appearance-accent">Accent</SectionTitle>
+        <SectionTitle id="appearance-accent">Palette</SectionTitle>
         <p className="mb-4 text-[13px] text-ink-2">
-          The accent colours interactive states — buttons, links, selection and focus. Mono (black
-          and white) is the default. Surfaces stay neutral in every accent, and no academic figure
-          ever changes colour because of it.
+          The palette colours interactive states — buttons, links, selection and focus. Mono is the
+          default. Every palette except Crimson tinted keeps the surfaces neutral, and no academic
+          figure ever changes colour because of it. The original August 2026 palettes restore that
+          version’s accent colours only, not its whole look.
         </p>
+        {/* One radiogroup across the three groups: one tab stop, arrow keys move through all. */}
         <RadioGroup.Root
           aria-labelledby="appearance-accent"
           value={preference.accent}
@@ -137,35 +138,48 @@ export function AppearanceSettings() {
             const key = ACCENTS.find((entry) => entry === value);
             if (key === undefined) return;
             setAccent(key);
-            toast(`Accent set to ${SWATCH[key].label}`, { tone: 'accent' });
+            toast(`Palette set to ${accentName(key)}`, { tone: 'accent' });
           }}
-          className="grid grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))] gap-2.5 sm:flex sm:flex-wrap"
+          className="flex flex-col gap-4"
         >
-          {ACCENTS.map((key) => {
-            const swatch = SWATCH[key];
-            const active = preference.accent === key;
-            return (
-              <RadioGroup.Item
-                key={key}
-                value={key}
-                className={cn(
-                  'flex flex-col items-center gap-2 rounded-xl border p-3 transition-[border-color,box-shadow] duration-150 sm:w-[5.25rem]',
-                  active ? 'ring-2 ring-accent/20' : 'border-line hover:border-line-strong',
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className="grid size-8 place-items-center rounded-full ring-1 ring-black/5"
-                  style={{ background: resolved === 'dark' ? swatch.dark : swatch.light }}
-                >
-                  {active && (
-                    <Check className="size-4 text-white mix-blend-difference" strokeWidth={3} />
-                  )}
-                </span>
-                <span className="text-[12px] font-medium">{swatch.label}</span>
-              </RadioGroup.Item>
-            );
-          })}
+          {ACCENT_GROUPS.map((group) => (
+            <div key={group.id} className="flex flex-col gap-2">
+              <span className="text-[12px] font-medium text-ink-3">{group.label}</span>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))] gap-2.5 sm:flex sm:flex-wrap">
+                {ACCENTS.filter((key) => ACCENT_INFO[key].group === group.id).map((key) => {
+                  const info = ACCENT_INFO[key];
+                  const active = preference.accent === key;
+                  return (
+                    <RadioGroup.Item
+                      key={key}
+                      value={key}
+                      aria-label={accentName(key)}
+                      className={cn(
+                        'flex min-h-11 flex-col items-center gap-2 rounded-xl border p-3 text-center transition-[border-color,box-shadow] duration-150 sm:w-[5.25rem]',
+                        active
+                          ? 'border-accent bg-accent-weak/40 ring-2 ring-accent/20'
+                          : 'border-line hover:border-line-strong',
+                      )}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="grid size-8 place-items-center rounded-full ring-1 ring-black/5"
+                        style={{ background: resolved === 'dark' ? info.dark : info.light }}
+                      >
+                        {active && (
+                          <Check
+                            className="size-4 text-white mix-blend-difference"
+                            strokeWidth={3}
+                          />
+                        )}
+                      </span>
+                      <span className="text-[12px] leading-tight font-medium">{info.label}</span>
+                    </RadioGroup.Item>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </RadioGroup.Root>
       </Card>
 
@@ -222,6 +236,22 @@ export function AppearanceSettings() {
               id="reduced-motion"
               checked={preference.reducedMotion}
               onCheckedChange={setReducedMotion}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4 border-t border-line pt-4">
+            <div>
+              <label htmlFor="reduced-transparency" className="text-[13px] font-medium">
+                Reduced transparency
+              </label>
+              <div className="text-[12px] text-ink-3">
+                Make bars, menus and the navigation solid instead of glass. Your device&apos;s own
+                setting is always honoured too.
+              </div>
+            </div>
+            <Switch
+              id="reduced-transparency"
+              checked={preference.reducedTransparency}
+              onCheckedChange={setReducedTransparency}
             />
           </div>
         </div>

@@ -3,14 +3,16 @@
  * "More" sheet.
  *
  *   ≥1024   collapsible sidebar (256 ↔ 76) + sticky top bar
- *   <1024   top bar with brand, bottom bar with four tabs and More, which
- *           opens a draggable bottom sheet of every destination
+ *   <768    top bar with brand; a floating glass tab capsule (four tabs and
+ *           More, which opens a draggable sheet of every destination) and,
+ *           beside it, the Mark-today button. Both sit one gutter in from the
+ *           screen edges and above the gesture bar (safe-area insets).
  *
  * Route changes move focus to <main> (so a screen reader starts at the new
  * page), replay the design's rise-in, and reset the scroll position.
  */
 
-import { Command as CommandIcon, PanelLeft, PanelLeftClose, Search, Bell } from 'lucide-react';
+import { Command as CommandIcon, PanelLeft, PanelLeftClose, Search, Bell, Zap } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
 import { Link, NavLink, useLocation } from 'react-router-dom';
@@ -29,6 +31,7 @@ import { BottomSheet } from '../ui/sheet.js';
 import { TooltipProvider } from '../ui/tooltip.js';
 import { DESTINATIONS, MOBILE_TABS, NAV_GROUPS, isActive } from './nav.js';
 import { useKeyboardOpen } from '../../lib/viewport.js';
+import { QuickMarkSheet } from '../../features/attendance/QuickMarkSheet.js';
 
 const COLLAPSE_KEY = 'gradtools:v1:sidebar';
 
@@ -69,6 +72,7 @@ function Shell({
   const firstRender = useRef(true);
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [markOpen, setMarkOpen] = useState(false);
 
   const { items: announcements } = useAnnouncements();
   const { unread } = useNotifications(announcements);
@@ -84,6 +88,7 @@ function Shell({
     mainRef.current?.scrollTo?.({ top: 0 });
     mainRef.current?.focus({ preventScroll: true });
     setMoreOpen(false);
+    setMarkOpen(false);
   }, [location.pathname]);
 
   const toggleCollapsed = (): void => {
@@ -98,7 +103,7 @@ function Shell({
   };
 
   return (
-    <div className="flex h-full bg-canvas pr-[var(--gt-safe-right)] pl-[var(--gt-safe-left)] text-ink">
+    <div className="gt-shell flex h-full bg-canvas pr-[var(--gt-safe-right)] pl-[var(--gt-safe-left)] text-ink">
       <a
         href="#gt-main"
         className="sr-only z-[100] rounded-lg bg-raised px-3 py-2 text-sm font-medium shadow-e2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
@@ -138,7 +143,7 @@ function Shell({
           />
           <div
             key={location.pathname}
-            className="mx-auto w-full max-w-[1180px] animate-rise px-4 py-6 sm:px-6 sm:py-8 lg:px-10"
+            className="mx-auto w-full max-w-[1180px] animate-rise px-4 py-6 max-[359px]:px-3 sm:px-6 sm:py-8 lg:px-10"
           >
             {children}
             {footer}
@@ -146,8 +151,15 @@ function Shell({
         </main>
       </div>
 
-      <MobileBottomNav onMore={() => setMoreOpen(true)} moreOpen={moreOpen} unread={unread} />
+      <MobileBottomNav
+        onMore={() => setMoreOpen(true)}
+        moreOpen={moreOpen}
+        onMark={() => setMarkOpen(true)}
+        markOpen={markOpen}
+        unread={unread}
+      />
       <MobileNavSheet open={moreOpen} onOpenChange={setMoreOpen} unread={unread} />
+      <QuickMarkSheet open={markOpen} onOpenChange={setMarkOpen} />
     </div>
   );
 }
@@ -205,7 +217,12 @@ function Sidebar({
          * twelve destinations with visible labels; at `lg` it becomes the full
          * sidebar, or the same rail when the student collapses it.
          */
-        'relative hidden shrink-0 flex-col border-r border-line bg-panel pt-[var(--gt-safe-top)] transition-[width] duration-300 ease-[var(--ease-out-quint)] md:flex',
+        /*
+         * A floating glass panel, inset from the window like the phone's tab
+         * capsule (the approved design's navigation layer). Content never sits
+         * under it, so glass never stacks on glass.
+         */
+        'gt-float relative my-3 ml-3 hidden shrink-0 flex-col overflow-hidden rounded-[1.75rem] pt-[var(--gt-safe-top)] transition-[width] duration-300 ease-[var(--ease-out-quint)] md:flex',
         'w-[88px]',
         collapsed ? 'lg:w-[88px]' : 'lg:w-[256px]',
       )}
@@ -445,10 +462,14 @@ function TopBar({
 function MobileBottomNav({
   onMore,
   moreOpen,
+  onMark,
+  markOpen,
   unread,
 }: {
   readonly onMore: () => void;
   readonly moreOpen: boolean;
+  readonly onMark: () => void;
+  readonly markOpen: boolean;
   readonly unread: number;
 }) {
   const { pathname } = useLocation();
@@ -459,13 +480,20 @@ function MobileBottomNav({
    */
   const keyboardOpen = useKeyboardOpen();
   return (
+    /*
+     * One gutter in from each edge (12px under 360px, 16px otherwise — the
+     * page content's own gutter) and above the gesture bar. The capsule and
+     * the Mark-today button share one 64px height and one baseline, so the
+     * button reads as placed, not overlaid. The page's bottom padding
+     * (<main>) clears both.
+     */
     <nav
       aria-label="Main"
       data-bottom-bar
       hidden={keyboardOpen}
-      className="fixed inset-x-0 bottom-0 z-40 gt-bar border-t border-line pr-[var(--gt-safe-right)] pl-[var(--gt-safe-left)] [--gt-bar-opacity:98%] md:hidden"
+      className="fixed right-[max(1rem,var(--gt-safe-right))] bottom-[max(0.75rem,var(--gt-safe-bottom))] left-[max(1rem,var(--gt-safe-left))] z-40 flex items-center gap-2 max-[359px]:right-[max(0.75rem,var(--gt-safe-right))] max-[359px]:left-[max(0.75rem,var(--gt-safe-left))] md:hidden"
     >
-      <div className="grid grid-cols-5">
+      <div className="gt-float grid h-16 min-w-0 flex-1 grid-cols-5 rounded-full p-[5px]">
         {MOBILE_TABS.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.to, pathname);
@@ -482,12 +510,13 @@ function MobileBottomNav({
                  * This is the sidebar's own pill, so all three navigation
                  * states now say "you are here" the same way.
                  */
-                'mx-1.5 my-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium transition-colors',
+                'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] font-medium tracking-[-0.01em] transition-[color,background-color,scale] active:scale-[0.94]',
                 active ? 'bg-accent-weak text-accent-ink' : 'text-ink-3 hover:text-ink-2',
               )}
             >
-              <Icon className="size-[21px]" aria-hidden="true" />
-              {item.short}
+              <Icon className="size-[21px] shrink-0" aria-hidden="true" />
+              {/* Visually hidden, never removed, on the narrowest phones. */}
+              <span className="max-w-full truncate max-[359px]:sr-only">{item.short}</span>
             </NavLink>
           );
         })}
@@ -497,10 +526,12 @@ function MobileBottomNav({
           aria-haspopup="dialog"
           aria-expanded={moreOpen}
           aria-label={unread > 0 ? `More, ${String(unread)} unread notifications` : 'More'}
-          className="relative mx-1.5 my-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium text-ink-3 transition-colors hover:text-ink-2"
+          className="relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] font-medium tracking-[-0.01em] text-ink-3 transition-[color,scale] hover:text-ink-2 active:scale-[0.94]"
         >
-          <CommandIcon className="size-[21px]" aria-hidden="true" />
-          More
+          <CommandIcon className="size-[21px] shrink-0" aria-hidden="true" />
+          <span aria-hidden="true" className="max-[359px]:hidden">
+            More
+          </span>
           {unread > 0 && (
             <span
               aria-hidden="true"
@@ -511,7 +542,16 @@ function MobileBottomNav({
           )}
         </button>
       </div>
-      <div className="h-[var(--gt-safe-bottom)]" />
+      <button
+        type="button"
+        onClick={onMark}
+        aria-haspopup="dialog"
+        aria-expanded={markOpen}
+        aria-label="Mark today’s classes"
+        className="gt-orb grid size-16 shrink-0 place-items-center rounded-full transition-[scale] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-canvas focus-visible:outline-none active:scale-[0.92]"
+      >
+        <Zap className="size-6" aria-hidden="true" />
+      </button>
     </nav>
   );
 }

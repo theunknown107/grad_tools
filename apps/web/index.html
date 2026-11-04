@@ -52,12 +52,19 @@
             'emerald',
             'solar',
             'slate',
+            'original-violet',
+            'original-cyan',
+            'original-amber',
+            'original-rose',
+            'original-green',
+            'crimson-tinted',
           ];
           var renamed = { cyan: 'turquoise', green: 'emerald' };
           var accent = renamed[saved.accent] || saved.accent;
           root.setAttribute('data-accent', accents.indexOf(accent) !== -1 ? accent : 'mono');
           if (saved.density === 'compact') root.setAttribute('data-density', 'compact');
           if (saved.reducedMotion === true) root.setAttribute('data-motion', 'reduced');
+          if (saved.reducedTransparency === true) root.setAttribute('data-transparency', 'reduced');
         } catch (error) {
           /* Storage blocked or corrupt: light + mono from the stylesheet. */
         }

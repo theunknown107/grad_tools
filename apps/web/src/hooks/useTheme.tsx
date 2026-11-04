@@ -52,6 +52,7 @@ export interface UseThemeResult {
   readonly toggleAppearance: () => void;
   readonly setAccent: (accent: Accent) => void;
   readonly setReducedMotion: (reducedMotion: boolean) => void;
+  readonly setReducedTransparency: (reducedTransparency: boolean) => void;
   readonly setDensity: (density: Density) => void;
 }
 
@@ -98,6 +99,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       toggleAppearance: () => update({ appearance: resolved === 'dark' ? 'light' : 'dark' }),
       setAccent: (accent) => update({ accent }),
       setReducedMotion: (reducedMotion) => update({ reducedMotion }),
+      setReducedTransparency: (reducedTransparency) => update({ reducedTransparency }),
       setDensity: (density) => update({ density }),
     }),
     [preference, resolved, update],

@@ -15,7 +15,10 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ACCENTS,
+  ACCENT_GROUPS,
+  ACCENT_INFO,
   APPEARANCES,
+  accentName,
   DEFAULT_THEME,
   THEME_STORAGE_KEY,
   applyTheme,
@@ -59,6 +62,7 @@ describe('reading a stored preference', () => {
       appearance: 'dark',
       accent: 'turquoise',
       reducedMotion: false,
+      reducedTransparency: false,
       density: 'comfortable',
     };
     writeStoredTheme(storage, preference);
@@ -85,6 +89,7 @@ describe('reading a stored preference', () => {
       appearance: DEFAULT_THEME.appearance,
       accent: 'rose',
       reducedMotion: false,
+      reducedTransparency: false,
       density: 'comfortable',
     });
   });
@@ -97,6 +102,7 @@ describe('reading a stored preference', () => {
       appearance: 'dark',
       accent: DEFAULT_THEME.accent,
       reducedMotion: false,
+      reducedTransparency: false,
       density: 'comfortable',
     });
   });
@@ -117,6 +123,7 @@ describe('reading a stored preference', () => {
         appearance: 'dark',
         accent: 'emerald',
         reducedMotion: false,
+        reducedTransparency: false,
         density: 'comfortable',
       }),
     ).not.toThrow();
@@ -134,6 +141,7 @@ describe('applying a preference to the document', () => {
       appearance: 'dark',
       accent: 'amber',
       reducedMotion: false,
+      reducedTransparency: false,
       density: 'comfortable',
     });
     expect(root.getAttribute('data-theme')).toBe('dark');
@@ -150,12 +158,14 @@ describe('applying a preference to the document', () => {
       appearance: 'dark',
       accent: 'violet',
       reducedMotion: false,
+      reducedTransparency: false,
       density: 'comfortable',
     });
     applyTheme(root, {
       appearance: 'system',
       accent: 'violet',
       reducedMotion: false,
+      reducedTransparency: false,
       density: 'comfortable',
     });
     expect(root.hasAttribute('data-theme')).toBe(false);
@@ -295,7 +305,8 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
   );
 
   it('checks every accent the product offers, not a subset', () => {
-    expect(ACCENTS.length).toBe(12);
+    // 12 current + 5 original (Aug 2026) + Crimson tinted. docs/51_THEMES.md.
+    expect(ACCENTS.length).toBe(18);
     for (const accent of ACCENTS) {
       expect(CSS).toContain(`\n[data-accent='${accent}']`);
       expect(CSS).toContain(`\n.dark[data-accent='${accent}']`);
@@ -303,8 +314,8 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
   });
 
   it('never lets an accent block touch surfaces or status colours', () => {
-    const accentBlocks = CSS.match(/\n(?:\.dark)?\[data-accent='[a-z]+'\]\s*\{[^}]*\}/g) ?? [];
-    expect(accentBlocks.length).toBe(24);
+    const accentBlocks = CSS.match(/\n(?:\.dark)?\[data-accent='[a-z-]+'\]\s*\{[^}]*\}/g) ?? [];
+    expect(accentBlocks.length).toBe(36);
     for (const block of accentBlocks) {
       const names = [...block.matchAll(/--([a-z-]+):/g)].map((m) => m[1]);
       expect(
@@ -327,5 +338,154 @@ describe('the storage key', () => {
     expect(THEME_STORAGE_KEY).toBe('gradtools:v1:theme');
     expect(THEME_STORAGE_KEY).not.toContain(':u:');
     expect(THEME_STORAGE_KEY).not.toContain('anon');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The full collection                                                         */
+/* -------------------------------------------------------------------------- */
+
+describe('the palette collection (docs/51_THEMES.md)', () => {
+  it('names every palette, in three groups, with ids separate from names', () => {
+    expect(ACCENT_GROUPS.map((group) => group.id)).toEqual(['current', 'original', 'new']);
+    const byGroup = (group: string) =>
+      ACCENTS.filter((accent) => ACCENT_INFO[accent].group === group).map(
+        (accent) => ACCENT_INFO[accent].label,
+      );
+    expect(byGroup('current')).toEqual([
+      'Mono',
+      'Violet',
+      'Matrix',
+      'Crimson',
+      'Turquoise',
+      'Ocean',
+      'Amber',
+      'Rose',
+      'Indigo',
+      'Emerald',
+      'Solar',
+      'Slate',
+    ]);
+    expect(byGroup('original')).toEqual(['Violet', 'Cyan', 'Amber', 'Rose', 'Green']);
+    expect(byGroup('new')).toEqual(['Crimson tinted']);
+    // Three names repeat across groups, so the announced name says which.
+    expect(accentName('original-violet')).toBe('Violet (original)');
+    expect(accentName('violet')).toBe('Violet');
+  });
+
+  it('keeps original Violet, Amber and Rose distinct from their current namesakes', () => {
+    for (const name of ['violet', 'amber', 'rose'] as const) {
+      expect(tokenIn(`[data-accent='original-${name}']`, 'accent')).not.toBe(
+        tokenIn(`[data-accent='${name}']`, 'accent'),
+      );
+    }
+  });
+
+  it.each([...ACCENTS])('%s: the selector swatch is the colour the stylesheet uses', (accent) => {
+    expect(tokenIn(`[data-accent='${accent}']`, 'accent')).toBe(ACCENT_INFO[accent].light);
+    expect(tokenIn(`.dark[data-accent='${accent}']`, 'accent')).toBe(ACCENT_INFO[accent].dark);
+  });
+
+  it('keeps production Crimson and Crimson tinted apart', () => {
+    expect(tokenIn("[data-accent='crimson']", 'accent')).toBe('#8b0015');
+    expect(tokenIn(".dark[data-accent='crimson']", 'accent')).toBe('#bd1a33');
+    expect(tokenIn("[data-accent='crimson-tinted']", 'accent')).not.toBe('#8b0015');
+    // Only Crimson tinted sets surfaces; production Crimson stays on the ground.
+    expect(CSS).toContain("\nhtml.dark[data-accent='crimson-tinted'] {");
+    expect(CSS).not.toContain("\nhtml[data-accent='crimson'] {");
+  });
+
+  it.each([
+    {
+      name: 'light',
+      root: "html[data-accent='crimson-tinted']",
+      accent: "[data-accent='crimson-tinted']",
+    },
+    {
+      name: 'dark',
+      root: "html.dark[data-accent='crimson-tinted']",
+      accent: ".dark[data-accent='crimson-tinted']",
+    },
+  ])(
+    'Crimson tinted $name: its text, accent and danger read on its own surfaces',
+    ({ root, accent }) => {
+      for (const ground of GROUNDS) {
+        const bg = tokenIn(root, ground);
+        for (const ink of ['text-primary', 'text-secondary', 'text-muted']) {
+          expect(contrast(tokenIn(root, ink), bg), `${ink} on ${ground}`).toBeGreaterThanOrEqual(
+            4.5,
+          );
+        }
+        expect(
+          contrast(tokenIn(accent, 'accent-ink'), bg),
+          `accent-ink on ${ground}`,
+        ).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(tokenIn(root, 'danger'), bg), `danger on ${ground}`).toBeGreaterThanOrEqual(
+          4.5,
+        );
+      }
+      expect(
+        contrast(tokenIn(root, 'danger'), tokenIn(root, 'danger-weak')),
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrast(tokenIn(accent, 'accent-contrast'), tokenIn(accent, 'accent')),
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(tokenIn(accent, 'accent'), tokenIn(root, 'canvas'))).toBeGreaterThanOrEqual(
+        3,
+      );
+      expect(contrast(tokenIn(root, 'border'), tokenIn(root, 'raised'))).toBeGreaterThanOrEqual(
+        1.15,
+      );
+      expect(contrast(tokenIn(root, 'panel'), tokenIn(root, 'canvas'))).toBeGreaterThanOrEqual(
+        1.04,
+      );
+    },
+  );
+});
+
+describe('saved themes from earlier versions', () => {
+  const read = (accent: string) =>
+    readStoredTheme(memoryStorage(JSON.stringify({ appearance: 'dark', accent }))).accent;
+
+  it('keeps every new id as saved', () => {
+    for (const accent of ACCENTS) expect(read(accent)).toBe(accent);
+  });
+
+  it('still carries the pre-September ids to the successor shown since then', () => {
+    // A device that saved `cyan` has shown Turquoise since September; it does
+    // not switch to the restored original on update. The originals have their
+    // own ids, so choosing one is explicit.
+    expect(read('cyan')).toBe('turquoise');
+    expect(read('green')).toBe('emerald');
+    expect(read('original-cyan')).toBe('original-cyan');
+  });
+
+  it('never turns a saved Crimson into Crimson tinted, or back', () => {
+    expect(read('crimson')).toBe('crimson');
+    expect(read('crimson-tinted')).toBe('crimson-tinted');
+  });
+
+  it('falls back to Mono for an id that never existed', () => {
+    expect(read('crimson-glass')).toBe('mono');
+  });
+});
+
+describe('reduced transparency', () => {
+  it('is read, written and applied like reduced motion', () => {
+    const storage = memoryStorage();
+    const preference: ThemePreference = { ...DEFAULT_THEME, reducedTransparency: true };
+    writeStoredTheme(storage, preference);
+    expect(readStoredTheme(storage).reducedTransparency).toBe(true);
+    const root = document.createElement('html');
+    applyTheme(root, preference);
+    expect(root.getAttribute('data-transparency')).toBe('reduced');
+    applyTheme(root, { ...preference, reducedTransparency: false });
+    expect(root.hasAttribute('data-transparency')).toBe(false);
+  });
+
+  it('makes every glass surface opaque, as the system setting does', () => {
+    for (const material of ['.gt-bar', '.gt-float', '.gt-glass']) {
+      expect(CSS).toContain(`[data-transparency='reduced'] ${material}`);
+    }
   });
 });

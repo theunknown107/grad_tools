@@ -152,7 +152,7 @@ describe('Profile → Appearance', () => {
 
   it('lists every accent, Mono first and chosen by default', () => {
     renderWith(<AppearanceSettings />);
-    const group = screen.getByRole('radiogroup', { name: 'Accent' });
+    const group = screen.getByRole('radiogroup', { name: 'Palette' });
     const options = within(group).getAllByRole('radio');
     expect(options).toHaveLength(ACCENTS.length);
     expect(options[0]?.getAttribute('aria-checked')).toBe('true');
@@ -162,7 +162,7 @@ describe('Profile → Appearance', () => {
   it('moves and selects with the arrow keys, from a single tab stop', async () => {
     const user = userEvent.setup();
     renderWith(<AppearanceSettings />);
-    const group = screen.getByRole('radiogroup', { name: 'Accent' });
+    const group = screen.getByRole('radiogroup', { name: 'Palette' });
     const [first, second] = within(group).getAllByRole('radio') as [HTMLElement, HTMLElement];
     first.focus();
     // Held, as a finger holds it: Radix selects on the focus an arrow key moves.
@@ -180,7 +180,7 @@ describe('Profile → Appearance', () => {
     const user = userEvent.setup();
     renderWith(<AppearanceSettings />);
     await user.click(
-      within(screen.getByRole('radiogroup', { name: 'Accent' })).getByRole('radio', {
+      within(screen.getByRole('radiogroup', { name: 'Palette' })).getByRole('radio', {
         name: /ocean/i,
       }),
     );
