@@ -34,6 +34,7 @@ import {
   nativeStart,
   saveNativeTheme,
   setNativeBarsFor,
+  watchNativeCorners,
   watchNativeSystemDark,
 } from '../lib/system-appearance.js';
 
@@ -87,6 +88,9 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   const [systemDark, setSystemDark] = useState<boolean>(
     () => nativeStart()?.systemDark ?? prefersDark(),
   );
+
+  /* The screen's rounded corners, kept current (rotation, split screen). */
+  useEffect(() => watchNativeCorners(), []);
 
   /*
    * First run of a build with native storage: carry the existing localStorage

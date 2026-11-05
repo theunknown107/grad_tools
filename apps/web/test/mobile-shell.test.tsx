@@ -69,7 +69,7 @@ describe('the top of the app', () => {
     expect(header.className).toContain('pt-[var(--gt-safe-top)]');
   });
 
-  it('keeps a strip of page colour behind the status bar, and nothing more', () => {
+  it('keeps a status-bar strip that is clear at the top and frosts under scrolled content', () => {
     shell();
     const scrim = [...document.querySelectorAll<HTMLElement>('[aria-hidden="true"]')].find(
       (element) => (element.getAttribute('class') ?? '').includes('h-[var(--gt-safe-top)]'),
@@ -77,6 +77,9 @@ describe('the top of the app', () => {
     expect(scrim).not.toBeNull();
     expect(scrim.getAttribute('aria-hidden')).toBe('true');
     expect(scrim.className).toContain('pointer-events-none');
+    // Edge to edge: no solid band at rest — the page shows through it.
+    expect(scrim.className).not.toMatch(/\bbg-/);
+    expect(scrim.className).toContain('gt-statusbar-scrim');
   });
 
   it('floats each control as its own compact bubble with a full-size touch ring', () => {

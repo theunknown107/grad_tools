@@ -75,6 +75,29 @@ function Shell({
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [moreOpen, setMoreOpen] = useState(false);
   const [markOpen, setMarkOpen] = useState(false);
+  /*
+   * Edge to edge: the status bar is clear while the page is at its top, and
+   * frosts only once content scrolls under the clock (styles: "Status bar").
+   * One passive listener; the attribute flips only when the answer changes.
+   */
+  useEffect(() => {
+    const main = mainRef.current;
+    if (main === null) return;
+    const root = document.documentElement;
+    const onScroll = (): void => {
+      const scrolled = main.scrollTop > 4;
+      if (scrolled !== root.hasAttribute('data-scrolled')) {
+        root.toggleAttribute('data-scrolled', scrolled);
+      }
+    };
+    onScroll();
+    main.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      main.removeEventListener('scroll', onScroll);
+      root.removeAttribute('data-scrolled');
+    };
+  }, []);
+
   /* Android Back: close the top overlay, then go back, then exit (lib/android-back). */
   useAndroidBack();
   /* Keep the focused field and its message above the keyboard (lib/viewport). */
@@ -133,13 +156,13 @@ function Shell({
         */}
         <div
           aria-hidden="true"
-          className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[var(--gt-safe-top)] bg-canvas md:hidden"
+          className="gt-statusbar-scrim pointer-events-none fixed inset-x-0 top-0 z-30 h-[var(--gt-safe-top)] md:hidden"
         />
         <main
           id="gt-main"
           ref={mainRef}
           tabIndex={-1}
-          className="flex-1 overflow-y-auto pb-[calc(6rem+var(--gt-safe-bottom))] outline-none scroll-quiet md:pb-[var(--gt-safe-bottom)]"
+          className="flex-1 overflow-y-auto pb-[calc(var(--gt-dock-bottom)+5.5rem)] outline-none scroll-quiet md:pb-[var(--gt-safe-bottom)]"
         >
           <TopBar
             collapsed={collapsed}
@@ -505,7 +528,7 @@ function MobileBottomNav({
       aria-label="Main"
       data-bottom-bar
       hidden={keyboardOpen}
-      className="fixed right-[max(1rem,var(--gt-safe-right))] bottom-[max(0.75rem,var(--gt-safe-bottom))] left-[max(1rem,var(--gt-safe-left))] z-40 flex items-center gap-2 max-[359px]:right-[max(0.75rem,var(--gt-safe-right))] max-[359px]:left-[max(0.75rem,var(--gt-safe-left))] md:hidden"
+      className="gt-dock fixed z-40 flex items-center gap-2 md:hidden"
     >
       <div className="gt-float grid h-16 min-w-0 flex-1 grid-cols-5 rounded-full p-[5px]">
         {MOBILE_TABS.map((item) => {

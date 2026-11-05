@@ -17,6 +17,10 @@ interface SystemAppearancePlugin {
   get(): Promise<{ dark: boolean }>;
   saveTheme(options: { value: string }): Promise<void>;
   addListener(
+    event: 'corners',
+    listener: (corners: { top: number; bottom: number }) => void,
+  ): Promise<{ remove: () => Promise<void> }>;
+  addListener(
     event: 'change',
     listener: (state: { dark: boolean }) => void,
   ): Promise<{ remove: () => Promise<void> }>;
@@ -118,4 +122,39 @@ export function saveNativeTheme(value: string): void {
       /* localStorage still holds it; it reaches disk a moment later. */
     }
   })();
+}
+
+/** Writes the screen's corner radii (CSS px) to the root, for styles/index.css. */
+export function applyCorners(root: HTMLElement, corners: { top: number; bottom: number }): void {
+  root.style.setProperty('--gt-corner-top', `${String(corners.top)}px`);
+  root.style.setProperty('--gt-corner-bottom', `${String(corners.bottom)}px`);
+  if (corners.bottom > 0) root.setAttribute('data-rounded-screen', '');
+  else root.removeAttribute('data-rounded-screen');
+}
+
+/**
+ * Follows the screen's rounded corners as they change: a rotation, entering
+ * split screen or resizing a window changes which corners the app touches.
+ * The first value arrives before the first frame (index.html). No-op on web.
+ */
+export function watchNativeCorners(): () => void {
+  if (!isNativeApp()) return () => undefined;
+  let cancelled = false;
+  let remove: (() => void) | undefined;
+  void (async () => {
+    try {
+      const native = (await plugin()).native;
+      const handle = await native.addListener('corners', (corners) => {
+        if (!cancelled) applyCorners(document.documentElement, corners);
+      });
+      if (cancelled) void handle.remove();
+      else remove = () => void handle.remove();
+    } catch {
+      /* An older app build: the corners stay as first published. */
+    }
+  })();
+  return () => {
+    cancelled = true;
+    remove?.();
+  };
 }

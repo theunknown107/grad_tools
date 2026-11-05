@@ -69,8 +69,9 @@ describe('the three navigation states', () => {
   it('reserves bottom-bar space only while the bottom bar is there', () => {
     shell();
     const main = document.getElementById('gt-main');
-    // The bar's height plus the gesture bar below it; from md, the gesture bar only.
-    expect(main?.className).toContain('pb-[calc(6rem+var(--gt-safe-bottom))]');
+    // The bar's height plus its offset from the screen edge (which covers the
+    // gesture bar and the screen's rounded corners); from md, the gesture bar only.
+    expect(main?.className).toContain('pb-[calc(var(--gt-dock-bottom)+5.5rem)]');
     expect(main?.className).toContain('md:pb-[var(--gt-safe-bottom)]');
   });
 

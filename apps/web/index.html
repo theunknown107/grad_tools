@@ -36,6 +36,13 @@
               ? native.theme
               : window.localStorage.getItem('gradtools:v1:theme');
           var saved = raw ? JSON.parse(raw) : {};
+          /* The screen's rounded corners (Android 12+): edge-anchored
+             surfaces curve around them (styles/index.css "Screen corners"). */
+          if (native && native.corners) {
+            root.style.setProperty('--gt-corner-top', native.corners.top + 'px');
+            root.style.setProperty('--gt-corner-bottom', native.corners.bottom + 'px');
+            if (native.corners.bottom > 0) root.setAttribute('data-rounded-screen', '');
+          }
           var appearance =
             saved.appearance === 'dark' || saved.appearance === 'system'
               ? saved.appearance

@@ -486,6 +486,76 @@ html.dark[data-accent='crimson-tinted'] {
   --gt-safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
 }
 
+/* ------------------------------------------------------- Screen corners.
+     Phones round their display corners (about 50px on a Pixel 10a). In the
+     Android app the native side reports the radius before the first frame
+     (`--gt-corner-*`, `data-rounded-screen`; lib/system-appearance), and every
+     surface anchored to the bottom edge curves with it instead of being
+     clipped by it. 0 everywhere else, so nothing changes in a browser or on a
+     square screen.
+
+     CONCENTRIC, NOT GUESSED. A round control of radius r tucked into a corner
+     of radius R stays inside the curve when its centre sits on the corner's
+     centre, i.e. it is inset by R - r from both edges. The dock's controls are
+     2rem in radius (64px tall), so its inset is at least R - 2rem; a sheet
+     inset by 0.5rem rounds its own corners to R - 0.5rem. */
+:root {
+  --gt-corner-top: 0px;
+  --gt-corner-bottom: 0px;
+  --gt-dock-edge: max(1rem, calc(var(--gt-corner-bottom) - 2rem));
+  --gt-dock-bottom: max(0.75rem, var(--gt-safe-bottom), calc(var(--gt-corner-bottom) - 2rem));
+}
+@media (max-width: 359px) {
+  :root {
+    --gt-dock-edge: max(0.75rem, calc(var(--gt-corner-bottom) - 2rem));
+  }
+}
+.gt-dock {
+  left: max(var(--gt-dock-edge), var(--gt-safe-left));
+  right: max(var(--gt-dock-edge), var(--gt-safe-right));
+  bottom: var(--gt-dock-bottom);
+}
+[data-rounded-screen] .gt-sheet {
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  max-height: calc(85dvh - 0.5rem);
+  border-width: 1px;
+  border-radius: max(1rem, calc(var(--gt-corner-bottom) - 0.5rem));
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+}
+
+/* ------------------------------------------------------- Status bar.
+     Edge to edge, like any current app: at the top of a page the status bar is
+     fully clear and the page's own background runs under the clock. Once
+     content scrolls beneath it, a soft frosted band keeps the clock and the
+     text apart. No solid strip at rest. */
+.gt-statusbar-scrim {
+  background-color: transparent;
+  transition:
+    background-color 200ms var(--ease-out-quint, ease),
+    backdrop-filter 200ms var(--ease-out-quint, ease);
+}
+[data-scrolled] .gt-statusbar-scrim {
+  background-color: color-mix(in oklab, var(--canvas) 72%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+}
+[data-transparency='reduced'] [data-scrolled] .gt-statusbar-scrim,
+[data-transparency='reduced'][data-scrolled] .gt-statusbar-scrim {
+  background-color: var(--canvas);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-scrolled] .gt-statusbar-scrim {
+    background-color: var(--canvas);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 /* Density — overrides the spacing base so every padding and gap tightens. */
 [data-density='compact'] {
   --spacing: 0.222rem;

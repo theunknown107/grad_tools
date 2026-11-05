@@ -4,6 +4,9 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.os.Build;
+import android.view.RoundedCorner;
+import android.view.WindowInsets;
 import android.webkit.WebView;
 import androidx.webkit.ScriptHandler;
 import androidx.webkit.WebViewCompat;
@@ -51,11 +54,56 @@ public class SystemAppearancePlugin extends Plugin {
 
     private Boolean lastDark = null;
     private ScriptHandler startScript = null;
+    /* The display's rounded corners where they meet this window, in CSS px. */
+    private int cornerTop = 0;
+    private int cornerBottom = 0;
 
     @Override
     public void load() {
         lastDark = isDark(getContext().getResources().getConfiguration());
+        readCorners();
         publishStartState();
+        /* Window insets are exact only once the window is laid out; re-read then. */
+        if (getActivity() != null) getActivity().getWindow().getDecorView().post(this::refreshCorners);
+    }
+
+    /**
+     * The screen's corner radii where they touch this window (Android 12+;
+     * 0 elsewhere, and 0 for a corner the window does not reach — split
+     * screen, a freeform window). The page curves its edge-anchored surfaces
+     * around them (styles/index.css "Screen corners").
+     */
+    private boolean readCorners() {
+        int top = 0;
+        int bottom = 0;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && getActivity() != null) {
+            WindowInsets insets = getActivity().getWindowManager().getCurrentWindowMetrics().getWindowInsets();
+            float density = getContext().getResources().getDisplayMetrics().density;
+            top = Math.round(Math.max(radius(insets, RoundedCorner.POSITION_TOP_LEFT), radius(insets, RoundedCorner.POSITION_TOP_RIGHT)) / density);
+            bottom = Math.round(
+                Math.max(radius(insets, RoundedCorner.POSITION_BOTTOM_LEFT), radius(insets, RoundedCorner.POSITION_BOTTOM_RIGHT)) / density
+            );
+        }
+        boolean changed = top != cornerTop || bottom != cornerBottom;
+        cornerTop = top;
+        cornerBottom = bottom;
+        return changed;
+    }
+
+    private static int radius(WindowInsets insets, int position) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return 0;
+        RoundedCorner corner = insets.getRoundedCorner(position);
+        return corner == null ? 0 : corner.getRadius();
+    }
+
+    /** Re-read the corners; on a change, republish and tell the page. UI thread. */
+    private void refreshCorners() {
+        if (!readCorners()) return;
+        publishStartState();
+        JSObject data = new JSObject();
+        data.put("top", cornerTop);
+        data.put("bottom", cornerBottom);
+        notifyListeners("corners", data);
     }
 
     private boolean isDark(Configuration configuration) {
@@ -108,7 +156,11 @@ public class SystemAppearancePlugin extends Plugin {
         String script =
             "window.__GT_NATIVE__=Object.freeze({systemDark:" +
             systemDark +
-            ",theme:" +
+            ",corners:{top:" +
+            cornerTop +
+            ",bottom:" +
+            cornerBottom +
+            "},theme:" +
             (theme == null ? "null" : JSONObject.quote(theme)) +
             "});";
         startScript = WebViewCompat.addDocumentStartJavaScript(webView, script, Collections.singleton("https://localhost"));
@@ -140,6 +192,8 @@ public class SystemAppearancePlugin extends Plugin {
     @Override
     protected void handleOnConfigurationChanged(Configuration newConfig) {
         super.handleOnConfigurationChanged(newConfig);
+        /* Rotation, split screen and resizing move which corners the window touches. */
+        if (getActivity() != null) getActivity().getWindow().getDecorView().post(this::refreshCorners);
         boolean dark = isDark(newConfig);
         if (lastDark != null && lastDark == dark) return;
         lastDark = dark;
