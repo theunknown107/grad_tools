@@ -15,10 +15,24 @@
 
 interface SystemAppearancePlugin {
   get(): Promise<{ dark: boolean }>;
+  saveTheme(options: { value: string }): Promise<void>;
   addListener(
     event: 'change',
     listener: (state: { dark: boolean }) => void,
   ): Promise<{ remove: () => Promise<void> }>;
+}
+
+/*
+ * One registration per page: registering twice only logs a Capacitor warning.
+ * Boxed, because a Capacitor plugin proxy answers every property — `then`
+ * included — so a promise must never resolve to the proxy itself.
+ */
+let pluginBox: Promise<{ readonly native: SystemAppearancePlugin }> | null = null;
+function plugin(): Promise<{ readonly native: SystemAppearancePlugin }> {
+  pluginBox ??= import('@capacitor/core').then(({ registerPlugin }) => ({
+    native: registerPlugin<SystemAppearancePlugin>('SystemAppearance'),
+  }));
+  return pluginBox;
 }
 
 export function isNativeApp(): boolean {
@@ -36,9 +50,8 @@ export function watchNativeSystemDark(onChange: (dark: boolean) => void): () => 
   let remove: (() => void) | undefined;
   void (async () => {
     try {
-      const { registerPlugin } = await import('@capacitor/core');
-      const plugin = registerPlugin<SystemAppearancePlugin>('SystemAppearance');
-      const handle = await plugin.addListener('change', ({ dark }) => {
+      const appearance = (await plugin()).native;
+      const handle = await appearance.addListener('change', ({ dark }) => {
         if (!cancelled) onChange(dark);
       });
       if (cancelled) {
@@ -46,7 +59,7 @@ export function watchNativeSystemDark(onChange: (dark: boolean) => void): () => 
         return;
       }
       remove = () => void handle.remove();
-      const { dark } = await plugin.get();
+      const { dark } = await appearance.get();
       if (!cancelled) onChange(dark);
     } catch {
       /* An older app build without the plugin: prefers-color-scheme stays in charge. */
@@ -69,6 +82,40 @@ export function setNativeBarsFor(appearance: 'light' | 'dark'): void {
       });
     } catch {
       /* The bars keep their previous style; nothing else depends on it. */
+    }
+  })();
+}
+
+/**
+ * What the native side set before the page's first script ran
+ * (SystemAppearancePlugin's document-start script): Android's dark mode and
+ * the theme it saved. Undefined in the browser, and on a WebView without
+ * document-start scripts.
+ */
+export function nativeStart():
+  { readonly systemDark: boolean; readonly theme: string | null } | undefined {
+  const start = (window as { __GT_NATIVE__?: { systemDark?: unknown; theme?: unknown } })
+    .__GT_NATIVE__;
+  if (start === undefined || typeof start.systemDark !== 'boolean') return undefined;
+  return {
+    systemDark: start.systemDark,
+    theme: typeof start.theme === 'string' ? start.theme : null,
+  };
+}
+
+/**
+ * Saves the theme JSON on the native side, synchronously there
+ * (SharedPreferences.commit). localStorage alone reached disk too late: a
+ * theme chosen and force-stopped within a second came back old. A no-op on
+ * the web. Calls reach native in order, so the latest choice is the one kept.
+ */
+export function saveNativeTheme(value: string): void {
+  if (!isNativeApp()) return;
+  void (async () => {
+    try {
+      await (await plugin()).native.saveTheme({ value });
+    } catch {
+      /* localStorage still holds it; it reaches disk a moment later. */
     }
   })();
 }

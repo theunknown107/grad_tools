@@ -354,7 +354,10 @@ export function useSync(): SyncApi {
   /* The cloud copy behind the current profile conflict: its revision is the base a "keep mine" PUT claims. */
   const profileServer = useRef<CloudProfile | null>(null);
 
-  const scope = auth.status === 'signed_in' ? auth.identity.userId : null;
+  /* Offline keeps the account's scope, so its bookkeeping (last synced) still shows. */
+  const scope =
+    auth.status === 'signed_in' || auth.status === 'offline' ? auth.identity.userId : null;
+  const offline = auth.status === 'offline';
 
   // Bookkeeping lives in the account's own scope, so two accounts on one
   // browser keep two independent cursors (M9 §37).
@@ -364,7 +367,7 @@ export function useSync(): SyncApi {
       if (cancelled) return;
       setState((current) => ({
         ...current,
-        status: scope === null ? 'local_only' : current.status,
+        status: scope === null ? 'local_only' : offline ? 'offline' : current.status,
         cursor: stored?.cursor ?? null,
         lastSyncedAt: stored?.lastSyncedAt ?? null,
       }));
@@ -372,7 +375,7 @@ export function useSync(): SyncApi {
     return () => {
       cancelled = true;
     };
-  }, [scope]);
+  }, [scope, offline]);
 
   const authorized = useCallback(
     (path: string, init?: RequestInit): Promise<Response | null> =>
@@ -383,6 +386,11 @@ export function useSync(): SyncApi {
   const syncNow = useCallback(async () => {
     if (scope === null) {
       setState((current) => ({ ...current, status: 'local_only' }));
+      return;
+    }
+    /* Offline: nothing can be verified or sent. Changes stay here for the next sync. */
+    if (offline) {
+      setState((current) => ({ ...current, status: 'offline', error: null }));
       return;
     }
 
@@ -646,7 +654,7 @@ export function useSync(): SyncApi {
         error: navigator.onLine ? 'Could not sync. Your records are safe on this device.' : null,
       }));
     }
-  }, [authorized, repositories, scope, state.conflicts]);
+  }, [authorized, offline, repositories, scope, state.conflicts]);
 
   /**
    * Settles a profile conflict with the same PUT + baseRevision a sync uses.

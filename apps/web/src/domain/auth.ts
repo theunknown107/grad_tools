@@ -51,7 +51,16 @@ export type AuthState =
    * down). The session is UNKNOWN — not expired, not signed out — so nothing
    * is cleared and the student is told the truth, with a retry.
    */
-  | { readonly status: 'unreachable' };
+  | { readonly status: 'unreachable' }
+  /**
+   * Signed in on this device, and the sign-in service cannot be reached right
+   * now. `identity` is the account this device last VERIFIED (lib: AuthContext
+   * `lastAccount`), so the student keeps their own records — the ones already
+   * on this device for that account — instead of seeing the guest scope as if
+   * their data had vanished. Nothing reaches the server in this state: sync
+   * refuses, and every route still needs a verified session.
+   */
+  | { readonly status: 'offline'; readonly identity: Identity };
 
 export function identityOf(state: AuthState): Identity | null {
   return state.status === 'signed_in' ? state.identity : null;
@@ -70,7 +79,13 @@ export function identityOf(state: AuthState): Identity | null {
  * §37 is about.
  */
 export function scopeFor(state: AuthState): string | null {
-  return state.status === 'signed_in' ? state.identity.userId : null;
+  /*
+   * `offline` keeps the account's scope: the session is UNKNOWN (the service
+   * is unreachable), not refused, and the device verified this account within
+   * the last week. `expired` — a session the service did refuse — still maps to
+   * the anonymous scope, for the reason above.
+   */
+  return state.status === 'signed_in' || state.status === 'offline' ? state.identity.userId : null;
 }
 
 /* -------------------------------------------------------------------------- */

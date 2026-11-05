@@ -100,3 +100,121 @@ describe('waiting for Clerk to load', () => {
     expect(settled).toBeInstanceOf(AuthServiceUnreachable);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Signed in, then offline (offline account view)                              */
+/* -------------------------------------------------------------------------- */
+
+import { lastAccount } from '../src/features/auth/AuthContext.js';
+import { scopeFor, type AuthState, type Identity } from '../src/domain/auth.js';
+
+const ALICE: Identity = {
+  userId: 'aaaaaaaa-1111-4000-8000-00000000000a',
+  email: 'alice@example.test',
+  provider: 'email',
+};
+const BOB: Identity = {
+  userId: 'bbbbbbbb-2222-4000-8000-00000000000b',
+  email: 'bob@example.test',
+  provider: 'email',
+};
+const KEY = 'gradtools:v1:last-account';
+
+function signedInAs(identity: Identity): AuthAdapter {
+  return { ...adapterFailingWith(null), current: async () => identity };
+}
+const AS_BOB = signedInAs(BOB);
+const SIGNED_OUT = { ...adapterFailingWith(null), current: async () => null } as AuthAdapter;
+
+function Scope() {
+  const { state } = useAuth();
+  return (
+    <p data-testid="scope">
+      {state.status}:{scopeFor(state) ?? 'anon'}
+    </p>
+  );
+}
+
+describe('a signed-in student who goes offline', () => {
+  afterEach(() => window.localStorage.removeItem(KEY));
+
+  it('keeps their own account scope, never the guest one, and says they are offline', async () => {
+    window.localStorage.setItem(KEY, JSON.stringify({ identity: ALICE, verifiedAt: Date.now() }));
+    render(
+      <AuthProvider adapter={UNREACHABLE}>
+        <Scope />
+        <AuthUnreachable />
+      </AuthProvider>,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('scope').textContent).toBe(`offline:${ALICE.userId}`),
+    );
+    expect(screen.getByText('You’re offline.')).toBeTruthy();
+    expect(screen.getByText(/alice@example\.test/)).toBeTruthy();
+  });
+
+  it('falls back to the guest scope when no account was verified on this device', async () => {
+    render(
+      <AuthProvider adapter={UNREACHABLE}>
+        <Scope />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('scope').textContent).toBe('unreachable:anon'));
+  });
+
+  it('does not honour an account last verified more than a week ago', () => {
+    const eightDays = 8 * 24 * 60 * 60 * 1000;
+    window.localStorage.setItem(
+      KEY,
+      JSON.stringify({ identity: ALICE, verifiedAt: Date.now() - eightDays }),
+    );
+    expect(lastAccount()).toBeNull();
+  });
+
+  it('forgets the account when the service refuses the session', async () => {
+    window.localStorage.setItem(KEY, JSON.stringify({ identity: ALICE, verifiedAt: Date.now() }));
+    render(
+      <AuthProvider adapter={REFUSED}>
+        <Scope />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('scope').textContent).toBe('expired:anon'));
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('forgets the account when the service says nobody is signed in', async () => {
+    window.localStorage.setItem(KEY, JSON.stringify({ identity: ALICE, verifiedAt: Date.now() }));
+    render(
+      <AuthProvider adapter={SIGNED_OUT}>
+        <Scope />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('scope').textContent).toBe('signed_out:anon'));
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('replaces a remembered account with whoever the service actually verifies', async () => {
+    window.localStorage.setItem(KEY, JSON.stringify({ identity: ALICE, verifiedAt: Date.now() }));
+    render(
+      <AuthProvider adapter={AS_BOB}>
+        <Scope />
+      </AuthProvider>,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('scope').textContent).toBe(`signed_in:${BOB.userId}`),
+    );
+    expect(lastAccount()?.userId).toBe(BOB.userId);
+  });
+
+  it('maps only signed-in and offline states to an account scope', () => {
+    const states: AuthState[] = [
+      { status: 'restoring' },
+      { status: 'signed_out' },
+      { status: 'expired' },
+      { status: 'unreachable' },
+    ];
+    for (const state of states) expect(scopeFor(state)).toBeNull();
+    expect(scopeFor({ status: 'offline', identity: ALICE })).toBe(ALICE.userId);
+    expect(scopeFor({ status: 'signed_in', identity: BOB })).toBe(BOB.userId);
+  });
+});

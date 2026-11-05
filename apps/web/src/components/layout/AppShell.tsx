@@ -33,6 +33,7 @@ import { DESTINATIONS, MOBILE_TABS, NAV_GROUPS, isActive } from './nav.js';
 import { useKeyboardOpen, useRevealFocusedField } from '../../lib/viewport.js';
 import { useAndroidBack } from '../../lib/android-back.js';
 import { QuickMarkSheet } from '../../features/attendance/QuickMarkSheet.js';
+import { AuthUnreachable } from '../../features/auth/AuthUnreachable.js';
 
 const COLLAPSE_KEY = 'gradtools:v1:sidebar';
 
@@ -150,6 +151,10 @@ function Shell({
             key={location.pathname}
             className="mx-auto w-full max-w-[1180px] animate-rise px-4 py-6 max-[359px]:px-3 sm:px-6 sm:py-8 lg:px-10"
           >
+            {/* Signed in but offline: say so on every screen, not only on Account. */}
+            {location.pathname !== '/account' && location.pathname !== '/sign-in' && (
+              <AuthUnreachable show={['offline']} className="mb-6" />
+            )}
             {children}
             {footer}
           </div>

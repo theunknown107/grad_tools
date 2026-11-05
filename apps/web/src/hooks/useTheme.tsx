@@ -19,6 +19,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  THEME_STORAGE_KEY,
   applyTheme,
   readStoredTheme,
   resolveAppearance,
@@ -28,7 +29,13 @@ import {
   type Density,
   type ThemePreference,
 } from '../lib/theme.js';
-import { isNativeApp, setNativeBarsFor, watchNativeSystemDark } from '../lib/system-appearance.js';
+import {
+  isNativeApp,
+  nativeStart,
+  saveNativeTheme,
+  setNativeBarsFor,
+  watchNativeSystemDark,
+} from '../lib/system-appearance.js';
 
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
@@ -60,13 +67,37 @@ export interface UseThemeResult {
 const ThemeContext = createContext<UseThemeResult | null>(null);
 
 export function ThemeProvider({ children }: { readonly children: ReactNode }) {
+  /*
+   * The saved theme. In the Android app the native copy (written synchronously)
+   * comes first; localStorage is the browser's store and the fallback. Both
+   * hold the same JSON, so readStoredTheme's compatibility rules (cyan, green,
+   * unknown ids) apply to either.
+   */
   const [preference, setPreference] = useState<ThemePreference>(() => {
+    const native = nativeStart();
+    if (native !== undefined && native.theme !== null) {
+      const saved = native.theme;
+      return readStoredTheme({ getItem: () => saved });
+    }
     const store = storage();
     return store === null ? readStoredTheme({ getItem: () => null }) : readStoredTheme(store);
   });
   /* Native: start from the media query only until the plugin answers (it
      replaces it within a frame or two of startup). */
-  const [systemDark, setSystemDark] = useState<boolean>(prefersDark);
+  const [systemDark, setSystemDark] = useState<boolean>(
+    () => nativeStart()?.systemDark ?? prefersDark(),
+  );
+
+  /*
+   * First run of a build with native storage: carry the existing localStorage
+   * choice across once, so the native copy never starts out older than it.
+   */
+  useEffect(() => {
+    const native = nativeStart();
+    if (native === undefined || native.theme !== null) return;
+    const raw = storage()?.getItem(THEME_STORAGE_KEY) ?? null;
+    if (raw !== null) saveNativeTheme(raw);
+  }, []);
 
   /*
    * ONE source of truth for "is the system dark".
@@ -102,6 +133,8 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       const next = { ...current, ...patch };
       const store = storage();
       if (store !== null) writeStoredTheme(store, next);
+      /* Android: the synchronous copy, so a force-stop right after cannot lose it. */
+      saveNativeTheme(JSON.stringify(next));
       return next;
     });
   }, []);

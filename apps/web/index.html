@@ -27,7 +27,14 @@
       (function () {
         try {
           var root = document.documentElement;
-          var raw = window.localStorage.getItem('gradtools:v1:theme');
+          /* In the Android app, the native side has already answered (a
+             document-start script): its saved copy of the theme is the one
+             written synchronously, and its systemDark is Android's own. */
+          var native = window.__GT_NATIVE__;
+          var raw =
+            native && typeof native.theme === 'string'
+              ? native.theme
+              : window.localStorage.getItem('gradtools:v1:theme');
           var saved = raw ? JSON.parse(raw) : {};
           var appearance =
             saved.appearance === 'dark' || saved.appearance === 'system'
@@ -35,7 +42,10 @@
               : 'light';
           var dark =
             appearance === 'dark' ||
-            (appearance === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            (appearance === 'system' &&
+              (native && typeof native.systemDark === 'boolean'
+                ? native.systemDark
+                : window.matchMedia('(prefers-color-scheme: dark)').matches));
           root.classList.toggle('dark', dark);
           if (appearance !== 'system') root.setAttribute('data-theme', appearance);
           root.style.colorScheme = dark ? 'dark' : 'light';

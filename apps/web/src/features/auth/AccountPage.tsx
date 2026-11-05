@@ -221,7 +221,16 @@ export function AccountPage() {
             <SupportPanel activeIncidentId={params.get('incident') ?? undefined} />
           )}
           {section === 'data' &&
-            (identity === null ? (
+            (state.status === 'offline' ? (
+              <Card className="p-6">
+                <SectionTitle>Signed in, offline</SectionTitle>
+                <p className="max-w-xl text-[13px] text-ink-2">
+                  {state.identity.email ?? 'Your account'} — the records below are the ones saved on
+                  this device. Syncing, signing out and deleting the account need a connection; they
+                  come back when you are online.
+                </p>
+              </Card>
+            ) : identity === null ? (
               <Card className="p-6">
                 <div className="flex items-start gap-3">
                   <IconTile tone="accent" size="lg">

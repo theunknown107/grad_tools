@@ -65,6 +65,59 @@ const AuthContext = createContext<AuthContextValue>({
  * the adapter's own AuthServiceUnreachable, a fetch that never got an answer,
  * or the device reporting itself offline.
  */
+
+/*
+ * THE LAST VERIFIED ACCOUNT, for offline use only.
+ *
+ * Written when the service confirms a session; removed when the service says
+ * signed out, refuses the session, or the student signs out. It holds the
+ * identity Clerk already showed this device — id, email, provider — never a
+ * token, and it unlocks nothing on the server. It only decides whose ON-DEVICE
+ * records an offline student sees, and only for a week after the last
+ * verification, roughly a Clerk session's life.
+ */
+const LAST_ACCOUNT_KEY = 'gradtools:v1:last-account';
+const LAST_ACCOUNT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+function rememberAccount(identity: Identity): void {
+  try {
+    window.localStorage.setItem(
+      LAST_ACCOUNT_KEY,
+      JSON.stringify({ identity, verifiedAt: Date.now() }),
+    );
+  } catch {
+    /* Without storage there is no offline account view; nothing else changes. */
+  }
+}
+
+function forgetAccount(): void {
+  try {
+    window.localStorage.removeItem(LAST_ACCOUNT_KEY);
+  } catch {
+    /* Nothing stored, nothing to forget. */
+  }
+}
+
+export function lastAccount(now: number = Date.now()): Identity | null {
+  try {
+    const raw = window.localStorage.getItem(LAST_ACCOUNT_KEY);
+    if (raw === null) return null;
+    const parsed = JSON.parse(raw) as { identity?: Partial<Identity>; verifiedAt?: unknown };
+    const identity = parsed.identity;
+    if (
+      typeof parsed.verifiedAt !== 'number' ||
+      now - parsed.verifiedAt > LAST_ACCOUNT_MAX_AGE_MS ||
+      typeof identity?.userId !== 'string' ||
+      identity.userId.length === 0
+    ) {
+      return null;
+    }
+    return identity as Identity;
+  } catch {
+    return null;
+  }
+}
+
 function isUnreachable(error: unknown): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
   if (error instanceof Error && error.name === 'AuthServiceUnreachable') return true;
@@ -94,6 +147,8 @@ export function AuthProvider({
   );
 
   const settle = useCallback((identity: Identity | null) => {
+    if (identity === null) forgetAccount();
+    else rememberAccount(identity);
     setState(identity === null ? { status: 'signed_out' } : { status: 'signed_in', identity });
   }, []);
 
@@ -107,15 +162,20 @@ export function AuthProvider({
        * that (`unreachable`) rather than claim it expired. Nothing is cleared.
        */
       if (isUnreachable(error)) {
-        setState({ status: 'unreachable' });
+        const known = lastAccount();
+        setState(
+          known === null ? { status: 'unreachable' } : { status: 'offline', identity: known },
+        );
         return;
       }
       /*
        * A session we cannot verify is `expired`, not `signed_out`. The
        * difference matters: one is a thing the student did, the other is a
        * thing that happened to them, and only the second needs explaining
-       * (M9 §39, §68).
+       * (M9 §39, §68). The service refused it, so this device stops treating
+       * the account as known.
        */
+      forgetAccount();
       setState({ status: 'expired' });
     }
   }, [adapter, settle]);
@@ -125,7 +185,7 @@ export function AuthProvider({
    * signal. No timer, no loop — a student who stays offline is not polled.
    */
   useEffect(() => {
-    if (adapter === null || state.status !== 'unreachable') return;
+    if (adapter === null || (state.status !== 'unreachable' && state.status !== 'offline')) return;
     const onOnline = (): void => void refresh();
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
@@ -174,6 +234,7 @@ export function AuthProvider({
 
   const signOut = useCallback(async () => {
     if (adapter !== null) await adapter.signOut();
+    forgetAccount();
     /*
      * LOCAL DATA IS NOT TOUCHED (M9 §36). The scope simply changes back to
      * anonymous, and the signed-out student's records stay under their own
