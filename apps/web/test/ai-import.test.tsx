@@ -328,7 +328,12 @@ describe('reading with AI', () => {
       type: 'application/pdf',
     });
     Object.defineProperty(input, 'files', {
-      value: { 0: pdf, length: 1, item: () => pdf, [Symbol.iterator]: [pdf][Symbol.iterator].bind([pdf]) },
+      value: {
+        0: pdf,
+        length: 1,
+        item: () => pdf,
+        [Symbol.iterator]: [pdf][Symbol.iterator].bind([pdf]),
+      },
       configurable: true,
     });
     input.dispatchEvent(new Event('change', { bubbles: true }));

@@ -56,7 +56,8 @@ export const vtu2025RuleSet: RuleSet = {
   specialGrades: [
     {
       letter: 'DX',
-      meaning: 'Attendance below 75% in a credit or non-credit course; the course must be repeated.',
+      meaning:
+        'Attendance below 75% in a credit or non-credit course; the course must be repeated.',
       points: 0,
       pointsVerified: true,
       includedInGpa: false, // repeated course; not part of the 10-point scale (25OB23)
@@ -102,7 +103,8 @@ export const vtu2025RuleSet: RuleSet = {
        * guess (docs/32 OQ-018).
        */
       letter: 'AB',
-      meaning: 'Absent for the SEE of the course. Grade-point behaviour is not established by 25OB.',
+      meaning:
+        'Absent for the SEE of the course. Grade-point behaviour is not established by 25OB.',
       points: null,
       pointsVerified: false,
       includedInGpa: false,
@@ -110,7 +112,8 @@ export const vtu2025RuleSet: RuleSet = {
     },
     {
       letter: 'W',
-      meaning: 'Dropped or withdrawn from a registered course; must be re-registered in a later semester.',
+      meaning:
+        'Dropped or withdrawn from a registered course; must be re-registered in a later semester.',
       points: null,
       pointsVerified: false,
       includedInGpa: false,

@@ -130,24 +130,40 @@ export function buildOpenApiDocument(): Record<string, unknown> {
     });
   ref(API_ROUTES.universities, 'listUniversities', 'List universities.');
   ref(API_ROUTES.schemes, 'listSchemes', 'List VTU schemes.');
-  ref(tmpl(API_ROUTES.scheme(':id')), 'getScheme', 'Get one scheme.', [idParam('id', 'Scheme id.')]);
+  ref(tmpl(API_ROUTES.scheme(':id')), 'getScheme', 'Get one scheme.', [
+    idParam('id', 'Scheme id.'),
+  ]);
   ref(tmpl(API_ROUTES.schemeRules(':id')), 'getSchemeRules', 'Get a scheme’s rule set.', [
     idParam('id', 'Scheme id.'),
-    { name: 'college', in: 'query', required: false, schema: schemaOf(ruleSetQuerySchema.shape.college, 'input') },
+    {
+      name: 'college',
+      in: 'query',
+      required: false,
+      schema: schemaOf(ruleSetQuerySchema.shape.college, 'input'),
+    },
   ]);
   ref(API_ROUTES.branches, 'listBranches', 'List branches.');
   ref(API_ROUTES.colleges, 'listColleges', 'List colleges.');
   ref(API_ROUTES.subjects, 'listSubjects', 'Search subjects.', [
     { name: 'scheme', in: 'query', required: false, schema: { type: 'string' } },
     { name: 'branch', in: 'query', required: false, schema: { type: 'string' } },
-    { name: 'semester', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 8 } },
+    {
+      name: 'semester',
+      in: 'query',
+      required: false,
+      schema: { type: 'integer', minimum: 1, maximum: 8 },
+    },
   ]);
-  ref(tmpl(API_ROUTES.subject(':id')), 'getSubject', 'Get one subject.', [idParam('id', 'Subject id.')]);
+  ref(tmpl(API_ROUTES.subject(':id')), 'getSubject', 'Get one subject.', [
+    idParam('id', 'Subject id.'),
+  ]);
   ref(tmpl(API_ROUTES.subjectSyllabus(':id')), 'getSubjectSyllabus', 'Get a subject’s syllabus.', [
     idParam('id', 'Subject id.'),
   ]);
   ref(SOURCE_ROUTES.sources, 'listSources', 'List sources.');
-  ref(tmpl(SOURCE_ROUTES.source(':id')), 'getSource', 'Get one source.', [idParam('id', 'Source id.')]);
+  ref(tmpl(SOURCE_ROUTES.source(':id')), 'getSource', 'Get one source.', [
+    idParam('id', 'Source id.'),
+  ]);
   ref(SOURCE_ROUTES.documents, 'listDocuments', 'List public documents.');
   ref(tmpl(SOURCE_ROUTES.document(':id')), 'getDocument', 'Get one public document.', [
     idParam('id', 'Document id.'),
@@ -178,10 +194,16 @@ export function buildOpenApiDocument(): Record<string, unknown> {
 
   /* ---------------------------------------------------------------- Account */
   add(STUDENT_ROUTES.me, 'get', {
-    ...op('getMe', 'Account', 'The signed-in account: identity, profile, onboarding and terms state.'),
+    ...op(
+      'getMe',
+      'Account',
+      'The signed-in account: identity, profile, onboarding and terms state.',
+    ),
     security: bearer,
     responses: {
-      '200': jsonResponse('Identity, profile, `onboarded`, `termsCurrentVersion`, and this account’s acceptance of it (or null).'),
+      '200': jsonResponse(
+        'Identity, profile, `onboarded`, `termsCurrentVersion`, and this account’s acceptance of it (or null).',
+      ),
       ...authedErrors,
     },
   });
@@ -211,10 +233,18 @@ export function buildOpenApiDocument(): Record<string, unknown> {
     responses: { '200': jsonResponse('The account’s records.'), ...authedErrors },
   });
   add(STUDENT_ROUTES.meSync, 'post', {
-    ...op('pushSync', 'Account', 'Push a batch of local records (bounded; see MAX_SYNC_PUSH_RECORDS).'),
+    ...op(
+      'pushSync',
+      'Account',
+      'Push a batch of local records (bounded; see MAX_SYNC_PUSH_RECORDS).',
+    ),
     security: bearer,
     requestBody: jsonBody(syncPushSchema),
-    responses: { '200': jsonResponse('Per-record outcomes (applied / conflict / rejected).'), '413': errorRef, ...authedErrors },
+    responses: {
+      '200': jsonResponse('Per-record outcomes (applied / conflict / rejected).'),
+      '413': errorRef,
+      ...authedErrors,
+    },
   });
   add(STUDENT_ROUTES.meExport, 'get', {
     ...op('exportMe', 'Account', 'Export all of the account’s data.'),
@@ -229,13 +259,20 @@ export function buildOpenApiDocument(): Record<string, unknown> {
   add(STUDENT_ROUTES.meNotificationsStream, 'get', {
     ...op('streamNotifications', 'Account', 'Server-sent events doorbell for new notifications.'),
     security: bearer,
-    responses: { '200': { description: 'A `text/event-stream` of notification events.' }, ...authedErrors },
+    responses: {
+      '200': { description: 'A `text/event-stream` of notification events.' },
+      ...authedErrors,
+    },
   });
   add(tmpl(STUDENT_ROUTES.meNotification), 'patch', {
     ...op('updateNotification', 'Account', 'Update one notification’s state (e.g. read).'),
     security: bearer,
     parameters: [idParam('id', 'Notification id.')],
-    responses: { '200': jsonResponse('The updated notification.'), ...authedErrors, '404': errorRef },
+    responses: {
+      '200': jsonResponse('The updated notification.'),
+      ...authedErrors,
+      '404': errorRef,
+    },
   });
   add(STUDENT_ROUTES.meNotificationsRead, 'post', {
     ...op('readAllNotifications', 'Account', 'Mark every notification read.'),
@@ -243,11 +280,23 @@ export function buildOpenApiDocument(): Record<string, unknown> {
     responses: { '200': jsonResponse('Done.'), ...authedErrors },
   });
   add(DOCUMENT_AI_ROUTES.extract, 'post', {
-    ...op('extractDocument', 'Account', 'Read an academic document with the optional AI reader. Rate-limited more strictly than the baseline.'),
+    ...op(
+      'extractDocument',
+      'Account',
+      'Read an academic document with the optional AI reader. Rate-limited more strictly than the baseline.',
+    ),
     security: bearer,
     requestBody: {
       required: true,
-      content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary', description: 'The document bytes (image/PDF).' } } },
+      content: {
+        'application/octet-stream': {
+          schema: {
+            type: 'string',
+            format: 'binary',
+            description: 'The document bytes (image/PDF).',
+          },
+        },
+      },
     },
     responses: {
       '200': jsonResponse('The extracted, review-ready result.', aiReviewSchema),
@@ -259,10 +308,17 @@ export function buildOpenApiDocument(): Record<string, unknown> {
 
   /* ---------------------------------------------------------------- Support */
   add(SUPPORT_ROUTES.anonymousReport, 'post', {
-    ...op('createAnonymousSupportReport', 'Support', 'File a problem report without signing in. Returns an Incident ID only.'),
+    ...op(
+      'createAnonymousSupportReport',
+      'Support',
+      'File a problem report without signing in. Returns an Incident ID only.',
+    ),
     security: [],
     requestBody: jsonBody(supportReportInputSchema),
-    responses: { '201': jsonResponse('The Incident ID.', anonymousSupportReportSchema), ...commonErrors },
+    responses: {
+      '201': jsonResponse('The Incident ID.', anonymousSupportReportSchema),
+      ...commonErrors,
+    },
   });
   add(SUPPORT_ROUTES.reports, 'get', {
     ...op('listSupportReports', 'Support', 'List the caller’s own problem reports.'),
@@ -273,25 +329,58 @@ export function buildOpenApiDocument(): Record<string, unknown> {
     ...op('createSupportReport', 'Support', 'File a problem report as the signed-in user.'),
     security: bearer,
     requestBody: jsonBody(supportReportInputSchema),
-    responses: { '201': jsonResponse('The report, with a Support ID.', supportReportSchema), ...authedErrors },
+    responses: {
+      '201': jsonResponse('The report, with a Support ID.', supportReportSchema),
+      ...authedErrors,
+    },
   });
 
   /* --------------------------------------------------------------- Operator */
-  const opSec = (path: string, method: string, operationId: string, summary: string, params?: unknown[]): void =>
+  const opSec = (
+    path: string,
+    method: string,
+    operationId: string,
+    summary: string,
+    params?: unknown[],
+  ): void =>
     add(path, method, {
       ...op(operationId, 'Operator', summary),
       security: operator,
       ...(params ? { parameters: params } : {}),
-      responses: { '200': jsonResponse(summary), '401': errorRef, '403': errorRef, ...commonErrors, '404': errorRef },
+      responses: {
+        '200': jsonResponse(summary),
+        '401': errorRef,
+        '403': errorRef,
+        ...commonErrors,
+        '404': errorRef,
+      },
     });
-  opSec(OPERATOR_SUPPORT_ROUTES.overview, 'get', 'getOperatorOverview', 'Operations dashboard: counts and top error codes.');
-  opSec(tmpl(OPERATOR_SUPPORT_ROUTES.user), 'get', 'getOperatorUser', 'A user’s recent events and reports, by Support ID.', [
-    idParam('supportId', 'Support ID.'),
-  ]);
-  opSec(tmpl(OPERATOR_SUPPORT_ROUTES.incident), 'get', 'getOperatorIncident', 'One incident’s safe detail.', [
-    idParam('incidentId', 'Incident ID.'),
-  ]);
-  opSec(OPERATOR_SUPPORT_ROUTES.security, 'get', 'getOperatorSecurity', 'Security-relevant events for review.');
+  opSec(
+    OPERATOR_SUPPORT_ROUTES.overview,
+    'get',
+    'getOperatorOverview',
+    'Operations dashboard: counts and top error codes.',
+  );
+  opSec(
+    tmpl(OPERATOR_SUPPORT_ROUTES.user),
+    'get',
+    'getOperatorUser',
+    'A user’s recent events and reports, by Support ID.',
+    [idParam('supportId', 'Support ID.')],
+  );
+  opSec(
+    tmpl(OPERATOR_SUPPORT_ROUTES.incident),
+    'get',
+    'getOperatorIncident',
+    'One incident’s safe detail.',
+    [idParam('incidentId', 'Incident ID.')],
+  );
+  opSec(
+    OPERATOR_SUPPORT_ROUTES.security,
+    'get',
+    'getOperatorSecurity',
+    'Security-relevant events for review.',
+  );
 
   return {
     openapi: '3.1.0',
@@ -321,13 +410,23 @@ export function buildOpenApiDocument(): Record<string, unknown> {
     paths,
     components: {
       securitySchemes: {
-        bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'The session access token.' },
-        operatorToken: { type: 'http', scheme: 'bearer', description: 'The configured OPERATOR_TOKEN.' },
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'The session access token.',
+        },
+        operatorToken: {
+          type: 'http',
+          scheme: 'bearer',
+          description: 'The configured OPERATOR_TOKEN.',
+        },
       },
       schemas: { Error: schemaOf(errorResponseSchema, 'output') },
       responses: {
         Error: {
-          description: 'Error envelope: `{ error: { code, message, details?, reference, incidentId? } }`.',
+          description:
+            'Error envelope: `{ error: { code, message, details?, reference, incidentId? } }`.',
           content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
         },
       },

@@ -63,12 +63,18 @@ function CopyField({ label, value }: { readonly label: string; readonly value: s
 }
 
 /** The Account → Help & Support section. */
-export function SupportPanel({ activeIncidentId }: { readonly activeIncidentId?: string | undefined }) {
+export function SupportPanel({
+  activeIncidentId,
+}: {
+  readonly activeIncidentId?: string | undefined;
+}) {
   const { supportId, reports, submit } = useSupport();
   const [category, setCategory] = useState<SupportCategory | ''>('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ incidentId?: string | undefined; queued: boolean } | null>(null);
+  const [done, setDone] = useState<{ incidentId?: string | undefined; queued: boolean } | null>(
+    null,
+  );
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();

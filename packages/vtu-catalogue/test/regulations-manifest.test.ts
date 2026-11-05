@@ -62,11 +62,19 @@ describe('regulations manifest', () => {
 
   it('covers every expected base-regulation scheme year', () => {
     const baseSchemes = new Set(
-      manifest.documents
-        .filter((d) => d.document_type === 'BASE_REGULATION')
-        .map((d) => d.scheme),
+      manifest.documents.filter((d) => d.document_type === 'BASE_REGULATION').map((d) => d.scheme),
     );
-    for (const s of ['2002', '2006', '2010', '2015-16', '2017-18', '2018-19', '2021', '2022', '2025']) {
+    for (const s of [
+      '2002',
+      '2006',
+      '2010',
+      '2015-16',
+      '2017-18',
+      '2018-19',
+      '2021',
+      '2022',
+      '2025',
+    ]) {
       expect(baseSchemes.has(s), `base regulation for ${s}`).toBe(true);
     }
   });
@@ -75,7 +83,9 @@ describe('regulations manifest', () => {
     const r2025 = manifest.documents.find(
       (d) => d.scheme === '2025' && d.document_type === 'BASE_REGULATION',
     );
-    expect(r2025?.source_url).toBe('https://vtu.ac.in/wp-content/uploads/2026/05/B.E.B.Tech2025.pdf');
+    expect(r2025?.source_url).toBe(
+      'https://vtu.ac.in/wp-content/uploads/2026/05/B.E.B.Tech2025.pdf',
+    );
     expect(r2025?.verified).toBe(true);
     expect(r2025?.effective_date).toBe('2025-26');
   });

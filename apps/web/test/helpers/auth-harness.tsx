@@ -134,7 +134,9 @@ function meBody(state: MeState) {
 export function stubMe(state: MeState = {}): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     if (String(input).includes('/api/v1/me')) {
-      return (state.ok ?? true) ? jsonResponse(meBody(state)) : new Response('error', { status: 500 });
+      return (state.ok ?? true)
+        ? jsonResponse(meBody(state))
+        : new Response('error', { status: 500 });
     }
     return jsonResponse({});
   });

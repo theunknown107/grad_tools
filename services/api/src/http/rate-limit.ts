@@ -64,7 +64,8 @@ function tripped(req: Request, res: Response, next: NextFunction): void {
   // through a narrow local type rather than relying on global augmentation.
   const info = (req as Request & { rateLimit?: { resetTime?: Date } }).rateLimit;
   const reset = info?.resetTime?.getTime();
-  const seconds = reset === undefined ? undefined : Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+  const seconds =
+    reset === undefined ? undefined : Math.max(1, Math.ceil((reset - Date.now()) / 1000));
   if (seconds !== undefined) res.setHeader('Retry-After', String(seconds));
   next(new ApiError('RATE_LIMITED', 'Too many requests. Please slow down and try again shortly.'));
 }

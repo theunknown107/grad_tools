@@ -135,7 +135,9 @@ export function createErrorHandler(recorder?: IncidentRecorder) {
       log?.warn({ reference, details }, 'request validation failed');
       res
         .status(400)
-        .json(buildErrorBody('VALIDATION_FAILED', 'The request was not valid.', reference, details));
+        .json(
+          buildErrorBody('VALIDATION_FAILED', 'The request was not valid.', reference, details),
+        );
       return;
     }
 

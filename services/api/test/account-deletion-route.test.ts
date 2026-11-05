@@ -75,7 +75,9 @@ describe('DELETE /api/v1/me', () => {
   });
 
   it('reports existed:false when the account was already gone', async () => {
-    const res = await request(appWith(vi.fn(async () => false))).delete('/api/v1/me').set(auth);
+    const res = await request(appWith(vi.fn(async () => false)))
+      .delete('/api/v1/me')
+      .set(auth);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ deleted: true, existed: false });
   });

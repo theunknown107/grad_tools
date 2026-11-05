@@ -73,7 +73,10 @@ describe('OpenAPI document', () => {
     });
     expect(refs.length).toBeGreaterThan(0);
     for (const ref of refs) {
-      expect(get(doc, ref.replace(/^#\//, '').replace(/\//g, '.')), `unresolved ${ref}`).toBeTruthy();
+      expect(
+        get(doc, ref.replace(/^#\//, '').replace(/\//g, '.')),
+        `unresolved ${ref}`,
+      ).toBeTruthy();
     }
   });
 
