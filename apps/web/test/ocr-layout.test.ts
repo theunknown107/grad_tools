@@ -271,7 +271,7 @@ describe('confidence is reported, never acted on', () => {
 
     expect(result.wordCount).toBe(2);
     expect(result.lowConfidenceWords).toBe(1);
-    expect(result.meanConfidence).toBeCloseTo(69, 5);
+    expect(result.meanConfidence).toBeCloseTo(57, 5); // (72 + 42) / 2
     // The doubtful word is still in the line, for a person to check.
     expect(result.lines[0]?.text).toContain('4A');
   });

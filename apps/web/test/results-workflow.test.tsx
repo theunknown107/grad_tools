@@ -301,17 +301,18 @@ describe('a saved result', () => {
     await user.click(screen.getByRole('button', { name: /edit this semester/i }));
 
     // The editor opens on the stored values, not on a blank form.
-    expect((screen.getByLabelText(/internal 1/i) as HTMLInputElement).value).toBe('44');
+    expect((screen.getByLabelText(/internal 1/i) as HTMLInputElement).value).toBe('46');
 
     await user.clear(screen.getByLabelText(/internal 1/i));
-    await user.type(screen.getByLabelText(/internal 1/i), '45');
+    // One more internal mark, and the total that goes with it (47 + 34 = 81).
+    await user.type(screen.getByLabelText(/internal 1/i), '47');
     await user.clear(screen.getByLabelText(/total 1/i));
     await user.type(screen.getByLabelText(/total 1/i), '81');
     await user.click(screen.getByRole('button', { name: /save changes/i }));
 
     // ONE record, updated — not a second row for the same semester (§23).
     expect(peek.results()).toHaveLength(1);
-    expect(peek.results()[0]?.subjects[0]?.internal).toBe(45);
+    expect(peek.results()[0]?.subjects[0]?.internal).toBe(47);
     expect(peek.results()[0]?.subjects[0]?.total).toBe(81);
   });
 

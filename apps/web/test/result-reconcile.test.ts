@@ -41,7 +41,7 @@ const ROWS = [
 
 /** The same semester after a revaluation raised one external mark. */
 const REVALUED = [
-  'BQAS401  ALGORITHMS            46  41  85  P  2026-09-01',
+  'BQAS401  ALGORITHMS            46  42  88  P  2026-09-01',
   'BQAS402  FINANCIAL MANAGEMENT  38  21  59  P  2026-07-23',
 ];
 
@@ -114,8 +114,8 @@ describe('two files for one semester', () => {
 
     expect(group.duplicate).toBe('differs');
     expect(group.differences).toEqual([
-      { subjectCode: 'BQAS401', field: 'external', a: '36', b: '41' },
-      { subjectCode: 'BQAS401', field: 'total', a: '80', b: '85' },
+      { subjectCode: 'BQAS401', field: 'external', a: '34', b: '42' },
+      { subjectCode: 'BQAS401', field: 'total', a: '80', b: '88' },
       { subjectCode: 'BQAS401', field: 'announcedOn', a: '2026-07-23', b: '2026-09-01' },
     ]);
     // NOT ready: nothing here can tell a revaluation from the wrong file.

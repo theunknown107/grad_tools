@@ -18,7 +18,7 @@ describe('whether three marks agree', () => {
     // "46" read as "4": only the internal mark is one digit from making it add up.
     expect(checkMarks(4, 34, 80)).toEqual({
       agreement: 'inconsistent',
-      computedTotal: 40,
+      computedTotal: 38, // 4 + 34, as read; 46 + 34 = 80 is the reading it offers
       candidate: { field: 'internal', read: 4, possible: 46 },
     });
     // A doubled digit in the total.

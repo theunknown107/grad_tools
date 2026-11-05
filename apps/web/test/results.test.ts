@@ -462,7 +462,7 @@ describe('SGPA from a semester', () => {
     // A real fourth semester. Nothing anywhere assumes eight.
     const { sgpa, credits } = semesterSgpa(result(graded(9)), ruleSet);
     expect(sgpa).toBeCloseTo(8, 5);
-    expect(credits).toBe(34);
+    expect(credits).toBe(36); // nine subjects of 4 credits
   });
 
   it('refuses to grade a semester where one subject has no grade', () => {
@@ -540,8 +540,8 @@ describe('SGPA from a semester', () => {
      * prints none. The rules engine was already banding these totals correctly
      * a few lines away in `evaluateResultSubject`; nothing passed the answer on.
      *
-     * 80/100 is A+ (9) and 72/100 is O (10), both by 22OB 6.1's percentage
-     * bands. Credit-weighted over 4 and 2 credits: (9x4 + 10x2) / 6 = 9.33.
+     * 80/100 is A+ (9) and 72/100 is A (8), both by 22OB 6.1's percentage
+     * bands. Credit-weighted over 4 and 2 credits: (9x4 + 8x2) / 6 = 8.67.
      */
     const provisional = result([
       subject({
@@ -569,7 +569,7 @@ describe('SGPA from a semester', () => {
     const { sgpa, credits, inputs } = semesterSgpa(provisional, ruleSet);
     expect(inputs.complete).toBe(true);
     expect(credits).toBe(6);
-    expect(sgpa).toBeCloseTo(9.33, 2);
+    expect(sgpa).toBeCloseTo(8.67, 2);
   });
 
   it('prefers the letter the card printed over the one it would work out', () => {

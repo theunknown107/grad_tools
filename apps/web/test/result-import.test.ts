@@ -352,8 +352,9 @@ describe('a row carrying more numbers than it has columns', () => {
      * run satisfies the card's own arithmetic and the last three do not, the
      * earlier run is the one the card printed.
      */
-    const row = read('BQAS158 SUBJECT 11 20 33 46 2025-03-13');
-    expect([row?.internal, row?.external, row?.total]).toEqual([11, 20, 33]);
+    // 13 + 20 = 33 adds up; the rightmost run (20, 33, 46) does not.
+    const row = read('BQAS158 SUBJECT 13 20 33 46 2025-03-13');
+    expect([row?.internal, row?.external, row?.total]).toEqual([13, 20, 33]);
   });
 
   it('picks the three that add up, and says it had to', () => {
