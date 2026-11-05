@@ -258,7 +258,7 @@ export function Toaster() {
         <div
           key={item.id}
           role="status"
-          className="pointer-events-auto flex max-w-sm animate-toast-in items-start gap-2.5 rounded-xl border border-line bg-raised px-3.5 py-3 shadow-e3"
+          className="gt-overlay pointer-events-auto flex max-w-sm animate-toast-in items-start gap-2.5 rounded-xl border border-line bg-raised px-3.5 py-3 shadow-e3"
         >
           <span
             aria-hidden="true"

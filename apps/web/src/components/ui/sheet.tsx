@@ -32,7 +32,7 @@ export function BottomSheet({
           {...returnFocus}
           aria-describedby={undefined}
           className={cn(
-            'gt-sheet fixed inset-x-0 bottom-0 z-[71] flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-line bg-panel outline-none',
+            'gt-sheet gt-overlay fixed inset-x-0 bottom-0 z-[71] flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-line bg-panel outline-none',
             className,
           )}
         >

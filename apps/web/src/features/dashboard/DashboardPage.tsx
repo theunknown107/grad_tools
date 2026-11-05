@@ -99,22 +99,6 @@ function nameFor(code: string, subjects: readonly SemesterSubject[]): string | n
   return subjects.find((subject) => subject.code === code)?.title ?? null;
 }
 
-function standingSentence(stats: AcademicStatistics, semester: number | null): string {
-  if (!stats.hasAnyResult) {
-    return 'No results are saved yet. Add a result card and your figures appear here.';
-  }
-  const graded = stats.semestersGraded.value ?? 0;
-  const parts: string[] = [
-    graded === 1 ? '1 semester graded' : `${String(graded)} semesters graded`,
-  ];
-  if (stats.creditsEarned.value !== null) {
-    parts.push(`${formatCount(stats.creditsEarned.value, 'credit')} earned`);
-  }
-  if (hasNoBacklogs(stats)) parts.push('no backlogs');
-  const where = semester === null ? '' : ` You are in semester ${String(semester)}.`;
-  return `${parts.join(', ')}.${where}`;
-}
-
 export function DashboardPage() {
   const { profile } = useProfile();
   const schemeRules = useSchemeRules();
@@ -159,8 +143,7 @@ export function DashboardPage() {
             </Button>
           }
         >
-          Add your college, branch and USN so GradTools can tailor your results. Every step is
-          optional.
+          Set up your college, branch and USN.
         </Callout>
       )}
 
@@ -184,10 +167,6 @@ export function DashboardPage() {
             <Card className="p-5">
               <SectionTitle>Grade distribution</SectionTitle>
               <GradeDistributionChart grades={statistics.grades} />
-              <p className="mt-2 text-[12px] text-ink-3">
-                {formatCount(statistics.outcomes.passed, 'course')} passed across{' '}
-                {formatCount(statistics.semestersGraded.value ?? 0, 'graded semester')}.
-              </p>
             </Card>
           )}
         </section>
@@ -199,7 +178,6 @@ export function DashboardPage() {
           attendance={thisSemester}
           subjects={semesterSubjects}
           backlogs={backlogs}
-          clear={hasNoBacklogs(statistics)}
         />
         <Today
           timetable={timetable}
@@ -236,11 +214,6 @@ function Hero({
   /* The degree's modelled length (ED-71: eight semesters, always shown). */
   const planned = stats.views.length;
   const completed = stats.semestersCompleted.value;
-  const note =
-    standing.reason ??
-    (graded === 0
-      ? 'No semester has been graded yet.'
-      : `Credit-weighted across ${formatCount(graded, 'graded semester')}.`);
   const trend = stats.trend.filter((point) => point.sgpa !== null);
   const first = trend[0]?.sgpa ?? null;
   const last = trend[trend.length - 1]?.sgpa ?? null;
@@ -249,7 +222,7 @@ function Hero({
   return (
     <section
       aria-labelledby="dashboard-title"
-      className="relative overflow-hidden rounded-2xl border border-line bg-raised"
+      className="gt-card relative overflow-hidden rounded-2xl border border-line bg-raised"
     >
       <div className="relative grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.4fr_1fr]">
         <div className="min-w-0">
@@ -270,7 +243,6 @@ function Hero({
           >
             {name !== '' ? `${greeting()}, ${name.split(' ')[0] ?? name}.` : `${greeting()}.`}
           </h1>
-          <p className="mt-2 max-w-md text-sm text-ink-2">{standingSentence(stats, semester)}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button asChild variant="glass-primary" icon={<FileCheck2 />}>
               <Link to="/import">Add result</Link>
@@ -315,7 +287,6 @@ function Hero({
               </Badge>
             )}
           </div>
-          <p className="text-[12px] text-ink-3">{note}</p>
           {/*
             THE dashboard's semester progress: the standing strip no longer
             repeats it. The row is what the eye reads; the bar says the same to
@@ -401,7 +372,7 @@ function Standing({
           label="Percentage"
           value={percentage.value}
           state={stats.percentage.value === null ? 'unavailable' : 'resolved'}
-          sub={stats.percentage.value === null ? percentage.note : 'CGPA × 10 (22OB 6.7)'}
+          sub={stats.percentage.value === null ? undefined : 'CGPA × 10 (22OB 6.7)'}
         />
         <Metric
           plain
@@ -409,11 +380,7 @@ function Standing({
           label="Latest SGPA"
           value={latest === null ? 'Unavailable' : formatGpa(latest.sgpa)}
           state={latest === null ? 'unavailable' : 'resolved'}
-          sub={
-            latest !== null
-              ? `Semester ${String(latest.semester)}`
-              : (stats.latestSgpa.reason ?? undefined)
-          }
+          sub={latest !== null ? `Semester ${String(latest.semester)}` : undefined}
         />
         <Metric
           plain
@@ -421,7 +388,7 @@ function Standing({
           label="Credits earned"
           value={credits.value}
           state={credits.value === 'Unavailable' ? 'unavailable' : 'resolved'}
-          sub={credits.note}
+          sub={credits.value === 'Unavailable' ? undefined : credits.note}
         />
         <Metric
           plain
@@ -460,8 +427,8 @@ function Standing({
                 ? `${String(short)} below ${String(ruleSet.attendanceRequiredPct)}%`
                 : `Threshold ${String(ruleSet.attendanceRequiredPct)}%`
               : rulesKnown
-                ? 'No classes have been marked for this semester yet.'
-                : 'Not calculated — your scheme’s attendance rules are not in GradTools yet.'
+                ? undefined
+                : 'Scheme rules not available'
           }
         />
       </MetricStrip>
@@ -480,18 +447,6 @@ function Standing({
             'Your saved results could not be graded yet. Open Results to see what each one needs.'}
         </Callout>
       )}
-      {!stats.hasAnyResult && (
-        <Callout
-          className="mt-3"
-          action={
-            <Button asChild size="sm" variant="primary">
-              <Link to="/import">Add a result</Link>
-            </Button>
-          }
-        >
-          No results yet, so there is no CGPA to show.
-        </Callout>
-      )}
     </section>
   );
 }
@@ -502,7 +457,6 @@ function Attention({
   attendance,
   subjects,
   backlogs,
-  clear,
   rulesKnown,
 }: {
   /** False on a scheme without verified rules: no shortfall is claimed. */
@@ -510,8 +464,6 @@ function Attention({
   readonly attendance: readonly AttendanceRecord[];
   readonly subjects: readonly SemesterSubject[];
   readonly backlogs: readonly BacklogRecord[];
-  /** `hasNoBacklogs`: whether "no backlog is outstanding" may be said at all. */
-  readonly clear: boolean;
 }) {
   const short = (rulesKnown ? attendance : [])
     .flatMap((record) => {
@@ -533,20 +485,7 @@ function Attention({
         action={<Badge tone={count > 0 ? 'warning' : 'success'}>{count}</Badge>}
       />
       {count === 0 ? (
-        <EmptyState
-          compact
-          icon={<AlertTriangle />}
-          title="Nothing needs attention"
-          description={
-            /*
-             * This card lists RECORDED backlogs. With none recorded it still may
-             * not say none is outstanding unless the results agree.
-             */
-            clear
-              ? 'No subject is below the attendance requirement and no backlog is outstanding.'
-              : 'No subject is below the attendance requirement.'
-          }
-        />
+        <EmptyState compact icon={<AlertTriangle />} title="Nothing needs attention" />
       ) : (
         <CardRows>
           {short.map(({ record, verdict }) => {
@@ -631,7 +570,6 @@ function Today({
           compact
           icon={<CalendarRange />}
           title={`${holiday.title} — no classes today`}
-          description="From your academic calendar."
         />
       ) : slots.length === 0 ? (
         <EmptyState
@@ -748,12 +686,7 @@ function WhatChanged() {
           }
         />
       ) : shown.length === 0 ? (
-        <EmptyState
-          compact
-          icon={<Activity />}
-          title="Nothing new"
-          description="Verified notices will appear here."
-        />
+        <EmptyState compact icon={<Activity />} title="Nothing new" />
       ) : (
         <CardRows>
           {shown.map((item) => (

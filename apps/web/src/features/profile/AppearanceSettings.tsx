@@ -1,10 +1,10 @@
 /**
- * Account → Settings → Appearance — the design's Theme, Palette, Interface and
- * Preview cards.
+ * Themes (More → Themes) — the design's Theme, Palette, Interface and Preview
+ * cards, plus the glass level.
  *
  * Light / Dark / System, one of eighteen palettes in three groups (Mono by
- * default; docs/51_THEMES.md), density, reduced motion and reduced
- * transparency. Device-local only: never synced, and nothing here can reach an
+ * default; docs/51_THEMES.md), glass (Clear, Regular, Frosted or Solid —
+ * Solid is reduced transparency), density and reduced motion. Device-local only: never synced, and nothing here can reach an
  * academic figure — the palette recolours interactive states, never grades,
  * credits or GPA.
  */
@@ -21,6 +21,7 @@ import {
   accentName,
   type Appearance,
   type Density,
+  type Glass,
 } from '../../lib/theme.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -57,24 +58,15 @@ const THEME_OPTIONS: readonly {
 ];
 
 export function AppearanceSettings() {
-  const {
-    preference,
-    resolved,
-    setAppearance,
-    setAccent,
-    setDensity,
-    setReducedMotion,
-    setReducedTransparency,
-  } = useTheme();
+  const { preference, resolved, setAppearance, setAccent, setDensity, setReducedMotion, setGlass } =
+    useTheme();
 
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-6" aria-labelledby="appearance-theme">
         <SectionTitle id="appearance-theme">Theme</SectionTitle>
         <p className="mb-4 text-[13px] text-ink-2">
-          Choose how GradTools looks. System follows your device — currently{' '}
-          <span className="font-medium text-ink capitalize">{resolved}</span>. The sun/moon button
-          in the top bar flips between light and dark at any time.
+          System is <span className="font-medium text-ink capitalize">{resolved}</span> now.
         </p>
         {/* Radix supplies the radiogroup pattern: one tab stop, arrow keys move and select. */}
         <RadioGroup.Root
@@ -124,12 +116,6 @@ export function AppearanceSettings() {
 
       <Card className="p-6" aria-labelledby="appearance-accent">
         <SectionTitle id="appearance-accent">Palette</SectionTitle>
-        <p className="mb-4 text-[13px] text-ink-2">
-          The palette colours interactive states — buttons, links, selection and focus. Mono is the
-          default. Every palette except Crimson tinted keeps the surfaces neutral, and no academic
-          figure ever changes colour because of it. The original August 2026 palettes restore that
-          version’s accent colours only, not its whole look.
-        </p>
         {/* One radiogroup across the three groups: one tab stop, arrow keys move through all. */}
         <RadioGroup.Root
           aria-labelledby="appearance-accent"
@@ -187,12 +173,21 @@ export function AppearanceSettings() {
         <SectionTitle>Interface</SectionTitle>
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="text-[13px] font-medium">Density</div>
-              <div className="text-[12px] text-ink-3">
-                Comfortable spacing, or compact to fit more on screen.
-              </div>
-            </div>
+            <div className="text-[13px] font-medium">Glass</div>
+            <Segmented<Glass | 'solid'>
+              label="Glass"
+              value={preference.reducedTransparency ? 'solid' : preference.glass}
+              onChange={setGlass}
+              options={[
+                { value: 'clear', label: 'Clear' },
+                { value: 'regular', label: 'Regular' },
+                { value: 'frosted', label: 'Frosted' },
+                { value: 'solid', label: 'Solid' },
+              ]}
+            />
+          </div>
+          <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-[13px] font-medium">Density</div>
             <Segmented<Density>
               label="Density"
               value={preference.density}
@@ -227,10 +222,6 @@ export function AppearanceSettings() {
               <label htmlFor="reduced-motion" className="text-[13px] font-medium">
                 Reduced motion
               </label>
-              <div className="text-[12px] text-ink-3">
-                Minimise animations and transitions. Your device&apos;s own reduced-motion setting
-                is always honoured too.
-              </div>
             </div>
             <Switch
               id="reduced-motion"
@@ -238,30 +229,11 @@ export function AppearanceSettings() {
               onCheckedChange={setReducedMotion}
             />
           </div>
-          <div className="flex items-center justify-between gap-4 border-t border-line pt-4">
-            <div>
-              <label htmlFor="reduced-transparency" className="text-[13px] font-medium">
-                Reduced transparency
-              </label>
-              <div className="text-[12px] text-ink-3">
-                Make bars, menus and the navigation solid instead of glass. Your device&apos;s own
-                setting is always honoured too.
-              </div>
-            </div>
-            <Switch
-              id="reduced-transparency"
-              checked={preference.reducedTransparency}
-              onCheckedChange={setReducedTransparency}
-            />
-          </div>
         </div>
       </Card>
 
       <Card className="p-6">
         <SectionTitle>Preview</SectionTitle>
-        <p className="mb-4 text-[13px] text-ink-2">
-          A live sample of the current theme, accent and density.
-        </p>
         <AppearancePreview />
       </Card>
     </div>

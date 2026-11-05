@@ -98,7 +98,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
           align="start"
           sideOffset={6}
           collisionPadding={collisionInsets()}
-          className="z-[95] flex max-h-[min(var(--radix-popover-content-available-height),24rem)] w-[max(var(--radix-popover-trigger-width),16rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-line bg-raised shadow-e3 outline-none data-[state=open]:animate-pop"
+          className="gt-overlay z-[95] flex max-h-[min(var(--radix-popover-content-available-height),24rem)] w-[max(var(--radix-popover-trigger-width),16rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-line bg-raised shadow-e3 outline-none data-[state=open]:animate-pop"
         >
           <Command shouldFilter={false} label={searchPlaceholder} className="flex min-h-0 flex-col">
             <div className="flex items-center gap-2 border-b border-line px-3">

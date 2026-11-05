@@ -1,7 +1,7 @@
 /**
  * The app's first 800 ms on a phone: the mark, then the name, then the app.
  *
- * Android shows its own splash (brand red, the mark) while the WebView starts;
+ * Android shows its own splash (mono: near-black, the white mark) while the WebView starts;
  * this picks up on the same ground so the hand-off is seamless, then steps
  * aside. CSS only — no video, no image asset, no network, no timer loop: the
  * overlay removes itself when its own fade-out animation ends.

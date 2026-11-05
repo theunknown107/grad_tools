@@ -49,7 +49,7 @@ export function DialogContent({
           {...returnFocus}
           {...(description === undefined ? { 'aria-describedby': undefined } : {})}
           className={cn(
-            'pointer-events-auto flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border border-line bg-panel shadow-e3 outline-none data-[state=open]:animate-pop',
+            'pointer-events-auto flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden gt-overlay rounded-2xl border border-line bg-panel shadow-e3 outline-none data-[state=open]:animate-pop',
             width,
             className,
           )}
@@ -170,7 +170,7 @@ export function ConfirmDialog({
             onEscapeKeyDown={(event) => {
               if (busy) event.preventDefault();
             }}
-            className="pointer-events-auto w-full max-w-md rounded-2xl border border-line bg-panel p-5 shadow-e3 outline-none data-[state=open]:animate-pop"
+            className="pointer-events-auto w-full max-w-md gt-overlay rounded-2xl border border-line bg-panel p-5 shadow-e3 outline-none data-[state=open]:animate-pop"
           >
             <AlertDialogPrimitive.Title className="text-[16px] font-semibold tracking-[-0.01em] text-ink">
               {title}

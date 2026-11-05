@@ -100,18 +100,18 @@ describe('dashboard', () => {
   it('renders an honest empty state with one action per region', async () => {
     renderWith(<DashboardPage />);
     /*
-     * A sentence and one link, not a bordered card with a paragraph and a
-     * large button (M9.3 §19).
+     * No figure is invented and no paragraph explains the empty screen: the
+     * CGPA reads Unavailable and the hero offers the one action (M9.3 §19).
      */
-    expect(await screen.findByText(/no results yet/i)).toBeTruthy();
+    expect((await screen.findAllByText('Unavailable')).length).toBeGreaterThan(0);
     expect(screen.getByText(/nothing scheduled today/i)).toBeTruthy();
-    expect(screen.getAllByRole('link', { name: /add a result/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /add result/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: /add your timetable/i })).toBeTruthy();
   });
 
   it('shows no fabricated metrics when there is no data', async () => {
     renderWith(<DashboardPage />);
-    await screen.findByText(/no results yet/i);
+    await screen.findAllByText('Unavailable');
     // Invented engagement metrics are prohibited by docs/05 §Anti-patterns.
     expect(screen.queryByText(/streak/i)).toBeNull();
     expect(screen.queryByText(/score/i)).toBeNull();

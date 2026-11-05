@@ -1,6 +1,6 @@
 /**
- * Account → Settings — the design's settings page: Appearance, Academic,
- * Data & privacy, Notifications and About, in the design's order.
+ * Account → Settings: Academic, Data & privacy, Notifications, Help and About.
+ * Appearance is its own page now (Themes, features/profile/ThemesPage).
  *
  * Data & privacy carries what an account does: sign-in, sync and its
  * conflicts, export and deletion. Everything else is local to this device.
@@ -16,14 +16,13 @@ import {
   Info,
   LifeBuoy,
   LogOut,
-  Palette,
   RefreshCw,
   ShieldCheck,
   Trash2,
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -36,7 +35,6 @@ import { SYNC_LABEL } from '../../domain/auth.js';
 import type { ConflictResolution } from '../../domain/sync.js';
 import { cn } from '../../lib/cn.js';
 import { NotificationSettings } from '../announcements/NotificationsPage.js';
-import { AppearanceSettings } from '../profile/AppearanceSettings.js';
 import { SupportPanel } from '../support/SupportPanel.js';
 import { AcademicSettings, SupportNote } from '../profile/ProfilePage.js';
 import { useAuth } from './AuthContext.js';
@@ -118,7 +116,6 @@ function ProfileConflictDiff({
 }
 
 const SECTIONS = [
-  { key: 'appearance', label: 'Appearance', icon: Palette },
   { key: 'academic', label: 'Academic', icon: GraduationCap },
   { key: 'data', label: 'Data & privacy', icon: Database },
   { key: 'notifications', label: 'Notifications', icon: Bell },
@@ -140,12 +137,13 @@ export function AccountPage() {
   const [resolving, setResolving] = useState(false);
 
   if (state.status === 'restoring') return <PageSkeleton label="Checking your session" />;
+  /* Appearance moved to its own page; old links still land there. */
+  if (params.get('section') === 'appearance') return <Navigate to="/themes" replace />;
 
   const signedIn = state.status === 'signed_in';
   const identity = signedIn ? state.identity : null;
   const requested = params.get('section');
-  const section: SectionKey =
-    SECTIONS.find((entry) => entry.key === requested)?.key ?? 'appearance';
+  const section: SectionKey = SECTIONS.find((entry) => entry.key === requested)?.key ?? 'academic';
   const conflicts = signedIn ? sync.state.conflicts.length : 0;
 
   return (
@@ -153,7 +151,6 @@ export function AccountPage() {
       <PageHeader
         eyebrow="Account"
         title="Settings"
-        description="Manage appearance, academic configuration and your data."
         actions={
           signedIn ? (
             <Badge
@@ -188,7 +185,7 @@ export function AccountPage() {
                     type="button"
                     aria-current={active ? 'page' : undefined}
                     onClick={() =>
-                      setParams(item.key === 'appearance' ? {} : { section: item.key }, {
+                      setParams(item.key === 'academic' ? {} : { section: item.key }, {
                         replace: true,
                       })
                     }
@@ -214,7 +211,6 @@ export function AccountPage() {
         </nav>
 
         <div key={section} className="flex min-w-0 animate-rise flex-col gap-4">
-          {section === 'appearance' && <AppearanceSettings />}
           {section === 'academic' && <AcademicSettings />}
           {section === 'notifications' && <NotificationSettings />}
           {section === 'support' && (

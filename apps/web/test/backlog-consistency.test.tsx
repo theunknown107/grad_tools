@@ -309,7 +309,8 @@ describe.each(CASES)('backlogs: $name', (c) => {
     expect(figure.textContent).toBe(`Backlogs${String(c.recorded)}${c.dashboardSub ?? ''}`);
 
     const hero = screen.getByRole('region', { name: /^Good (morning|afternoon|evening)/ });
-    expect(within(hero).queryByText(/no backlogs/) !== null).toBe(c.clear);
+    /* The hero states no backlog verdict at all; the strip carries it. */
+    expect(within(hero).queryByText(/no backlogs/)).toBeNull();
     expect(screen.queryAllByText(CLEAR_CLAIM).length > 0).toBe(c.clear);
     /*
      * "Needs attention" lists RECORDED backlogs. Empty, it used to add "and no
@@ -317,7 +318,7 @@ describe.each(CASES)('backlogs: $name', (c) => {
      * nothing recorded read as outstanding-free beside "1 backlog in your
      * results" on the same screen.
      */
-    expect(screen.queryByText(/no backlog is outstanding/) !== null).toBe(c.clear);
+    expect(screen.queryByText(/no backlog is outstanding/)).toBeNull();
     expect(screen.queryAllByText(TO_CLEAR_CLAIM)).toHaveLength(0);
   });
 

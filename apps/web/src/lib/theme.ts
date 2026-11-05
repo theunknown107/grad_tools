@@ -35,6 +35,14 @@ export const APPEARANCES = ['light', 'dark', 'system'] as const;
  */
 export const DENSITIES = ['comfortable', 'compact'] as const;
 export type Density = (typeof DENSITIES)[number];
+
+/**
+ * How see-through the glass surfaces are (styles/index.css "Liquid glass").
+ * Solid is not a level here: it is `reducedTransparency`, which also honours
+ * the operating system's setting.
+ */
+export const GLASS_LEVELS = ['clear', 'regular', 'frosted'] as const;
+export type Glass = (typeof GLASS_LEVELS)[number];
 export type Appearance = (typeof APPEARANCES)[number];
 
 /**
@@ -160,6 +168,7 @@ export interface ThemePreference {
    * material more opaque.
    */
   readonly reducedTransparency: boolean;
+  readonly glass: Glass;
   readonly density: Density;
 }
 
@@ -178,6 +187,7 @@ export const DEFAULT_THEME: ThemePreference = {
      is an addition to it rather than a replacement for it. */
   reducedMotion: false,
   reducedTransparency: false,
+  glass: 'regular',
   /* The roomier of the two, which is what every screen was designed against. */
   density: 'comfortable',
 };
@@ -224,6 +234,9 @@ export function readStoredTheme(storage: Pick<Storage, 'getItem'>): ThemePrefere
     accent: accentFrom(record['accent']),
     reducedMotion: record['reducedMotion'] === true,
     reducedTransparency: record['reducedTransparency'] === true,
+    glass: (GLASS_LEVELS as readonly unknown[]).includes(record['glass'])
+      ? (record['glass'] as Glass)
+      : DEFAULT_THEME.glass,
     density: record['density'] === 'compact' ? 'compact' : DEFAULT_THEME.density,
   };
 }
@@ -279,6 +292,7 @@ export function applyTheme(root: HTMLElement, preference: ThemePreference): void
   else root.removeAttribute('data-motion');
   if (preference.reducedTransparency) root.setAttribute('data-transparency', 'reduced');
   else root.removeAttribute('data-transparency');
+  root.setAttribute('data-glass', preference.glass);
   /* Absent rather than 'comfortable', for the same reason as the line above:
      the stylesheet's compact block is then a plain selector. */
   if (preference.density === 'compact') root.setAttribute('data-density', 'compact');

@@ -63,6 +63,7 @@ describe('reading a stored preference', () => {
       accent: 'turquoise',
       reducedMotion: false,
       reducedTransparency: false,
+      glass: 'regular',
       density: 'comfortable',
     };
     writeStoredTheme(storage, preference);
@@ -90,6 +91,7 @@ describe('reading a stored preference', () => {
       accent: 'rose',
       reducedMotion: false,
       reducedTransparency: false,
+      glass: 'regular',
       density: 'comfortable',
     });
   });
@@ -103,6 +105,7 @@ describe('reading a stored preference', () => {
       accent: DEFAULT_THEME.accent,
       reducedMotion: false,
       reducedTransparency: false,
+      glass: 'regular',
       density: 'comfortable',
     });
   });
@@ -124,6 +127,7 @@ describe('reading a stored preference', () => {
         accent: 'emerald',
         reducedMotion: false,
         reducedTransparency: false,
+        glass: 'regular',
         density: 'comfortable',
       }),
     ).not.toThrow();
@@ -142,6 +146,7 @@ describe('applying a preference to the document', () => {
       accent: 'amber',
       reducedMotion: false,
       reducedTransparency: false,
+      glass: 'regular',
       density: 'comfortable',
     });
     expect(root.getAttribute('data-theme')).toBe('dark');
@@ -159,6 +164,7 @@ describe('applying a preference to the document', () => {
       accent: 'violet',
       reducedMotion: false,
       reducedTransparency: false,
+      glass: 'regular',
       density: 'comfortable',
     });
     applyTheme(root, {
@@ -166,6 +172,7 @@ describe('applying a preference to the document', () => {
       accent: 'violet',
       reducedMotion: false,
       reducedTransparency: false,
+      glass: 'regular',
       density: 'comfortable',
     });
     expect(root.hasAttribute('data-theme')).toBe(false);

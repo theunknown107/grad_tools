@@ -563,8 +563,10 @@ html.dark[data-accent='crimson-tinted'] {
 
 @theme inline {
   --color-canvas: var(--canvas);
-  --color-panel: var(--panel);
-  --color-raised: var(--raised);
+  /* Glass: the two content surfaces mix with what is behind them by the
+     chosen level (--gt-glass, "Liquid glass" below). 100% = solid. */
+  --color-panel: color-mix(in oklab, var(--panel) var(--gt-glass), transparent);
+  --color-raised: color-mix(in oklab, var(--raised) var(--gt-glass), transparent);
   --color-sunken: var(--sunken);
 
   --color-ink: var(--text-primary);
@@ -720,7 +722,7 @@ html.dark[data-accent='crimson-tinted'] {
 }
 
 /* ------------------------------------------------------- Launch splash.
-     ~800ms, on the same brand red as Android's own splash: the mark scales
+     ~800ms, on the same mono ground as Android's own splash: the mark scales
      and fades in (0-360ms), the name follows (300-520ms), the whole thing
      fades into the app (620-800ms) and then removes itself. The global
      reduced-motion rule would collapse these durations; the component also
@@ -733,7 +735,7 @@ html.dark[data-accent='crimson-tinted'] {
   place-content: center;
   justify-items: center;
   gap: 14px;
-  background: #8b0015;
+  background: #070708;
   color: #ffffff;
   animation: gt-splash-out 180ms ease-in 620ms forwards;
 }
@@ -806,7 +808,11 @@ html.dark[data-accent='crimson-tinted'] {
 .gt-bubble {
   width: var(--gt-bubble-size);
   height: var(--gt-bubble-size);
-  background-color: color-mix(in oklab, var(--raised) var(--gt-bubble-opacity, 100%), transparent);
+  background-color: color-mix(
+    in oklab,
+    var(--raised) var(--gt-bubble-opacity, var(--gt-glass)),
+    transparent
+  );
   border: 1px solid var(--border);
   border-radius: 9999px;
 }
@@ -1000,6 +1006,95 @@ html.dark[data-accent='crimson-tinted'] .gt-shell {
   .gt-shell {
     background-image: none;
   }
+}
+
+/* ------------------------------------------------------- Liquid glass.
+     Every content surface (bg-panel, bg-raised) is glass over the theme's own
+     background: a static two-glow field in the accent, painted once on the
+     shell. Settings -> Themes -> Glass picks how see-through (data-glass);
+     Solid is reduced transparency, and the operating system's setting wins
+     the same way. Cards, sheets, dialogs and menus blur what is behind them
+     (.gt-card); smaller fills only tint, so nothing stacks blur on blur.
+     Approximation of Apple's material with backdrop-filter, not a port. */
+:root {
+  --gt-glass: 100%;
+  --gt-glass-blur: 0px;
+}
+[data-glass='clear'] {
+  --gt-glass: 46%;
+  --gt-glass-blur: 16px;
+}
+[data-glass='regular'] {
+  --gt-glass: 64%;
+  --gt-glass-blur: 22px;
+}
+[data-glass='frosted'] {
+  --gt-glass: 84%;
+  --gt-glass-blur: 30px;
+}
+[data-transparency='reduced'] {
+  --gt-glass: 100%;
+  --gt-glass-blur: 0px;
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-glass] {
+    --gt-glass: 100%;
+    --gt-glass-blur: 0px;
+  }
+}
+.gt-shell {
+  background-image:
+    radial-gradient(
+      75% 50% at 0% 0%,
+      color-mix(in oklab, var(--accent) 16%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      65% 45% at 100% 100%,
+      color-mix(in oklab, var(--accent) 11%, transparent),
+      transparent 72%
+    );
+}
+.dark .gt-shell {
+  background-image:
+    radial-gradient(
+      75% 50% at 0% 0%,
+      color-mix(in oklab, var(--accent) 24%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      65% 45% at 100% 100%,
+      color-mix(in oklab, var(--accent) 15%, transparent),
+      transparent 72%
+    );
+}
+.gt-card {
+  -webkit-backdrop-filter: blur(var(--gt-glass-blur)) saturate(1.5);
+  backdrop-filter: blur(var(--gt-glass-blur)) saturate(1.5);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 60%, transparent),
+    var(--shadow-sm);
+}
+.dark .gt-card {
+  border-color: color-mix(in oklab, white 10%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 9%, transparent),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4),
+    var(--shadow-sm);
+}
+[data-transparency='reduced'] .gt-card {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Overlays sit over text, so they never drop below 82% and blur harder. */
+.gt-overlay {
+  background-color: color-mix(in oklab, var(--panel) max(var(--gt-glass), 82%), transparent);
+  -webkit-backdrop-filter: blur(calc(var(--gt-glass-blur) * 1.5)) saturate(1.6);
+  backdrop-filter: blur(calc(var(--gt-glass-blur) * 1.5)) saturate(1.6);
+}
+.gt-bubble {
+  -webkit-backdrop-filter: blur(var(--gt-glass-blur)) saturate(1.5);
+  backdrop-filter: blur(var(--gt-glass-blur)) saturate(1.5);
 }
 
 /* ------------------------------------------------------- Metric material.

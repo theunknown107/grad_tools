@@ -21,7 +21,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
     <Comp
       ref={ref}
       className={cn(
-        'rounded-xl border border-line bg-raised',
+        'gt-card rounded-xl border border-line bg-raised',
         interactive && cardInteractive,
         className,
       )}

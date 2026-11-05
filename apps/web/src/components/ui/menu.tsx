@@ -10,7 +10,7 @@ import { cn } from '../../lib/cn.js';
 import { collisionInsets } from '../../lib/viewport.js';
 
 const popupClass =
-  'z-[95] min-w-44 overflow-hidden rounded-xl border border-line bg-raised p-1 shadow-e3 outline-none data-[state=open]:animate-pop';
+  'gt-overlay z-[95] min-w-44 overflow-hidden rounded-xl border border-line bg-raised p-1 shadow-e3 outline-none data-[state=open]:animate-pop';
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;

@@ -27,6 +27,7 @@ import {
   type Accent,
   type Appearance,
   type Density,
+  type Glass,
   type ThemePreference,
 } from '../lib/theme.js';
 import {
@@ -63,6 +64,8 @@ export interface UseThemeResult {
   readonly setReducedMotion: (reducedMotion: boolean) => void;
   readonly setReducedTransparency: (reducedTransparency: boolean) => void;
   readonly setDensity: (density: Density) => void;
+  /** The glass level, or 'solid' (= reduced transparency). */
+  readonly setGlass: (glass: Glass | 'solid') => void;
 }
 
 const ThemeContext = createContext<UseThemeResult | null>(null);
@@ -153,6 +156,10 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       setReducedMotion: (reducedMotion) => update({ reducedMotion }),
       setReducedTransparency: (reducedTransparency) => update({ reducedTransparency }),
       setDensity: (density) => update({ density }),
+      setGlass: (glass) =>
+        update(
+          glass === 'solid' ? { reducedTransparency: true } : { glass, reducedTransparency: false },
+        ),
     }),
     [preference, resolved, update],
   );

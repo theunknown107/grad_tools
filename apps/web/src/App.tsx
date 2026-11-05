@@ -49,6 +49,7 @@ const ImportPage = page(() => import('./features/import/ImportPage.js'), 'Import
 const LandingPage = page(() => import('./features/landing/LandingPage.js'), 'LandingPage');
 const NotFoundPage = page(() => import('./features/NotFoundPage.js'), 'NotFoundPage');
 const ProfilePage = page(() => import('./features/profile/ProfilePage.js'), 'ProfilePage');
+const ThemesPage = page(() => import('./features/profile/ThemesPage.js'), 'ThemesPage');
 const ResultDetailPage = page(
   () => import('./features/results/ResultDetailPage.js'),
   'ResultDetailPage',
@@ -106,6 +107,7 @@ function ShellRoutes() {
             <Route path="/timetable" element={<TimetablePage />} />
             <Route path="/exams" element={<ExamsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/themes" element={<ThemesPage />} />
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/onboarding" element={<SetupPage />} />

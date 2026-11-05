@@ -82,6 +82,10 @@
           if (saved.density === 'compact') root.setAttribute('data-density', 'compact');
           if (saved.reducedMotion === true) root.setAttribute('data-motion', 'reduced');
           if (saved.reducedTransparency === true) root.setAttribute('data-transparency', 'reduced');
+          root.setAttribute(
+            'data-glass',
+            saved.glass === 'clear' || saved.glass === 'frosted' ? saved.glass : 'regular',
+          );
         } catch (error) {
           /* Storage blocked or corrupt: light + mono from the stylesheet. */
         }

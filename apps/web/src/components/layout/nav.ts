@@ -22,6 +22,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   Megaphone,
+  Palette,
   Settings2,
   UserCircle,
   type LucideIcon,
@@ -133,14 +134,23 @@ export const DESTINATIONS: readonly Destination[] = [
     keywords: 'import upload calendar timetable result document pdf',
   },
   {
+    to: '/themes',
+    label: 'Themes',
+    short: 'Themes',
+    icon: Palette,
+    group: 'Account',
+    description: 'Light or dark, palette and glass',
+    keywords:
+      'appearance theme accent palette colour color glass transparency density motion dark light',
+  },
+  {
     to: '/account',
     label: 'Account',
     short: 'Account',
     icon: Settings2,
     group: 'Account',
-    description: 'Settings: appearance, academic details, data and privacy',
-    keywords:
-      'settings appearance theme accent density motion branch scheme semester privacy delete export sync notifications',
+    description: 'Settings: academic details, data and privacy',
+    keywords: 'settings branch scheme semester privacy delete export sync notifications',
   },
   {
     to: '/profile',
