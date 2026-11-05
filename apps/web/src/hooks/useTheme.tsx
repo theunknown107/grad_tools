@@ -28,6 +28,7 @@ import {
   type Density,
   type ThemePreference,
 } from '../lib/theme.js';
+import { isNativeApp, setNativeBarsFor, watchNativeSystemDark } from '../lib/system-appearance.js';
 
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
@@ -63,9 +64,22 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     const store = storage();
     return store === null ? readStoredTheme({ getItem: () => null }) : readStoredTheme(store);
   });
+  /* Native: start from the media query only until the plugin answers (it
+     replaces it within a frame or two of startup). */
   const [systemDark, setSystemDark] = useState<boolean>(prefersDark);
 
+  /*
+   * ONE source of truth for "is the system dark".
+   *
+   * Browser: the `prefers-color-scheme` media query. Android app: Android's own
+   * night mode, from the SystemAppearance plugin — and the media query is NOT
+   * consulted there at all. The WebView reported light while the system was
+   * dark, and listening to both made them fight: every status-bar restyle
+   * re-fired the media query, which flipped the theme back (device test
+   * 2026-11-05, defect 4).
+   */
   useEffect(() => {
+    if (isNativeApp()) return watchNativeSystemDark(setSystemDark);
     if (typeof window.matchMedia !== 'function') return;
     const query = window.matchMedia(DARK_QUERY);
     const onChange = (event: MediaQueryListEvent): void => setSystemDark(event.matches);
@@ -80,6 +94,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     applyTheme(root, preference);
     root.classList.toggle('dark', resolved === 'dark');
     root.style.colorScheme = resolved;
+    setNativeBarsFor(resolved);
   }, [preference, resolved]);
 
   const update = useCallback((patch: Partial<ThemePreference>) => {

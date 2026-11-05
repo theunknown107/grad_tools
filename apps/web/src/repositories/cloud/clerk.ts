@@ -75,25 +75,46 @@ function toIdentity(clerk: Clerk): Identity | null {
   };
 }
 
-const LOAD_TIMEOUT_MS = 15_000;
+const LOAD_TIMEOUT_MS = 10_000;
+const STATUS_POLL_MS = 250;
+
+/**
+ * Clerk could not be loaded: its script or API was unreachable. AuthContext
+ * reports this as `unreachable` — never `expired`, never a sign-out — because
+ * a network failure says nothing about whether the stored session is valid.
+ */
+export class AuthServiceUnreachable extends Error {
+  constructor() {
+    super('The sign-in service could not be reached');
+    this.name = 'AuthServiceUnreachable';
+  }
+}
 
 /**
  * Resolves once Clerk has loaded. `addListener` emits immediately after load,
- * so the first emission is the signal. A Clerk that never loads (offline,
- * blocked script) rejects, which AuthContext reports as `expired`, never as a
- * silent sign-out.
+ * so the first emission is the signal. A Clerk that reports a load error
+ * (offline, blocked script) rejects at once instead of waiting out the
+ * timeout; one that never answers rejects after LOAD_TIMEOUT_MS. Both reject
+ * with AuthServiceUnreachable.
  */
 function whenLoaded(clerk: Clerk): Promise<void> {
   if (clerk.loaded) return Promise.resolve();
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error('Clerk did not load'));
-    }, LOAD_TIMEOUT_MS);
-    const off = clerk.addListener(() => {
+    let settled = false;
+    const finish = (error?: Error): void => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
+      clearInterval(poll);
       queueMicrotask(() => off());
-      resolve();
-    });
+      if (error === undefined) resolve();
+      else reject(error);
+    };
+    const timer = setTimeout(() => finish(new AuthServiceUnreachable()), LOAD_TIMEOUT_MS);
+    const poll = setInterval(() => {
+      if ((clerk as { status?: string }).status === 'error') finish(new AuthServiceUnreachable());
+    }, STATUS_POLL_MS);
+    const off = clerk.addListener(() => finish());
   });
 }
 

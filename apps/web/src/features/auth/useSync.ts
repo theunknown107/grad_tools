@@ -389,6 +389,30 @@ export function useSync(): SyncApi {
     setState((current) => ({ ...current, status: 'syncing', error: null }));
 
     try {
+      /*
+       * TERMS GATE (cloud boundary). Cloud sync requires this account to have
+       * accepted the CURRENT Terms; `/me` is the authority. Unaccepted → the
+       * upload is withheld (`needs_terms`), local data is never touched, and the
+       * app stays fully usable locally. A check we cannot complete is not an
+       * acceptance, so it fails closed rather than syncing (M9 §55).
+       */
+      const meForTerms = await authorized(STUDENT_ROUTES.me);
+      if (meForTerms === null || !meForTerms.ok) {
+        setState((current) => ({
+          ...current,
+          status: 'failed',
+          error: 'Could not reach GradTools to sync. Try again.',
+        }));
+        return;
+      }
+      // `/me` always carries `terms` (the acceptance object, or null when the
+      // current version is unaccepted). An explicit null withholds the upload.
+      const meBody = (await meForTerms.json()) as { terms?: unknown };
+      if (meBody.terms === null) {
+        setState((current) => ({ ...current, status: 'needs_terms' }));
+        return;
+      }
+
       const stored = (await readValue<SyncBookkeeping>(scope, 'syncState')) ?? EMPTY_BOOKKEEPING;
       /*
        * Read through the ledger repository rather than the raw key, so the

@@ -7,6 +7,7 @@
  * `reset` (the emailed recovery code plus a new password).
  */
 
+import { AuthUnreachable } from './AuthUnreachable.js';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
@@ -154,6 +155,7 @@ export function SignInPage() {
         its own. Afterwards you choose what happens to the records already on this device, and you
         can keep them here.
       </p>
+      <AuthUnreachable className="mt-4" />
       {step === 'form' && adapter.providerUnavailable === undefined && (
         <>
           <div className="mt-4">

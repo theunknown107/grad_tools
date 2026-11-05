@@ -164,7 +164,7 @@ describe('the sign-in screen', () => {
     expect(explainer.textContent).toContain('not');
   });
 
-  it('makes staying local a real, visible option', async () => {
+  it('makes staying local a real, visible option (local-first: an account is optional)', async () => {
     renderAuth(<SignInPage />, fakeAdapter());
     expect(await screen.findByText(/Keep using GradTools without an account/)).toBeTruthy();
   });

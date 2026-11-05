@@ -36,7 +36,7 @@
  * without a keyboard.
  */
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 
 /** Smaller than any phone keyboard, larger than a collapsing browser toolbar. */
 export const KEYBOARD_MIN_PX = 150;
@@ -194,4 +194,73 @@ export function collisionInsets(): {
     bottom: Math.max(bottomBarHeight(), keyboardCover(), resolvePx('var(--gt-safe-bottom)')) + GAP,
     left: resolvePx('var(--gt-safe-left)') + GAP,
   };
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * KEEPING THE FOCUSED FIELD ABOVE THE KEYBOARD
+ * ---------------------------------------------------------------------------
+ *
+ * When the WebView resizes for the keyboard, Chromium scrolls the focused
+ * field only until it is barely inside — on the Pixel 10a emulator the email
+ * field sat flush against the keyboard, 3px clipped, with no room for the
+ * message under it (device test 2026-11-05, defect 7). After the viewport
+ * settles, scroll the nearest scroll container just enough that the field AND
+ * the line below it (its hint or validation message) clear the keyboard.
+ */
+
+/** Room kept under a focused field: one line of hint or error text, plus air. */
+export const FIELD_CLEARANCE_PX = 72;
+
+function scrollParent(element: HTMLElement): HTMLElement | null {
+  for (let node = element.parentElement; node !== null; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node);
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) {
+      return node;
+    }
+  }
+  return null;
+}
+
+/** How far to scroll so `rect` and its clearance fit inside `visibleHeight`. */
+export function revealDelta(
+  rect: { readonly top: number; readonly bottom: number },
+  visibleHeight: number,
+  clearance: number = FIELD_CLEARANCE_PX,
+): number {
+  const overflow = rect.bottom + clearance - visibleHeight;
+  if (overflow <= 0) return 0;
+  // Never push the field's own top off the top of the screen.
+  return Math.min(overflow, Math.max(0, rect.top - 8));
+}
+
+export function revealFocusedField(): void {
+  if (!editableFocused()) return;
+  const element = document.activeElement as HTMLElement;
+  const rect = element.getBoundingClientRect();
+  const viewport = window.visualViewport;
+  const height = viewport === null || viewport === undefined ? window.innerHeight : viewport.height;
+  const delta = revealDelta(rect, height);
+  if (delta > 0) scrollParent(element)?.scrollBy({ top: delta });
+}
+
+/** Mount once (the shell): reveals the focused field whenever the viewport settles. */
+export function useRevealFocusedField(): void {
+  useEffect(() => {
+    let frame = 0;
+    const schedule = (): void => {
+      cancelAnimationFrame(frame);
+      // Two frames: the keyboard's resize lands, then layout settles.
+      frame = requestAnimationFrame(() => {
+        frame = requestAnimationFrame(revealFocusedField);
+      });
+    };
+    window.visualViewport?.addEventListener('resize', schedule);
+    window.addEventListener('resize', schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.visualViewport?.removeEventListener('resize', schedule);
+      window.removeEventListener('resize', schedule);
+    };
+  }, []);
 }

@@ -45,7 +45,13 @@ export type AuthState =
    * account deleted elsewhere. Distinct from `signed_out` because the student
    * needs telling rather than silently finding themselves logged out (M9 §68).
    */
-  | { readonly status: 'expired' };
+  | { readonly status: 'expired' }
+  /**
+   * The sign-in service could not be reached (offline, DNS, the service
+   * down). The session is UNKNOWN — not expired, not signed out — so nothing
+   * is cleared and the student is told the truth, with a retry.
+   */
+  | { readonly status: 'unreachable' };
 
 export function identityOf(state: AuthState): Identity | null {
   return state.status === 'signed_in' ? state.identity : null;
@@ -85,7 +91,10 @@ export type SyncStatus =
   | 'offline'
   | 'failed'
   /** Changes are waiting for a person to resolve them. Not an error. */
-  | 'conflicts';
+  | 'conflicts'
+  /** Signed in, but the current Terms are unaccepted — cloud sync is withheld
+   * until they are. Local data is untouched and the app stays usable. */
+  | 'needs_terms';
 
 export interface SyncState {
   readonly status: SyncStatus;
@@ -130,6 +139,7 @@ export const SYNC_LABEL: Record<SyncStatus, string> = {
   offline: 'Offline — changes are saved here',
   failed: 'Sync failed',
   conflicts: 'Needs your attention',
+  needs_terms: 'Accept the latest Terms to sync',
 };
 
 /* -------------------------------------------------------------------------- */

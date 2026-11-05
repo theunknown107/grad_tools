@@ -30,7 +30,8 @@ import { Avatar, initialsOf } from '../ui/page.js';
 import { BottomSheet } from '../ui/sheet.js';
 import { TooltipProvider } from '../ui/tooltip.js';
 import { DESTINATIONS, MOBILE_TABS, NAV_GROUPS, isActive } from './nav.js';
-import { useKeyboardOpen } from '../../lib/viewport.js';
+import { useKeyboardOpen, useRevealFocusedField } from '../../lib/viewport.js';
+import { useAndroidBack } from '../../lib/android-back.js';
 import { QuickMarkSheet } from '../../features/attendance/QuickMarkSheet.js';
 
 const COLLAPSE_KEY = 'gradtools:v1:sidebar';
@@ -73,6 +74,10 @@ function Shell({
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [moreOpen, setMoreOpen] = useState(false);
   const [markOpen, setMarkOpen] = useState(false);
+  /* Android Back: close the top overlay, then go back, then exit (lib/android-back). */
+  useAndroidBack();
+  /* Keep the focused field and its message above the keyboard (lib/viewport). */
+  useRevealFocusedField();
 
   const { items: announcements } = useAnnouncements();
   const { unread } = useNotifications(announcements);
@@ -220,9 +225,13 @@ function Sidebar({
         /*
          * A floating glass panel, inset from the window like the phone's tab
          * capsule (the approved design's navigation layer). Content never sits
-         * under it, so glass never stacks on glass.
+         * under it, so glass never stacks on glass. The inset is measured from
+         * the system bars, not the screen edge: on a phone in landscape the
+         * status bar would otherwise draw over the top of the panel
+         * (device test 2026-11-05, defect 5). The left inset is already
+         * applied by the shell.
          */
-        'gt-float relative my-3 ml-3 hidden shrink-0 flex-col overflow-hidden rounded-[1.75rem] pt-[var(--gt-safe-top)] transition-[width] duration-300 ease-[var(--ease-out-quint)] md:flex',
+        'gt-float relative mt-[calc(0.75rem+var(--gt-safe-top))] mb-[calc(0.75rem+var(--gt-safe-bottom))] ml-3 hidden shrink-0 flex-col overflow-hidden rounded-[1.75rem] transition-[width] duration-300 ease-[var(--ease-out-quint)] md:flex',
         'w-[88px]',
         collapsed ? 'lg:w-[88px]' : 'lg:w-[256px]',
       )}

@@ -60,6 +60,17 @@ const AuthContext = createContext<AuthContextValue>({
   },
 });
 
+/**
+ * A failure to reach the sign-in service, as opposed to a session it refused:
+ * the adapter's own AuthServiceUnreachable, a fetch that never got an answer,
+ * or the device reporting itself offline.
+ */
+function isUnreachable(error: unknown): boolean {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  if (error instanceof Error && error.name === 'AuthServiceUnreachable') return true;
+  return error instanceof TypeError && /fetch|network|load/i.test(error.message);
+}
+
 export function AuthProvider({
   children,
   /** Injected by tests. Production builds construct one from configuration. */
@@ -90,7 +101,15 @@ export function AuthProvider({
     if (adapter === null) return;
     try {
       settle(await adapter.current());
-    } catch {
+    } catch (error) {
+      /*
+       * Could not reach the sign-in service: the session is UNKNOWN, so say
+       * that (`unreachable`) rather than claim it expired. Nothing is cleared.
+       */
+      if (isUnreachable(error)) {
+        setState({ status: 'unreachable' });
+        return;
+      }
       /*
        * A session we cannot verify is `expired`, not `signed_out`. The
        * difference matters: one is a thing the student did, the other is a
@@ -100,6 +119,17 @@ export function AuthProvider({
       setState({ status: 'expired' });
     }
   }, [adapter, settle]);
+
+  /*
+   * Back online after an unreachable check: try once more, on the device's own
+   * signal. No timer, no loop — a student who stays offline is not polled.
+   */
+  useEffect(() => {
+    if (adapter === null || state.status !== 'unreachable') return;
+    const onOnline = (): void => void refresh();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [adapter, refresh, state.status]);
 
   useEffect(() => {
     if (adapter === null) return;

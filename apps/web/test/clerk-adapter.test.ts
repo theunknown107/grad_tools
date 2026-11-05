@@ -215,8 +215,9 @@ describe('the session', () => {
     const { adapter, clerk } = fakeClerk();
     clerk.loaded = false;
     const pending = adapter.current();
-    vi.advanceTimersByTime(15_000);
-    await expect(pending).rejects.toThrow(/did not load/);
+    vi.advanceTimersByTime(10_000);
+    // Unreachable, not expired: AuthContext tells the student it cannot connect.
+    await expect(pending).rejects.toThrow(/could not be reached/);
     vi.useRealTimers();
   });
 });

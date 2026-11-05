@@ -4,7 +4,7 @@
  * Mounted only when `VITE_CLERK_PUBLISHABLE_KEY` is set (main.tsx).
  */
 
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { AuthenticateWithRedirectCallback, ClerkProvider, useClerk } from '@clerk/react';
 import { useNavigate } from 'react-router-dom';
 import { createClerkAdapter } from '../../repositories/cloud/clerk.js';
@@ -24,6 +24,21 @@ export function ClerkAuth({
   readonly children: ReactNode;
 }) {
   const navigate = useNavigate();
+  /*
+   * Offline, clerk-js's own loader rejects with `failed_to_load_clerk_js` and
+   * nothing in Clerk catches it, so it surfaced as an uncaught promise
+   * rejection (device test 2026-11-05). AuthContext already reports the same
+   * failure to the student as `unreachable`, so mark exactly that rejection
+   * handled — and nothing else.
+   */
+  useEffect(() => {
+    const onRejection = (event: PromiseRejectionEvent): void => {
+      const code = (event.reason as { code?: unknown } | null)?.code;
+      if (code === 'failed_to_load_clerk_js') event.preventDefault();
+    };
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => window.removeEventListener('unhandledrejection', onRejection);
+  }, []);
   return (
     <ClerkProvider
       publishableKey={publishableKey}
