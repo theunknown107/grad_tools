@@ -1,1647 +1,451 @@
 /**
- * Semester results — what the card printed, and what follows from it.
+ * Results — the design's overview (metric row + semester ledger) and
+ * semester-card grid, with search across semesters and course codes/titles.
  *
- * Authority: docs/03 UF-08 · docs/08 §8.19 · docs/32 OQ-049
- *
- * ---------------------------------------------------------------------------
- * THE SHAPE OF A REAL RESULT CARD
- * ---------------------------------------------------------------------------
- *
- * A VTU provisional result prints seven columns — subject code, subject name,
- * internal, external, total, a one-letter result, and the date it was announced
- * — and prints no grade, no grade point, no credits and no SGPA at all. This
- * page used to ask for exactly the three things the card does not print and had
- * nowhere to put the five it does, so a student copying their own card had to
- * invent a grade before anything would save (OQ-049).
- *
- * It now asks for what the card shows. Everything else is optional, stays
- * missing when it is missing, and is labelled where it is calculated.
- *
- * ---------------------------------------------------------------------------
- * SOURCE AND CALCULATED ARE NEVER MIXED
- * ---------------------------------------------------------------------------
- *
- * `domain/results.ts` computes; nothing here does. A calculated total, grade or
- * backlog state is shown NEXT TO the printed one, labelled, and never written
- * over it. Where the two disagree, both stay on screen — a disagreement usually
- * means a transcription slip, and hiding either one hides the slip.
- *
- * Results are entered by the student. GradTools does not retrieve them from any
- * university system, and does not read result cards from images (docs/15 §15.5).
+ * Every SGPA shown comes from the rules engine; a semester that cannot be
+ * graded says "Unavailable" with its reason rather than a dash.
  */
 
-import { Fragment, useMemo, useState } from 'react';
-import { useAcademicState } from '../../hooks/useAcademicState.js';
-import { metricStripEntry } from '../../lib/format.js';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
-import type { Subject } from '@gradtools/shared-types';
-import type { ResultSubject, SemesterResult, SubjectProvenance } from '../../domain/types.js';
-import { RESULT_STATUSES } from '../../domain/types.js';
 import {
-  evaluateResultSubject,
-  normalizeResultSubject,
-  semesterBacklogs,
-  semesterSgpa,
-  validateResultSubject,
-  type ResultSubjectField,
-  type SubjectEvaluation,
-} from '../../domain/results.js';
+  AlertTriangle,
+  CheckCircle2,
+  ChevronRight,
+  ClipboardList,
+  Plus,
+  Search,
+} from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Card } from '../../components/ui/card.js';
+import { Callout, EmptyState } from '../../components/ui/feedback.js';
+import { Input } from '../../components/ui/field.js';
+import { Metric, MetricGrid } from '../../components/ui/metric.js';
+import { PageHeader } from '../../components/ui/page.js';
+import { Progress } from '../../components/ui/progress.js';
+import { Segmented } from '../../components/ui/segmented.js';
+import { PageSkeleton } from '../../components/ui/skeleton.js';
 import { ruleSetForResult } from '../../domain/academics.js';
 import { asStudentProfileId } from '../../domain/identity.js';
-import { PageHeader } from '../../components/AppShell.js';
-import { Icon } from '../../components/icons.js';
-import {
-  Button,
-  EmptyState,
-  Notice,
-  Panel,
-  SelectField,
-  StatusPill,
-  TableScroll,
-  TextField,
-  monoClass,
-  numericClass,
-  tableClass,
-} from '../../components/ui/index.js';
-import { formatCount, formatGpa } from '../../lib/format.js';
-import { IslandTabs, IslandTabGroup, IslandTabPanel } from '../../components/ui/IslandTabs.js';
-import { MetricStrip } from '../../components/ui/layout.js';
-import { MetaPill } from '../../components/ui/tone.js';
-import { DropdownMenu } from '../../components/ui/DropdownMenu.js';
-import { Sheet } from '../../components/ui/Sheet.js';
-import { newId, nowIso } from '../../lib/id.js';
+import { semesterBacklogs } from '../../domain/results.js';
+import { hasNoBacklogs, type SemesterStatistics } from '../../domain/statistics.js';
+import type { SemesterResult } from '../../domain/types.js';
+import { useAcademicState } from '../../hooks/useAcademicState.js';
 import { useProfile, useResults } from '../../hooks/useCollection.js';
-import { useSubjects } from '../../hooks/useReference.js';
-import { DocumentImportPanel } from '../import/DocumentImportPanel.js';
-import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
-import { otherTitles, resolveSubject, type SubjectIdentity } from '../../domain/subjects.js';
-import styles from './results.module.css';
+import { branchCode, formatCount, formatGpa, metricDisplay } from '../../lib/format.js';
+import { ResultEditor } from './ResultEditor.js';
 
-const ruleSet = vtu2022RuleSet;
-
-/** What a missing value reads as. Said the same way everywhere (§4, §22). */
-const ABSENT = 'Not available';
-
-function markText(value: number | null): string {
-  return value === null ? '—' : String(value);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Page                                                                       */
-/* -------------------------------------------------------------------------- */
+type View = 'overview' | 'semesters';
 
 export function ResultsPage() {
-  const { items, loading, save, remove } = useResults();
-  /* The one derived reading, shared with the overview below and every other page. */
+  const { items, loading, save } = useResults();
   const { statistics } = useAcademicState();
-  /*
-   * The import wiring moved to `DocumentImportPanel`, which `/import` also
-   * renders. Results keeps the panel because a student looking at their marks
-   * may as well be able to add some — but only one copy of the wiring exists.
-   */
   const { profile } = useProfile();
-  const { index } = useSubjectIndex();
-  /** The result being edited, `'new'` while adding, null when neither. */
-  const [editing, setEditing] = useState<SemesterResult | 'new' | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [view, setView] = useState('overview');
-  /** What the search box holds. Filters the lists; never the cumulative figures. */
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const [view, setView] = useState<View>('overview');
   const [query, setQuery] = useState('');
-  /**
-   * The semester whose full record is open, or null for the grid of semesters.
-   *
-   * The approved design reaches a record through a card rather than by
-   * scrolling past every other semester, and gives the record a "Back to
-   * results" of its own. GradTools keeps it on one route because a semester is
-   * not separately addressable in this product — nothing links to one.
-   */
-  const [openSemester, setOpenSemester] = useState<number | null>(null);
+  const editing = params.get('new') === '1';
 
-  /*
-   * Whether any saved semester's grade card and calculated SGPA disagree. The
-   * REASON a disagreement matters is worth one sentence and is said ONCE here
-   * (M9.3 §24); each semester that disagrees then needs only its two figures.
-   */
-  const anyMismatch = statistics.views.some((view) => view.sgpaDisagrees);
+  const closeEditor = (): void => {
+    const next = new URLSearchParams(params);
+    next.delete('new');
+    setParams(next, { replace: true });
+  };
 
-  /* Programme and scheme, from the profile — never a placeholder. */
+  if (loading) return <PageSkeleton label="Loading your results" />;
+
   const eyebrow =
-    [profile?.branch, profile?.schemeId === 'vtu-2022' ? '2022 scheme' : null]
+    [
+      profile?.branch ? branchCode(profile.branch) : null,
+      profile?.schemeId === 'vtu-2022' ? '2022 scheme' : null,
+    ]
       .filter((part): part is string => part !== undefined && part !== null && part !== '')
-      .join(' · ') || null;
-
-  /*
-   * SEARCH FILTERS THE LISTS, NOT THE RECORD (approved design).
-   *
-   * A semester matches on its own name or on any subject it holds — code or
-   * title — because "BCS301" and "data structures" are both things a student
-   * would type. The cumulative figures above the list are deliberately NOT
-   * filtered: CGPA over the semesters that happen to match a search term is not
-   * a number that means anything.
-   */
+      .join(' · ') || 'Academic record';
   const needle = query.trim().toLowerCase();
-  const shown =
-    needle === ''
-      ? items
-      : items.filter(
-          (item) =>
-            `semester ${String(item.semester)}`.includes(needle) ||
-            item.subjects.some((subject) =>
-              `${subject.subjectTitle} ${subject.subjectCode}`.toLowerCase().includes(needle),
-            ),
-        );
-  const sorted = [...shown].sort((a, b) => a.semester - b.semester);
-  /* Resolved from `items`, not `shown`: a search must not shut an open record. */
-  const openResult = items.find((item) => item.semester === openSemester) ?? null;
+  const sorted = [...items]
+    .filter(
+      (item) =>
+        needle === '' ||
+        `semester ${String(item.semester)} s${String(item.semester)}`.includes(needle) ||
+        item.subjects.some((subject) =>
+          `${subject.subjectTitle} ${subject.subjectCode ?? ''}`.toLowerCase().includes(needle),
+        ),
+    )
+    .sort((a, b) => a.semester - b.semester);
+  const anyMismatch = statistics.views.some((entry) => entry.sgpaDisagrees);
+  const statsFor = (semester: number): SemesterStatistics | null =>
+    statistics.semesters.find((entry) => entry.number === semester) ?? null;
+
+  const cgpa = metricDisplay(statistics.cgpa, formatGpa);
+  const credits = metricDisplay(statistics.creditsEarned);
+  const backlogCount = statistics.backlogsFromResults.value ?? 0;
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <PageHeader
-        /*
-          The approved design names the programme and scheme this record
-          belongs to. Both come from the stored profile; where a student has
-          set neither, the line is omitted rather than filled in.
-        */
-        {...(eyebrow === null ? {} : { eyebrow })}
+        eyebrow={eyebrow}
         title="Results"
-        subtitle="Enter a result card as it is printed. SGPA, CGPA and backlogs follow from it."
-        pills={
-          items.length === 0 ? undefined : (
-            <>
-              <MetaPill>{formatCount(items.length, 'semester')}</MetaPill>
-              <MetaPill>
-                {formatCount(
-                  items.reduce((sum, item) => sum + item.subjects.length, 0),
-                  'subject',
-                )}
-              </MetaPill>
-              {profile?.schemeId === 'vtu-2022' && <MetaPill>2022 scheme</MetaPill>}
-            </>
-          )
-        }
-        action={
+        description="Every semester, course and grade in one academic record."
+        actions={
           <>
-            <Button
-              onClick={() => {
-                setImporting((current) => !current);
-                setEditing(null);
-              }}
-            >
-              <Icon name="results" size="nav" />
-              {importing ? 'Close import' : 'Add academic document'}
+            <Button asChild variant="secondary">
+              <Link to="/academics">SGPA &amp; CGPA</Link>
             </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                setEditing((current) => (current === null ? 'new' : null));
-                setImporting(false);
-              }}
-            >
-              <Icon name="plus" size="nav" />
-              {editing === null ? 'Add a semester' : 'Cancel'}
+            <Button asChild variant="secondary">
+              <Link to="/results/get">Get VTU result</Link>
+            </Button>
+            <Button asChild variant="primary" icon={<Plus />}>
+              <Link to="/import">Add result</Link>
             </Button>
           </>
         }
       />
 
-      <div className={styles.stack}>
-        <Notice>
-          GradTools does not fetch results from the university portal. That site asks automated
-          tools not to access it, and we respect that. We never ask for your portal password either.
-          Enter a result once and everything else works from there.
-        </Notice>
+      {editing && (
+        <ResultEditor
+          existing={null}
+          taken={items.map((item) => item.semester)}
+          profileId={profile?.id ?? asStudentProfileId('local')}
+          schemeId={profile?.schemeId ?? vtu2022RuleSet.schemeId}
+          branch={profile?.branch ?? null}
+          onCancel={closeEditor}
+          onSave={(result) => {
+            void save(result).then(() => navigate(`/results/${String(result.semester)}`));
+          }}
+        />
+      )}
 
-        {anyMismatch && (
-          <p className={styles.mismatchHelp}>
-            Where a grade card and the calculated figure disagree, GradTools shows both rather than
-            picking one. It usually means a subject entry has a typo, or a grade needs checking.
-          </p>
-        )}
-
-        {importing && (
-          /* The same panel `/import` shows. One wiring, so the two cannot drift. */
-          <DocumentImportPanel
-            title="Add academic document"
-            onDone={() => {
-              setImporting(false);
-            }}
-          />
-        )}
-
-        {editing !== null && (
-          <ResultEditor
-            key={editing === 'new' ? 'new' : editing.id}
-            existing={editing === 'new' ? null : editing}
-            /*
-             * The semesters that already have a result, so a second record for
-             * one cannot be created (§23). Found by the OQ-049 browser sweep:
-             * two "Semester 3" sections rendered happily, and
-             * `buildSemesterViews` reads the FIRST match — so everything
-             * downstream of the second one silently did nothing.
-             */
-            taken={items
-              .filter((item) => editing === 'new' || item.id !== editing.id)
-              .map((item) => item.semester)}
-            profileId={profile?.id ?? asStudentProfileId('local')}
-            schemeId={profile?.schemeId ?? ruleSet.schemeId}
-            branch={profile?.branch ?? null}
-            onCancel={() => {
-              setEditing(null);
-            }}
-            onSave={(result) => {
-              void save(result);
-              setEditing(null);
-            }}
-          />
-        )}
-
-        {loading ? null : items.length === 0 ? (
+      {items.length === 0 ? (
+        !editing && (
           <EmptyState
+            icon={<ClipboardList />}
             title="No results yet"
-            icons={['results', 'gpa', 'degree']}
-            action={
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setEditing('new');
-                }}
-              >
-                Add a semester
-              </Button>
+            description="Import a result card or enter a semester by hand to see SGPA and CGPA."
+            actions={
+              <>
+                <Button asChild variant="primary" icon={<Plus />}>
+                  <Link to="/import">Add result</Link>
+                </Button>
+                <Button onClick={() => setParams({ new: '1' })}>Add a semester</Button>
+              </>
             }
-          >
-            Enter a semester result to see SGPA, CGPA and backlogs.
-          </EmptyState>
-        ) : (
-          <>
-            {/*
-              THE PASTEL RAIL IS GONE. It was a sideways strip of cards above
-              the tabs, each carrying a semester number, its SGPA and its
-              subject count — which is precisely what the Semesters tab now
-              shows, in a grid that fits on screen. The approved design has no
-              such band, and keeping it meant every semester appeared three
-              times on one page (§43).
-            */}
-            <IslandTabGroup value={view} onChange={setView}>
-              {/*
-                TABS AND SEARCH ON ONE LINE, as the design draws them: the view
-                switch at the start, the search box at the end, stacking at
-                narrow widths with the search box ABOVE the tabs.
-              */}
-              <div className={styles.controls}>
-                <IslandTabs
-                  label="Results view"
-                  value={view}
-                  onChange={setView}
-                  tabs={[
-                    { id: 'overview', label: 'Overview' },
-                    { id: 'semesters', label: 'Semesters', count: items.length },
-                  ]}
+          />
+        )
+      ) : (
+        <>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Segmented<View>
+              label="Results view"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'overview', label: 'Overview' },
+                { value: 'semesters', label: `Semesters · ${String(items.length)}` },
+              ]}
+            />
+            <div className="relative w-full sm:w-72">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-3"
+              />
+              <Input
+                type="search"
+                aria-label="Search semesters and subjects"
+                placeholder="Search semester or course…"
+                className="pl-9"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+          </div>
+
+          {anyMismatch && (
+            <Callout tone="warning">
+              Where a grade card and the calculated figure disagree, GradTools shows both rather
+              than picking one. It usually means a subject entry has a typo, or a grade needs
+              checking.
+            </Callout>
+          )}
+
+          {view === 'overview' ? (
+            <>
+              <MetricGrid>
+                <Metric
+                  label="CGPA"
+                  value={cgpa.value}
+                  state={statistics.cgpa.value === null ? 'unavailable' : 'resolved'}
+                  sub={cgpa.note ?? 'Credit-weighted'}
                 />
-                <div className={styles.search}>
-                  <TextField
+                <Metric
+                  label="Credits earned"
+                  value={credits.value}
+                  state={statistics.creditsEarned.value === null ? 'unavailable' : 'resolved'}
+                  sub={credits.note}
+                />
+                <Metric
+                  label="Courses passed"
+                  value={statistics.outcomes.passed}
+                  sub={
+                    statistics.outcomes.unresolved > 0
+                      ? `${String(statistics.outcomes.unresolved)} still to review`
+                      : `of ${String(statistics.grades.total)} courses`
+                  }
+                />
+                <Metric
+                  /* The results' own figure; the unqualified "Backlogs" is the recorded one (OQ-056). */
+                  label="Backlogs in your results"
+                  value={
+                    statistics.backlogsUndetermined > 0
+                      ? `${String(backlogCount)}+`
+                      : String(backlogCount)
+                  }
+                  emphasis={backlogCount > 0 ? 'warning' : undefined}
+                  sub={
+                    statistics.backlogsFromResults.reason ??
                     /*
-                      The design gives this field no visible label. The label
-                      still exists — a search box with no accessible name is
-                      unusable with a screen reader, and that is the one thing
-                      the design does not get to overrule (docs/27 §27.11).
-                    */
-                    label="Search semesters and subjects"
-                    hideLabel
-                    icon="search"
-                    type="search"
-                    placeholder="Search semester or course…"
-                    value={query}
-                    onChange={(event) => {
-                      setQuery(event.target.value);
-                    }}
-                  />
-                </div>
-              </div>
-
-              <IslandTabPanel id="overview">
-                {sorted.length === 0 ? (
-                  <NoMatches query={query} />
-                ) : (
-                  <ResultsOverview
-                    items={sorted}
-                    onOpen={(semester) => {
-                      /*
-                        The full record lives on the Semesters tab, so opening a
-                        semester switches to it and opens that record — the
-                        route does not change, because the record is not a
-                        separate page in this product.
-                      */
-                      setView('semesters');
-                      setOpenSemester(semester);
-                    }}
-                  />
-                )}
-              </IslandTabPanel>
-              <IslandTabPanel id="semesters">
-                {openResult !== null ? (
-                  <div className={styles.stack}>
-                    <button
-                      type="button"
-                      className={styles.back}
-                      onClick={() => {
-                        setOpenSemester(null);
-                      }}
-                    >
-                      <Icon name="arrowLeft" size="small" />
-                      Back to results
-                    </button>
-                    <SavedResult
-                      result={openResult}
-                      index={index}
-                      onEdit={() => {
-                        setEditing(openResult);
-                      }}
-                      onRemove={() => {
-                        setOpenSemester(null);
-                        void remove(openResult.id);
-                      }}
-                    />
-                  </div>
-                ) : sorted.length === 0 ? (
-                  <NoMatches query={query} />
-                ) : (
-                  /* The design's card grid: one tile per semester, two up. */
-                  <div className={styles.cards}>
-                    {sorted.map((result) => (
-                      <SemesterCard
-                        key={result.id}
-                        result={result}
-                        onOpen={() => {
-                          setOpenSemester(result.semester);
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </IslandTabPanel>
-            </IslandTabGroup>
-          </>
-        )}
-      </div>
-    </>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Editor                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * One row being typed.
- *
- * Every mark is held as a STRING while the student types, because "" and 0 are
- * different answers and a number-typed state cannot hold the first one. The
- * conversion to `ResultSubject` is where "" becomes null — which is what an
- * empty column on a card means.
- */
-interface DraftSubject {
-  readonly id: string;
-  readonly subjectCode: string;
-  readonly subjectTitle: string;
-  readonly internal: string;
-  readonly external: string;
-  readonly total: string;
-  readonly resultStatus: string;
-  readonly gradeLetter: string;
-  readonly credits: string;
-  /** Tri-state, because unknown must be expressible (DEC-037). */
-  readonly hasSee: 'yes' | 'no' | 'unknown';
-  /** The catalogue course the student has declared this row to be, or null. */
-  readonly catalogueCode: string | null;
-  /** How the row came to be. Carried through; linking never rewrites it. */
-  readonly provenance: SubjectProvenance;
-  /** Carried through untouched: the editor never offers to change a source grade point. */
-  readonly gradePoint: number | null;
-}
-
-function blankSubject(): DraftSubject {
-  return {
-    id: newId(),
-    subjectCode: '',
-    subjectTitle: '',
-    internal: '',
-    external: '',
-    total: '',
-    resultStatus: '',
-    gradeLetter: '',
-    credits: '',
-    hasSee: 'unknown',
-    catalogueCode: null,
-    /* Typed into this editor by the student, which is what manual means. */
-    provenance: 'manual',
-    gradePoint: null,
-  };
-}
-
-function toDraft(subject: ResultSubject): DraftSubject {
-  return {
-    id: subject.id,
-    /* The form holds strings; absent is the empty field, as it is for the rest. */
-    subjectCode: subject.subjectCode ?? '',
-    subjectTitle: subject.subjectTitle,
-    internal: subject.internal === null ? '' : String(subject.internal),
-    external: subject.external === null ? '' : String(subject.external),
-    total: subject.total === null ? '' : String(subject.total),
-    resultStatus: subject.resultStatus ?? '',
-    gradeLetter: subject.gradeLetter ?? '',
-    credits: subject.credits === null ? '' : String(subject.credits),
-    hasSee: subject.hasSee === null ? 'unknown' : subject.hasSee ? 'yes' : 'no',
-    catalogueCode: subject.catalogueCode,
-    provenance: subject.provenance,
-    gradePoint: subject.gradePoint,
-  };
-}
-
-/**
- * A typed row as a stored one.
- *
- * `normalizeResultSubject` does the "" → null conversion, so the editor and the
- * storage boundary cannot disagree about what an empty field means.
- */
-function toSubject(draft: DraftSubject, announcedOn: string): ResultSubject {
-  return normalizeResultSubject({
-    id: draft.id,
-    /*
-     * Left EMPTY means the student has none, not that they forgot: a row is
-     * saved on a code or a name, and `validateResultSubject` requires one of
-     * the two. Null rather than '' so storage and sync say "absent" once.
-     */
-    subjectCode: draft.subjectCode.trim() === '' ? null : draft.subjectCode.trim().toUpperCase(),
-    subjectTitle:
-      draft.subjectTitle.trim() === ''
-        ? draft.subjectCode.trim().toUpperCase()
-        : draft.subjectTitle.trim(),
-    internal: draft.internal,
-    external: draft.external,
-    total: draft.total,
-    resultStatus: draft.resultStatus,
-    announcedOn,
-    gradeLetter: draft.gradeLetter,
-    gradePoint: draft.gradePoint,
-    credits: draft.credits,
-    hasSee: draft.hasSee === 'unknown' ? null : draft.hasSee === 'yes',
-    /*
-     * HOW THE ROW CAME TO BE, which linking does not change (§8). A row the
-     * student typed stays theirs after they identify it; the identification
-     * is `catalogueCode` beside this, not a replacement for it.
-     */
-    provenance: draft.provenance,
-    catalogueCode: draft.catalogueCode,
-  });
-}
-
-function ResultEditor({
-  existing,
-  taken,
-  profileId,
-  schemeId,
-  branch,
-  onSave,
-  onCancel,
-}: {
-  readonly existing: SemesterResult | null;
-  /** Semesters that already carry a result, other than the one being edited. */
-  readonly taken: readonly number[];
-  readonly profileId: ReturnType<typeof asStudentProfileId>;
-  readonly schemeId: string;
-  readonly branch: string | null;
-  readonly onSave: (result: SemesterResult) => void;
-  readonly onCancel: () => void;
-}) {
-  const [semester, setSemester] = useState(String(existing?.semester ?? 3));
-  const [sgpaAsserted, setSgpaAsserted] = useState(
-    existing?.sgpaAsserted === null || existing === null ? '' : String(existing.sgpaAsserted),
-  );
-  const [announcedOn, setAnnouncedOn] = useState(
-    existing?.subjects.find((subject) => subject.announcedOn !== null)?.announcedOn ?? '',
-  );
-  const [subjects, setSubjects] = useState<DraftSubject[]>(() =>
-    existing === null ? [blankSubject()] : existing.subjects.map(toDraft),
-  );
-  const [showErrors, setShowErrors] = useState(false);
-
-  /*
-   * The catalogue for the chosen semester. It is what makes credits and SEE
-   * applicability authoritative rather than typed (§6, §11, §15) — and it is
-   * OPTIONAL: when the server is unreachable the picker simply is not offered
-   * and every row is entered manually, because a local-first app cannot make
-   * entering your own marks depend on a network call (§26).
-   */
-  const catalogue = useSubjects(schemeId, branch ?? undefined, Number(semester));
-  const options = catalogue.state.status === 'ready' ? catalogue.state.data : [];
-
-  const update = (id: string, patch: Partial<DraftSubject>) => {
-    setSubjects((current) =>
-      current.map((subject) => (subject.id === id ? { ...subject, ...patch } : subject)),
-    );
-  };
-
-  /**
-   * Choosing a catalogued subject fills in what the catalogue knows.
-   *
-   * The code, the title, the credits and whether the course has a SEE, all in
-   * one action — so the student never types metadata GradTools already holds
-   * (§19). Choosing "enter manually" clears only the identity, not the marks
-   * that have already been typed into the row.
-   */
-  const pick = (draft: DraftSubject, subject: Subject | null) => {
-    update(
-      draft.id,
-      subject === null
-        ? {
-            /*
-             * UNLINKING KEEPS THE ROW (§9).
-             *
-             * This used to blank the code, the title and the credits, so a
-             * student who linked a row and changed their mind lost everything
-             * they had typed — including the values that were theirs before
-             * the link was ever made. Removing a declaration is not deleting
-             * a record: only the declaration goes.
-             */
-            catalogueCode: null,
-          }
-        : {
-            subjectCode: subject.code,
-            subjectTitle: subject.title,
-            /*
-             * THREE-VALUED IN, THREE-VALUED OUT (OQ-052). Both of these are
-             * nullable in the catalogue since M10A.2, and both are the kind of
-             * null TypeScript will not complain about collapsing: `String(null)`
-             * is `"null"`, and `hasSee ? 'yes' : 'no'` quietly answers "no" for
-             * a subject nobody has checked — which is the exact reading DEC-037
-             * forbids, arrived at by writing the shorter expression.
-             *
-             * A catalogue that does not know leaves the student's own answer
-             * where it was rather than filling it in wrongly.
-             */
-            credits: subject.credits === null ? '' : String(subject.credits),
-            hasSee: subject.hasSee === null ? 'unknown' : subject.hasSee ? 'yes' : 'no',
-            /*
-             * The declaration, recorded as the code the catalogue actually
-             * has — this comes from picking a catalogue row, so it is an exact
-             * code by construction and never a resemblance (§6).
-             */
-            catalogueCode: subject.code,
-          },
-    );
-  };
-
-  /*
-   * ONE RESULT PER SEMESTER. A second record for a semester that already has
-   * one is not a richer history — `buildSemesterViews` matches by number and
-   * uses the first, so the duplicate contributes nothing to the SGPA, the CGPA
-   * or the degree timeline while looking on this page like a saved semester.
-   * The row menu's Edit is the way to change one (§23).
-   */
-  const duplicate = taken.includes(Number(semester));
-
-  const rows = subjects.map((draft) => ({
-    draft,
-    subject: toSubject(draft, announcedOn),
-  }));
-  const issues = new Map(
-    rows.map(({ draft, subject }) => [draft.id, validateResultSubject(subject, ruleSet)]),
-  );
-  const invalid = [...issues.values()].some((list) => list.length > 0);
-
-  const errorFor = (id: string, field: ResultSubjectField): string | undefined => {
-    if (!showErrors) return undefined;
-    return issues.get(id)?.find((issue) => issue.field === field)?.message;
-  };
-
-  const commit = () => {
-    if (invalid || duplicate) {
-      setShowErrors(true);
-      return;
-    }
-    onSave({
-      id: existing?.id ?? newId(),
-      profileId,
-      semester: Number(semester),
-      schemeId: existing?.schemeId ?? ruleSet.schemeId,
-      /*
-       * PINNED AT ENTRY, and kept on edit. A later rule set must never silently
-       * re-grade a semester that has already been sat, and editing a typo in
-       * one mark is not a reason to re-pin the whole semester (M6 §6).
-       */
-      ruleSetId: existing?.ruleSetId ?? ruleSet.id,
-      sgpaAsserted: sgpaAsserted.trim() === '' ? null : Number(sgpaAsserted),
-      subjects: rows.map((row) => row.subject),
-      createdAt: existing?.createdAt ?? nowIso(),
-      updatedAt: nowIso(),
-    });
-  };
-
-  return (
-    <Panel
-      title={
-        existing === null ? 'New semester result' : `Editing semester ${String(existing.semester)}`
-      }
-      flush
-    >
-      <div className={styles.editorMeta}>
-        <SelectField
-          label="Semester"
-          value={semester}
-          onChange={(event) => {
-            setSemester(event.target.value);
-          }}
-        >
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((value) => (
-            <option key={value} value={value}>
-              Semester {value}
-            </option>
-          ))}
-        </SelectField>
-        <TextField
-          label="Announced on"
-          hint="The date printed on the card. Optional."
-          type="date"
-          value={announcedOn}
-          onChange={(event) => {
-            setAnnouncedOn(event.target.value);
-          }}
-        />
-        <TextField
-          label="SGPA printed on your grade card"
-          hint="Optional. A provisional result does not print one."
-          inputMode="decimal"
-          placeholder="8.43"
-          value={sgpaAsserted}
-          onChange={(event) => {
-            setSgpaAsserted(event.target.value);
-          }}
-        />
-      </div>
-
-      <ul className={styles.subjectRows}>
-        {rows.map(({ draft }, index) => {
-          const position = String(index + 1);
-          return (
-            <li className={styles.editorRow} key={draft.id}>
-              <div className={styles.editorSubject}>
-                {options.length > 0 && (
-                  <SelectField
-                    label={`Subject ${position}`}
-                    value={draft.catalogueCode ?? ''}
-                    onChange={(event) => {
-                      pick(
-                        draft,
-                        options.find((subject) => subject.code === event.target.value) ?? null,
-                      );
-                    }}
-                  >
-                    <option value="">Enter manually</option>
-                    {options.map((subject) => (
-                      <option key={subject.id} value={subject.code}>
-                        {subject.code} — {subject.title}
-                      </option>
-                    ))}
-                  </SelectField>
-                )}
-                <TextField
-                  label={options.length > 0 ? `Code ${position}` : `Subject code ${position}`}
-                  placeholder="BCS301"
-                  mono
-                  readOnly={draft.catalogueCode !== null}
-                  value={draft.subjectCode}
-                  error={errorFor(draft.id, 'subjectCode')}
-                  onChange={(event) => {
-                    update(draft.id, { subjectCode: event.target.value });
-                  }}
+                     * The figure is the results' own; "Clear record" is a claim
+                     * about the student, so it also needs no recorded backlog.
+                     */
+                    (hasNoBacklogs(statistics) ? 'Clear record' : undefined)
+                  }
                 />
-                <TextField
-                  label={`Subject name ${position}`}
-                  hint={draft.catalogueCode !== null ? undefined : 'Optional.'}
-                  readOnly={draft.catalogueCode !== null}
-                  value={draft.subjectTitle}
-                  onChange={(event) => {
-                    update(draft.id, { subjectTitle: event.target.value });
-                  }}
-                />
-              </div>
-
-              <TextField
-                label={`Internal ${position}`}
-                inputMode="numeric"
-                value={draft.internal}
-                error={errorFor(draft.id, 'internal')}
-                onChange={(event) => {
-                  update(draft.id, { internal: event.target.value });
-                }}
-              />
-              <TextField
-                label={`External ${position}`}
-                hint={draft.hasSee === 'no' ? 'No SEE' : undefined}
-                inputMode="numeric"
-                value={draft.external}
-                error={errorFor(draft.id, 'external')}
-                onChange={(event) => {
-                  update(draft.id, { external: event.target.value });
-                }}
-              />
-              <TextField
-                label={`Total ${position}`}
-                inputMode="numeric"
-                value={draft.total}
-                error={errorFor(draft.id, 'total')}
-                onChange={(event) => {
-                  update(draft.id, { total: event.target.value });
-                }}
-              />
-              <SelectField
-                label={`Result ${position}`}
-                value={draft.resultStatus}
-                onChange={(event) => {
-                  update(draft.id, { resultStatus: event.target.value });
-                }}
-              >
-                <option value="">—</option>
-                {RESULT_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </SelectField>
-              {/*
-                SEE APPLICABILITY IS ASKED, NEVER INFERRED (§11, DEC-037). The
-                catalogue answers it where it can; where it cannot, "Not sure"
-                is a real answer that leaves the backlog state unknown rather
-                than guessing it from an external of 0.
-              */}
-              <SelectField
-                label={`Semester-end exam ${position}`}
-                value={draft.hasSee}
-                onChange={(event) => {
-                  update(draft.id, { hasSee: event.target.value as DraftSubject['hasSee'] });
-                }}
-              >
-                <option value="unknown">Not sure</option>
-                <option value="yes">Yes</option>
-                <option value="no">No — internal only</option>
-              </SelectField>
-              <TextField
-                label={`Credits ${position}`}
-                hint={draft.catalogueCode !== null ? 'From the catalogue' : undefined}
-                inputMode="decimal"
-                value={draft.credits}
-                error={errorFor(draft.id, 'credits')}
-                onChange={(event) => {
-                  update(draft.id, { credits: event.target.value });
-                }}
-              />
-              <SelectField
-                label={`Grade ${position}`}
-                hint="Only if your card prints one."
-                value={draft.gradeLetter}
-                onChange={(event) => {
-                  update(draft.id, { gradeLetter: event.target.value });
-                }}
-              >
-                <option value="">—</option>
-                {[...ruleSet.gradeBands, ...ruleSet.specialGrades].map((grade) => (
-                  <option key={grade.letter} value={grade.letter}>
-                    {grade.letter}
-                  </option>
-                ))}
-              </SelectField>
-
-              <Button
-                variant="danger"
-                iconOnly
-                aria-label={`Remove subject ${position}`}
-                disabled={subjects.length === 1}
-                onClick={() => {
-                  setSubjects((current) =>
-                    current.filter((candidate) => candidate.id !== draft.id),
-                  );
-                }}
-              >
-                <Icon name="trash" size="nav" />
-              </Button>
-            </li>
-          );
-        })}
-      </ul>
-
-      {duplicate && (
-        <div className={styles.editorNotice}>
-          <Notice tone="warning">
-            Semester {semester} already has a result saved. Choose another semester, or close this
-            and use <strong>Edit this semester</strong> on the one you already have — a second
-            record for the same semester would not be counted.
-          </Notice>
-        </div>
+              </MetricGrid>
+              {statistics.backlogsUndetermined > 0 && (
+                <Callout tone="warning">
+                  {formatCount(statistics.backlogsUndetermined, 'subject')} could not be checked for
+                  a backlog, because whether the course has a semester-end exam is not recorded. The
+                  backlog count is at least {backlogCount}.
+                </Callout>
+              )}
+              {sorted.length === 0 ? (
+                <NoMatches query={query} />
+              ) : (
+                <ol className="grid gap-3">
+                  {sorted.map((result) => (
+                    <li key={result.id}>
+                      <SemesterRow result={result} stats={statsFor(result.semester)} />
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
+          ) : sorted.length === 0 ? (
+            <NoMatches query={query} />
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {sorted.map((result) => (
+                <li key={result.id}>
+                  <SemesterCard result={result} stats={statsFor(result.semester)} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
-      {showErrors && invalid && (
-        <div className={styles.editorNotice}>
-          <Notice tone="warning">
-            Some rows do not match the card. Nothing is corrected for you — check the marks against
-            what is printed.
-          </Notice>
-        </div>
-      )}
-
-      <div className={styles.editorActions}>
-        <Button
-          onClick={() => {
-            setSubjects((current) => [...current, blankSubject()]);
-          }}
-        >
-          <Icon name="plus" size="nav" />
-          Add subject
-        </Button>
-        <Button onClick={onCancel}>Cancel</Button>
-        <Button variant="primary" onClick={commit}>
-          {existing === null ? 'Save semester' : 'Save changes'}
-        </Button>
-      </div>
-    </Panel>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Overview                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Cumulative standing, and one quiet row per semester.
- *
- * Every figure comes from the rules engine through `semesterSgpa`, which is
- * also what decides that an incomplete semester has no SGPA — so a provisional
- * result appears in the ledger with its subjects and credits and an em dash
- * where a figure would mislead.
- */
-function ResultsOverview({
-  items,
-  onOpen,
-}: {
-  readonly items: readonly SemesterResult[];
-  /** Opens the semester a row names — the tab that holds its full record. */
-  readonly onOpen: (semester: number) => void;
-}) {
-  /*
-   * THE SHARED READING (18). This built its own `semesterSgpa` loop and its
-   * own `calculateCGPA` call, which is a third answer to a question the
-   * dashboard and the degree page were already answering separately.
-   */
-  const { statistics } = useAcademicState();
-
-  const perSemester = [...items]
-    .sort((a, b) => a.semester - b.semester)
-    .map((result) => {
-      const { ruleSet: resolved } = ruleSetForResult(result);
-      return {
-        result,
-        stats: statistics.semesters.find((entry) => entry.number === result.semester) ?? null,
-        ...semesterBacklogs(result, resolved),
-      };
-    });
-
-  const undetermined = perSemester.reduce((total, entry) => total + entry.undetermined, 0);
-  const backlogs = perSemester.reduce((total, entry) => total + entry.backlogs, 0);
-
-  return (
-    <div className={styles.overview}>
-      {/*
-        EVERY FIGURE FROM THE ONE DERIVED STATE, and each one saying what it
-        knows rather than dashing (1, 4). "Passed" and "Credits earned" are
-        here because neither needs an SGPA — they survive a semester that
-        cannot be graded, which is the whole point of 4.
-      */}
-      <MetricStrip
-        metrics={[
-          metricStripEntry('CGPA', statistics.cgpa, formatGpa),
-          { label: 'Semesters', value: String(perSemester.length) },
-          { label: 'Subjects', value: String(statistics.grades.total) },
-          {
-            label: 'Passed',
-            value: String(statistics.outcomes.passed),
-            ...(statistics.outcomes.unresolved > 0
-              ? { note: `${String(statistics.outcomes.unresolved)} still to review` }
-              : {}),
-          },
-          {
-            /*
-              A "+" IS NOT DECORATION. It says the count is a floor, because a
-              row whose SEE applicability is unknown cannot be checked at all.
-            */
-            label: 'Backlogs',
-            value:
-              statistics.backlogsUndetermined > 0
-                ? `${String(statistics.backlogsFromResults.value ?? 0)}+`
-                : String(statistics.backlogsFromResults.value ?? 0),
-            ...(statistics.backlogsFromResults.reason === null
-              ? {}
-              : { note: statistics.backlogsFromResults.reason }),
-          },
-          metricStripEntry('Credits earned', statistics.creditsEarned),
-        ]}
-      />
-
-      {/*
-        A "+" ON A BACKLOG COUNT IS NOT DECORATION. Where a row's SEE
-        applicability is unknown its pass state cannot be worked out, so the
-        count is a floor rather than a total — and the number a student most
-        needs to be right about must not quietly read as complete.
-      */}
-      {undetermined > 0 && (
-        <p className={styles.mismatchHelp}>
-          {String(undetermined)} subject{undetermined === 1 ? '' : 's'} could not be checked for a
-          backlog, because whether the course has a semester-end exam is not recorded. The backlog
-          count is at least {String(backlogs)}.
-        </p>
-      )}
-
-      <ol className={styles.ledger}>
-        {perSemester.map((entry) => {
-          const sgpaValue = entry.stats?.sgpa.value ?? null;
-          return (
-            <li key={entry.result.id}>
-              {/*
-                THE ROW IS THE CONTROL, from the approved design: a card you
-                press to open the semester it names, with the number on a tile,
-                what it contains beside it, and its SGPA at the end.
-                
-                It was a hairline-separated line of text that did nothing —
-                the one place on the page listing every semester, and the only
-                way to reach one was to change tab and scroll.
-              */}
-              <button
-                type="button"
-                className={styles.ledgerRow}
-                onClick={() => {
-                  onOpen(entry.result.semester);
-                }}
-              >
-                <span className={styles.ledgerSemester}>S{entry.result.semester}</span>
-                <span className={styles.ledgerBody}>
-                  <span className={styles.ledgerName}>Semester {entry.result.semester}</span>
-                  <span className={styles.ledgerMeta}>
-                    {entry.result.subjects.length} subjects
-                    {/*
-                  IMPORTED, RESOLVED, PARTIAL (§12). A semester where eight of
-                  nine courses resolved says so, rather than looking identical
-                  to one where all nine did and simply showing no SGPA.
-                */}
-                    {entry.stats !== null && entry.stats.unresolvedCourses > 0
-                      ? ` · ${String(entry.stats.resolvedCourses)} resolved · ${String(entry.stats.unresolvedCourses)} need review`
-                      : ''}
-                    {(entry.stats?.creditsAttempted.value ?? 0) > 0
-                      ? ` · ${String(entry.stats?.creditsAttempted.value ?? 0)} credits`
-                      : ''}
-                    {entry.backlogs > 0 ? ` · ${String(entry.backlogs)} backlog` : ''}
-                  </span>
-                </span>
-                {/*
-              The bar is scaled across the PASSING range (4-10), not 0-10:
-              below 4 a course is failed, so the lower 40% of a 0-10 bar is a
-              region no SGPA can occupy and every real reading would sit in the
-              top half looking identical.
-            */}
-                <span className={styles.ledgerBar} aria-hidden="true">
-                  <span
-                    style={{
-                      inlineSize:
-                        sgpaValue === null
-                          ? '0%'
-                          : `${String(Math.max(0, Math.min(100, ((sgpaValue - 4) / 6) * 100)))}%`,
-                    }}
-                  />
-                </span>
-                {/*
-              A semester with no SGPA says so in words rather than with a dash,
-              and its reason follows the row (1).
-            */}
-                <span className={styles.ledgerFigure}>
-                  <span className={styles.ledgerFigureLabel}>SGPA</span>
-                  <span
-                    className={styles.ledgerSgpa}
-                    data-absent={sgpaValue === null ? 'true' : undefined}
-                    title={entry.stats?.sgpa.reason ?? undefined}
-                  >
-                    {sgpaValue === null ? 'Unavailable' : formatGpa(sgpaValue)}
-                  </span>
-                </span>
-                {/*
-                  The state the design puts at the end of the row, said for a
-                  real record: cleared, carrying a backlog, or not checkable.
-                  Below 900px it is dropped — the row has no width for it, and
-                  the record behind the row says the same thing in full.
-                */}
-                <span className={styles.ledgerState}>
-                  {entry.backlogs > 0 ? (
-                    <StatusPill tone="danger">{formatCount(entry.backlogs, 'backlog')}</StatusPill>
-                  ) : entry.undetermined > 0 ? (
-                    <StatusPill tone="neutral">Needs review</StatusPill>
-                  ) : (
-                    <StatusPill tone="success">Completed</StatusPill>
-                  )}
-                </span>
-                <Icon name="chevronRight" size="nav" />
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+      <p className="text-[12px] leading-relaxed text-ink-3">
+        GradTools does not fetch results from the university portal — that site asks automated tools
+        not to access it, and we respect that. We never ask for your portal password either. Enter a
+        result card as it is printed, or import it, and SGPA and CGPA follow from it.
+      </p>
     </div>
   );
 }
 
-/** Nothing matched what was typed — said with the term, so it can be corrected. */
 function NoMatches({ query }: { readonly query: string }) {
   return (
-    <EmptyState title="No matching records" icons={['results']}>
-      Nothing in your record matches “{query.trim()}”. Search by semester, subject name or subject
-      code.
-    </EmptyState>
+    <EmptyState
+      icon={<Search />}
+      title="No matching records"
+      description={`Nothing in your record matches “${query.trim()}”. Search by semester, subject name or subject code.`}
+    />
   );
 }
 
-/**
- * One semester as the approved design's tile: its SGPA large, what it holds
- * below, and how much of it passed.
- *
- * The pass proportion is measured over the subjects that COULD be checked. A
- * subject whose semester-end applicability is unknown has no pass state at all
- * (DEC-037), and counting it either way would make the bar say something the
- * record does not know — so it is excluded from both halves and named instead.
+/*
+ * No courses means nothing was checked: zero backlogs out of zero is not
+ * "Completed". Worded as the result record words it.
  */
-function SemesterCard({
+const EMPTY_RESULT = 'No courses are recorded for this semester.';
+
+/** The design's row status: an icon and a word, no pill. */
+function StateText({
+  backlogs,
+  undetermined,
+  empty,
+}: {
+  readonly backlogs: number;
+  readonly undetermined: number;
+  readonly empty: boolean;
+}) {
+  if (empty) {
+    return (
+      <span className="text-[12px] font-medium text-ink-3" title={EMPTY_RESULT}>
+        Unavailable
+      </span>
+    );
+  }
+  const [tone, Icon, text] =
+    backlogs > 0
+      ? (['text-danger', AlertTriangle, formatCount(backlogs, 'backlog')] as const)
+      : undetermined > 0
+        ? (['text-warning', AlertTriangle, 'Needs review'] as const)
+        : (['text-success', CheckCircle2, 'Completed'] as const);
+  return (
+    <span className={`flex items-center gap-1.5 text-[12px] font-medium ${tone}`}>
+      <Icon className="size-4" aria-hidden="true" />
+      <span className="sr-only md:not-sr-only">{text}</span>
+    </span>
+  );
+}
+
+function StateBadge({
+  backlogs,
+  undetermined,
+  empty,
+}: {
+  readonly backlogs: number;
+  readonly undetermined: number;
+  readonly empty: boolean;
+}) {
+  if (empty) return <Badge title={EMPTY_RESULT}>Unavailable</Badge>;
+  if (backlogs > 0) {
+    return (
+      <Badge tone="danger" icon={<AlertTriangle />}>
+        {formatCount(backlogs, 'backlog')}
+      </Badge>
+    );
+  }
+  if (undetermined > 0) return <Badge>Needs review</Badge>;
+  return (
+    <Badge tone="success" icon={<CheckCircle2 />}>
+      Completed
+    </Badge>
+  );
+}
+
+function SemesterRow({
   result,
-  onOpen,
+  stats,
 }: {
   readonly result: SemesterResult;
-  readonly onOpen: () => void;
+  readonly stats: SemesterStatistics | null;
 }) {
-  const { statistics } = useAcademicState();
-  const stats = statistics.semesters.find((entry) => entry.number === result.semester) ?? null;
-  const { ruleSet: resolved } = ruleSetForResult(result);
-  const { backlogs, undetermined } = semesterBacklogs(result, resolved);
+  const { backlogs, undetermined } = semesterBacklogs(result, ruleSetForResult(result).ruleSet);
+  const sgpa = stats?.sgpa.value ?? null;
+  const credits = stats?.creditsAttempted.value ?? 0;
+  return (
+    <Card interactive asChild>
+      <Link
+        to={`/results/${String(result.semester)}`}
+        aria-label={`Semester ${String(result.semester)}, SGPA ${sgpa === null ? 'unavailable' : formatGpa(sgpa)} — open the full record`}
+        className="flex w-full items-center gap-4 p-4"
+      >
+        <span
+          aria-hidden="true"
+          className="grid size-11 shrink-0 place-items-center rounded-xl bg-sunken font-mono text-sm font-semibold"
+        >
+          S{result.semester}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold">Semester {result.semester}</span>
+          <span className="mt-0.5 block truncate text-[12px] text-ink-2">
+            {formatCount(result.subjects.length, 'course')}
+            {credits > 0 ? ` · ${String(credits)} credits` : ''}
+            {stats !== null && stats.unresolvedCourses > 0
+              ? ` · ${String(stats.unresolvedCourses)} need review`
+              : ''}
+          </span>
+        </span>
+        <span className="hidden text-right sm:block">
+          <span className="block text-[11px] text-ink-3">SGPA</span>
+          {sgpa === null ? (
+            <span
+              className="block text-sm font-medium text-ink-3"
+              title={stats?.sgpa.reason ?? undefined}
+            >
+              Unavailable
+            </span>
+          ) : (
+            <span className="tnum block text-lg font-semibold">{formatGpa(sgpa)}</span>
+          )}
+        </span>
+        <span className="shrink-0">
+          <StateText
+            backlogs={backlogs}
+            undetermined={undetermined}
+            empty={result.subjects.length === 0}
+          />
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+      </Link>
+    </Card>
+  );
+}
 
+function SemesterCard({
+  result,
+  stats,
+}: {
+  readonly result: SemesterResult;
+  readonly stats: SemesterStatistics | null;
+}) {
+  const { backlogs, undetermined } = semesterBacklogs(result, ruleSetForResult(result).ruleSet);
   const sgpa = stats?.sgpa.value ?? null;
   const credits = stats?.creditsAttempted.value ?? null;
   const checked = result.subjects.length - undetermined;
-  const passed = checked - backlogs;
-  const passRate = checked > 0 ? Math.round((passed / checked) * 100) : null;
-
+  const passRate = checked > 0 ? Math.round(((checked - backlogs) / checked) * 100) : null;
   return (
-    <button
-      type="button"
-      className={styles.card}
-      onClick={onOpen}
-      aria-label={`Semester ${String(result.semester)} — open the full record`}
-    >
-      <span className={styles.cardHead}>
-        <span className={styles.cardIdentity}>
-          <span className={styles.cardEyebrow}>Semester {result.semester}</span>
-          <span className={styles.cardSgpa} data-absent={sgpa === null ? 'true' : undefined}>
-            {sgpa === null ? ABSENT : formatGpa(sgpa)}
-          </span>
-          <span className={styles.cardSgpaLabel}>SGPA</span>
-        </span>
-        {/*
-          THE STATE THIS SEMESTER IS ACTUALLY IN. The design draws "Completed";
-          a real record also holds semesters with a backlog, and ones that
-          cannot be checked at all — and a green tick over either would be a
-          lie a student would act on.
-        */}
-        {backlogs > 0 ? (
-          <StatusPill tone="danger">{formatCount(backlogs, 'backlog')}</StatusPill>
-        ) : undetermined > 0 ? (
-          <StatusPill tone="neutral">Needs review</StatusPill>
-        ) : (
-          <StatusPill tone="success">Completed</StatusPill>
-        )}
-      </span>
-
-      <span className={styles.cardFoot}>
-        <span className={styles.cardMeta}>
+    <Card interactive asChild>
+      <Link
+        to={`/results/${String(result.semester)}`}
+        aria-label={`Semester ${String(result.semester)} — open the full record`}
+        className="flex h-full flex-col p-5"
+      >
+        <span className="flex items-start justify-between gap-3">
           <span>
-            {formatCount(result.subjects.length, 'subject')}
-            {credits !== null && credits > 0 ? ` · ${String(credits)} credits` : ''}
+            <span className="block font-mono text-[11px] tracking-[0.14em] text-ink-3 uppercase">
+              Semester {result.semester}
+            </span>
+            {sgpa === null ? (
+              <span className="mt-2 block text-[20px] leading-none font-semibold text-ink-3">
+                Unavailable
+              </span>
+            ) : (
+              <span className="tnum mt-1 block text-[32px] leading-none font-semibold">
+                {formatGpa(sgpa)}
+              </span>
+            )}
+            <span className="mt-0.5 block text-[12px] text-ink-2">SGPA</span>
           </span>
-          <span className={styles.cardRate}>
-            {passRate === null ? 'Pass rate unavailable' : `${String(passRate)}% passed`}
-          </span>
+          <StateBadge
+            backlogs={backlogs}
+            undetermined={undetermined}
+            empty={result.subjects.length === 0}
+          />
         </span>
-        <span className={styles.cardBar} aria-hidden="true">
-          <span style={{ inlineSize: `${String(passRate ?? 0)}%` }} />
+        <span className="mt-4 block">
+          <span className="mb-1.5 flex justify-between text-[12px] text-ink-2">
+            <span>
+              {formatCount(result.subjects.length, 'course')}
+              {credits !== null && credits > 0 ? ` · ${String(credits)} credits` : ''}
+            </span>
+            <span className="tnum">
+              {passRate === null ? 'Pass rate unavailable' : `${String(passRate)}% pass`}
+            </span>
+          </span>
+          <Progress value={passRate ?? 0} tone="success" />
         </span>
         {undetermined > 0 && (
-          <span className={styles.cardNote}>
+          <span className="mt-3 block text-[12px] text-ink-3">
             {formatCount(undetermined, 'subject')} could not be checked — whether the course has a
             semester-end exam is not recorded.
           </span>
         )}
-      </span>
-    </button>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* One saved semester                                                         */
-/* -------------------------------------------------------------------------- */
-
-function SavedResult({
-  result,
-  index,
-  onEdit,
-  onRemove,
-}: {
-  readonly result: SemesterResult;
-  /** Resolved subject identities, so one subject reads as one subject (OQ-051). */
-  readonly index: ReadonlyMap<string, SubjectIdentity>;
-  readonly onEdit: () => void;
-  readonly onRemove: () => void;
-}) {
-  const [detail, setDetail] = useState<ResultSubject | null>(null);
-  /**
-   * The row opened in place, on the table the wide layout shows.
-   *
-   * The approved design opens a course row where it sits rather than in a
-   * panel: grade point, assessment and provenance are things you read AGAINST
-   * the marks beside them. Narrow widths keep the sheet — the same fields, in
-   * the only place a phone has room for them.
-   */
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const resolved = ruleSetForResult(result);
-  const { sgpa, credits, inputs } = semesterSgpa(result, resolved.ruleSet);
-  const { backlogs, undetermined } = semesterBacklogs(result, resolved.ruleSet);
-
-  const evaluations = useMemo(
-    () =>
-      new Map(
-        result.subjects.map((subject) => [
-          subject.id,
-          evaluateResultSubject(subject, resolved.ruleSet),
-        ]),
-      ),
-    [result.subjects, resolved.ruleSet],
-  );
-
-  /*
-   * Normalised with `?? null`, exactly as `domain/results.ts` does. The type
-   * says `number | null`, but this record came out of IndexedDB and nothing
-   * type-checks it at runtime: a row written before the field existed carries
-   * `undefined`, `asserted !== null` is then TRUE, and `formatGpa(undefined)`
-   * throws and takes the page down. Found by the M9.6B browser sweep.
-   */
-  const asserted = result.sgpaAsserted ?? null;
-  const discrepancy =
-    sgpa !== null && asserted !== null && Math.abs(sgpa - asserted) >= 0.005
-      ? { computed: sgpa, asserted }
-      : null;
-
-  return (
-    <section className={styles.semester} aria-labelledby={`sem-${String(result.semester)}`}>
-      <div className={styles.semesterHead}>
-        <div className={styles.semesterIdentity}>
-          <h3 className={styles.semesterTitle} id={`sem-${String(result.semester)}`}>
-            Semester {result.semester}
-          </h3>
-          <span className={styles.semesterMeta}>
-            {result.subjects.length} subjects
-            {credits > 0 ? ` · ${String(credits)} credits` : ''}
-          </span>
-        </div>
-
-        <DropdownMenu
-          label={`Actions for semester ${String(result.semester)}`}
-          items={[
-            { label: 'Edit this semester', icon: 'edit', onSelect: onEdit },
-            { label: 'Delete this semester', icon: 'trash', onSelect: onRemove, tone: 'danger' },
-          ]}
-        />
-      </div>
-
-      {/*
-        THE DESIGN'S METRIC GRID, where a cramped figure strip used to be.
-        
-        The record's headline figures were three `dt`/`dd` pairs wedged into
-        the heading row beside a kebab menu. The design gives a semester's
-        detail a row of instrument tiles, which is the same treatment every
-        other summary in this product gets — and the heading stops competing
-        with the numbers for the same line.
-        
-        The design's third tile is "Grade points". This product does not state
-        a credit-weighted grade-point total anywhere: the figure exists per
-        course, attributed, in the row you expand, and summing it here would
-        re-implement what `calculateSGPA` owns. Subjects takes that slot —
-        a figure this record can state exactly.
-      */}
-      <MetricStrip
-        metrics={[
-          {
-            label: 'SGPA',
-            value: sgpa === null ? 'Unavailable' : formatGpa(sgpa),
-            /* The printed figure, where it differs from the calculated one. */
-            ...(asserted !== null ? { note: `Grade card ${formatGpa(asserted)}` } : {}),
-          },
-          {
-            label: 'Credits',
-            value: credits > 0 ? String(credits) : 'Not recorded',
-          },
-          { label: 'Subjects', value: String(result.subjects.length) },
-          {
-            label: 'Backlogs',
-            value: undetermined > 0 ? `${String(backlogs)}+` : String(backlogs),
-            ...(undetermined > 0
-              ? { note: `${String(undetermined)} could not be checked`, tone: 'warning' as const }
-              : {}),
-          },
-        ]}
-      />
-
-      {discrepancy ? (
-        <p className={styles.mismatch}>
-          Grade card {formatGpa(discrepancy.asserted)} · calculated{' '}
-          {formatGpa(discrepancy.computed)} — these disagree.
-        </p>
-      ) : null}
-
-      {/*
-        WHY THERE IS NO SGPA, WHEN THERE IS NONE (§4, §16). "—" alone reads as a
-        failure of the app; naming the rows that are missing a grade or credits
-        turns it into something the student can finish.
-      */}
-      {sgpa === null && inputs.missing.length > 0 ? (
-        <p className={styles.mismatch}>
-          No SGPA yet — SGPA needs a grade and credits for every subject, and{' '}
-          {inputs.missing.map((entry) => entry.subjectCode).join(', ')} still{' '}
-          {inputs.missing.length === 1 ? 'has' : 'have'} none. The marks below are unaffected.
-        </p>
-      ) : null}
-
-      {resolved.resolution === 'unavailable' ? (
-        <div className={styles.discrepancy}>
-          <Notice tone="warning">
-            This semester was graded under rule set {resolved.missingRuleSetId ?? ''}, which this
-            version of GradTools does not have. Nothing is calculated from it — no other rule set is
-            substituted.
-          </Notice>
-        </div>
-      ) : null}
-
-      {/*
-        DESKTOP: the card's own columns. MOBILE: the same rows as buttons that
-        open a sheet (§21) — eight columns cannot be shown at 390px and must not
-        scroll sideways.
-      */}
-      <div className={styles.tableWide}>
-        <TableScroll>
-          <table className={tableClass}>
-            <caption className="visually-hidden">Subjects in semester {result.semester}</caption>
-            <thead>
-              <tr>
-                <th scope="col">Subject</th>
-                <th scope="col" className={numericClass}>
-                  Internal
-                </th>
-                <th scope="col" className={numericClass}>
-                  External
-                </th>
-                <th scope="col" className={numericClass}>
-                  Total
-                </th>
-                <th scope="col" className={numericClass}>
-                  Grade
-                </th>
-                <th scope="col">Result</th>
-                <th scope="col" className={numericClass}>
-                  Credits
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.subjects.map((subject) => {
-                const evaluation = evaluations.get(subject.id);
-                const grade = subject.gradeLetter ?? evaluation?.computedGrade?.letter ?? null;
-                const open = expanded === subject.id;
-                return (
-                  <Fragment key={subject.id}>
-                    <tr>
-                      <td>
-                        <button
-                          type="button"
-                          className={styles.subjectToggle}
-                          aria-expanded={open}
-                          onClick={() => {
-                            setExpanded(open ? null : subject.id);
-                          }}
-                        >
-                          <span className={styles.subjectName}>{subject.subjectTitle}</span>
-                          <span className={`${styles.subjectCode ?? ''} ${monoClass}`}>
-                            {subject.subjectCode}
-                          </span>
-                        </button>
-                      </td>
-                      <td className={numericClass}>{markText(subject.internal)}</td>
-                      <td className={numericClass}>
-                        {subject.hasSee === false ? '—' : markText(subject.external)}
-                      </td>
-                      <td className={numericClass}>{markText(subject.total)}</td>
-                      <td className={numericClass}>
-                        {grade === null ? (
-                          /*
-                          A DASH IN AN EIGHT-COLUMN TABLE, but never a silent
-                          one: the cell carries the reason as its accessible
-                          name, and the panel above the table names every row
-                          that held the SGPA back (§1, §16). A sentence will
-                          not fit in this column at 390px.
-                        */
-                          <span
-                            className={styles.absent}
-                            title={evaluation?.unavailableReason ?? 'No grade could be resolved.'}
-                            aria-label={
-                              evaluation?.unavailableReason ?? 'No grade could be resolved.'
-                            }
-                          >
-                            —
-                          </span>
-                        ) : (
-                          <StatusPill tone="neutral">{grade}</StatusPill>
-                        )}
-                      </td>
-                      <td>
-                        <BacklogMark
-                          evaluation={evaluation}
-                          status={subject.resultStatus}
-                          hasSee={subject.hasSee}
-                        />
-                      </td>
-                      <td className={numericClass}>
-                        {subject.credits === null ? '—' : subject.credits}
-                      </td>
-                    </tr>
-                    {open && (
-                      <tr className={styles.detailRow}>
-                        <td colSpan={7}>
-                          <SubjectDetail
-                            subject={subject}
-                            evaluation={evaluation}
-                            identity={
-                              subject.subjectCode === null
-                                ? null
-                                : resolveSubject(index, subject.subjectCode)
-                            }
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </TableScroll>
-      </div>
-
-      <ul className={styles.tableNarrow}>
-        {result.subjects.map((subject) => (
-          <li key={subject.id}>
-            <button
-              type="button"
-              className={styles.subjectRow}
-              onClick={() => {
-                setDetail(subject);
-              }}
-              aria-haspopup="dialog"
-            >
-              <span className={styles.subjectRowText}>
-                <span className={styles.subjectName}>{subject.subjectTitle}</span>
-                <span className={`${styles.subjectCode ?? ''} ${monoClass}`}>
-                  {subject.subjectCode} ·{' '}
-                  {subject.total === null
-                    ? `${markText(subject.internal)} internal`
-                    : `${String(subject.total)} total`}
-                </span>
-              </span>
-              <BacklogMark
-                evaluation={evaluations.get(subject.id)}
-                status={subject.resultStatus}
-                hasSee={subject.hasSee}
-              />
-              <Icon name="chevronRight" size="small" />
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      <Sheet
-        open={detail !== null}
-        onClose={() => {
-          setDetail(null);
-        }}
-        side="bottom"
-        title={detail?.subjectTitle ?? ''}
-        description={`Semester ${String(result.semester)}`}
-      >
-        {detail !== null ? (
-          <SubjectDetail
-            subject={detail}
-            evaluation={evaluations.get(detail.id)}
-            identity={
-              detail.subjectCode === null ? null : resolveSubject(index, detail.subjectCode)
-            }
-          />
-        ) : null}
-      </Sheet>
-    </section>
-  );
-}
-
-/**
- * The printed status, or the calculated one, or neither.
- *
- * A card that prints a status is showing what the university decided, and that
- * is what leads. The calculated pass/backlog state appears only where there is
- * no printed one — never over it (§3, §22).
- */
-function BacklogMark({
-  evaluation,
-  status,
-  hasSee,
-}: {
-  readonly evaluation: SubjectEvaluation | undefined;
-  readonly status: string | null;
-  readonly hasSee: boolean | null;
-}) {
-  if (status !== null) {
-    return <StatusPill tone={status === 'P' ? 'success' : 'neutral'}>{status}</StatusPill>;
-  }
-  if (evaluation?.backlog === true) return <StatusPill tone="danger">Backlog</StatusPill>;
-  if (evaluation?.backlog === false) return <StatusPill tone="success">Passed</StatusPill>;
-  /*
-   * NOT A WARNING TONE (§28). "We do not know whether this course has a
-   * semester-end exam" is a gap in the record, not bad news about the student's
-   * marks, and colouring it red would alarm somebody who has passed.
-   */
-  return <StatusPill tone="neutral">{hasSee === null ? 'SEE unknown' : 'Not checked'}</StatusPill>;
-}
-
-/** Everything one row holds, source first and calculated second, each labelled. */
-function SubjectDetail({
-  subject,
-  evaluation,
-  identity,
-}: {
-  readonly subject: ResultSubject;
-  readonly evaluation: SubjectEvaluation | undefined;
-  readonly identity: SubjectIdentity | null;
-}) {
-  const seeMax = ruleSet.courseMax - ruleSet.cieMax;
-  /*
-   * Narrowed once, here, rather than at each `?.` below. A row whose evaluation
-   * is undefined and one whose calculated grade is null read the same on screen
-   * — "Not available" — and collapsing the two states up front keeps the JSX
-   * from having to distinguish them three times over.
-   */
-  const computedGrade = evaluation?.computedGrade ?? null;
-  const variants = otherTitles(identity, subject.subjectTitle);
-  const sourcePoints = evaluation?.sourceGrade?.points ?? null;
-  const computedPoints = computedGrade?.points ?? null;
-
-  return (
-    <dl className={styles.detailList}>
-      <div>
-        <dt>Subject code</dt>
-        <dd className={monoClass}>{subject.subjectCode}</dd>
-      </div>
-      <div>
-        <dt>Internal / CIE</dt>
-        <dd>{subject.internal === null ? ABSENT : `${String(subject.internal)}`}</dd>
-      </div>
-      {/*
-        THE SEE ROW IS THE ONE THAT MUST NOT LIE (§9, §11, §28). A CIE-only
-        course reads "Not applicable" rather than "0 / 50" — a zero next to a
-        maximum says the student sat an exam and scored nothing.
-      */}
-      <div>
-        <dt>External / SEE contribution</dt>
-        <dd>
-          {subject.hasSee === false
-            ? 'Not applicable — this course has no semester-end exam'
-            : subject.external === null
-              ? ABSENT
-              : `${String(subject.external)} / ${String(seeMax)}`}
-        </dd>
-      </div>
-      <div>
-        <dt>Total</dt>
-        <dd>
-          {subject.total === null
-            ? evaluation?.computedTotal === null || evaluation === undefined
-              ? ABSENT
-              : `${String(evaluation.computedTotal)} · calculated`
-            : `${String(subject.total)} · from the card`}
-        </dd>
-      </div>
-      {evaluation?.totalDisagrees === true ? (
-        <div>
-          <dt>Total does not add up</dt>
-          <dd>
-            The card prints {String(subject.total)}, the columns add to{' '}
-            {String(evaluation.computedTotal)}. Both are shown; neither is corrected.
-          </dd>
-        </div>
-      ) : null}
-      <div>
-        <dt>Result</dt>
-        <dd>{subject.resultStatus ?? ABSENT}</dd>
-      </div>
-      <div>
-        <dt>Grade</dt>
-        <dd>
-          {subject.gradeLetter !== null
-            ? `${subject.gradeLetter} · from the card`
-            : computedGrade !== null
-              ? `${computedGrade.letter} · calculated`
-              : ABSENT}
-        </dd>
-      </div>
-      <div>
-        <dt>Grade point</dt>
-        <dd>
-          {subject.gradePoint !== null
-            ? `${String(subject.gradePoint)} · from the card`
-            : sourcePoints !== null
-              ? `${String(sourcePoints)} · calculated`
-              : computedPoints !== null
-                ? `${String(computedPoints)} · calculated`
-                : ABSENT}
-        </dd>
-      </div>
-      <div>
-        <dt>Credits</dt>
-        <dd>
-          {subject.credits === null
-            ? ABSENT
-            : `${String(subject.credits)}${
-                subject.provenance === 'catalogue' || subject.catalogueCode !== null
-                  ? ' · from the catalogue'
-                  : ''
-              }`}
-        </dd>
-      </div>
-      <div>
-        <dt>Backlog</dt>
-        <dd>
-          {evaluation === undefined || evaluation.backlog === null
-            ? `Not known — ${evaluation?.unavailableReason ?? 'not enough information'}`
-            : evaluation.backlog
-              ? 'Yes'
-              : 'No'}
-        </dd>
-      </div>
-      {subject.announcedOn !== null ? (
-        <div>
-          <dt>Announced on</dt>
-          <dd>{subject.announcedOn}</dd>
-        </div>
-      ) : null}
-      {/*
-        ONE SUBJECT, SHOWN AS ONE SUBJECT (OQ-051 §29). The same code is named
-        differently by a result card, a timetable and the catalogue — "Applied
-        Physics for CSE stream" against "PHYSICS FOR CSE STREAM". This line
-        appears only where the wordings genuinely differ, so a student comparing
-        two screens is not left wondering whether they are two subjects. It is
-        not a correction: the card's own words stay above, and no source is
-        called wrong.
-      */}
-      {variants.length > 0 ? (
-        <div>
-          <dt>Also recorded as</dt>
-          <dd>{variants.map((entry) => entry.title).join(' · ')}</dd>
-        </div>
-      ) : null}
-      {/*
-        WHERE THE ROW CAME FROM, AND WHAT IT HAS BEEN DECLARED TO BE (§13).
-        Two facts, and a row can carry both: one the student typed and then
-        identified is still one they typed. Said plainly, in the panel's own
-        voice — no badge, no colour, nothing that makes their own record look
-        like the lesser kind.
-      */}
-      {subject.provenance === 'manual' || subject.catalogueCode !== null ? (
-        <div>
-          <dt>Subject</dt>
-          <dd>
-            {subject.provenance === 'manual' ? 'Entered manually' : 'Read from your result card'}
-            {subject.catalogueCode === null
-              ? subject.provenance === 'manual'
-                ? ' — not matched to the subject catalogue'
-                : ''
-              : ` — linked to ${subject.catalogueCode} in the VTU catalogue`}
-          </dd>
-        </div>
-      ) : null}
-    </dl>
+      </Link>
+    </Card>
   );
 }

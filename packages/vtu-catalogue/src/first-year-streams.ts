@@ -429,7 +429,9 @@ export function resolveFirstYearForStream(
     const forThisSlot = candidates.filter(
       (row) =>
         /\d{3}/.exec(row.code)?.[0] === slot.number &&
-        (slot.stem === '' || row.code.startsWith(`1B${slot.stem}`) || row.code.startsWith(`B${slot.stem}`)),
+        (slot.stem === '' ||
+          row.code.startsWith(`1B${slot.stem}`) ||
+          row.code.startsWith(`B${slot.stem}`)),
     );
     const naming = forThisSlot.filter((row) =>
       row.cells.some((cell) => namesStream(cell.text, membership.abbreviation)),

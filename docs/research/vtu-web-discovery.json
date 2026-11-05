@@ -1,0 +1,217 @@
+{
+ "schemaVersion": 1,
+ "generatedAt": "2026-09-20T10:54:45+00:00",
+ "purpose": "Every source discovered during internet-wide VTU research, including those judged not useful, duplicate, inaccessible or rights-restricted.",
+ "tierDefinition": {
+  "1": "Official VTU documents / vtu.ac.in",
+  "2": "Government / accreditation",
+  "3": "Affiliated-college academic documents",
+  "4": "Established VTU academic-resource sites",
+  "5": "Student-resource aggregators",
+  "6": "Independent blogs / calculators",
+  "7": "Unverified user-generated"
+ },
+ "sources": [
+  {
+   "url": "https://vtu.ac.in/wp-content/uploads/2023/05/Regulations-Clr-BE-BTECH-2022-611-02052023.pdf",
+   "name": "VTU B.E./B.Tech Regulations 2022 (22OB)",
+   "tier": 1,
+   "kind": "regulation",
+   "status": "FETCHED \u2014 65 pages, 136,883 chars extracted",
+   "usefulToGradTools": true,
+   "notes": "THE authoritative document for the 2022 scheme. Extracted locally with the repo pdfjs extractor.",
+   "verifiedFacts": [
+    "22OB 3.7 attendance 85% minimum",
+    "22OB 3.7 condonation up to 10%",
+    "DX = attendance below 75%",
+    "SGPA = SUM(Ci x Gi)/SUM(Ci) over all courses undergone",
+    "CGPA = SUM(Ci x Si)/SUM(Ci)",
+    "SGPA/CGPA rounded to 2 decimals",
+    "22OB 6.7 percentage M = CGPA x 10 (example 8.20 -> 82.0)",
+    "22OB 6.8 class equivalence FCD>=70, FC 60-70, SC 50-60, P 40-50",
+    "22OB 6.3 CIE max 50 min 40%; SEE max weightage 50 min 35%; overall pass 40%; min grade P (GP>=4)",
+    "Grade bands O/A+/A/B+/B/C/P/F = 10/9/8/7/6/5/4/0 at 90-100/80-89/70-79/60-69/55-59/50-54/40-49/0-39",
+    "Extra grades DX, AU, AB, PP, NP, IC, W",
+    "Table 1 Credit Values: L:T:P to credits mapping",
+    "Course types HS/BS/ES/SD(1-3)/AE(1-2)/NM(pass only)/PW 10/MP 3/IS 6 credits",
+    "NMC requires min 40% CIE and 75% attendance",
+    "Passing Standards: pass only when GP >= 4"
+   ],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://vtu.ac.in/en/cgpa-standard-formula/",
+   "name": "VTU CGPA Standard Formula page",
+   "tier": 1,
+   "kind": "rule",
+   "status": "FETCHED",
+   "usefulToGradTools": true,
+   "notes": "Scopes the 0.75 subtraction precisely.",
+   "verifiedFacts": [
+    "Percentage = (CGPA - 0.75) * 10 applies to 2015, 2017 and 2018 schemes ONLY"
+   ],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://vtu.ac.in/pdf/UG2024/phycyc.pdf",
+   "name": "VTU 2025 Scheme of Teaching and Examinations, I Sem Physics Group",
+   "tier": 1,
+   "kind": "scheme",
+   "status": "FETCHED \u2014 6 pages",
+   "usefulToGradTools": true,
+   "notes": "Official 2025 scheme. Note the path is /pdf/UG2024/. 61 distinct 1B* codes. Table carries L:T:P:S, exam duration, CIE, SEE, Total, Credits. Codes use x as a stream placeholder (1BMATx101).",
+   "verifiedFacts": [
+    "Effective from academic year 2025-26",
+    "Common to all Engineering Programmes",
+    "CIE 50 / SEE 50 / Total 100 on every parsed row",
+    "Credits observed 1-4",
+    "L:T:P:S columns present; S used by 1BPRJ258 (S=2)",
+    "Categories ASC, ESC, SDC, ETC, PLC(IC), AEC"
+   ],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://vtu.ac.in/en/2025/09/37846/",
+   "name": "CIRCULAR - Updated 2025 Scheme Syllabus for First Year Courses",
+   "tier": 1,
+   "kind": "circular",
+   "status": "DISCOVERED \u2014 not fetched",
+   "usefulToGradTools": true,
+   "notes": "Confirms an updated 2025 first-year syllabus circular exists.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://vtu.ac.in/b-e-scheme-syllabus/",
+   "name": "VTU UG Scheme & Syllabus index",
+   "tier": 1,
+   "kind": "index",
+   "status": "DISCOVERED \u2014 not fetched",
+   "usefulToGradTools": true,
+   "notes": "The canonical index for every branch/semester scheme PDF. THE ingestion path for the 259 missing codes.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://vtu.ac.in/wp-content/uploads/2021/12/BE-BTech-Regulation-2021-draft.pdf",
+   "name": "VTU B.E./B.Tech Regulation 2021 (DRAFT)",
+   "tier": 1,
+   "kind": "regulation",
+   "status": "DISCOVERED \u2014 not fetched",
+   "usefulToGradTools": true,
+   "notes": "Marked DRAFT. Needed to settle the 2021 percentage formula, which remains UNVERIFIED.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://vtu.ac.in/wp-content/uploads/2021/12/VTU_M.Plan_Regulations.pdf",
+   "name": "VTU M.Plan Regulations 2021",
+   "tier": 1,
+   "kind": "regulation",
+   "status": "SEARCH SNIPPET ONLY",
+   "usefulToGradTools": false,
+   "notes": "Search result showed a (CGPA-0.75)x10 illustration. DIFFERENT PROGRAMME (M.Plan, PG) - must NOT be generalised to B.E. 2021.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://www.vturesource.com/VTU-Subject-Codes/",
+   "name": "VTU Resource subject-code index",
+   "tier": 4,
+   "kind": "subject_index",
+   "status": "DISCOVERED \u2014 not enumerated (no sitemap)",
+   "usefulToGradTools": true,
+   "notes": "Per-branch subject-code lists. Broadest programme coverage (M.Tech, MBA, MCA, B.Arch, B.Plan, PhD) and older schemes 2015/2018.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://vtu-easy.com/syllabus/2022",
+   "name": "VTU-Easy 2022 syllabus",
+   "tier": 5,
+   "kind": "aggregator",
+   "status": "DISCOVERED \u2014 search snippet only",
+   "usefulToGradTools": false,
+   "notes": "CONFLICT: claims 2022 CSE codes are \"22CS31-22CS8X\". Official VTU 2022 codes are BCS301-style. Either a different convention or an error. DO NOT INGEST.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://vtustudent.com/vtu-sgpa-calculator/",
+   "name": "VTU Student Portal calculator",
+   "tier": 5,
+   "kind": "calculator",
+   "status": "DISCOVERED",
+   "usefulToGradTools": false,
+   "notes": "Another SGPA calculator. Duplicate of capability already audited.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://vtuverse.com/vtu-syllabus/",
+   "name": "VTU Verse syllabus",
+   "tier": 5,
+   "kind": "aggregator",
+   "status": "DISCOVERED",
+   "usefulToGradTools": false,
+   "notes": "Duplicate category.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://toolisky.com/blog/vtu-cgpa-to-percentage-calculator",
+   "name": "Toolisky CGPA converter",
+   "tier": 6,
+   "kind": "calculator",
+   "status": "DISCOVERED",
+   "usefulToGradTools": false,
+   "notes": "Generic tools blog. Duplicate.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://www.embibe.com/exams/vtu-syllabus/",
+   "name": "Embibe VTU syllabus",
+   "tier": 6,
+   "kind": "aggregator",
+   "status": "DISCOVERED",
+   "usefulToGradTools": false,
+   "notes": "Commercial edtech. Duplicate.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://macmyths.com/vtu-model-question-papers-answers-official-pdfs-schemes-and-solved-papers/",
+   "name": "MacMyths VTU model papers",
+   "tier": 6,
+   "kind": "aggregator",
+   "status": "DISCOVERED",
+   "usefulToGradTools": false,
+   "notes": "Blog. Rights-restricted content.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://github.com/topics/vtu",
+   "name": "GitHub topic: vtu",
+   "tier": 6,
+   "kind": "code",
+   "status": "SEARCHED",
+   "usefulToGradTools": false,
+   "notes": "NEGATIVE RESULT: no structured VTU subject/credit JSON or CSV dataset found. Repos are lab-program solutions, not data. GradTools own catalogue is likely the best structured 2022 dataset in existence.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  },
+  {
+   "url": "https://github.com/topics/vtulab",
+   "name": "GitHub topic: vtulab",
+   "tier": 6,
+   "kind": "code",
+   "status": "SEARCHED",
+   "usefulToGradTools": false,
+   "notes": "Lab solutions only. Licensing unclear. DO NOT INGEST.",
+   "verifiedFacts": [],
+   "discoveredAt": "2026-09-20T10:54:45+00:00"
+  }
+ ]
+}

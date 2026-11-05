@@ -69,10 +69,7 @@ export type AcquisitionMode =
  * authorisation that was true last week is not evidence about today, and the
  * whole point of recording `terms_reviewed_at` is that it can expire.
  */
-export async function acquisitionMode(
-  sql: Sql | null,
-  sourceId: string,
-): Promise<AcquisitionMode> {
+export async function acquisitionMode(sql: Sql | null, sourceId: string): Promise<AcquisitionMode> {
   if (sql === null) {
     return {
       mode: 'supplied',

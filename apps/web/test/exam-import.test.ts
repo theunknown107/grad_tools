@@ -68,7 +68,11 @@ const HEADER = [
 ];
 
 const NOTES = [
-  at('Note : As per the Revised Notification No.VTU/QQQ/BOS/000/2099-99/0000 dt.01/01/2099', 100, 200),
+  at(
+    'Note : As per the Revised Notification No.VTU/QQQ/BOS/000/2099-99/0000 dt.01/01/2099',
+    100,
+    200,
+  ),
 ];
 
 /** One dated row: the date cell, then one cell per semester column. */
@@ -191,9 +195,7 @@ describe('a column with no exam that day', () => {
      * as an unknown would put a question mark on a free afternoon; reading it
      * as an exam would put an examination there.
      */
-    const parsed = parseExamTimetable(
-      page(row(600, '23-01-2099, Friday', 'BQQ301', '--', '--')),
-    );
+    const parsed = parseExamTimetable(page(row(600, '23-01-2099, Friday', 'BQQ301', '--', '--')));
     expect(parsed.events).toHaveLength(1);
     expect(parsed.events[0]?.printed).toBe('BQQ301');
     expect(parsed.warnings).toEqual([]);
@@ -207,16 +209,12 @@ describe('the dates', () => {
      * second of May — a real exam on the wrong day, from one silent
      * assumption about locale.
      */
-    const parsed = parseExamTimetable(
-      page(row(600, '05-02-2099, Thursday', 'BQQ301', '--', '--')),
-    );
+    const parsed = parseExamTimetable(page(row(600, '05-02-2099, Thursday', 'BQQ301', '--', '--')));
     expect(parsed.events[0]?.examDate).toBe('2099-02-05');
   });
 
   it('keeps the weekday the document printed', () => {
-    const parsed = parseExamTimetable(
-      page(row(600, '23-01-2099, Friday', 'BQQ301', '--', '--')),
-    );
+    const parsed = parseExamTimetable(page(row(600, '23-01-2099, Friday', 'BQQ301', '--', '--')));
     expect(parsed.events[0]?.weekday).toBe('Friday');
   });
 
@@ -256,9 +254,7 @@ describe('when the document cannot be read', () => {
   });
 
   it('warns that a pattern names no course, rather than resolving it', () => {
-    const parsed = parseExamTimetable(
-      page(row(600, '23-01-2099, Friday', 'B**301', '--', '--')),
-    );
+    const parsed = parseExamTimetable(page(row(600, '23-01-2099, Friday', 'B**301', '--', '--')));
     expect(parsed.events[0]).toMatchObject({ kind: 'pattern', codes: [] });
     expect(parsed.warnings.join(' ')).toMatch(/code pattern/i);
   });
@@ -303,9 +299,9 @@ describe('whose exam it is', () => {
   });
 
   it('refuses another semester’s column', () => {
-    expect(examRelevance(event({ semester: 3, codes: ['BQQ399'], printed: 'BQQ399' }), student)).toBe(
-      'not_applicable',
-    );
+    expect(
+      examRelevance(event({ semester: 3, codes: ['BQQ399'], printed: 'BQQ399' }), student),
+    ).toBe('not_applicable');
   });
 
   it('claims an earlier semester’s paper the student still owes', () => {
@@ -328,9 +324,9 @@ describe('whose exam it is', () => {
      * not-theirs — it is unidentified, and saying either would be a claim the
      * document does not support.
      */
-    expect(
-      examRelevance(event({ kind: 'pattern', codes: [], printed: 'B**501' }), student),
-    ).toBe('unresolved');
+    expect(examRelevance(event({ kind: 'pattern', codes: [], printed: 'B**501' }), student)).toBe(
+      'unresolved',
+    );
   });
 
   it('says nothing about scheme or semester the document did not print', () => {
@@ -375,7 +371,11 @@ describe('the same document twice, and the document that replaces it', () => {
      * order. A student who uploads the draft afterwards has not un-published
      * anything.
      */
-    const published: SavedExamTimetable = { ...saved, fingerprint: 'ccc', publicationState: 'final' };
+    const published: SavedExamTimetable = {
+      ...saved,
+      fingerprint: 'ccc',
+      publicationState: 'final',
+    };
     const relation = relateExamTimetable(
       { fingerprint: 'ddd', examCycle: 'Dec.2099/Jan.2100', publicationState: 'draft' },
       [published],

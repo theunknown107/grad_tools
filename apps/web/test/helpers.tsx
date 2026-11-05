@@ -8,12 +8,16 @@
  */
 
 import { render, type RenderResult } from '@testing-library/react';
+import { screen } from '@testing-library/dom';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactElement } from 'react';
 import type {
   AttendanceRecord,
   BacklogRecord,
-  ClassMark,
+  DayOverride,
+  LedgerEntry,
+  RemoteSnapshot,
   SemesterRecord,
   SemesterResult,
   SchemeCourse,
@@ -27,7 +31,9 @@ import type { SavedExamTimetable, StoredExamEvent } from '../src/domain/exam-imp
 import type { NotificationPreferences, NotificationRecord } from '../src/domain/notifications.js';
 import type { RepositoryBundle } from '../src/repositories/types.js';
 import { RepositoryProvider } from '../src/repositories/context.js';
-import { ToastProvider } from '../src/components/ui/Toast.js';
+import { TooltipProvider } from '../src/components/ui/tooltip.js';
+import { Toaster } from '../src/components/ui/feedback.js';
+import { ThemeProvider } from '../src/hooks/useTheme.js';
 
 export interface MemorySeed {
   profile?: StudentProfile | null;
@@ -38,7 +44,9 @@ export interface MemorySeed {
   semesterSubjects?: SemesterSubject[];
   backlogs?: BacklogRecord[];
   calendars?: SavedCalendar[];
-  classMarks?: ClassMark[];
+  attendanceLedger?: LedgerEntry[];
+  timetableOverrides?: DayOverride[];
+  remoteSnapshots?: RemoteSnapshot[];
   schemeCourses?: SchemeCourse[];
   examTimetables?: SavedExamTimetable[];
   examEvents?: StoredExamEvent[];
@@ -73,7 +81,9 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
   const semesterSubjects = listRepo<SemesterSubject>(seed.semesterSubjects ?? []);
   const backlogs = listRepo<BacklogRecord>(seed.backlogs ?? []);
   const calendars = listRepo<SavedCalendar>(seed.calendars ?? []);
-  const classMarks = listRepo<ClassMark>(seed.classMarks ?? []);
+  const attendanceLedger = listRepo<LedgerEntry>(seed.attendanceLedger ?? []);
+  const timetableOverrides = listRepo<DayOverride>(seed.timetableOverrides ?? []);
+  const remoteSnapshots = listRepo<RemoteSnapshot>(seed.remoteSnapshots ?? []);
   const schemeCourses = listRepo<SchemeCourse>(seed.schemeCourses ?? []);
   const timetableImports = listRepo<SavedTimetable>(seed.timetableImports ?? []);
   const examTimetables = listRepo<SavedExamTimetable>(seed.examTimetables ?? []);
@@ -102,7 +112,9 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
     backlogs,
     calendars,
     timetableImports,
-    classMarks,
+    attendanceLedger,
+    timetableOverrides,
+    remoteSnapshots,
     schemeCourses,
     examTimetables,
     examEvents,
@@ -134,7 +146,9 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
       backlogs: backlogs.peek,
       calendars: calendars.peek,
       timetableImports: timetableImports.peek,
-      classMarks: classMarks.peek,
+      attendanceLedger: attendanceLedger.peek,
+      timetableOverrides: timetableOverrides.peek,
+      remoteSnapshots: remoteSnapshots.peek,
       schemeCourses: schemeCourses.peek,
       examTimetables: examTimetables.peek,
       examEvents: examEvents.peek,
@@ -153,16 +167,27 @@ export function renderWith(
     <MemoryRouter initialEntries={[route]}>
       <RepositoryProvider repositories={repositories}>
         {/*
-          THE TOAST PROVIDER, BECAUSE THE APP ALWAYS HAS ONE.
-          
-          `AppShell` mounts it around every route, so any component in the
-          product can announce a confirmation. A page rendered bare in a test
-          has no shell, and `useToast` throws by design rather than doing
-          nothing quietly — so the harness supplies what the app supplies, and
-          a page test exercises the same tree the browser does.
+          THE PROVIDERS THE SHELL ALWAYS SUPPLIES: appearance, tooltips and toasts.
+          A page rendered bare in a test gets the same tree the browser does.
         */}
-        <ToastProvider>{ui}</ToastProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            {ui}
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
       </RepositoryProvider>
     </MemoryRouter>,
   );
+}
+
+/**
+ * Picks an option from a Radix Select: open the trigger named `label`, then
+ * press the option named `option`. Radix renders its list in a portal, so the
+ * option is found on the whole screen rather than inside the trigger.
+ */
+export async function choose(label: RegExp | string, option: RegExp | string): Promise<void> {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('combobox', { name: label }));
+  await user.click(await screen.findByRole('option', { name: option }));
 }

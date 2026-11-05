@@ -233,7 +233,7 @@ async function main() {
     let typed = 0;
     for (let index = 0; index < creditCount; index += 1) {
       const field = credits.nth(index);
-      if (((await field.inputValue()).trim()) !== '') continue;
+      if ((await field.inputValue()).trim() !== '') continue;
       await field.fill(HARNESS_CREDITS);
       typed += 1;
     }

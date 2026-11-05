@@ -3,3 +3,7 @@ dist/
 coverage/
 pnpm-lock.yaml
 docs/
+apps/web/android/
+# Machine-written parity oracle (apps/web/test/timetable-python-parity.test.ts).
+services/parser-python/tests/fixtures/
+services/parser-python/corpus-manifest.json

@@ -1,0 +1,792 @@
+{
+  "name": "resolution-tiers",
+  "family": "B",
+  "about": "Every resolution tier: ambiguous CN, near ESEVM, unknown XYZ, component TOC-T, room in cell, written activities.",
+  "lines": [
+    "EXAMPLE INSTITUTE OF TECHNOLOGY",
+    "CLASS: V (C) EXAMPLE SEMESTER V TIME TABLE",
+    "W.E.F: 01/10/2026",
+    "10:00-10:55am 10:55-11:50am 11:50-12.10pm 12.10-1:05pm 1:05-02:00pm 2:00-03:10pm 03:10-04:05pm 04:05-05:00pm",
+    "CN ESEVM XYZ TOC-T RMIPR LH-302",
+    "MONDAY",
+    "TOC Placement & Training ESEWM RMIPR CN",
+    "TUESDAY",
+    "RMIPR TOC Value added Course ESEVM XYZ",
+    "WEDNESDAY",
+    "BCS502 Computer Networks Prof. B. Sample 3+0+2 3+0+2",
+    "BCS599 Cloud Native Prof. K. Other 3+0+0 3+0+0",
+    "BCS503 Theory of Computation Dr. C. Placeholder 3+2+0 3+2+0",
+    "BRMK557 Research Methodology and IPR Prof. F. Madeup 2+0+0 2+0+0",
+    "BESK508 Environmental Studies and E-waste Management Prof. G. Unreal 1+0+0 1+0+0"
+  ],
+  "placed": [
+    {
+      "text": "EXAMPLE INSTITUTE OF TECHNOLOGY",
+      "x": 60,
+      "y": 680,
+      "width": 191.14999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CLASS: V (C) EXAMPLE SEMESTER V",
+      "x": 60,
+      "y": 660,
+      "width": 178.94,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 238.9399999999999,
+      "y": 660,
+      "width": 161.0600000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TIME TABLE",
+      "x": 400,
+      "y": 660,
+      "width": 58.34999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "W.E.F: 01/10/2026",
+      "x": 600,
+      "y": 640,
+      "width": 83.38,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:00-10:55am",
+      "x": 118,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 185.26000000000005,
+      "y": 566,
+      "width": 22.739999999999952,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:55-11:50am",
+      "x": 208,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 275.26,
+      "y": 566,
+      "width": 10.740000000000009,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "11:50-12.10pm",
+      "x": 286,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 353.25999999999993,
+      "y": 566,
+      "width": 6.740000000000066,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "12.10-1:05pm",
+      "x": 360,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 421.69999999999993,
+      "y": 566,
+      "width": 28.300000000000068,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "1:05-02:00pm",
+      "x": 450,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 511.69999999999993,
+      "y": 566,
+      "width": 21.300000000000068,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "2:00-03:10pm",
+      "x": 533,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 594.6999999999996,
+      "y": 566,
+      "width": 23.30000000000041,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "03:10-04:05pm",
+      "x": 618,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 685.2599999999995,
+      "y": 566,
+      "width": 42.740000000000464,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "04:05-05:00pm",
+      "x": 728,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MONDAY",
+      "x": 40,
+      "y": 520,
+      "width": 43.89,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 83.89,
+      "y": 520,
+      "width": 61.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CN",
+      "x": 145,
+      "y": 527,
+      "width": 14.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 159.44,
+      "y": 527,
+      "width": 68.56,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ESEVM",
+      "x": 228,
+      "y": 527,
+      "width": 35.01,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 263.00999999999993,
+      "y": 527,
+      "width": 119.99000000000007,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "XYZ",
+      "x": 383,
+      "y": 527,
+      "width": 19.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 402.45000000000005,
+      "y": 527,
+      "width": 65.54999999999995,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC-T",
+      "x": 468,
+      "y": 527,
+      "width": 30.549999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 498.55,
+      "y": 527,
+      "width": 121.44999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "RMIPR LH-302",
+      "x": 620,
+      "y": 527,
+      "width": 67.78999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TUESDAY",
+      "x": 40,
+      "y": 490,
+      "width": 47.230000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 87.23,
+      "y": 490,
+      "width": 55.769999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC",
+      "x": 143,
+      "y": 497,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 164.11,
+      "y": 497,
+      "width": 25.889999999999986,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Placement & Training",
+      "x": 190,
+      "y": 497,
+      "width": 95.59000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 285.5900000000001,
+      "y": 497,
+      "width": 92.40999999999991,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ESEWM",
+      "x": 378,
+      "y": 497,
+      "width": 37.779999999999994,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 415.78000000000003,
+      "y": 497,
+      "width": 52.21999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "RMIPR",
+      "x": 468,
+      "y": 497,
+      "width": 32.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 500.22,
+      "y": 497,
+      "width": 144.77999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CN",
+      "x": 645,
+      "y": 497,
+      "width": 14.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "WEDNESDAY",
+      "x": 40,
+      "y": 460,
+      "width": 64.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 104.45,
+      "y": 460,
+      "width": 33.55,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "RMIPR",
+      "x": 138,
+      "y": 467,
+      "width": 32.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 170.22,
+      "y": 467,
+      "width": 62.78,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC",
+      "x": 233,
+      "y": 467,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 254.11,
+      "y": 467,
+      "width": 90.88999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "Value added Course",
+      "x": 345,
+      "y": 467,
+      "width": 91.15999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 436.16,
+      "y": 467,
+      "width": 31.839999999999975,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "ESEVM",
+      "x": 468,
+      "y": 467,
+      "width": 35.01,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 503.01000000000005,
+      "y": 467,
+      "width": 139.98999999999995,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "XYZ",
+      "x": 643,
+      "y": 467,
+      "width": 19.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS502 Computer Networks Prof. B. Sample 3+0+2 3+0+2",
+      "x": 60,
+      "y": 300,
+      "width": 263.46,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS599 Cloud Native Prof. K. Other 3+0+0 3+0+0",
+      "x": 60,
+      "y": 284,
+      "width": 223.46000000000006,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS503 Theory of Computation Dr. C. Placeholder 3+2+0 3+2+0",
+      "x": 60,
+      "y": 268,
+      "width": 288.47999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BRMK557 Research Methodology and IPR Prof. F. Madeup 2+0+0 2+0+0",
+      "x": 60,
+      "y": 252,
+      "width": 326.83999999999986,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BESK508 Environmental Studies and E-waste Management Prof. G. Unreal 1+0+0 1+0+0",
+      "x": 60,
+      "y": 236,
+      "width": 397.4299999999997,
+      "height": 10,
+      "page": 1
+    }
+  ],
+  "expected": {
+    "classification": {
+      "type": "college_timetable",
+      "reason": "This looks like a class timetable.",
+      "signals": [
+        "weekday columns",
+        "with effect from",
+        "a time-of-day grid",
+        "time table heading"
+      ]
+    },
+    "timetable": {
+      "context": {
+        "className": "V (C) EXAMPLE SEMESTER V",
+        "semester": 5,
+        "academicYear": null,
+        "revision": null,
+        "effectiveFrom": "2026-10-01",
+        "room": null
+      },
+      "slots": [
+        [
+          "10:00",
+          "10:55",
+          false
+        ],
+        [
+          "10:55",
+          "11:50",
+          false
+        ],
+        [
+          "11:50",
+          "12:10",
+          false
+        ],
+        [
+          "12:10",
+          "13:05",
+          false
+        ],
+        [
+          "13:05",
+          "14:00",
+          false
+        ],
+        [
+          "14:00",
+          "15:10",
+          false
+        ],
+        [
+          "15:10",
+          "16:05",
+          false
+        ],
+        [
+          "16:05",
+          "17:00",
+          false
+        ]
+      ],
+      "dictionary": [
+        [
+          "BCS502",
+          "Computer Networks",
+          null,
+          "Prof. B. Sample",
+          "3+0+2",
+          "3+0+2"
+        ],
+        [
+          "BCS599",
+          "Cloud Native",
+          null,
+          "Prof. K. Other",
+          "3+0+0",
+          "3+0+0"
+        ],
+        [
+          "BCS503",
+          "Theory of Computation",
+          null,
+          "Dr. C. Placeholder",
+          "3+2+0",
+          "3+2+0"
+        ],
+        [
+          "BRMK557",
+          "Research Methodology and IPR",
+          null,
+          "Prof. F. Madeup",
+          "2+0+0",
+          "2+0+0"
+        ],
+        [
+          "BESK508",
+          "Environmental Studies and E-waste Management",
+          null,
+          "Prof. G. Unreal",
+          "1+0+0",
+          "1+0+0"
+        ]
+      ],
+      "classes": [
+        [
+          "Mon",
+          "10:00",
+          "10:55",
+          null,
+          "ambiguous",
+          "CN",
+          null,
+          null,
+          1,
+          "\"CN\" could be BCS502 or BCS599 — this timetable does not say which.",
+          "CN"
+        ],
+        [
+          "Mon",
+          "10:55",
+          "11:50",
+          "BESK508",
+          "near",
+          "ESEVM",
+          null,
+          null,
+          1,
+          "\"ESEVM\" is not in this timetable's subject list. The closest is \"ESEWM\" (BESK508), one letter different — check it.",
+          "ESEVM"
+        ],
+        [
+          "Mon",
+          "12:10",
+          "13:05",
+          null,
+          "unknown",
+          "XYZ",
+          null,
+          null,
+          1,
+          "\"XYZ\" is not defined anywhere on this timetable.",
+          "XYZ"
+        ],
+        [
+          "Mon",
+          "13:05",
+          "14:00",
+          "BCS503",
+          "initialism",
+          "TOC",
+          null,
+          null,
+          1,
+          null,
+          "TOC-T"
+        ],
+        [
+          "Mon",
+          "15:10",
+          "16:05",
+          "BRMK557",
+          "initialism",
+          "RMIPR",
+          null,
+          "LH-302",
+          1,
+          null,
+          "RMIPR LH-302"
+        ],
+        [
+          "Tue",
+          "10:00",
+          "12:10",
+          "BCS503",
+          "initialism",
+          "TOC",
+          null,
+          "Placement & Training",
+          3,
+          null,
+          "TOC Placement & Training"
+        ],
+        [
+          "Tue",
+          "12:10",
+          "13:05",
+          "BESK508",
+          "initialism",
+          "ESEWM",
+          null,
+          null,
+          1,
+          null,
+          "ESEWM"
+        ],
+        [
+          "Tue",
+          "13:05",
+          "14:00",
+          "BRMK557",
+          "initialism",
+          "RMIPR",
+          null,
+          null,
+          1,
+          null,
+          "RMIPR"
+        ],
+        [
+          "Tue",
+          "15:10",
+          "16:05",
+          null,
+          "ambiguous",
+          "CN",
+          null,
+          null,
+          1,
+          "\"CN\" could be BCS502 or BCS599 — this timetable does not say which.",
+          "CN"
+        ],
+        [
+          "Wed",
+          "10:00",
+          "10:55",
+          "BRMK557",
+          "initialism",
+          "RMIPR",
+          null,
+          null,
+          1,
+          null,
+          "RMIPR"
+        ],
+        [
+          "Wed",
+          "10:55",
+          "11:50",
+          "BCS503",
+          "initialism",
+          "TOC",
+          null,
+          null,
+          1,
+          null,
+          "TOC"
+        ],
+        [
+          "Wed",
+          "12:10",
+          "13:05",
+          null,
+          "activity",
+          "Value added Course",
+          null,
+          null,
+          1,
+          "Printed as an activity, not a subject in this timetable's subject list. Kept under its printed name.",
+          "Value added Course"
+        ],
+        [
+          "Wed",
+          "13:05",
+          "14:00",
+          "BESK508",
+          "near",
+          "ESEVM",
+          null,
+          null,
+          1,
+          "\"ESEVM\" is not in this timetable's subject list. The closest is \"ESEWM\" (BESK508), one letter different — check it.",
+          "ESEVM"
+        ],
+        [
+          "Wed",
+          "15:10",
+          "16:05",
+          null,
+          "unknown",
+          "XYZ",
+          null,
+          null,
+          1,
+          "\"XYZ\" is not defined anywhere on this timetable.",
+          "XYZ"
+        ]
+      ],
+      "batches": [],
+      "conflicts": [],
+      "coverage": {
+        "cellsFound": 14,
+        "cellsResolved": 10,
+        "slotsFound": 8,
+        "dictionaryEntries": 5,
+        "looksComplete": true
+      },
+      "warnings": [
+        "ESEVM is not in this timetable's subject list and was matched to the closest abbreviation it has. Check it before saving.",
+        "This timetable never says what XYZ is. Those classes are kept, without a subject — check them before saving.",
+        "CN could each be more than one of this timetable's subjects, so no code was chosen. Check them before saving."
+      ]
+    }
+  }
+}

@@ -48,7 +48,7 @@
 |---|---|---|---|
 | FR-040 | Manually enter or paste a semester result (subject, code, CIE, SEE, total, grade) | P0 | Primary results path — see FR-045 |
 | FR-041 | Store result history per semester and derive SGPA/CGPA from it | P1 | Account holders only |
-| FR-042 | Track backlogs: courses with F / DX / AB, attempt count, cleared status | P1 | 22OB 6.2, 6.3(9) |
+| FR-042 | Track backlogs: courses with F / DX / AB, attempt count, cleared status | P1 | 22OB 6.2, 6.3(9). **Superseded by `OQ-056`** (M6 two-source model; see `08` §8.13) |
 | FR-043 | Marks analytics: per-semester trend, per-subject strength, CIE vs SEE split | P2 | Must avoid meaningless statistics (`05` §Anti-patterns) |
 | FR-044 | Import result from pasted grade-card text or PDF, with human confirmation before saving | P2 | Parsed values shown for review; never silently trusted |
 | FR-045 | **Automated retrieval of individual VTU result records is outside the current scope** unless an official or authorized integration becomes available | P0 (constraint) | `robots.txt` = `Disallow: /` on the results host. See `14` §7, `32/DEC-004` |

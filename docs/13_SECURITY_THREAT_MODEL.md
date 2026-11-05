@@ -162,19 +162,29 @@ reach the machine.
 non-browser client ignore it completely. Relying on the CORS allowlist here
 would be relying on attackers using a browser.
 
-**The control.** The bind address, enforced at boot:
+**The control, until the deployment-readiness change.** The bind address:
+`HOST` defaulted to `127.0.0.1` and `assertSafeExposure()` refused to start on a
+non-loopback bind unless `ALLOW_PUBLIC_BIND=true`.
 
-- `HOST` is validated configuration and **defaults to `127.0.0.1`**.
-- `assertSafeExposure()` runs before the server listens and **refuses to start**
-  if `HOST` is non-loopback, so a misconfiguration is a loud startup failure
-  rather than a quiet exposure.
-- `ALLOW_PUBLIC_BIND=true` is the deliberate escape hatch for a deployment that
-  authenticates these routes some other way. Nothing infers it.
+**The control now — authentication, not the bind address (docs/48).** The
+document write routes named above no longer exist in the API; the only
+unauthenticated writes that remained were the two announcement operator routes.
+Those now require `OPERATOR_TOKEN` as a bearer token (a generated secret of at
+least 32 characters, compared in constant time) and **are not mounted at all**
+when it is unset, so they answer 404. Every `/api/v1/me` route verifies a
+Supabase session. Everything else is a public read by design. With nothing
+unauthenticated left to expose, the bind refusal and `ALLOW_PUBLIC_BIND` were
+removed and the container binds `0.0.0.0`. `services/api/test/announcements.test.ts`
+proves an anonymous, wrong-token or wrong-scheme write is a 401 that stores
+nothing, and that the writes 404 without a configured token.
 
-**The rule, binding:** *unauthenticated private-document routes must never be
-reachable from an untrusted network.* When authentication exists, exposure can
-be enabled intentionally, behind it. Until then the loopback bind is what makes
-the privacy claim true rather than aspirational.
+`assertSafeExposure()` still runs before the server listens: in `staging` and
+`alpha` it refuses to start unless `WEB_ORIGIN` is set explicitly and every
+origin is `https://`.
+
+**The rule, binding:** *no write route may be reachable from an untrusted
+network without authentication.* A new route that writes must arrive with its
+guard; CORS and the bind address are not guards.
 
 ## 13.4b T-20 — The OCR worker's input is hostile (M5A.3)
 
@@ -332,7 +342,7 @@ GradTools, sometimes carrying a link. That is the whole threat.
 | T-34 | A student following an external link without realising they are leaving | The link shows **the host** it goes to, opens in a new tab, and carries `rel="noopener noreferrer nofollow"` |
 | T-35 | Unverified content reaching students | Publication requires verification, enforced by a database CHECK, not by the router |
 | T-36 | A source silently editing a notice a human already approved | A content change **withdraws verification** and unpublishes the row (§8.14) |
-| T-37 | Anyone posting an announcement | No public write. Entry is loopback-only and cannot publish (§10.14) |
+| T-37 | Anyone posting an announcement | No public write. Entry requires `OPERATOR_TOKEN` (absent: not mounted) and cannot publish (§10.14, §13.4a) |
 | T-38 | Synthetic content mistaken for an official notice | `origin = 'demo_fixture'` drives a visible DEMO label; publishers are fictional; the VTU disclaimer is on the page |
 
 **Not a sanitiser.** `toPlainText` keeps no HTML at all. A sanitiser decides
@@ -562,3 +572,151 @@ key** because a right-to-left override can reorder a rendered line. It does not
 strip them from the stored text, because rewriting extracted text is exactly the
 invention M10B §9 forbids — and escaping belongs at render time, where React
 does it.
+
+## 13.28 Document import on a phone — threat model (post-APK hardening)
+
+Trigger: on a real Samsung SM-A356E every photo and scanned PDF stayed at
+"Reading your document…" forever. That was a correctness bug (below), but an
+import pipeline that can stop without an outcome is also a place where a
+hostile file could hold the app, so the whole path was reviewed.
+
+**Where a document goes.** Chosen file → `sniffKind` (first 1KB) → one of
+three decoders, all in this tab: pdf.js (text layer, or pages rendered for
+OCR), tesseract.js (a Web Worker, WASM, assets from our own origin only), or
+`DOMParser` for a saved HTML page. The review shows what was read; saving
+writes the *parsed* result to IndexedDB on the device. **The file, its bytes and
+its extracted text are never sent anywhere**: no request carries them (pinned by
+`result-import-workflow.test.tsx`), there is no server-side document storage,
+and nothing is written to `localStorage`, the filesystem or an object URL.
+A signed-in student's sync sends only `SYNCED_FIELDS` of the saved result —
+never the file, the filename or the source text. Result provenance
+(`ResultSource`) records kind, session, time and parser version, not the
+document. The OCR model (not student data) is cached by tesseract.js in
+IndexedDB. Android Auto Backup is off (`allowBackup="false"`), so none of this
+reaches a cloud backup.
+
+| Threat | Control |
+|---|---|
+| A file that lies about itself (extension, MIME type, UUID-named Android picks) | `sniffKind` decides by signature (`%PDF-`, JPEG, PNG, WebP); HTML only when declared and matching no binary format. The decoder still refuses content it cannot parse |
+| Oversized input | 10MB PDF, 20 pages, 20,000 text items/page; 20MB image, decoded and downscaled to 2000px; 5MB HTML; 4 scanned pages; 12 files per batch — named constants in `pdf-text.ts`, `ocr.ts`, `result-file.ts` |
+| A decoder that never returns (worker killed, engine wedged, a crafted file) | `lib/deadline.ts`: engine start 90s, each OCR pass 90s, each PDF read/render 60s. A timed-out OCR worker is terminated. Every file ends `read` or `failed`; Cancel settles the in-flight pass and closes the engine |
+| Malicious PDF | pdf.js with no eval, no font faces, no system fonts, no worker fetch; text extracted, never rendered into the DOM; the page canvas is only handed to OCR |
+| Malicious HTML | `DOMParser` document: scripts never execute, handlers never fire, nothing loads; only text nodes are read (`result-file.test.ts` pins it). Never inserted into the page |
+| Hostile images, decompression bombs | Byte cap, then the DIMENSIONS are read from the header (PNG IHDR, JPEG frame header — not its EXIF thumbnail — WebP VP8/VP8L/VP8X; `lib/image-header.ts`) before any decode: more than 64MP or an edge past 16,384px is refused, and an image whose size cannot be read is not decoded at all. Only then `createImageBitmap`; the bitmap is downscaled and closed. A 50MP phone photo passes |
+| SVG | Not accepted (not in the signature list) |
+| Leaking content through errors or logs | No `console` use in the pipeline; tesseract's logger and error handler are silent; the UI shows only fixed messages, and an unexpected error becomes "This file could not be read." (pinned by test). The filename is shown to the student and used for nothing else |
+| OCR worker left running | Closed when a batch ends, on Cancel, on Done and on unmount; a closed or timed-out session is replaced, never reused. The raw Web Worker is captured the moment tesseract.js constructs it (`captureWorkers`), so a start that fails or times out — which never hands its worker back — is terminated at once |
+
+**The root cause of the hang.** The Android asset packager gunzips any `.gz`
+asset and drops the extension, so the APK held `eng.traineddata` while the
+engine asked for `eng.traineddata.gz` (404). tesseract.js 7 reports a model
+load failure only to `errorHandler` and otherwise swallows it — `createWorker`
+never settles. Fixed three ways: the model is vendored uncompressed (same name
+on web and APK), `errorHandler` now fails the start at once, and the start
+deadline backstops anything else. The worker of a failed start is terminated
+immediately (above); no orphan is left.
+
+**A layout defect found by the same review.** With its scoring brought back
+to what is actually saved, `tests/ocr-qa.mjs` showed a clean synthetic card
+saving three courses of four. OCR reports ink boxes, so in a recognised header
+`Code` sat higher than `Subject`; the wrapped-cell rule compared against the
+line's first word by height instead of its leftmost, and glued the first
+course row onto the header. Fixed in `pdf-layout.ts` (leftmost word), pinned by
+`ocr-layout.test.ts` with the engine's own boxes; the harness now requires all
+four courses and zero wrong values.
+
+## 13.29 AI document reading (Gemini) — Phase 1 prototype
+
+**What leaves the device, and when.** Only when a signed-in student turns on
+"Read with AI" and adds a PDF or photo: that one file goes to the GradTools
+API (`POST /api/v1/me/documents/extract`), which sends it to the configured
+Gemini model and returns what the model read. With the switch off — the default
+— nothing leaves the device, exactly as before. Saved HTML pages never go to
+AI. The Gemini key lives only in the API's environment (`GEMINI_API_KEY`); no
+`VITE_` variable, bundle or APK holds it.
+
+**The model output is treated as untrusted input and cannot directly access
+application storage, credentials, tools, databases or arbitrary network
+operations.** This is the security claim, and the only one: no claim is made
+that the model cannot be misled by a document.
+
+| Boundary | Control |
+|---|---|
+| Who may ask | The existing Supabase session guard (`requireSession`), which runs before the body is read. Mounted only where the student cloud and a Gemini key are configured; there is no anonymous or development bypass |
+| What is sent | The file as inline data (no Files API object), after a signature check (PDF/JPEG/PNG/WebP, ≤ 8MB). The declared content type is ignored |
+| What the model can do | Nothing but answer: a fixed system instruction, one fixed text turn, a response JSON schema. No tools, functions, search, code execution or URL context. Document text is never placed in the instruction |
+| Prompt injection | The instruction tells the model the file is data; more importantly, obeying an injected instruction gains nothing — there is no capability to use and no free-text channel back to the app |
+| What comes back | Parsed as JSON and validated with the strict zod schema (`aiExtractionSchema`): any extra key, wrong type or missing field rejects the whole reply — it is never repaired. The schema has no field for grade points, SGPA, CGPA, percentages, pass/fail or catalogue values |
+| Is it a supported document | A deterministic gate (`recognize.ts`) — not the model — requires structure (course rows with marks, or sessions with day and times) plus evidence GradTools controls: a VTU heading, a match in the transcribed VTU college list, VTU-shaped course codes. Two kinds → RECOGNIZED, one → NEEDS_REVIEW, none → UNRECOGNIZED_DOCUMENT with no data returned. RECOGNIZED never means "official" |
+| Persistence | None on the server. The payload returns to the device, maps into the ordinary review (catalogue enrichment, deterministic rules, provenance labels, conflicts) and is saved only when the student confirms |
+| Logging | The request line only. No document bytes, model reply, error text from the provider, or key reaches a log — pinned by a test that captures the real logger. Provider errors map to fixed messages |
+| Buffers | The request buffer is zeroed when the request ends; base64 copies are released for collection |
+
+**Free tier.** Development may use the Gemini free tier with synthetic,
+anonymised or public documents only. It is not suitable for real student
+records: production use needs a paid Gemini configuration whose data-handling
+terms fit student records, or students stay in on-device mode.
+
+**Known limits.** The model can misread; the review exists for that, and every
+AI-read row says so. The gate cannot tell a genuine document from a
+well-made fake. A document can still bias the extraction (injected text that
+makes a value wrong); the strict schema, the gate and human review contain it,
+they do not prevent it.
+
+## 13.30 Free-only document AI through OpenRouter
+
+When `OPENROUTER_API_KEY` is set it replaces Gemini as the reader behind the
+same route, guard, schema, gate and review (§13.29). What it adds is a cost
+and privacy gate that runs **before every read** (`documents/openrouter.ts`):
+
+| Rule | Enforcement |
+|---|---|
+| $0 only | The model's live endpoint metadata is fetched (no inference). An endpoint counts only if EVERY metered price — prompt, completion, request, image, anything listed — is present and exactly 0. Missing or unreadable = not free. The `:free` name is ignored. No free endpoint → the document is not sent |
+| The router agrees | The request carries `provider.max_price` 0 on every item, `allow_fallbacks: false`, `require_parameters: true`. Never `models`, `route`, `openrouter/*` routers, plugins or tools |
+| A reply that cost money | `usage.cost > 0` is refused and logged as `document_ai_nonzero_cost` |
+| Private routing | `DOCUMENT_AI_REQUIRE_ZDR` (default true): the model needs a free endpoint on OpenRouter's zero-data-retention list, and the request carries `provider.zdr: true` and `data_collection: "deny"`. `false` is for synthetic local testing and refused in staging/alpha |
+| Capability | Image input, text-only output, and JSON output (`json_schema` when every usable endpoint enforces one, else JSON mode with the schema in the fixed instruction). The reply still passes the strict zod schema |
+| Fallback | `DOCUMENT_AI_SECONDARY_MODEL` is tried only when the primary is ineligible or unavailable, after the same checks; never after a 429 |
+| Rate limits | After a 429 nothing is sent until OpenRouter's reset (or 60 s); no retry loop |
+| PDFs | Never sent: the device renders page 1 to PNG (`renderPdfPage`), so no cloud PDF parser — including OpenRouter's paid ones — is involved |
+
+The student sees one of two fixed messages ("…temporarily unavailable. You can
+use Offline mode instead." / "…busy right now…"); model, provider and status
+go to the diagnostic log only, never document content. `tsx
+scripts/document-ai-models.ts` prints the live candidate table (metadata only).
+
+## 13.31 The document-AI provider router
+
+One request can now try more than one approved provider. `documents/router.ts`
+composes the provider readers (`createOpenRouterReader`, `createGeminiReader`)
+into a single `DocumentReader` and, per request, tries the approved providers in
+a fixed server-side priority order, returning the first reply that passes the
+strict schema. It is deliberately tiny — a fallback layer, not a gateway.
+
+**The router cannot weaken any provider's guarantees.** Each reader still
+enforces its own policy (OpenRouter: live $0 verification, ZDR,
+`data_collection: deny`, `max_price: 0`, `allow_fallbacks: false`, non-zero-cost
+rejection; Gemini: server-only key, no tools/search/URL-context/Files-API). The
+router passes no option that could disable any of that, and it can only pick
+among providers already on the approved list — a "fallback" is always to the
+next equally-constrained provider, never a looser one.
+
+| Concern | Behaviour |
+|---|---|
+| Selection | Server-side priority order only. The client sends a document; it cannot name a provider, model, order, price ceiling, ZDR mode, or retry count |
+| Approved registry | An explicit allowlist built in `app.ts`. **OpenRouter only** (priority 1): it proves $0 against live pricing on every read. **Gemini is not routable** — its API exposes no per-request cost, so $0 cannot be mechanically established, and a boolean flag is not a guarantee; it is left unwired and fails closed. Eligibility requires `policy.zeroCost === 'verified-per-read'`; a flag-asserted (`deployment-approved`) provider is never selected. No dynamic provider discovery |
+| Capability | Only providers that take an image and produce structured output are eligible; a text-only provider is never sent a document |
+| Shared validation | The router and `read.ts` call the ONE validator (`validateAiReply` = JSON parse + strict `aiExtractionSchema`); an invalid reply is a provider failure that triggers fallback, never a repaired or partial result |
+| Failure classes | `rate_limited` (cooldown until the provider's reset, or 60s), `non_zero_cost` (quarantine 24h — a policy breach, never retried), `not_configured` (5-min cooldown), `timeout`/`service`/`model_unavailable`/`invalid_reply` (exponential cooldown, capped 60s), `unsupported_type` (STOP — a document problem, no fallback) |
+| Circuit breaker | Per-provider, in-process (no Redis/DB/polling): CLOSED → cooldown/OPEN on failure → the next real request is the HALF-OPEN probe → CLOSED on success. Health carries no document, key or reply |
+| Bounded fallback | At most 3 provider attempts per request; aborting the request stops the chain |
+| Exhaustion | All approved providers failing throws the same `DocumentReaderError` the single-provider path did, so the client drops to the offline parser |
+| Diagnostics | Only provider id, model, task, failure class, attempt, cooldown — never keys, headers, document bytes, OCR text, prompts or replies |
+| Authority | `recognize()` and the deterministic academic engine remain downstream in `read.ts`; the router never decides document type or academic facts |
+
+**Adding a provider** is one `Provider` entry (reader + capabilities + a reviewed
+policy) in `app.ts` — the extraction pipeline, schema and route do not change.
+Arbitrary "free model" discovery is not allowed: a provider is added only after
+its terms, privacy/ZDR, image + structured-output support, and zero-cost policy
+are verified. OmniRoute informed these patterns (provider abstraction, capability
+registry, circuit breaker, quota/reset handling) but is **not** a dependency.

@@ -9,9 +9,15 @@ directory is part of `pnpm verify`.
 
 | File                   | What it does                                                                                                         |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `app-qa.mjs`           | `pnpm qa:app` — the current UI: seeded student, 20 routes × 9 widths × light and dark; axe, overflow, console errors |
 | `visual-qa.mjs`        | Sweeps the production build with **no data**. The right test for empty states, and the wrong one for everything else |
 | `visual-qa-seeded.mjs` | Seeds a synthetic student, pins the clock, then sweeps 12 routes × 9 widths. See below                               |
 | `screenshots/`         | Output of `visual-qa.mjs`. Local and **gitignored** — regenerate it, do not expect it in a clone                     |
+
+> **Stale since the Figma frontend replacement:** `figma-delta-qa`, `import-route-qa`,
+> `import-workflow-qa`, `result-import-qa`, `results-qa` and `subject-identity-qa` drive the
+> previous UI's controls (tabs, the import panel, native selects) and need retargeting before
+> they can be trusted again. The same workflows are covered in `apps/web/test/`.
 
 ---
 

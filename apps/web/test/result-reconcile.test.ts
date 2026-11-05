@@ -41,7 +41,7 @@ const ROWS = [
 
 /** The same semester after a revaluation raised one external mark. */
 const REVALUED = [
-  'BQAS401  ALGORITHMS            46  41  85  P  2026-09-01',
+  'BQAS401  ALGORITHMS            46  42  88  P  2026-09-01',
   'BQAS402  FINANCIAL MANAGEMENT  38  21  59  P  2026-07-23',
 ];
 
@@ -78,6 +78,25 @@ describe('grouping files by the semester their pages state', () => {
     expect(isReadyToImport(groups[0] as never)).toBe(false);
     expect(blockingReason(groups[0] as never)).toMatch(/semester was not printed/i);
   });
+
+  it.each([9, 10])(
+    'refuses a semester-%i card by name, apart from unprinted ones (OQ-057)',
+    (n) => {
+      const groups = groupBySemester([
+        file('final.pdf', card(ROWS, n)),
+        file('scan.pdf', card(ROWS, null)),
+      ]);
+      expect(groups).toHaveLength(2);
+      const [unsupported, unprinted] = groups;
+      expect(unsupported?.files.map((f) => f.fileName)).toEqual(['final.pdf']);
+      expect(unsupported?.semester).toBeNull();
+      expect(isReadyToImport(unsupported as never)).toBe(false);
+      expect(blockingReason(unsupported as never)).toBe(
+        `This document is for semester ${String(n)}. GradTools covers semesters 1–8 (B.E./B.Tech, 2022 scheme), so it cannot be imported.`,
+      );
+      expect(blockingReason(unprinted as never)).toMatch(/semester was not printed/i);
+    },
+  );
 });
 
 describe('two files for one semester', () => {
@@ -95,8 +114,8 @@ describe('two files for one semester', () => {
 
     expect(group.duplicate).toBe('differs');
     expect(group.differences).toEqual([
-      { subjectCode: 'BQAS401', field: 'external', a: '36', b: '41' },
-      { subjectCode: 'BQAS401', field: 'total', a: '80', b: '85' },
+      { subjectCode: 'BQAS401', field: 'external', a: '34', b: '42' },
+      { subjectCode: 'BQAS401', field: 'total', a: '80', b: '88' },
       { subjectCode: 'BQAS401', field: 'announcedOn', a: '2026-07-23', b: '2026-09-01' },
     ]);
     // NOT ready: nothing here can tell a revaluation from the wrong file.

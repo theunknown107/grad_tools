@@ -72,11 +72,11 @@ describeDb('the notification inbox', () => {
    * background run is.
    */
   beforeEach(async () => {
-    await admin`DELETE FROM auth.users WHERE id IN (${A}::uuid, ${B}::uuid)`;
+    await admin`DELETE FROM accounts WHERE id IN (${A}, ${B})`;
     await admin`
-      INSERT INTO auth.users (id, email) VALUES
-        (${A}::uuid, 'synthetic-inbox-a@example.test'),
-        (${B}::uuid, 'synthetic-inbox-b@example.test')
+      INSERT INTO accounts (id) VALUES
+        (${A}),
+        (${B})
     `;
     for (const [userId, external] of [
       [A, 'exam-inbox-a'],

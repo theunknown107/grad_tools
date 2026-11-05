@@ -353,8 +353,8 @@ describe('notification preferences', () => {
     expect(buildNotifications(items, [], student, DEFAULT_PREFERENCES, NOW).length).toBe(0);
   });
 
-  it('starts with nothing muted and browser notifications off', () => {
-    expect(DEFAULT_PREFERENCES.muted).toEqual([]);
-    expect(DEFAULT_PREFERENCES.browserNotifications).toBe(false);
+  it('starts with nothing muted, and keeps no browser-notification switch', () => {
+    // GradTools delivers nothing outside the app, so there is nothing to switch on.
+    expect(DEFAULT_PREFERENCES).toEqual({ muted: [] });
   });
 });

@@ -88,6 +88,8 @@ Every empty state has three parts: what is empty, why that is normal, and one ac
 | Notifications | "No announcements yet. We check the public VTU page a few times a day." | [ Notification settings ] |
 | Search, no match | "Nothing matched 'xyz'. Try a subject code like CS304." | — |
 
+> **Results row superseded by `OQ-056`:** a result yields SGPA, CGPA and a separate results-derived failure figure; the "Backlogs" count is recorded by the student and never derived from results, so the empty-state copy should not promise backlogs from a result.
+
 **Never** use an empty state to display fake sample data as though it were the user's.
 
 ## 4.6 Error states

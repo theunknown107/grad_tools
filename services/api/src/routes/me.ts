@@ -30,9 +30,12 @@ import { Router, type Request, type Response } from 'express';
 import express from 'express';
 import { z } from 'zod';
 import {
+  CURRENT_TERMS,
   STUDENT_ROUTES,
+  TERMS_ROUTES,
   profileInputSchema,
   syncPushSchema,
+  termsAcceptanceInputSchema,
   type CloudProfile,
   type SyncOutcome,
   type SyncRecord,
@@ -47,7 +50,9 @@ import {
   unreadCount,
 } from '../monitor/inbox.js';
 import { addListener, forClient, MAX_CONNECTIONS_PER_USER } from '../monitor/realtime.js';
-import { requireSession, sessionOf, type Verifier } from '../auth/session.js';
+import { requireSession, sessionOf, type SessionSource } from '../auth/session.js';
+import { supportIdFor } from '../support/id.js';
+import { acceptTerms, readAcceptance } from '../account/terms-store.js';
 import { ApiError, notFound } from '../http/errors.js';
 import {
   COLLECTION_TABLES,
@@ -59,7 +64,7 @@ import {
 
 export interface StudentRouterDeps {
   readonly cloud: Sql;
-  readonly verify: Verifier;
+  readonly verify: SessionSource;
   /**
    * Present only where an admin connection is configured. Returns false when
    * the account was already gone, so "deleted" and "there was nothing to
@@ -94,7 +99,12 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
    */
   router.get(STUDENT_ROUTES.me, guard, async (req: Request, res: Response) => {
     const session = sessionOf(req);
-    const profile = await withUser(deps.cloud, session, (tx) => readProfile(tx));
+    // Profile and Terms acceptance are read in ONE RLS-scoped transaction, so the
+    // onboarding gate sees a consistent view of both in a single round trip.
+    const { profile, terms } = await withUser(deps.cloud, session, async (tx) => ({
+      profile: await readProfile(tx),
+      terms: await readAcceptance(tx, CURRENT_TERMS.version),
+    }));
 
     res.json({
       identity: {
@@ -105,12 +115,56 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
             ?.provider === 'string'
             ? (session.claims as { app_metadata: { provider: string } }).app_metadata.provider
             : null,
+        /*
+         * The Support ID a student quotes when reporting a problem. Derived
+         * from the verified subject (support/id.ts), so it exposes neither the
+         * Clerk user id nor the Supabase uuid, and is stable for this account.
+         */
+        supportId: supportIdFor(session.userId),
       },
       profile,
       /* A student with no cloud profile has not finished onboarding. */
       onboarded: profile !== null,
+      /*
+       * Terms gate state (TERMS-AND-ONBOARDING). `currentVersion` is what the
+       * client must have accepted; `terms` is this account's acceptance of it,
+       * or null. The onboarding gate reads this — never localStorage.
+       */
+      termsCurrentVersion: CURRENT_TERMS.version,
+      terms,
     });
   });
+
+  /* ---------------------------------------------------------------------- */
+  /* Terms & Conditions acceptance                                          */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Records the authenticated user's acceptance of the CURRENT Terms version.
+   *
+   * The client sends the exact version it displayed; any other version is
+   * refused, so a stale tab cannot record acceptance of terms the user never
+   * saw. The write is RLS-scoped to the verified subject and idempotent, and the
+   * stored record (version + timestamp) is returned so the client can confirm it
+   * persisted before advancing — acceptance is never assumed on the client.
+   */
+  router.post(
+    TERMS_ROUTES.acceptance,
+    guard,
+    express.json({ limit: '4kb' }),
+    async (req: Request, res: Response) => {
+      const session = sessionOf(req);
+      const { version } = termsAcceptanceInputSchema.parse(req.body);
+      if (version !== CURRENT_TERMS.version) {
+        throw new ApiError(
+          'VALIDATION_FAILED',
+          'Those are not the current Terms. Reload and try again.',
+        );
+      }
+      const acceptance = await withUser(deps.cloud, session, (tx) => acceptTerms(tx, version));
+      res.status(201).json(acceptance);
+    },
+  );
 
   /* ---------------------------------------------------------------------- */
   /* The profile                                                            */
@@ -271,9 +325,10 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
    * Delete the account and everything in it.
    *
    * COMPLETE DELETION IS THE DEFAULT and there is no retention exception
-   * (M9 §34). Removing the `auth.users` row cascades through every student
-   * table by foreign key, so there is no list of tables here to fall out of
-   * date — the schema deletes itself.
+   * (M9 §34). Removing the `accounts` row (as the user, under RLS) cascades
+   * through every student table by foreign key, so there is no list of tables
+   * here to fall out of date — the schema deletes itself. Only then is the
+   * identity (the Clerk user) deleted, server-side (db/cloud.ts).
    *
    * Local data on the device is NOT touched by this route, and the interface
    * says so: it is the student's copy, on their machine, and deleting the cloud

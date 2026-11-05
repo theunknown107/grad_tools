@@ -13,8 +13,12 @@
 
 import type { RuleSet } from '../types.js';
 import { vtu2022RuleSet } from './vtu-2022.js';
+import { vtu2025RuleSet } from './vtu-2025.js';
 
-const RULE_SETS: ReadonlyMap<string, RuleSet> = new Map([[vtu2022RuleSet.id, vtu2022RuleSet]]);
+const RULE_SETS: ReadonlyMap<string, RuleSet> = new Map([
+  [vtu2022RuleSet.id, vtu2022RuleSet],
+  [vtu2025RuleSet.id, vtu2025RuleSet],
+]);
 
 /** Every rule set known to this build, verified or not. */
 export function listRuleSets(): readonly RuleSet[] {

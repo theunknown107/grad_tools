@@ -19,6 +19,7 @@
  */
 
 import { z } from 'zod';
+import { httpUrlSchema } from './url.js';
 
 /* -------------------------------------------------------------------------- */
 /* Source identity                                                            */
@@ -114,7 +115,7 @@ export const sourceSchema = z.object({
   id: z.string(),
   kind: sourceKindSchema,
   publisher: z.string(),
-  canonicalUrl: z.string().url(),
+  canonicalUrl: httpUrlSchema,
   authority: sourceAuthoritySchema,
   accessMethod: accessMethodSchema,
 
@@ -205,7 +206,7 @@ export const documentSchema = z.object({
   rightsStatus: rightsStatusSchema,
   presentation: presentationModeSchema,
   /** Where the original lives. Required for `link`, which is all `link` offers. */
-  sourceUrl: z.string().url().nullable(),
+  sourceUrl: httpUrlSchema.nullable(),
   licenseNote: z.string().nullable(),
   rejectionReason: z.string().nullable(),
   createdAt: z.string(),
@@ -287,7 +288,7 @@ export const questionPaperSchema = z.object({
    */
   sourceId: z.string().nullable(),
   sourceName: z.string().nullable(),
-  sourceUrl: z.string().url().nullable(),
+  sourceUrl: httpUrlSchema.nullable(),
 
   /** RIGHTS — what GradTools may actually do with it. A separate question. */
   availability: presentationModeSchema,
@@ -861,7 +862,7 @@ export const announcementEntrySchema = z.object({
   body: z.string().max(20000).optional(),
   category: announcementCategorySchema,
   /** Validated as http(s) here AND by a database CHECK. */
-  canonicalUrl: z.string().url().nullish(),
+  canonicalUrl: httpUrlSchema.nullish(),
   publishedAt: z.string().nullish(),
   eventStartAt: z.string().nullish(),
   deadlineAt: z.string().nullish(),
