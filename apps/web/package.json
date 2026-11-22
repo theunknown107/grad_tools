@@ -20,6 +20,7 @@
     "@capacitor/app": "^8.1.2",
     "@capacitor/browser": "^8.0.5",
     "@capacitor/core": "8.5.2",
+    "@capacitor/local-notifications": "8.3.1",
     "@clerk/react": "6.17.7",
     "@gradtools/academic-rules": "workspace:*",
     "@gradtools/shared-types": "workspace:*",
