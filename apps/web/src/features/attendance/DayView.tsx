@@ -69,6 +69,7 @@ export function DayView({
   slots,
   overrides,
   titleFor,
+  standingFor,
   /** Today's list groups itself around the clock; another date does not. */
   showTiming = false,
   emptyTitle = 'Nothing scheduled',
@@ -82,6 +83,8 @@ export function DayView({
   readonly slots: readonly TimetableSlot[];
   readonly overrides: readonly DayOverride[];
   readonly titleFor: (code: string) => string | null;
+  /** The course's standing, so a class is marked knowing what it costs. */
+  readonly standingFor?: (code: string) => string | null;
   readonly showTiming?: boolean;
   readonly emptyTitle?: string;
   readonly emptyDescription?: string;
@@ -117,7 +120,11 @@ export function DayView({
   return (
     <div className="flex flex-col gap-4">
       {groups.map((group) => (
-        <Card key={group.timing} className="overflow-hidden">
+        <Card key={group.timing} className="relative overflow-hidden">
+          {/* The class on now carries the page's one mark of emphasis. */}
+          {showTiming && group.timing === 'now' && (
+            <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-accent" />
+          )}
           {showTiming && <CardHeader title={TIMING_LABEL[group.timing]} />}
           <CardRows>
             {group.classes.map((entry) => (
@@ -126,6 +133,7 @@ export function DayView({
                 entry={entry}
                 date={date}
                 titleFor={titleFor}
+                {...(standingFor === undefined ? {} : { standingFor })}
                 {...(onReplace === undefined ? {} : { onReplace })}
                 {...(onRestore === undefined ? {} : { onRestore })}
                 {...(onRemoveForDate === undefined ? {} : { onRemoveForDate })}
@@ -142,6 +150,7 @@ function ClassRow({
   entry,
   date,
   titleFor,
+  standingFor,
   onReplace,
   onRestore,
   onRemoveForDate,
@@ -149,6 +158,7 @@ function ClassRow({
   readonly entry: EffectiveClass;
   readonly date: string;
   readonly titleFor: (code: string) => string | null;
+  readonly standingFor?: (code: string) => string | null;
   readonly onReplace?: (entry: EffectiveClass) => void;
   readonly onRestore?: (entry: EffectiveClass) => void;
   readonly onRemoveForDate?: (entry: EffectiveClass) => void;
@@ -160,6 +170,10 @@ function ClassRow({
     entry.subjectCode === null ? null : titleFor(entry.subjectCode),
   );
   const title = named.name === '' ? KIND_LABEL[entry.kind] : named.name;
+  const standing =
+    entry.kind === 'course' && entry.subjectCode !== null
+      ? (standingFor?.(entry.subjectCode) ?? null)
+      : null;
 
   const mark = async (next: MarkState): Promise<void> => {
     const previous = state;
@@ -246,9 +260,12 @@ function ClassRow({
           )}
         </div>
         {(entry.room !== null || entry.faculty !== null) && (
-          <div className="mt-0.5 truncate text-[11px] text-ink-3">
+          <div className="mt-0.5 truncate text-[12px] text-ink-3">
             {[entry.room, entry.faculty].filter((part) => part !== null).join(' · ')}
           </div>
+        )}
+        {standing !== null && (
+          <div className="mt-0.5 truncate font-mono text-[12px] text-ink-2">{standing}</div>
         )}
       </div>
 
@@ -260,7 +277,7 @@ function ClassRow({
           </span>
         </Callout>
       ) : entry.kind !== 'course' || entry.subjectCode === null ? (
-        <span className="text-[11px] text-ink-3">Not counted</span>
+        <span className="text-[12px] text-ink-3">Not counted</span>
       ) : (
         <div className="w-full sm:w-auto">
           <AttendanceControl value={state} onChange={record} name={named.shortName} />

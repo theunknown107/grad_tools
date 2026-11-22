@@ -10,7 +10,7 @@ import { cn } from '../../lib/cn.js';
 import { collisionInsets } from '../../lib/viewport.js';
 
 const popupClass =
-  'z-[95] min-w-44 overflow-hidden rounded-xl border border-line bg-raised p-1 shadow-e3 outline-none data-[state=open]:animate-pop';
+  'z-[95] min-w-44 overflow-hidden gt-panel rounded-xl border border-line p-1 outline-none data-[state=open]:animate-pop';
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -75,7 +75,7 @@ export function DropdownMenuItem({
 
 export function DropdownMenuLabel({ children }: { readonly children: ReactNode }) {
   return (
-    <DropdownMenuPrimitive.Label className="px-2.5 py-1.5 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase">
+    <DropdownMenuPrimitive.Label className="px-2.5 py-1.5 font-mono text-[12px] text-ink-3">
       {children}
     </DropdownMenuPrimitive.Label>
   );

@@ -17,8 +17,8 @@ import {
   ACCENTS,
   type Accent,
   type Appearance,
-  type ButtonStyle,
   type Density,
+  type SurfaceStyle,
 } from '../../lib/theme.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -78,7 +78,7 @@ export function AppearanceSettings() {
     setAccent,
     setDensity,
     setReducedMotion,
-    setButtonStyle,
+    setSurface,
   } = useTheme();
 
   return (
@@ -222,21 +222,30 @@ export function AppearanceSettings() {
             />
           </div>
           <div className="border-t border-line pt-4">
-            <Segmented<ButtonStyle>
-              label="Liquid Glass"
-              value={preference.buttonStyle}
-              onChange={(buttonStyle) => {
-                setButtonStyle(buttonStyle);
-                toast(buttonStyle === 'glass' ? 'Liquid Glass on' : 'Liquid Glass off');
+            <Segmented<SurfaceStyle>
+              label="Surface style"
+              value={preference.surface}
+              onChange={(surface) => {
+                setSurface(surface);
+                toast(
+                  surface === 'liquid'
+                    ? 'Liquid Glass'
+                    : surface === 'opaque'
+                      ? 'Opaque surfaces'
+                      : 'Glass off',
+                );
               }}
               options={[
-                { value: 'glass', label: 'On' },
-                { value: 'opaque', label: 'Off' },
+                { value: 'liquid', label: 'Liquid Glass' },
+                { value: 'opaque', label: 'Opaque' },
+                { value: 'off', label: 'Off' },
               ]}
             />
             <div className="mt-1.5 text-[12px] text-ink-3">
-              Liquid Glass gives primary buttons and the search bar a translucent treatment. Off
-              renders them solid; reduced motion always falls back to solid.
+              Liquid Glass gives the bottom navigation, primary buttons and the search bar a
+              translucent, refractive material — frosted where the device cannot refract. Opaque
+              renders them solid; Off removes the material. Reduced motion always falls back to
+              solid.
             </div>
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-line pt-4">
@@ -288,7 +297,7 @@ function AppearancePreview() {
           </div>
         </div>
         <div className="gt-metric rounded-lg p-3">
-          <div className="text-[11px] font-medium text-ink-2">Sample figure</div>
+          <div className="text-[12px] font-medium text-ink-2">Sample figure</div>
           <div className="tnum text-2xl font-semibold tracking-[-0.02em]">8.00</div>
         </div>
       </div>
@@ -303,7 +312,7 @@ function AppearancePreview() {
           ]}
           className="self-start"
         />
-        <Input placeholder="Search results, courses…" tabIndex={-1} />
+        <Input placeholder="Search" tabIndex={-1} />
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="glass-primary" tabIndex={-1}>
             Primary action

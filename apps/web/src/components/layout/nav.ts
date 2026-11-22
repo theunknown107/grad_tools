@@ -22,6 +22,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   Megaphone,
+  Palette,
   Settings2,
   UserCircle,
   type LucideIcon,
@@ -102,7 +103,7 @@ export const DESTINATIONS: readonly Destination[] = [
     short: 'Attendance',
     icon: CalendarCheck2,
     group: 'Academics',
-    description: 'Percentage and classes you can miss',
+    description: 'Percentage and margin for each course',
     keywords: 'bunk present absent planner',
   },
   {
@@ -138,9 +139,17 @@ export const DESTINATIONS: readonly Destination[] = [
     short: 'Account',
     icon: Settings2,
     group: 'Account',
-    description: 'Settings: appearance, academic details, data and privacy',
-    keywords:
-      'settings appearance theme accent density motion branch scheme semester privacy delete export sync notifications',
+    description: 'Settings: academic details, data and privacy, notifications',
+    keywords: 'settings branch scheme semester privacy delete export sync notifications',
+  },
+  {
+    to: '/appearance',
+    label: 'Appearance',
+    short: 'Appearance',
+    icon: Palette,
+    group: 'Account',
+    description: 'Themes: light, dark, accent colour, glass and motion',
+    keywords: 'appearance theme themes dark light accent colour color glass liquid density motion',
   },
   {
     to: '/profile',

@@ -61,6 +61,7 @@ describe('reading a stored preference', () => {
       reducedMotion: false,
       density: 'comfortable',
       buttonStyle: 'glass',
+      surface: 'liquid',
     };
     writeStoredTheme(storage, preference);
     expect(readStoredTheme(storage)).toEqual(preference);
@@ -88,6 +89,7 @@ describe('reading a stored preference', () => {
       reducedMotion: false,
       density: 'comfortable',
       buttonStyle: 'glass',
+      surface: 'liquid',
     });
   });
 
@@ -101,6 +103,7 @@ describe('reading a stored preference', () => {
       reducedMotion: false,
       density: 'comfortable',
       buttonStyle: 'glass',
+      surface: 'liquid',
     });
   });
 
@@ -122,6 +125,7 @@ describe('reading a stored preference', () => {
         reducedMotion: false,
         density: 'comfortable',
         buttonStyle: 'glass',
+      surface: 'liquid',
       }),
     ).not.toThrow();
   });
@@ -140,6 +144,7 @@ describe('applying a preference to the document', () => {
       reducedMotion: false,
       density: 'comfortable',
       buttonStyle: 'glass',
+      surface: 'liquid',
     });
     expect(root.getAttribute('data-theme')).toBe('dark');
     expect(root.getAttribute('data-accent')).toBe('amber');
@@ -157,6 +162,7 @@ describe('applying a preference to the document', () => {
       reducedMotion: false,
       density: 'comfortable',
       buttonStyle: 'glass',
+      surface: 'liquid',
     });
     applyTheme(root, {
       appearance: 'system',
@@ -164,6 +170,7 @@ describe('applying a preference to the document', () => {
       reducedMotion: false,
       density: 'comfortable',
       buttonStyle: 'glass',
+      surface: 'liquid',
     });
     expect(root.hasAttribute('data-theme')).toBe(false);
     expect(root.style.colorScheme).toBe('light dark');
@@ -176,6 +183,7 @@ describe('the Liquid Glass button-style preference', () => {
     accent: 'mono',
     reducedMotion: false,
     density: 'comfortable',
+    surface: 'liquid',
   } as const;
 
   it('defaults to glass and round-trips opaque', () => {
@@ -200,6 +208,44 @@ describe('the Liquid Glass button-style preference', () => {
     expect(root.getAttribute('data-button-style')).toBe('opaque');
     applyTheme(root, { ...base, buttonStyle: 'glass' });
     expect(root.hasAttribute('data-button-style')).toBe(false);
+  });
+});
+
+describe('the Liquid Glass surface-style preference', () => {
+  const base = {
+    appearance: 'light',
+    accent: 'mono',
+    reducedMotion: false,
+    density: 'comfortable',
+    buttonStyle: 'glass',
+  } as const;
+
+  it('defaults to liquid and round-trips opaque and off', () => {
+    expect(DEFAULT_THEME.surface).toBe('liquid');
+    const storage = memoryStorage();
+    writeStoredTheme(storage, { ...base, surface: 'opaque' });
+    expect(readStoredTheme(storage).surface).toBe('opaque');
+    writeStoredTheme(storage, { ...base, surface: 'off' });
+    expect(readStoredTheme(storage).surface).toBe('off');
+  });
+
+  it('reads an absent or unknown stored value as liquid (added-later contract)', () => {
+    expect(readStoredTheme(memoryStorage(JSON.stringify({ appearance: 'light' }))).surface).toBe(
+      'liquid',
+    );
+    expect(readStoredTheme(memoryStorage(JSON.stringify({ surface: 'frosted' }))).surface).toBe(
+      'liquid',
+    );
+  });
+
+  it('stamps data-surface only for opaque and off, so liquid needs no rule', () => {
+    const root = document.createElement('html');
+    applyTheme(root, { ...base, surface: 'opaque' });
+    expect(root.getAttribute('data-surface')).toBe('opaque');
+    applyTheme(root, { ...base, surface: 'off' });
+    expect(root.getAttribute('data-surface')).toBe('off');
+    applyTheme(root, { ...base, surface: 'liquid' });
+    expect(root.hasAttribute('data-surface')).toBe(false);
   });
 });
 

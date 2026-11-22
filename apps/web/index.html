@@ -9,8 +9,8 @@
       content="GradTools brings routine academic workflows into one place. Independent student project, not affiliated with VTU."
     />
     <title>GradTools</title>
-    <!-- The same file the in-app logo inlines; it follows the browser's light/dark. -->
-    <link rel="icon" type="image/svg+xml" href="/src/brand/gradtools-mark.svg" />
+    <!-- Generated from the brand logo by scripts/android-icons.mjs. -->
+    <link rel="icon" type="image/png" href="/gradtools-favicon.png" />
     <!--
       Fonts ship with the bundle (src/styles/fonts.css); no third-party request.
 
@@ -59,6 +59,19 @@
           if (saved.density === 'compact') root.setAttribute('data-density', 'compact');
           if (saved.reducedMotion === true) root.setAttribute('data-motion', 'reduced');
           if (saved.buttonStyle === 'opaque') root.setAttribute('data-button-style', 'opaque');
+          if (saved.surface === 'opaque' || saved.surface === 'off')
+            root.setAttribute('data-surface', saved.surface);
+          /*
+           * Android cold start: stay white from the native splash until the
+           * launch overlay mounts (LaunchSplash removes this), so the hand-off
+           * never flashes the dark canvas. Same conditions as the overlay.
+           */
+          var cap = window.Capacitor;
+          var reduce =
+            saved.reducedMotion === true ||
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (cap && cap.isNativePlatform && cap.isNativePlatform() && !reduce)
+            root.classList.add('gt-booting');
         } catch (error) {
           /* Storage blocked or corrupt: light + mono from the stylesheet. */
         }
@@ -66,6 +79,44 @@
     </script>
   </head>
   <body>
+    <!--
+      Liquid Glass edge refraction. A displacement map applied to the nav's
+      backdrop; used ONLY where the engine supports a filter in backdrop-filter
+      (Safari/Firefox). Chromium and the Android System WebView ignore it and
+      render the frosted blur fallback (see .gt-glass-bar in styles/index.css).
+    -->
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="0"
+      height="0"
+      style="position: absolute; width: 0; height: 0; pointer-events: none"
+    >
+      <filter
+        id="gt-liquid-glass"
+        x="-20%"
+        y="-20%"
+        width="140%"
+        height="140%"
+        color-interpolation-filters="sRGB"
+      >
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.012 0.015"
+          numOctaves="2"
+          seed="11"
+          result="n"
+        />
+        <feGaussianBlur in="n" stdDeviation="1.4" result="nb" />
+        <feDisplacementMap
+          in="SourceGraphic"
+          in2="nb"
+          scale="22"
+          xChannelSelector="R"
+          yChannelSelector="G"
+        />
+      </filter>
+    </svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

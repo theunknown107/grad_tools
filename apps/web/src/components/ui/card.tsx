@@ -10,7 +10,7 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export const cardInteractive =
-  'cursor-pointer text-left transition-[box-shadow,transform,border-color] duration-150 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-e2 active:translate-y-0';
+  'cursor-pointer text-left transition-[background-color,border-color,transform] duration-150 hover:border-line-strong hover:bg-raised/90 active:scale-[0.99]';
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
   { className, interactive = false, asChild = false, ...props },
@@ -21,7 +21,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
     <Comp
       ref={ref}
       className={cn(
-        'rounded-xl border border-line bg-raised',
+        'gt-surface rounded-xl border border-line',
         interactive && cardInteractive,
         className,
       )}

@@ -23,8 +23,8 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-accent text-on-accent shadow-e1 hover:brightness-110 active:brightness-95',
-        secondary: 'border border-line bg-raised text-ink hover:bg-sunken active:bg-sunken/80',
+        primary: 'gt-primary active:scale-[0.98]',
+        secondary: 'gt-control border border-line text-ink active:scale-[0.98]',
         outline: 'border border-line-strong bg-transparent text-ink hover:bg-panel',
         ghost: 'bg-transparent text-ink-2 hover:bg-sunken hover:text-ink',
         destructive: 'bg-danger text-canvas hover:brightness-110 active:brightness-95',

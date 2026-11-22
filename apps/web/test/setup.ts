@@ -5,6 +5,9 @@
  */
 
 import { configure } from '@testing-library/dom';
+import { beforeEach } from 'vitest';
+import { CURRENT_TERMS } from '@gradtools/shared-types';
+import { FIRST_RUN_DONE_KEY, TERMS_ACCEPTED_KEY } from '../src/lib/first-run.js';
 
 /*
  * Testing Library's async queries have their OWN timeout, separate from
@@ -109,3 +112,18 @@ if (elementProto !== null && !('hasPointerCapture' in elementProto)) {
 if (!('PointerEvent' in globalThis)) {
   globalThis.PointerEvent = globalThis.MouseEvent as unknown as typeof PointerEvent;
 }
+
+/* -------------------------------------------------------------------------- */
+/* An onboarded device                                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A new device sees Terms, then Sign in, before the app (`OnboardingGate`).
+ * Every test that is not ABOUT that first run starts on a device that has
+ * already done it; `test/first-run.test.tsx` covers the first run itself.
+ */
+beforeEach(() => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(TERMS_ACCEPTED_KEY, CURRENT_TERMS.version);
+  window.localStorage.setItem(FIRST_RUN_DONE_KEY, '1');
+});

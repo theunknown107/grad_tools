@@ -10,10 +10,19 @@
  * page), replay the design's rise-in, and reset the scroll position.
  */
 
-import { Command as CommandIcon, PanelLeft, PanelLeftClose, Search, Bell } from 'lucide-react';
+import {
+  Bell,
+  CloudOff,
+  Command as CommandIcon,
+  PanelLeft,
+  PanelLeftClose,
+  Search,
+} from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { CATEGORY_LABEL } from '../../features/announcements/AnnouncementCard.js';
+import { onNoticeTapped, postNewNotices } from '../../lib/system-notifications.js';
 import { useAnnouncements, useNotifications } from '../../hooks/useAnnouncements.js';
 import { useProfile } from '../../hooks/useCollection.js';
 import { useTheme } from '../../hooks/useTheme.js';
@@ -21,6 +30,8 @@ import { cn } from '../../lib/cn.js';
 import { APPEARANCES } from '../../lib/theme.js';
 import { CommandMenuProvider, MODIFIER_KEY, useOpenCommand } from '../navigation/CommandMenu.js';
 import { ThemeToggle } from '../navigation/ThemeToggle.js';
+import { useAuth } from '../../features/auth/AuthContext.js';
+import { QuickAttendance } from '../../features/attendance/QuickAttendance.js';
 import { IconButton } from '../ui/button.js';
 import { Toaster } from '../ui/feedback.js';
 import { Kbd } from '../ui/kbd.js';
@@ -57,6 +68,35 @@ export function AppShell({
   );
 }
 
+/*
+ * THE SESSION COULD NOT BE CHECKED — SAY SO. Offline, Clerk cannot load and
+ * the state settles on `expired`; the screens keep showing what is saved on
+ * this device (see AuthContext), and this is what tells the student that is
+ * what they are looking at, and that nothing is syncing. A reload re-runs
+ * Clerk's load once the network is back.
+ */
+function UnverifiedNotice() {
+  const { state } = useAuth();
+  if (state.status !== 'expired') return null;
+  /* A quiet line, not a callout: the saved records are still right, only syncing is paused. */
+  return (
+    <p role="status" className="mb-6 flex items-start gap-2 text-[12px] text-ink-3">
+      <CloudOff className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+      <span>
+        <span className="font-medium text-ink-2">Sign-in not confirmed</span> · GradTools could not
+        reach your account, so it shows what is saved on this device and syncs once it can{' '}
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="rounded-sm font-medium text-ink-2 underline-offset-2 transition-colors hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          Reload
+        </button>
+      </span>
+    </p>
+  );
+}
+
 function Shell({
   children,
   footer,
@@ -71,10 +111,20 @@ function Shell({
   const [moreOpen, setMoreOpen] = useState(false);
 
   const { items: announcements } = useAnnouncements();
-  const { unread } = useNotifications(announcements);
+  const { unread, notifications } = useNotifications(announcements);
   const { profile } = useProfile();
   const name = profile?.displayName?.trim() || null;
   const initials = initialsOf(name);
+  const navigate = useNavigate();
+
+  /* Relevant, unmuted, unread notices become Android notifications, once each. */
+  useEffect(() => {
+    const fresh = notifications
+      .filter((notification) => notification.state === 'unread')
+      .map((notification) => notification.announcement);
+    void postNewNotices(fresh, (notice) => CATEGORY_LABEL[notice.category]).catch(() => 0);
+  }, [notifications]);
+  useEffect(() => onNoticeTapped(() => navigate('/notifications')), [navigate]);
 
   useEffect(() => {
     if (firstRender.current) {
@@ -98,7 +148,7 @@ function Shell({
   };
 
   return (
-    <div className="flex h-full bg-canvas pr-[var(--gt-safe-right)] pl-[var(--gt-safe-left)] text-ink">
+    <div className="flex h-full pr-[var(--gt-safe-right)] pl-[var(--gt-safe-left)] text-ink">
       <a
         href="#gt-main"
         className="sr-only z-[100] rounded-lg bg-raised px-3 py-2 text-sm font-medium shadow-e2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
@@ -116,13 +166,13 @@ function Shell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/*
-          The status bar gets a strip of page colour and nothing else, so text
-          scrolling up never runs under the clock. It is the only fixed chrome
+          The status bar gets an untinted blur and nothing else: the fluid runs
+          edge to edge under the clock, and text scrolling up is frosted there. It is the only fixed chrome
           at the top of a phone.
         */}
         <div
           aria-hidden="true"
-          className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[var(--gt-safe-top)] bg-canvas md:hidden"
+          className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[var(--gt-safe-top)] backdrop-blur-md md:hidden"
         />
         <main
           id="gt-main"
@@ -140,6 +190,7 @@ function Shell({
             key={location.pathname}
             className="mx-auto w-full max-w-[1180px] animate-rise px-4 py-6 sm:px-6 sm:py-8 lg:px-10"
           >
+            {location.pathname !== '/account' && <UnverifiedNotice />}
             {children}
             {footer}
           </div>
@@ -148,6 +199,7 @@ function Shell({
 
       <MobileBottomNav onMore={() => setMoreOpen(true)} moreOpen={moreOpen} unread={unread} />
       <MobileNavSheet open={moreOpen} onOpenChange={setMoreOpen} unread={unread} />
+      <QuickAttendance />
     </div>
   );
 }
@@ -168,9 +220,7 @@ function Brand({ collapsed }: { readonly collapsed: boolean }) {
       {!collapsed && (
         <span className="hidden leading-tight lg:block">
           <span className="block text-[15px] font-semibold tracking-[-0.01em]">GradTools</span>
-          <span className="block font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase">
-            Academic OS
-          </span>
+          <span className="block font-mono text-[12px] text-ink-3">VTU 2022 scheme</span>
         </span>
       )}
     </Link>
@@ -205,7 +255,7 @@ function Sidebar({
          * twelve destinations with visible labels; at `lg` it becomes the full
          * sidebar, or the same rail when the student collapses it.
          */
-        'relative hidden shrink-0 flex-col border-r border-line bg-panel pt-[var(--gt-safe-top)] transition-[width] duration-300 ease-[var(--ease-out-quint)] md:flex',
+        'gt-nav relative hidden shrink-0 flex-col border-r border-line pt-[var(--gt-safe-top)] transition-[width] duration-300 ease-[var(--ease-out-quint)] md:flex',
         'w-[88px]',
         collapsed ? 'lg:w-[88px]' : 'lg:w-[256px]',
       )}
@@ -228,7 +278,7 @@ function Sidebar({
             <span className={cn('sr-only', !collapsed && 'lg:not-sr-only')}>
               <span
                 className={cn(
-                  'mb-1.5 hidden px-3 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase',
+                  'mb-1.5 hidden px-3 font-mono text-[12px]  text-ink-3',
                   !collapsed && 'lg:block',
                 )}
               >
@@ -257,7 +307,7 @@ function Sidebar({
                          * `title` attribute this used to rely on is gone: a
                          * hover tooltip is unreachable on a touchscreen.
                          */
-                        'group relative mx-1.5 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-colors duration-150',
+                        'group relative mx-1.5 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[12px] font-medium transition-colors duration-150',
                         !collapsed &&
                           'lg:mx-0 lg:h-10 lg:min-h-0 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-sm',
                         active
@@ -291,7 +341,7 @@ function Sidebar({
                         the number in every state.
                       */}
                       {!collapsed && badge !== null && (
-                        <span className="tnum ml-auto hidden text-[11px] font-semibold text-accent-ink lg:inline">
+                        <span className="tnum ml-auto hidden text-[12px] font-semibold text-accent-ink lg:inline">
                           {badge > 99 ? '99+' : badge}
                         </span>
                       )}
@@ -327,7 +377,7 @@ function Sidebar({
         ) : (
           <span className="min-w-0">
             <span className="block truncate text-[13px] font-medium">{name ?? 'Your profile'}</span>
-            <span className="block truncate font-mono text-[11px] text-ink-3">
+            <span className="block truncate font-mono text-[12px] text-ink-3">
               {usn !== null && usn !== '' ? usn : 'Add your details'}
             </span>
           </span>
@@ -367,7 +417,7 @@ function TopBar({
      * scroll away with the page; from `md` they stay pinned on the page colour,
      * where a desktop expects search to be.
      */
-    <header className="z-20 flex h-[calc(3.5rem+var(--gt-safe-top))] items-center gap-2 px-4 pt-[var(--gt-safe-top)] sm:px-6 md:sticky md:top-0 md:bg-canvas">
+    <header className="z-20 flex h-[calc(3.5rem+var(--gt-safe-top))] items-center gap-2 px-4 pt-[var(--gt-safe-top)] sm:px-6 md:sticky md:top-0 md:bg-[var(--glass-nav)] md:backdrop-blur-lg md:backdrop-saturate-150">
       <IconButton
         label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         aria-expanded={!collapsed}
@@ -397,7 +447,7 @@ function TopBar({
         className="gt-glass group ml-auto hidden h-9.5 w-full max-w-sm items-center gap-2.5 rounded-lg px-3 text-sm text-ink-3 transition-colors sm:flex lg:ml-0"
       >
         <Search className="size-4 shrink-0" aria-hidden="true" />
-        <span className="truncate">Search results, courses, actions…</span>
+        <span className="truncate">Search</span>
         <span className="ml-auto flex items-center gap-1" aria-hidden="true">
           <Kbd>{MODIFIER_KEY}</Kbd>
           <Kbd>K</Kbd>
@@ -422,7 +472,7 @@ function TopBar({
           {unread > 0 && (
             <span
               aria-hidden="true"
-              className="tnum pointer-events-none absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-semibold text-canvas"
+              className="tnum pointer-events-none absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[12px] font-semibold text-canvas"
             >
               {unread > 9 ? '9+' : unread}
             </span>
@@ -463,9 +513,9 @@ function MobileBottomNav({
       aria-label="Main"
       data-bottom-bar
       hidden={keyboardOpen}
-      className="fixed inset-x-0 bottom-0 z-40 gt-bar border-t border-line pr-[var(--gt-safe-right)] pl-[var(--gt-safe-left)] [--gt-bar-opacity:98%] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 gt-glass-bar border-t border-line pr-[var(--gt-safe-right)] pl-[var(--gt-safe-left)] md:hidden"
     >
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-[1fr_1fr_minmax(max-content,1.25fr)_minmax(max-content,1.25fr)_1fr]">
         {MOBILE_TABS.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.to, pathname);
@@ -482,7 +532,7 @@ function MobileBottomNav({
                  * This is the sidebar's own pill, so all three navigation
                  * states now say "you are here" the same way.
                  */
-                'mx-1.5 my-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium transition-colors',
+                'mx-1 my-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[12px] font-medium transition-colors',
                 active ? 'bg-accent-weak text-accent-ink' : 'text-ink-3 hover:text-ink-2',
               )}
             >
@@ -497,14 +547,14 @@ function MobileBottomNav({
           aria-haspopup="dialog"
           aria-expanded={moreOpen}
           aria-label={unread > 0 ? `More, ${String(unread)} unread notifications` : 'More'}
-          className="relative mx-1.5 my-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium text-ink-3 transition-colors hover:text-ink-2"
+          className="relative mx-1 my-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[12px] font-medium text-ink-3 transition-colors hover:text-ink-2"
         >
           <CommandIcon className="size-[21px]" aria-hidden="true" />
           More
           {unread > 0 && (
             <span
               aria-hidden="true"
-              className="tnum absolute top-1 right-[calc(50%-22px)] min-w-4 rounded-full bg-danger px-1 text-[10px] leading-4 font-semibold text-on-accent"
+              className="tnum absolute top-1 right-[calc(50%-22px)] min-w-4 rounded-full bg-danger px-1 text-[12px] leading-4 font-semibold text-on-accent"
             >
               {unread > 9 ? '9+' : unread}
             </span>
@@ -562,7 +612,7 @@ function MobileNavSheet({
           <section key={group} aria-labelledby={`sheet-${group}`}>
             <h3
               id={`sheet-${group}`}
-              className="mb-1 px-3 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase"
+              className="mb-1 px-3 font-mono text-[12px] text-ink-3"
             >
               {group}
             </h3>
@@ -586,7 +636,7 @@ function MobileNavSheet({
 
       <h3
         id="sheet-appearance"
-        className="mt-5 mb-2 px-3 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase"
+        className="mt-5 mb-2 px-3 font-mono text-[12px] text-ink-3"
       >
         Appearance
       </h3>

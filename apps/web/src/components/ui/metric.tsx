@@ -57,7 +57,7 @@ export function Metric({
   return (
     <div
       className={cn(
-        plain ? 'min-w-0 bg-raised' : 'gt-metric min-w-0 rounded-xl',
+        plain ? 'min-w-0 shadow-[0_0_0_1px_var(--border)]' : 'gt-metric min-w-0 rounded-xl',
         pad[size],
         className,
       )}
@@ -116,10 +116,10 @@ export function MetricGrid({
 
 /**
  * Figures as ONE ruled instrument, not a row of tiles: give each `Metric` the
- * `plain` prop. The rules between cells are the container's own colour showing
- * through a 1px gap, so they are pure paint, never an element a screen reader
- * could meet. The caller sets the columns (and any spans) in `className`, and
- * must fill every row: an empty track would show as a block of rule colour.
+ * `plain` prop. The rules between cells are each cell's 1px ring filling a 1px
+ * gap over the glass container, so they are pure paint, never an element a
+ * screen reader could meet. The caller sets the columns (and any spans) in
+ * `className`, and must fill every row.
  */
 export function MetricStrip({
   children,
@@ -133,7 +133,10 @@ export function MetricStrip({
   return (
     <div
       {...rest}
-      className={cn('grid gap-px overflow-hidden rounded-xl border border-line bg-line', className)}
+      className={cn(
+        'gt-surface grid gap-px overflow-hidden rounded-xl border border-line',
+        className,
+      )}
     >
       {children}
     </div>
@@ -159,7 +162,7 @@ export function MiniStat({
   const labelId = useId();
   return (
     <div role="group" aria-labelledby={labelId} className={cn('min-w-0', className)}>
-      <div id={labelId} className="text-[11px] text-ink-3">
+      <div id={labelId} className="text-[12px] text-ink-3">
         {label}
       </div>
       <div className={cn('tnum mt-0.5 text-xl font-semibold text-ink', valueClassName)}>

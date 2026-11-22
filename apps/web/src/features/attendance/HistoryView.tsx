@@ -90,7 +90,7 @@ export function HistoryView({
                       {entry.outcome === 'attended' ? 'Attended' : 'Missed'}
                     </Badge>
                     {!counted && (
-                      <span className="text-[11px] text-ink-3">
+                      <span className="text-[12px] text-ink-3">
                         {status === 'replaced'
                           ? 'Replaced · not counted'
                           : 'Cancelled · not counted'}

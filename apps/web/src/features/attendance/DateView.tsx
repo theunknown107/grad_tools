@@ -145,7 +145,7 @@ export function DateView({
               'after:absolute after:bottom-1 after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full after:bg-warning',
           }}
         />
-        <p className="mt-2 max-w-[17rem] text-[11px] leading-relaxed text-ink-3">
+        <p className="mt-2 max-w-[17rem] text-[12px] leading-relaxed text-ink-3">
           A dot marks a day you have recorded classes on; an amber dot marks a day whose schedule
           you changed.
         </p>

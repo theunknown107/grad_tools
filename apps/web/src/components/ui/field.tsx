@@ -32,7 +32,7 @@ import { collisionInsets } from '../../lib/viewport.js';
  * invalid field looked valid.
  */
 export const controlClass = cn(
-  'w-full rounded-lg border border-line bg-panel text-sm text-ink transition-[border-color,box-shadow]',
+  'gt-inset w-full rounded-lg border border-line text-sm text-ink transition-[border-color,box-shadow]',
   'placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-accent/25',
   'disabled:cursor-not-allowed disabled:opacity-60',
   'aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-danger aria-[invalid=true]:focus:ring-2 aria-[invalid=true]:focus:ring-danger/25',
@@ -254,7 +254,7 @@ export const Select = forwardRef<
            */
           collisionPadding={collisionInsets()}
           data-slot="popup"
-          className="z-[95] max-h-[min(var(--radix-select-content-available-height),18rem)] max-w-[calc(100vw-1rem)] min-w-[var(--radix-select-trigger-width)] animate-pop overflow-hidden rounded-xl border border-line bg-raised shadow-e3"
+          className="z-[95] max-h-[min(var(--radix-select-content-available-height),18rem)] max-w-[calc(100vw-1rem)] min-w-[var(--radix-select-trigger-width)] animate-pop gt-panel overflow-hidden rounded-xl border border-line"
         >
           <SelectPrimitive.Viewport className="p-1">
             {options.map((option) => (

@@ -98,7 +98,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
           align="start"
           sideOffset={6}
           collisionPadding={collisionInsets()}
-          className="z-[95] flex max-h-[min(var(--radix-popover-content-available-height),24rem)] w-[max(var(--radix-popover-trigger-width),16rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-line bg-raised shadow-e3 outline-none data-[state=open]:animate-pop"
+          className="z-[95] flex max-h-[min(var(--radix-popover-content-available-height),24rem)] w-[max(var(--radix-popover-trigger-width),16rem)] max-w-[calc(100vw-1rem)] flex-col gt-panel overflow-hidden rounded-xl border border-line outline-none data-[state=open]:animate-pop"
         >
           <Command shouldFilter={false} label={searchPlaceholder} className="flex min-h-0 flex-col">
             <div className="flex items-center gap-2 border-b border-line px-3">
@@ -112,7 +112,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
               />
             </div>
             {status !== null && (
-              <p className="px-3 pt-2 text-[11px] text-ink-3" aria-live="polite">
+              <p className="px-3 pt-2 text-[12px] text-ink-3" aria-live="polite">
                 {status}
               </p>
             )}
@@ -141,7 +141,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
                     {option.detail !== undefined && (
                       <span
                         id={`${listId}-${String(index)}`}
-                        className="block text-[11px] text-ink-3"
+                        className="block text-[12px] text-ink-3"
                       >
                         {option.detail}
                       </span>

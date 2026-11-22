@@ -241,7 +241,7 @@ function CommandMenu({
           data-slot="popup"
           {...returnFocus}
           aria-describedby={undefined}
-          className="fixed top-[12vh] left-1/2 z-[81] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border border-line bg-panel shadow-e3 outline-none data-[state=open]:animate-pop"
+          className="fixed top-[12vh] left-1/2 z-[81] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 gt-panel overflow-hidden rounded-2xl border border-line outline-none data-[state=open]:animate-pop"
         >
           <DialogPrimitive.Title className="sr-only">Search GradTools</DialogPrimitive.Title>
           <Command label="Search GradTools" loop className="flex flex-col">
@@ -263,7 +263,7 @@ function CommandMenu({
                 <Command.Group
                   key={group}
                   heading={group}
-                  className="mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:tracking-[0.16em] [&_[cmdk-group-heading]]:text-ink-3 [&_[cmdk-group-heading]]:uppercase"
+                  className="mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[12px] [&_[cmdk-group-heading]]:text-ink-3"
                 >
                   {entries
                     .filter((entry) => entry.group === group)
@@ -294,7 +294,7 @@ function CommandMenu({
                 </Command.Group>
               ))}
             </Command.List>
-            <div className="flex items-center gap-4 border-t border-line px-4 py-2 text-[11px] text-ink-3">
+            <div className="flex items-center gap-4 border-t border-line px-4 py-2 text-[12px] text-ink-3">
               <span className="inline-flex items-center gap-1">
                 <Kbd>↑</Kbd>
                 <Kbd>↓</Kbd> to move

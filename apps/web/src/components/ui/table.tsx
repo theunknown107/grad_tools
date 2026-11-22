@@ -42,7 +42,7 @@ export function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCel
     <th
       scope="col"
       className={cn(
-        'px-4 py-3 text-[11px] font-semibold tracking-wide whitespace-nowrap text-ink-3 uppercase first:pl-5 last:pr-5',
+        'px-4 py-3 text-[12px] font-semibold  whitespace-nowrap text-ink-3  first:pl-5 last:pr-5',
         className,
       )}
       {...props}

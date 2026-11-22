@@ -46,6 +46,16 @@ export const BUTTON_STYLES = ['glass', 'opaque'] as const;
 export type ButtonStyle = (typeof BUTTON_STYLES)[number];
 
 /**
+ * Appearance → Surface style: the Liquid Glass material on the nav bar and the
+ * glass controls. `liquid` is the full translucent material (refraction where
+ * the engine supports it, frosted blur where it does not), `opaque` renders the
+ * surfaces solid, and `off` removes the glass material entirely. Presentation
+ * only, device-scoped — nothing here may reach an academic figure.
+ */
+export const SURFACE_STYLES = ['liquid', 'opaque', 'off'] as const;
+export type SurfaceStyle = (typeof SURFACE_STYLES)[number];
+
+/**
  * The curated accents.
  *
  * A fixed list, not a colour picker (M9.6 §10). Every entry is contrast-checked
@@ -98,6 +108,8 @@ export interface ThemePreference {
   readonly density: Density;
   /** Glass surfaces on (Liquid Glass) or off (opaque). Defaults to glass. */
   readonly buttonStyle: ButtonStyle;
+  /** The Liquid Glass surface material mode (nav bar + glass controls). */
+  readonly surface: SurfaceStyle;
 }
 
 /**
@@ -118,6 +130,8 @@ export const DEFAULT_THEME: ThemePreference = {
   density: 'comfortable',
   /* Liquid Glass by default; a person can switch to Opaque in Appearance. */
   buttonStyle: 'glass',
+  /* The full Liquid Glass material; switchable to Opaque or Off. */
+  surface: 'liquid',
 };
 
 /** Device-scoped on purpose — see the header. */
@@ -127,6 +141,8 @@ const isAppearance = (v: unknown): v is Appearance =>
   typeof v === 'string' && (APPEARANCES as readonly string[]).includes(v);
 const isAccent = (v: unknown): v is Accent =>
   typeof v === 'string' && (ACCENTS as readonly string[]).includes(v);
+const isSurface = (v: unknown): v is SurfaceStyle =>
+  typeof v === 'string' && (SURFACE_STYLES as readonly string[]).includes(v);
 
 /**
  * Reads the stored preference, falling back field by field.
@@ -163,6 +179,7 @@ export function readStoredTheme(storage: Pick<Storage, 'getItem'>): ThemePrefere
     reducedMotion: record['reducedMotion'] === true,
     density: record['density'] === 'compact' ? 'compact' : DEFAULT_THEME.density,
     buttonStyle: record['buttonStyle'] === 'opaque' ? 'opaque' : DEFAULT_THEME.buttonStyle,
+    surface: isSurface(record['surface']) ? record['surface'] : DEFAULT_THEME.surface,
   };
 }
 
@@ -224,6 +241,10 @@ export function applyTheme(root: HTMLElement, preference: ThemePreference): void
      rule of its own (same convention as motion/density above). */
   if (preference.buttonStyle === 'opaque') root.setAttribute('data-button-style', 'opaque');
   else root.removeAttribute('data-button-style');
+  /* Surface material: liquid (default) carries no attribute, so the stylesheet's
+     liquid material is a plain selector; opaque and off are the overrides. */
+  if (preference.surface === 'liquid') root.removeAttribute('data-surface');
+  else root.setAttribute('data-surface', preference.surface);
 }
 
 /** Which appearance `system` currently resolves to. */

@@ -194,6 +194,12 @@ function Overview({
           : `Semester ${String(profile.currentSemester)}`,
     },
   ];
+  /* Signing in fills none of these: an account is not a completed profile. */
+  const missing = [
+    ...(name === null ? ['Name'] : []),
+    ...fields.filter((field) => field.value === null).map((field) => field.label),
+  ];
+  const total = fields.length + 1;
 
   return (
     <div className="flex flex-col gap-6">
@@ -251,10 +257,22 @@ function Overview({
               </Badge>
             ) : null}
           </div>
-          {profile === null && (
-            <Button variant="primary" size="sm" className="mt-4" icon={<Pencil />} onClick={onEdit}>
-              Add your details
-            </Button>
+          {missing.length > 0 && (
+            <div className="mt-5 border-t border-line pt-4">
+              <p className="text-[13px] font-medium text-ink">
+                Profile {total - missing.length} of {total} complete
+              </p>
+              <p className="mt-0.5 text-[12px] text-ink-3">Still to add: {missing.join(', ')}.</p>
+              <Button
+                variant="primary"
+                size="sm"
+                className="mt-3"
+                icon={<Pencil />}
+                onClick={onEdit}
+              >
+                Complete your profile
+              </Button>
+            </div>
           )}
         </div>
       </Card>
@@ -272,7 +290,7 @@ function Overview({
                   <field.icon className="size-4" />
                 </span>
                 <dl className="min-w-0">
-                  <dt className="text-[11px] tracking-wide text-ink-3 uppercase">{field.label}</dt>
+                  <dt className="text-[12px] text-ink-3">{field.label}</dt>
                   <dd
                     className={cn(
                       'truncate text-[13px] font-medium',

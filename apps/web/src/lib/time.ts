@@ -17,3 +17,16 @@ export function relativeTime(iso: string | null | undefined, now: number = Date.
     year: 'numeric',
   });
 }
+
+/**
+ * The dashboard's greeting for the hour of the day: morning from 05:00,
+ * afternoon from 12:00, evening from 17:00 and through the night. With a name,
+ * its first word follows; without one, the greeting stands alone (a name is
+ * never guessed from an email).
+ */
+export function greetingFor(hour: number, name?: string | null): string {
+  const part =
+    hour >= 5 && hour < 12 ? 'morning' : hour >= 12 && hour < 17 ? 'afternoon' : 'evening';
+  const first = name?.trim().split(/\s+/)[0] ?? '';
+  return first === '' ? `Good ${part}` : `Good ${part}, ${first}`;
+}

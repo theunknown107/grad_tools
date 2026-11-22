@@ -7,8 +7,11 @@
  * notices. Where a figure is not known the tile says so, with the reason.
  */
 
+import { useEffect, useState } from 'react';
 import { useSchemeRules } from '../../hooks/useSchemeRules.js';
-import { calculateAttendance, vtu2022RuleSet } from '@gradtools/academic-rules';
+import { useAuth } from '../auth/AuthContext.js';
+import { anyAccountHoldsRecords } from '../../repositories/local/store.js';
+import { calculateAttendance } from '@gradtools/academic-rules';
 import {
   Activity,
   AlertTriangle,
@@ -25,7 +28,7 @@ import { GradeDistributionChart, SgpaTrendChart } from '../../components/charts/
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardHeader, CardRows, headerActionClass } from '../../components/ui/card.js';
-import { Callout, EmptyState } from '../../components/ui/feedback.js';
+import { Callout, EmptyState, ErrorState } from '../../components/ui/feedback.js';
 import { Metric, MetricStrip } from '../../components/ui/metric.js';
 import { Dot, Row, RowText, SectionTitle } from '../../components/ui/page.js';
 import { Progress } from '../../components/ui/progress.js';
@@ -56,8 +59,9 @@ import {
   type Weekday,
 } from '../../domain/types.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
+import { useNow } from '../../hooks/useNow.js';
 import { useAnnouncements, useNotifications } from '../../hooks/useAnnouncements.js';
-import { CATEGORY_LABEL } from '../announcements/AnnouncementCard.js';
+import { CATEGORY_LABEL, SnapshotNote } from '../announcements/AnnouncementCard.js';
 import {
   useAttendance,
   useAttendanceLedger,
@@ -67,8 +71,10 @@ import {
   useResults,
   useSemesterSubjects,
   useTimetable,
+  useTimetableImports,
   useTimetableOverrides,
 } from '../../hooks/useCollection.js';
+import { attendanceRules, useAttendanceCriteria } from '../../lib/attendance-criteria.js';
 import { cn } from '../../lib/cn.js';
 import {
   branchCode,
@@ -79,27 +85,23 @@ import {
   localDay,
   metricDisplay,
 } from '../../lib/format.js';
-import { relativeTime } from '../../lib/time.js';
+import { greetingFor, relativeTime } from '../../lib/time.js';
 
-const ruleSet = vtu2022RuleSet;
+/* The VTU rules judged at the college's attendance criteria (lib/attendance-criteria). */
+const rules = attendanceRules;
 
 function todayWeekday(): Weekday {
   const index = new Date().getDay();
   return WEEKDAYS[index === 0 ? 0 : index - 1] ?? 'Mon';
 }
 
-function greeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
 function nameFor(code: string, subjects: readonly SemesterSubject[]): string | null {
   return subjects.find((subject) => subject.code === code)?.title ?? null;
 }
 
-function standingSentence(stats: AcademicStatistics, semester: number | null): string {
+function standingSentence(stats: AcademicStatistics, signedOut: boolean): string {
+  if (!stats.hasAnyResult && signedOut)
+    return 'You are signed out, so your account’s results are not shown.';
   if (!stats.hasAnyResult) {
     return 'No results are saved yet. Add a result card and your figures appear here.';
   }
@@ -111,25 +113,82 @@ function standingSentence(stats: AcademicStatistics, semester: number | null): s
     parts.push(`${formatCount(stats.creditsEarned.value, 'credit')} earned`);
   }
   if (hasNoBacklogs(stats)) parts.push('no backlogs');
-  const where = semester === null ? '' : ` You are in semester ${String(semester)}.`;
-  return `${parts.join(', ')}.${where}`;
+  return `${parts.join(', ')}.`;
+}
+
+/*
+ * SIGNED OUT, WITH AN ACCOUNT'S RECORDS STILL ON THIS DEVICE.
+ *
+ * Signed out, the dashboard reads the anonymous scope — usually empty — and so
+ * said "No results are saved yet" straight after a sign-out, as though signing
+ * out had deleted them. It had not: they are under the account's own scope,
+ * shown only to that account (M9 §37). This asks storage one yes/no question —
+ * does ANY account here hold records? — and reads none of them. Null while it
+ * is being asked, so the screen never flips from one claim to the other.
+ */
+function useSignedOutWithRecords(): boolean | null {
+  const { state, adapter } = useAuth();
+  const signedOut = adapter !== null && state.status === 'signed_out';
+  const [found, setFound] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!signedOut) return;
+    let cancelled = false;
+    void anyAccountHoldsRecords().then((value) => {
+      if (!cancelled) setFound(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedOut]);
+  return signedOut ? found : false;
 }
 
 export function DashboardPage() {
-  const { profile } = useProfile();
+  /* Re-renders when the attendance criteria change (lib/attendance-criteria). */
+  useAttendanceCriteria();
+  const now = useNow();
+  const { state: authState, adapter } = useAuth();
+  const signedOutWithRecords = useSignedOutWithRecords();
+  const { profile, loading: profileLoading } = useProfile();
   const schemeRules = useSchemeRules();
-  const { items: attendance, loading: attendanceLoading } = useAttendance();
-  const { loading: resultsLoading } = useResults();
-  const { items: timetable, loading: timetableLoading } = useTimetable();
+  const attendanceState = useAttendance();
+  const resultsState = useResults();
+  const timetableState = useTimetable();
+  const { items: timetableImports } = useTimetableImports();
   const { items: ledger } = useAttendanceLedger();
   const { items: overrides } = useTimetableOverrides();
   const { items: semesterSubjects } = useSemesterSubjects();
-  const { items: backlogs } = useBacklogs();
+  const backlogsState = useBacklogs();
   const { items: calendars } = useCalendars();
-  const { statistics } = useAcademicState();
+  const { statistics, loading: academicLoading } = useAcademicState();
+  const attendance = attendanceState.items;
+  const timetable = timetableState.items;
+  const backlogs = backlogsState.items;
 
-  if (attendanceLoading || resultsLoading || timetableLoading) {
+  /*
+   * "No results are saved yet" is a claim, so the first screen waits until the
+   * records it is about have actually been read — for the right account (see
+   * repositories/context.tsx) — and never makes it from a failed read.
+   */
+  const core = [attendanceState, resultsState, timetableState, backlogsState];
+  if (
+    profileLoading ||
+    academicLoading ||
+    signedOutWithRecords === null ||
+    core.some((state) => state.loading)
+  ) {
     return <PageSkeleton label="Loading your dashboard" />;
+  }
+  if (core.some((state) => state.error)) {
+    return (
+      <ErrorState
+        title="Your saved records could not be read"
+        message="Nothing has been deleted. This device's storage did not answer, which is not the same as an empty account."
+        onRetry={() => {
+          for (const state of core) if (state.error) state.reload();
+        }}
+      />
+    );
   }
 
   const current = currentSemester(statistics.views);
@@ -141,17 +200,55 @@ export function DashboardPage() {
   const holiday = holidayOn(inForce, localDay());
   const conflicts = calendarConflicts(calendars);
 
+  const signedOut = signedOutWithRecords && !statistics.hasAnyResult;
+  /*
+   * A brand-new LOCAL user: no account, and nothing saved anywhere. Only this
+   * case drops the empty metric sections below — a signed-in empty account and
+   * a signed-out-with-records user keep the full dashboard, because their
+   * emptiness means something different (Part 2 of the redesign brief).
+   */
+  const genuinelyNew =
+    !(adapter !== null && authState.status === 'signed_in') &&
+    !signedOut &&
+    profile === null &&
+    !statistics.hasAnyResult &&
+    attendance.length === 0 &&
+    timetable.length === 0 &&
+    backlogs.length === 0;
+
   return (
     <div className="flex flex-col gap-8">
+      {signedOut && (
+        <Callout
+          title="You’re signed out."
+          action={
+            <Button asChild size="sm" variant="primary">
+              <Link to="/sign-in">Sign in</Link>
+            </Button>
+          }
+        >
+          Your academic records are still saved on this device. Sign in to view them again.
+        </Callout>
+      )}
+      {/* A new student is oriented inside the hero itself: one block, one pair of actions. */}
       <Hero
+        firstRun={profile === null && !signedOut && !statistics.hasAnyResult}
+        signedOut={signedOut}
         stats={statistics}
-        semester={semesterNumber}
-        name={profile?.displayName?.trim() ?? ''}
+        /* A greeting for the time of day; the semester is a badge beside the branch. */
+        title={greetingFor(now.at.getHours(), profile?.displayName)}
+        semester={
+          semesterNumber ??
+          [...timetableImports].sort((a, b) => b.importedAt.localeCompare(a.importedAt))[0]
+            ?.semester ??
+          null
+        }
         branch={profile?.branch ?? null}
         schemeId={profile?.schemeId ?? null}
       />
 
-      {profile === null && (
+      {/* Has results but skipped the profile: a terse nudge (the welcome is above). */}
+      {profile === null && !signedOut && statistics.hasAnyResult && (
         <Callout
           action={
             <Button asChild size="sm" variant="primary">
@@ -164,7 +261,9 @@ export function DashboardPage() {
         </Callout>
       )}
 
-      <Standing stats={statistics} attendance={thisSemester} rulesKnown={schemeRules.builtIn} />
+      {!genuinelyNew && (
+        <Standing stats={statistics} attendance={thisSemester} rulesKnown={schemeRules.builtIn} />
+      )}
 
       {(statistics.semestersGraded.value ?? 0) >= 2 && (
         <section aria-label="Trends" className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
@@ -193,24 +292,26 @@ export function DashboardPage() {
         </section>
       )}
 
-      <section aria-label="Today" className="grid items-start gap-6 lg:grid-cols-3">
-        <Attention
-          rulesKnown={schemeRules.builtIn}
-          attendance={thisSemester}
-          subjects={semesterSubjects}
-          backlogs={backlogs}
-          clear={hasNoBacklogs(statistics)}
-        />
-        <Today
-          timetable={timetable}
-          subjects={semesterSubjects}
-          holiday={holiday}
-          entries={ledger}
-          overrides={overrides}
-        />
-        <WhatChanged />
-        <NextDate calendars={inForce} conflicts={conflicts} />
-      </section>
+      {!genuinelyNew && (
+        <section aria-label="Today" className="grid items-start gap-6 lg:grid-cols-3">
+          <Attention
+            rulesKnown={schemeRules.builtIn}
+            attendance={thisSemester}
+            subjects={semesterSubjects}
+            backlogs={backlogs}
+            clear={hasNoBacklogs(statistics)}
+          />
+          <Today
+            timetable={timetable}
+            subjects={semesterSubjects}
+            holiday={holiday}
+            entries={ledger}
+            overrides={overrides}
+          />
+          <WhatChanged />
+          <NextDate calendars={inForce} conflicts={conflicts} />
+        </section>
+      )}
     </div>
   );
 }
@@ -218,15 +319,20 @@ export function DashboardPage() {
 /* ------------------------------------------------------------------- Hero */
 
 function Hero({
+  firstRun,
+  signedOut,
   stats,
+  title,
   semester,
-  name,
   branch,
   schemeId,
 }: {
+  /** A brand-new student: say what GradTools is and offer the first step instead. */
+  readonly firstRun: boolean;
+  readonly signedOut: boolean;
   readonly stats: AcademicStatistics;
+  readonly title: string;
   readonly semester: number | null;
-  readonly name: string;
   readonly branch: string | null;
   readonly schemeId: string | null;
 }) {
@@ -249,9 +355,15 @@ function Hero({
   return (
     <section
       aria-labelledby="dashboard-title"
-      className="relative overflow-hidden rounded-2xl border border-line bg-raised"
+      className="gt-surface relative overflow-hidden rounded-2xl border border-line"
     >
-      <div className="relative grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.4fr_1fr]">
+      <div
+        className={cn(
+          'relative grid gap-6 p-6 sm:p-8',
+          // Two columns only when the standing column is there to fill the second.
+          stats.hasAnyResult && 'lg:grid-cols-[1.4fr_1fr]',
+        )}
+      >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             {branch !== null && branch !== '' && (
@@ -261,25 +373,31 @@ function Hero({
                 </abbr>
               </Badge>
             )}
-            {schemeId === 'vtu-2022' && <Badge>2022 scheme</Badge>}
             {semester !== null && <Badge>Semester {semester}</Badge>}
+            {schemeId === 'vtu-2022' && <Badge>2022 scheme</Badge>}
+            {firstRun && (
+              <span className="font-mono text-[12px] text-ink-3">Welcome to GradTools</span>
+            )}
           </div>
           <h1
             id="dashboard-title"
             className="mt-4 font-display text-[28px] leading-[1.08] font-semibold tracking-[-0.02em] sm:text-[34px]"
           >
-            {name !== '' ? `${greeting()}, ${name.split(' ')[0] ?? name}.` : `${greeting()}.`}
+            {title}
           </h1>
-          <p className="mt-2 max-w-md text-sm text-ink-2">{standingSentence(stats, semester)}</p>
+          <p className="mt-2 max-w-md text-sm text-ink-2">
+            {standingSentence(stats, signedOut)}
+          </p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button asChild variant="glass-primary" icon={<FileCheck2 />}>
-              <Link to="/import">Add result</Link>
+              <Link to="/import">{firstRun ? 'Add your first result' : 'Add result'}</Link>
             </Button>
             <Button asChild variant="glass">
-              <Link to="/results/get">Get VTU result</Link>
-            </Button>
-            <Button asChild variant="glass">
-              <Link to="/results">View results</Link>
+              {firstRun ? (
+                <Link to="/setup">Set up profile</Link>
+              ) : (
+                <Link to="/results/get">Get VTU result</Link>
+              )}
             </Button>
           </div>
         </div>
@@ -289,57 +407,62 @@ function Hero({
           separates it (above on a phone, beside from lg), so the hero stays a
           single region with a single edge.
         */}
-        <div className="flex flex-col justify-center gap-3 border-t border-line pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
-          <div className="flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[12px] font-medium text-ink-2">
-                {provisional ? 'Average so far' : 'Cumulative CGPA'}
+        {stats.hasAnyResult && (
+          <div className="flex flex-col justify-center gap-3 border-t border-line pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[12px] font-medium text-ink-2">
+                  {provisional ? 'Average so far' : 'Cumulative CGPA'}
+                </div>
+                {standing.value === null ? (
+                  <div className="mt-1.5 text-[26px] leading-none font-semibold text-ink-3">
+                    Unavailable
+                  </div>
+                ) : (
+                  <div className="tnum mt-0.5 text-[44px] leading-none font-semibold tracking-[-0.03em]">
+                    {formatGpa(standing.value)}
+                  </div>
+                )}
               </div>
-              {standing.value === null ? (
-                <div className="mt-1.5 text-[26px] leading-none font-semibold text-ink-3">
-                  Unavailable
-                </div>
-              ) : (
-                <div className="tnum mt-0.5 text-[44px] leading-none font-semibold tracking-[-0.03em]">
-                  {formatGpa(standing.value)}
-                </div>
+              {delta !== null && Math.abs(delta) >= 0.005 && (
+                <Badge
+                  tone={delta > 0 ? 'success' : 'warning'}
+                  icon={delta > 0 ? <TrendingUp /> : <TrendingDown />}
+                >
+                  {delta > 0 ? '+' : '−'}
+                  {Math.abs(delta).toFixed(2)} SGPA vs Sem {trend[0]?.semester}
+                </Badge>
               )}
             </div>
-            {delta !== null && Math.abs(delta) >= 0.005 && (
-              <Badge
-                tone={delta > 0 ? 'success' : 'warning'}
-                icon={delta > 0 ? <TrendingUp /> : <TrendingDown />}
-              >
-                {delta > 0 ? '+' : '−'}
-                {Math.abs(delta).toFixed(2)} SGPA vs Sem {trend[0]?.semester}
-              </Badge>
-            )}
-          </div>
-          <p className="text-[12px] text-ink-3">{note}</p>
-          {/*
+            <p className="text-[12px] text-ink-3">{note}</p>
+            {/*
             THE dashboard's semester progress: the standing strip no longer
             repeats it. The row is what the eye reads; the bar says the same to
             assistive tech, once, as "4 of 8" rather than a bare percentage.
           */}
-          <div>
-            <div aria-hidden="true" className="mb-1.5 flex justify-between text-[12px] text-ink-2">
-              <span>Semesters graded</span>
-              <span className="tnum font-medium text-ink">
-                {graded}/{planned}
-              </span>
+            <div>
+              <div
+                aria-hidden="true"
+                className="mb-1.5 flex justify-between text-[12px] text-ink-2"
+              >
+                <span>Semesters graded</span>
+                <span className="tnum font-medium text-ink">
+                  {graded}/{planned}
+                </span>
+              </div>
+              <Progress
+                value={(graded / planned) * 100}
+                label="Semesters graded"
+                valueText={`${String(graded)} of ${String(planned)}`}
+              />
+              {completed !== null && completed !== graded && (
+                <p className="mt-1.5 text-[12px] text-ink-3">
+                  {formatCount(completed, 'semester')} marked complete
+                </p>
+              )}
             </div>
-            <Progress
-              value={(graded / planned) * 100}
-              label="Semesters graded"
-              valueText={`${String(graded)} of ${String(planned)}`}
-            />
-            {completed !== null && completed !== graded && (
-              <p className="mt-1.5 text-[12px] text-ink-3">
-                {formatCount(completed, 'semester')} marked complete
-              </p>
-            )}
           </div>
-        </div>
+        )}
       </div>
     </section>
   );
@@ -369,9 +492,9 @@ function Standing({
   const attended = attendance.reduce((total, record) => total + record.attended, 0);
   const conducted = attendance.reduce((total, record) => total + record.conducted, 0);
   const overall =
-    rulesKnown && conducted > 0 ? calculateAttendance(attended, conducted, ruleSet) : null;
+    rulesKnown && conducted > 0 ? calculateAttendance(attended, conducted, rules()) : null;
   const short = attendance.filter((record) => {
-    const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
+    const verdict = calculateAttendance(record.attended, record.conducted, rules());
     return verdict.ok && verdict.value.status !== 'safe';
   }).length;
 
@@ -457,8 +580,8 @@ function Standing({
           sub={
             overall?.ok === true
               ? short > 0
-                ? `${String(short)} below ${String(ruleSet.attendanceRequiredPct)}%`
-                : `Threshold ${String(ruleSet.attendanceRequiredPct)}%`
+                ? `${String(short)} below ${String(rules().attendanceRequiredPct)}%`
+                : `Threshold ${String(rules().attendanceRequiredPct)}%`
               : rulesKnown
                 ? 'No classes have been marked for this semester yet.'
                 : 'Not calculated — your scheme’s attendance rules are not in GradTools yet.'
@@ -515,7 +638,7 @@ function Attention({
 }) {
   const short = (rulesKnown ? attendance : [])
     .flatMap((record) => {
-      const verdict = calculateAttendance(record.attended, record.conducted, ruleSet);
+      const verdict = calculateAttendance(record.attended, record.conducted, rules());
       if (!verdict.ok || verdict.value.status === 'safe') return [];
       return [{ record, verdict: verdict.value }];
     })
@@ -654,7 +777,9 @@ function Today({
           {slots.map((slot) => {
             const entry = timetableEntry(
               slot,
-              slot.subjectCode === null ? null : nameFor(slot.subjectCode, subjects),
+              slot.subjectCode === null
+                ? null
+                : (nameFor(slot.subjectCode, subjects) ?? slot.subjectTitle ?? null),
             );
             /*
              * What the student recorded, read from the LEDGER — the same row
@@ -674,7 +799,7 @@ function Today({
                 aria-current={isNext ? 'true' : undefined}
                 className={cn(isNext && 'bg-accent-weak/40')}
               >
-                <span className="w-14 shrink-0 font-mono text-[11px] text-ink-3 tabular-nums">
+                <span className="w-14 shrink-0 font-mono text-[12px] text-ink-3 tabular-nums">
                   {formatTime(slot.startTime)}
                 </span>
                 <span
@@ -718,7 +843,7 @@ function Today({
 /* ---------------------------------------------------------- What changed */
 
 function WhatChanged() {
-  const { items, loading, error, reload } = useAnnouncements();
+  const { items, loading, error, reload, snapshotAt } = useAnnouncements();
   const { notifications } = useNotifications(items);
   const shown = notifications.filter((item) => item.state !== 'dismissed').slice(0, 4);
   const now = Date.now();
@@ -733,6 +858,7 @@ function WhatChanged() {
           </Link>
         }
       />
+      {snapshotAt !== null && <SnapshotNote at={snapshotAt} />}
       {loading ? (
         <RowsSkeleton rows={3} label="Loading notices" />
       ) : error !== null ? (
@@ -769,7 +895,7 @@ function WhatChanged() {
                   <span className="block text-[13px] leading-snug font-medium">
                     {item.announcement.title}
                   </span>
-                  <span className="mt-0.5 block text-[11px] text-ink-3">
+                  <span className="mt-0.5 block text-[12px] text-ink-3">
                     {CATEGORY_LABEL[item.announcement.category]} ·{' '}
                     {relativeTime(item.announcement.updatedAt, now)}
                   </span>
