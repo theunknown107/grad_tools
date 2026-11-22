@@ -15,7 +15,7 @@ import { TooltipProvider } from '../ui/tooltip.js';
 export function AuthLayout({ children }: { readonly children: ReactNode }) {
   return (
     <TooltipProvider>
-      <div className="flex min-h-dvh items-start justify-center bg-canvas px-4 py-8 text-ink sm:items-center">
+      <div className="flex min-h-dvh items-start justify-center px-4 py-8 text-ink sm:items-center">
         <div className="w-full">{children}</div>
       </div>
       <Toaster />

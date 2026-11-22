@@ -155,7 +155,7 @@ export function FirstSyncPage() {
                 disabled={busy !== null}
                 onClick={() => void choose(choice)}
                 className={cn(
-                  'group flex h-full w-full items-start gap-3 rounded-xl border bg-raised p-4 text-left transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:shadow-e2 disabled:opacity-60',
+                  'group flex h-full w-full items-start gap-3 rounded-xl border gt-surface p-4 text-left transition-[background-color,border-color,transform] duration-150 hover:bg-panel active:scale-[0.99] disabled:opacity-60',
                   recommended ? 'ring-2 ring-accent/20' : 'border-line hover:border-line-strong',
                 )}
               >

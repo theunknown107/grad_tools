@@ -34,6 +34,7 @@ function build(signedIn: boolean): AuthAdapter {
     signInWithPassword: async () => ({ error: null }),
     signUpWithPassword: async () => ({ error: null, needsConfirmation: false }),
     signInWithProvider: async () => ({ error: null }),
+    signUpWithProvider: async () => ({ error: null }),
     sendRecovery: async () => ({ error: null }),
     updatePassword: async () => ({ error: null }),
     completeDeepLink: async () => ({ error: null }),
@@ -134,7 +135,9 @@ function meBody(state: MeState) {
 export function stubMe(state: MeState = {}): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     if (String(input).includes('/api/v1/me')) {
-      return (state.ok ?? true) ? jsonResponse(meBody(state)) : new Response('error', { status: 500 });
+      return (state.ok ?? true)
+        ? jsonResponse(meBody(state))
+        : new Response('error', { status: 500 });
     }
     return jsonResponse({});
   });

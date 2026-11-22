@@ -9,11 +9,12 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../src/features/auth/AuthContext.js';
 import { SignInPage } from '../src/features/auth/SignInPage.js';
+import { SignUpPage } from '../src/features/auth/SignUpPage.js';
 import { fakeAdapter } from './helpers/auth-harness.js';
 import type { AuthAdapter } from '../src/repositories/cloud/supabase.js';
 
@@ -29,8 +30,37 @@ function renderSignIn(adapter: AuthAdapter = fakeAdapter(false)) {
   );
 }
 
-/** A signed-out adapter that advertises a 15-char new-password policy (Clerk). */
-const POLICY_15: AuthAdapter = { ...fakeAdapter(false), passwordMinLength: 15 };
+function renderSignUp(adapter: AuthAdapter = fakeAdapter(false)) {
+  return render(
+    <MemoryRouter initialEntries={['/sign-up']}>
+      <AuthProvider adapter={adapter}>
+        <SignUpPage />
+      </AuthProvider>
+    </MemoryRouter>,
+  );
+}
+
+/**
+ * A signed-out adapter that records sign-up attempts and returns a fixed result,
+ * so a test can prove a short password REACHES the provider (no app-side length
+ * gate) and that the provider's own rejection is what surfaces.
+ */
+function recordingSignUp(result: { error: string | null; needsConfirmation?: boolean }): {
+  adapter: AuthAdapter;
+  attempts: { email: string; password: string }[];
+} {
+  const attempts: { email: string; password: string }[] = [];
+  return {
+    attempts,
+    adapter: {
+      ...fakeAdapter(false),
+      signUpWithPassword: async (email: string, password: string) => {
+        attempts.push({ email, password });
+        return { needsConfirmation: false, ...result };
+      },
+    },
+  };
+}
 
 describe('standalone sign-in', () => {
   it('shows the sign-in form', async () => {
@@ -45,26 +75,44 @@ describe('standalone sign-in', () => {
   });
 });
 
-describe('password guidance reflects the provider policy', () => {
-  it('states the real minimum when creating an account (15, not 8)', async () => {
-    const user = userEvent.setup();
-    renderSignIn(POLICY_15);
-    await user.click(screen.getByRole('radio', { name: /create/i }));
-    expect(await screen.findByText(/at least 15 characters/i)).toBeTruthy();
-    expect(screen.queryByText(/eight characters/i)).toBeNull();
+describe('the app imposes no password-length rule of its own', () => {
+  it('shows no "at least N characters" guidance on sign-up', async () => {
+    renderSignUp();
+    expect(await screen.findByLabelText(/^password$/i)).toBeTruthy();
+    // No app-invented minimum is advertised; the provider owns the policy.
+    expect(screen.queryByText(/at least \d+ characters/i)).toBeNull();
+    expect(screen.queryByText(/characters/i)).toBeNull();
   });
 
-  it('does NOT hold an existing password to the new-password minimum on sign-in', () => {
-    renderSignIn(POLICY_15); // default mode is sign_in
-    const password = screen.getByLabelText<HTMLInputElement>(/^password$/i);
-    // No client-side 15-char gate on an existing credential (it may predate the policy).
-    expect(password.getAttribute('minlength')).not.toBe('15');
+  it('sends a short password to the provider instead of blocking it', async () => {
+    const { adapter, attempts } = recordingSignUp({ error: null });
+    renderSignUp(adapter);
+
+    await userEvent.type(await screen.findByLabelText(/^email$/i), 'new@example.test');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'short'); // 5 chars, well under 15
+    await userEvent.click(screen.getByRole('button', { name: /create an account/i }));
+
+    await waitFor(() => expect(attempts).toHaveLength(1));
+    expect(attempts[0]).toEqual({ email: 'new@example.test', password: 'short' });
   });
 
-  it('falls back to a sensible default when the provider states no policy', async () => {
-    const user = userEvent.setup();
-    renderSignIn(); // fakeAdapter has no passwordMinLength
-    await user.click(screen.getByRole('radio', { name: /create/i }));
-    expect(await screen.findByText(/at least 8 characters/i)).toBeTruthy();
+  it("surfaces the provider's own rejection, not a local validation message", async () => {
+    const { adapter } = recordingSignUp({
+      error: 'That password was not accepted. Choose a longer or stronger one.',
+    });
+    renderSignUp(adapter);
+
+    await userEvent.type(await screen.findByLabelText(/^email$/i), 'new@example.test');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'short');
+    await userEvent.click(screen.getByRole('button', { name: /create an account/i }));
+
+    expect(await screen.findByText(/that password was not accepted/i)).toBeTruthy();
+  });
+
+  it('never has a native minlength attribute to block submission', () => {
+    renderSignIn();
+    expect(
+      screen.getByLabelText<HTMLInputElement>(/^password$/i).getAttribute('minlength'),
+    ).toBeNull();
   });
 });

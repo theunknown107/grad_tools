@@ -14,11 +14,12 @@ import {
   GraduationCap,
   Info,
   LifeBuoy,
+  LogIn,
   LogOut,
-  Palette,
   RefreshCw,
   ShieldCheck,
   Trash2,
+  UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -35,12 +36,12 @@ import { SYNC_LABEL } from '../../domain/auth.js';
 import type { ConflictResolution } from '../../domain/sync.js';
 import { cn } from '../../lib/cn.js';
 import { NotificationSettings } from '../announcements/NotificationsPage.js';
-import { AppearanceSettings } from '../profile/AppearanceSettings.js';
 import { SupportPanel } from '../support/SupportPanel.js';
 import { AcademicSettings, SupportNote } from '../profile/ProfilePage.js';
 import { useAuth } from './AuthContext.js';
 import { DivergenceCard } from './DivergenceCard.js';
 import { LegacyDataOffer } from './LegacyDataOffer.js';
+import { LocalBackupCard } from './LocalBackupCard.js';
 import { useSync } from './useSync.js';
 
 const PROVIDER_LABEL: Record<string, string> = {
@@ -117,7 +118,6 @@ function ProfileConflictDiff({
 }
 
 const SECTIONS = [
-  { key: 'appearance', label: 'Appearance', icon: Palette },
   { key: 'academic', label: 'Academic', icon: GraduationCap },
   { key: 'data', label: 'Data & privacy', icon: Database },
   { key: 'notifications', label: 'Notifications', icon: Bell },
@@ -127,7 +127,7 @@ const SECTIONS = [
 type SectionKey = (typeof SECTIONS)[number]['key'];
 
 export function AccountPage() {
-  const { state, signOut } = useAuth();
+  const { state, adapter, signOut } = useAuth();
   const sync = useSync();
   const [params, setParams] = useSearchParams();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -140,11 +140,29 @@ export function AccountPage() {
 
   if (state.status === 'restoring') return <PageSkeleton label="Checking your session" />;
 
+  /*
+   * Says exactly what happened. Offline the device is signed out at once, but
+   * the session on the server ends only when it can be reached — and saying
+   * "signed out" without that qualifier would claim a revocation that has not
+   * happened.
+   */
+  const leave = (): void => {
+    void signOut().then(({ revoked }) => {
+      if (revoked) toast('Signed out', { tone: 'neutral' });
+      else
+        toast('Signed out on this device', {
+          tone: 'neutral',
+          description:
+            'GradTools will end the session on its servers the next time it is online. Your records stay on this device.',
+        });
+    });
+  };
+
   const signedIn = state.status === 'signed_in';
   const identity = signedIn ? state.identity : null;
   const requested = params.get('section');
   const section: SectionKey =
-    SECTIONS.find((entry) => entry.key === requested)?.key ?? 'appearance';
+    SECTIONS.find((entry) => entry.key === requested)?.key ?? 'academic';
   const conflicts = signedIn ? sync.state.conflicts.length : 0;
 
   return (
@@ -152,26 +170,85 @@ export function AccountPage() {
       <PageHeader
         eyebrow="Account"
         title="Settings"
-        description="Manage appearance, academic configuration and your data."
+        description="Manage your academic configuration, data and notifications. Themes are in Appearance."
         actions={
           signedIn ? (
-            <Badge
-              tone={
-                sync.state.status === 'failed' || sync.state.status === 'conflicts'
-                  ? 'warning'
-                  : 'neutral'
-              }
-            >
-              {SYNC_LABEL[sync.state.status]}
-            </Badge>
+            <div className="flex flex-wrap gap-2">
+              <Badge tone="success">Signed in</Badge>
+              <Badge
+                tone={
+                  sync.state.status === 'failed' || sync.state.status === 'conflicts'
+                    ? 'warning'
+                    : 'neutral'
+                }
+              >
+                {SYNC_LABEL[sync.state.status]}
+              </Badge>
+            </div>
+          ) : state.status === 'expired' ? (
+            <Badge tone="warning">Sign-in not confirmed</Badge>
+          ) : adapter !== null ? (
+            <Badge>On this device only</Badge>
           ) : undefined
         }
       />
 
+      {/*
+        SIGN IN / CREATE ACCOUNT, MADE DISCOVERABLE.
+        The account exists but GradTools is local-first, so nothing forces a
+        student to it. The only prompt used to live inside the "Data & privacy"
+        tab, which the page does not open by default — so a signed-out student
+        never saw it. Surfaced here, at the top of the Account page and on every
+        section, whenever a provider is configured and no one is signed in.
+      */}
+      {!signedIn && adapter !== null && (
+        <Card className="p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <IconTile tone="accent" size="lg">
+                <CloudUpload />
+              </IconTile>
+              <div>
+                <h2 className="text-[15px] font-semibold">Sign in or create an account</h2>
+                <p className="mt-1 max-w-xl text-[13px] text-ink-2">
+                  An account syncs your records across your devices. GradTools works exactly the
+                  same on this device without one — signing in is optional.
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button asChild variant="primary" icon={<LogIn />}>
+                <Link to="/sign-in">Sign in</Link>
+              </Button>
+              <Button asChild variant="secondary" icon={<UserPlus />}>
+                <Link to="/sign-up">Create account</Link>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <LegacyDataOffer />
 
+      {/* Diagnostic builds only: a build-time constant, so normal builds drop it. */}
+      {import.meta.env.VITE_DIAGNOSTICS === '1' && (
+        <Button asChild variant="secondary" className="self-start">
+          <Link to="/diagnostics">Authentication Diagnostics</Link>
+        </Button>
+      )}
+
       {state.status === 'expired' && (
-        <Callout tone="warning">Your session has expired. Sign in again to resume syncing.</Callout>
+        <Callout
+          tone="warning"
+          action={
+            <Button size="sm" variant="secondary" icon={<LogOut />} onClick={leave}>
+              Sign out on this device
+            </Button>
+          }
+        >
+          Your session could not be verified. If you are offline, reconnect and reload; otherwise
+          sign in again to resume syncing. You can sign out of this device now, offline.
+        </Callout>
       )}
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
@@ -185,7 +262,7 @@ export function AccountPage() {
                     type="button"
                     aria-current={active ? 'page' : undefined}
                     onClick={() =>
-                      setParams(item.key === 'appearance' ? {} : { section: item.key }, {
+                      setParams(item.key === 'academic' ? {} : { section: item.key }, {
                         replace: true,
                       })
                     }
@@ -211,7 +288,6 @@ export function AccountPage() {
         </nav>
 
         <div key={section} className="flex min-w-0 animate-rise flex-col gap-4">
-          {section === 'appearance' && <AppearanceSettings />}
           {section === 'academic' && <AcademicSettings />}
           {section === 'notifications' && <NotificationSettings />}
           {section === 'support' && (
@@ -242,7 +318,7 @@ export function AccountPage() {
                   <SectionTitle>Signed in</SectionTitle>
                   <dl className="grid gap-4 sm:grid-cols-3">
                     <div>
-                      <dt className="text-[11px] tracking-wide text-ink-3 uppercase">
+                      <dt className="text-[12px] text-ink-3">
                         Signed in with
                       </dt>
                       <dd className="mt-0.5 text-[13px] font-medium">
@@ -253,14 +329,14 @@ export function AccountPage() {
                     </div>
                     {identity.email !== null && (
                       <div className="min-w-0">
-                        <dt className="text-[11px] tracking-wide text-ink-3 uppercase">Email</dt>
+                        <dt className="text-[12px] text-ink-3">Email</dt>
                         <dd className="mt-0.5 truncate text-[13px] font-medium">
                           {identity.email}
                         </dd>
                       </div>
                     )}
                     <div>
-                      <dt className="text-[11px] tracking-wide text-ink-3 uppercase">Sync</dt>
+                      <dt className="text-[12px] text-ink-3">Sync</dt>
                       <dd className="mt-1">
                         <Badge
                           tone={
@@ -306,7 +382,7 @@ export function AccountPage() {
                     Signing out stops syncing. The records saved on this device stay here, and are
                     yours again when you sign back in.
                   </p>
-                  <Button className="mt-4" icon={<LogOut />} onClick={() => void signOut()}>
+                  <Button className="mt-4" icon={<LogOut />} onClick={leave}>
                     Sign out
                   </Button>
                 </Card>
@@ -343,7 +419,7 @@ export function AccountPage() {
                             </div>
                           </>
                         ) : (
-                          <div className="mt-2 grid gap-1 font-mono text-[11px] text-ink-3">
+                          <div className="mt-2 grid gap-1 font-mono text-[12px] text-ink-3">
                             <span>On this device: {summarise(conflict.local)}</span>
                             <span>In your account: {summarise(conflict.server)}</span>
                           </div>
@@ -393,13 +469,15 @@ export function AccountPage() {
                   </div>
                 </div>
               </Card>
+              <LocalBackupCard />
               {identity !== null ? (
                 <>
                   <Card className="p-6">
                     <SectionTitle>Your data</SectionTitle>
                     <p className="text-[13px] text-ink-2">
-                      Everything GradTools holds for you, as a JSON file. It contains your records
-                      and nobody else&rsquo;s.
+                      Everything GradTools&rsquo; servers hold for you, as a JSON file. It contains
+                      your records and nobody else&rsquo;s. Per-class attendance stays on this
+                      device; the backup above covers it.
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Button
@@ -464,7 +542,8 @@ export function AccountPage() {
                   <SectionTitle>Your data</SectionTitle>
                   <p className="text-[13px] text-ink-2">
                     Without an account, nothing leaves this device. Clearing your browser&rsquo;s
-                    site data removes it. Sign in to export your records or keep a synced copy.
+                    site data removes it, so save a backup file above, or sign in to keep a synced
+                    copy.
                   </p>
                 </Card>
               )}
@@ -477,9 +556,7 @@ export function AccountPage() {
                 <GradToolsLogo size={40} />
                 <div>
                   <h2 className="text-[16px] font-semibold">GradTools</h2>
-                  <div className="font-mono text-[11px] text-ink-3">
-                    Academic OS · VTU 2022 scheme catalogue
-                  </div>
+                  <div className="font-mono text-[12px] text-ink-3">VTU 2022 scheme catalogue</div>
                 </div>
               </div>
               <p className="mt-4 max-w-xl text-[13px] leading-relaxed text-ink-2">
@@ -537,7 +614,7 @@ export function AccountPage() {
         error={deleteError}
         pendingStatus="Deleting account…"
         title="Delete your account permanently?"
-        description="Your synced records are removed from GradTools' servers. The copy on this device stays. This cannot be undone."
+        description="Your synced records and support history are removed from GradTools' servers. The copy on this device stays. This cannot be undone."
         confirmLabel="Delete my account permanently"
         onConfirm={() => {
           setDeleting(true);

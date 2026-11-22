@@ -380,6 +380,31 @@ export function useSync(): SyncApi {
     [adapter],
   );
 
+  // Surface the Terms gate as soon as the student signs in, so the consent
+  // prompt appears without waiting for a first sync. Non-blocking and
+  // local-first: it only flips an idle `local_only` to `needs_terms` when `/me`
+  // reports the current Terms unaccepted; it never touches local records.
+  useEffect(() => {
+    if (scope === null) return;
+    let cancelled = false;
+    void authorized(STUDENT_ROUTES.me)
+      .then(async (res) => {
+        if (cancelled || res === null || !res.ok) return;
+        const body = (await res.json()) as { terms?: unknown };
+        if (!cancelled && body.terms === null) {
+          setState((current) =>
+            current.status === 'local_only' ? { ...current, status: 'needs_terms' } : current,
+          );
+        }
+      })
+      .catch(() => {
+        /* Offline or unreachable: stay local_only; a later sync re-checks. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [scope, authorized]);
+
   const syncNow = useCallback(async () => {
     if (scope === null) {
       setState((current) => ({ ...current, status: 'local_only' }));
