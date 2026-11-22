@@ -1,16 +1,17 @@
 /**
- * The GradTools symbol on its theme tile.
+ * The GradTools symbol on its tile.
  *
- * One source of truth: gradtools-mark.svg, drawn in `currentColor`. The same
- * file is the favicon (index.html). The tile takes the theme through the
- * brand tokens (styles/index.css), so the symbol never changes shape, only
- * its ink and its ground.
+ * One source of truth: gradtools-logo.png — the official brand asset, black
+ * line art on a solid white ground, used AS-IS. The same file is the favicon's
+ * source (scripts/android-icons.mjs). The asset carries its own white ground,
+ * so the tile reads white in both light and dark; its built-in padding sets the
+ * symbol's inset.
  *
  * Decorative by default: a brand link already carries its own name. Pass
  * `label` only where the symbol stands alone as meaning.
  */
 
-import mark from './gradtools-mark.svg?raw';
+import logo from './gradtools-logo.png';
 import { cn } from '../lib/cn.js';
 
 export function GradToolsLogo({
@@ -32,13 +33,18 @@ export function GradToolsLogo({
       aria-hidden={label === undefined ? true : undefined}
       data-testid="gradtools-logo"
       className={cn(
-        'inline-grid shrink-0 place-items-center bg-brand-surface text-brand-mark ring-1 ring-line ring-inset',
-        // A circle is narrower at its corners; the cap's tips need the room.
-        round ? '[&>svg]:size-[68%]' : '[&>svg]:size-[78%]',
+        'inline-grid shrink-0 place-items-center overflow-hidden bg-white ring-1 ring-line ring-inset',
         className,
       )}
       style={{ width: size, height: size, borderRadius: round ? size / 2 : size / 4 }}
-      dangerouslySetInnerHTML={{ __html: mark }}
-    />
+    >
+      <img
+        src={logo}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className="size-full object-contain"
+      />
+    </span>
   );
 }

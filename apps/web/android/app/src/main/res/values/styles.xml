@@ -13,6 +13,9 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- White under the WebView, so the splash → app hand-off never shows
+             the DayNight dark window in between. -->
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
     </style>
 
 

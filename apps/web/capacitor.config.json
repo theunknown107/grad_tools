@@ -2,12 +2,16 @@
   "appId": "app.gradtools",
   "appName": "GradTools",
   "webDir": "dist",
+  "backgroundColor": "#ffffff",
   "plugins": {
     "SystemBars": {
       "insetsHandling": "css",
       "initialViewportFitValueHint": "cover",
       "style": "DEFAULT",
       "hidden": false
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_gradtools"
     }
   },
   "cordova": {

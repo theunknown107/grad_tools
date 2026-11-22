@@ -23,11 +23,11 @@
             </intent-filter>
 
             <!--
-              Native OAuth return. Google refuses OAuth in a WebView, so Google
-              sign-in opens the system browser and returns to this custom-scheme
-              deep link; @capacitor/app routes it to the running app (singleTask),
-              where the Clerk adapter completes the sign-in. The matching URL must
-              be allow-listed in the Clerk dashboard.
+              App deep link, routed by @capacitor/app (singleTask). Clerk's server
+              refuses this scheme as an OAuth redirect, so Clerk returns Google
+              sign-in to the https page NATIVE_RETURN_PAGE (/native-return), which
+              opens gradtools://auth/callback through an intent pinned to this
+              package. The link carries no token; the app re-checks with Clerk.
             -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
