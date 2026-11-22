@@ -94,5 +94,7 @@ the next sync.
 
 Live checks: sign up + email code; sign in; new-device code; password reset;
 Google on web; two accounts see only their own data; account deletion removes
-data and the Clerk user; Android email/password. Google on Android is not
-supported yet (hidden in the app).
+data and the Clerk user; Android email/password; Google on Android. Android
+Google runs in a Custom Tab that returns to an https page, because Clerk's server
+refuses a custom-scheme return during a real login (`invalid_url_scheme`). The
+app finishes when the tab closes. Proven on a development instance only.

@@ -847,6 +847,9 @@ regression would be obvious.
 
 ### What this did NOT achieve — read this before assuming the data is gone
 
+**Correction (2026-11-01):** this purge did not search commit messages, and a real
+course row survived in one, then returned to test files. See `12` §12.16.
+
 **GitHub still serves the pre-purge commits by direct SHA.** Verified from a
 clean clone after the force-push: fetching `957a25b…` by its full hash
 succeeds and returns the 137-line real fixture. The commits are unreachable

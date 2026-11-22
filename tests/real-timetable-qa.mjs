@@ -71,7 +71,7 @@ function serve() {
         res.writeHead(404).end('not found');
       }
     });
-    server.listen(PORT, () => ok(server));
+    server.listen(PORT, '127.0.0.1', () => ok(server));
   });
 }
 
@@ -114,7 +114,7 @@ const run = async () => {
   const errors = [];
   page.on('pageerror', (event) => errors.push(String(event)));
 
-  const origin = `http://localhost:${PORT}`;
+  const origin = `http://127.0.0.1:${PORT}`;
   let classes = 0;
   let days = 0;
   let activities = [];

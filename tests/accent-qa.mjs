@@ -63,7 +63,7 @@ function serve() {
       res.writeHead(404).end('not found');
     }
   });
-  return new Promise((ok) => server.listen(PORT, () => ok(server)));
+  return new Promise((ok) => server.listen(PORT, '127.0.0.1', () => ok(server)));
 }
 
 function seedData() {
@@ -177,12 +177,12 @@ const run = async () => {
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
-      await page.goto(`http://localhost:${PORT}/`);
+      await page.goto(`http://127.0.0.1:${PORT}/`);
       await seed(page, data);
 
       for (const [path, name] of ROUTES) {
         const label = `${name}/${appearance}/${accent}`;
-        await page.goto(`http://localhost:${PORT}${path}`);
+        await page.goto(`http://127.0.0.1:${PORT}${path}`);
         await page.waitForTimeout(350);
 
         const applied = await page.evaluate(() => {
@@ -256,7 +256,7 @@ const run = async () => {
         JSON.stringify({ appearance: 'system', accent: 'violet' }),
       );
     });
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     await page.waitForTimeout(500);
 
     const state = await page.evaluate(() => ({

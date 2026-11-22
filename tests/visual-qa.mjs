@@ -67,7 +67,7 @@ function serve() {
         res.end('not found');
       }
     });
-    server.listen(PORT, () => {
+    server.listen(PORT, '127.0.0.1', () => {
       resolveServer(server);
     });
   });
@@ -137,11 +137,11 @@ async function main() {
     });
     page.on('pageerror', (err) => consoleErrors.push(String(err)));
 
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     await page.evaluate(SEED);
 
     for (const route of ROUTES) {
-      await page.goto(`http://localhost:${PORT}${route.path}`);
+      await page.goto(`http://127.0.0.1:${PORT}${route.path}`);
       await page.waitForTimeout(350);
 
       const axe = await new AxeBuilder({ page })
@@ -212,11 +212,11 @@ async function main() {
       viewport: { width: viewport.width, height: viewport.height },
     });
     const page = await context.newPage();
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     await page.evaluate(SEED);
 
     for (const route of ROUTES) {
-      await page.goto(`http://localhost:${PORT}${route.path}`);
+      await page.goto(`http://127.0.0.1:${PORT}${route.path}`);
       await page.waitForTimeout(300);
       await page.screenshot({
         path: join(OUT, `${route.name}-${viewport.name}.png`),
@@ -230,7 +230,7 @@ async function main() {
   {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     // No seed: this is the genuine first-visit empty dashboard.
     await page.reload();
     await page.waitForTimeout(300);
@@ -257,9 +257,9 @@ async function main() {
       colorScheme: 'dark',
     });
     const page = await context.newPage();
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     await page.evaluate(SEED);
-    await page.goto(`http://localhost:${PORT}/attendance`);
+    await page.goto(`http://127.0.0.1:${PORT}/attendance`);
     await page.waitForTimeout(300);
     await page.screenshot({ path: join(OUT, 'attendance-DARK-1280.png'), fullPage: true });
     await context.close();

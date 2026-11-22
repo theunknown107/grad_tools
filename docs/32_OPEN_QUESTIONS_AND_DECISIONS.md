@@ -2803,3 +2803,100 @@ recall 9.7% → 32.3%; result-card OCR course recall 36.8% → 45.6% with no
 false rows. Still open: digits lost to blur in photographs, a dense
 timetable's legend at 2000px, and photographed timetable headers — work for
 measured preprocessing profiles, not for guesses.
+
+### OQ-069 — CGPA denominator and where a re-pass is booked · **open**
+
+22OB 6.6(2)(b) defines `CGPA = Σ(Ci × Si) / Σ Ci` with Ci "the total number of
+credits in that semester" — i.e. credits *registered*. The regulation's own
+worked example (Annexure-I (a)) divides instead by credits *earned* (excluding
+courses under F): `279 / 39 = 7.15`, where the clause as written gives
+`279 / 46 = 6.07` for the same student. Independently recomputed (sub-agent,
+2026-10-23, quotes in the task's research notes). The two agree exactly when
+every counted semester has earned = registered (no F, no absent) and disagree
+otherwise. Relatedly, 6.9(4) books a cleared backlog back to its own semester,
+while the Annexure books the re-pass into the semester it was sat in — a second
+disagreement that changes per-semester SGPA.
+
+**Practical effect:** any student with an F or AB gets a materially different
+CGPA depending on the reading, and a re-pass changes different numbers.
+
+**GradTools' position (docs/53):** reconstruct a CGPA from grade-card SGPAs
+**only** when no entered semester has unearned credits (where the two agree);
+otherwise show nothing and say the regulation is not consistent. A recorded
+re-exam never auto-recalculates a saved SGPA or CGPA. **Blocked on** an
+authoritative VTU clarification; `calculateCGPA` continues to implement the
+clause (registered credits) for the agreeing case only.
+
+### DEC-058 — Official 2022 catalogue may expand beyond the initial branches
+
+DEC-001 scoped the catalogue to "1–2 branches" to begin with. This is now
+explicitly widened: the official VTU 2022-scheme B.E./B.Tech catalogue **may be
+expanded to all supported affiliated-college branches**, within the existing
+source-verification and OQ-006 access constraints, using the existing
+`vtu:sync` ingestion and `vtu:validate` pipeline and only verified official
+scheme PDFs. It does **not** widen the scheme (no 2018/2021/2025) or admit
+autonomous-college curricula, and it does not authorise a syllabus browser or
+any document redistribution (OQ-008 unchanged).
+
+**The prerequisite app fix is DONE (2026-10-24).** `coursesForScheme(scheme,
+programme?)` now takes an optional programme filter; `coursesForBranch(scheme,
+branchLabel)` scopes a student's courses to their branch's own programme from
+the third semester on (the bridge is the branch's `schemeUrl`, which is the
+`sourceUrl` of its scheme rows), keeping the shared first-year rows; and
+`buildSubjectIndex` resolves a code's credits to **unknown** when two catalogue
+rows disagree, deterministically and order-independently, instead of taking the
+last row's value. So `BBOK407` resolves to the student's own programme's credit
+(3 or 2) when the branch is known, and to "unknown → confirm" when it is not —
+never to an arbitrary wrong value. `DocumentImport` now calls `coursesForBranch`.
+Tested in `apps/web/test/subjects.test.ts` and
+`packages/vtu-catalogue/test/catalogue.test.ts` (both mutation-checked). No
+regression: the current data has no divergent-credit duplicate, so the net is a
+no-op on it, and a CSBS student still gets every CSBS row.
+
+**`robosch` s3 discrepancy — DIAGNOSED, data left unpublished.** The Robotics
+semester-3 page prints a department-dependent alternative lab on one row —
+`BMEL305` (for ME/AU/IM) **or** `BRAL305` (Robotics), 1 credit. The parser's
+option handling rejects both (it cannot resolve the pair to one credited slot),
+so the 1-credit lab drops out and the computed total is 19 against the printed
+20. The credit is genuinely in the document; the parser under-counts it. This is
+a parser limitation on a department-alternative lab, not a missing, duplicate or
+mis-semestered record. **Robotics therefore stays unpublished** until the parser
+handles a department-alternative lab pair as a single credited slot and the
+printed total reconciles on re-validation. No total was adjusted and no record
+was fabricated or removed to force a pass.
+
+**The data emit remains BLOCKED on a database environment.** `--emit` is gated
+by `vtu:validate`, which needs Postgres. The only configured `DATABASE_URL` is a
+**remote production Neon** database, which must not be migrated or written. A
+local Postgres server is installed and listening on 5432, but its credentials
+are not available here and the docs' dedicated audit instance (port 55432) is
+not running; standing up and authenticating a fresh cluster is outside this
+task's safe scope. So the emit was not run and **published coverage remains CSBS
+(sems 3–8) plus the CSE and Civil first-year streams — 187 rows, unchanged.**
+The UI branch dropdown lists more branches; those are NOT backed by published
+rows. To finish: provide a local audit Postgres (per docs/39 §Reproducing), copy
+`.vtu-store`, `vtu:supply` the three mirror-only PDFs, run `vtu:sync
+--supplied-only --from "…/index-2.html"` then `vtu:validate`, **exclude
+Robotics**, reconcile the PE-title hand-edit against source, and `--emit`.
+
+**Emit attempted 2026-10-24 on an isolated local DB — NOT published (quality).**
+An isolated PostgreSQL 18 cluster was stood up in
+`D:\GradTools-artifacts\catalogue-audit-2026-10-24\pgdata` (port 55433,
+127.0.0.1 only, its own credentials; the production Neon `DATABASE_URL` was
+never used). `.vtu-store` was copied in and `pnpm vtu:sync --scheme 2022 --from
+<official listing> --supplied-only` ran: **3816 courses across 46 programmes**
+normalized and persisted. `pnpm vtu:validate --scheme 2022` **FAILED with 2
+failures** — `robosch.pdf` s3 (printed 20 vs 19, the department-alternative lab)
+and `BSFHK158` offered by two slots of one document — so `--emit` was not run
+(no `--force`). Beyond validation, review of the generated rows found the
+title extractor garbles VTU's multi-line titles across branches: **517 of 3816
+rows have duplicated-word titles** (e.g. "Physical Education Physical
+Education", "Physical Physical Education … Director"), 82 PE rows are mangled,
+and 9 carry the teaching-department column as junk ("… Engg dept", "Any Dept").
+The published 187 rows are clean only because they were hand-corrected. Emitting
+would revert the PE hand-edit and ship garbled titles app-wide, so the data is
+**not publishable without a parser title-extraction fix** (separate task) plus
+per-row title review. **Published coverage stays at 187 curated rows.** The DB
+path is proven; the blocker is now data quality, not the environment. The
+isolated cluster was stopped; its data and the sync/validate logs are kept in
+the audit directory as evidence.

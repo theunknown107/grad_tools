@@ -9,7 +9,7 @@
 
 1. **Legible density over decorative spaciousness.** A student comparing eight subjects needs them on one screen. Giant cards with one number each are the single most common failure of student dashboards.
 2. **Type carries the hierarchy, not colour.** Colour is reserved for status meaning. If a design reads correctly in greyscale, it will read correctly for a colour-blind user and in bright sunlight.
-3. **Restraint as a credibility signal.** This product will be shown to faculty. Neon gradients and glassmorphism read as a toy; quiet, precise typography reads as a tool.
+3. **Restraint as a credibility signal.** This product will be shown to faculty. Neon gradients and decorative glass read as a toy; quiet, precise typography reads as a tool. Glass is a material with five named uses (§5.26), never decoration.
 4. **One accent colour.** Everything else is neutral plus semantic status colours.
 5. **Every visual element earns its pixels.** No decorative illustration, no background patterns, no unnecessary elevation.
 
@@ -348,7 +348,7 @@ GradTools is an application, not a landing page. The following are prohibited
 unless a specific product requirement demands one and the owner approves it.
 
 **Aesthetic:** AI-purple or violet themes · black-and-neon palettes · neon
-accents without semantic purpose · glassmorphism or frosted containers ·
+accents without semantic purpose · glass or frosted containers outside the five materials of §5.26 ·
 glowing orbs · gradient blobs · dot-grid backgrounds · decorative terminal
 windows · animated gradients · parallax · decorative floating shapes.
 
@@ -773,6 +773,10 @@ would paint the default palette first and repaint into the chosen one.
 
 ## 5.22 The glass material system (M9.6B)
 
+> Superseded by §5.26 (Liquid Glass). The class names below no longer exist; the
+> principles (materials by name, glass marks hierarchy, no blur on repeating
+> content, material safe for any text on it) carry over.
+
 Five materials, declared once in `tokens.css` and consumed by five classes in
 `global.css`. A component asks for a material **by name** and never assembles
 one from tint + blur + border itself.
@@ -810,6 +814,9 @@ label was already the darkest muted token, and the material must be safe for
 whatever is placed on it, not just for the one case that failed.
 
 ## 5.23 Motion (M9.6B)
+
+> Superseded: the one continuous animation is the stepped fluid environment of
+> §5.26 (Liquid Glass 2.0); the landing aurora described here no longer exists.
 
 Two easings and four durations, all in tokens. `--ease-spring` is a bezier with
 ~3% overshoot for things that ENTER; `--ease-glide` is for things that MOVE
@@ -926,3 +933,91 @@ UI is correct and `Tooltip.tsx` is the seam.
 It is unreachable on a touchscreen, vanishes on scroll and is absent from a
 printout. Attendance's tooltip names the *threshold* a figure is measured
 against; the percentage, the counts and the advice are all already on the row.
+
+## 5.26 Liquid Glass (2026-11, frozen)
+
+The approved visual language. Declared once at the end of
+`apps/web/src/styles/index.css`; a component asks for a material by class name
+and never assembles tint, blur and border itself. Layout is unaffected by any of
+it.
+
+### The five materials
+
+| Class | Used for | Implementation (light / dark) |
+|---|---|---|
+| `.gt-surface` | Cards and panels: `Card`, `EmptyState`, the dashboard hero, semester cards, scheme review, terms box, first-sync choices, the phone timetable day groups | `--glass-surface` 60% white / 4.5% white, a top sheen (`--glass-sheen` → transparent at 56%), `--glass-highlight` (1px inset top line), `--glass-shadow`. **No backdrop-filter.** |
+| `.gt-panel` | Floating menus, select and combobox popups, dialogs, bottom sheet, toasts, command menu, chart tooltip | `--glass-elevated` 86%, `blur(var(--glass-blur) = 20px) saturate(1.5)`, highlight and `--shadow-lg` |
+| `.gt-nav` | Navigation chrome: desktop sidebar, phone status-bar strip; the sticky desktop top bar uses the same `--glass-nav` tint and blur through utilities from `md` | `--glass-nav` 58% / 55%, `blur(16px) saturate(1.4)` |
+| `.gt-inset` | Text inputs | Recessed: `--glass-inset` tint and a 1px inner shadow |
+| `.gt-control` | Secondary buttons | `--glass-control` with hairline and `--shadow-sm`; `--glass-control-hover` on hover; `scale(0.98)` on press |
+
+Backgrounds sit in `@layer components`, so a `bg-*` utility on a component still
+wins. Borders are the shared `--border` hairline. The phone bottom bar keeps its
+own pre-existing `.gt-glass-bar` material, and hero buttons keep `.gt-glass`.
+
+### Ambient light
+
+One fixed `body::before` layer behind everything: three radial fields mixed from
+the theme's own `--warning-weak`, `--schedule-weak` and `--accent-weak` tokens
+(`--ambient-1..3`). Changing the accent preset re-lights the room; light and dark
+switch together. The pale `-weak` tints are used, never the strong hues, so the
+ground stays light enough for muted text at 4.5:1 at a field's peak.
+
+**Liquid Glass 2.0 (2026-11-22) supersedes the static rule.** The environment is
+two fixed layers (`body::before`, `body::after`) of four elliptical fields that
+drift, turn and breathe on 54 s and 72 s cycles, moved by `transform` only and
+**stepped** at exactly 100 ms on one clock (`steps(180)` / `steps(240)` per keyframe
+segment), so the WebView composites about 14 times a second instead of every
+vsync (566 → ~140–176 idle frames per 10 s on Android; scroll ~17–19 ms median).
+Mono is black and white; other accents derive the fields from the accent hue
+(`oklch(from var(--accent) …)`). Reduced motion holds a still frame; Off removes it.
+
+### Settings
+
+| Setting | Effect |
+|---|---|
+| Surface → Liquid (default) | As above |
+| Surface → Opaque | Every material solid (`--raised`, `--canvas`, `--panel`), no blur; ambient light remains |
+| Surface → Off | As Opaque, ambient layer hidden, glass buttons solid |
+| Button style → Opaque | Glass buttons solid (independent of Surface) |
+| Reduced motion (OS or in-app) | Environment holds a still frame; transitions collapse to 0.001 ms |
+| Reduced transparency (OS) | Every material and the glass buttons solid, no blur |
+| Print | Ambient layer hidden |
+
+Theme switching transitions `background-color` over `--dur-theme` (200 ms), the
+same duration as the shell's existing transitions, so no surface lags behind the
+page.
+
+### Blur is for moving content only
+
+`backdrop-filter` appears only where content moves behind a surface: menus,
+dialogs, sheets, the sticky desktop top bar, the sidebar and the bottom bar.
+Cards, rows and timetable cells never blur: they repeat down pages (cost) and sit
+over a smooth ambient field (blur would show nothing).
+
+### Exceptions and limits
+
+- Primary buttons are accent-tinted glass (`.gt-primary`, 88% accent, light edge, 1px
+  inset highlight, no gradient); text keeps 4.5:1. Opaque and reduced transparency
+  make them solid.
+- Shared buttons carry no gradient and no inset highlight
+  (`test/interface-signs.test.ts`).
+- Every material has a solid fallback (Opaque, Off, reduced transparency, no
+  `backdrop-filter` support: panels are 86% opaque and remain legible).
+- Text contrast is measured on the real composited pixels, not against an assumed
+  opaque background: 4.5:1 for body text, 3:1 for large text.
+- The bottom bar's lift shadow is kept faint (`0 -4px 16px -12px`, 12%) so text
+  resting just above the bar keeps 4.5:1.
+
+### Timetable
+
+- Hierarchy: subject name first (ink, medium); code · time second (`ink-2`,
+  tabular); room · faculty third (`ink-2`, regular). Not `ink-3` on tints.
+- Desktop grid: translucent kind tints (`bg-accent-weak/55`, `bg-warning-weak/80`,
+  `bg-sunken/60`), a filled 2px kind edge, no radius or border, a 2px seam
+  between stacked classes, compact padding; room and faculty wrap to two lines
+  rather than truncate.
+- Phone: one `.gt-surface` group per day with divided rows (time, name, code ·
+  room, faculty); rows at least 44px.
+- Essential information never depends on hover: every field is on the cell or
+  row, the cell's accessible name carries all of it, and the day view repeats it.

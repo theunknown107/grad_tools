@@ -38,7 +38,7 @@ const server = await new Promise((ok) => {
       res.writeHead(404).end('no');
     }
   });
-  instance.listen(PORT, () => ok(instance));
+  instance.listen(PORT, '127.0.0.1', () => ok(instance));
 });
 
 const results = [];
