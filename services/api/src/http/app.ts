@@ -9,7 +9,7 @@
  */
 
 import cors from 'cors';
-import express, { type Express } from 'express';
+import express, { type Express, type RequestHandler } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { randomUUID } from 'node:crypto';
@@ -17,12 +17,35 @@ import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { createStudentRouter } from '../routes/me.js';
-import { createAccountDeleter, createCloudClient } from '../db/cloud.js';
+import { createApiLimiter } from './rate-limit.js';
+import { buildOpenApiDocument, OPENAPI_ROUTE } from './openapi.js';
+import { createDocumentRouter } from '../routes/documents.js';
+import { type DocumentReader } from '../documents/gemini.js';
+import { createOpenRouterReader } from '../documents/openrouter.js';
+import { createProviderRouter, type Provider } from '../documents/router.js';
+import {
+  assertCloudRoleIsSafe,
+  createAccountDeleter,
+  createCloudClient,
+  createSupabaseIdentityDeleter,
+} from '../db/cloud.js';
 import { startListening } from '../monitor/realtime.js';
-import { authConfigFor, createVerifier } from '../auth/session.js';
+import { authConfigFor, createVerifier, type SessionSource } from '../auth/session.js';
+import {
+  clerkAuthenticator,
+  createClerkIdentityDeleter,
+  createClerkMiddleware,
+} from '../auth/clerk.js';
 import { createAnnouncementRouter } from '../routes/announcements.js';
 import { createReferenceRouter } from '../routes/reference.js';
-import { errorHandler, notFoundHandler } from './errors.js';
+import {
+  createSupportRouter,
+  createOperatorSupportRouter,
+  createPublicSupportRouter,
+} from '../routes/support.js';
+import { newIncidentId } from '../support/id.js';
+import { recordEventSafe } from '../support/store.js';
+import { createErrorHandler, notFoundHandler, type IncidentRecorder } from './errors.js';
 
 /**
  * The URL as it may be written to a log.
@@ -35,6 +58,42 @@ import { errorHandler, notFoundHandler } from './errors.js';
 function redactQuery(url: string | undefined): string | undefined {
   if (url === undefined || !url.includes('search=')) return url;
   return url.replace(/([?&]search=)[^&]*/g, '$1[redacted]');
+}
+
+/**
+ * The approved document-AI provider registry for this deployment, composed into
+ * one router (docs/13 §13.31). OpenRouter is preferred (it proves $0 per read);
+ * Gemini is included ONLY when the operator has approved it as zero-cost for
+ * this deployment, because it cannot prove $0 mechanically. Returns `null` when
+ * no approved provider is configured — the AI route then does not mount and the
+ * app reads documents on the device only.
+ */
+function buildDocumentReader(config: Config, logger: Logger): DocumentReader | null {
+  const providers: Provider[] = [];
+  if (config.OPENROUTER_API_KEY !== undefined) {
+    providers.push({
+      id: 'openrouter',
+      model: config.DOCUMENT_AI_PRIMARY_MODEL,
+      reader: createOpenRouterReader({
+        apiKey: config.OPENROUTER_API_KEY,
+        models: [config.DOCUMENT_AI_PRIMARY_MODEL, config.DOCUMENT_AI_SECONDARY_MODEL].filter(
+          (id): id is string => id !== undefined,
+        ),
+        requireZdr: config.DOCUMENT_AI_REQUIRE_ZDR,
+        log: (event) => logger.warn(event),
+      }),
+      capabilities: { image: true, structuredOutput: true },
+      policy: { zeroCost: 'verified-per-read', enabled: true },
+      priority: 1,
+    });
+  }
+  // Gemini is deliberately NOT a routed provider: it cannot prove $0 per request
+  // (its API exposes no per-request cost), and a boolean flag is not a zero-cost
+  // guarantee. Under the zero-cost invariant it is ineligible and the reader is
+  // left unwired (§13.31). If Gemini ever exposes a per-request cost, a
+  // `verified-per-read` reader could be added here — an env flag never suffices.
+  if (providers.length === 0) return null;
+  return createProviderRouter(providers, { log: (event) => logger.warn(event) });
 }
 
 export function createApp(
@@ -51,8 +110,13 @@ export function createApp(
    */
   cloud?: {
     readonly sql: Sql;
-    readonly verify: ReturnType<typeof createVerifier>;
+    /** The ONE authority this deployment trusts: Clerk (request) or legacy Supabase (token). */
+    readonly verify: SessionSource;
+    /** Runs before the student routes — `clerkMiddleware()` under Clerk. */
+    readonly middleware?: RequestHandler;
     readonly deleteAccount?: (userId: string) => Promise<boolean>;
+    /** A stand-in for the Gemini reader, for tests. The route still needs GEMINI_API_KEY. */
+    readonly documentReader?: DocumentReader;
   },
 ): Express {
   const app = express();
@@ -60,6 +124,16 @@ export function createApp(
   // Express advertises itself by default; there is no reason to tell an
   // attacker which framework and version to look up (docs/13 §13.5).
   app.disable('x-powered-by');
+
+  /*
+   * ONE trusted proxy hop. Render terminates TLS at its edge and forwards the
+   * real client IP as the left-most `X-Forwarded-For` entry; `trust proxy, 1`
+   * makes `req.ip` that client address rather than the proxy's. It trusts
+   * exactly one hop, so a client cannot forge its address by prepending its own
+   * `X-Forwarded-For` — the rate limiter (F1) keys on `req.ip`, so this must be
+   * correct or every caller would share one bucket (docs/13, M22).
+   */
+  app.set('trust proxy', 1);
 
   /*
    * `<`, `>` and `&` are emitted as \uXXXX escapes in every JSON response.
@@ -104,6 +178,25 @@ export function createApp(
    * Requests without an Origin header (curl, server-to-server, health probes)
    * are allowed because CORS is a browser policy and blocking them would only
    * break monitoring while stopping no attack.
+   *
+   * ---------------------------------------------------------------------
+   * THE METHODS ARE THE ONES THIS API ACTUALLY SERVES
+   * ---------------------------------------------------------------------
+   *
+   * This said `GET, HEAD, OPTIONS` from the milestone where the API served
+   * nothing but public reference reads, and was never widened when the student
+   * cloud arrived with a POST to push a sync, a PUT to save a profile, a PATCH
+   * to mark a notice read and a DELETE to remove an account. A browser asks
+   * before it sends any of those, and an answer that omits the method it asked
+   * about means the request is never made at all — so the whole mutating half
+   * of the cloud was unreachable from the web app's own origin.
+   *
+   * What keeps this safe is the ORIGIN check above, not the method list: an
+   * origin that is not on the allowlist gets no `Access-Control-Allow-Origin`
+   * header at all, and the browser refuses the response whatever method it
+   * used. Authorization is a bearer token, never a cookie, which is why
+   * `credentials` stays false — there is no ambient authority for a cross-site
+   * request to ride on.
    */
   app.use(
     cors({
@@ -114,7 +207,7 @@ export function createApp(
         }
         callback(null, false);
       },
-      methods: ['GET', 'HEAD', 'OPTIONS'],
+      methods: ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE'],
       credentials: false,
       maxAge: 600,
     }),
@@ -153,6 +246,15 @@ export function createApp(
   );
 
   /*
+   * Rate limiting (F1). Scoped to `/api/v1` so liveness/readiness below are
+   * NEVER throttled — a limiter that can 429 a health probe would make the
+   * platform kill a healthy container. The document-AI route adds a second,
+   * stricter limiter of its own (routes/documents.ts). In-memory, per-instance
+   * (see rate-limit.ts).
+   */
+  app.use('/api/v1', createApiLimiter());
+
+  /*
    * Liveness. Performs NO dependency checks by design: a liveness probe that
    * fails when the database blips makes the platform restart a container that
    * is working perfectly (docs/10 §10.11).
@@ -174,7 +276,24 @@ export function createApp(
     });
   });
 
-  app.use(createAnnouncementRouter(sql));
+  /*
+   * The API's own OpenAPI 3.1 description. Public and read-only: it DESCRIBES the
+   * surface (so an agent can discover it), it does not expose any protected
+   * operation — each of those keeps its real guard. Built once per process.
+   */
+  const openApiDocument = buildOpenApiDocument();
+  app.get(OPENAPI_ROUTE, (_req, res) => {
+    res.json(openApiDocument);
+  });
+
+  app.use(createAnnouncementRouter(sql, { operatorToken: config.OPERATOR_TOKEN }));
+
+  /*
+   * Public problem reporting (no session), so someone who cannot sign in can
+   * still report it. Mounted unconditionally — it needs only the reference
+   * database — and rate-limited by the `/api/v1` limiter above.
+   */
+  app.use(createPublicSupportRouter(sql));
   /*
    * STUDENT ROUTES ARE MOUNTED ONLY WHERE A CLOUD EXISTS.
    *
@@ -182,29 +301,106 @@ export function createApp(
    * nothing else — there is no half-configured state in which `/api/v1/me`
    * exists but cannot authorize anybody (docs/25 §25.15).
    */
-  const student =
+  /*
+   * ONE AUTHORITY PER DEPLOYMENT (CLERK-AUTH-MIGRATION-V1).
+   *
+   * With Clerk configured, Clerk is the only authority: `clerkMiddleware()`
+   * verifies requests and Supabase-issued tokens are not accepted at all.
+   * Without it, the legacy Supabase verifier stays in force (rollback path).
+   * Never both — there is no state in which either provider's token works.
+   * The database (Supabase 0012) is keyed by the text subject either way.
+   */
+  const clerkKeys =
+    config.CLERK_SECRET_KEY !== undefined && config.CLERK_PUBLISHABLE_KEY !== undefined
+      ? { secretKey: config.CLERK_SECRET_KEY, publishableKey: config.CLERK_PUBLISHABLE_KEY }
+      : undefined;
+  const cloudDbUrl = config.SUPABASE_DB_URL;
+  const student: typeof cloud =
     cloud ??
-    (config.SUPABASE_URL !== undefined && config.SUPABASE_DB_URL !== undefined
-      ? {
-          sql: createCloudClient({ url: config.SUPABASE_DB_URL }),
-          verify: createVerifier(authConfigFor(config.SUPABASE_URL)),
-          /*
-           * Account deletion needs to reach `auth.users`, which the student
-           * connection cannot write. Where no admin connection is configured
-           * the route reports itself unavailable rather than half working
-           * (docs/25 §25.15).
-           */
-          ...(config.SUPABASE_ADMIN_DB_URL === undefined
-            ? {}
-            : {
-                deleteAccount: createAccountDeleter(
-                  createCloudClient({ url: config.SUPABASE_ADMIN_DB_URL, max: 2 }),
-                ),
+    (cloudDbUrl === undefined
+      ? undefined
+      : clerkKeys !== undefined
+        ? (() => {
+            const cloudSql = createCloudClient({ url: cloudDbUrl });
+            return {
+              sql: cloudSql,
+              verify: clerkAuthenticator,
+              middleware: createClerkMiddleware({
+                ...clerkKeys,
+                authorizedParties: (config.CLERK_AUTHORIZED_PARTIES ?? '')
+                  .split(',')
+                  .map((origin) => origin.trim())
+                  .filter((origin) => origin !== ''),
               }),
-        }
-      : undefined);
+              /* Data under RLS as the student, then the Clerk user via Clerk's backend. */
+              deleteAccount: createAccountDeleter(
+                cloudSql,
+                createClerkIdentityDeleter(clerkKeys.secretKey),
+              ),
+            };
+          })()
+        : config.SUPABASE_URL !== undefined
+          ? (() => {
+              const cloudSql = createCloudClient({ url: cloudDbUrl });
+              return {
+                sql: cloudSql,
+                verify: createVerifier(authConfigFor(config.SUPABASE_URL)),
+                /*
+                 * LEGACY: the `auth.users` login can only be removed over an
+                 * admin connection. Without one, deletion reports itself
+                 * unavailable rather than deleting data and leaving the login.
+                 */
+                ...(config.SUPABASE_ADMIN_DB_URL === undefined
+                  ? {}
+                  : {
+                      deleteAccount: createAccountDeleter(
+                        cloudSql,
+                        createSupabaseIdentityDeleter(
+                          createCloudClient({ url: config.SUPABASE_ADMIN_DB_URL, max: 2 }),
+                        ),
+                      ),
+                    }),
+              };
+            })()
+          : undefined);
+
+  /*
+   * The runtime cloud connection, exposed for the startup safety check
+   * (`assertStartupSafety`). It is the SAME client the student routes use — the
+   * guard must run against the connection that will actually serve data, not a
+   * second one. Undefined when no student cloud is configured.
+   */
+  app.locals.cloudSql = student?.sql;
 
   if (student !== undefined) {
+    /* Clerk verifies the request here, before any signed-in route reads `getAuth(req)`. */
+    if (student.middleware !== undefined) app.use(student.middleware);
+
+    /*
+     * AI document reading: signed-in only, and only where an AI key is
+     * configured — OpenRouter (free models only, §13.30) before Gemini. With
+     * neither, the route does not exist and documents are read on the device
+     * only (docs/13 §13.29).
+     */
+    // The route exists only where an AI key is configured — never on a mere
+    // injected reader — so "no key" means no route (404), unchanged. When it
+    // does exist, the reader is the injected one (tests) or the approved
+    // provider router; a router with no eligible provider (e.g. only Gemini,
+    // which cannot prove $0) yields null, and the route stays absent.
+    const aiKeyConfigured =
+      config.OPENROUTER_API_KEY !== undefined || config.GEMINI_API_KEY !== undefined;
+    if (aiKeyConfigured) {
+      const reader = cloud?.documentReader ?? buildDocumentReader(config, logger);
+      if (reader !== null) {
+        app.use(
+          createDocumentRouter({
+            verify: student.verify,
+            reader,
+            model: config.DOCUMENT_AI_PRIMARY_MODEL,
+          }),
+        );
+      }
+    }
     app.use(
       createStudentRouter({
         cloud: student.sql,
@@ -212,6 +408,13 @@ export function createApp(
         ...(student.deleteAccount === undefined ? {} : { deleteAccount: student.deleteAccount }),
       }),
     );
+
+    /*
+     * Problem reports (OBSERVABILITY-AND-SUPPORT-V1). Authenticated, self-only,
+     * and stored in the reference database (`sql`) rather than the student
+     * cloud — operational data an operator must read across users.
+     */
+    app.use(createSupportRouter({ sql, verify: student.verify }));
 
     /*
      * ONE `LISTEN` FOR THE PROCESS (Phase 7B.5 §16, §29).
@@ -233,8 +436,84 @@ export function createApp(
 
   app.use(createReferenceRouter(sql));
 
+  /*
+   * Operator observability API (OBSERVABILITY-AND-SUPPORT-V1). Mounted only
+   * when an operator token is configured, behind the same bearer gate as the
+   * announcement operator writes; otherwise its routes 404 like any other.
+   */
+  if (config.OPERATOR_TOKEN !== undefined) {
+    app.use(createOperatorSupportRouter(sql, config.OPERATOR_TOKEN));
+  }
+
   app.use(notFoundHandler);
-  app.use(errorHandler);
+
+  /*
+   * The error handler records a support incident for a 5xx (echoing its
+   * Incident ID to the client) and a security signal for a tripped rate limit.
+   * Both are fire-and-forget against the reference database: a telemetry
+   * failure never changes the response, and the id is generated synchronously
+   * so the student always has one to quote.
+   */
+  const recorder: IncidentRecorder = {
+    recordFault(ctx) {
+      const incidentId = newIncidentId();
+      void recordEventSafe(
+        sql,
+        {
+          eventType: 'API_5XX',
+          severity: 'error',
+          incidentId,
+          subject: ctx.subject,
+          requestId: ctx.requestId,
+          route: ctx.route,
+          httpStatus: ctx.httpStatus,
+          errorCode: 'INTERNAL_ERROR',
+          platform: ctx.platform,
+          appVersion: ctx.appVersion,
+          metadata: { reference: ctx.reference },
+        },
+        logger,
+      );
+      return incidentId;
+    },
+    recordSecurity(ctx) {
+      void recordEventSafe(
+        sql,
+        {
+          eventType: 'RATE_LIMIT_TRIGGERED',
+          severity: 'security',
+          subject: ctx.subject,
+          requestId: ctx.requestId,
+          route: ctx.route,
+          httpStatus: ctx.httpStatus,
+          errorCode: 'RATE_LIMITED',
+          platform: ctx.platform,
+          appVersion: ctx.appVersion,
+        },
+        logger,
+      );
+    },
+  };
+  app.use(createErrorHandler(recorder));
 
   return app;
+}
+
+/**
+ * Fail-fast dependency check, run at startup before the server accepts traffic.
+ *
+ * The student cloud connection MUST use a role that cannot bypass RLS
+ * (`authenticator`), because RLS is the entire authorization model for student
+ * data (docs/13 §13.17). `assertCloudRoleIsSafe` proves that against the live
+ * connection; wiring it here — on the same client `createApp` gave the student
+ * routes — is what turns "documented" into "enforced". A misconfigured
+ * `SUPABASE_DB_URL` (e.g. `postgres`/`service_role`, which carry `bypassrls`)
+ * makes this reject, and `main.ts` exits rather than serve data with RLS off.
+ *
+ * A no-op when no student cloud is configured: there is nothing to serve and
+ * nothing to guard.
+ */
+export async function assertStartupSafety(app: Express): Promise<void> {
+  const cloudSql = app.locals.cloudSql as Sql | undefined;
+  if (cloudSql !== undefined) await assertCloudRoleIsSafe(cloudSql);
 }

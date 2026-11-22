@@ -35,10 +35,17 @@
  * WHAT IS DELIBERATELY NOT SEEDED
  * ===========================================================================
  *
- * - **Colleges.** The target college has not been named, and the rule set
+ * - **Published colleges.** The affiliated-college list is seeded as an
+ *   unreviewed DRAFT (see below); none is published. The rule set
  *   applies scheme-wide (`college_id IS NULL`), so no college row is needed to
- *   make the data correct. Inventing one would put an unverified institution
- *   name into a reference table.
+ *   make the data correct. Publishing waits for a person to review the
+ *   transcription and to establish each college's autonomy.
+ *
+ * - **Schemes other than 2022.** The scheme page lists 2026 (BBA/BCA), 2025,
+ *   2022, 2010/2014 and 2015-16 CBCS schemes, recorded in
+ *   vtu-branches-2022.json as provenance only. A `schemes` row needs an
+ *   `effective_from` date and a regulation code the page does not state, and
+ *   publishing needs verification, so no row is written for them.
  *
  * - **Semester 2.** csesch.pdf covers semesters I AND II, so this one is the
  *   odd entry in this list: the source is already cited and already verified,
@@ -69,6 +76,7 @@ import {
   SCHEME_RETRIEVED_AT,
   SCHEME_ROWS,
 } from './scheme-2022-cse.js';
+import { VTU_BRANCHES_2022, VTU_COLLEGES } from '@gradtools/vtu-catalogue/data';
 
 const REGULATION_URL =
   'https://vtu.ac.in/wp-content/uploads/2023/05/Regulations-Clr-BE-BTECH-2022-611-02052023.pdf';
@@ -116,13 +124,69 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
       publication = EXCLUDED.publication
   `;
 
-  // Only CSE is seeded: csesch.pdf is the only branch scheme retrieved and
-  // verified. Other branches exist but their documents have not been read.
+  // `cse` keeps its original code and name: subjects, profiles and tests join
+  // on it, and csesch.pdf is the only branch scheme whose SUBJECTS were read.
   await sql`
     INSERT INTO branches (id, university_id, code, name)
     VALUES ('cse', 'vtu', 'CS', 'Computer Science and Engineering')
     ON CONFLICT (id) DO UPDATE SET code = EXCLUDED.code, name = EXCLUDED.name
   `;
+
+  /*
+   * THE REST OF THE 2022 PROGRAMME LIST, AS PRINTED (vtu-branches-2022.json).
+   *
+   * Branches are internal taxonomy (0003): the row claims only that VTU lists
+   * the programme, and its provenance lives in the data file. The page prints
+   * no branch codes, so `code` is the GradTools key, NOT a VTU code — making one
+   * up would be a fabricated fact. No subjects come with these rows.
+   */
+  for (const branch of VTU_BRANCHES_2022.entries) {
+    if (branch.id === 'cse') continue;
+    await sql`
+      INSERT INTO branches (id, university_id, code, name)
+      VALUES (${branch.id}, 'vtu', ${branch.id}, ${branch.labelAsPrinted})
+      ON CONFLICT (id) DO UPDATE SET code = EXCLUDED.code, name = EXCLUDED.name
+    `;
+  }
+
+  /*
+   * COLLEGES, TRANSCRIBED AND UNPUBLISHED (vtu-colleges.json, migration 0019).
+   *
+   * One-time transcription of https://vtu.ac.in/affiliated-institute/, not yet
+   * reviewed, so every row is `draft` + `unpublished` and the API does not serve
+   * it. `is_autonomous` is NULL: the page does not state it. The web app lists
+   * the same data from the bundled file, marked unreviewed.
+   */
+  const colleges = VTU_COLLEGES;
+  const changed = sql`((colleges.name, colleges.code, colleges.region)
+    IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.code, EXCLUDED.region))`;
+  for (const college of colleges.entries) {
+    await sql`
+      INSERT INTO colleges (
+        university_id, catalogue_id, name, code, region, is_autonomous,
+        source_url, source_clause, verification, publication
+      ) VALUES (
+        'vtu', ${college.id}, ${college.name}, ${college.code}, ${college.region}, NULL,
+        ${colleges.source.url},
+        ${`${colleges.source.method}, retrieved ${colleges.source.retrievedAt}; region "${college.region}"`},
+        'draft', 'unpublished'
+      )
+      ON CONFLICT (catalogue_id) DO UPDATE SET
+        name = EXCLUDED.name,
+        code = EXCLUDED.code,
+        region = EXCLUDED.region,
+        -- A reviewed row keeps the provenance its reviewer checked, unless the
+        -- transcription itself changed; then the review is stale and resets.
+        source_url = CASE WHEN colleges.verification = 'verified' AND NOT ${changed}
+          THEN colleges.source_url ELSE EXCLUDED.source_url END,
+        source_clause = CASE WHEN colleges.verification = 'verified' AND NOT ${changed}
+          THEN colleges.source_clause ELSE EXCLUDED.source_clause END,
+        verification = CASE WHEN ${changed} THEN 'draft' ELSE colleges.verification END,
+        publication = CASE WHEN ${changed} THEN 'unpublished' ELSE colleges.publication END,
+        verified_at = CASE WHEN ${changed} THEN NULL ELSE colleges.verified_at END,
+        verified_by = CASE WHEN ${changed} THEN NULL ELSE colleges.verified_by END
+    `;
+  }
 
   /*
    * The rule set. Every value is transcribed from a numbered clause; see
@@ -287,7 +351,6 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
       terms_note = EXCLUDED.terms_note
   `;
 
-
   /*
    * THE SOURCE THE CATALOGUE CRAWLER ACTUALLY USES.
    *
@@ -365,7 +428,6 @@ export async function seed(sql: Sql): Promise<SeedSummary> {
       terms_note = EXCLUDED.terms_note,
       notes = EXCLUDED.notes
   `;
-
 
   /*
    * THE SIX SOURCE FAMILIES, REGISTERED AND REFUSED (Phase 7C §3, §5, §103).

@@ -88,6 +88,16 @@ CSBS22 Docs/
 # and never committed: the repository keeps normalized records, not binaries.
 .vtu-store/
 
+# HTTrack / WebCopy harvested source data (local dev artifacts only). Raw site
+# mirrors plus HTTrack cache/log/cookie files (hts-cache, hts-log.txt,
+# cookies.txt) must never be committed. The tracked provenance lives in
+# packages/vtu-catalogue/data/regulations-manifest.json, not the raw harvest.
+VTU Harvested Data */
+*.whtt
+hts-cache/
+hts-log.txt
+cookies.txt
+
 # Compiled output emitted beside the generated catalogue data.
 packages/*/data/*.js
 packages/*/data/*.js.map
@@ -98,3 +108,24 @@ packages/*/data/*.d.ts.map
 # apps/web/public/ocr; a worker run from the repository root drops another
 # here, and a 5 MB binary is not source.
 *.traineddata
+
+# Cached official VTU PDFs + extracted text for docs/research (tools/research/*).
+# Re-downloadable from vtu.ac.in; the provenance (url + sha256) lives in the artifacts.
+.vtu-cache/
+
+# Local logs, tool caches and scratch output. Never source.
+*.log
+.eslintcache
+*.tmp
+desktop.ini
+
+# Local database material. The disposable test cluster lives OUTSIDE the
+# repository (skills.md, Database tests); a dump or data directory never
+# belongs here.
+*.sqlite
+*.sqlite3
+*.dump
+pgdata/
+
+.vercel
+.env*

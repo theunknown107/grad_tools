@@ -1,0 +1,18 @@
+{
+  "appId": "app.gradtools",
+  "appName": "GradTools",
+  "webDir": "dist",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover",
+      "style": "DEFAULT",
+      "hidden": false
+    }
+  },
+  "cordova": {
+    "preferences": {
+      "KeepRunning": "false"
+    }
+  }
+}

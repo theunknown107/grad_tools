@@ -13,6 +13,8 @@
  */
 import type { Catalogue, CatalogueCourse } from '../src/types.js';
 import vtu2022 from './vtu-2022.json' with { type: 'json' };
+import vtuColleges from './vtu-colleges.json' with { type: 'json' };
+import vtuBranches2022 from './vtu-branches-2022.json' with { type: 'json' };
 
 export const VTU_2022: Catalogue = vtu2022 as Catalogue;
 
@@ -36,3 +38,50 @@ export function coursesForScheme(scheme: string): readonly CatalogueCourse[] {
     catalogue.courses.filter((course) => course.schemeYear === year),
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Transcribed reference lists (one-time, human-reviewable; see README.md)     */
+/* -------------------------------------------------------------------------- */
+
+export interface TranscribedCollege {
+  readonly id: string;
+  readonly code: string | null;
+  readonly name: string;
+  readonly region: string;
+  /** Never stated by the source page, so always null until a person verifies it. */
+  readonly isAutonomous: boolean | null;
+}
+
+export interface TranscribedBranch {
+  readonly id: string;
+  readonly labelAsPrinted: string;
+  readonly schemeUrl: string | null;
+}
+
+export interface TranscriptionSource {
+  readonly url: string;
+  readonly retrievedAt: string;
+  readonly method: string;
+  readonly reviewed: boolean;
+  readonly note: string;
+}
+
+export const VTU_COLLEGES: {
+  readonly source: TranscriptionSource & {
+    /** Rows listed per region heading in this file. */
+    readonly countsByRegion: Readonly<Record<string, number>>;
+    /** Totals the page itself reported, where it reported one; may exceed what was listed. */
+    readonly reportedCountsByRegion: Readonly<Record<string, number>>;
+    readonly entriesWithoutCode: number;
+    readonly duplicateCodes: Readonly<Record<string, readonly string[]>>;
+  };
+  readonly entries: readonly TranscribedCollege[];
+} = vtuColleges;
+
+export const VTU_BRANCHES_2022: {
+  readonly source: TranscriptionSource & {
+    readonly schemesListed: readonly string[];
+    readonly firstYearStreams2022: readonly { labelAsPrinted: string; schemeUrl: string }[];
+  };
+  readonly entries: readonly TranscribedBranch[];
+} = vtuBranches2022;

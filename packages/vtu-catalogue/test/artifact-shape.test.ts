@@ -120,9 +120,9 @@ describe('the shipped catalogues', () => {
   it('ships no 2025 catalogue yet', () => {
     /* This phase fixes the artifact; publishing it is a separate decision. */
     expect(CATALOGUES).toHaveLength(1);
-    expect(CATALOGUES.every((catalogue) => catalogue.courses.every((c) => c.schemeYear === '2022'))).toBe(
-      true,
-    );
+    expect(
+      CATALOGUES.every((catalogue) => catalogue.courses.every((c) => c.schemeYear === '2022')),
+    ).toBe(true);
   });
 
   it('gives every published course complete provenance', () => {

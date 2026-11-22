@@ -8,18 +8,17 @@ Two different sentences, and §110 requires keeping them apart.
 
 | | |
 | --- | --- |
-| Code is deployment-ready | **yes, with one caveat below** — image built and run in 7B.7 |
+| Code is deployment-ready | **not yet claimed** — the image was built and run in 7B.7; staging (docs/48) has not been exercised |
 | Code is deployed | **no** — nothing runs anywhere |
 | VTU monitoring is live | **no** — the source gate refuses, by design |
 
-> **The caveat, found in 7B.7 by running the image and not present in this
-> document when it was first written.** Stage 1's document routes have no
-> authentication, and `main.ts` refuses a non-loopback bind because of it. A
-> container must bind `0.0.0.0` to be reachable, so a deployment has to set
-> `HOST=0.0.0.0` and `ALLOW_PUBLIC_BIND=true` together and deliberately — and
-> should only do so behind something that authenticates those routes. **Until
-> Stage 1 has authentication, this image is safe on a private network and is not
-> safe on the public internet.** See docs/46.
+> **The 7B.7 caveat is resolved.** It said the image was unsafe on the public
+> internet because unauthenticated routes were protected only by a loopback
+> bind. The operator writes now require `OPERATOR_TOKEN` and are not mounted
+> without it, every `/api/v1/me` route verifies a session, and the image binds
+> `0.0.0.0` (docs/13 §13.4a, DEC-051). A clean build is still **not** the same
+> as deployment-ready: the staging checklist in docs/48 has steps nobody has
+> performed yet.
 
 So: **GradTools does not monitor VTU, and is not always-on.** Both would be
 false on two independent counts — nothing is deployed, and live acquisition is
@@ -85,6 +84,7 @@ developer's terminal and is not what a deployment should use.
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` | web | project URL |
 | `VITE_SUPABASE_ANON_KEY` | web | publishable; reaches only RLS-protected tables |
+| `VITE_API_URL` | web | the API's https origin. **Required** unless the web app is served from the API's own origin; a production build never falls back to localhost |
 
 **API**
 
@@ -92,7 +92,9 @@ developer's terminal and is not what a deployment should use.
 | --- | --- | --- |
 | `DATABASE_URL` | yes | reference data — public academic reference, no student data |
 | `PORT` / `HOST` | no | default `3001` / `0.0.0.0` in the image |
-| `WEB_ORIGIN` | yes | CORS allowlist. **Never `*`** — the API refuses wildcards with credentials |
+| `WEB_ORIGIN` | yes | CORS allowlist of exact origins. **Never `*`**. In `staging`/`alpha` it must be set and all `https://`, or the API refuses to start. Add `https://localhost` for the Android app |
+| `APP_ENV` | yes | `staging` or `alpha` turns on the check above |
+| `OPERATOR_TOKEN` | no | **secret.** Enables announcement entry/publish, bearer-authenticated; unset = those routes 404 |
 | `SUPABASE_URL` | for `/me` | JWT verification; public |
 | `SUPABASE_DB_URL` | for `/me` | **secret.** Must name `authenticator` — a role with no `bypassrls`. The API refuses to start otherwise |
 | `SUPABASE_ADMIN_DB_URL` | no | **secret.** Account deletion only; absent means that one route reports itself unavailable |

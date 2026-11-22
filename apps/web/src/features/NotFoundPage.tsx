@@ -1,67 +1,36 @@
-/**
- * 404 — product-native, not a dead end.
- *
- * Authority: Figma Make `pages/Misc.tsx` · docs/04 §4.3
- *
- * The approved design centres a compass mark with the code set beside it, says
- * plainly that the route is not part of the student's record, and offers the
- * three ways out: the dashboard, the search, and back. No page header, because
- * a page that does not exist has no title to announce.
- */
-
+import { ArrowLeft, Compass, LayoutDashboard, Search } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Icon } from '../components/icons.js';
-import { useOpenSearch } from '../components/GlobalSearch.js';
-import { Button, buttonClassName } from '../components/ui/index.js';
-import styles from './NotFoundPage.module.css';
+import { useOpenCommand } from '../components/navigation/CommandMenu.js';
+import { Button } from '../components/ui/button.js';
 
 export function NotFoundPage() {
   const navigate = useNavigate();
-  const openSearch = useOpenSearch();
-
+  const openCommand = useOpenCommand();
   return (
-    <div className={styles.page}>
-      <div className={styles.mark}>
-        <span className={styles.badge} aria-hidden="true">
-          <Icon name="compass" size="large" />
-        </span>
-        {/* The code itself, set small and askew beside the mark. */}
-        <span className={styles.code} aria-hidden="true">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+      <div className="relative mb-6" aria-hidden="true">
+        <div className="grid size-20 place-items-center rounded-2xl bg-accent-weak text-accent-ink">
+          <Compass className="size-9" />
+        </div>
+        <span className="absolute -top-2 -right-2 rotate-6 font-mono text-[11px] font-semibold text-ink-3">
           404
         </span>
       </div>
-      <h1 className={styles.title}>This page isn&rsquo;t in your record</h1>
-      <p className={styles.body}>
-        The route you followed doesn&rsquo;t exist in GradTools. It may have moved, or the link was
+      <h1 className="text-[28px] font-semibold tracking-[-0.02em]">
+        This page isn&apos;t in your record
+      </h1>
+      <p className="mt-2 max-w-md text-sm text-ink-2">
+        The route you followed doesn&apos;t exist in GradTools. It may have moved, or the link was
         mistyped.
       </p>
-      {/*
-        THE DESIGN'S THREE WAYS OUT: the dashboard, the search, and back.
-        These were the dashboard, Results and SGPA & CGPA — two arbitrary
-        destinations in place of the two general answers. A route that does not
-        exist is answered by looking for what you meant, or by returning to
-        where you were; neither is a guess about which page you wanted.
-      */}
-      <div className={styles.actions}>
-        <Link to="/" className={buttonClassName('primary')}>
-          <Icon name="dashboard" size="nav" />
-          Go to dashboard
-        </Link>
-        {/* Null when this page is rendered outside the shell, which owns the
-            palette. Then there is nothing to open, so nothing is offered. */}
-        {openSearch !== null && (
-          <Button onClick={openSearch}>
-            <Icon name="search" size="nav" />
-            Search
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          onClick={() => {
-            navigate(-1);
-          }}
-        >
-          <Icon name="arrowLeft" size="nav" />
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+        <Button asChild variant="primary" icon={<LayoutDashboard />}>
+          <Link to="/">Go to dashboard</Link>
+        </Button>
+        <Button icon={<Search />} onClick={openCommand}>
+          Search
+        </Button>
+        <Button variant="ghost" icon={<ArrowLeft />} onClick={() => navigate(-1)}>
           Back
         </Button>
       </div>

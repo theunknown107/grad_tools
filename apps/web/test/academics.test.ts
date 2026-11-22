@@ -22,6 +22,7 @@ import {
   currentSemester,
   graduationProgress,
   MIN_SUBJECTS_FOR_STRENGTH,
+  resultForSemester,
   ruleSetForResult,
   sgpaReading,
   subjectPerformance,
@@ -30,11 +31,12 @@ import {
   STRENGTH_THRESHOLD,
 } from '../src/domain/academics.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
-import type {
-  BacklogRecord,
-  SemesterRecord,
-  SemesterResult,
-  SemesterStatus,
+import {
+  SEMESTER_NUMBERS,
+  type BacklogRecord,
+  type SemesterRecord,
+  type SemesterResult,
+  type SemesterStatus,
 } from '../src/domain/types.js';
 
 const profileId = asStudentProfileId('11111111-1111-1111-1111-111111111111');
@@ -82,6 +84,53 @@ function semester(number: number, status: SemesterStatus): SemesterRecord {
 }
 
 /* -------------------------------------------------------------------------- */
+/* A legacy second record for one semester                                    */
+/* -------------------------------------------------------------------------- */
+
+describe('a semester holding two records (legacy)', () => {
+  /*
+   * A data tie-break, not an academic rule: the earliest-created record is the
+   * semester's, whatever order storage or sync holds them in. Neither record is
+   * hidden or removed.
+   */
+  const full = result(
+    4,
+    [
+      ['BCS401', 4, 'O'],
+      ['BCS402', 4, 'F'],
+      ['BCS403', 3, 'A'],
+    ],
+    { id: 'full', createdAt: '2026-07-24T00:00:00Z', updatedAt: '2026-07-24T00:00:00Z' },
+  );
+  const resit = result(4, [['BCS402', 4, 'B']], {
+    id: 'resit',
+    createdAt: '2027-02-12T00:00:00Z',
+    updatedAt: '2027-03-01T00:00:00Z',
+  });
+
+  it('reads the earliest-created, in either storage order', () => {
+    expect(resultForSemester([resit, full], 4)?.id).toBe('full');
+    expect(resultForSemester([full, resit], 4)?.id).toBe('full');
+    expect(resultForSemester([full, resit], 5)).toBeNull();
+  });
+
+  it('breaks a createdAt tie by id, never by position', () => {
+    const twin = { ...full, id: 'zz' };
+    expect(resultForSemester([twin, full], 4)?.id).toBe('full');
+  });
+
+  it('grades the semester from the full result, with every subject kept', () => {
+    const alone = buildSemesterViews([], [full])[3];
+    const view = buildSemesterViews([], [resit, full])[3];
+
+    expect(view?.result?.id).toBe('full');
+    expect(view?.subjectCount).toBe(3);
+    expect(view?.sgpaComputed).not.toBeNull();
+    expect(view?.sgpaComputed).toBe(alone?.sgpaComputed);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* The eight-semester shape                                                   */
 /* -------------------------------------------------------------------------- */
 
@@ -90,6 +139,28 @@ describe('the eight-semester degree', () => {
     const views = buildSemesterViews([], []);
     expect(views.map((v) => v.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(views.every((v) => v.status === 'planned')).toBe(true);
+  });
+
+  /*
+   * THE DEGREE IS EIGHT SEMESTERS, WHATEVER IS STORED (ED-71). A stored result
+   * or semester record carries a plain `number`, and nothing below the reader
+   * refuses a 9 — the result importer does, a synced or hand-built row may not.
+   * The dashboard and Profile now take their "of 8" from the views' length, so
+   * a ninth-semester row that grew the views would quietly turn every screen's
+   * total into "of 9".
+   */
+  it('adds no view for a stored semester beyond the eighth', () => {
+    const views = buildSemesterViews(
+      [semester(9, 'completed')],
+      [result(1, [['BMATS101', 4, 'A']]), result(9, [['BCS901', 4, 'A']])],
+    );
+    expect(views.map((v) => v.number)).toEqual([...SEMESTER_NUMBERS]);
+    expect(views.some((v) => v.result?.semester === 9)).toBe(false);
+    // Semester 1, from its result; the "completed" ninth counts for nothing.
+    expect(graduationProgress(views, null)).toMatchObject({
+      semestersCompleted: 1,
+      semestersTotal: SEMESTER_NUMBERS.length,
+    });
   });
 
   /*

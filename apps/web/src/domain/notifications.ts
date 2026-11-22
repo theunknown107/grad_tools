@@ -57,16 +57,15 @@ export interface Notification {
  */
 export interface NotificationPreferences {
   readonly muted: readonly AnnouncementCategory[];
-  /**
-   * Whether the student has opted in to browser notifications. Off until they
-   * ask: permission is never requested on page load (M7 §21).
-   */
-  readonly browserNotifications: boolean;
 }
 
+/*
+ * There is no browser-notification preference. GradTools delivers nothing
+ * outside the app — no `Notification` call, no service worker, no push — so a
+ * saved "on" would have been a switch wired to nothing (OQ-032).
+ */
 export const DEFAULT_PREFERENCES: NotificationPreferences = {
   muted: [],
-  browserNotifications: false,
 };
 
 export function isMuted(

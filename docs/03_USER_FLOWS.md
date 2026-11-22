@@ -241,6 +241,8 @@ This is a product flow, not just an engineering constraint: handled well it beco
 
 ## UF-09 — Backlog tracking
 
+> **Superseded by `OQ-056`** (M6 two-source model; see `08` §8.13). Backlogs are recorded by the student, not auto-derived, and are never cleared from a later result; result-derived failures are a separate figure. The original flow is kept below for history.
+
 ```
 Backlogs
   ├─ Auto-derived from saved results: any course graded F, DX, AB or IC

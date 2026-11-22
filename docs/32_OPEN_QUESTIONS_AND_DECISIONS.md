@@ -706,6 +706,9 @@ Consolidated from all documents. Each is a place where the product could be wron
 | M5 | DEC-024 | Documents stored via an object-store interface, local driver, outside the repository | Human |
 | M5 | ED-37...ED-43 | Source and document engineering decisions in Part B | Engineering |
 | M5.1 | ED-44...ED-46 | Fetch and publication gate hardening in Part B | Engineering |
+| Domain-contract audit | OQ-055 | Academic model stays B.E./B.Tech, 2022 scheme, eight semesters; the wider programme list is for notice matching only | Human (product owner) |
+| Domain-contract audit | OQ-056 | Recorded backlogs and result-derived failures are two independent sources, never summed, inferred or auto-reconciled; "clear" needs both | Human (product owner) |
+| Domain-contract audit | OQ-057 | Semesters 9–10 unsupported; an import printing one reports it as outside the supported model | Human (product owner) |
 
 ---
 
@@ -891,8 +894,9 @@ is not lost between now and September.
 ### OQ-032 — How announcements reach a student who is not in the app · **opened by M7**
 
 **Why unresolved:** M7 delivers everything about a notification except delivery.
-In-app unread state works; an opt-in browser notification works *while the app
-is open*; nothing reaches a student who has closed it.
+In-app unread state works; nothing reaches a student outside the app. (This
+entry once said an opt-in browser notification worked while the app was open;
+none was ever shown, and the control that implied it has been removed.)
 
 Real delivery means Web Push — VAPID keys, a service worker, a subscription
 store, and therefore a **server-side identity**, which Stage 1 deliberately does
@@ -2190,3 +2194,612 @@ it as reference data; neither is inferable from what is in hand.
 **Where it surfaces:** the semester shows no SGPA and names the subject holding
 it back, through `SgpaInputs.missing`. A student sees which course is
 unresolved, not a blank.
+
+
+**Status after Step 13: STILL OPEN, narrowed.** One case is no longer ambiguous
+and is now computed: a failed course with no printed letter whose TOTAL lies in
+the F band (0–39 under 22OB 6.1), whose CIE head passed and whose SEE was sat
+(external above zero). There the percentage band and the failed overall head
+both give F, so both readings above agree; a passed CIE rules out DX and a sat
+SEE rules out AB and IC. It is graded F — 0 points, credits included, as for a
+printed F — and the semester's SGPA is computed. Every other failure stays
+unresolved exactly as before: a total at or above the F band with a failed head
+(F or P), any CIE shortfall (DX under 22OB 6.3(7), which is left out of the
+GPA), and an external of 0 (possibly AB). **A documentation conflict for the
+owner:** `docs/16` §16 records 22OB 6.3(6) as "fails conditions → `F`", which,
+if it is a faithful quote, would settle the F-or-P case too; this entry says
+the regulations do not state it. The regulation PDF is not in the repository
+(see OQ-058), so the two cannot be checked against each other here.
+
+### OQ-055 — The profile offers programmes the academic model does not support · **opened by the domain-contract audit, RESOLVED by the product owner**
+
+**Status:** RESOLVED · product decision
+
+**Resolution:** the academic model stays **B.E./B.Tech, 2022 scheme, fixed at
+eight semesters**. The broader Profile programme list stays, because it is used
+for VTU notice matching and for nothing academic. No programme-duration
+infrastructure is built. Lateral entry remains a separate, future decision. The
+text below is kept as the record of how the question was put.
+
+**What is established.** The degree is eight semesters (ED-71). `SEMESTER_NUMBERS`
+in `apps/web/src/domain/types.ts` is the single client source, and the database
+(`CHECK … BETWEEN 1 AND 8` across `0001_student_cloud.sql`), the shared zod
+schemas (`.max(8)`) and the result importer enforce the same bound. The only
+rule set, `vtu2022RuleSet`, states its scope as B.E./B.Tech, 2022 scheme,
+non-autonomous colleges. `docs/30` §76 lists M.Tech, MBA, MCA and B.Arch as not
+supported. Nothing stores a programme's duration: not the rule set, the
+`schemes` table, the catalogue, or the profile.
+
+**The contradiction.** The Profile programme select (`ProfilePage.tsx`,
+`PROGRAMMES`) offers B.Arch., M.Tech., M.Arch., MBA and MCA. It was added in
+Phase 7B.3 (migration `0008_profile_programme.sql`) so that programme-scoped
+VTU notices can be matched by the server's applicability engine; that is the
+only thing it changes. An MCA student is still shown eight semesters, "N of 8",
+four semesters that never start, and grades under B.E. regulations, with no
+warning. A B.Arch student cannot record semesters 9 and 10 at all.
+
+**What GradTools does.** Nothing different: the list stays, because narrowing it
+would stop PG students matching PG notices — the one thing the field does for
+them today — and supporting those programmes needs rule sets, a duration on the
+scheme or programme, and migrations that relax the 1–8 constraints.
+
+**Decision needed:** either narrow the programme list to the supported degrees
+(and accept the notice-matching loss), or keep it and say plainly on the
+academic screens that figures assume B.E./B.Tech, or fund programme-specific
+durations and rule sets. Lateral entry needs no change under ED-71 — a student
+who starts at semester 3 marks the earlier ones — but no decision records that.
+
+### OQ-056 — Recorded backlogs and failed result rows are never reconciled · **opened by the domain-contract audit, RESOLVED by the product owner**
+
+**Status:** RESOLVED · product decision
+
+**Resolution:** recorded backlogs (the student's own `BacklogRecord`s — active,
+attempted, cleared) and result-derived failures (from marks, by the rules) are
+**two independent sources**, and stay so. The recorded figure is the
+unqualified "Backlogs" count. The two are never added together, never inferred
+from each other, and nothing is auto-cleared. "Clear" / "no backlogs" language
+requires both sources clear (`hasNoBacklogs`). A recorded backlog marked cleared
+while an old result still shows the failure must not be presented as a backlog
+"to clear". Automatic reconciliation is **not** part of the product. The pre-M6
+derived-backlog documents are marked superseded in place (kept for provenance),
+and the `docs/22` production check is restated against this model.
+
+**What is established.** Two independent sources, on purpose (M6, `docs/08`
+§8.13; `statistics.ts`: "TWO FIGURES, BECAUSE THERE ARE TWO QUESTIONS"). A
+`BacklogRecord` is written only by the student, from the backlog panel; nothing
+creates, updates or clears one from results, and a record has no link to a
+result row. The results figure is derived from marks by the rules. The
+unqualified "Backlogs" count is the recorded one; the results figure appears
+where it is labelled; and no screen says "no backlogs", "All cleared", "Good",
+"Clear record", "Clear academic record", "no backlog is outstanding" or
+"Nothing to clear" unless `hasNoBacklogs` holds (neither source shows one, and
+there are results).
+
+**The contradiction.** The pre-M6 documents describe one backlog store derived
+from results, with a `reason` and a "Mark cleared" flow: FR-042 (`docs/02`),
+UF-09 (`docs/03`), `docs/08` §465 and §306, `docs/09` §308, `docs/10` §139
+(`GET /backlogs`), `docs/30` §29. None of it was built. `docs/22` §535 lists a
+production check — "every active backlog corresponds to a failing
+`semester_subject`" — that is neither implemented nor expressible against the
+current schema.
+
+**Where the gap shows.** A backlog the student marks cleared never outweighs the
+failed row it came from (only one result per semester is kept, and a re-sit
+does not replace it), so My Degree reads "To clear · 1 backlog in your
+results" beside a panel row marked Cleared. A failure in a subject other than
+the recorded ones is not surfaced on Dashboard, Profile or My Degree while any
+backlog is recorded.
+
+**Decision needed:** whether the two are reconciled at all; if so, by whom
+(prompting the student, or automatically) and per subject; how a cleared record
+over an old failed row is presented; and whether the pre-M6 documents and the
+`docs/22` check are withdrawn or rebuilt against the M6 model.
+
+### OQ-057 — A semester beyond the eighth · **opened by the domain-contract audit, RESOLVED by the product owner**
+
+**Status:** RESOLVED · product decision
+
+**Resolution:** the model stays fixed at eight semesters (OQ-055); semester 9
+and 10 records are unsupported. When the importer reads a printed semester above
+8 it reports, through its existing review-issue mechanism, that the semester is
+**outside the supported 8-semester model** — not "not printed", never dropped
+silently, and never reinterpreted as another semester. The text below records
+the state before this decision.
+
+**What is established.** Every entry point refuses it: the pickers
+(`SEMESTER_OPTIONS`), the result importer (a printed semester outside 1–8
+becomes null), the database `CHECK`s and the API (422). A row with a larger
+number can therefore reach a student only through hand-edited or legacy local
+storage, where `buildSemesterViews` leaves it out of every figure without a
+word (`academics.test.ts`, "adds no view for a stored semester beyond the
+eighth").
+
+**Two known edges.** A result card that prints "Semester 9" is read as having no
+semester, and the review then says "The semester was not printed on this
+document", which is untrue; "Semester 10" is not matched at all. The student
+must then choose a semester 1–8, so a real ninth- or tenth-semester card would
+be filed under — and could replace — a semester it does not belong to. This is
+the B.Arch case of OQ-055. Separately, VTU notices may target semesters 9–10
+(`0017_source_items.sql`) but can never match a student, whose semester is
+capped at 8.
+
+**Decision needed:** whether an out-of-range stored row is surfaced to the
+student rather than silently ignored; and how an out-of-range printed semester
+is reported at import (named as out of range, or refused). Both follow from
+OQ-055 and should be decided with it.
+
+
+### OQ-058 — How a supplementary or improvement attempt combines with the original result · **opened by Step 12, unresolved**
+
+**Status:** OPEN · academic rule + product decision
+
+**What is established.** A semester holds one `SemesterResult` (`types.ts`); a
+result subject has no attempt, session or supplementary field, and `docs/08`'s
+`attempt_number` was never built. Storage is keyed by id and the cloud
+`semester_results` table has no `UNIQUE (profile, semester)`: the "one result per
+semester" rule lives in the import review (`isReadyToImport`) and the editor.
+`examSessionOf` (`domain/exams.ts`) can tell two sittings of one semester apart
+from `announcedOn`, but nothing uses it outside tests. The regulation is silent:
+`docs/research/vtu-missing-data.md` §16 and `vtu-conflicts.md` C10 record
+revaluation / supplementary / improvement as NOT FOUND, "Do not model from
+aggregator guides." 22OB 6.3(9) only defines an attempt; nothing says whether a
+later pass supersedes an F for SGPA or CGPA, or which attempt counts.
+
+**What GradTools does (Step 12).** It keeps the original and adds nothing it
+cannot count. A second card for a semester that already has a result is refused
+with a reason that says the saved result is kept, whether the card printed the
+semester or the student chose it (the latter used to save a hidden second
+record). Where legacy data already holds two results for one semester, the
+earliest-created is the semester's result on every device — a data tie-break
+that preserves the original, not an academic rule. A re-sit can still be
+recorded by editing the failed row, which overwrites it without history.
+
+**Decision needed:** the rule for combining attempts (from VTU examination
+circulars, which are not in the repository), and then the model: separate
+sittings that coexist (`examSessionOf` is the seam), a subject-level
+replacement, or an attempt history with the original kept. Also whether legacy
+duplicate results should be surfaced to the student.
+
+**Status after Step 13: STILL OPEN — the repository holds no authoritative
+answer.** A full search found only: 22OB 6.3(9), which defines an attempt; 6.6,
+whose "all the courses undergone" fits either counting every attempt or only
+the last; and the IC placeholder rule, the one verbatim case of a later SEE
+changing an earlier record, which cannot be generalised to F. Revaluation,
+improvement and supplementary provisions are absent from the regulation (C10).
+The regulation PDF itself is not in the repository — only quotes of it. The
+reconciler's note that a revaluation "changes one mark upward"
+(`result-reconcile.ts`) is an assumption with no cited source. **What would
+settle it:** (1) the VTU examination circular for supplementary / "fast-track"
+examinations under the 2022 scheme, stating whether a later pass replaces the F
+in the original semester's SGPA and whether SGPA and CGPA are recomputed;
+(2) any grade-cap clause for a later attempt, and whether CIE carries over;
+(3) any improvement provision, and whether the better or the latest grade
+counts; (4) the revaluation / challenge-valuation circular; (5) a real grade
+card or consolidated transcript for a student who cleared a backlog; (6) the
+extracted text of `Regulations-Clr-BE-BTECH-2022-611-02052023.pdf`, so clause 6
+can be re-checked for anything on attempts.
+
+### OQ-059 — Attendance records already stamped with an invented semester 1 · **opened by Step 12, unresolved**
+
+**Status:** OPEN · data decision
+
+**What is established.** Until Step 12, adding a course or marking a class for a
+new subject with no current semester set saved the record as semester 1
+(`profile?.currentSemester ?? 1`). The attendance record requires a semester
+(`types.ts`; cloud `NOT NULL CHECK (semester BETWEEN 1 AND 8)`), so an unset
+semester cannot be stored. Step 12 stops the invention: the semester is resolved
+from the semester in progress, then the profile, and when neither is known
+nothing is written and the student is asked.
+
+**The gap.** Records written before the fix with an invented 1 cannot be told
+apart from genuine semester-1 records, so they are not repaired automatically.
+The dashboard filters attendance by the current semester, so such a course is
+left out of its figure once a later semester is set. Two related points: the
+profile's current semester and the semester marked in progress can disagree
+(marking one in progress does not update the profile), and the Attendance page
+lists every semester's courses while the dashboard shows only the current one.
+
+**Decision needed:** whether and how to repair legacy records (for example,
+re-stamp records whose semester 1 is neither planned nor in progress, with the
+student's confirmation); whether the profile's current semester should follow
+the semester marked in progress; and whether the Attendance page should filter
+to the current semester.
+
+**Status after Step 13: STILL OPEN — the page's scope is undocumented.** Every
+attendance reader now resolves the semester the same way (in progress, then
+profile). The dashboard's figure is deliberately the current semester's
+(`semesters.test.tsx`, "current semester on the dashboard"). The Attendance
+page gives mixed signals: its header names the semester and its empty state
+says "this semester", while its standing reads "pooled across every course you
+track" and FR-021 asks for attendance "per course and in aggregate". Its Today,
+Calendar and History views read the timetable and the ledger, which carry no
+semester, so they could not be scoped without a data-model change; one subject
+code is one record, whatever its semester. Options, each a product decision:
+(a) label the page as all tracked courses; (b) say on the dashboard that its
+figure is this semester's; (c) scope the page's summary figures and course list
+to the current semester (legacy records stamped 1 would then drop out of view);
+(d) have the Exams page resolve its semester the same way — it still reads the
+profile alone and decides whose exams are shown. The timetable header also
+reads the profile (a label only).
+
+### OQ-060 — Sync reports a conflict for every result created on this device · **opened by Step 13; churn fixed by Step 14, numeric/date typing still open**
+
+**Status:** OPEN · engineering decision
+
+**What is established.** A result's local copy keeps `profileId` and
+`createdAt`, which the server does not store, and the sync fingerprint ignores
+only `id` and `updatedAt`. So the device that created a result never matches
+the server's copy: it re-pushes the result on every sync and each pull flags a
+conflict, which nothing in the web app resolves (`ConflictResolution` has no
+callers). The same likely holds for other collections with local-only fields
+(attendance `profileId`). Step 13 fixed the harm this churn exposed — a pulled
+result no longer loses its subjects — but not the churn itself.
+
+**Decision needed:** whether the fingerprint should ignore fields the server
+does not keep, or pulled records should keep them locally, and how a real
+conflict is presented to the student.
+
+**Status after Step 14: the churn is FIXED; one related question is open.** The
+creating device pushed its whole local object, so fields the server never stores
+(`profileId`, `createdAt`; a timetable slot's `classId` and `kind`) entered the
+fingerprint, which then never matched the cloud's echo — every sync re-pushed
+the record and the first pull already reported a conflict with itself. Pushes
+now carry only the columns the server stores for each collection
+(`SYNCED_FIELDS` in `useSync.ts`, pinned to `store.ts` by
+`sync-allowlist.test.ts`), and a pulled record is merged onto the local one, so
+local-only fields survive. A record now syncs once and settles; a genuine
+divergence between two devices still raises a conflict. **Still open, and
+unverified against a real database:** `services/api/src/db/cloud.ts` configures
+postgres.js with default type parsing, under which `numeric` columns (credits,
+marks, `sgpa_asserted`) would read back as strings and `date` columns as
+timestamps — a second way a pulled value could differ from the local one. The
+test clouds do not model it. Separately, a genuine conflict is reported twice
+(once from the push, once from the pull).
+
+
+## Part L — Step 15: identity setup, the VTU result archive, saved-page import
+
+### DEC-046 — Admission year, passout year and entry route are stated, never inferred · **Step 15**
+
+The profile gains `admissionYear`, `expectedPassoutYear`, `entryRoute`
+(`puc` | `diploma`) and `identityConfirmedAt`, all optional (UF-01, DEC-001,
+DEC-002). They are collected in a guided first-run setup (`/setup`) whose every
+step can be skipped; a setup where nothing is entered writes nothing. The
+passout box is pre-filled as a *suggestion* (admission + 4, or + 3 for Diploma)
+until the student types in it. Nothing is derived from these facts or from the
+USN — no duration, rule set or lateral-entry behaviour (OQ-055). Date of birth
+stays out (DEC-008), although later Step 15 briefs mentioned "Name + DOB"; the
+product owner chose to keep it out. Migration `supabase/0010` adds the columns
+with range and passout-after-admission CHECKs.
+
+New users see a setup prompt on the Dashboard rather than a forced redirect, so
+the app stays usable before setup (UF-01).
+
+### DEC-047 — The result portal is linked, never fetched · **Step 15**
+
+The Get VTU Result screen (`/results/get`) lists the official session pages as
+cards (Regular / Revaluation, then variant links). Each link is a plain new-tab
+link to the exact `https://results.vtu.ac.in/` page. The student enters their
+USN and the CAPTCHA **on VTU's page**, saves it as PDF or HTML, and imports it
+(`/import?session=<id>&semester=N`). GradTools never fetches, frames, proxies or
+posts to the portal, never sees a CAPTCHA, and puts no USN in a URL.
+
+**Why:** the portal's robots.txt is `User-agent: * Disallow: /`, and `docs/14`
+§7 prohibits solving or outsourcing a CAPTCHA and submitting a student's
+identifiers on their behalf. An in-app "enter CAPTCHA → fetch" flow was asked
+for and declined on these grounds; it stays out of scope unless VTU provides an
+authorized integration (DEC-011). Whether one CAPTCHA serves several lookups is
+unknown: checking it would mean using the portal.
+
+A saved HTML page is parsed with `DOMParser` (an inert document: no scripts,
+handlers or network). An imported result records local-only provenance
+(`source`: kind, session id, import time, parser version); it is not in
+`SYNCED_FIELDS`.
+
+### OQ-061 — Catalogue sources and their review state · **opened by Step 15, unresolved**
+
+**Status:** OPEN · data review
+
+- **Result sessions** (54 sessions in 17 cards) were transcribed once from the
+  VTUSync "VTU Results Links" page. Its robots.txt allows the page, but its
+  terms say content may not be copied without permission, so only facts are
+  stored (session names, years, types, and VTU's own URLs). The provenance note
+  records this. One oddity is kept as printed: "B.E Special Exam Dec 2024 / Jan
+  2025" is labelled Non-CBCS but its URL is `SplJcbcs25`.
+- **Colleges** (185) were transcribed once from `vtu.ac.in/affiliated-institute/`.
+  All are `reviewed: false` and of unknown autonomy. The database seeds them as
+  unpublished drafts (migration `0019`), so the API serves none until a person
+  verifies them, and the app falls back to the bundled list, marked unreviewed.
+  Known gaps: the page's own counts suggest 3 Bengaluru and 1 Mysuru rows may be
+  missing; codes RR, GO, KF and NG repeat; 5 rows have no code; spelling came
+  through text extraction.
+- **Branches** (56) came from the 2022 scheme list; the page prints no branch
+  codes, so GradTools ids stand in. No new scheme rows were added.
+
+**Decision needed:** who reviews and publishes the college list, and whether
+permission is sought from VTUSync or the session list is re-sourced from VTU.
+
+### OQ-062 — Profile sync after first upload · **opened by Step 15, RESOLVED by DEC-048 (Step 16)**
+
+**Status:** RESOLVED by DEC-048 (Step 16) and DEC-050 (Step 17) · the text below is the question as opened
+
+The profile is not a sync collection. Sync now creates the cloud profile from
+the local one when the cloud has none (so a first push is no longer rejected),
+and a device with no profile adopts the cloud's. It never overwrites an existing
+cloud profile, so edits made after the first sync are not uploaded, and a
+signed-in student who skipped setup still has no cloud profile and their push is
+still rejected. **Decision needed:** keep the cloud revision locally and `PUT`
+with `baseRevision` (needs a conflict display), and whether an empty anchor
+profile should be created for students who skip setup.
+
+## Part M — Step 16: database verification, profile sync, catalogue review
+
+### DEC-048 — The profile syncs by revision, through its own endpoint · **Step 16, resolves OQ-062**
+
+The profile stays out of `SYNCED_FIELDS` and keeps `PUT /me/profile`. The
+device keeps one bookkeeping entry for it (`SyncBookkeeping.profile`: the
+server revision it last agreed with and a fingerprint of what it sent).
+
+- **First sync:** if the cloud has no profile, the device creates it. A student
+  who skipped setup gets an *anchor* (the V1 scheme, every other field empty), so
+  their results can sync. The anchor is never adopted as a local profile, so the
+  "Add your details" prompts stay.
+- **Later edits:** a changed local profile is sent with `baseRevision`. The
+  server updates only `WHERE revision = baseRevision`; a missing or stale base
+  is a 409 carrying the server's copy, never a silent overwrite. Two first saves
+  racing give one save and one conflict (`ON CONFLICT DO NOTHING`), not a 500.
+- **Pull:** a newer server profile is adopted only when the local one is
+  unchanged since the last agreement; otherwise the student sees a `profile`
+  conflict in Account → Data. A profile save never touches results.
+
+**Limitation:** as for collections, there is no keep-mine / take-theirs action;
+a conflict clears when the two versions match again.
+
+### DEC-049 — Timestamps leave the database in UTC with `Z` · **Step 16**
+
+`to_char(ts, '…OF')` printed `+00` on a UTC session, which `Date.parse` and
+`z.iso.datetime` reject; the local test cluster ran in Asia/Kolkata and hid it.
+Every timestamptz the API formats is now `to_char(ts AT TIME ZONE 'UTC',
+'…"Z"')`, and `profile-identity.test.ts` connects with `TimeZone=UTC`.
+
+### OQ-061 — status after Step 16 · **still open: no college is published**
+
+Nothing new is verified, so every college stays `draft` / `unpublished` and the
+setup screen says the list is "not yet checked". The model now supports review:
+publishing needs `verified`, `verified_at`, `source_url` and a *known* autonomy
+(a second source, since the affiliation page does not state it); re-seeding
+keeps a verified row's provenance, and a changed name, code or region sends it
+back to draft. Published API rows are merged into the bundled list by
+`catalogue_id`, so publishing one college hides none. The source's own counts
+(Bengaluru 93, Mysuru 49) against the 90 and 48 listed are kept as data
+(`reportedCountsByRegion`), not filled in.
+
+### Result-session anomaly — `SplJcbcs25` · **Step 16, kept as printed**
+
+The source page itself labels the "B.E Special Exam Dec 2024 / Jan 2025" link
+Non-CBCS while its address contains `cbcs`; the transcription is faithful. It is
+the only label/address mismatch among the 54 sessions. It keeps the source's
+wording, carries `anomaly: "label-url-mismatch"`, shows a "Check" badge and a
+plain caution in the app, and a test fails if a second mismatch appears. Which
+side is right cannot be checked without using the result portal.
+
+## Part N — Step 17: V1 release hardening
+
+### DEC-050 — Profile conflicts are resolved by an explicit choice · **Step 17**
+
+Account → Data shows a profile conflict as the fields that differ, with "Keep
+this device's" and "Use account version", each behind the existing confirm
+dialog. Both reuse DEC-048's machinery; there is no second conflict system.
+Keeping this device's copy PUTs it with the server's revision as the base, so a
+newer server copy raises a fresh conflict instead of being overwritten. Using
+the account's copy saves it locally and records its revision; nothing is
+PUT. Results are never touched. Other collections keep the existing message
+("edit the record on the device you want to keep, then sync again").
+
+### OQ-063 — A corrected college name orphans a stored selection · **opened by Step 17, deferred to V2**
+
+**Status:** OPEN · data migration
+
+The profile stores the college by name. When a transcription error is
+corrected, a student who picked the old spelling sees it as a typed "Other"
+college. Their text is kept, so nothing is lost. Nothing has been renamed and
+no college is published, so it does not happen today. The catalogue id is
+stable (a literal in the data file; all 185 are pinned by
+`packages/vtu-catalogue/test/college-ids.json`). Storing it on the profile
+needs a cloud column (a migration, `store.ts`, both profile schemas and the
+sync fingerprint). **When the first name is corrected:** either add the old
+spelling as an alias the picker matches, or store `catalogueId` on the profile.
+
+### Test reliability notes · **Step 17**
+
+- Profile writes that truly overlap are tested against Postgres without sleeps
+  (`profile-concurrency.test.ts`). The second writer is held on the first's
+  row lock, detected with `pg_blocking_pids`. That test fails if the UPDATE
+  loses its `WHERE revision = base`.
+- Catalogue tests survived no mutation: changing an id, dropping the anomaly
+  flag, removing the loader's host, duplicate-id or anomaly checks, replacing
+  instead of merging published colleges, or removing a Check badge each fails
+  a test.
+- The one-off failure of 6 monitor tests (Step 16, first run after creating
+  `monitor_login` by hand) did not reproduce. Two full runs after dropping the
+  role, which recreates the first-run state, passed 677/677. ~~It is recorded as
+  environmental; no code changed.~~ **Corrected after CI (run 36164709434):**
+  it was not environmental and not a timing flake. It was a deterministic
+  test-isolation defect. `monitor-fanout.test.ts` left an enrolled synthetic
+  student (`synthetic-fanout-a`, scheme 2022, semester 5). The fanout correctly
+  notifies every matching enrolled student, so when `monitor-realtime.test.ts`
+  ran after it, 4 notifications were created and student A rightly received
+  only its 2, against an expectation of 4. The failure depended on file order.
+  Vitest orders files by its duration cache, which ran realtime first locally
+  and fanout first on a cache-less CI runner. The Step 16 local failure most
+  likely had the same cause. Production fanout was correct throughout. The
+  realtime test now removes synthetic fanout and realtime students before each
+  test, and the fanout test removes its synthetic students when it finishes.
+  Proven by running fanout then realtime with no cache: 1 failure before the
+  fix, 65/65 after.
+- A semester whose saved result is empty is not listed under "Semesters
+  without a result", because a second result for that semester is refused
+  (OQ-058). The student edits the saved result instead. Kept as is.
+
+## Part O — Deployment readiness
+
+### DEC-051 — Operator writes are authenticated by a token, not by the bind address · **supersedes ED-40**
+
+The two announcement operator routes were the last unauthenticated writes, and
+ED-40's loopback bind was all that kept them off the network — which made any
+container deployment either unreachable or unsafe. They now require
+`OPERATOR_TOKEN` (bearer, ≥32 characters, constant-time comparison) and are not
+mounted without it. With no unauthenticated route left, the bind refusal and
+`ALLOW_PUBLIC_BIND` were removed; the Dockerfile binds `0.0.0.0`. A single
+shared token was chosen over roles because no role model exists and inventing
+one was out of scope; `verifiedBy` stays a free-text label. In `staging` and
+`alpha` the API refuses to start without an explicit all-HTTPS `WEB_ORIGIN`.
+See docs/13 §13.4a, docs/48.
+
+### OQ-064 — Google/Apple sign-in and emailed links inside the Android app · **open**
+
+Email-and-password sign-in is a direct API call and needs no redirect. Google
+and Apple sign-in, the sign-up confirmation email and password reset all
+redirect to `window.location.origin + '/account'`, which inside the Capacitor
+WebView is `https://localhost/account` — a URL the system browser cannot hand
+back to the app. Until a deep link (custom scheme or verified App Link) and a
+matching Supabase redirect URL exist, those flows do not complete on Android
+(an account confirmed or reset from a desktop browser then signs in on the
+phone with its password). Not verified on a device. See docs/48.
+
+### OQ-065 — Android application id · **open**
+
+`capacitor.config.json` uses `app.gradtools` as a placeholder. An application id
+is permanent once published to a store; it should be a reverse domain the
+project controls. Decide before any store upload.
+
+## Part P — Academic model and schemes (physical-device follow-up)
+
+### DEC-052 — A printed P or F decides; marks that disagree are a conflict
+
+`evaluateResultSubject` never read the printed result, so a row printed P with
+4 + 36 read against a printed 80 (an OCR digit loss) fell through to "this
+course did not pass" (OQ-054 text) — a validation failure reported as a failed
+course. Now `printedPass` reads P/F only; when printed, it decides `backlog`,
+and marks that contradict it set `statusConflict`, with no grade worked out.
+`enrichRow` returns `conflict` — marks that do not add up, a status the marks
+contradict, a printed letter the marks disagree with — and "needs review"
+means only that (or the final-exam question). Missing credits or a missing
+letter are "incomplete", not review. Any other printed status (A, W, X, NE)
+decides nothing. OQ-054 stays open for genuinely failed courses.
+
+Provenance words: "From the document", "Calculated (2022 rules)", "GradTools
+catalogue" (it is our transcription; BCS401's row is the CSBS scheme table's),
+"Your own record". Credits appear once, in the field, with that source; a
+typed credit is saved `manual` even on a catalogue-matched row. A catalogue
+match with no values in it is not `catalogue` provenance.
+
+### DEC-053 — Schemes are recorded freely and calculated only with verified rules
+
+`VTU_SCHEMES` (academic-rules/src/schemes.ts) lists the B.E./B.Tech regulations
+VTU publishes — 2025, 2022, 2021, 2018, 2017, 2015-16, 2010 — each with its
+official regulation URL. There is no separate 2014 regulation (VTU groups "2010
+& 2014" syllabi), so none is listed. `schemeSupport` is DERIVED: `supported`
+exactly when a verified active rule set exists (today: 2022 only),
+`recognised` otherwise. The profile records any listed scheme; `withChanges`
+no longer resets it to 2022. Attendance and SGPA & CGPA show a notice instead
+of 2022-rule figures for a recognised scheme; the dashboard judges no
+attendance threshold; results are filed under the profile's scheme and pinned
+to a rule set only when one exists (`ruleSetId: null` otherwise); grade letters
+are typed as printed. No persisted type changed: `schemeId` was always a free
+string (Supabase `text`, 1–40), every existing profile is `vtu-2022`.
+
+Import compares each course code's scheme family (`scheme-compat.ts`) with the
+profile: same → silent; VTU notification 4718 (2021→2022, semester 1–4
+backlogs) or 1812 (2010/2015/2017→2018) → an equivalence note; anything else →
+`scheme_mismatch`. Codes are never re-mapped and the profile is never changed
+from a card. The code grammar now reads the older schemes' year-prefixed codes
+(10/15/17/18/21), which were dropped before. The CBCS/Non-CBCS label of a
+result session is a portal partition, never mapped to a scheme.
+
+### OQ-066 — The `21…` code prefix for the 2021 scheme · **open**
+
+Follows the 18/17/15/10 convention but has not been checked against a real
+2021 grade card. Until it is, a wrong guess costs only a warning.
+
+### DEC-054 — College and branch are searched, not scrolled
+
+Both are comboboxes (Radix Popover + cmdk, deterministic ranking in
+`college-search.ts`: exact name, compacted-name prefix — "SG" finds "S G
+BALEKUNDRI…" —, exact VTU code, word prefixes, substring). The stored value is
+still the catalogue's own name (OQ-063 unchanged: no persisted id added). The
+branch list is the bundled 2022 transcription, offered only to a 2022 profile;
+no request is needed for either.
+
+### DEC-055 — AI reads documents server-side; the device stays the authority
+
+AI document reading is a second import path, not a replacement: signed-in
+only, off by default, server-side Gemini (`GEMINI_DOCUMENT_MODEL`, default
+`gemini-3.8-flash`, never switched silently), strict schema, deterministic
+recognition gate, and the ordinary on-device review before anything is saved.
+The on-device parser stays for offline use; no model ships in the APK. The
+AI returns source values only; catalogue and calculated values are added on
+the device and labelled. docs/13 §13.29.
+
+### OQ-067 — Which Gemini model the project can use · **resolved**
+
+On 2026-09-27 the configured key's call to `gemini-2.5-flash` returned
+`404 NOT_FOUND: "This model models/gemini-2.5-flash is no longer available to
+new users. Please update your code to use models/gemini-3.8-flash…"`, though
+the model is still listed for the key. Changing `GEMINI_DOCUMENT_MODEL` is the
+owner's decision; the service reports the model as unavailable until then.
+
+**Resolved:** the owner moved the default to `gemini-3.8-flash` with
+`GEMINI_THINKING_LEVEL=low`. Gemini 3 needs no `temperature`/`candidateCount`,
+and rejects `maxItems` in the response schema (400 INVALID_ARGUMENT), so the
+array caps are enforced by the zod schema alone. A synthetic result card read
+correctly (17 s). The free tier allows 20 requests a day per model and returns
+503 under load — not a basis for production.
+
+### DEC-056 — Free-only OpenRouter reader; ZDR required outside local testing
+
+Document AI uses OpenRouter free models, gated before every read by live $0
+pricing, image+JSON capability and zero-data-retention routing (docs/13
+§13.30). Primary `qwen/qwen3.8-27b:free` — on 2026-09-28 the only one of 21
+free catalog models meeting every hard requirement (image input,
+`structured_outputs`, a ZDR endpoint). No secondary: no other free model has a
+ZDR endpoint. Gemini stays as the reader when only `GEMINI_API_KEY` is set.
+
+### OQ-068 — The primary model's extraction quality is unmeasured · **open**
+
+The 2026-09-28 benchmark (synthetic fixtures, one request per model per
+fixture, no retries) got an upstream 429 from Qwen's only provider, so its
+quality is not yet measured. The one model that answered, the anonymous
+`stealth/space-bunny-alpha`, read the result card exactly (26/26 fields, no
+invented grade/credits, no identifier) but timed out on the timetable, and has
+no ZDR endpoint. Re-run `scripts/document-ai-benchmark.ts
+qwen/qwen3.8-27b:free` before relying on the primary.
+
+### DEC-057 — Offline reading: fix what measurement shows, keep the pipeline
+
+The offline pipeline already separates file safety, classification, text
+layer before OCR, page-by-page OCR, geometry-based layout and document-local
+legends. This milestone changed only what measurement on the real documents
+(private, counts only) showed was wrong:
+
+- **Photographed pages are deskewed from their own words** (`skewOf`,
+  ocr-layout.ts): a 1.5° tilt had turned every result row into several lines.
+- **A date is not a clock** in a timetable header: "With effective from:
+  12.09.2026" directly above the grid had joined the header and merged four
+  time columns.
+- **Timetable cells say where they came from**: `activity` for a block written
+  in words that the subject list never defines (kept under its printed name,
+  no code); `near` for a cell one letter off exactly one abbreviation the
+  document derives (offered with a reason, flagged, never shown as
+  identified). The review lists every class's source and every class to check.
+- **Marks that do not add up are shown for every scheme** (`checkMarks`), with
+  a single-digit candidate ("4 — possibly 44") offered as a button, never
+  applied on its own.
+- Truthful page progress for scans; an explicit offline statement.
+
+Measured on identical OCR output, old → new: real timetable (text layer)
+unidentified classes 7 → 0; scanned timetable time columns 4 → 8, session
+recall 9.7% → 32.3%; result-card OCR course recall 36.8% → 45.6% with no
+false rows. Still open: digits lost to blur in photographs, a dense
+timetable's legend at 2000px, and photographed timetable headers — work for
+measured preprocessing profiles, not for guesses.

@@ -304,6 +304,8 @@ CREATE TABLE attendance_records (
 
 `CHECK (classes_attended <= classes_conducted)` is the schema-level counterpart of a validation rule. It exists in both places deliberately: the application gives a good error message, the constraint guarantees the invariant even if a code path forgets.
 
+> **`backlogs` below is superseded by `OQ-056`** (M6 two-source model; see `08` §8.13). It was never built; the implemented table is `backlog_records` in `services/api/src/db/supabase/0001_student_cloud.sql`, student-maintained and not derived from results. Kept for history.
+
 ```sql
 CREATE TABLE backlogs (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),

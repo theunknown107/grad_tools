@@ -7,6 +7,7 @@
  * package so there is exactly one implementation of what a VTU scheme says.
  */
 export type { PositionedText } from './positioned-text.js';
+export { codeScheme } from './code-scheme.js';
 export {
   parseScheme,
   schemePages,
@@ -62,3 +63,17 @@ export {
   type FirstYearResolution,
   type OptionCell,
 } from './first-year-streams.js';
+
+export {
+  buildResultCards,
+  findVtuResultSession,
+  vtuResultCards,
+  vtuResultCatalog,
+  type RawResultEntry,
+  type VtuResultCard,
+  type VtuResultCatalog,
+  type VtuResultSection,
+  type VtuResultSession,
+  type VtuResultType,
+  type VtuSessionAnomaly,
+} from './result-sessions.js';

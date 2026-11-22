@@ -51,6 +51,22 @@ export interface StudentProfile {
   readonly branch: string | null;
   readonly currentSemester: number | null;
 
+  /**
+   * Academic identity, AS THE STUDENT STATED IT (UF-01). Each is optional and
+   * none is ever inferred from another: the entry route is a plain fact and
+   * implies no semester count or lateral entry (OQ-055), and the passout year
+   * is what the student asserted — a suggestion from the admission year is
+   * only ever offered, never stored on its own. NO DATE OF BIRTH (DEC-008).
+   *
+   * OPTIONAL KEYS, because profiles saved before these existed do not carry
+   * them — absent and null both mean "not said"; read them `?? null`.
+   */
+  readonly admissionYear?: number | null;
+  readonly expectedPassoutYear?: number | null;
+  readonly entryRoute?: 'puc' | 'diploma' | null;
+  /** ISO time the student explicitly confirmed how their name is shown. */
+  readonly identityConfirmedAt?: string | null;
+
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -68,47 +84,6 @@ export interface AttendanceRecord {
   readonly attended: number;
   readonly conducted: number;
   readonly updatedAt: string;
-}
-
-/**
- * What the student said happened to ONE scheduled class on ONE day.
- *
- * Authority: M10A.11 §11, §12, §13, §28, §44
- *
- * ---------------------------------------------------------------------------
- * THIS IS NOT A SECOND ATTENDANCE SYSTEM
- * ---------------------------------------------------------------------------
- *
- * `AttendanceRecord` stays the only source of every attendance number. Nothing
- * here is summed, averaged or shown as a percentage, and deleting the whole
- * collection would change no figure the product displays.
- *
- * It exists because the counts genuinely cannot answer two questions the daily
- * loop asks. "Have I already marked this class?" - without which a second tap,
- * a re-render or a walk to another screen and back silently counts the same
- * class twice. And "what did I just do?" - without which a mis-tap is
- * permanent.
- *
- * It is deliberately NOT class history (M10A.11 §11, §12). Marks are pruned to
- * a rolling fortnight, so this cannot accumulate into a per-class record the
- * product then has to keep true. Per-class history remains unavailable, and
- * that limitation is intended.
- *
- * The id is `${date}:${slotId}` rather than random: one scheduled class on one
- * day is one document by construction, so a repeated write REPLACES rather than
- * appends, whatever the caller does.
- */
-export interface ClassMark {
-  readonly id: string;
-  readonly profileId: StudentProfileId;
-  /** The calendar day, 'YYYY-MM-DD', in the device's own timezone. */
-  readonly date: string;
-  /** The `TimetableSlot` this mark is about. */
-  readonly slotId: string;
-  /** Denormalised so a mark stays readable if the slot is edited or removed. */
-  readonly subjectCode: string;
-  readonly outcome: 'attended' | 'missed';
-  readonly markedAt: string;
 }
 
 /**
@@ -228,6 +203,14 @@ export interface ResultSubject {
  * competing source of truth. When the two disagree the UI shows BOTH and
  * flags it — neither silently overrides the other (docs/08 §SemesterRecord).
  */
+export interface ResultSource {
+  readonly kind: 'vtu-result-page' | 'document' | 'manual';
+  /** The VTU result session the student said this came from, or null. */
+  readonly sessionId: string | null;
+  readonly importedAt: string;
+  readonly parserVersion: string;
+}
+
 export interface SemesterResult {
   readonly id: string;
   readonly profileId: StudentProfileId;
@@ -245,6 +228,12 @@ export interface SemesterResult {
   /** Optional: the SGPA printed on the grade card, as entered by the student. */
   readonly sgpaAsserted: number | null;
   readonly subjects: readonly ResultSubject[];
+  /**
+   * Where this result came from (DEC-011). LOCAL-ONLY in V1: not a synced
+   * column, so it is kept on pull and left out of the sync fingerprint.
+   * Absent on results saved before it existed.
+   */
+  readonly source?: ResultSource | undefined;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -400,6 +389,20 @@ export interface BacklogRecord {
 export interface TimetableSlot {
   readonly id: string;
   readonly profileId: StudentProfileId;
+  /**
+   * The STABLE identity of this recurring class, across every import.
+   *
+   * `id` cannot carry it: importing a timetable deletes every slot and mints a
+   * new `id` for each row (features/import/DocumentImport), so attendance keyed
+   * on `id` would lose its history the first time a student re-imported the
+   * same document. `classId` is minted once and carried by `reconcileTimetable`
+   * (domain/timetable-identity) only where the old and new rows match
+   * unambiguously - never guessed.
+   *
+   * Optional only for records written before it existed; `slotClassId` reads it
+   * and the v1 upgrade fills it in.
+   */
+  readonly classId?: string;
   readonly day: Weekday;
   /** 24-hour "HH:MM". */
   readonly startTime: string;
@@ -410,4 +413,211 @@ export interface TimetableSlot {
   readonly activity: string | null;
   readonly room: string | null;
   readonly faculty: string | null;
+  /**
+   * What this hour IS, said explicitly rather than guessed (domain/day-schedule).
+   *
+   * Absent on every row written before this existed, which is why `slotKind`
+   * falls back to reading the name. `'unscheduled'` is the explicit "no class
+   * happens here" - a free period, or an hour the printed timetable occupies
+   * but teaches nothing in. It is NEVER inferred from clock arithmetic: a slot
+   * whose end is not after its start is corrupt data, not a zero-hour.
+   */
+  readonly kind?: SlotKind;
+}
+
+/** What an hour of the week is. See `TimetableSlot.kind`. */
+export type SlotKind = 'course' | 'activity' | 'break' | 'unscheduled';
+
+/* -------------------------------------------------------------------------- */
+/* The attendance ledger (v1)                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * ---------------------------------------------------------------------------
+ * TWO AXES, NEVER ONE
+ * ---------------------------------------------------------------------------
+ *
+ * A class the student attended and a class the institution cancelled are two
+ * different facts about the same hour, and the product needs both: "cancelled"
+ * must not count towards the denominator, and cancelling an hour must not erase
+ * the student's own record of having been there.
+ *
+ * So the schedule and the student are kept apart:
+ *
+ *   OccurrenceStatus   owned by the TIMETABLE   stored as a DayOverride
+ *   AttendanceOutcome  owned by the STUDENT     stored as a ClassOccurrence
+ *
+ * `cancelled` is deliberately NOT an attendance outcome. A cancelled hour
+ * contributes 0/0 because no non-`scheduled` occurrence is counted at all, not
+ * because a third outcome value is filtered out - and the mark underneath
+ * survives untouched, counting again the moment the cancellation is reversed.
+ */
+export type OccurrenceStatus = 'scheduled' | 'cancelled' | 'removed' | 'replaced';
+
+/** What the student did. There is no third answer; see OccurrenceStatus. */
+export type AttendanceOutcome = 'attended' | 'missed';
+
+/**
+ * What a subject had already counted before the ledger existed.
+ *
+ * The v1 upgrade turns each stored `AttendanceRecord` into exactly one of
+ * these, so no figure a student was looking at yesterday moves overnight.
+ */
+export interface OpeningBalance {
+  readonly kind: 'opening';
+  /** `opening:<subjectCode>` - derived, so the upgrade is idempotent. */
+  readonly id: string;
+  readonly subjectCode: string;
+  readonly attended: number;
+  readonly conducted: number;
+  /** The stored counters this was built from, kept for audit. */
+  readonly migratedFrom: { readonly attended: number; readonly conducted: number } | null;
+  /**
+   * Whether the legacy state was self-consistent.
+   *
+   * `'inconsistent'` means the stored counters were SMALLER than the surviving
+   * class marks imply. Both are then preserved rather than reconciled by
+   * guesswork: the counters stand as the opening balance, and the marks are
+   * kept as evidence in `unreconciledMarks`, counted nowhere.
+   */
+  readonly reconciliation: 'exact' | 'inconsistent';
+  readonly unreconciledMarks: readonly UnreconciledLegacyMark[];
+  readonly createdAt: string;
+}
+
+/**
+ * A legacy `ClassMark` that could not become history, kept anyway.
+ *
+ * Absorbing it into a number and then deleting the marks would destroy the only
+ * evidence that the class was ever recorded. Its numeric contribution is inside
+ * the opening balance exactly once; this is the audit trail beside it.
+ */
+export interface UnreconciledLegacyMark {
+  readonly date: string;
+  /** Null where the slot it referred to no longer exists. */
+  readonly classId: string | null;
+  readonly outcome: AttendanceOutcome;
+  readonly reason: 'missing_slot' | 'counter_mismatch';
+}
+
+/**
+ * One class on one date, as the student answered for it.
+ *
+ * Unlike `ClassMark` this IS the ledger: it is summed, it is the denominator,
+ * and it is never pruned. The id is `${date}:${classId}`, so marking the same
+ * class twice replaces rather than appends, whatever the caller does.
+ *
+ * The timetable fields are denormalised because history has to render when the
+ * weekly template has moved on - the slot may have been edited, deleted or
+ * re-imported since.
+ */
+export interface ClassOccurrence {
+  readonly kind: 'occurrence';
+  readonly id: string;
+  readonly classId: string;
+  /** The calendar day, 'YYYY-MM-DD', in the device's own timezone. */
+  readonly date: string;
+  readonly subjectCode: string;
+  readonly subjectTitle: string | null;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly outcome: AttendanceOutcome;
+  readonly markedAt: string;
+}
+
+/**
+ * A correction the student made after the ledger was already running.
+ *
+ * Only ever created by adopting a synced figure (features/auth/useSync), which
+ * is an explicit action with a short undo window. Once committed it is
+ * immutable: never edited, never deleted, never folded into the opening
+ * balance, and no timetable operation can touch it. A later correction is a NEW
+ * adjustment.
+ */
+export interface AttendanceAdjustment {
+  readonly kind: 'adjustment';
+  readonly id: string;
+  readonly subjectCode: string;
+  /** Signed: the figure may legitimately go down. */
+  readonly attendedDelta: number;
+  readonly conductedDelta: number;
+  readonly reason: 'adopt_remote_snapshot';
+  /**
+   * ALWAYS NULL in this phase. Sync carries no device attribution - a row's
+   * provenance cannot be proven, so it is not claimed.
+   */
+  readonly sourceDevice: string | null;
+  /** The `RemoteSnapshot` this came from; the other half of the audit link. */
+  readonly fromSnapshot: string | null;
+  readonly createdAt: string;
+  /** ISO: when the undo window closes and this becomes immutable. */
+  readonly commitAfter: string;
+}
+
+export type LedgerEntry = OpeningBalance | ClassOccurrence | AttendanceAdjustment;
+
+/**
+ * A change to ONE date, leaving the weekly template alone.
+ *
+ * Cancelling next Tuesday's class must not cancel every Tuesday, and a class
+ * replaced for one date must not rewrite what the student attended last week.
+ * Overrides are keyed `${date}:${classId}`, so one occurrence can never hold
+ * two contradictory instructions.
+ *
+ * DEVICE-LOCAL in this phase, like the ledger: the weekly timetable still syncs
+ * exactly as it did, but date-specific changes do not (see AccountPage).
+ */
+export interface DayOverride {
+  readonly id: string;
+  readonly profileId: StudentProfileId;
+  readonly date: string;
+  readonly classId: string;
+  readonly status: OccurrenceStatus;
+  /**
+   * The class this date holds instead, where one was added or a replacement was
+   * put in. A replacement is a DIFFERENT `classId` with its own override, so
+   * "attended Mathematics" is never rewritten into "attended Programming".
+   */
+  readonly addition: OneOffClass | null;
+  /** For a `replaced` occurrence: the `classId` that took its place. */
+  readonly replacedBy: string | null;
+  readonly createdAt: string;
+}
+
+/** A class that exists on one date only: a one-off, or a replacement. */
+export interface OneOffClass {
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly subjectCode: string | null;
+  readonly activity: string | null;
+  readonly room: string | null;
+  readonly faculty: string | null;
+  readonly kind: SlotKind;
+}
+
+/**
+ * A synced attendance aggregate, observed and NOT adopted.
+ *
+ * On a ledger-authoritative device a pulled `AttendanceRecord` is never
+ * promoted to a fact: it is recorded here, compared, and shown to the student,
+ * who decides. The id is derived from the record and its revision, so seeing
+ * the same row ten times produces ONE observation rather than ten.
+ *
+ * Provenance is limited to what the sync schema can prove: the row's revision.
+ * It is not attributed to a device, because nothing in sync identifies one -
+ * the value may even be this device's own, written before it upgraded.
+ */
+export interface RemoteSnapshot {
+  /** `snapshot:${remoteRecordId}:${revision}` - derived, never random. */
+  readonly id: string;
+  readonly remoteRecordId: string;
+  readonly subjectCode: string;
+  readonly attended: number;
+  readonly conducted: number;
+  readonly revision: number;
+  readonly status: 'open' | 'kept' | 'adopted' | 'rejected' | 'superseded';
+  readonly firstSeenAt: string;
+  readonly lastSeenAt: string;
+  /** Set when adopted: the `AttendanceAdjustment` it produced. */
+  readonly adjustmentId: string | null;
 }

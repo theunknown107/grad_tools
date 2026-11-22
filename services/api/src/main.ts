@@ -10,15 +10,15 @@
 
 import { assertSafeExposure, loadConfig } from './config.js';
 import { createClient } from './db/client.js';
-import { createApp } from './http/app.js';
+import { assertStartupSafety, createApp } from './http/app.js';
 import { createLogger } from './observability/logger.js';
 import { stopListening } from './monitor/realtime.js';
 
-function start(): void {
+async function start(): Promise<void> {
   let config;
   try {
     config = loadConfig();
-    // Before anything listens: refuse to publish unauthenticated routes.
+    // Before anything listens: a deployed environment needs an explicit HTTPS origin list.
     assertSafeExposure(config);
   } catch (error) {
     // Deliberately console, not the logger: the logger needs config to exist.
@@ -33,9 +33,27 @@ function start(): void {
   const app = createApp(config, sql, logger);
 
   /*
-   * Bound explicitly. `app.listen(PORT)` alone binds every interface, which
-   * would put the unauthenticated Stage 1 document routes on the network
-   * (docs/13 §T-19).
+   * Before anything listens: the student cloud connection must not be able to
+   * bypass RLS. A misconfigured SUPABASE_DB_URL (postgres/service_role) fails
+   * here rather than serving student data with its only authorization boundary
+   * switched off. The error names the role, never the connection string.
+   */
+  try {
+    await assertStartupSafety(app);
+  } catch (error) {
+    logger.error(
+      { err: error instanceof Error ? error.message : String(error) },
+      'refusing to start: unsafe student cloud role',
+    );
+    await sql.end().catch(() => undefined);
+    process.exit(1);
+    return;
+  }
+
+  /*
+   * Bound explicitly to `HOST`: loopback for local work, `0.0.0.0` in the
+   * container. Public binding is safe because no route is unauthenticated
+   * (see `OPERATOR_TOKEN` in config.ts, docs/13 §T-19).
    */
   const server = app.listen(config.PORT, config.HOST, () => {
     logger.info(
@@ -99,4 +117,4 @@ function start(): void {
   });
 }
 
-start();
+void start();

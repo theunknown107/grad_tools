@@ -119,11 +119,7 @@ export function recordSupplied(
    * rather than merged away.
    */
   const state: SupplyState =
-    known !== null
-      ? 'already_present'
-      : history.length > 0
-        ? 'changed'
-        : 'supplied';
+    known !== null ? 'already_present' : history.length > 0 ? 'changed' : 'supplied';
 
   /*
    * SUPPLYING BYTES THAT ARE ALREADY HELD ADDS A REFERENCE. IT DOES NOT

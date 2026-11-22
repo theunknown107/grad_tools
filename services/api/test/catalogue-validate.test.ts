@@ -12,7 +12,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import postgres from 'postgres';
 import { runMigrations } from '../src/db/migrate.js';
-import { validateCatalogue, type Finding, creditsStoredFor } from '../src/sources/catalogue-validate.js';
+import {
+  validateCatalogue,
+  type Finding,
+  creditsStoredFor,
+} from '../src/sources/catalogue-validate.js';
 import {
   recordConflict,
   upsertAlias,
@@ -414,7 +418,11 @@ describe('the credits a semester of one document holds', () => {
      * nine credits over its own printed total, on duplicates alone — a
      * disagreement reported against a document that agrees.
      */
-    const sum = creditsStoredFor([course('BQQ401', 3), course('BQQ401', 3), course('BQQ402', 4)], [], 4);
+    const sum = creditsStoredFor(
+      [course('BQQ401', 3), course('BQQ401', 3), course('BQQ402', 4)],
+      [],
+      4,
+    );
     expect(sum).toBe(7);
   });
 
@@ -434,7 +442,10 @@ describe('the credits a semester of one document holds', () => {
 
   it('counts an "A OR B" pair once, through its group', () => {
     const sum = creditsStoredFor(
-      [course('BQQ407A', 2, { viaAlternativeTo: 'BQQ407B' }), course('BQQ407B', 2, { viaAlternativeTo: 'BQQ407A' })],
+      [
+        course('BQQ407A', 2, { viaAlternativeTo: 'BQQ407B' }),
+        course('BQQ407B', 2, { viaAlternativeTo: 'BQQ407A' }),
+      ],
       [
         {
           semester: 4,

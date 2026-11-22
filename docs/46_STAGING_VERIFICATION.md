@@ -37,6 +37,9 @@ Refusing to start: HOST is set to every network interface, which would
 expose the unauthenticated private document routes to the network.
 ```
 
+> *Historical: superseded by DEC-051 — the operator routes are now
+> token-authenticated and the image sets `HOST=0.0.0.0` again. See docs/48.*
+
 The Dockerfile set `HOST=0.0.0.0`, because a container must bind that to be
 reachable. `main.ts` refuses a non-loopback bind, because Stage 1's document
 routes have no authentication and the bind address is the only control

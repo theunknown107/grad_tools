@@ -1,0 +1,796 @@
+{
+  "name": "ocr-variants",
+  "family": "A",
+  "about": "Realistic OCR corruptions of the Family-A vocabulary, pinned as the strict-mode baseline the OCR survey measures against.",
+  "lines": [
+    "EXAMPLE INSTITUTE OF TECHNOLOGY",
+    "CLASS: V (C) EXAMPLE SEMESTER V TIME TABLE",
+    "W.E.F: 01/10/2026",
+    "10:00-10:55am 10:55-11:50am 11:50-12.10pm 12.10-1:05pm 1:05-02:00pm 2:00-03:10pm 03:10-04:05pm 04:05-05:00pm",
+    "FM CN. RMPIR TOC CSL",
+    "MONDAY",
+    "RMPlR CSLLAB C N CN FM.",
+    "TUESDAY",
+    "RMIPR TOC FM CSL TOC",
+    "WEDNESDAY",
+    "BCB501 Fundamentals of Management Prof. A. Example 3+0+0 3+0+0",
+    "BCS5O2 Computer Networks(T/L) Prof. B. Sample 3+0+2 3+0+2",
+    "BCS503 Theory of Computation Pr0f. C. Placeholder 3+2+0 3+2+0",
+    "BRMK557 Research Methodology and IPR Prof. F. Madeup 2+0+0 2+0+0",
+    "BCSL504-Computational Statistics Lab Prof. D. Fictional 0+0+2 0+0+2"
+  ],
+  "placed": [
+    {
+      "text": "EXAMPLE INSTITUTE OF TECHNOLOGY",
+      "x": 60,
+      "y": 680,
+      "width": 191.14999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CLASS: V (C) EXAMPLE SEMESTER V",
+      "x": 60,
+      "y": 660,
+      "width": 178.94,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 238.9399999999999,
+      "y": 660,
+      "width": 161.0600000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TIME TABLE",
+      "x": 400,
+      "y": 660,
+      "width": 58.34999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "W.E.F: 01/10/2026",
+      "x": 600,
+      "y": 640,
+      "width": 83.38,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:00-10:55am",
+      "x": 118,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 185.26000000000005,
+      "y": 566,
+      "width": 22.739999999999952,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:55-11:50am",
+      "x": 208,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 275.26,
+      "y": 566,
+      "width": 10.740000000000009,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "11:50-12.10pm",
+      "x": 286,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 353.25999999999993,
+      "y": 566,
+      "width": 6.740000000000066,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "12.10-1:05pm",
+      "x": 360,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 421.69999999999993,
+      "y": 566,
+      "width": 28.300000000000068,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "1:05-02:00pm",
+      "x": 450,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 511.69999999999993,
+      "y": 566,
+      "width": 21.300000000000068,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "2:00-03:10pm",
+      "x": 533,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 594.6999999999996,
+      "y": 566,
+      "width": 23.30000000000041,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "03:10-04:05pm",
+      "x": 618,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 685.2599999999995,
+      "y": 566,
+      "width": 42.740000000000464,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "04:05-05:00pm",
+      "x": 728,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MONDAY",
+      "x": 40,
+      "y": 520,
+      "width": 43.89,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 83.89,
+      "y": 520,
+      "width": 61.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "FM",
+      "x": 145,
+      "y": 527,
+      "width": 14.440000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 159.44000000000003,
+      "y": 527,
+      "width": 73.55999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CN.",
+      "x": 233,
+      "y": 527,
+      "width": 17.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 250.22,
+      "y": 527,
+      "width": 127.78,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "RMPIR",
+      "x": 378,
+      "y": 527,
+      "width": 32.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 410.22,
+      "y": 527,
+      "width": 62.77999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC",
+      "x": 473,
+      "y": 527,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 494.11,
+      "y": 527,
+      "width": 148.89,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CSL",
+      "x": 643,
+      "y": 527,
+      "width": 19.450000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TUESDAY",
+      "x": 40,
+      "y": 490,
+      "width": 47.230000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 87.23,
+      "y": 490,
+      "width": 50.769999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "RMPlR",
+      "x": 138,
+      "y": 497,
+      "width": 31.659999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 169.66,
+      "y": 497,
+      "width": 55.34,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CSLLAB",
+      "x": 225,
+      "y": 497,
+      "width": 38.35000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 263.35,
+      "y": 497,
+      "width": 119.64999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "C N",
+      "x": 383,
+      "y": 497,
+      "width": 17.21999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 400.22,
+      "y": 497,
+      "width": 74.77999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CN",
+      "x": 475,
+      "y": 497,
+      "width": 14.44,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 489.44000000000005,
+      "y": 497,
+      "width": 153.55999999999995,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "FM.",
+      "x": 643,
+      "y": 497,
+      "width": 17.220000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "WEDNESDAY",
+      "x": 40,
+      "y": 460,
+      "width": 64.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 104.45,
+      "y": 460,
+      "width": 33.55,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "RMIPR",
+      "x": 138,
+      "y": 467,
+      "width": 32.22,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 170.22,
+      "y": 467,
+      "width": 62.78,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC",
+      "x": 233,
+      "y": 467,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 254.11,
+      "y": 467,
+      "width": 130.89,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "FM",
+      "x": 385,
+      "y": 467,
+      "width": 14.440000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 399.44,
+      "y": 467,
+      "width": 73.56,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CSL",
+      "x": 473,
+      "y": 467,
+      "width": 19.450000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 492.45000000000005,
+      "y": 467,
+      "width": 150.54999999999995,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TOC",
+      "x": 643,
+      "y": 467,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCB501 Fundamentals of Management Prof. A. Example 3+0+0 3+0+0",
+      "x": 60,
+      "y": 300,
+      "width": 315.72999999999985,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS5O2 Computer Networks(T/L) Prof. B. Sample 3+0+2 3+0+2",
+      "x": 60,
+      "y": 284,
+      "width": 286.79,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCS503 Theory of Computation Pr0f. C. Placeholder 3+2+0 3+2+0",
+      "x": 60,
+      "y": 268,
+      "width": 296.2699999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BRMK557 Research Methodology and IPR Prof. F. Madeup 2+0+0 2+0+0",
+      "x": 60,
+      "y": 252,
+      "width": 326.83999999999986,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BCSL504-Computational Statistics Lab Prof. D. Fictional 0+0+2 0+0+2",
+      "x": 60,
+      "y": 236,
+      "width": 311.8199999999998,
+      "height": 10,
+      "page": 1
+    }
+  ],
+  "expected": {
+    "classification": {
+      "type": "college_timetable",
+      "reason": "This looks like a class timetable.",
+      "signals": [
+        "weekday columns",
+        "with effect from",
+        "a time-of-day grid",
+        "time table heading"
+      ]
+    },
+    "timetable": {
+      "context": {
+        "className": "V (C) EXAMPLE SEMESTER V",
+        "semester": 5,
+        "academicYear": null,
+        "revision": null,
+        "effectiveFrom": "2026-10-01",
+        "room": null
+      },
+      "slots": [
+        [
+          "10:00",
+          "10:55",
+          false
+        ],
+        [
+          "10:55",
+          "11:50",
+          false
+        ],
+        [
+          "11:50",
+          "12:10",
+          false
+        ],
+        [
+          "12:10",
+          "13:05",
+          false
+        ],
+        [
+          "13:05",
+          "14:00",
+          false
+        ],
+        [
+          "14:00",
+          "15:10",
+          false
+        ],
+        [
+          "15:10",
+          "16:05",
+          false
+        ],
+        [
+          "16:05",
+          "17:00",
+          false
+        ]
+      ],
+      "dictionary": [
+        [
+          "BCB501",
+          "Fundamentals of Management BCS5O2 Computer Networks(T/L)",
+          null,
+          "Prof. A. Example",
+          "3+0+0",
+          "3+0+0"
+        ],
+        [
+          "BCS503",
+          "Theory of Computation Pr0f. C. Placeholder",
+          null,
+          null,
+          "3+2+0",
+          "3+2+0"
+        ],
+        [
+          "BRMK557",
+          "Research Methodology and IPR",
+          null,
+          "Prof. F. Madeup",
+          "2+0+0",
+          "2+0+0"
+        ],
+        [
+          "BCSL504",
+          "Computational Statistics Lab",
+          null,
+          "Prof. D. Fictional",
+          "0+0+2",
+          "0+0+2"
+        ]
+      ],
+      "classes": [
+        [
+          "Mon",
+          "10:00",
+          "10:55",
+          null,
+          "unknown",
+          "FM",
+          null,
+          null,
+          1,
+          "\"FM\" is not defined anywhere on this timetable.",
+          "FM"
+        ],
+        [
+          "Mon",
+          "10:55",
+          "11:50",
+          null,
+          "unknown",
+          "CN",
+          null,
+          null,
+          1,
+          "\"CN\" is not defined anywhere on this timetable.",
+          "CN"
+        ],
+        [
+          "Mon",
+          "12:10",
+          "13:05",
+          null,
+          "unknown",
+          "RMPIR",
+          null,
+          null,
+          1,
+          "\"RMPIR\" is not defined anywhere on this timetable.",
+          "RMPIR"
+        ],
+        [
+          "Mon",
+          "13:05",
+          "14:00",
+          null,
+          "unknown",
+          "TOC",
+          null,
+          null,
+          1,
+          "\"TOC\" is not defined anywhere on this timetable.",
+          "TOC"
+        ],
+        [
+          "Mon",
+          "15:10",
+          "16:05",
+          "BCSL504",
+          "initialism",
+          "CSL",
+          null,
+          null,
+          1,
+          null,
+          "CSL"
+        ],
+        [
+          "Tue",
+          "10:00",
+          "10:55",
+          null,
+          "unknown",
+          "RMPLR",
+          null,
+          null,
+          1,
+          "\"RMPLR\" is not defined anywhere on this timetable.",
+          "RMPlR"
+        ],
+        [
+          "Tue",
+          "10:55",
+          "11:50",
+          null,
+          "unknown",
+          "CSLLAB",
+          null,
+          null,
+          1,
+          "\"CSLLAB\" is not defined anywhere on this timetable.",
+          "CSLLAB"
+        ],
+        [
+          "Tue",
+          "12:10",
+          "13:05",
+          null,
+          "activity",
+          "C N",
+          null,
+          null,
+          1,
+          "Printed as an activity, not a subject in this timetable's subject list. Kept under its printed name.",
+          "C N"
+        ],
+        [
+          "Tue",
+          "13:05",
+          "14:00",
+          null,
+          "unknown",
+          "CN",
+          null,
+          null,
+          1,
+          "\"CN\" is not defined anywhere on this timetable.",
+          "CN"
+        ],
+        [
+          "Tue",
+          "15:10",
+          "16:05",
+          null,
+          "unknown",
+          "FM",
+          null,
+          null,
+          1,
+          "\"FM\" is not defined anywhere on this timetable.",
+          "FM"
+        ],
+        [
+          "Wed",
+          "10:00",
+          "10:55",
+          "BRMK557",
+          "initialism",
+          "RMIPR",
+          null,
+          null,
+          1,
+          null,
+          "RMIPR"
+        ],
+        [
+          "Wed",
+          "10:55",
+          "11:50",
+          null,
+          "unknown",
+          "TOC",
+          null,
+          null,
+          1,
+          "\"TOC\" is not defined anywhere on this timetable.",
+          "TOC"
+        ],
+        [
+          "Wed",
+          "12:10",
+          "13:05",
+          null,
+          "unknown",
+          "FM",
+          null,
+          null,
+          1,
+          "\"FM\" is not defined anywhere on this timetable.",
+          "FM"
+        ],
+        [
+          "Wed",
+          "13:05",
+          "14:00",
+          "BCSL504",
+          "initialism",
+          "CSL",
+          null,
+          null,
+          1,
+          null,
+          "CSL"
+        ],
+        [
+          "Wed",
+          "15:10",
+          "16:05",
+          null,
+          "unknown",
+          "TOC",
+          null,
+          null,
+          1,
+          "\"TOC\" is not defined anywhere on this timetable.",
+          "TOC"
+        ]
+      ],
+      "batches": [],
+      "conflicts": [],
+      "coverage": {
+        "cellsFound": 15,
+        "cellsResolved": 4,
+        "slotsFound": 8,
+        "dictionaryEntries": 4,
+        "looksComplete": false
+      },
+      "warnings": [
+        "This timetable never says what FM, CN, RMPIR, TOC, RMPLR, CSLLAB are. Those classes are kept, without a subject — check them before saving.",
+        "Only part of this timetable could be read — 4 of 15 classes, across 8 of its time columns. Check it against the printed timetable, or add the rest by hand."
+      ]
+    }
+  }
+}

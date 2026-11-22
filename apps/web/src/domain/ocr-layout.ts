@@ -84,20 +84,80 @@ export const LOW_CONFIDENCE = 70;
  * a pile of words.
  */
 export function wordsToPositioned(words: readonly OcrWord[], pageHeight: number): PositionedText[] {
-  return words
-    .filter((word) => word.text.trim() !== '')
-    .map((word) => ({
+  const usable = words.filter((word) => word.text.trim() !== '');
+  const angle = skewOf(usable);
+  const cos = Math.cos(-angle);
+  const sin = Math.sin(-angle);
+  const pivotX = Math.max(0, ...usable.map((word) => word.bbox.x1)) / 2;
+  const pivotY = pageHeight / 2;
+
+  return usable.map((word) => {
+    const width = Math.max(0, word.bbox.x1 - word.bbox.x0);
+    const height = Math.max(1, word.bbox.y1 - word.bbox.y0);
+    /* The word's centre, turned back by the page's skew (a no-op when it has none). */
+    const cx = (word.bbox.x0 + word.bbox.x1) / 2 - pivotX;
+    const cy = (word.bbox.y0 + word.bbox.y1) / 2 - pivotY;
+    const x = cx * cos - cy * sin + pivotX;
+    const y = cx * sin + cy * cos + pivotY;
+    return {
       text: word.text,
-      x: word.bbox.x0,
+      x: x - width / 2,
       /*
        * Image y grows downward; the row reader expects PDF user space, where it
        * grows upward. Subtracting from the page height converts one to the
        * other and keeps the arithmetic in one place.
        */
-      y: pageHeight - (word.bbox.y0 + word.bbox.y1) / 2,
-      width: Math.max(0, word.bbox.x1 - word.bbox.x0),
-      height: Math.max(1, word.bbox.y1 - word.bbox.y0),
-    }));
+      y: pageHeight - y,
+      width,
+      height,
+    };
+  });
+}
+
+/**
+ * How far a photographed page is turned, in radians, from its own words.
+ *
+ * MEASURED: a real result card photographed 1.5° off level lost EVERY row. At
+ * that angle one printed row drifts ~50px down a 2000px-wide page, several
+ * times the row tolerance, so the code, the title and the marks landed on
+ * different "lines" and not one of them parsed. The engine read the words
+ * fine; the geometry was what broke.
+ *
+ * So the angle is taken from the words themselves: each word and its nearest
+ * neighbour to the right on the same line, of about the same height, give a
+ * slope, and the MEDIAN slope is the page's. Deterministic, no second recognition pass, no image work.
+ * Nothing is turned below 0.2° (straight pages stay byte-for-byte as they
+ * were), above 10° (that is a rotated page, not a skewed one), or on fewer than
+ * eight pairs (too little evidence).
+ */
+export function skewOf(words: readonly OcrWord[]): number {
+  const angles: number[] = [];
+  for (const word of words) {
+    const height = word.bbox.y1 - word.bbox.y0;
+    const cy = (word.bbox.y0 + word.bbox.y1) / 2;
+    let best: OcrWord | null = null;
+    for (const other of words) {
+      const gap = other.bbox.x0 - word.bbox.x1;
+      if (gap < 0 || gap > height * 12) continue;
+      if (Math.abs((other.bbox.y0 + other.bbox.y1) / 2 - cy) > height) continue;
+      /*
+       * Only words of about the same ink height. OCR boxes the INK, so a code
+       * with a descender beside a word without one differs in centre by a few
+       * pixels on a perfectly level line — which would read as a false slope.
+       */
+      if (Math.abs(other.bbox.y1 - other.bbox.y0 - height) > height * 0.2) continue;
+      if (best === null || other.bbox.x0 < best.bbox.x0) best = other;
+    }
+    if (best === null) continue;
+    const dx = (best.bbox.x0 + best.bbox.x1) / 2 - (word.bbox.x0 + word.bbox.x1) / 2;
+    const dy = (best.bbox.y0 + best.bbox.y1) / 2 - cy;
+    if (dx > 0) angles.push(Math.atan2(dy, dx));
+  }
+  if (angles.length < 8) return 0;
+  angles.sort((a, b) => a - b);
+  const median = angles[Math.floor(angles.length / 2)] as number;
+  const degrees = Math.abs((median * 180) / Math.PI);
+  return degrees < 0.2 || degrees > 10 ? 0 : median;
 }
 
 export interface OcrPageResult {

@@ -30,8 +30,8 @@
  *
  * Everything else in the token — email, provider, user metadata — is IGNORED
  * for authorization. Email in particular: a provider's email can change, can
- * be a private relay (Apple), and can be shared between providers. `sub` is
- * the durable identity and the only one anything joins on (M9 §7, §8).
+ * be a provider-issued private relay, and can be shared between providers.
+ * `sub` is the durable identity and the only one anything joins on (M9 §7, §8).
  */
 
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
@@ -110,6 +110,20 @@ function bearerFrom(req: Request): string | null {
 export type Verifier = ReturnType<typeof createVerifier>;
 
 /**
+ * A session established from the whole REQUEST rather than a bare token.
+ *
+ * Clerk's Express SDK verifies the request itself (`clerkMiddleware()` +
+ * `getAuth(req)`, auth/clerk.ts); this is the seam it plugs into. Returns null
+ * for an unauthenticated request — never throws for that case.
+ */
+export interface RequestAuthenticator {
+  readonly fromRequest: (req: Request) => Promise<Session | null>;
+}
+
+/** Exactly one authority per deployment: a token verifier OR a request authenticator. */
+export type SessionSource = Verifier | RequestAuthenticator;
+
+/**
  * Requires a valid session, or refuses the request.
  *
  * THE ERROR SAYS WHAT TO DO, NOT WHAT WENT WRONG (M9 §46). A student reading
@@ -121,8 +135,24 @@ export type Verifier = ReturnType<typeof createVerifier>;
  * bad signature — produces the SAME message and the same status, so the
  * endpoint cannot be used as an oracle.
  */
-export function requireSession(verify: Verifier) {
+export function requireSession(source: SessionSource) {
   return async function middleware(req: Request, _res: Response, next: NextFunction) {
+    if (typeof source !== 'function') {
+      try {
+        const session = await source.fromRequest(req);
+        if (session === null) {
+          next(new ApiError('UNAUTHENTICATED', 'Sign in to see this.'));
+          return;
+        }
+        req.session = session;
+        next();
+      } catch {
+        next(new ApiError('UNAUTHENTICATED', 'Your session has expired. Sign in again.'));
+      }
+      return;
+    }
+
+    const verify = source;
     const token = bearerFrom(req);
     if (token === null) {
       next(new ApiError('UNAUTHENTICATED', 'Sign in to see this.'));

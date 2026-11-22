@@ -261,23 +261,26 @@ async function probeRail(browser, dist) {
 
   const NAV = 'aside#gt-sidebar nav[aria-label="Destinations"] a';
   const toggle = page.getByRole('button', { name: 'Collapse sidebar' });
-  const width = () => page.locator('aside#gt-sidebar').evaluate((el) => el.getBoundingClientRect().width);
+  const width = () =>
+    page.locator('aside#gt-sidebar').evaluate((el) => el.getBoundingClientRect().width);
 
   /* §22: expanded is the design's 256, collapsed its 76. */
   const expanded = await width();
   checks += 1;
-  if (Math.round(expanded) !== 256) problems.push(`rail: expanded sidebar is ${String(expanded)}px, not 256`);
+  if (Math.round(expanded) !== 256)
+    problems.push(`rail: expanded sidebar is ${String(expanded)}px, not 256`);
 
-  const before = await page.locator(NAV).evaluateAll((nodes) =>
-    nodes.map((node) => node.getAttribute('href')),
-  );
+  const before = await page
+    .locator(NAV)
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('href')));
 
   await toggle.click();
   await page.waitForTimeout(320);
 
   const collapsed = await width();
   checks += 1;
-  if (Math.round(collapsed) !== 76) problems.push(`rail: collapsed sidebar is ${String(collapsed)}px, not 76`);
+  if (Math.round(collapsed) !== 76)
+    problems.push(`rail: collapsed sidebar is ${String(collapsed)}px, not 76`);
 
   const rail = await page.locator(NAV).evaluateAll((nodes) =>
     nodes.map((node) => ({
@@ -293,12 +296,15 @@ async function probeRail(browser, dist) {
   /* No destination may be lost, and none may go nameless. */
   checks += 1;
   if (rail.length !== before.length)
-    problems.push(`rail: ${String(before.length)} destinations expanded, ${String(rail.length)} collapsed`);
+    problems.push(
+      `rail: ${String(before.length)} destinations expanded, ${String(rail.length)} collapsed`,
+    );
   for (const item of rail) {
     checks += 1;
     if (item.title === null || item.title === '')
       problems.push(`rail: ${String(item.href)} has no tooltip when collapsed`);
-    if (item.name === '') problems.push(`rail: ${String(item.href)} has no accessible name when collapsed`);
+    if (item.name === '')
+      problems.push(`rail: ${String(item.href)} has no accessible name when collapsed`);
   }
 
   /*
@@ -326,16 +332,16 @@ async function probeRail(browser, dist) {
     checks += 1;
     if (!leak.painted) problems.push('rail: the active row has no fill of its own when collapsed');
     if (leak.overhang > 0)
-      problems.push(`rail: something inside the active row is ${String(leak.overhang)}px wider than the row`);
+      problems.push(
+        `rail: something inside the active row is ${String(leak.overhang)}px wider than the row`,
+      );
   }
 
   /* Keyboard traversal: the rail is still a list you can tab through. */
   await page.locator(`${NAV}`).first().focus();
   const reached = [];
   for (let i = 0; i < rail.length; i += 1) {
-    reached.push(
-      await page.evaluate(() => document.activeElement?.getAttribute('href') ?? null),
-    );
+    reached.push(await page.evaluate(() => document.activeElement?.getAttribute('href') ?? null));
     await page.keyboard.press('Tab');
   }
   checks += 1;
@@ -415,7 +421,9 @@ async function probeOverlays(browser, dist) {
        * check did on its first version, and it was wrong to.
        */
       const hiddenBehind = [...document.body.children].some(
-        (node) => node.getAttribute('aria-hidden') === 'true' && node.contains(document.querySelector('#main')),
+        (node) =>
+          node.getAttribute('aria-hidden') === 'true' &&
+          node.contains(document.querySelector('#main')),
       );
       return {
         tag: dialog.tagName + ' ' + String(dialog.className).slice(0, 40),
@@ -434,9 +442,7 @@ async function probeOverlays(browser, dist) {
       problems.push(`${name} ${appearance} ${String(width)}: nothing opened`);
     } else {
       if (!shape.modal)
-        problems.push(
-          `${name}: neither aria-modal nor hiding the page behind it (${shape.tag})`,
-        );
+        problems.push(`${name}: neither aria-modal nor hiding the page behind it (${shape.tag})`);
       if (!shape.named) problems.push(`${name}: the dialog has no accessible name`);
       if (!shape.focusInside) problems.push(`${name}: focus stayed outside the overlay`);
     }
@@ -445,7 +451,8 @@ async function probeOverlays(browser, dist) {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     checks += 1;
-    if (overflow > 0) problems.push(`${name} ${appearance}: horizontal overflow ${String(overflow)}px`);
+    if (overflow > 0)
+      problems.push(`${name} ${appearance}: horizontal overflow ${String(overflow)}px`);
 
     await page.screenshot({ path: join(OUT, `${appearance}-${String(width)}-${name}.png`) });
 
@@ -457,10 +464,7 @@ async function probeOverlays(browser, dist) {
     if (open === 'command') {
       await page.keyboard.type('BXXL504');
       await page.waitForTimeout(250);
-      const hits = await page
-        .locator('[role="option"]')
-        .filter({ hasText: 'BXXL504' })
-        .count();
+      const hits = await page.locator('[role="option"]').filter({ hasText: 'BXXL504' }).count();
       checks += 1;
       if (hits === 0) problems.push(`${name}: searching a course code found nothing`);
       for (let i = 0; i < 7; i += 1) await page.keyboard.press('Backspace');
@@ -519,9 +523,7 @@ async function probeStates(browser, dist) {
     .count();
   if (semesterCards === 0) {
     const seen = await page.locator('[role="tabpanel"]').count();
-    problems.push(
-      `results: the Semesters tab rendered no semester cards (${String(seen)} panels)`,
-    );
+    problems.push(`results: the Semesters tab rendered no semester cards (${String(seen)} panels)`);
   }
   await page.screenshot({ path: join(OUT, 'light-1280-results-semesters.png'), fullPage: true });
 
@@ -534,7 +536,10 @@ async function probeStates(browser, dist) {
    */
   await page.getByRole('tab', { name: /Overview/ }).click();
   await page.waitForTimeout(250);
-  await page.getByRole('button', { name: /^S\d\s*Semester \d/ }).first().click();
+  await page
+    .getByRole('button', { name: /^S\d\s*Semester \d/ })
+    .first()
+    .click();
   await page.waitForTimeout(400);
   await page.screenshot({ path: join(OUT, 'light-1280-results-open.png'), fullPage: true });
 

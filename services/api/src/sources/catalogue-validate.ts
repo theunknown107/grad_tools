@@ -353,10 +353,7 @@ async function checkCourses(sql: Sql, schemeYear: string | null): Promise<Findin
 
   return [
     pass(area, `${String(total)} courses`),
-    pass(
-      area,
-      `credit provenance: ${basis.map((row) => `${row.n} ${row.what}`).join(', ')}`,
-    ),
+    pass(area, `credit provenance: ${basis.map((row) => `${row.n} ${row.what}`).join(', ')}`),
     total === 0
       ? skip(area, 'no courses to weigh')
       : borrowed * 2 > total
@@ -664,9 +661,7 @@ async function checkOptions(sql: Sql, schemeYear: string | null): Promise<Findin
 async function checkAliases(sql: Sql, schemeYear: string | null): Promise<Finding[]> {
   const area = 'aliases';
   const only = ofScheme(sql, schemeYear);
-  const total = await scalar(
-    sql`SELECT count(*)::text AS n FROM catalogue_aliases WHERE ${only}`,
-  );
+  const total = await scalar(sql`SELECT count(*)::text AS n FROM catalogue_aliases WHERE ${only}`);
   return [
     pass(area, `${String(total)} aliases`),
     await mustBeEmpty(

@@ -1,0 +1,123 @@
+{
+  "corpusVersion": "corpus-2026.10-1",
+  "parserVersion": "python-offline-0.1.0",
+  "generatedFrom": "services/parser-python/tests/fixtures",
+  "itemCount": 8,
+  "items": [
+    {
+      "id": "calendar-of-events",
+      "sourceFamily": "C",
+      "documentType": "ACADEMIC_CALENDAR",
+      "sourceKind": "synthetic",
+      "privacy": "safe",
+      "features": [],
+      "expectedAvailable": true,
+      "about": "Academic calendar: weeks, working days, commencement, holiday, CIE, last working day — printed with full weekday names, and still not a timetable.",
+      "sha256": "70521ad2b7201a9cb8499b98e0a6399efeea2ed29a1fe52d93b3f6bb3d3a210c"
+    },
+    {
+      "id": "csbs-semester-one",
+      "sourceFamily": "B",
+      "documentType": "TIMETABLE",
+      "sourceKind": "synthetic",
+      "privacy": "safe",
+      "features": [
+        "subject_dictionary",
+        "batch_lab",
+        "break"
+      ],
+      "expectedAvailable": true,
+      "about": "First-semester grid: CLASS/TIME-TABLE (R2)/ROOM/W.E.F header, declared initials column, horizontal BREAK/LUNCH cells, batch rotations PHYE1/POPE2 and MAT LAB(E1+E2).",
+      "sha256": "02c7a36eef3e3b448f30ce695e6bd76a64c439765376ef65b7bd9b72bd4781cc"
+    },
+    {
+      "id": "no-dictionary",
+      "sourceFamily": "B",
+      "documentType": "TIMETABLE",
+      "sourceKind": "synthetic",
+      "privacy": "safe",
+      "features": [
+        "missing_dictionary"
+      ],
+      "expectedAvailable": true,
+      "about": "A grid whose subject table is missing.",
+      "sha256": "0c298936985074d760e08f88d0732b6ed7a893ad67bb9d86ab27f7c3206936ec"
+    },
+    {
+      "id": "ocr-variants",
+      "sourceFamily": "A",
+      "documentType": "TIMETABLE",
+      "sourceKind": "synthetic",
+      "privacy": "safe",
+      "features": [
+        "subject_dictionary",
+        "ocr_recovery"
+      ],
+      "expectedAvailable": true,
+      "about": "Realistic OCR corruptions of the Family-A vocabulary, pinned as the strict-mode baseline the OCR survey measures against.",
+      "sha256": "11103afcd3421617f2c02dfd815588683716ffd7500bf7bff9d1ecfffee3ac5c"
+    },
+    {
+      "id": "resolution-tiers",
+      "sourceFamily": "B",
+      "documentType": "TIMETABLE",
+      "sourceKind": "synthetic",
+      "privacy": "safe",
+      "features": [
+        "subject_dictionary",
+        "multi_period",
+        "merged_cells"
+      ],
+      "expectedAvailable": true,
+      "about": "Every resolution tier: ambiguous CN, near ESEVM, unknown XYZ, component TOC-T, room in cell, written activities.",
+      "sha256": "4a3b9bf2329da51355cec699971997570bda8b1856deb49d1017cb84fafdc764"
+    },
+    {
+      "id": "same-batch-conflict",
+      "sourceFamily": "B",
+      "documentType": "TIMETABLE",
+      "sourceKind": "synthetic",
+      "privacy": "safe",
+      "features": [
+        "subject_dictionary",
+        "batch_lab",
+        "conflict"
+      ],
+      "expectedAvailable": true,
+      "about": "PHYE1/POPE1 puts two classes on one batch at one time: a conflict.",
+      "sha256": "937c653e4da3d806d67c7ed1c153b8fa6e7bbe48fe0a75ab3748959dc4a0c8c2"
+    },
+    {
+      "id": "sgb-structure",
+      "sourceFamily": "A",
+      "documentType": "TIMETABLE",
+      "sourceKind": "synthetic",
+      "privacy": "safe",
+      "features": [
+        "subject_dictionary",
+        "batch_lab",
+        "multi_period",
+        "merged_cells",
+        "break"
+      ],
+      "expectedAvailable": true,
+      "about": "Senior-semester departmental grid: wrapped header, vertical SHORT BREAK/LUNCH, rooms under cells, merged labs and mini project, undeclared initials column, a wrapped title.",
+      "sha256": "2acc7a572581f9dc40242f1bf72b5afa15c836050a9a81f4178aae3bca8b7ff6"
+    },
+    {
+      "id": "word-header",
+      "sourceFamily": "A",
+      "documentType": "TIMETABLE",
+      "sourceKind": "synthetic",
+      "privacy": "safe",
+      "features": [
+        "subject_dictionary",
+        "batch_lab",
+        "break"
+      ],
+      "expectedAvailable": true,
+      "about": "Word-authored header (start / \"to\" / end rows, punctuated p.m), \"With effective from\", roman class heading, vertical breaks.",
+      "sha256": "8198cb21928f55e23f87faf092dee671b50b79884a1cba1b08086a9ec579220b"
+    }
+  ]
+}

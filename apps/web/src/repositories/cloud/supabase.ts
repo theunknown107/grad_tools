@@ -19,9 +19,9 @@
  * which are meant to be in a browser and are useless without a user's own
  * credentials — every table they can reach is RLS-protected (docs/09 §9.18).
  *
- * The service-role key, the database password, the OAuth client secrets and
- * the Apple signing key are SECRETS. None of them appears in this file, in any
- * file the browser loads, or in the repository (M9 §21, §22, §44).
+ * The service-role key, the database password and the OAuth client secrets are
+ * SECRETS. None of them appears in this file, in any file the browser loads, or
+ * in the repository (M9 §21, §22, §44).
  *
  * ---------------------------------------------------------------------------
  * SESSION STORAGE
@@ -87,9 +87,9 @@ export function authClient(): SupabaseClient | null {
  * The provider's user, reduced to what the domain is allowed to know.
  *
  * `sub` becomes `userId` and nothing else is load-bearing. In particular the
- * email is carried for DISPLAY: Apple's private relay means it may not be an
- * address the student recognises, and it may differ between providers for the
- * same person (M9 §8, §47).
+ * email is carried for DISPLAY only: an OAuth provider may hand back a private
+ * relay address rather than the one the student recognises, and it may differ
+ * between providers for the same person (M9 §8, §47).
  */
 function toIdentity(user: {
   id: string;
@@ -103,21 +103,69 @@ function toIdentity(user: {
   };
 }
 
+/**
+ * Where an auth provider/email link should return to.
+ *
+ * On the web it is this origin + the route. Inside the Capacitor Android app the
+ * WebView origin is `https://localhost`, which a provider cannot redirect back
+ * to, so native builds use a custom-scheme deep link that an intent-filter routes
+ * to the app; `completeDeepLink` then exchanges the code for a session. The
+ * native callback URL must be in the Supabase redirect allow-list.
+ */
+const NATIVE_AUTH_CALLBACK = 'gradtools://auth/callback';
+
+function isNativeApp(): boolean {
+  const cap = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return typeof cap?.isNativePlatform === 'function' && cap.isNativePlatform();
+}
+
+function authRedirect(webPath: string): string {
+  return isNativeApp() ? NATIVE_AUTH_CALLBACK : `${window.location.origin}${webPath}`;
+}
+
 export interface AuthAdapter {
   /** The current identity, or null. Refreshes an expired token if it can. */
   current(): Promise<Identity | null>;
   /** The access token for an API call, or null when not signed in. */
   accessToken(): Promise<string | null>;
-  signInWithPassword(email: string, password: string): Promise<{ error: string | null }>;
+  /** `needsCode`: the provider emailed a code that `verifyCode` must complete (new device). */
+  signInWithPassword(
+    email: string,
+    password: string,
+  ): Promise<{ error: string | null; needsCode?: boolean }>;
+  /**
+   * Code-based providers (Clerk) only: completes a sign-up or a new-device
+   * sign-in with the code just emailed. Absent → confirmation is a link.
+   */
+  verifyCode?(code: string): Promise<{ error: string | null }>;
+  /**
+   * Code-based providers only: completes recovery here with the emailed code
+   * and a new password. Absent → recovery is a link to /reset-password.
+   */
+  resetWithCode?(code: string, password: string): Promise<{ error: string | null }>;
+  /** Set when provider sign-in cannot work on this platform: the reason, in words. */
+  readonly providerUnavailable?: string;
   signUpWithPassword(
     email: string,
     password: string,
   ): Promise<{ error: string | null; needsConfirmation: boolean }>;
-  signInWithProvider(provider: 'google' | 'apple'): Promise<{ error: string | null }>;
+  signInWithProvider(provider: 'google'): Promise<{ error: string | null }>;
   sendRecovery(email: string): Promise<{ error: string | null }>;
+  /** Sets a new password for the recovery session the reset link established. */
+  updatePassword(password: string): Promise<{ error: string | null }>;
+  /**
+   * Completes a native deep-link auth callback (`gradtools://auth/callback?code=…`):
+   * exchanges the PKCE code for a session. A no-op for URLs without a `code`.
+   */
+  completeDeepLink(url: string): Promise<{ error: string | null }>;
   signOut(): Promise<void>;
   /** Fires on sign-in, sign-out, token refresh and cross-tab changes. */
   onChange(listener: (identity: Identity | null) => void): () => void;
+  /**
+   * Fires once the SDK has consumed a password-recovery link and put the client
+   * into the short-lived recovery session where `updatePassword` is allowed.
+   */
+  onPasswordRecovery(listener: () => void): () => void;
 }
 
 /**
@@ -133,6 +181,18 @@ export interface AuthAdapter {
  */
 function friendly(message: string): string {
   const lower = message.toLowerCase();
+  /*
+   * A PROVIDER THAT IS NOT SET UP IS NOT THE STUDENT'S MISTAKE (M9 §22.17).
+   *
+   * Google is implemented in code and enabled per project in the provider's
+   * dashboard. Where a build's project has not enabled it, the
+   * SDK answers "Unsupported provider: provider is not enabled" — and telling
+   * a student "something went wrong, try again" invites them to try again for
+   * ever at a button that cannot work yet. Say what is true instead.
+   */
+  if (lower.includes('provider is not enabled') || lower.includes('unsupported provider')) {
+    return 'That sign-in method is not available for this build yet. Use email and password.';
+  }
   if (lower.includes('invalid login credentials') || lower.includes('invalid credentials')) {
     return 'That email and password do not match an account.';
   }
@@ -172,7 +232,13 @@ export function createAuthAdapter(): AuthAdapter | null {
     },
 
     async signUpWithPassword(email, password) {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        // Web: return to this origin. Native app: the deep-link callback. Either
+        // target must be in the project's redirect allow-list (see auth config).
+        options: { emailRedirectTo: authRedirect('/account') },
+      });
       if (error !== null) return { error: friendly(error.message), needsConfirmation: false };
       /*
        * A signup that returns a user with no session means the project requires
@@ -190,14 +256,17 @@ export function createAuthAdapter(): AuthAdapter | null {
        */
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: { redirectTo: `${window.location.origin}/account` },
+        options: { redirectTo: authRedirect('/account') },
       });
       return { error: error === null ? null : friendly(error.message) };
     },
 
     async sendRecovery(email) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/account`,
+        // Web: this origin's reset-password screen. Native: the deep-link
+        // callback (the PASSWORD_RECOVERY session then drives the reset UI).
+        // Either target must be in the project's redirect allow-list.
+        redirectTo: authRedirect('/reset-password'),
       });
       /*
        * THE RESULT IS THE SAME WHETHER OR NOT THE ADDRESS IS REGISTERED
@@ -208,6 +277,30 @@ export function createAuthAdapter(): AuthAdapter | null {
         error:
           error !== null && /network|fetch/i.test(error.message) ? friendly(error.message) : null,
       };
+    },
+
+    async updatePassword(password) {
+      /*
+       * Only valid inside the recovery session the reset link opened (or any
+       * live session). Supabase authenticates the change against that session;
+       * the old password is never needed, read, or shown (M9 §23, §48).
+       */
+      const { error } = await supabase.auth.updateUser({ password });
+      return { error: error === null ? null : friendly(error.message) };
+    },
+
+    async completeDeepLink(url) {
+      // gradtools://auth/callback?code=… — OAuth and PKCE email links both land
+      // here on native. No `code` (e.g. a different deep link) → nothing to do.
+      try {
+        const query = url.includes('?') ? url.slice(url.indexOf('?') + 1) : '';
+        const code = new URLSearchParams(query).get('code');
+        if (code === null) return { error: null };
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        return { error: error === null ? null : friendly(error.message) };
+      } catch {
+        return { error: 'Could not complete sign-in from that link. Try again.' };
+      }
     },
 
     async signOut() {
@@ -222,6 +315,15 @@ export function createAuthAdapter(): AuthAdapter | null {
     onChange(listener) {
       const { data } = supabase.auth.onAuthStateChange((_event, session) => {
         listener(session?.user === undefined ? null : toIdentity(session.user));
+      });
+      return () => {
+        data.subscription.unsubscribe();
+      };
+    },
+
+    onPasswordRecovery(listener) {
+      const { data } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') listener();
       });
       return () => {
         data.subscription.unsubscribe();

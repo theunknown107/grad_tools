@@ -26,7 +26,7 @@
  * nothing is resolved here (§14).
  */
 
-import type { ParsedCard, ParsedRow } from './result-import.js';
+import { unsupportedSemesterMessage, type ParsedCard, type ParsedRow } from './result-import.js';
 import { subjectKey } from './subjects.js';
 
 export interface ImportedFile {
@@ -114,16 +114,24 @@ export function groupBySemester(
   files: readonly ImportedFile[],
   savedSemesters: readonly number[] = [],
 ): SemesterGroup[] {
-  const groups = new Map<number | null, ImportedFile[]>();
+  /*
+   * A file printed with a semester outside 1–8 (OQ-057) is kept apart from the
+   * files that printed none: it is refused for a different reason, and must not
+   * take an importable file down with it.
+   */
+  const groups = new Map<number | string | null, ImportedFile[]>();
   for (const file of files) {
-    const key = file.card.semester;
+    const { semester, unsupportedSemester } = file.card;
+    const key =
+      unsupportedSemester === null ? semester : `unsupported-${String(unsupportedSemester)}`;
     groups.set(key, [...(groups.get(key) ?? []), file]);
   }
 
   const saved = new Set(savedSemesters);
 
   return [...groups.entries()]
-    .map(([semester, grouped]) => {
+    .map(([key, grouped]) => {
+      const semester = typeof key === 'string' ? null : key;
       const [first, second] = grouped;
       const differences =
         first === undefined || second === undefined
@@ -144,6 +152,21 @@ export function groupBySemester(
       };
     })
     .sort((a, b) => (a.semester ?? 99) - (b.semester ?? 99));
+}
+
+/**
+ * A group whose page printed no semester, once the student has chosen one.
+ *
+ * The chosen semester is held to the same check as a printed one: a semester
+ * that already has a saved result is `alreadySaved` either way. Without this a
+ * card that printed none was a way around one-result-per-semester.
+ */
+export function withChosenSemester(
+  group: SemesterGroup,
+  semester: number,
+  savedSemesters: readonly number[],
+): SemesterGroup {
+  return { ...group, semester, alreadySaved: savedSemesters.includes(semester) };
 }
 
 /**
@@ -171,6 +194,12 @@ export function blockingReason(group: SemesterGroup): string | null {
   if (group.files.some((file) => !file.card.looksLikeResultCard)) {
     return 'This file does not look like a VTU result card. You can still enter the result by hand.';
   }
+  const unsupported = group.files
+    .map((file) => file.card.unsupportedSemester)
+    .find((printed) => printed !== null);
+  if (unsupported !== undefined && unsupported !== null) {
+    return unsupportedSemesterMessage(unsupported);
+  }
   if (group.semester === null) {
     return 'The semester was not printed on this document. Choose one before importing.';
   }
@@ -178,7 +207,7 @@ export function blockingReason(group: SemesterGroup): string | null {
     return 'Two files describe this semester differently. Check the differences and choose which to import.';
   }
   if (group.alreadySaved) {
-    return 'This semester already has a saved result. Importing would replace it, so review it first.';
+    return `Semester ${String(group.semester)} already has a saved result, and it is kept as it is. A second result for the same semester (for example the card for a backlog you re-sat) cannot be added yet.`;
   }
   return null;
 }

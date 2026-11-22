@@ -1,0 +1,707 @@
+{
+  "name": "same-batch-conflict",
+  "family": "B",
+  "about": "PHYE1/POPE1 puts two classes on one batch at one time: a conflict.",
+  "lines": [
+    "EXAMPLE INSTITUTE OF TECHNOLOGY",
+    "CLASS: V (C) EXAMPLE SEMESTER V TIME TABLE",
+    "W.E.F: 01/10/2026",
+    "10:00-10:55am 10:55-11:50am 11:50-12.10pm 12.10-1:05pm 1:05-02:00pm 2:00-03:10pm 03:10-04:05pm 04:05-05:00pm",
+    "PHYE1/POPE1 MAT POP PHY",
+    "MONDAY",
+    "MAT PHY POP MAT",
+    "TUESDAY",
+    "POP MAT PHY POP",
+    "WEDNESDAY",
+    "BQATS101 Mathematics-I for CSE Stream MAT Prof. Anita R 2+2+2 2+2+2",
+    "BQHYS102 Applied Physics for CSE stream PHY Prof. Bala V 2+2+2 2+2+2",
+    "BQOPS103 Principles of Programming POP Prof. Chandra M 3+0+2 2+0+2"
+  ],
+  "placed": [
+    {
+      "text": "EXAMPLE INSTITUTE OF TECHNOLOGY",
+      "x": 60,
+      "y": 680,
+      "width": 191.14999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "CLASS: V (C) EXAMPLE SEMESTER V",
+      "x": 60,
+      "y": 660,
+      "width": 178.94,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 238.9399999999999,
+      "y": 660,
+      "width": 161.0600000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TIME TABLE",
+      "x": 400,
+      "y": 660,
+      "width": 58.34999999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "W.E.F: 01/10/2026",
+      "x": 600,
+      "y": 640,
+      "width": 83.38,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:00-10:55am",
+      "x": 118,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 185.26000000000005,
+      "y": 566,
+      "width": 22.739999999999952,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "10:55-11:50am",
+      "x": 208,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 275.26,
+      "y": 566,
+      "width": 10.740000000000009,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "11:50-12.10pm",
+      "x": 286,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 353.25999999999993,
+      "y": 566,
+      "width": 6.740000000000066,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "12.10-1:05pm",
+      "x": 360,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 421.69999999999993,
+      "y": 566,
+      "width": 28.300000000000068,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "1:05-02:00pm",
+      "x": 450,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 511.69999999999993,
+      "y": 566,
+      "width": 21.300000000000068,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "2:00-03:10pm",
+      "x": 533,
+      "y": 566,
+      "width": 61.70000000000001,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 594.6999999999996,
+      "y": 566,
+      "width": 23.30000000000041,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "03:10-04:05pm",
+      "x": 618,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 685.2599999999995,
+      "y": 566,
+      "width": 42.740000000000464,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "04:05-05:00pm",
+      "x": 728,
+      "y": 566,
+      "width": 67.26000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MONDAY",
+      "x": 40,
+      "y": 520,
+      "width": 43.89,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 83.89,
+      "y": 520,
+      "width": 39.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "PHYE1/POPE1",
+      "x": 123,
+      "y": 527,
+      "width": 68.92000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 191.91999999999993,
+      "y": 527,
+      "width": 41.08000000000007,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 233,
+      "y": 527,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 254.11,
+      "y": 527,
+      "width": 128.89,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "POP",
+      "x": 383,
+      "y": 527,
+      "width": 21.119999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 404.12,
+      "y": 527,
+      "width": 68.88,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "PHY",
+      "x": 473,
+      "y": 527,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "TUESDAY",
+      "x": 40,
+      "y": 490,
+      "width": 47.230000000000004,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 87.23,
+      "y": 490,
+      "width": 55.769999999999996,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 143,
+      "y": 497,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 164.11,
+      "y": 497,
+      "width": 68.88999999999999,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "PHY",
+      "x": 233,
+      "y": 497,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 253.55999999999997,
+      "y": 497,
+      "width": 129.44000000000003,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "POP",
+      "x": 383,
+      "y": 497,
+      "width": 21.119999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 404.12,
+      "y": 497,
+      "width": 68.88,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 473,
+      "y": 497,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "WEDNESDAY",
+      "x": 40,
+      "y": 460,
+      "width": 64.45,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 104.45,
+      "y": 460,
+      "width": 38.55,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "POP",
+      "x": 143,
+      "y": 467,
+      "width": 21.119999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 164.11999999999998,
+      "y": 467,
+      "width": 68.88000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "MAT",
+      "x": 233,
+      "y": 467,
+      "width": 21.11,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 254.11,
+      "y": 467,
+      "width": 128.89,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "PHY",
+      "x": 383,
+      "y": 467,
+      "width": 20.560000000000002,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": " ",
+      "x": 403.56000000000006,
+      "y": 467,
+      "width": 69.43999999999994,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "POP",
+      "x": 473,
+      "y": 467,
+      "width": 21.119999999999997,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BQATS101 Mathematics-I for CSE Stream MAT Prof. Anita R 2+2+2 2+2+2",
+      "x": 60,
+      "y": 300,
+      "width": 334.5899999999998,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BQHYS102 Applied Physics for CSE stream PHY Prof. Bala V 2+2+2 2+2+2",
+      "x": 60,
+      "y": 284,
+      "width": 337.93999999999977,
+      "height": 10,
+      "page": 1
+    },
+    {
+      "text": "BQOPS103 Principles of Programming POP Prof. Chandra M 3+0+2 2+0+2",
+      "x": 60,
+      "y": 268,
+      "width": 334.5999999999998,
+      "height": 10,
+      "page": 1
+    }
+  ],
+  "expected": {
+    "classification": {
+      "type": "college_timetable",
+      "reason": "This looks like a class timetable.",
+      "signals": [
+        "weekday columns",
+        "with effect from",
+        "a time-of-day grid",
+        "time table heading"
+      ]
+    },
+    "timetable": {
+      "context": {
+        "className": "V (C) EXAMPLE SEMESTER V",
+        "semester": 5,
+        "academicYear": null,
+        "revision": null,
+        "effectiveFrom": "2026-10-01",
+        "room": null
+      },
+      "slots": [
+        [
+          "10:00",
+          "10:55",
+          false
+        ],
+        [
+          "10:55",
+          "11:50",
+          false
+        ],
+        [
+          "11:50",
+          "12:10",
+          false
+        ],
+        [
+          "12:10",
+          "13:05",
+          false
+        ],
+        [
+          "13:05",
+          "14:00",
+          false
+        ],
+        [
+          "14:00",
+          "15:10",
+          false
+        ],
+        [
+          "15:10",
+          "16:05",
+          false
+        ],
+        [
+          "16:05",
+          "17:00",
+          false
+        ]
+      ],
+      "dictionary": [
+        [
+          "BQATS101",
+          "Mathematics-I for CSE Stream",
+          "MAT",
+          "Prof. Anita R",
+          "2+2+2",
+          "2+2+2"
+        ],
+        [
+          "BQHYS102",
+          "Applied Physics for CSE stream",
+          "PHY",
+          "Prof. Bala V",
+          "2+2+2",
+          "2+2+2"
+        ],
+        [
+          "BQOPS103",
+          "Principles of Programming",
+          "POP",
+          "Prof. Chandra M",
+          "3+0+2",
+          "2+0+2"
+        ]
+      ],
+      "classes": [
+        [
+          "Mon",
+          "10:00",
+          "10:55",
+          "BQHYS102",
+          "declared",
+          "PHY",
+          "E1",
+          null,
+          1,
+          null,
+          "PHYE1/POPE1"
+        ],
+        [
+          "Mon",
+          "10:00",
+          "10:55",
+          "BQOPS103",
+          "declared",
+          "POP",
+          "E1",
+          null,
+          1,
+          null,
+          "PHYE1/POPE1"
+        ],
+        [
+          "Mon",
+          "10:55",
+          "11:50",
+          "BQATS101",
+          "declared",
+          "MAT",
+          null,
+          null,
+          1,
+          null,
+          "MAT"
+        ],
+        [
+          "Mon",
+          "12:10",
+          "13:05",
+          "BQOPS103",
+          "declared",
+          "POP",
+          null,
+          null,
+          1,
+          null,
+          "POP"
+        ],
+        [
+          "Mon",
+          "13:05",
+          "14:00",
+          "BQHYS102",
+          "declared",
+          "PHY",
+          null,
+          null,
+          1,
+          null,
+          "PHY"
+        ],
+        [
+          "Tue",
+          "10:00",
+          "10:55",
+          "BQATS101",
+          "declared",
+          "MAT",
+          null,
+          null,
+          1,
+          null,
+          "MAT"
+        ],
+        [
+          "Tue",
+          "10:55",
+          "11:50",
+          "BQHYS102",
+          "declared",
+          "PHY",
+          null,
+          null,
+          1,
+          null,
+          "PHY"
+        ],
+        [
+          "Tue",
+          "12:10",
+          "13:05",
+          "BQOPS103",
+          "declared",
+          "POP",
+          null,
+          null,
+          1,
+          null,
+          "POP"
+        ],
+        [
+          "Tue",
+          "13:05",
+          "14:00",
+          "BQATS101",
+          "declared",
+          "MAT",
+          null,
+          null,
+          1,
+          null,
+          "MAT"
+        ],
+        [
+          "Wed",
+          "10:00",
+          "10:55",
+          "BQOPS103",
+          "declared",
+          "POP",
+          null,
+          null,
+          1,
+          null,
+          "POP"
+        ],
+        [
+          "Wed",
+          "10:55",
+          "11:50",
+          "BQATS101",
+          "declared",
+          "MAT",
+          null,
+          null,
+          1,
+          null,
+          "MAT"
+        ],
+        [
+          "Wed",
+          "12:10",
+          "13:05",
+          "BQHYS102",
+          "declared",
+          "PHY",
+          null,
+          null,
+          1,
+          null,
+          "PHY"
+        ],
+        [
+          "Wed",
+          "13:05",
+          "14:00",
+          "BQOPS103",
+          "declared",
+          "POP",
+          null,
+          null,
+          1,
+          null,
+          "POP"
+        ]
+      ],
+      "batches": [
+        "E1"
+      ],
+      "conflicts": [
+        [
+          "Mon",
+          "10:00",
+          "E1",
+          [
+            "PHY",
+            "POP"
+          ]
+        ]
+      ],
+      "coverage": {
+        "cellsFound": 13,
+        "cellsResolved": 13,
+        "slotsFound": 8,
+        "dictionaryEntries": 3,
+        "looksComplete": true
+      },
+      "warnings": [
+        "1 time has more than one class. Check them against the printed timetable."
+      ]
+    }
+  }
+}
