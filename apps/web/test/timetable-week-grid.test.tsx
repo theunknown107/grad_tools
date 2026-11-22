@@ -58,9 +58,9 @@ function slot(
  * lab against the lecture is what proves height means duration.
  */
 const WEEK: TimetableSlot[] = [
-  slot('a', 'Mon', '09:00', '09:50', 'BCS401'),
-  slot('b', 'Mon', '14:00', '17:00', 'BCS402'),
-  slot('c', 'Tue', '09:00', '09:50', 'BCS403'),
+  slot('a', 'Mon', '09:00', '09:50', 'BXX401'),
+  slot('b', 'Mon', '14:00', '17:00', 'BXX402'),
+  slot('c', 'Tue', '09:00', '09:50', 'BXX403'),
 ];
 
 /** The grid row span an element was placed at, as `[start, end]`. */
@@ -100,10 +100,10 @@ afterEach(cleanup);
 describe('the week as a time axis', () => {
   it('gives a class as much height as it has duration', async () => {
     render();
-    await screen.findAllByText(/BCS401/);
+    await screen.findAllByText(/BXX401/);
 
-    const [lectureStart, lectureEnd] = rowsOf(placementFor('BCS401'));
-    const [labStart, labEnd] = rowsOf(placementFor('BCS402'));
+    const [lectureStart, lectureEnd] = rowsOf(placementFor('BXX401'));
+    const [labStart, labEnd] = rowsOf(placementFor('BXX402'));
 
     /*
      * 50 minutes against 3 hours. The lab is not merely taller — it is taller
@@ -114,18 +114,18 @@ describe('the week as a time axis', () => {
 
   it('puts the same clock time at the same height on every day', async () => {
     render();
-    await screen.findAllByText(/BCS401/);
+    await screen.findAllByText(/BXX401/);
 
     /* Monday 09:00 and Tuesday 09:00, on one scale. */
-    expect(rowsOf(placementFor('BCS401'))).toEqual(rowsOf(placementFor('BCS403')));
+    expect(rowsOf(placementFor('BXX401'))).toEqual(rowsOf(placementFor('BXX403')));
   });
 
   it('leaves the empty hours empty instead of closing the gap', async () => {
     render();
-    await screen.findAllByText(/BCS401/);
+    await screen.findAllByText(/BXX401/);
 
-    const [, morningEnd] = rowsOf(placementFor('BCS401'));
-    const [afternoonStart] = rowsOf(placementFor('BCS402'));
+    const [, morningEnd] = rowsOf(placementFor('BXX401'));
+    const [afternoonStart] = rowsOf(placementFor('BXX402'));
 
     /* 09:50 to 14:00 is four hours and ten minutes of nothing, and it shows. */
     expect(afternoonStart - morningEnd).toBe(250 / 5);
@@ -133,7 +133,7 @@ describe('the week as a time axis', () => {
 
   it('labels the axis, so a height can be read as a time', async () => {
     render();
-    await screen.findAllByText(/BCS401/);
+    await screen.findAllByText(/BXX401/);
 
     const labels = [...timeGrid().querySelectorAll('span')].map((one) => one.textContent);
     expect(labels).toContain('9:00 am');
@@ -206,13 +206,13 @@ describe('the week as a time axis', () => {
 
   it('draws a grid session as a tint, not a bordered card', async () => {
     render();
-    await screen.findAllByText(/BCS401/);
+    await screen.findAllByText(/BXX401/);
 
     /*
      * The grid carries the structure now. A session is a tonal fill with a
      * single kind edge: no full outline, no radius, no card chrome.
      */
-    const article = within(timeGrid()).getByRole('article', { name: /BCS401/ });
+    const article = within(timeGrid()).getByRole('article', { name: /BXX401/ });
     expect(article.className).toContain('bg-accent-weak');
     /*
      * The kind edge is a FILLED span, never a border: index.css neutralises
@@ -227,7 +227,7 @@ describe('the week as a time axis', () => {
 
   it('keeps a day-by-day list for narrow screens', async () => {
     const { container } = render();
-    await screen.findAllByText(/BCS401/);
+    await screen.findAllByText(/BXX401/);
 
     /*
      * Both layouts are in the DOM and CSS picks one. `display: none` takes the

@@ -39,7 +39,7 @@ import { ResultsPage } from '../src/features/results/ResultsPage.js';
 import { normalizeResultSubject } from '../src/domain/results.js';
 import { asStudentProfileId } from '../src/domain/identity.js';
 import type { BacklogRecord, SemesterResult } from '../src/domain/types.js';
-import { createMemoryRepositories, renderWith, type MemorySeed } from './helpers.js';
+import { createMemoryRepositories, emptyProfile, renderWith, type MemorySeed } from './helpers.js';
 
 const profileId = asStudentProfileId('11111111-1111-1111-1111-111111111111');
 
@@ -244,7 +244,7 @@ const CASES: readonly Case[] = [
   {
     /* No results: a zero that rests on nothing is not "no backlogs". */
     name: 'nothing entered at all',
-    seed: {},
+    seed: { profile: emptyProfile() },
     recorded: 0,
     clear: false,
     standing: ['Unavailable', COULD_NOT],
@@ -308,7 +308,7 @@ describe.each(CASES)('backlogs: $name', (c) => {
     const figure = within(strip).getByRole('group', { name: 'Backlogs' });
     expect(figure.textContent).toBe(`Backlogs${String(c.recorded)}${c.dashboardSub ?? ''}`);
 
-    const hero = screen.getByRole('region', { name: /^Good (morning|afternoon|evening)/ });
+    const hero = screen.getByRole('heading', { level: 1 }).closest('section')!;
     expect(within(hero).queryByText(/no backlogs/) !== null).toBe(c.clear);
     expect(screen.queryAllByText(CLEAR_CLAIM).length > 0).toBe(c.clear);
     /*

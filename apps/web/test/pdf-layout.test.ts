@@ -225,4 +225,32 @@ describe('a printed line is not a row of the table', () => {
       'P -> PASS F -> FAIL',
     ]);
   });
+
+  it('joins an OCR-style wrapped title whose words fall between the row columns', () => {
+    /*
+     * OCR reports one box per WORD, so a multi-word wrap lands partly between the
+     * row's columns. A real card wrapped "ALGORITHMS LAB" under the title: LAB
+     * sat between two columns, failed the per-word column alignment the PDF path
+     * relies on, and the title lost its last word. The wrap must still join as
+     * long as its first word stands under a column and the whole line stays
+     * within the row's extent.
+     */
+    const items = [
+      at('BCSL404', 30, 700),
+      at('ANALYSIS', 70, 700),
+      at('&', 112, 700),
+      at('DESIGN', 120, 700),
+      at('OF', 152, 700),
+      at('47', 200, 700),
+      at('47', 215, 700),
+      at('94', 230, 700),
+      at('P', 245, 700),
+      /* The wrap: ALGORITHMS under the title column, LAB between columns. */
+      at('ALGORITHMS', 70, 688),
+      at('LAB', 125, 688),
+    ];
+    expect(itemsToLines(items).map((line) => line.text)).toEqual([
+      'BCSL404 ANALYSIS & DESIGN OF ALGORITHMS LAB 47 47 94 P',
+    ]);
+  });
 });

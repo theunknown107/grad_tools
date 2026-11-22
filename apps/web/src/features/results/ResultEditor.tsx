@@ -253,7 +253,7 @@ export function ResultEditor({
           return (
             <li key={draft.id} className="p-5">
               <div className="mb-3 flex items-center justify-between gap-2">
-                <span className="font-mono text-[11px] tracking-[0.14em] text-ink-3 uppercase">
+                <span className="font-mono text-[12px] text-ink-3">
                   Subject {position}
                 </span>
                 <IconButton

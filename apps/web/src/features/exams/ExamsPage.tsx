@@ -179,7 +179,7 @@ export function ExamsPage() {
                           soon ? 'bg-warning-weak text-warning' : 'border-line bg-panel',
                         )}
                       >
-                        <span className="text-[10px] font-medium uppercase">{parts.month}</span>
+                        <span className="text-[12px] font-medium">{parts.month}</span>
                         <span className="tnum text-lg leading-none font-semibold">{parts.day}</span>
                       </time>
                       <RowText
@@ -212,7 +212,7 @@ export function ExamsPage() {
               <CardRows>
                 {past.map(({ event }) => (
                   <Row key={`${event.examDate}-${event.printed}-past`} className="px-5 opacity-80">
-                    <span className="w-24 shrink-0 font-mono text-[11px] text-ink-3">
+                    <span className="w-24 shrink-0 font-mono text-[12px] text-ink-3">
                       {event.examDate}
                     </span>
                     <RowText title={event.printed} meta={event.weekday ?? undefined} />
@@ -230,7 +230,7 @@ export function ExamsPage() {
           <CardRows>
             {timetables.items.map((document) => (
               <Row key={document.id} className="px-5">
-                <span className="w-24 shrink-0 font-mono text-[11px] text-ink-3">
+                <span className="w-24 shrink-0 font-mono text-[12px] text-ink-3">
                   {document.importedAt.slice(0, 10)}
                 </span>
                 <RowText
@@ -248,7 +248,7 @@ export function ExamsPage() {
                   }
                 />
                 {document.notification !== null && (
-                  <span className="hidden font-mono text-[11px] text-ink-3 sm:inline">
+                  <span className="hidden font-mono text-[12px] text-ink-3 sm:inline">
                     {document.notification}
                   </span>
                 )}

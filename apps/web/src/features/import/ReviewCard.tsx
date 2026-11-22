@@ -84,7 +84,7 @@ export function Recorded({
                 index > 0 && 'border-l border-line pl-4',
               )}
             >
-              <dt className="text-[11px] text-ink-3">{figure.label}</dt>
+              <dt className="text-[12px] text-ink-3">{figure.label}</dt>
               <dd className="tnum text-xl font-semibold text-ink">{figure.value}</dd>
             </div>
           ))}

@@ -78,6 +78,21 @@ describe('the three documents GradTools reads', () => {
     expect(seen.reason).toMatch(/looks like a class timetable/i);
     expect(seen.reason).not.toMatch(/cannot read/i);
   });
+
+  it('recognises a timetable whose heading is the hyphenated "Time-Table"', () => {
+    /*
+     * Two real NIT college timetables titled themselves "Institute Time-Table"
+     * and were refused: the hyphen slipped past /time\s*table/, so the heading
+     * scored nothing and the weekday columns alone were one point short.
+     */
+    const lines = [
+      { text: 'Institute Time-Table CIVIL ENGINEERING', page: 1 },
+      { text: 'MONDAY 1 CEA 2 3 DSS-I CEPC205', page: 1 },
+      { text: 'TUESDAY 1 FM-I CEPC201 2 BCM CEPC202', page: 1 },
+      { text: 'WEDNESDAY 1 SM CEPC203', page: 1 },
+    ];
+    expect(classifyDocument(lines).type).toBe('college_timetable');
+  });
 });
 
 describe('documents that are academic and still not supported', () => {

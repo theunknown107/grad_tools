@@ -266,7 +266,7 @@ describe('confidence is reported, never acted on', () => {
      * the evidence that a row is doubtful while leaving the row — a gap in the
      * marks with nothing on screen explaining it.
      */
-    const words = [word('BQAS401', 60, 400, 72), word('4A', 320, 400, 42)];
+    const words = [word('BQAS401', 60, 400, 96), word('4A', 320, 400, 42)];
     const result = ocrPageToLines(words, PAGE_HEIGHT);
 
     expect(result.wordCount).toBe(2);

@@ -43,7 +43,7 @@ export function ImportStepper({
               <span
                 aria-hidden="true"
                 className={cn(
-                  'tnum grid size-4 place-items-center rounded-full text-[10px]',
+                  'tnum grid size-4 place-items-center rounded-full text-[12px]',
                   complete && 'bg-success text-canvas',
                   active && 'bg-accent text-on-accent',
                   !complete && !active && 'bg-sunken text-ink-3',

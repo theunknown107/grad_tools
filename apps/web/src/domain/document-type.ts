@@ -129,7 +129,10 @@ const TIMETABLE_SIGNALS: readonly Signal[] = [
     pattern: /\b\d{1,2}[:.]\d{2}\s*(am|pm)?\s*[-–—to]+\s*\d{1,2}[:.]\d{2}/i,
     weight: 3,
   },
-  { name: 'time table heading', pattern: /time\s*table/i, weight: 2 },
+  // `[\s-]*` so a hyphenated "Time-Table" counts: real NIT college timetables
+  // title themselves "Institute Time-Table", and without the hyphen the heading
+  // signal missed, leaving the weekday columns one point short of the floor.
+  { name: 'time table heading', pattern: /time[\s-]*table/i, weight: 2 },
   { name: 'a lunch or break row', pattern: /\b(lunch|break|recess)\b/i, weight: 1 },
 ];
 

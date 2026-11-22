@@ -108,7 +108,7 @@ export function SchemeReview({
       )}
       {parsed.courses.length > 0 && (
         <Card className="overflow-hidden">
-          <div className="hidden grid-cols-[3rem_7rem_1fr_5rem] gap-2 border-b border-line bg-panel px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-3 uppercase sm:grid">
+          <div className="hidden grid-cols-[3rem_7rem_1fr_5rem] gap-2 border-b border-line bg-panel px-4 py-3 text-[12px] font-semibold text-ink-3  sm:grid">
             <span>Sem</span>
             <span>Code</span>
             <span>Course</span>
@@ -141,7 +141,7 @@ export function SchemeReview({
         </Card>
       )}
       {parsed.rejected.length > 0 && (
-        <details className="group rounded-xl border border-line bg-raised">
+        <details className="gt-surface group rounded-xl border border-line">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-[13px] font-medium text-ink">
             {parsed.rejected.length} rows the scheme states no credits for
             <ChevronDown

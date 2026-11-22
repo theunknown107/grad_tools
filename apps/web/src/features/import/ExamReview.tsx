@@ -150,7 +150,7 @@ export function ExamReview({
           <CardRows>
             {dates.slice(0, VISIBLE_DATES).map(([date, events]) => (
               <Row key={date}>
-                <span className="w-24 shrink-0 font-mono text-[11px] text-ink-3">{date}</span>
+                <span className="w-24 shrink-0 font-mono text-[12px] text-ink-3">{date}</span>
                 <RowText
                   title={events.map((event) => event.printed).join(' · ')}
                   meta={

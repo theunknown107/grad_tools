@@ -172,7 +172,7 @@ describe('what a reviewed row resolves to', () => {
       ruleSet,
     );
     expect(enriched.conflict).toBe(
-      'The marks do not add up: 4 + 34 = 40, but 80 was read. Check them against the card.',
+      'The marks do not add up: 4 + 34 = 38, but 80 was read. Check them against the card.',
     );
     expect(enriched.grade.value).toBeNull();
     expect(enriched.grade.reason).not.toMatch(/did not pass/i);

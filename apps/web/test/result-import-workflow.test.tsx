@@ -93,13 +93,16 @@ const { OcrError } = vi.hoisted(() => ({ OcrError: class OcrError extends Error 
 vi.mock('../src/lib/ocr.js', () => ({
   OcrError,
   MAX_IMAGE_BYTES: 20 * 1024 * 1024,
+  // Large enough that the small-image upscale retry (result-file.ts) does not
+  // fire here: these tests are about the engine lifecycle, not upscaling.
+  UPSCALE_TO: 3000,
   decodeImage: vi.fn(() =>
     Promise.resolve({
       canvas: { width: 800, height: 1000, getContext: () => null },
       width: 800,
       height: 1000,
-      sourceWidth: 800,
-      sourceHeight: 1000,
+      sourceWidth: 2400,
+      sourceHeight: 3200,
     }),
   ),
   normalizeContrast: vi.fn(),
@@ -496,9 +499,8 @@ describe('a scan, a photo, and a file that cannot be read', () => {
      * step the workflow always claimed to have — and names the offending file.
      */
     const message = await screen.findByText(/clip\.mp4/i);
-    expect(message.textContent).toMatch(
-      /PDFs, photos \(JPG, PNG, WebP\), Office and OpenDocument files/i,
-    );
+    expect(message.textContent).toMatch(/images \(JPG, PNG, WebP\), PDF, Word \(DOCX\) and Excel/i);
+    expect(screen.getByText('Invalid format.')).toBeTruthy();
   });
 
   it('reports a corrupt file with a message, not a stack', async () => {
@@ -763,7 +765,7 @@ const FULL4: SemesterResult = {
       resultStatus: 'P',
     },
   ].map((row) => normalizeResultSubject({ ...row, announcedOn: '2026-07-23' })),
-  createdAt: '2026-07-24T00:0:00.000Z',
+  createdAt: '2026-07-24T00:00:00.000Z',
   updatedAt: '2026-07-24T00:00:00.000Z',
 };
 const RESIT_ROW = ['BQAS402  FINANCIAL MANAGEMENT  40  24  64  P  2027-02-11'];
@@ -1123,21 +1125,18 @@ describe('after a save, the figures follow', () => {
 /* ---------------------------------------------------------------------- */
 
 /*
- * The provisional-result page's structure, synthetically filled (no real
- * student): a two-column table for the student, `divTableRow` divs for marks.
+ * The provisional-result page as printed to PDF (Print → Save as PDF, the route
+ * the "Get VTU result" guide gives), synthetically filled: no real student.
  */
-function vtuPage(semester: number | null, rows: readonly (readonly string[])[]): string {
-  const row = (cells: readonly string[]) =>
-    `<div class="divTableRow">${cells.map((cell) => `<div class="divTableCell">${cell}</div>`).join('')}</div>`;
-  return `<html><head><script>window.__ran = true;</script></head><body>
-<b>VTU PROVISIONAL RESULTS OF UG / PG EXAMINATION</b>
-<table><tr><td><b>University Seat Number </b></td><td><b> : 1XX22CS001</b></td></tr>
-<tr><td><b>Student Name</b></td><td><b> : SYNTHETIC STUDENT</b></td></tr></table>
-${semester === null ? '' : `<div><b>Semester : ${String(semester)}</b></div>`}
-<div class="divTable"><div class="divTableBody">
-${row(['Subject Code', 'Subject Name', 'Internal Marks', 'External Marks', 'Total', 'Result', 'Announced / Updated on'])}
-${rows.map(row).join('')}
-</div></div></body></html>`;
+function vtuPage(semester: number | null, rows: readonly (readonly string[])[]): string[] {
+  return [
+    'VTU PROVISIONAL RESULTS OF UG / PG EXAMINATION',
+    'University Seat Number : 1XX22CS001',
+    'Student Name : SYNTHETIC STUDENT',
+    ...(semester === null ? [] : [`Semester : ${String(semester)}`]),
+    'Subject Code Subject Name Internal Marks External Marks Total Result Announced / Updated on',
+    ...rows.map((cells) => cells.join(' ')),
+  ];
 }
 
 const PAGE_ROWS = [
@@ -1145,38 +1144,41 @@ const PAGE_ROWS = [
   ['BQAS402', 'FINANCIAL MANAGEMENT', '38', '21', '59', 'P', '2026-07-23'],
 ];
 
-async function chooseHtml(user: ReturnType<typeof userEvent.setup>, html: string) {
-  const opener = screen.queryByRole('button', { name: /add academic document/i });
-  if (opener !== null) await user.click(opener);
-  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-  const file = new File([html], 'VTU Result.html', { type: 'text/html' });
-  const list = {
-    0: file,
-    length: 1,
-    item: (index: number) => (index === 0 ? file : null),
-    [Symbol.iterator]: function* () {
-      yield file;
-    },
-  };
-  Object.defineProperty(input, 'files', { value: list, configurable: true });
-  input.dispatchEvent(new Event('change', { bubbles: true }));
+/** Chooses the printed result page, read through the PDF text layer. */
+async function chooseResultPage(user: ReturnType<typeof userEvent.setup>, lines: string[]) {
+  extractions.clear();
+  extractions.set('page', { hasTextLayer: true, lines: lines.map((text) => ({ text, page: 1 })) });
+  await choose(user, 'VTU Result.pdf');
 }
 
 const confirmButton = () =>
   screen.getByRole('button', { name: /confirm and save/i }) as HTMLButtonElement;
 
-describe('a result page saved as HTML', () => {
+describe('a saved web page', () => {
+  it('is refused as an invalid format, and nothing is saved', async () => {
+    const user = userEvent.setup();
+    const { bundle, peek } = createMemoryRepositories();
+    renderWith(<ImportPage />, { repositories: bundle });
+
+    await choose(user, 'VTU Result.html', 'text/html');
+
+    expect(await screen.findByText('Invalid format.')).toBeTruthy();
+    expect(screen.getByText(/VTU Result\.html/)).toBeTruthy();
+    expect(peek.results()).toHaveLength(0);
+  });
+});
+
+describe('a printed result page', () => {
   it('is read, reviewed and saved with its provenance', async () => {
     const user = userEvent.setup();
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<ImportPage />, { repositories: bundle });
 
-    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(4, PAGE_ROWS));
 
     expect(await screen.findByRole('region', { name: /Semester 4 review/ })).toBeTruthy();
     expect(screen.getByText(/Seat number: 1XX22CS001/)).toBeTruthy();
     expect(peek.results()).toHaveLength(0);
-    expect((globalThis as { __ran?: boolean }).__ran).toBeUndefined();
 
     await user.click(confirmButton());
 
@@ -1195,9 +1197,9 @@ describe('a result page saved as HTML', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<ImportPage />, { repositories: bundle });
 
-    await chooseHtml(user, vtuPage(4, []));
+    await chooseResultPage(user, vtuPage(4, []));
 
-    expect(await screen.findByText(/VTU Result\.html/)).toBeTruthy();
+    expect(await screen.findByText(/VTU Result\.pdf/)).toBeTruthy();
     await waitFor(() => {
       expect(screen.queryByText(/Checking the file type/i)).toBeNull();
     });
@@ -1211,9 +1213,9 @@ describe('a result page saved as HTML', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<ImportPage />, { repositories: bundle });
 
-    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(4, PAGE_ROWS));
     await user.click(await screen.findByRole('button', { name: /confirm and save/i }));
-    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(4, PAGE_ROWS));
 
     expect(await screen.findByText(/already has a saved result/i)).toBeTruthy();
     expect(peek.results()).toHaveLength(1);
@@ -1257,7 +1259,7 @@ describe('opened from "Get VTU Result"', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<ImportPage />, { repositories: bundle, route: '/import?semester=5' });
 
-    await chooseHtml(user, vtuPage(null, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(null, PAGE_ROWS));
 
     await waitFor(() => {
       expect(confirmButton().disabled).toBe(false);
@@ -1271,7 +1273,7 @@ describe('opened from "Get VTU Result"', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<ImportPage />, { repositories: bundle, route: '/import?semester=5' });
 
-    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(4, PAGE_ROWS));
 
     expect(
       await screen.findByText(/prints semester 4, but you opened it for semester 5/i),
@@ -1285,7 +1287,7 @@ describe('opened from "Get VTU Result"', () => {
     const { bundle, peek } = createMemoryRepositories({ results: [FULL4] });
     renderWith(<ImportPage />, { repositories: bundle, route: '/import?semester=4' });
 
-    await chooseHtml(user, vtuPage(null, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(null, PAGE_ROWS));
 
     expect(await screen.findByText(/semester 4 already has a saved result/i)).toBeTruthy();
     expect(confirmButton().disabled).toBe(true);
@@ -1299,7 +1301,7 @@ describe('opened from "Get VTU Result"', () => {
       route: '/import?semester=9&session=made-up',
     });
 
-    await chooseHtml(user, vtuPage(null, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(null, PAGE_ROWS));
 
     expect(await screen.findByText(/semester not detected/i)).toBeTruthy();
     expect(confirmButton().disabled).toBe(true);
@@ -1311,7 +1313,7 @@ describe('opened from "Get VTU Result"', () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<ImportPage />, { repositories: bundle, route: '/import?session=test-session' });
 
-    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(4, PAGE_ROWS));
 
     expect(await screen.findByText('From: May–June 2026 — Regular (CBCS)')).toBeTruthy();
     await user.click(confirmButton());
@@ -1326,7 +1328,7 @@ describe('opened from "Get VTU Result"', () => {
       repositories: createMemoryRepositories().bundle,
       route: '/import?session=flagged-session',
     });
-    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(4, PAGE_ROWS));
     expect(
       await screen.findByText(
         'From: May–June 2026 — Regular (Non-CBCS) — Check: listed as Non-CBCS, address suggests CBCS',
@@ -1357,7 +1359,7 @@ describe('the seat number on the card', () => {
     const { bundle, peek } = createMemoryRepositories({ profile });
     renderWith(<ImportPage />, { repositories: bundle });
 
-    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(4, PAGE_ROWS));
 
     expect(
       await screen.findByText(/This card is for 1XX22CS001, your profile says 1XX22CS099/),
@@ -1372,7 +1374,7 @@ describe('the seat number on the card', () => {
     const { bundle } = createMemoryRepositories({ profile: withUsn(' 1xx22cs001 ') });
     renderWith(<ImportPage />, { repositories: bundle });
 
-    await chooseHtml(user, vtuPage(4, PAGE_ROWS));
+    await chooseResultPage(user, vtuPage(4, PAGE_ROWS));
 
     expect(await screen.findByText(/Seat number: 1XX22CS001/)).toBeTruthy();
     expect(screen.queryByText(/This card is for/)).toBeNull();

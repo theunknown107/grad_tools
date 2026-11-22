@@ -5,7 +5,7 @@
  */
 
 import { vtu2022RuleSet, type RuleSet } from '@gradtools/academic-rules';
-import { ChevronDown, ClipboardList, FileText, Pencil, Trash2 } from 'lucide-react';
+import { ChevronDown, ClipboardList, FileText, Pencil, Printer, Trash2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
@@ -134,9 +134,14 @@ export function ResultDetailPage() {
           </span>
         }
         actions={
-          <Button icon={<FileText />} onClick={exportCsv}>
-            Export
-          </Button>
+          <>
+            <Button asChild icon={<Printer />}>
+              <Link to={`/results/statement?semester=${String(result.semester)}`}>Print</Link>
+            </Button>
+            <Button icon={<FileText />} onClick={exportCsv}>
+              Export
+            </Button>
+          </>
         }
       />
 
@@ -229,7 +234,7 @@ export function ResultDetailPage() {
         <div
           aria-hidden="true"
           className={cn(
-            'hidden gap-2 border-b border-line bg-panel px-5 py-3 text-[11px] font-semibold tracking-wide text-ink-3 uppercase md:grid',
+            'hidden gap-2 border-b border-line bg-panel px-5 py-3 text-[12px] font-semibold  text-ink-3  md:grid',
             COLUMNS,
           )}
         >
@@ -401,7 +406,7 @@ function CourseRow({
             <span className="block truncate text-[13px] font-medium text-ink">
               {subject.subjectTitle}
             </span>
-            <span className="block truncate font-mono text-[11px] text-ink-3">
+            <span className="block truncate font-mono text-[12px] text-ink-3">
               {subject.subjectCode}
               {credits !== null ? <span className="md:hidden"> · {credits} cr</span> : null}
             </span>

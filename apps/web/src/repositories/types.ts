@@ -38,6 +38,8 @@ import type { NotificationPreferences, NotificationRecord } from '../domain/noti
 import type {
   AttendanceRecord,
   BacklogRecord,
+  CourseAttempt,
+  GradeCardSemester,
   DayOverride,
   LedgerEntry,
   RemoteSnapshot,
@@ -165,6 +167,20 @@ export interface ExamTimetableRepository {
   remove(id: string): Promise<void>;
 }
 
+/** Grade-card SGPAs and credit totals the student typed (docs/53). */
+export interface GradeCardRepository {
+  list(): Promise<GradeCardSemester[]>;
+  upsert(record: GradeCardSemester): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
+/** Later sittings of courses not passed (docs/53). */
+export interface CourseAttemptRepository {
+  list(): Promise<CourseAttempt[]>;
+  upsert(record: CourseAttempt): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
 export interface ExamEventRepository {
   list(): Promise<StoredExamEvent[]>;
   upsert(record: StoredExamEvent): Promise<void>;
@@ -235,4 +251,6 @@ export interface RepositoryBundle {
   readonly schemeCourses: SchemeCourseRepository;
   readonly examTimetables: ExamTimetableRepository;
   readonly examEvents: ExamEventRepository;
+  readonly gradeCards: GradeCardRepository;
+  readonly courseAttempts: CourseAttemptRepository;
 }

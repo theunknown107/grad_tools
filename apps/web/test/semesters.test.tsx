@@ -22,7 +22,7 @@ import type {
   SemesterResult,
   SemesterStatus,
 } from '../src/domain/types.js';
-import { choose, createMemoryRepositories, renderWith } from './helpers.js';
+import { choose, createMemoryRepositories, emptyProfile, renderWith } from './helpers.js';
 
 const profileId = asStudentProfileId('11111111-1111-1111-1111-111111111111');
 
@@ -335,6 +335,67 @@ describe('backlogs', () => {
     });
   });
 
+  /* A recorded re-exam pass clears the backlog and is kept whole; SGPA is untouched. */
+  it('records a re-exam result and clears the backlog on a printed pass', async () => {
+    const backlog: BacklogRecord = {
+      id: 'b1',
+      profileId,
+      subjectCode: 'BCS301',
+      subjectTitle: 'BCS301',
+      originSemester: 3,
+      status: 'active',
+      attempts: 0,
+      clearedInSemester: null,
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    const { bundle, peek } = createMemoryRepositories({ backlogs: [backlog] });
+    renderWith(<SemestersPage />, { repositories: bundle });
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /record a re-exam for BCS301/i }),
+    );
+    await userEvent.type(screen.getByLabelText('Exam session'), 'Summer / Makeup - 2026');
+    await choose('Result', 'Passed (P)');
+    await userEvent.click(screen.getByRole('button', { name: /^record$/i }));
+
+    await waitFor(() => {
+      expect(peek.courseAttempts()).toHaveLength(1);
+      expect(peek.courseAttempts()[0]?.session).toBe('Summer / Makeup - 2026');
+      expect(peek.courseAttempts()[0]?.resultStatus).toBe('P');
+      expect(peek.backlogs()[0]?.status).toBe('cleared');
+    });
+  });
+
+  /* A printed fail is another attempt, not a clear. */
+  it('records a failed re-exam as another attempt, keeping the backlog uncleared', async () => {
+    const backlog: BacklogRecord = {
+      id: 'b1',
+      profileId,
+      subjectCode: 'BCS301',
+      subjectTitle: 'BCS301',
+      originSemester: 3,
+      status: 'active',
+      attempts: 0,
+      clearedInSemester: null,
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    const { bundle, peek } = createMemoryRepositories({ backlogs: [backlog] });
+    renderWith(<SemestersPage />, { repositories: bundle });
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /record a re-exam for BCS301/i }),
+    );
+    await userEvent.type(screen.getByLabelText('Exam session'), 'Dec 2026');
+    await choose('Result', 'Not passed (F)');
+    await userEvent.click(screen.getByRole('button', { name: /^record$/i }));
+
+    await waitFor(() => {
+      expect(peek.courseAttempts()).toHaveLength(1);
+      expect(peek.backlogs()[0]?.status).toBe('active');
+      expect(peek.backlogs()[0]?.attempts).toBe(1);
+    });
+  });
+
   it('refuses an empty subject code', async () => {
     const { bundle, peek } = createMemoryRepositories();
     renderWith(<SemestersPage />, { repositories: bundle });
@@ -546,7 +607,10 @@ describe('current semester on the dashboard', () => {
    * would be the most quietly misleading number on the screen.
    */
   it('never estimates an SGPA for a semester still running', async () => {
-    const { bundle } = createMemoryRepositories({ semesters: [semester(5, 'in_progress')] });
+    const { bundle } = createMemoryRepositories({
+      semesters: [semester(5, 'in_progress')],
+      profile: emptyProfile(),
+    });
     renderWith(<DashboardPage />, { repositories: bundle });
 
     /*
@@ -620,9 +684,16 @@ describe('a semester whose rules this build does not have', () => {
    * dashes that read as "you have not entered this" — which the student had.
    */
   it('names the subjects that stopped an SGPA rather than only dashing it', async () => {
+    /*
+     * A code the published catalogue does not cover (BXX299), graded but with no
+     * credit the student recorded and none in the catalogue to fall back to, is
+     * the genuine "no credits" case: SGPA cannot be formed and the subject is
+     * named. (A code the catalogue knows now resolves its official credits and
+     * no longer stalls here — see subject-metadata.test.ts.)
+     */
     const noCredits: SemesterResult = {
-      ...result(2, [['BMATS201', 4, 'O']]),
-      subjects: result(2, [['BMATS201', 4, 'O']]).subjects.map((subject) => ({
+      ...result(2, [['BXX299', 4, 'O']]),
+      subjects: result(2, [['BXX299', 4, 'O']]).subjects.map((subject) => ({
         ...subject,
         credits: null,
       })),
@@ -631,7 +702,7 @@ describe('a semester whose rules this build does not have', () => {
     renderWith(<SemestersPage />, { repositories: bundle });
     await openSemester(2);
 
-    expect(await screen.findByText(/BMATS201 has no credits/)).toBeTruthy();
+    expect(await screen.findByText(/BXX299 has no credits/)).toBeTruthy();
   });
 
   it('does not show an SGPA worked out under the current rules', async () => {

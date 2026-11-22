@@ -11,6 +11,8 @@ import { publish, storeFor, useShared } from './shared-store.js';
 import type {
   AttendanceRecord,
   BacklogRecord,
+  CourseAttempt,
+  GradeCardSemester,
   DayOverride,
   LedgerEntry,
   RemoteSnapshot,
@@ -24,7 +26,7 @@ import type {
 import type { SavedCalendar } from '../domain/calendar-import.js';
 import type { SavedTimetable } from '../domain/timetable-import.js';
 import type { SavedExamTimetable, StoredExamEvent } from '../domain/exam-import.js';
-import { useRepositories } from '../repositories/context.js';
+import { useRepositories, useRepositoriesReady } from '../repositories/context.js';
 
 interface ListLike<T> {
   list(): Promise<T[]>;
@@ -35,6 +37,14 @@ interface ListLike<T> {
 export interface CollectionState<T> {
   readonly items: readonly T[];
   readonly loading: boolean;
+  /**
+   * Storage could not be read. NOT the same as empty: `items` is then no
+   * statement that the student has no records, so a screen must say so rather
+   * than show its empty state.
+   */
+  readonly error: boolean;
+  /** Reads storage again after a failure. */
+  readonly reload: () => void;
   readonly save: (item: T) => Promise<void>;
   readonly remove: (id: string) => Promise<void>;
 }
@@ -55,19 +65,34 @@ export interface CollectionState<T> {
 interface CollectionSnapshot<T> {
   readonly items: readonly T[];
   readonly loading: boolean;
+  readonly error: boolean;
 }
 
-const EMPTY = { items: [], loading: true };
+const EMPTY = { items: [], loading: true, error: false };
+
+/** A read that settles either way: a failure is recorded, never an empty list. */
+async function read<T>(repository: ListLike<T>): Promise<CollectionSnapshot<T>> {
+  try {
+    return { items: await repository.list(), loading: false, error: false };
+  } catch {
+    return { items: [], loading: false, error: true };
+  }
+}
 
 function useCollection<T extends { readonly id: string }>(
   repository: ListLike<T>,
 ): CollectionState<T> {
   const store = storeFor<CollectionSnapshot<T>>(repository, () => EMPTY);
+  const ready = useRepositoriesReady();
 
-  const snapshot = useShared(store, async () => ({
-    items: await repository.list(),
-    loading: false,
-  }));
+  const snapshot = useShared(store, () => read(repository));
+
+  const reload = useCallback(() => {
+    publish(store, EMPTY);
+    void read(repository).then((next) => {
+      publish(store, next);
+    });
+  }, [repository, store]);
 
   const save = useCallback(
     async (item: T) => {
@@ -76,14 +101,14 @@ function useCollection<T extends { readonly id: string }>(
        * the input on a storage round-trip makes typing feel laggy. Every
        * consumer sees it at once, because there is one list.
        */
-      const { items, loading } = store.snapshot;
+      const { items } = store.snapshot;
       const index = items.findIndex((candidate) => candidate.id === item.id);
       publish(store, {
+        ...store.snapshot,
         items:
           index === -1
             ? [...items, item]
             : items.map((candidate, position) => (position === index ? item : candidate)),
-        loading,
       });
       await repository.upsert(item);
     },
@@ -93,15 +118,22 @@ function useCollection<T extends { readonly id: string }>(
   const remove = useCallback(
     async (id: string) => {
       publish(store, {
+        ...store.snapshot,
         items: store.snapshot.items.filter((candidate) => candidate.id !== id),
-        loading: store.snapshot.loading,
       });
       await repository.remove(id);
     },
     [repository, store],
   );
 
-  return { items: snapshot.items, loading: snapshot.loading, save, remove };
+  return {
+    items: snapshot.items,
+    loading: !ready || snapshot.loading,
+    error: ready && snapshot.error,
+    reload,
+    save,
+    remove,
+  };
 }
 
 export function useAttendance(): CollectionState<AttendanceRecord> {
@@ -180,6 +212,16 @@ export function useExamEvents(): CollectionState<StoredExamEvent> {
   return useCollection(useRepositories().examEvents);
 }
 
+/** Grade-card SGPAs and credit totals the student typed (docs/53). */
+export function useGradeCards(): CollectionState<GradeCardSemester> {
+  return useCollection(useRepositories().gradeCards);
+}
+
+/** Later sittings of courses not passed (docs/53). */
+export function useCourseAttempts(): CollectionState<CourseAttempt> {
+  return useCollection(useRepositories().courseAttempts);
+}
+
 export interface ProfileState {
   readonly profile: StudentProfile | null;
   readonly loading: boolean;
@@ -188,16 +230,26 @@ export interface ProfileState {
 
 export function useProfile(): ProfileState {
   const repository = useRepositories().profile;
-  const [profile, setProfile] = useState<StudentProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const ready = useRepositoriesReady();
+  /*
+   * The profile is held WITH the repository it came from. When the scope
+   * changes (the session settles, or someone signs in or out) the previous
+   * scope's profile is stale at once, and reads as loading rather than being
+   * shown under the new account until the new read lands.
+   */
+  const [loaded, setLoaded] = useState<{
+    readonly from: typeof repository;
+    readonly profile: StudentProfile | null;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void repository.get().then((loaded) => {
-      if (!cancelled) {
-        setProfile(loaded);
-        setLoading(false);
-      }
+    const settle = (profile: StudentProfile | null): void => {
+      if (!cancelled) setLoaded({ from: repository, profile });
+    };
+    // A failed read settles as "no profile" — every field it feeds is optional.
+    void repository.get().then(settle, () => {
+      settle(null);
     });
     return () => {
       cancelled = true;
@@ -206,11 +258,15 @@ export function useProfile(): ProfileState {
 
   const save = useCallback(
     async (next: StudentProfile) => {
-      setProfile(next);
+      setLoaded({ from: repository, profile: next });
       await repository.save(next);
     },
     [repository],
   );
+
+  const current = loaded?.from === repository ? loaded : null;
+  const profile = ready ? (current?.profile ?? null) : null;
+  const loading = !ready || current === null;
 
   return { profile, loading, save };
 }

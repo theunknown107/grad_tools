@@ -296,10 +296,10 @@ describe('rows as recognition actually delivers them', () => {
      * by whitespace, so one border character between two columns cost the whole
      * row — seven readable rows became two.
      */
-    const row = read('BQAS101 | MATHEMATICS FOR CSE 38 | 18 56 P 2025-03-13');
+    const row = read('BQAS101 | MATHEMATICS FOR CSE 38 | 21 59 P 2025-03-13');
     expect(row?.internal).toBe(38);
-    expect(row?.external).toBe(18);
-    expect(row?.total).toBe(56);
+    expect(row?.external).toBe(21);
+    expect(row?.total).toBe(59);
     expect(row?.resultStatus).toBe('P');
   });
 
@@ -352,8 +352,8 @@ describe('a row carrying more numbers than it has columns', () => {
      * run satisfies the card's own arithmetic and the last three do not, the
      * earlier run is the one the card printed.
      */
-    const row = read('BQAS158 SUBJECT 11 20 33 46 2025-03-13');
-    expect([row?.internal, row?.external, row?.total]).toEqual([11, 20, 33]);
+    const row = read('BQAS158 SUBJECT 13 20 33 46 2025-03-13');
+    expect([row?.internal, row?.external, row?.total]).toEqual([13, 20, 33]);
   });
 
   it('picks the three that add up, and says it had to', () => {
@@ -395,6 +395,21 @@ describe('a row carrying more numbers than it has columns', () => {
     expect(row?.warnings).toEqual([]);
     expect(row?.subjectTitle).toBe('ANALYSIS AND DESIGN');
   });
+
+  it('strips OCR-misread table borders out of a title, never a mark', () => {
+    /*
+     * A column rule beside the title comes back from OCR not only as a pipe but
+     * as a bracket or a quote. Two real cards read "ALGORITHMS LAB ]" and
+     * "UNIVERSAL HUMAN "VALUES COURSE", the ] and " being that rule. Removing
+     * them recovers the title; the code and the marks are untouched.
+     */
+    const a = read('BCSL404 ANALYSIS & DESIGN OF ALGORITHMS LAB ] 47 47 94 P 2026-07-23');
+    expect(a?.subjectTitle).toBe('ANALYSIS & DESIGN OF ALGORITHMS LAB');
+    expect([a?.internal, a?.external, a?.total]).toEqual([47, 47, 94]);
+
+    const b = read('BUHK408 UNIVERSAL HUMAN "VALUES COURSE 35 30 65 P 2026-07-23');
+    expect(b?.subjectTitle).toBe('UNIVERSAL HUMAN VALUES COURSE');
+  });
 });
 
 describe('a row that could not be read is counted, never dropped in silence', () => {
@@ -427,6 +442,32 @@ describe('a row that could not be read is counted, never dropped in silence', ()
       { text: 'University Seat Number : 9ZZ99ZZ999', page: 1 },
       { text: 'Semester : 4', page: 1 },
       { text: 'BQAS401 ALGORITHMS 46 34 80 P 2026-07-23', page: 1 },
+    ]);
+    expect(card.unreadableRows).toEqual([]);
+  });
+
+  it('catches a marks row whose course code was mis-OCR’d, instead of dropping it', () => {
+    const card = parseResultCard([
+      { text: 'University Seat Number : 9ZZ99ZZ999', page: 1 },
+      { text: 'Semester : 4', page: 1 },
+      { text: 'BQAS401 ALGORITHMS 46 34 80 P 2026-07-23', page: 1 },
+      // OCR corrupted the code's first glyph (B → 8): no valid course code, but
+      // the marks (32 + 46 = 78) are plainly there. Surface it, never drop it.
+      { text: '8QAS402 DATA STRUCTURES 32 46 78 P 2026-07-23', page: 1 },
+    ]);
+    expect(card.rows).toHaveLength(1);
+    expect(card.unreadableRows.map((line) => line.text)).toEqual([
+      '8QAS402 DATA STRUCTURES 32 46 78 P 2026-07-23',
+    ]);
+    expect(card.warnings.map((warning) => warning.kind)).toContain('unreadable_row');
+  });
+
+  it('does not flag a clause or date line as an unreadable marks row', () => {
+    const card = parseResultCard([
+      { text: 'Semester : 4', page: 1 },
+      { text: 'BQAS401 ALGORITHMS 46 34 80 P 2026-07-23', page: 1 },
+      // Numbers, but no internal + external = total: not a marks row.
+      { text: 'As per clause 22OB 6.1 dated 2026-07-23', page: 1 },
     ]);
     expect(card.unreadableRows).toEqual([]);
   });

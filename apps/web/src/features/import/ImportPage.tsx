@@ -1,4 +1,4 @@
-import { Lock, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { findVtuResultSession } from '@gradtools/vtu-catalogue';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/page.js';
@@ -40,13 +40,9 @@ export function ImportPage() {
       <DocumentImport onDone={() => navigate('/results')} expected={expectationFrom(params)} />
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] text-ink-3">
         <span className="inline-flex items-center gap-1.5">
-          <Lock className="size-3.5" aria-hidden="true" /> Your file is read on this device.
+          <ShieldCheck className="size-3.5" aria-hidden="true" /> Only what you confirm is saved
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <ShieldCheck className="size-3.5" aria-hidden="true" /> Only the information you confirm
-          is saved.
-        </span>
-        <span>Supported: PDF, PNG, JPG, WebP, a result page saved as HTML · up to 20 MB</span>
+        <span>Up to 20 MB per file</span>
       </div>
       <p className="text-[13px] text-ink-2">
         Can&apos;t import a document?{' '}

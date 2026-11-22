@@ -30,7 +30,7 @@ import { isWorthReviewing, type OcrPageResult } from '../domain/ocr-layout.js';
 import { parseResultCard, type ImportLine } from '../domain/result-import.js';
 import { classifyDocument } from '../domain/document-type.js';
 import { parseTimetable } from '../domain/timetable-import.js';
-import { decodeImage, normalizeContrast, OcrError } from './ocr.js';
+import { decodeImage, normalizeContrast, OcrError, turnCanvas, UPSCALE_TO } from './ocr.js';
 import { extractPdfLines, renderPdfPage, PdfReadError, type PlacedText } from './pdf-text.js';
 import { PDF_READ_MS, withDeadline } from './deadline.js';
 
@@ -97,33 +97,31 @@ export type Recognize = (
  */
 export const MAX_OCR_PAGES = 4;
 
-export type FileKind = 'pdf' | 'image' | 'html' | 'office' | 'text' | 'unsupported';
+/*
+ * THE UPLOAD ALLOW-LIST: images (JPEG, PNG, WebP), PDF, Word (DOCX) and Excel
+ * (XLSX). Everything else is refused as an invalid format, including HTML,
+ * text exports, PowerPoint, OpenDocument, RTF and legacy binary XLS (which the
+ * bundled office reader cannot open).
+ */
+export type FileKind = 'pdf' | 'image' | 'office' | 'unsupported';
 
-/** Office/ODF formats routed to officeParser, which then validates the container. */
-const OFFICE_EXT = /\.(docx|xlsx|pptx|odt|ods|odp|odg|rtf)$/;
+/** The one message every refusal shows. */
+export const INVALID_FORMAT_MESSAGE =
+  'Invalid format. GradTools accepts images (JPG, PNG, WebP), PDF, Word (DOCX) and Excel (XLSX) files.';
+
+/** Word and Excel, routed to officeParser, which then validates the container. */
+const OFFICE_EXT = /\.(docx|xlsx)$/;
 const OFFICE_MIME = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'application/vnd.oasis.opendocument.text',
-  'application/vnd.oasis.opendocument.spreadsheet',
-  'application/vnd.oasis.opendocument.presentation',
-  'application/vnd.oasis.opendocument.graphics',
-  'application/rtf',
-  'text/rtf',
 ]);
-/** Plain delimited/markdown/text exports, read without loading officeParser. */
-const TEXT_EXT = /\.(csv|tsv|md|markdown|txt)$/;
-const TEXT_MIME = new Set(['text/plain', 'text/csv', 'text/tab-separated-values', 'text/markdown']);
 
 /** What kind of file this is, by type first and extension second. */
 export function fileKind(file: File): FileKind {
   const type = file.type.toLowerCase();
   if (type === 'application/pdf') return 'pdf';
   if (type === 'image/jpeg' || type === 'image/png' || type === 'image/webp') return 'image';
-  if (type === 'text/html') return 'html';
   if (OFFICE_MIME.has(type)) return 'office';
-  if (TEXT_MIME.has(type)) return 'text';
 
   /*
    * Some Android file pickers hand over an empty type. The extension is a weak
@@ -135,9 +133,7 @@ export function fileKind(file: File): FileKind {
   const name = file.name.toLowerCase();
   if (name.endsWith('.pdf')) return 'pdf';
   if (/\.(jpe?g|png|webp)$/.test(name)) return 'image';
-  if (/\.html?$/.test(name)) return 'html';
   if (OFFICE_EXT.test(name)) return 'office';
-  if (TEXT_EXT.test(name)) return 'text';
   return 'unsupported';
 }
 
@@ -148,8 +144,7 @@ export function fileKind(file: File): FileKind {
  * pickers routinely hand over a photo named only by a UUID, with or without a
  * type, and a renamed file can claim anything. The signature decides which
  * decoder runs; the decoder itself still refuses content it cannot parse.
- * HTML has no signature, so a file is treated as HTML only when it says it is
- * AND looks like no binary format — it is then parsed inert, never rendered.
+ * Every accepted format has a signature, so a file with none is refused.
  */
 export async function sniffKind(file: File): Promise<ReturnType<typeof fileKind>> {
   // The PDF header may sit anywhere in the first kilobyte (ISO 32000 §7.5.2).
@@ -162,17 +157,12 @@ export async function sniffKind(file: File): Promise<ReturnType<typeof fileKind>
   if (starts(0xff, 0xd8, 0xff)) return 'image';
   if (starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image';
   if (ascii(0, 'RIFF') && ascii(8, 'WEBP')) return 'image';
-  // A ZIP container (OOXML docx/xlsx/pptx, ODF odt/ods/odp/odg) or an RTF — the
-  // office decoder runs and officeParser validates the real type from the bytes.
-  if (starts(0x50, 0x4b, 0x03, 0x04)) return 'office';
-  if (ascii(0, '{\\rtf')) return 'office';
-  // No binary signature matched. Only the signature-LESS formats may be accepted
-  // on their declaration/extension: a saved HTML page and the plain-text exports
-  // (CSV, TSV, Markdown, plain text). A file that merely CLAIMS to be a PDF, an
-  // image or a ZIP-based Office document but carries no such signature is refused
-  // — the bytes, not the name, decide for every format that has a signature.
-  const declared = fileKind(file);
-  return declared === 'html' || declared === 'text' ? declared : 'unsupported';
+  // A ZIP is accepted only as Word or Excel: PowerPoint and OpenDocument are ZIPs
+  // too, so the declared type or name must say DOCX/XLSX, and officeParser then
+  // validates the real type from the bytes.
+  if (starts(0x50, 0x4b, 0x03, 0x04)) return fileKind(file) === 'office' ? 'office' : 'unsupported';
+  // No accepted signature matched: refused, whatever the name or type claims.
+  return 'unsupported';
 }
 
 /**
@@ -213,6 +203,31 @@ function droppedRows(lines: readonly ImportLine[]): number {
   return parseResultCard(lines).unreadableRows.length;
 }
 
+/**
+ * Rows a student could import AS READ: a DISTINCT subject code whose marks pass
+ * the internal + external = total invariant. This is the quality signal that
+ * reading-selection ranks on FIRST, so a second OCR pass can never win by:
+ *   - CORRUPTING a mark — a total that no longer adds up is not a sound row;
+ *   - DUPLICATING a row — the same code is counted once;
+ *   - manufacturing NOISE — a line without consistent marks does not count.
+ * Row COUNT alone would accept all three (a flagged-wrong row is still a parsed
+ * row). Marks are never invented here; an unsound row is still shown for review,
+ * it just does not get to outrank a reading whose marks were already right.
+ */
+function soundRows(lines: readonly ImportLine[]): number {
+  const codes = new Set<string>();
+  for (const row of parseResultCard(lines).rows) {
+    const unsound = row.warnings.some(
+      (warning) =>
+        warning.kind === 'total_mismatch' ||
+        warning.kind === 'non_numeric_mark' ||
+        warning.kind === 'ambiguous_marks',
+    );
+    if (!unsound) codes.add(row.subjectCode);
+  }
+  return codes.size;
+}
+
 /** The message shown when a page produced too little to be worth reviewing. */
 const UNREADABLE =
   'The text on this could not be made out. A sharper, straighter photo in better light may work — or enter this result by hand.';
@@ -247,10 +262,93 @@ function summarise(pages: readonly OcrPageResult[], pageCount: number): FileRead
  */
 export async function readImageFile(file: File, recognize: Recognize): Promise<FileReading> {
   const image = await decodeImage(file);
-  const page = await recognizeBothWays(image.canvas, 1, recognize);
-  if (!isWorthReviewing(page)) throw new OcrError(UNREADABLE);
+  let page = await recognizeBothWays(image.canvas, 1, recognize);
 
+  /*
+   * A SMALL, CRISP SCREENSHOT whose glyphs were too small to separate — words
+   * merging into one token, rows the parser could not read — gets ONE retry at a
+   * larger scale, and `betterReading` keeps whichever read more rows. A card
+   * already read well at native size wins on row count and is never replaced, so
+   * upscaling can only help: a 2.6x blow-up of an adequate card read one row and
+   * produced a wrong mark, and that reading loses here. Measured on .qa/real: a
+   * sem-1 screenshot went from 4 readable rows to 8, titles from 0 to 7.
+   * ponytail: the retry is a second full recognition — gated on the first pass
+   * being poor, so a clean card never pays for it; drop the gate only if a
+   * cheaper small-glyph signal proves reliable.
+   */
+  const longest = Math.max(image.sourceWidth, image.sourceHeight);
+  if (longest < UPSCALE_TO && (droppedRows(page.lines) > 0 || readableRows(page.lines) < 3)) {
+    const bigger = await decodeImage(file, { upscaleTo: UPSCALE_TO });
+    page = betterReading(page, await recognizeBothWays(bigger.canvas, 1, recognize));
+  }
+
+  /*
+   * A PAGE WHOSE PIXELS LIE ON THEIR SIDE (M2.2). `decodeImage` honours EXIF
+   * orientation, but a photo that is sideways IN ITS PIXELS — no tag, or a tag
+   * saying "upright" — reaches the engine on its side and reads as noise. Only a
+   * reading that failed (unreadable, or not recognised as a document and read
+   * with low confidence) pays for the check, so an upright page never does.
+   */
+  if (
+    !isWorthReviewing(page) ||
+    (classifyDocument(page.lines).type === 'unsupported' &&
+      (page.meanConfidence ?? 0) < SIDEWAYS_SUSPECT)
+  ) {
+    page = (await readTurned(file, page, recognize)) ?? page;
+  }
+
+  if (!isWorthReviewing(page)) throw new OcrError(UNREADABLE);
   return summarise([page], 1);
+}
+
+/** A failed reading below this mean confidence (0-100) may be a sideways page. */
+const SIDEWAYS_SUSPECT = 50;
+/** How much more confidently a turned page must read before it replaces the upright one. */
+const SIDEWAYS_MARGIN = 15;
+
+/**
+ * The page read at the quarter turn that makes it legible, or null if none does.
+ *
+ * One cheap pass per turn decides: a page the right way up reads with far more
+ * confidence than the same page on its side. Measured on 14 real timetable
+ * photos, the four sideways ones read at 57–65 turned and 31–37 as decoded,
+ * while every upright one read best as decoded. Turns are tried in the order
+ * phone photos are found sideways (90° anticlockwise first), stopping at the
+ * first clear winner, which then gets the full reading. A turn that does not
+ * beat the upright reading by `SIDEWAYS_MARGIN` is never used, so a page that is
+ * simply poor stays refused rather than being "rescued" by noise.
+ *
+ * The turns are drawn from a fresh decode; the canvas the caller read is not
+ * reused, because the contrast stretch has already been applied to it.
+ * ponytail: up to three extra probe passes on a failed reading; add Tesseract's
+ * orientation detection only if its model is ever shipped.
+ */
+async function readTurned(
+  file: File,
+  upright: OcrPageResult,
+  recognize: Recognize,
+): Promise<OcrPageResult | null> {
+  const floor = (upright.meanConfidence ?? 0) + SIDEWAYS_MARGIN;
+  const decoded = await decodeImage(file);
+  try {
+    for (const quarterTurns of [3, 1, 2] as const) {
+      const probe = turnCanvas(decoded.canvas, quarterTurns);
+      if (probe === null) return null;
+      normalizeContrast(probe);
+      const quick = await recognize(probe, 1);
+      probe.width = 0;
+      if (!isWorthReviewing(quick) || (quick.meanConfidence ?? 0) < floor) continue;
+
+      const turned = turnCanvas(decoded.canvas, quarterTurns);
+      if (turned === null) return null;
+      const full = await recognizeBothWays(turned, 1, recognize);
+      turned.width = 0;
+      return isWorthReviewing(full) ? full : null;
+    }
+    return null;
+  } finally {
+    decoded.canvas.width = 0;
+  }
 }
 
 /**
@@ -314,12 +412,40 @@ async function sparseIfGrid(
   recognize: Recognize,
   best: OcrPageResult,
 ): Promise<OcrPageResult> {
-  if (classifyDocument(best.lines).type !== 'college_timetable') return best;
+  /*
+   * The sparse pass fires when the default reading IS a timetable but a poor
+   * one — AND when the default reading is UNSUPPORTED. A dense ruled grid can
+   * defeat the default segmentation so thoroughly that the day/time signals
+   * never surface and the document fails even to classify (on a real college
+   * timetable the default pass read no grid at all). Gating sparse behind a
+   * successful timetable classification therefore never let that document reach
+   * the one reading that could recognise it. A result card classifies as
+   * `result` and returns here untouched, so it never pays for the sparse pass
+   * that is worse for it.
+   */
+  const bestType = classifyDocument(best.lines).type;
+  if (bestType !== 'college_timetable' && bestType !== 'unsupported') return best;
 
+  /*
+   * "POOR" MEANS NOT A WHOLE WEEK — the parser's own `looksComplete`, the same
+   * judgement that warns the student "only part of this timetable could be
+   * read". It used to mean EMPTY (no dictionary or no classes), so a reading
+   * that kept one or two classes of a nine-column grid counted as good and the
+   * sparse pass never ran. Measured on two real VTU college timetable scans:
+   * the default pass stored 2 and 3 entries, none of them correct; the sparse
+   * pass reads every day, eight time columns and seven of eight subject rows.
+   */
   const before = parseTimetable(best.placed.map((item) => ({ ...item, page })));
-  if (before.dictionary.length > 0 && before.classes.length > 0) return best;
+  if (bestType === 'college_timetable' && before.coverage.looksComplete) return best;
 
   const sparse = await recognize(canvas, page, { sparse: true });
+  /*
+   * The retry only wins if the sparse reading actually recognises a timetable.
+   * An unsupported photo whose default pass read nothing must not be promoted
+   * just because sparse mode found a few stray words — it has to classify AND
+   * yield a grid the student can use.
+   */
+  if (classifyDocument(sparse.lines).type !== 'college_timetable') return best;
   const after = parseTimetable(sparse.placed.map((item) => ({ ...item, page })));
 
   /*
@@ -335,20 +461,26 @@ async function sparseIfGrid(
 /**
  * Which of two readings of the same page to keep.
  *
- * MORE READABLE ROWS WINS, because that is what the student can actually
- * import. On a tie, fewer rows the parser saw and could not read; then more
- * words.
+ * MORE SOUND ROWS WINS — distinct subject codes whose marks add up — because
+ * that, not the raw row count, is what the student can trust. Ranking on row
+ * count alone let a second pass win by adding a row while corrupting a mark,
+ * duplicating a subject, or inventing noise: each still parses to a "row". Only
+ * when the sound-row count ties does more TOTAL rows break it (a flagged row the
+ * student can still fix beats nothing), then fewer rows the parser gave up on,
+ * then more words.
  *
- * Confidence is deliberately absent from this decision. On a real watermarked
- * card the stretched pass was the MORE confident of the two and its marks had
- * vanished — a page can be confidently sure of a heading while losing every
- * digit under a watermark.
+ * Confidence is deliberately absent. On a real watermarked card the stretched
+ * pass was the MORE confident of the two and its marks had vanished — exactly
+ * the reading the sound-row count now demotes, because a row with no marks is
+ * not a sound one.
  *
- * Ties go to `first`, which is the stretched pass: it is the one that helps the
- * dim phone screenshots, and preferring it keeps the choice stable when neither
- * reading is better.
+ * Ties go to `first`, the stretched pass that helps dim screenshots, keeping the
+ * choice stable when neither reading is better.
  */
 export function betterReading(first: OcrPageResult, second: OcrPageResult): OcrPageResult {
+  const sound = [soundRows(first.lines), soundRows(second.lines)];
+  if (sound[0] !== sound[1]) return (sound[1] as number) > (sound[0] as number) ? second : first;
+
   const rows = [readableRows(first.lines), readableRows(second.lines)];
   if (rows[0] !== rows[1]) return (rows[1] as number) > (rows[0] as number) ? second : first;
 

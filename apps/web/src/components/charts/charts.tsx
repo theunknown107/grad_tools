@@ -55,8 +55,8 @@ export function ChartTip({
   const shown = payload.filter((entry) => entry.value !== null && entry.value !== undefined);
   if (shown.length === 0) return null;
   return (
-    <div className="rounded-lg border border-line bg-raised px-3 py-2 shadow-e2">
-      <div className="mb-1 font-mono text-[11px] text-ink-3">{label}</div>
+    <div className="gt-panel rounded-lg border border-line px-3 py-2">
+      <div className="mb-1 font-mono text-[12px] text-ink-3">{label}</div>
       {shown.map((entry) => {
         const key = String(entry.dataKey ?? entry.name ?? '');
         return (

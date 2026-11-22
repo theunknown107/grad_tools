@@ -63,6 +63,7 @@ vi.mock('../src/lib/pdf-text.js', () => ({
 
 vi.mock('../src/lib/ocr.js', () => ({
   OcrError,
+  UPSCALE_TO: 3000,
   decodeImage: vi.fn(() =>
     Promise.resolve({
       canvas: fakeCanvas(),
@@ -73,6 +74,7 @@ vi.mock('../src/lib/ocr.js', () => ({
     }),
   ),
   normalizeContrast: vi.fn(),
+  turnCanvas: vi.fn(() => fakeCanvas()),
 }));
 
 const { betterReading, fileKind, readHtmlFile, readImageFile, readPdfFile, MAX_OCR_PAGES } =
@@ -123,15 +125,15 @@ describe('choosing a reader', () => {
      */
     expect(fileKind(new File([''], 'card.JPEG', { type: '' }))).toBe('image');
     expect(fileKind(new File([''], 'card.pdf', { type: '' }))).toBe('pdf');
-    expect(fileKind(new File([''], 'notes.txt', { type: '' }))).toBe('text');
     expect(fileKind(new File([''], 'marks.docx', { type: '' }))).toBe('office');
     expect(fileKind(new File([''], 'sheet.xlsx', { type: '' }))).toBe('office');
-    expect(fileKind(new File([''], 'export.csv', { type: '' }))).toBe('text');
-    expect(fileKind(new File([''], 'Result.HTM', { type: '' }))).toBe('html');
   });
 
-  it('reads a saved web page as HTML', () => {
-    expect(fileKind(new File([''], 'result.html', { type: 'text/html' }))).toBe('html');
+  it('refuses everything outside images, PDF, DOCX and XLSX as an invalid format', () => {
+    for (const name of ['notes.txt', 'export.csv', 'Result.HTM', 'deck.pptx', 'old.xls']) {
+      expect(fileKind(new File([''], name, { type: '' }))).toBe('unsupported');
+    }
+    expect(fileKind(new File([''], 'result.html', { type: 'text/html' }))).toBe('unsupported');
   });
 
   it('refuses anything else rather than guessing', () => {
@@ -240,6 +242,35 @@ describe('a photograph', () => {
       readImageFile(new File([''], 'wall.jpg', { type: 'image/jpeg' }), recognize),
     ).rejects.toThrow(/could not be made/i);
   });
+
+  it('retries a small image upscaled and keeps the reading that recovered more rows', async () => {
+    /*
+     * A small screenshot can read few rows at native size and more when
+     * enlarged — on a real sem-1 card, 4 rows became 8. The retry keeps whichever
+     * recovered more; a worse upscaled reading (the 2.6x case that lost rows and
+     * produced a wrong mark) loses here, so the retry can only help.
+     */
+    const poor = page(['Semester : 4', 'BQAS401  ALGORITHMS  46  34  80  P'], { words: 30 });
+    const good = page(
+      [
+        'Semester : 4',
+        'BQAS401  ALGORITHMS  46  34  80  P',
+        'BQAS402  OPERATING SYSTEMS  40  18  58  P',
+        'BQAS403  DATA STRUCTURES  39  27  66  P',
+      ],
+      { words: 60 },
+    );
+    let call = 0;
+    const recognize = vi.fn(() => Promise.resolve([poor, good][call++] as OcrPageResult));
+
+    const reading = await readImageFile(
+      new File([''], 'small.jpg', { type: 'image/jpeg' }),
+      recognize,
+    );
+
+    expect(reading.lines.map((l) => l.text)).toEqual(good.lines.map((l) => l.text));
+    expect(recognize).toHaveBeenCalledTimes(2); // native pass + upscaled retry
+  });
 });
 
 describe('the confidence summary', () => {
@@ -325,6 +356,31 @@ describe('choosing between two readings of the same page', () => {
     const first = reading([ROW('BQAS401')], 50, 90);
     const second = reading([ROW('BQAS401')], 50, 99);
     expect(betterReading(first, second)).toBe(first);
+  });
+
+  it('does NOT prefer a reading that has more rows but broke their marks', () => {
+    // The retry-safety invariant: a second pass cannot win by adding rows whose
+    // totals do not add up. Here the "more rows" reading has one sound row; the
+    // other has two. A row that fails the marks check is still shown for review,
+    // it just does not get to outrank a reading whose marks were already right.
+    const sound = reading([ROW('BQAS401'), ROW('BQAS402')], 60, 90); // 2 sound
+    const more = reading(
+      [
+        'BQAS401 SUBJECT 46 34 80 P 2026-07-23',
+        'BQAS402 SUBJECT 46 34 99 P',
+        'BQAS403 SUBJECT 10 10 99 P',
+      ],
+      60,
+      90,
+    ); // 1 sound (401), two totals that do not add up
+    expect(betterReading(sound, more)).toBe(sound);
+    expect(betterReading(more, sound)).toBe(sound);
+  });
+
+  it('counts a duplicated subject once, so duplicate rows cannot win', () => {
+    const two = reading([ROW('BQAS401'), ROW('BQAS402')], 60, 90); // 2 distinct sound
+    const dupes = reading([ROW('BQAS401'), ROW('BQAS401'), ROW('BQAS401')], 60, 90); // 1 distinct
+    expect(betterReading(dupes, two)).toBe(two);
   });
 });
 
