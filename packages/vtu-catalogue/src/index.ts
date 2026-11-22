@@ -9,9 +9,29 @@
 export type { PositionedText } from './positioned-text.js';
 export { codeScheme } from './code-scheme.js';
 export {
+  departmentColumn,
+  nextTableCodeX,
   parseScheme,
   schemePages,
+  selectReading,
+} from './scheme-import.js';
+export {
+  PUBLICATION_SCOPE_2022,
+  CATALOGUE_EXCLUSIONS_2022,
+  inScope,
+  exclusionFor,
+  mergeCatalogue,
+  type PublicationScope,
+  type CatalogueExclusion,
+  type PublicationIdentity,
+  type MergeAction,
+  type MergeDecision,
+  type MergeRow,
+  type MergeResult,
+} from './publication.js';
+export {
   semesterTotalsOf,
+  suspectTitle,
   supersedingPairIn,
   type SupersedingCode,
   type ParsedScheme,

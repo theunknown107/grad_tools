@@ -764,11 +764,22 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
       /*
        * The name beside the code, read before any refusal so that a row the
        * elective pass later recovers keeps the title the document gave it.
-       * Deliberately loose: an option list has no columns to bound it.
+       * Loose by design — an option list has few columns to bound it — but it
+       * still must not cross the divider into the next option sub-table on the
+       * same baseline (the first-year ESC/ETC two-table layout), or the elective
+       * pass inherits a title fused from two courses. See nextTableCodeX.
        */
+      /*
+       * …and the teaching-department column bounds it just as it bounds the
+       * table title: the first-year ASC rows print a bare dept abbreviation
+       * ("Maths", "PHY") with no label, which this otherwise-loose title would
+       * otherwise swallow ("Mathematics-I for CSE Stream Maths").
+       */
+      const nearbyRight = Math.min(departmentX, nextTableCodeX(pageItems, item, band));
       const nearbyTitle = row
         .filter(
           (cell) =>
+            cell.x < nearbyRight &&
             !isDepartmentText(cell.text.trim()) &&
             !WHOLE_NUMBER.test(cell.text.trim()) &&
             !COURSE_CODE.test(cell.text.trim()),
@@ -861,13 +872,22 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
         nextCodeY + band,
       );
 
+      /*
+       * …and never across the divider into the next option sub-table on this
+       * baseline (the first-year ESC/ETC two-table layout). See nextTableCodeX.
+       */
+      const rightEdge = Math.min(
+        departmentX,
+        numbers[0]?.x ?? Number.POSITIVE_INFINITY,
+        nextTableCodeX(pageItems, item, band),
+      );
       const title = pageItems
         .filter(
           (cell) =>
             cell.y <= item.y + band &&
             cell.y >= titleFloor &&
             cell.x > item.x &&
-            cell.x < Math.min(departmentX, numbers[0]?.x ?? Number.POSITIVE_INFINITY) &&
+            cell.x < rightEdge &&
             !isDepartmentText(cell.text.trim()) &&
             !WHOLE_NUMBER.test(cell.text.trim()) &&
             !COURSE_CODE.test(cell.text.trim()),
@@ -1024,9 +1044,19 @@ export function parseScheme(pages: readonly SchemePage[]): ParsedScheme {
         const code = option.text.trim();
         if (courses.some((c) => c.code === code && c.semester === semester)) continue;
         if (alternatives.some((c) => c.code === code && c.semester === semester)) continue;
+        const optionTitle = titleBeside(pageItems, option, band, departmentColumn(pageItems));
+        /*
+         * A reading whose title came back empty — the column edges on a legend
+         * or footnote copy of the table can leave nothing between the code and
+         * the ceiling — is not a course this pass can name. Skip it; another
+         * document reads the same option with a title, and the selection keeps
+         * that one. Emitting an empty title would fail the catalogue's own
+         * not-empty constraint and, worse, publish a nameless course.
+         */
+        if (optionTitle === '') continue;
         alternatives.push({
           code,
-          title: titleBeside(pageItems, option, band, departmentColumn(pageItems)),
+          title: optionTitle,
           credits,
           semester,
           page,
@@ -1188,20 +1218,75 @@ function headingMatch(items: readonly PositionedText[], pattern: RegExp): string
 }
 
 /**
+ * The column header names itself: "Teaching Department", "Department (TD)".
+ * This is the ONE cell the colon rule deliberately refuses as a *value*, but as
+ * a column *edge* it is the ground truth — it sits a hair left of the labelled
+ * value cells (header x381 vs `TD:`-label x396 on the IoT PE page), and a row
+ * that carries a bare staff descriptor instead of a `TD:` label ("Physical
+ * Education Director", "Yoga Teacher") parks that text in exactly that gap. With
+ * only the labels to go by, the gap stayed below the ceiling and the staff name
+ * was assembled into the title; the header closes it. A course title never
+ * reads "… Department (TD) …", so this cannot clip one.
+ */
+const DEPARTMENT_HEADER = /teaching\s+department|\bdepartment\b.*\b(?:td|psb)\b/i;
+/*
+ * The first-year ASC pages head the teaching column with the bare token
+ * "TD/PSB" — no "department" word — and fill it with bare abbreviations
+ * ("Maths", "PHY", "CSE") that carry no `TD:` label. The bare header is still
+ * the column, so it anchors the edge; it is used only to LOCATE the column,
+ * never read as a value, so the 2025 split-colon hazard does not apply.
+ */
+const DEPARTMENT_COLUMN_HEADER = /^TD\s*\/\s*PSB$/i;
+/*
+ * ponytail: a column snaps together within this many x-units of an anchor's
+ * left edge — about one character column. Upgrade to proper x-clustering if a
+ * scheme ever prints the teaching column wider than this.
+ */
+const COLUMN_SNAP = 36;
+
+/**
  * The left edge of the teaching-department column on one page.
  *
- * Taken from the cells that label themselves — `TD:CB`, `PSB: Maths` — because
- * they sit in the same column as the ones that do not, and there are always
- * several. With none, there is no ceiling to impose and the numeric columns
+ * Taken from the cells that label themselves — `TD:CB`, `PSB: Maths` — and from
+ * the column's own header. A header can sit a little LEFT of its values (the PE
+ * page) or a little RIGHT of them (the first-year "TD/PSB" over "Maths"), so the
+ * edge is snapped to the column's actual content: a cell whose own left edge is
+ * within a character-column of an anchor's belongs to the column, and the
+ * leftmost of those is where the title has to stop. Numbers and codes are never
+ * the column. With no anchor at all there is no ceiling and the numeric columns
  * bound the title instead.
+ *
+ * A PAGE'S LEGEND IS NOT ITS TABLE. The foot of a scheme page defines its own
+ * abbreviations — "TD/PSB - Teaching Department / Paper Setting Board," — in the
+ * left margin, and those cells match the header patterns and sit among the
+ * legend's other short tokens. Taken as the column they drag the edge back into
+ * the title, clipping every title on that page to nothing. The teaching column
+ * is always RIGHT of the course-code column, so an edge that lands at or left of
+ * where the codes end is the legend talking, not the table: there is no reliable
+ * ceiling then, and the numeric columns bound the title instead.
  */
-function departmentColumn(pageItems: readonly PositionedText[]): number {
-  const labelled = pageItems.filter(
-    (item) => DEPARTMENT_CELL.test(item.text.trim()) || completesADepartmentCell(item, pageItems),
+export function departmentColumn(pageItems: readonly PositionedText[]): number {
+  const anchors = pageItems.filter(
+    (item) =>
+      DEPARTMENT_CELL.test(item.text.trim()) ||
+      completesADepartmentCell(item, pageItems) ||
+      DEPARTMENT_HEADER.test(item.text.trim()) ||
+      DEPARTMENT_COLUMN_HEADER.test(item.text.trim()),
   );
-  return labelled.length === 0
-    ? Number.POSITIVE_INFINITY
-    : Math.min(...labelled.map((item) => item.x));
+  if (anchors.length === 0) return Number.POSITIVE_INFINITY;
+  const inColumn = pageItems.filter((cell) => {
+    const text = cell.text.trim();
+    if (WHOLE_NUMBER.test(text) || COURSE_CODE.test(text)) return false;
+    return anchors.some((anchor) => Math.abs(cell.x - anchor.x) <= COLUMN_SNAP);
+  });
+  const edge = Math.min(...anchors.map((a) => a.x), ...inColumn.map((c) => c.x));
+  const codeColumnRight = Math.max(
+    0,
+    ...pageItems
+      .filter((cell) => COURSE_CODE.test(cell.text.trim()))
+      .map((cell) => cell.x + cell.width),
+  );
+  return edge <= codeColumnRight ? Number.POSITIVE_INFINITY : edge;
 }
 
 /**
@@ -1264,18 +1349,69 @@ export function schemePages(
  * Shared by the main pass and the alternative pass so a course recovered from
  * an OR group is named the same way as any other.
  */
+/**
+ * The x at which the next option sub-table begins on this baseline, or +Infinity.
+ *
+ * The first-year Engineering-Science / ETC tables print TWO option sub-tables
+ * side by side on one row:
+ *
+ *   BESCK104A  Introduction to Civil Engineering  3 0 0 │ BETCK105A  Smart Materials and Systems  3 0 0
+ *
+ * With no teaching-department column to cap it (departmentX is +Infinity here),
+ * the left title ran through the divider and came back as "Introduction to Civil
+ * Engineering Smart Materials and Systems" — two real courses fused into one.
+ * The divider is the next course CODE on this same baseline.
+ *
+ * But a code to the right is NOT always a divider: an alternative is printed as
+ * adjacent codes that SHARE one title after them — "BMEL305 BME305 Introduction
+ * to Modelling and Design …" — and clipping there would leave the title empty.
+ * The two are told apart by what lies between: a second sub-table has its own
+ * title text between this code and the next, an alternative has nothing. So a
+ * code only divides the title when title text sits between the two.
+ *
+ * A normal single-table row has no code to its right at all, so this changes
+ * nothing there; a wrapped continuation line carries no code, so multi-line
+ * titles are untouched.
+ */
+export function nextTableCodeX(
+  pageItems: readonly PositionedText[],
+  code: PositionedText,
+  band: number,
+): number {
+  const titleBetween = (left: number, right: number): boolean =>
+    pageItems.some(
+      (t) =>
+        Math.abs(t.y - code.y) <= band &&
+        t.x > left &&
+        t.x < right &&
+        !COURSE_CODE.test(t.text.trim()) &&
+        !WHOLE_NUMBER.test(t.text.trim()) &&
+        !isDepartmentText(t.text.trim()) &&
+        !ALTERNATIVE_MARKER.test(t.text.trim()) &&
+        t.text.trim() !== '',
+    );
+  let edge = Number.POSITIVE_INFINITY;
+  for (const cell of pageItems) {
+    if (Math.abs(cell.y - code.y) > band || cell.x <= code.x) continue;
+    if (!COURSE_CODE.test(cell.text.trim())) continue;
+    if (cell.x < edge && titleBetween(code.x, cell.x)) edge = cell.x;
+  }
+  return edge;
+}
+
 function titleBeside(
   pageItems: readonly PositionedText[],
   code: PositionedText,
   band: number,
   departmentX: number,
 ): string {
+  const rightEdge = Math.min(departmentX, nextTableCodeX(pageItems, code, band));
   return pageItems
     .filter(
       (cell) =>
         Math.abs(cell.y - code.y) <= band &&
         cell.x > code.x &&
-        cell.x < departmentX &&
+        cell.x < rightEdge &&
         !isDepartmentText(cell.text.trim()) &&
         !WHOLE_NUMBER.test(cell.text.trim()) &&
         !COURSE_CODE.test(cell.text.trim()) &&
@@ -1286,6 +1422,110 @@ function titleBeside(
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Why a stored title reads as an extraction defect rather than a course name,
+ * or null when it reads cleanly.
+ *
+ * The geometry reader puts the right text in the title column for the layouts
+ * it can resolve, but some multi-column pages interleave the teaching column
+ * with the title beyond what column edges can separate ("Computer-Aided
+ * Engineering ME Dept Drawing", "Civil/Mech … Engg dept"). This is the check
+ * that keeps such a reading from being published as a subject's name: a title
+ * that trips it is SUSPECT, not automatically wrong, and the caller decides
+ * what a suspect title may do (a gate refuses to publish it; a selection
+ * prefers a clean reading of the same code over it).
+ *
+ * Two deterministic signals, each checked against the whole 2022 dataset to
+ * fire only on defects — 57 distinct titles flagged, every one a genuine leak
+ * or duplicate, nothing clean caught:
+ *
+ *  - a teaching-department or staff word a course title never carries, left in
+ *    from the column beside it: a bare word ("… Director", "… Dept"), the run
+ *    together form the extractor sometimes emits ("… EnggDept"), or the
+ *    applicability phrase the column prints ("Any Department", "ANY BRANCH …",
+ *    "Respective Engg …");
+ *  - the SAME word printed twice in a row ("Silk Silk", "Robotics Robotics"),
+ *    the signature of a duplicated cell. A word that recurs further along is
+ *    NOT this — "…(Project-Based Learning) / Societal Project" is a real title —
+ *    so only immediate adjacency counts.
+ *
+ * It does NOT catch a title fused with a WHOLE other course name from an
+ * adjacent option table ("Introduction to Civil Engineering Smart Materials and
+ * Systems"): both halves are real course names, so no word-level signal tells
+ * them apart. That defect is handled by excluding the affected records, not by
+ * this check.
+ */
+const TITLE_HAS_DEPARTMENT_TEXT =
+  /\b(?:director|teacher|coordinator|instructor|dept|department)\b|engg?\s*dept|\b(?:any|respective|concerned)\s+(?:branch|dept|department|engg)\b/i;
+const TITLE_HAS_ADJACENT_DUPLICATE = /\b([A-Za-z]{4,})\s+\1\b/i;
+/*
+ * A whole phrase printed twice in a row — "Physical Education Physical
+ * Education …" — is a duplicated cell just as a single repeated word is, but
+ * the repeat is every-other-word, so the single-word rule above misses it. A
+ * real title does not say the same two-or-more-word phrase twice back to back.
+ */
+const TITLE_HAS_REPEATED_PHRASE = /\b([A-Za-z]+(?:\s+[A-Za-z]+)+)\s+\1\b/i;
+
+export function suspectTitle(title: string): string | null {
+  const text = title.trim();
+  /*
+   * A course code standing in for a title — "BESCK104x" — is what the elective
+   * pass falls back to when it could read no name for a slot. It carries no
+   * teaching-department word and repeats nothing, so the rules below pass it;
+   * but a code is never a subject's name, and letting it through publishes a
+   * nameless course.
+   */
+  if (text === '' || COURSE_CODE.test(text)) return 'a course code where a title should be';
+  if (TITLE_HAS_DEPARTMENT_TEXT.test(text)) return 'teaching-department or staff text in the title';
+  if (TITLE_HAS_ADJACENT_DUPLICATE.test(text)) return 'a word repeated immediately';
+  if (TITLE_HAS_REPEATED_PHRASE.test(text)) return 'a phrase repeated immediately';
+  return null;
+}
+
+/**
+ * Of all the readings of one course, the single record to publish.
+ *
+ * A code appears in many documents and each is read on its own; the emitter
+ * keeps ONE per identity. Keeping whichever arrived first made the published
+ * title depend on document order, so a corrupted reading could win over a clean
+ * one read a page later — which is how a leaked column reached the shipped
+ * catalogue. The choice is made on the readings themselves, by CONSENSUS, which
+ * is what tells a real title from a one-off extraction artifact:
+ *
+ *  1. a clean title (`suspectTitle` is null) beats a suspect one;
+ *  2. then the title the MOST documents agree on wins — "Environmental Studies"
+ *     read in fifteen documents over "Environ/Che/Biotech.PSB: Environmental
+ *     Studies" read in one, or "Social Connect and Responsibility" (35) over a
+ *     lone "Social Connect and Ability Enhancement". A trailing teaching-column
+ *     word the signal does not catch ("… Drawing Mechanical") is a one-off and
+ *     loses to the reading everyone else prints;
+ *  3. then the fuller title, and finally the text itself — so the result never
+ *     depends on the order the readings were seen.
+ *
+ * Where consensus cannot settle it (every reading distinct, two clean readings
+ * tied), the record is a candidate for an explicit exclusion rather than a
+ * guess (§6). `suspectTitle` is deliberately conservative, so this cannot by
+ * itself keep every leak out; the publication gate and exclusions do that.
+ */
+export function selectReading<T extends { readonly title: string }>(records: readonly T[]): T {
+  const frequency = new Map<string, number>();
+  for (const record of records)
+    frequency.set(record.title, (frequency.get(record.title) ?? 0) + 1);
+  const rankOf = (record: T): readonly [number, number, number] => [
+    suspectTitle(record.title) === null ? 1 : 0,
+    frequency.get(record.title) ?? 0,
+    record.title.length,
+  ];
+  return records.reduce((best, record) => {
+    const a = rankOf(best);
+    const b = rankOf(record);
+    for (let i = 0; i < a.length; i += 1) {
+      if (a[i] !== b[i]) return (a[i] ?? 0) > (b[i] ?? 0) ? best : record;
+    }
+    return best.title <= record.title ? best : record;
+  });
 }
 
 /* -------------------------------------------------------------------------- */
