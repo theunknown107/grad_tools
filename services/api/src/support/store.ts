@@ -11,6 +11,7 @@
  * error into two.
  */
 
+import { createHash } from 'node:crypto';
 import type { Logger } from 'pino';
 import type {
   AppErrorCode,
@@ -163,6 +164,11 @@ export async function createReport(sql: Sql, input: ReportInput): Promise<Suppor
  * incident only, and the caller gets back just the Incident ID. The write is a
  * hard insert (not best-effort), so a database outage surfaces as a normal
  * error rather than a fabricated id.
+ *
+ * The same words sent again within ten minutes return the first Incident ID
+ * instead of a new row: the person still gets their id, and a retry or a replay
+ * does not read as many separate problems. A report with no description has
+ * nothing to compare, so it is always kept.
  */
 export async function createAnonymousReport(
   sql: Sql,
@@ -172,6 +178,24 @@ export async function createAnonymousReport(
     readonly context?: SupportContext | undefined;
   },
 ): Promise<string> {
+  const description = input.description ?? '';
+  const fingerprint =
+    description === ''
+      ? null
+      : createHash('sha256').update(`${input.category}\n${description}`).digest('hex').slice(0, 32);
+  if (fingerprint !== null) {
+    const [existing] = await sql<{ incident_id: string }[]>`
+      SELECT incident_id FROM support_events
+      WHERE event_type = 'USER_REPORT'
+        AND auth_user_id IS NULL
+        AND metadata_safe ->> 'fingerprint' = ${fingerprint}
+        AND occurred_at >= now() - interval '10 minutes'
+      ORDER BY occurred_at DESC
+      LIMIT 1
+    `;
+    if (existing !== undefined) return existing.incident_id;
+  }
+
   const incidentId = newIncidentId();
   const context = input.context;
   await recordEvent(sql, {
@@ -188,13 +212,31 @@ export async function createAnonymousReport(
     metadata: {
       category: input.category,
       anonymous: true,
-      ...(input.description !== undefined && input.description !== ''
-        ? { description: input.description }
-        : {}),
+      ...(fingerprint === null ? {} : { description, fingerprint }),
       ...safeMetadata(context),
     },
   });
   return incidentId;
+}
+
+/**
+ * What survives an account: nothing. Deletion carries no retention exception.
+ *
+ * Reports go, and so do events. An event with its owner removed is still a
+ * timestamp, a route, a request id and a device context, which can be matched to a
+ * person from logs or their own memory, so it would be anonymized in name only.
+ * The operator totals are live counts over these rows, not stored aggregates, and
+ * they simply drop. Idempotent, so a retry after a failure is safe.
+ */
+export async function forgetSupportSubject(sql: Sql, subject: string): Promise<void> {
+  await sql`DELETE FROM support_reports WHERE auth_user_id = ${subject}`;
+  await sql`DELETE FROM support_events WHERE auth_user_id = ${subject}`;
+}
+
+/** The 90-day retention migration 0020 promises. Safe to run at any time. */
+export async function purgeExpiredSupport(sql: Sql): Promise<void> {
+  await sql`DELETE FROM support_events WHERE occurred_at < now() - interval '90 days'`;
+  await sql`DELETE FROM support_reports WHERE created_at < now() - interval '90 days'`;
 }
 
 /** The full safe context stored on a report row (columns + allowlisted bag). */

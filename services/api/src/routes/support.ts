@@ -22,6 +22,7 @@ import {
 } from '@gradtools/shared-types';
 import type { Sql } from '../db/client.js';
 import { requireOperator } from '../auth/operator.js';
+import { clientAddress } from '../http/rate-limit.js';
 import { requireSession, sessionOf, type SessionSource } from '../auth/session.js';
 import { notFound } from '../http/errors.js';
 import { supportIdFor } from '../support/id.js';
@@ -80,8 +81,9 @@ export function createSupportRouter(deps: SupportRouterDeps): Router {
  * or out — just an Incident ID back. The body is the SAME strict schema as the
  * authenticated report (category + short description + allowlisted context), so
  * unknown or sensitive fields are rejected, not stored. It never reveals whether
- * any account exists. Rate limiting is the shared `/api/v1` limiter applied in
- * `createApp`, so this needs none of its own.
+ * any account exists. `createApp` applies the shared `/api/v1` limiter, a far
+ * stricter one for this route, and the 16 kB body limit, all before the global
+ * parser, so none of them can be declared here.
  */
 export function createPublicSupportRouter(sql: Sql): Router {
   const router = Router();
@@ -91,7 +93,6 @@ export function createPublicSupportRouter(sql: Sql): Router {
       res.setHeader('Cache-Control', 'no-store');
       next();
     },
-    express.json({ limit: '16kb' }),
     async (req: Request, res: Response) => {
       const input = supportReportInputSchema.parse(req.body);
       const incidentId = await createAnonymousReport(sql, {
@@ -113,6 +114,22 @@ export function createOperatorSupportRouter(sql: Sql, operatorToken: string): Ro
   router.use('/api/v1/operator', (_req, res, next) => {
     res.setHeader('Cache-Control', 'private, no-store');
     next();
+  });
+
+  /*
+   * What this request looks like from inside the proxy chain: the observation a
+   * deployment needs before choosing `trust proxy` or CLIENT_IP_HEADER. Operator
+   * only, and it shows the operator nothing but their own request.
+   */
+  router.get(OPERATOR_SUPPORT_ROUTES.clientAddress, gate, (req: Request, res: Response) => {
+    res.json({
+      socket: req.socket.remoteAddress ?? null,
+      reqIp: req.ip ?? null,
+      limiterAddress: clientAddress(req) ?? null,
+      forwardedFor: req.get('x-forwarded-for') ?? null,
+      cfConnectingIp: req.get('cf-connecting-ip') ?? null,
+      instance: process.env.RENDER_INSTANCE_ID ?? null,
+    });
   });
 
   router.get(OPERATOR_SUPPORT_ROUTES.overview, gate, async (_req: Request, res: Response) => {

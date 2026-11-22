@@ -35,9 +35,17 @@ import postgres from 'postgres';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
   COURSE_ALIASES,
+  CATALOGUE_EXCLUSIONS_2022,
+  PUBLICATION_SCOPE_2022,
   cycleGroupOf,
+  exclusionFor,
+  inScope,
+  mergeCatalogue,
+  type PublicationIdentity,
   optionGroupsOf,
   parseScheme,
+  selectReading,
+  suspectTitle,
   resolveFirstYearForStream,
   streamForProgramme,
   streamMembershipOf,
@@ -1214,7 +1222,7 @@ async function main(): Promise<void> {
    * science that differs between them landed in a single semester-I namespace
    * that demanded both.
    */
-  const seen = new Map<string, CatalogueCourse>();
+  const byIdentity = new Map<string, CatalogueCourse[]>();
   for (const course of courses) {
     const key = courseKey(
       course.schemeYear,
@@ -1223,9 +1231,151 @@ async function main(): Promise<void> {
       course.code,
       course.streamId ?? null,
     );
-    if (!seen.has(key)) seen.set(key, course);
+    const group = byIdentity.get(key);
+    if (group === undefined) byIdentity.set(key, [course]);
+    else group.push(course);
   }
+  const seen = new Map<string, CatalogueCourse>();
+  for (const [key, group] of byIdentity) seen.set(key, selectReading(group));
   report.normalized_courses = seen.size;
+
+  /* ---- 5a. A reviewable publication candidate (never the canonical file) --- */
+  /*
+   * `--candidate <path>` writes a STAGED catalogue for review (§6): the records
+   * inside the publication scope, minus the explicit exclusions, with the title
+   * chosen by consensus. It is not the shipped file and is not promoted here —
+   * it is the thing to inspect before anything replaces the baseline. It refuses
+   * to write if any SELECTED title is still suspect, so a known corruption
+   * cannot reach even the candidate unnoticed. The whole-database gate below is
+   * untouched; this does not publish.
+   */
+  const candidatePath = flag('candidate');
+  const baselinePath = flag('baseline');
+  if (candidatePath !== null && !dryRun) {
+    const idOf = (c: CatalogueCourse): PublicationIdentity => ({
+      schemeYear: c.schemeYear,
+      code: c.code,
+      programme: c.programme ?? null,
+      streamId: c.streamId ?? null,
+      semester: c.semester,
+    });
+    const isClean = (title: string): boolean => suspectTitle(title) === null;
+    const scoped = [...seen.values()].filter((c) => inScope(idOf(c), PUBLICATION_SCOPE_2022));
+
+    const assemble = (
+      courses: readonly CatalogueCourse[],
+      docsOverride?: Catalogue['documents'],
+    ): Catalogue => {
+      /* The artifact carries only the documents its own courses cite (§9), or
+       * an explicit set a caller supplies (the merge keeps the baseline's
+       * syllabus provenance, which no course row cites). */
+      const cited = new Set(courses.map((c) => c.provenance.documentSha256));
+      return {
+      normalizationVersion: NORMALIZATION_VERSION,
+      generatedAt: now,
+      courses: [...courses].sort(
+        (a, b) =>
+          a.schemeYear.localeCompare(b.schemeYear) ||
+          (a.programme ?? '').localeCompare(b.programme ?? '') ||
+          a.semester - b.semester ||
+          a.code.localeCompare(b.code),
+      ),
+      conflicts: disagreements.map((d) => ({
+        schemeYear: d.schemeYear,
+        programme: d.programmeName,
+        semester: d.semester,
+        code: d.code,
+        field: 'credits' as const,
+        readings: [
+          { value: String(d.a.credits), documentSha256: d.a.sha256 },
+          { value: String(d.b.credits), documentSha256: d.b.sha256 },
+        ],
+      })),
+      aliases: COURSE_ALIASES.filter((alias) => wantYear === null || alias.schemeYear === wantYear).map(
+        (alias) => ({
+          schemeYear: alias.schemeYear,
+          variant: alias.variant,
+          canonical: alias.canonical,
+          title: alias.title,
+          evidence: alias.evidence,
+        }),
+      ),
+      documents: docsOverride ?? documents.filter((d) => cited.has(d.sha256)),
+      };
+    };
+
+    if (baselinePath !== null) {
+      /* ---- The baseline-and-candidate merge (§4) ---------------------- */
+      const baseline = JSON.parse(await readFile(resolve(baselinePath), 'utf8')) as Catalogue;
+      const { merged, decisions, blockers } = mergeCatalogue(
+        baseline.courses,
+        scoped,
+        CATALOGUE_EXCLUSIONS_2022,
+        isClean,
+      );
+      const tally = (action: string): number => decisions.filter((d) => d.action === action).length;
+      console.log('\n  merge (baseline + candidate)');
+      console.log(`    baseline        ${String(baseline.courses.length)}`);
+      console.log(`    kept baseline   ${String(tally('keep-baseline'))}`);
+      console.log(`    replaced        ${String(tally('replace-with-candidate'))}`);
+      console.log(`    added           ${String(tally('add-candidate'))}`);
+      console.log(`    excluded        ${String(tally('drop-excluded'))}`);
+      console.log(`    dropped (dirty) ${String(tally('drop-candidate'))}`);
+      console.log(`    merged rows     ${String(merged.length)}`);
+      const reportPath = resolve(dirname(resolve(candidatePath)), 'merge-report.json');
+      await mkdir(dirname(reportPath), { recursive: true });
+      await writeFile(reportPath, JSON.stringify(decisions, null, 1), 'utf8');
+      console.log(`    merge report    ${reportPath}`);
+
+      const stillSuspect = merged.filter((c) => !isClean(c.title));
+      if (blockers.length > 0 || stillSuspect.length > 0) {
+        console.error(
+          `\n  REFUSING MERGE — ${String(blockers.length)} unresolved identit(y/ies), ${String(stillSuspect.length)} suspect title(s) in the merged set:`,
+        );
+        for (const d of blockers.slice(0, 15))
+          console.error(`      ${d.key}: ${d.reason} (baseline "${d.baselineTitle ?? ''}", candidate "${d.candidateTitle ?? ''}")`);
+        for (const c of stillSuspect.slice(0, 15))
+          console.error(`      ${c.code}: "${c.title}"`);
+        report.emit = 'merge-refused';
+        process.exitCode = 1;
+      } else {
+        /*
+         * Keep the baseline's document provenance (its scheme AND syllabus
+         * entries), and add any source document a merged course newly cites.
+         */
+        const baseShas = new Set(baseline.documents.map((d) => d.sha256));
+        const mergedCited = new Set(merged.map((c) => c.provenance.documentSha256));
+        const mergedDocs = [
+          ...baseline.documents,
+          ...documents.filter((d) => mergedCited.has(d.sha256) && !baseShas.has(d.sha256)),
+        ];
+        const path = resolve(candidatePath);
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, JSON.stringify(assemble(merged, mergedDocs), null, 2), 'utf8');
+        console.log(`    merged file     ${path}`);
+      }
+    } else {
+      /* ---- The candidate alone, no merge ------------------------------ */
+      const excluded = scoped.filter((c) => exclusionFor(idOf(c), CATALOGUE_EXCLUSIONS_2022) !== null);
+      const chosen = scoped.filter((c) => exclusionFor(idOf(c), CATALOGUE_EXCLUSIONS_2022) === null);
+      const suspect = chosen.filter((c) => !isClean(c.title));
+      console.log('\n  candidate');
+      console.log(`    in scope        ${String(scoped.length)}`);
+      console.log(`    excluded        ${String(excluded.length)}`);
+      console.log(`    candidate rows  ${String(chosen.length)}`);
+      if (suspect.length > 0) {
+        console.error(`\n  REFUSING CANDIDATE — ${String(suspect.length)} selected title(s) still suspect:`);
+        for (const c of suspect.slice(0, 15)) console.error(`      ${c.code}: "${c.title}"`);
+        report.emit = 'candidate-refused';
+        process.exitCode = 1;
+      } else {
+        const path = resolve(candidatePath);
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, JSON.stringify(assemble(chosen), null, 2), 'utf8');
+        console.log(`    candidate file  ${path}`);
+      }
+    }
+  }
 
   const emit = flag('emit');
   if (emit !== null && !dryRun) {

@@ -25,6 +25,7 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { CURRENT_TERMS } from '@gradtools/shared-types';
 import request from 'supertest';
 import type { Express } from 'express';
 import postgres from 'postgres';
@@ -146,6 +147,14 @@ describeDb('the authorization matrix', () => {
       `;
       ids[key] = row?.id as string;
     }
+
+    // Both are fully onboarded: the server now enforces Terms on the sync write
+    // path, so a student that has not accepted them cannot push (see below).
+    await admin`
+      INSERT INTO terms_acceptances (auth_user_id, version) VALUES
+        (${A}, ${CURRENT_TERMS.version}),
+        (${B}, ${CURRENT_TERMS.version})
+    `;
 
     for (const [user, profileKey, key] of [
       [A, 'aProfile', 'aSemester'],
@@ -353,6 +362,41 @@ describeDb('the authorization matrix', () => {
         SELECT deleted_at FROM semester_records WHERE id = ${ids.bSemester}::uuid
       `;
       expect(row?.deleted_at).toBeNull();
+    });
+
+    /*
+     * Terms are enforced on the WRITE path, not only by the client. A token +
+     * profile is not enough: without a current acceptance the push is refused
+     * and nothing is written, so a stale or modified client cannot bypass the
+     * gate (routes/me.ts).
+     */
+    it('refuses a sync push until the current Terms are accepted', async () => {
+      await admin`DELETE FROM terms_acceptances WHERE auth_user_id = ${A}`;
+
+      const response = await request(app)
+        .post('/api/v1/me/sync')
+        .set('Authorization', `Bearer ${A}`)
+        .send({
+          records: [
+            {
+              id: ids.aSemester,
+              collection: 'semesters',
+              baseRevision: 1,
+              deleted: false,
+              data: { number: 5, status: 'completed' },
+            },
+          ],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('VALIDATION_FAILED');
+      expect(response.body.error.message).toMatch(/terms/i);
+
+      // Nothing was written: A's own semester is untouched.
+      const [row] = await admin<{ status: string }[]>`
+        SELECT status FROM semester_records WHERE id = ${ids.aSemester}::uuid
+      `;
+      expect(row?.status).toBe('in_progress');
     });
 
     /* A student cannot count another student's records, let alone read them. */

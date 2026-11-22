@@ -78,7 +78,8 @@ beforeAll(async () => {
     }
     res.writeHead(404).end();
   });
-  await new Promise<void>((ok) => server.listen(PORT, ok));
+  // Loopback only: a synthetic JWKS fixture, never exposed on other interfaces.
+  await new Promise<void>((ok) => server.listen(PORT, '127.0.0.1', ok));
 });
 
 afterAll(async () => {

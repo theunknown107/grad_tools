@@ -189,6 +189,69 @@ describeDb('validating the catalogue', () => {
       FOREIGN KEY (version_id) REFERENCES source_document_versions (id) ON DELETE RESTRICT`;
   });
 
+  it('fails a course whose every reading has a corrupted title', async () => {
+    /*
+     * §6. The extractor leaves the teaching column in some titles on the hardest
+     * multi-column pages. A code with no clean reading has no subject name to
+     * publish, and the gate must refuse it rather than ship the leak.
+     */
+    if (sql === null) return;
+    await sql`UPDATE catalogue_courses
+              SET title = 'Civil/Mech Computer-Aided Engineering Drawing Engg dept'
+              WHERE code = 'BQQ301'`;
+    const result = await validateCatalogue(sql, { schemeYear: '2022' });
+    expect(failures(result.findings).join(' ')).toMatch(/every reading has a corrupted title/i);
+    expect(result.passed).toBe(false);
+  });
+
+  it('warns, without failing, when a corrupted title sits beside a clean one', async () => {
+    // A second document reads the same code cleanly. The clean reading is what
+    // publishes; the corrupted sibling is recorded, not a blocker.
+    if (sql === null) return;
+    const other = 'd'.repeat(64);
+    await upsertDocumentVersion(sql, {
+      sha256: other,
+      byteSize: 2048,
+      mimeType: 'application/pdf',
+      pageCount: 40,
+      retrievedAt: '2026-09-08T00:00:00.000Z',
+      extractionMethod: 'pdfjs-text-layer',
+      extractionStatus: 'text',
+      parserVersion: '1.0.0',
+      normalizationVersion: '1.0.0',
+    });
+    const versions = await sql<{ id: string }[]>`
+      SELECT id FROM source_document_versions WHERE sha256 = ${other}`;
+    await upsertSourceReference(sql, versions[0]?.id ?? '', {
+      url: 'https://vtu.ac.in/pdf/2022_3to8/invented-other.pdf',
+      linkText: 'Scheme',
+      sourceId: null,
+    });
+    // One version reads BQQ301 cleanly (the seed), another reads it corrupted.
+    await upsertCourse(sql, {
+      schemeYear: '2022',
+      programmeName: 'Another Programme',
+      streamId: null,
+      semester: 3,
+      code: 'BQQ301',
+      title: 'Invented Course Any Department',
+      credits: 4,
+      creditBasis: 'table',
+      relatedCode: null,
+      category: null,
+      sha256: other,
+      sourcePage: 2,
+    });
+    const result = await validateCatalogue(sql, { schemeYear: '2022' });
+    expect(result.passed).toBe(true);
+    expect(
+      result.findings.some(
+        (finding) =>
+          finding.severity === 'warn' && /corrupted title alongside a clean one/i.test(finding.message),
+      ),
+    ).toBe(true);
+  });
+
   it('fails a topic whose module is gone', async () => {
     /*
      * §26. The foreign key should make this impossible, which is exactly why
