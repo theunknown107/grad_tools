@@ -27,7 +27,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { STUDENT_ROUTES } from '@gradtools/shared-types';
-import { apiBaseUrl } from '../repositories/reference.js';
+import { apiBaseUrl, apiConfigured } from '../repositories/reference.js';
 import { useAuth } from '../features/auth/AuthContext.js';
 import { usePageVisible } from './usePageVisible.js';
 
@@ -77,7 +77,8 @@ export function useSourceNotifications(): SourceNotificationsState {
   const [connected, setConnected] = useState(false);
 
   const signedIn = authState.status === 'signed_in';
-  const unavailable = adapter === null || !signedIn;
+  /* No server in this build (the offline Android app): nothing to ask, so nothing to show. */
+  const unavailable = adapter === null || !signedIn || !apiConfigured();
   const visible = usePageVisible();
 
   /** The bearer token, or null. Read per request, never held in state. */
@@ -96,8 +97,8 @@ export function useSourceNotifications(): SourceNotificationsState {
     }
 
     let cancelled = false;
+    /* The last error stays until a read succeeds, so a reconnect loop cannot make the panel blink. */
     setLoading(true);
-    setError(null);
 
     void (async () => {
       try {
@@ -130,6 +131,7 @@ export function useSourceNotifications(): SourceNotificationsState {
           const live = current.filter((row) => !known.has(row.id));
           return live.length === 0 ? body.notifications : [...live, ...body.notifications];
         });
+        setError(null);
         setLoading(false);
       } catch {
         if (cancelled) return;
