@@ -422,7 +422,7 @@ export async function copyLegacyScope(
 ): Promise<number> {
   if (!LEGACY_ID.test(from) || from === to) throw new Error('Not a legacy account scope.');
   if (to === '' || LEGACY_ID.test(to)) throw new Error('Not a signed-in account.');
-  if (!(await mayClaim(from, to, email))) throw new Error('These records are not this account\'s.');
+  if (!(await mayClaim(from, to, email))) throw new Error("These records are not this account's.");
   if (await scopeHoldsRecords(to)) throw new Error('This account already holds records.');
 
   const before = await entriesOf(to);

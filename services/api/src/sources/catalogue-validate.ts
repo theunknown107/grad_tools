@@ -47,7 +47,12 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Sql } from 'postgres';
-import { optionGroupsOf, parseScheme, semesterTotalsOf, suspectTitle } from '@gradtools/vtu-catalogue';
+import {
+  optionGroupsOf,
+  parseScheme,
+  semesterTotalsOf,
+  suspectTitle,
+} from '@gradtools/vtu-catalogue';
 import type { SchemePage } from '@gradtools/vtu-catalogue';
 
 const CACHE_ROOT = resolve('../../.vtu-store/extractions');

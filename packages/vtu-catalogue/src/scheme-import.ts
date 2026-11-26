@@ -1511,8 +1511,7 @@ export function suspectTitle(title: string): string | null {
  */
 export function selectReading<T extends { readonly title: string }>(records: readonly T[]): T {
   const frequency = new Map<string, number>();
-  for (const record of records)
-    frequency.set(record.title, (frequency.get(record.title) ?? 0) + 1);
+  for (const record of records) frequency.set(record.title, (frequency.get(record.title) ?? 0) + 1);
   const rankOf = (record: T): readonly [number, number, number] => [
     suspectTitle(record.title) === null ? 1 : 0,
     frequency.get(record.title) ?? 0,

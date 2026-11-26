@@ -138,7 +138,9 @@ describe('resolving unidentified timetable classes', () => {
     review(onSave);
 
     await user.click(screen.getByRole('combobox', { name: /course for fm/i }));
-    await user.click(await screen.findByRole('option', { name: /BQAS501 — Fundamentals of Management/ }));
+    await user.click(
+      await screen.findByRole('option', { name: /BQAS501 — Fundamentals of Management/ }),
+    );
 
     // Both FM classes now read as the chosen course; the raw cell text is kept.
     const read = screen.getByText(/how each class was read/i).closest('details')!;

@@ -1271,36 +1271,36 @@ async function main(): Promise<void> {
        * syllabus provenance, which no course row cites). */
       const cited = new Set(courses.map((c) => c.provenance.documentSha256));
       return {
-      normalizationVersion: NORMALIZATION_VERSION,
-      generatedAt: now,
-      courses: [...courses].sort(
-        (a, b) =>
-          a.schemeYear.localeCompare(b.schemeYear) ||
-          (a.programme ?? '').localeCompare(b.programme ?? '') ||
-          a.semester - b.semester ||
-          a.code.localeCompare(b.code),
-      ),
-      conflicts: disagreements.map((d) => ({
-        schemeYear: d.schemeYear,
-        programme: d.programmeName,
-        semester: d.semester,
-        code: d.code,
-        field: 'credits' as const,
-        readings: [
-          { value: String(d.a.credits), documentSha256: d.a.sha256 },
-          { value: String(d.b.credits), documentSha256: d.b.sha256 },
-        ],
-      })),
-      aliases: COURSE_ALIASES.filter((alias) => wantYear === null || alias.schemeYear === wantYear).map(
-        (alias) => ({
+        normalizationVersion: NORMALIZATION_VERSION,
+        generatedAt: now,
+        courses: [...courses].sort(
+          (a, b) =>
+            a.schemeYear.localeCompare(b.schemeYear) ||
+            (a.programme ?? '').localeCompare(b.programme ?? '') ||
+            a.semester - b.semester ||
+            a.code.localeCompare(b.code),
+        ),
+        conflicts: disagreements.map((d) => ({
+          schemeYear: d.schemeYear,
+          programme: d.programmeName,
+          semester: d.semester,
+          code: d.code,
+          field: 'credits' as const,
+          readings: [
+            { value: String(d.a.credits), documentSha256: d.a.sha256 },
+            { value: String(d.b.credits), documentSha256: d.b.sha256 },
+          ],
+        })),
+        aliases: COURSE_ALIASES.filter(
+          (alias) => wantYear === null || alias.schemeYear === wantYear,
+        ).map((alias) => ({
           schemeYear: alias.schemeYear,
           variant: alias.variant,
           canonical: alias.canonical,
           title: alias.title,
           evidence: alias.evidence,
-        }),
-      ),
-      documents: docsOverride ?? documents.filter((d) => cited.has(d.sha256)),
+        })),
+        documents: docsOverride ?? documents.filter((d) => cited.has(d.sha256)),
       };
     };
 
@@ -1333,9 +1333,10 @@ async function main(): Promise<void> {
           `\n  REFUSING MERGE — ${String(blockers.length)} unresolved identit(y/ies), ${String(stillSuspect.length)} suspect title(s) in the merged set:`,
         );
         for (const d of blockers.slice(0, 15))
-          console.error(`      ${d.key}: ${d.reason} (baseline "${d.baselineTitle ?? ''}", candidate "${d.candidateTitle ?? ''}")`);
-        for (const c of stillSuspect.slice(0, 15))
-          console.error(`      ${c.code}: "${c.title}"`);
+          console.error(
+            `      ${d.key}: ${d.reason} (baseline "${d.baselineTitle ?? ''}", candidate "${d.candidateTitle ?? ''}")`,
+          );
+        for (const c of stillSuspect.slice(0, 15)) console.error(`      ${c.code}: "${c.title}"`);
         report.emit = 'merge-refused';
         process.exitCode = 1;
       } else {
@@ -1356,15 +1357,21 @@ async function main(): Promise<void> {
       }
     } else {
       /* ---- The candidate alone, no merge ------------------------------ */
-      const excluded = scoped.filter((c) => exclusionFor(idOf(c), CATALOGUE_EXCLUSIONS_2022) !== null);
-      const chosen = scoped.filter((c) => exclusionFor(idOf(c), CATALOGUE_EXCLUSIONS_2022) === null);
+      const excluded = scoped.filter(
+        (c) => exclusionFor(idOf(c), CATALOGUE_EXCLUSIONS_2022) !== null,
+      );
+      const chosen = scoped.filter(
+        (c) => exclusionFor(idOf(c), CATALOGUE_EXCLUSIONS_2022) === null,
+      );
       const suspect = chosen.filter((c) => !isClean(c.title));
       console.log('\n  candidate');
       console.log(`    in scope        ${String(scoped.length)}`);
       console.log(`    excluded        ${String(excluded.length)}`);
       console.log(`    candidate rows  ${String(chosen.length)}`);
       if (suspect.length > 0) {
-        console.error(`\n  REFUSING CANDIDATE — ${String(suspect.length)} selected title(s) still suspect:`);
+        console.error(
+          `\n  REFUSING CANDIDATE — ${String(suspect.length)} selected title(s) still suspect:`,
+        );
         for (const c of suspect.slice(0, 15)) console.error(`      ${c.code}: "${c.title}"`);
         report.emit = 'candidate-refused';
         process.exitCode = 1;

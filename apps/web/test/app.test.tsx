@@ -978,7 +978,8 @@ describe('the dashboard title', () => {
   it('greets the student without a semester badge when none is known', async () => {
     const profile = { ...emptyProfile(), displayName: 'Asha Rao', currentSemester: null };
     renderWith(<DashboardPage />, {
-      repositories: createMemoryRepositories({ profile, timetableImports: [imported(null)] }).bundle,
+      repositories: createMemoryRepositories({ profile, timetableImports: [imported(null)] })
+        .bundle,
     });
     expect(
       await screen.findByRole('heading', {
@@ -997,7 +998,9 @@ describe('the attendance register', () => {
       attendance: [attendance('a1', 'BCS301', 95, 100), attendance('a2', 'BCS302', 7, 10)],
     });
     renderWith(<AttendancePage />, { repositories: bundle });
-    expect(await screen.findByRole('heading', { name: '1 course below the DX floor' })).toBeTruthy();
+    expect(
+      await screen.findByRole('heading', { name: '1 course below the DX floor' }),
+    ).toBeTruthy();
   });
 
   it('lists the worst course first and says what each needs, in words', async () => {

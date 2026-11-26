@@ -647,10 +647,7 @@ function MobileNavSheet({
         )}
         {NAV_GROUPS.map((group) => (
           <section key={group} aria-labelledby={`sheet-${group}`}>
-            <h3
-              id={`sheet-${group}`}
-              className="mb-1 px-3 font-mono text-[12px] text-ink-3"
-            >
+            <h3 id={`sheet-${group}`} className="mb-1 px-3 font-mono text-[12px] text-ink-3">
               {group}
             </h3>
             <ul className="flex flex-col">
@@ -671,10 +668,7 @@ function MobileNavSheet({
         ))}
       </nav>
 
-      <h3
-        id="sheet-appearance"
-        className="mt-5 mb-2 px-3 font-mono text-[12px] text-ink-3"
-      >
+      <h3 id="sheet-appearance" className="mt-5 mb-2 px-3 font-mono text-[12px] text-ink-3">
         Appearance
       </h3>
       {/* One segmented control rather than three bordered buttons. */}

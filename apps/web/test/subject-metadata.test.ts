@@ -10,7 +10,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { coursesForBranch } from '@gradtools/vtu-catalogue/data';
-import { buildSubjectIndex, resolveSubject, type CatalogueSubject } from '../src/domain/subjects.js';
+import {
+  buildSubjectIndex,
+  resolveSubject,
+  type CatalogueSubject,
+} from '../src/domain/subjects.js';
 
 /** The scope the hook builds for a student of `branch`. */
 const scopedCatalogue = (branch: string | null): CatalogueSubject[] =>
@@ -70,7 +74,9 @@ describe('subject metadata from the shipped catalogue', () => {
           semester: 7,
           sgpa: null,
           declaredAt: null,
-          subjects: [{ subjectCode: 'BZZ799', subjectTitle: 'Some Unlisted Course', credits: null }],
+          subjects: [
+            { subjectCode: 'BZZ799', subjectTitle: 'Some Unlisted Course', credits: null },
+          ],
         } as never,
       ],
     });

@@ -79,7 +79,10 @@ describe('selectReading', () => {
   const r = (title: string) => ({ title });
 
   it('prefers a clean reading over a suspect one', () => {
-    const records = [r('Civil/Mech Computer-Aided Engineering Drawing Engg dept'), r('Computer-Aided Engineering Drawing')];
+    const records = [
+      r('Civil/Mech Computer-Aided Engineering Drawing Engg dept'),
+      r('Computer-Aided Engineering Drawing'),
+    ];
     expect(selectReading(records).title).toBe('Computer-Aided Engineering Drawing');
   });
 

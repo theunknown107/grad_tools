@@ -65,7 +65,8 @@ export const CATALOGUE_EXCLUSIONS_2022: readonly CatalogueExclusion[] = [
   {
     schemeYear: '2022',
     code: 'BITDK158',
-    reason: 'Duplicate mis-code of BIDTK158 — a TD↔DT transposition of one and the same first-year slot. Structural, so it holds even though the department-column fix now reads its title cleanly.',
+    reason:
+      'Duplicate mis-code of BIDTK158 — a TD↔DT transposition of one and the same first-year slot. Structural, so it holds even though the department-column fix now reads its title cleanly.',
     evidence:
       'In the civil-stream first-year document BSFHK158 is a member of TWO slots in one semester, BIDTK158 and BITDK158 — the "courses offered by two different slots" validator failure. BIDTK158 is the real code ("Innovation and Design Thinking"); BITDK158 is the transposed reading of the same slot. Publishing BIDTK158 covers the course; keeping BITDK158 double-counts it and is the structural defect.',
   },
@@ -73,7 +74,8 @@ export const CATALOGUE_EXCLUSIONS_2022: readonly CatalogueExclusion[] = [
     schemeYear: '2022',
     code: 'BESCK104x',
     programme: 'CSE Stream Scheme (CSE/ISC/BT)',
-    reason: 'The CSE-stream Engineering-Science-I slot has no clean reading — every reading keeps a leading "Respective Engg" teaching note the column fix (a right edge) cannot strip. Narrowed to CSE; the civil-stream reading is clean and kept, and the concrete options BESCK104A–E publish cleanly.',
+    reason:
+      'The CSE-stream Engineering-Science-I slot has no clean reading — every reading keeps a leading "Respective Engg" teaching note the column fix (a right edge) cannot strip. Narrowed to CSE; the civil-stream reading is clean and kept, and the concrete options BESCK104A–E publish cleanly.',
     evidence:
       'CSE-stream readings are all "Respective Engg Engineering Science Course-I [Dept]"; civil-stream reads "Engineering Science Course-I" cleanly and is NOT excluded.',
   },
@@ -89,7 +91,8 @@ export const CATALOGUE_EXCLUSIONS_2022: readonly CatalogueExclusion[] = [
   ...['BCB801B', 'BCB801C', 'BCB801D', 'BCB802B', 'BCB802C', 'BCB802D'].map((code) => ({
     schemeYear: '2022',
     code,
-    reason: 'Untitled NPTEL online-elective option placeholder — the source gives no title (BOS publishes the courses later), so only the bare code is available. The slot (BCB801x / BCB802x) carries the elective.',
+    reason:
+      'Untitled NPTEL online-elective option placeholder — the source gives no title (BOS publishes the courses later), so only the bare code is available. The slot (BCB801x / BCB802x) carries the elective.',
     evidence:
       'On the CSBS sem-8 page the option row prints "BOS will publish courses based on the availability" against the A option and nothing against B/C/D; the baseline shipped B/C/D with the code as the title.',
   })),
@@ -197,18 +200,33 @@ export function mergeCatalogue<T extends MergeRow>(
     }
     if (b !== undefined && isClean(b.title)) {
       merged.push(b);
-      decisions.push({ ...info, action: 'keep-baseline', reason: 'baseline title is clean and verified' });
+      decisions.push({
+        ...info,
+        action: 'keep-baseline',
+        reason: 'baseline title is clean and verified',
+      });
     } else if (c !== undefined && isClean(c.title)) {
       merged.push(c);
       decisions.push({
         ...info,
         action: b === undefined ? 'add-candidate' : 'replace-with-candidate',
-        reason: b === undefined ? 'new in-scope course, clean' : 'candidate corrects a corrupted baseline title',
+        reason:
+          b === undefined
+            ? 'new in-scope course, clean'
+            : 'candidate corrects a corrupted baseline title',
       });
     } else if (b !== undefined) {
-      record(blockers, { ...info, action: 'blocked', reason: 'baseline title is corrupted and no clean candidate exists' });
+      record(blockers, {
+        ...info,
+        action: 'blocked',
+        reason: 'baseline title is corrupted and no clean candidate exists',
+      });
     } else {
-      decisions.push({ ...info, action: 'drop-candidate', reason: 'candidate-only row has no clean title' });
+      decisions.push({
+        ...info,
+        action: 'drop-candidate',
+        reason: 'candidate-only row has no clean title',
+      });
     }
   }
 
@@ -244,8 +262,10 @@ export function exclusionFor(
   for (const exclusion of exclusions) {
     if (exclusion.schemeYear !== identity.schemeYear) continue;
     if (exclusion.code !== identity.code) continue;
-    if (!narrows(exclusion.programme, (p) => normalise(p) === normalise(identity.programme))) continue;
-    if (!narrows(exclusion.streamId, (s) => normalise(s) === normalise(identity.streamId))) continue;
+    if (!narrows(exclusion.programme, (p) => normalise(p) === normalise(identity.programme)))
+      continue;
+    if (!narrows(exclusion.streamId, (s) => normalise(s) === normalise(identity.streamId)))
+      continue;
     if (!narrows(exclusion.semester, (s) => s === identity.semester)) continue;
     return exclusion;
   }

@@ -390,9 +390,7 @@ export function AuthProvider({
   const exposed = useMemo((): AuthAdapter | null => {
     if (adapter === null) return null;
     const afterSignOut =
-      <A extends unknown[], R extends { error: string | null }>(
-        call: (...args: A) => Promise<R>,
-      ) =>
+      <A extends unknown[], R extends { error: string | null }>(call: (...args: A) => Promise<R>) =>
       async (...args: A): Promise<R> => {
         if (signOutPending() && !(await finishSignOut())) {
           return { error: 'Could not reach the sign-in service. Check your connection.' } as R;

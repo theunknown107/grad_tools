@@ -236,9 +236,7 @@ describe('dashboard cold start, the other paths', () => {
     startApp(adapter);
     // `expired` settles on the anonymous scope (M9 §37): the wait ends and the
     // dashboard renders that scope's answer, whatever it is.
-    expect(
-      (await screen.findByRole('heading', { level: 1 })).closest('section')!,
-    ).toBeTruthy();
+    expect((await screen.findByRole('heading', { level: 1 })).closest('section')!).toBeTruthy();
     expect(screen.queryByText(SKELETON_TEXT)).toBeNull();
   });
 });

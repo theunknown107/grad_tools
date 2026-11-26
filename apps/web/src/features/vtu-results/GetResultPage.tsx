@@ -266,9 +266,7 @@ function ArchiveCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-6">
         {card.sections.map((section) => (
           <div key={section.resultType} className="flex flex-col gap-1.5">
-            <h4 className="font-mono text-[12px] text-ink-3">
-              {section.resultType}
-            </h4>
+            <h4 className="font-mono text-[12px] text-ink-3">{section.resultType}</h4>
             <div className="flex flex-wrap gap-2">
               {section.sessions.map((session) => (
                 <Button

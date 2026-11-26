@@ -22,7 +22,11 @@
 import { useMemo } from 'react';
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import { coursesForBranch } from '@gradtools/vtu-catalogue/data';
-import { buildSubjectIndex, type CatalogueSubject, type SubjectIdentity } from '../domain/subjects.js';
+import {
+  buildSubjectIndex,
+  type CatalogueSubject,
+  type SubjectIdentity,
+} from '../domain/subjects.js';
 import {
   useAttendance,
   useBacklogs,

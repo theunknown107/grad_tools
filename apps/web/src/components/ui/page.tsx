@@ -26,9 +26,7 @@ export function PageHeader({
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         {eyebrow !== undefined && eyebrow !== null && eyebrow !== '' && (
-          <div className="mb-2 font-mono text-[12px] text-ink-3">
-            {eyebrow}
-          </div>
+          <div className="mb-2 font-mono text-[12px] text-ink-3">{eyebrow}</div>
         )}
         <h1
           id={titleId}

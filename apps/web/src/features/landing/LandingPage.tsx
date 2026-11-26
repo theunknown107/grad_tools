@@ -206,9 +206,7 @@ export function LandingPage() {
               aria-label="Worked example: one course against the three passing heads"
             >
               <div className="flex items-center justify-between gap-3">
-                <div className="font-mono text-[12px] text-ink-3">
-                  Worked example · 22OB 6.3
-                </div>
+                <div className="font-mono text-[12px] text-ink-3">Worked example · 22OB 6.3</div>
                 <Badge tone="success">Pass</Badge>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-3">
@@ -248,9 +246,7 @@ export function LandingPage() {
 
           <section id="what" aria-labelledby="what-title" className="scroll-mt-24">
             <div className="max-w-2xl">
-              <div className="mb-2 font-mono text-[12px] text-ink-3">
-                What it does
-              </div>
+              <div className="mb-2 font-mono text-[12px] text-ink-3">What it does</div>
               <h2
                 id="what-title"
                 className="font-display text-[28px] leading-tight font-semibold tracking-[-0.02em] sm:text-[34px]"
@@ -282,9 +278,7 @@ export function LandingPage() {
             className="grid scroll-mt-24 items-center gap-8 lg:grid-cols-[1fr_1.2fr]"
           >
             <div>
-              <div className="mb-2 font-mono text-[12px] text-ink-3">
-                Your degree
-              </div>
+              <div className="mb-2 font-mono text-[12px] text-ink-3">Your degree</div>
               <h2
                 id="degree-title"
                 className="font-display text-[28px] leading-tight font-semibold tracking-[-0.02em] sm:text-[34px]"
@@ -375,9 +369,7 @@ export function LandingPage() {
             <nav aria-label="Footer" className="grid grid-cols-2 gap-6 sm:grid-cols-3">
               {FOOTER.map((column) => (
                 <div key={column.title}>
-                  <h2 className="mb-2 font-mono text-[12px] text-ink-3">
-                    {column.title}
-                  </h2>
+                  <h2 className="mb-2 font-mono text-[12px] text-ink-3">{column.title}</h2>
                   <ul className="space-y-1.5">
                     {column.links.map((link) => (
                       <li key={link.to}>

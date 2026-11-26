@@ -106,7 +106,11 @@ describe('finishing native Google', () => {
 
   it('activates the session of a completed sign-in', async () => {
     const { adapter, signIn, clerk } = fakeClerk();
-    signIn.reload.mockResolvedValue({ ...verified, status: 'complete', createdSessionId: 'sess_1' });
+    signIn.reload.mockResolvedValue({
+      ...verified,
+      status: 'complete',
+      createdSessionId: 'sess_1',
+    });
     markPending();
     expect(await adapter.completeDeepLink(CALLBACK)).toEqual({ error: null, handled: true });
     expect(clerk.setActive).toHaveBeenCalledWith({ session: 'sess_1' });

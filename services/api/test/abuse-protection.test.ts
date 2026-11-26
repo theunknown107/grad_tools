@@ -114,10 +114,7 @@ describeDb('what an anonymous client can write', () => {
   it('answers malformed JSON with a 400 and writes nothing, on any path', async () => {
     const app = fresh();
     for (const path of ['/anything', '/api/v1/universities', REPORTS]) {
-      const res = await request(app)
-        .post(path)
-        .set('Content-Type', 'application/json')
-        .send('{');
+      const res = await request(app).post(path).set('Content-Type', 'application/json').send('{');
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_FAILED');
     }
@@ -236,7 +233,7 @@ describeDb('what an anonymous client can write', () => {
     expect(await rows()).toBe(3);
   });
 
-  it('does not merge an anonymous report into a signed-in student\'s', async () => {
+  it("does not merge an anonymous report into a signed-in student's", async () => {
     const app = fresh();
     const body = { category: 'sign_in', description: 'The same words' };
     const signedIn = await request(app)

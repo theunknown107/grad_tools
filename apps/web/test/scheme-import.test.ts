@@ -249,16 +249,15 @@ describe('reading the scheme table', () => {
   it('is deterministic when the two sub-tables are extracted in the opposite order', () => {
     const forward = parseScheme(page(twoTableRow(322)));
     const reversed = parseScheme(page([...twoTableRow(322)].reverse()));
-    const titleOf = (p: typeof forward, code: string) => p.courses.find((c) => c.code === code)?.title;
+    const titleOf = (p: typeof forward, code: string) =>
+      p.courses.find((c) => c.code === code)?.title;
     expect(titleOf(reversed, 'BQQ104A')).toBe(titleOf(forward, 'BQQ104A'));
     expect(titleOf(reversed, 'BQR105A')).toBe(titleOf(forward, 'BQR105A'));
     expect(titleOf(forward, 'BQQ104A')).toBe('Alpha Science');
   });
 
   it('keeps a left title that wraps, still without crossing the divider', () => {
-    const parsed = parseScheme(
-      page([...twoTableRow(322), at('Methods', COL.title, 322 - 13)]),
-    );
+    const parsed = parseScheme(page([...twoTableRow(322), at('Methods', COL.title, 322 - 13)]));
     expect(parsed.courses.find((c) => c.code === 'BQQ104A')?.title).toBe('Alpha Science Methods');
   });
 
@@ -281,7 +280,9 @@ describe('reading the scheme table', () => {
       ]),
     );
     expect(parsed.courses.find((c) => c.code === 'BQQ777')).toBeUndefined();
-    expect(parsed.rejected.some((r) => r.code === 'BQQ777' && /no course title/i.test(r.reason))).toBe(true);
+    expect(
+      parsed.rejected.some((r) => r.code === 'BQQ777' && /no course title/i.test(r.reason)),
+    ).toBe(true);
   });
 
   it('reads a non-credit course as genuinely zero credits', () => {

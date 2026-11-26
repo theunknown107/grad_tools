@@ -94,9 +94,7 @@ export function SessionDetail({
               </p>
             ) : (
               <div className="mt-1 flex items-center justify-between gap-3">
-                <span className="font-mono text-[15px] font-semibold text-ink">
-                  {usn}
-                </span>
+                <span className="font-mono text-[15px] font-semibold text-ink">{usn}</span>
                 <Button size="sm" icon={<Copy />} onClick={() => void copyUsn()}>
                   Copy
                 </Button>

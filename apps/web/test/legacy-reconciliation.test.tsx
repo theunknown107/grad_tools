@@ -118,7 +118,9 @@ describe('copying', () => {
   it('refuses to overwrite an account that already holds records', async () => {
     await seedLegacy();
     await writeValue(CLERK, 'results', [{ id: 'mine', semester: 1, subjects: [] }]);
-    await expect(copyLegacyScope(LEGACY, CLERK, 'synthetic@example.test')).rejects.toThrow(/already holds records/);
+    await expect(copyLegacyScope(LEGACY, CLERK, 'synthetic@example.test')).rejects.toThrow(
+      /already holds records/,
+    );
     expect(await readValue(CLERK, 'results')).toEqual([{ id: 'mine', semester: 1, subjects: [] }]);
   });
 

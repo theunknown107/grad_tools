@@ -45,8 +45,7 @@ export function Calendar({
         chevron: 'size-4',
         month_grid: 'w-full border-collapse',
         weekdays: 'flex',
-        weekday:
-          'w-9 text-[12px] font-medium  text-ink-3  [&:not(:first-child)]:ml-0.5',
+        weekday: 'w-9 text-[12px] font-medium  text-ink-3  [&:not(:first-child)]:ml-0.5',
         weeks: 'flex flex-col gap-0.5',
         week: 'flex gap-0.5',
         day: 'relative size-9 p-0 text-center',

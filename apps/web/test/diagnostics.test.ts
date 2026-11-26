@@ -114,7 +114,11 @@ describe('analyzeApiUrl', () => {
   });
 
   it('treats an own-origin build as same-origin, https from the origin', () => {
-    const r = analyzeApiUrl({ effective: '', configuredRaw: undefined, origin: 'https://app.example' });
+    const r = analyzeApiUrl({
+      effective: '',
+      configuredRaw: undefined,
+      origin: 'https://app.example',
+    });
     expect(r).toMatchObject({ sameOrigin: true, https: true, localhostFallback: false });
     expect(r.effective).toContain('own origin');
   });

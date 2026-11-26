@@ -72,9 +72,7 @@ export function LegacyDataOffer() {
     let cancelled = false;
     void (async () => {
       if (await scopeHoldsRecords(userId)) return;
-      const found = await Promise.all(
-        (await legacyScopesWithRecords(userId, email)).map(describe),
-      );
+      const found = await Promise.all((await legacyScopesWithRecords(userId, email)).map(describe));
       const unproven = found.length === 0 && (await unprovenLegacyRecords(userId, email));
       if (!cancelled) {
         setCandidates(found);

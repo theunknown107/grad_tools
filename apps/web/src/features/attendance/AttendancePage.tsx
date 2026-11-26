@@ -20,14 +20,7 @@ import {
   calculateClassesMustAttend,
   type AttendanceStatus,
 } from '@gradtools/academic-rules';
-import {
-  CalendarCheck2,
-  Check,
-  MoreHorizontal,
-  Plus,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { CalendarCheck2, Check, MoreHorizontal, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { ExplanationDisclosure } from '../../components/academic/ExplanationDisclosure.js';
 import { Button, IconButton } from '../../components/ui/button.js';
@@ -205,7 +198,9 @@ function AttendanceBody() {
     pooled.conducted === 0 ? null : calculateAttendance(pooled.attended, pooled.conducted, rules());
   const standings = items.map(standingOf);
   const dxCount = standings.filter((standing) => standing?.status === 'dx_risk').length;
-  const belowCount = standings.filter((standing) => standing?.status === 'below_requirement').length;
+  const belowCount = standings.filter(
+    (standing) => standing?.status === 'below_requirement',
+  ).length;
   const judged = standings.filter((standing) => standing !== null).length;
   const anyDx = dxCount > 0;
   /* Worst first: the course that needs attention is never below the fold. */

@@ -247,7 +247,8 @@ describeDb('validating the catalogue', () => {
     expect(
       result.findings.some(
         (finding) =>
-          finding.severity === 'warn' && /corrupted title alongside a clean one/i.test(finding.message),
+          finding.severity === 'warn' &&
+          /corrupted title alongside a clean one/i.test(finding.message),
       ),
     ).toBe(true);
   });

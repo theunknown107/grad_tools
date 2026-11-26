@@ -75,10 +75,7 @@ export function TimetableReview({
   // What the student is reviewing and what will be saved are the SAME object:
   // corrections are applied here, so the preview, the slots and the save all
   // read the corrected timetable (persist-exactly-what-was-reviewed).
-  const view = useMemo(
-    () => applyTimetableCorrections(parsed, corrections),
-    [parsed, corrections],
-  );
+  const view = useMemo(() => applyTimetableCorrections(parsed, corrections), [parsed, corrections]);
 
   // The labels the parser could not identify, grouped so one choice resolves
   // every occurrence of that label. Built from the ORIGINAL parse, so a label
@@ -308,7 +305,10 @@ export function TimetableReview({
         </Card>
       )}
       {slots.length > 0 && (
-        <Card className="flex flex-wrap gap-x-7 gap-y-3 p-4" style={{ animation: 'gt-fade 0.3s ease both' }}>
+        <Card
+          className="flex flex-wrap gap-x-7 gap-y-3 p-4"
+          style={{ animation: 'gt-fade 0.3s ease both' }}
+        >
           <Stat label="Classes" value={String(slots.length)} />
           <Stat label="Days" value={String(byDay.length)} />
           {parsed.context.semester !== null && (

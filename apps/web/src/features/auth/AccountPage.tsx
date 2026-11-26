@@ -330,9 +330,7 @@ export function AccountPage() {
                   <SectionTitle>Signed in</SectionTitle>
                   <dl className="grid gap-4 sm:grid-cols-3">
                     <div>
-                      <dt className="text-[12px] text-ink-3">
-                        Signed in with
-                      </dt>
+                      <dt className="text-[12px] text-ink-3">Signed in with</dt>
                       <dd className="mt-0.5 text-[13px] font-medium">
                         {identity.provider === null
                           ? 'An email address'

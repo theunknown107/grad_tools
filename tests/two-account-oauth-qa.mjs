@@ -35,7 +35,9 @@ await pageA.goto(`${app}/sign-in`);
 await pageA.getByRole('button', { name: /google/i }).click();
 await pageA.waitForURL(/accounts\.google\.com/, { timeout: 30_000 });
 const copied = pageA.url();
-console.log(`A stopped at Google. state present: ${String(new URL(copied).searchParams.has('state'))}`);
+console.log(
+  `A stopped at Google. state present: ${String(new URL(copied).searchParams.has('state'))}`,
+);
 
 // Context B opens A's URL. The operator signs in there with disposable account B.
 await pageB.goto(copied);

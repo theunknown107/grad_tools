@@ -366,9 +366,7 @@ function Figures() {
           </dl>
           {OUTCOME_ORDER.some((key) => statistics.outcomes[key] > 0) && (
             <>
-              <h3 className="mt-5 mb-2 text-[12px] font-semibold text-ink-2">
-                Course outcomes
-              </h3>
+              <h3 className="mt-5 mb-2 text-[12px] font-semibold text-ink-2">Course outcomes</h3>
               <ul className="flex flex-wrap gap-2">
                 {OUTCOME_ORDER.filter((key) => statistics.outcomes[key] > 0).map((key) => (
                   <li key={key}>

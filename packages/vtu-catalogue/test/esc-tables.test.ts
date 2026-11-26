@@ -44,7 +44,12 @@ describe('nextTableCodeX', () => {
 
   it('returns Infinity for the rightmost table (no code to its right)', () => {
     const right = cell('BETCK105A', 415);
-    const cells = [cell('BESCK104A', 82), cell('Introduction to Civil Engineering', 151), right, cell('Smart Materials and Systems', 484)];
+    const cells = [
+      cell('BESCK104A', 82),
+      cell('Introduction to Civil Engineering', 151),
+      right,
+      cell('Smart Materials and Systems', 484),
+    ];
     expect(nextTableCodeX(cells, right, BAND)).toBe(Number.POSITIVE_INFINITY);
   });
 
@@ -53,7 +58,12 @@ describe('nextTableCodeX', () => {
     // after them. Clipping at BME305 would leave the title empty, so BME305 is
     // not a divider.
     const head = cell('BMEL305', 140);
-    const cells = [head, cell('BME305', 182), cell('Introduction to Modelling and Design', 240), cell('1', 760)];
+    const cells = [
+      head,
+      cell('BME305', 182),
+      cell('Introduction to Modelling and Design', 240),
+      cell('1', 760),
+    ];
     expect(nextTableCodeX(cells, head, BAND)).toBe(Number.POSITIVE_INFINITY);
   });
 
