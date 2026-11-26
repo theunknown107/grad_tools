@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { clerkFrontendApi, contentSecurityPolicy } from '../scripts/csp-policy.mjs';
+import {
+  clerkFrontendApi,
+  contentSecurityPolicy,
+  insertPolicyMeta,
+} from '../scripts/csp-policy.mjs';
 
 // A synthetic publishable key: base64 of "example-instance.clerk.accounts.dev$".
 const SYNTHETIC_PK = `pk_test_${Buffer.from('example-instance.clerk.accounts.dev$').toString('base64')}`;
@@ -50,5 +54,13 @@ describe('Content-Security-Policy', () => {
     expect(directive(policy, 'base-uri')).toBe("'self'");
     expect(directive(policy, 'default-src')).toBe("'self'");
     expect(directive(policy, 'script-src')).not.toContain("'unsafe-inline'");
+  });
+
+  it('places the policy before any script, and refuses a page without the charset anchor', () => {
+    const page = '<head><meta charset="UTF-8" /><script>1</script></head>';
+    const out = insertPolicyMeta(page, "default-src 'self'");
+    expect(out.indexOf('Content-Security-Policy')).toBeLessThan(out.indexOf('<script>'));
+    expect(insertPolicyMeta('<meta charset="utf-8">', 'x')).toContain('content="x"');
+    expect(() => insertPolicyMeta('<head><script>1</script></head>', 'x')).toThrow(/charset/);
   });
 });

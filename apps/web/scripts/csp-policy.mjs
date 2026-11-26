@@ -83,3 +83,17 @@ export function contentSecurityPolicy({
     .map(([name, value]) => `${name} ${value}`)
     .join('; ');
 }
+
+/**
+ * Puts the policy `<meta>` right after `<meta charset>`, before any script.
+ * Throws when that anchor is missing, so a reformatted index.html fails the
+ * build instead of silently shipping without a policy.
+ */
+export function insertPolicyMeta(html, policy) {
+  const anchor = /<meta charset="UTF-8"\s*\/?>/i;
+  if (!anchor.test(html)) throw new Error('CSP: <meta charset="UTF-8"> not found in index.html');
+  return html.replace(
+    anchor,
+    (tag) => `${tag}\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />`,
+  );
+}

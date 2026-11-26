@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
-import { contentSecurityPolicy } from './scripts/csp-policy.mjs';
+import { contentSecurityPolicy, insertPolicyMeta } from './scripts/csp-policy.mjs';
 
 // One source of truth for the web app version: this package's version. Baked in
 // at build time so diagnostic events can say which build a bug came from,
@@ -42,10 +42,7 @@ function contentSecurityPolicyTag(env: Record<string, string>): Plugin {
               .digest('base64'),
           ),
         });
-        return html.replace(
-          /<meta charset="UTF-8" \/>/,
-          `$&\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />`,
-        );
+        return insertPolicyMeta(html, policy);
       },
     },
   };

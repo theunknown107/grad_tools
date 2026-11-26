@@ -6,3 +6,5 @@ export function contentSecurityPolicy(options: {
   readonly clerkPublishableKey?: string | undefined;
   readonly inlineScriptHashes?: readonly string[];
 }): string;
+
+export function insertPolicyMeta(html: string, policy: string): string;
