@@ -752,3 +752,46 @@ visible, not re-discovered.
 - In-browser verification of the deployed gate and Liquid Glass toggle.
 
 No input path in this pass was left with a silently unresolved serious finding; the open items are access-gated verifications, not code defects.
+
+## 13.33 Public-release hardening (RC branch, November 2026)
+
+Verified on a Samsung Galaxy A35 (Android 16, WebView 158) with a release build signed by the GradTools key, installed as an update over existing data.
+
+### Release APK: no source maps
+
+- Cause: `vite.config.ts` emitted maps for every build, and `cap sync` copied `dist/` (62 maps, 24.6 MB) into the APK.
+- `vite build --mode android` (scripts `build:android`, `android:sync`) emits none; the web build keeps them for debugging (Vercel refuses public `.map` requests).
+- The vendored tesseract worker is copied without its trailing `sourceMappingURL` (`scripts/vendor-ocr-assets.mjs`); its code is byte-identical to upstream.
+- Guard: a release Gradle build fails if `src/main/assets/public` holds a `.map` or a `sourceMappingURL` (`android/app/build.gradle`). Tested with a planted map.
+- Result: 0 maps, 0 references, 0 inline maps, 0 `sourcesContent`; APK 20.76 MB → 14.85 MB.
+
+### Android permissions
+
+`@capacitor/local-notifications` declares `SCHEDULE_EXACT_ALARM`, used only for notifications scheduled for a later time. GradTools posts every notice immediately (`src/lib/system-notifications.ts`: no `schedule`, `isExactNotification: false`), so the app manifest removes it with `tools:node="remove"`. Final merged manifest and installed package: `INTERNET`, `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK` (and the AndroidX-generated `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`). Notifications and the chime verified on the device after removal.
+
+### Content-Security-Policy
+
+A `<meta>` policy is generated at build time (`scripts/csp-policy.mjs`, wired in `vite.config.ts`; the dev server is untouched), so it applies on the web and inside the Android WebView. Origins come from the same variables the app uses; with Clerk configured:
+
+```
+default-src 'self'; script-src 'self' 'sha256-<inline bootstrap>' 'wasm-unsafe-eval' <Clerk FAPI> https://challenges.cloudflare.com;
+style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://img.clerk.com; font-src 'self' data:;
+connect-src 'self' blob: data: [API origin] [Supabase https/wss] <Clerk FAPI>; worker-src 'self' blob:;
+frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'
+```
+
+`vercel.json` adds `frame-ancestors 'none'` as a header (meta tags cannot carry it).
+
+Exceptions, each measured: `'wasm-unsafe-eval'` (OCR compiles WebAssembly), `'unsafe-inline'` for styles only (libraries insert `<style>` tags; scripts stay hash-restricted), `blob:` workers (tesseract.js). Expected, harmless reports: Zod 4's `new Function("")` capability probe and a generator probe in officeparser, both inside `try` with a working fallback.
+
+Verified: report-only and enforced runs over every route, Clerk sign-in, theme switching, DOCX, XLSX, PDF and image OCR imports, all working; injected inline script, external script and inline event handler all blocked. On the device: app, plugins (notifications), OCR and Clerk session restore work under the policy. Capacitor 8 injects its bridge with `addDocumentStartJavaScript` when the WebView supports it, outside the page's CSP; on a WebView without that feature it falls back to an inline `<script>`, which this policy would block (not verified on old WebViews; API 24 is untested).
+
+Not deployed to production: the policy ships when the RC branch is merged.
+
+### Rust dependency audit (paused crate)
+
+`cargo audit` 0.23.0 on `rust/timetable-rs/Cargo.lock` (27 crates; RustSec database of 1,568 advisories, 26 Nov 2026): no vulnerabilities, no warnings. No dependency change. The crate stays **PAUSED — GATE 3 PASSED WITH LIMITATIONS** and is not part of the app.
+
+### Clerk session across restarts
+
+`ClerkProvider` (`@clerk/react`) keeps Clerk's client in the WebView's own storage; the app restores it on start (`restoring` → `signed_in`, or `expired` if Clerk cannot be reached within 15 s). On the device, two full process terminations (`am force-stop`) and relaunches kept the same signed-in account, profile and timetable, with no "Sign-in not confirmed". No code change was needed. Offline start, expiry and revocation are covered by the unit tests in `dashboard-restoration`, `offline-sign-out` and `sign-in-after-sign-out`, not re-run on the device.

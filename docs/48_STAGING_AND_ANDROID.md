@@ -97,7 +97,8 @@ This section only describes the setup; nothing here has been created. The same s
 | Environment | `VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
 
 - `prebuild` copies the OCR engine into `public/ocr`, so it ships from the site's own origin.
-- The build emits source maps (`sourcemap: true`). They contain no secrets, only the app's own source.
+- The web build emits source maps for debugging; Vercel refuses public `.map` requests. The Android build (`build:android`, `vite build --mode android`) emits none, and a release Gradle build refuses web assets that contain a map or a `sourceMappingURL` (13 §13.33).
+- Built pages carry a Content-Security-Policy `<meta>` tag generated from these same variables (13 §13.33).
 
 ### 2. Web service (API)
 
@@ -178,7 +179,7 @@ VITE_API_URL=https://<staging-api>
 VITE_SUPABASE_URL=https://<staging-ref>.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_…
 
-pnpm --filter @gradtools/web android:sync    # build, then cap sync android
+pnpm --filter @gradtools/web android:sync    # build without source maps, then cap sync android
 pnpm --filter @gradtools/web android:open    # opens Android Studio
 ```
 
