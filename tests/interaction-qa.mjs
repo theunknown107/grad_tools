@@ -50,7 +50,7 @@ function serve() {
       res.writeHead(404).end('not found');
     }
   });
-  return new Promise((ok) => server.listen(PORT, () => ok(server)));
+  return new Promise((ok) => server.listen(PORT, '127.0.0.1', () => ok(server)));
 }
 
 /* The canonical synthetic student, matching tests/m96b-qa.mjs. */
@@ -249,7 +249,7 @@ function announcementFeed() {
 const run = async () => {
   const server = await serve();
   const browser = await chromium.launch();
-  const base = `http://localhost:${PORT}`;
+  const base = `http://127.0.0.1:${PORT}`;
   const data = seedData();
 
   /* ---------------------------------------------------------------- desktop */

@@ -761,6 +761,7 @@ export const announcementCategorySchema = z.enum([
   'academic_calendar',
   'college_notice',
   'department_notice',
+  'sports',
   'general',
 ]);
 export type AnnouncementCategory = z.infer<typeof announcementCategorySchema>;

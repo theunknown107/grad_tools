@@ -81,4 +81,40 @@ describe('exposure guard', () => {
       assertSafeExposure(loadConfig(vars), vars);
     }).not.toThrow();
   });
+
+  /*
+   * With Clerk as the authority, authorizedParties must be set so the token's
+   * `azp` is pinned (auth/clerk.ts); otherwise a token minted for another origin
+   * on the same Clerk instance could be replayed. Placeholder keys only.
+   */
+  const CLERK = {
+    CLERK_SECRET_KEY: 'sk_test_placeholder',
+    CLERK_PUBLISHABLE_KEY: 'pk_test_placeholder',
+  };
+
+  it('refuses a deployed Clerk env that does not pin its authorized parties', () => {
+    const vars = env({ APP_ENV: 'staging', WEB_ORIGIN: 'https://staging.example.test', ...CLERK });
+    expect(() => {
+      assertSafeExposure(loadConfig(vars), vars);
+    }).toThrow(/CLERK_AUTHORIZED_PARTIES/);
+  });
+
+  it('accepts a deployed Clerk env that pins its authorized parties', () => {
+    const vars = env({
+      APP_ENV: 'staging',
+      WEB_ORIGIN: 'https://staging.example.test',
+      ...CLERK,
+      CLERK_AUTHORIZED_PARTIES: 'https://staging.example.test',
+    });
+    expect(() => {
+      assertSafeExposure(loadConfig(vars), vars);
+    }).not.toThrow();
+  });
+
+  it('does not require authorized parties when Clerk is not the authority', () => {
+    const vars = env({ APP_ENV: 'staging', WEB_ORIGIN: 'https://staging.example.test' });
+    expect(() => {
+      assertSafeExposure(loadConfig(vars), vars);
+    }).not.toThrow();
+  });
 });

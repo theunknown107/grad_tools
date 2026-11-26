@@ -194,7 +194,7 @@ function serve() {
         res.writeHead(404).end('not found');
       }
     });
-    server.listen(PORT, () => ok(server));
+    server.listen(PORT, '127.0.0.1', () => ok(server));
   });
 }
 
@@ -311,7 +311,7 @@ function seedData() {
       id: PID,
       authUserId: null,
       displayName: 'Demo Student',
-      usn: '1DS22CS001',
+      usn: '1XX22CS001',
       collegeName: 'Demo Institute of Technology',
       schemeId: 'vtu-2022',
       programme: 'B.E.',
@@ -398,10 +398,10 @@ const run = async () => {
         if (m.type() === 'error') errors.push(m.text());
       });
       page.on('pageerror', (e) => errors.push(`PAGEERROR ${String(e)}`));
-      await page.goto(`http://localhost:${PORT}/welcome`);
+      await page.goto(`http://127.0.0.1:${PORT}/welcome`);
       if (!EMPTY) await seed(page, seedData());
       for (const [path, name, prepare] of ROUTES) {
-        await page.goto(`http://localhost:${PORT}${path}`);
+        await page.goto(`http://127.0.0.1:${PORT}${path}`);
         await page.waitForLoadState('networkidle').catch(() => undefined);
         if (prepare !== undefined && !EMPTY)
           await prepare(page).catch(() =>
@@ -465,7 +465,7 @@ const run = async () => {
         for (const [name, path, open, maxWidth] of OVERLAYS) {
           if (maxWidth !== undefined && width >= maxWidth) continue;
           const label = `${theme} ${name}@${width}`;
-          await page.goto(`http://localhost:${PORT}${path}`);
+          await page.goto(`http://127.0.0.1:${PORT}${path}`);
           await page.waitForLoadState('networkidle').catch(() => undefined);
           await page.waitForTimeout(400);
           try {

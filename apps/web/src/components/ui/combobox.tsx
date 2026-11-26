@@ -112,7 +112,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
               />
             </div>
             {status !== null && (
-              <p className="px-3 pt-2 text-[11px] text-ink-3" aria-live="polite">
+              <p className="px-3 pt-2 text-[12px] text-ink-3" aria-live="polite">
                 {status}
               </p>
             )}
@@ -141,7 +141,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
                     {option.detail !== undefined && (
                       <span
                         id={`${listId}-${String(index)}`}
-                        className="block text-[11px] text-ink-3"
+                        className="block text-[12px] text-ink-3"
                       >
                         {option.detail}
                       </span>

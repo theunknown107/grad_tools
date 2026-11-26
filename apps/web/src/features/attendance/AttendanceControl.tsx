@@ -17,6 +17,7 @@
 
 import { Ban, Check, X } from 'lucide-react';
 import { Segmented } from '../../components/ui/segmented.js';
+import { tapHaptic } from '../../lib/haptics.js';
 import type { MarkState } from '../../hooks/useMarkClass.js';
 
 const OPTIONS = [
@@ -47,7 +48,10 @@ export function AttendanceControl({
        * option keeps it — which is exactly the behaviour wanted here.
        */
       value={value === 'unmarked' ? ('' as Exclude<MarkState, 'unmarked'>) : value}
-      onChange={onChange}
+      onChange={(next) => {
+        tapHaptic();
+        onChange(next);
+      }}
       options={OPTIONS.map((option) => ({
         value: option.value,
         label: (

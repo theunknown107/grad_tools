@@ -13,15 +13,18 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- White under the WebView, so the splash → app hand-off never shows
+             the DayNight dark window in between. -->
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
     </style>
 
 
-    <!-- Launch: mono — the dark canvas and the white mark (scripts/android-icons.mjs). Android 12+
+    <!-- Launch: the logo on white, the same ground as the icon (scripts/android-icons.mjs). Android 12+
          draws its system splash from the two windowSplashScreen items; older
          versions show @drawable/splash. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
-        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>

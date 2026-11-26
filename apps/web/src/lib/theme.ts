@@ -54,7 +54,7 @@ export type Appearance = (typeof APPEARANCES)[number];
  * our bug rather than their choice.
  *
  * The id is the stored value and never changes; the name a student sees lives
- * in `ACCENT_INFO`. Three groups (docs/51_THEMES.md has the sources):
+ * in `ACCENT_INFO`. Three groups (docs/54_THEMES.md has the sources):
  *
  *   current   the twelve accents since 3c15ff5 (2026-09-09).
  *   original  the five accents of the first theme system, 177a23e
@@ -233,7 +233,13 @@ export function readStoredTheme(storage: Pick<Storage, 'getItem'>): ThemePrefere
       : DEFAULT_THEME.appearance,
     accent: accentFrom(record['accent']),
     reducedMotion: record['reducedMotion'] === true,
-    reducedTransparency: record['reducedTransparency'] === true,
+    /* The release-candidate build stored opaque glass as `surface` or
+       `buttonStyle`; carried across so an updated device keeps solid surfaces. */
+    reducedTransparency:
+      record['reducedTransparency'] === true ||
+      record['surface'] === 'opaque' ||
+      record['surface'] === 'off' ||
+      record['buttonStyle'] === 'opaque',
     glass: (GLASS_LEVELS as readonly unknown[]).includes(record['glass'])
       ? (record['glass'] as Glass)
       : DEFAULT_THEME.glass,

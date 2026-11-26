@@ -513,3 +513,89 @@ describe('credits for a subject', () => {
     expect(creditsFor(null)).toEqual({ credits: null, from: null });
   });
 });
+
+/*
+ * A CODE SHARED ACROSS PROGRAMMES WITH DIFFERENT CREDITS (the BBOK407 case).
+ *
+ * The verified values are the ones the official 2022 scheme PDFs print: 3 in
+ * the civil / mining / biotech programmes, 2 in CE / AIDS / AIML. A single
+ * student is in one programme, so their credit is one of these — never a guess
+ * between them.
+ */
+describe('a shared code with divergent credits across programmes', () => {
+  const threeCredit = catalogueSubject({ code: 'BBOK407', semester: 4, credits: 3 });
+  const twoCredit = catalogueSubject({ code: 'BBOK407', semester: 4, credits: 2 });
+
+  it('resolves to the correct credit when the catalogue holds one programme only', () => {
+    expect(
+      resolveSubject(buildSubjectIndex({ catalogue: [threeCredit] }), 'BBOK407')?.credits,
+    ).toBe(3);
+    expect(resolveSubject(buildSubjectIndex({ catalogue: [twoCredit] }), 'BBOK407')?.credits).toBe(
+      2,
+    );
+  });
+
+  it('resolves to UNKNOWN, never an arbitrary value, when both programmes are present', () => {
+    const credits = resolveSubject(
+      buildSubjectIndex({ catalogue: [threeCredit, twoCredit] }),
+      'BBOK407',
+    )?.credits;
+    expect(credits).toBeNull();
+  });
+
+  it('is deterministic: the order of the rows does not change the result', () => {
+    const forward = resolveSubject(
+      buildSubjectIndex({ catalogue: [threeCredit, twoCredit] }),
+      'BBOK407',
+    )?.credits;
+    const reverse = resolveSubject(
+      buildSubjectIndex({ catalogue: [twoCredit, threeCredit] }),
+      'BBOK407',
+    )?.credits;
+    expect(forward).toBeNull();
+    expect(reverse).toBeNull();
+  });
+
+  it('keeps an agreed credit when two rows match', () => {
+    expect(
+      resolveSubject(
+        buildSubjectIndex({ catalogue: [threeCredit, { ...threeCredit, id: 'cat-2' }] }),
+        'BBOK407',
+      )?.credits,
+    ).toBe(3);
+  });
+
+  it('does not let a catalogue-provenance result row refill a conflicted credit', () => {
+    const index = buildSubjectIndex({
+      catalogue: [threeCredit, twoCredit],
+      results: [
+        result(4, [
+          {
+            subjectCode: 'BBOK407',
+            subjectTitle: 'Biology for Engineers',
+            credits: 2,
+            provenance: 'catalogue',
+          },
+        ]),
+      ],
+    });
+    expect(resolveSubject(index, 'BBOK407')?.credits).toBeNull();
+  });
+
+  it('still lets a single unconflicted catalogue credit stand', () => {
+    const index = buildSubjectIndex({
+      catalogue: [threeCredit],
+      results: [
+        result(4, [
+          {
+            subjectCode: 'BBOK407',
+            subjectTitle: 'Biology for Engineers',
+            credits: 2,
+            provenance: 'catalogue',
+          },
+        ]),
+      ],
+    });
+    expect(resolveSubject(index, 'BBOK407')?.credits).toBe(3); // catalogue wins, result does not overwrite
+  });
+});

@@ -192,7 +192,11 @@ describeDb('support and observability', () => {
         {}, // empty
       ];
       for (const body of bad) {
-        const res = await request(app).post('/api/v1/support-reports').send(body);
+        /* A client of its own, so this tests validation and not the anonymous limit. */
+        const res = await request(app)
+          .post('/api/v1/support-reports')
+          .set('X-Forwarded-For', '203.0.113.200')
+          .send(body);
         expect(res.status).toBe(400);
       }
     });
@@ -200,9 +204,13 @@ describeDb('support and observability', () => {
     it('rejects an oversized description and accepts an empty one', async () => {
       const tooLong = await request(app)
         .post('/api/v1/support-reports')
+        .set('X-Forwarded-For', '203.0.113.201')
         .send({ category: 'other', description: 'x'.repeat(1001) });
       expect(tooLong.status).toBe(400);
-      const empty = await request(app).post('/api/v1/support-reports').send({ category: 'other' });
+      const empty = await request(app)
+        .post('/api/v1/support-reports')
+        .set('X-Forwarded-For', '203.0.113.201')
+        .send({ category: 'other' });
       expect(empty.status).toBe(201);
     });
 

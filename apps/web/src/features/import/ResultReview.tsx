@@ -473,7 +473,7 @@ export function ResultReview({
           {unreadable.length === 1
             ? 'One line looks like a subject row but could not be read. Check it against your card and add it by hand if the subject is missing below.'
             : `${String(unreadable.length)} lines look like subject rows but could not be read. Check them against your card and add any missing subjects by hand.`}
-          <ul className="mt-1 list-disc pl-5 font-mono text-[11px]">
+          <ul className="mt-1 list-disc pl-5 font-mono text-[12px]">
             {unreadable.map((line) => (
               <li key={`${String(line.page)}-${line.text}`}>{line.text}</li>
             ))}
@@ -496,7 +496,7 @@ export function ResultReview({
         <div
           aria-hidden="true"
           className={cn(
-            'hidden border-b border-line bg-panel px-5 py-3 text-[11px] font-semibold tracking-wide text-ink-3 uppercase',
+            'hidden border-b border-line bg-panel px-5 py-3 text-[12px] font-semibold  text-ink-3',
             COLUMNS,
           )}
         >
@@ -529,7 +529,7 @@ export function ResultReview({
                           <span className="truncate text-[13px] font-medium text-ink">{name}</span>
                           {unresolved && <Badge tone="warning">Check</Badge>}
                         </span>
-                        <span className="block font-mono text-[11px] text-ink-3">
+                        <span className="block font-mono text-[12px] text-ink-3">
                           {row.subjectCode}
                         </span>
                       </span>
@@ -708,7 +708,7 @@ export function ResultReview({
                       onUse={(field, value) => update(row.id, { [field]: String(value) })}
                     />
                     <Resolved row={row} enrichment={enrichment} />
-                    <p className="mt-3 truncate font-mono text-[11px] text-ink-3">
+                    <p className="mt-3 truncate font-mono text-[12px] text-ink-3">
                       <span className="font-sans font-medium text-ink-2">Read from</span>{' '}
                       {row.sourceLine}
                     </p>
@@ -817,7 +817,7 @@ function Cell({
   const missing = value.trim() === '';
   return (
     <span className="md:text-right">
-      <span className="block text-[10px] text-ink-3 uppercase md:hidden">{label}</span>
+      <span className="block text-[12px] text-ink-3 md:hidden">{label}</span>
       {missing ? (
         <Unavailable reason={reason} />
       ) : (
@@ -874,7 +874,7 @@ function Resolved({
             {item.value}
           </dd>
           {item.why !== null && item.why !== undefined && item.why !== '' && (
-            <dd className="text-[11px] text-ink-3">{item.why}</dd>
+            <dd className="text-[12px] text-ink-3">{item.why}</dd>
           )}
         </div>
       ))}

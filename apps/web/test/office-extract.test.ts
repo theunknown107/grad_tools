@@ -51,42 +51,42 @@ const OFFICE_FIXTURES: [string, string][] = [
   ['result-card.pptx', 'pptx'],
 ];
 
-describe('fileKind detection', () => {
-  it('routes Office/ODF by MIME type', () => {
-    const cases: [string, string][] = [
-      ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'a.docx'],
-      ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'a.xlsx'],
+describe('fileKind detection (upload allow-list: images, PDF, DOCX, XLSX)', () => {
+  it('accepts Word and Excel by MIME type, and refuses every other office format', () => {
+    expect(
+      fileKind(
+        fileOf('a.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+      ),
+    ).toBe('office');
+    expect(
+      fileKind(
+        fileOf('a.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+      ),
+    ).toBe('office');
+    const refused: [string, string][] = [
       ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'a.pptx'],
       ['application/vnd.oasis.opendocument.text', 'a.odt'],
       ['application/vnd.oasis.opendocument.spreadsheet', 'a.ods'],
-      ['application/vnd.oasis.opendocument.presentation', 'a.odp'],
-      ['application/vnd.oasis.opendocument.graphics', 'a.odg'],
+      ['application/vnd.ms-excel', 'a.xls'],
       ['application/rtf', 'a.rtf'],
     ];
-    for (const [type, name] of cases) expect(fileKind(fileOf(name, type))).toBe('office');
+    for (const [type, name] of refused) expect(fileKind(fileOf(name, type))).toBe('unsupported');
   });
 
-  it('routes Office/ODF by extension when the picker omits the type (Android)', () => {
-    for (const name of [
-      'r.docx',
-      'r.xlsx',
-      'r.pptx',
-      'r.odt',
-      'r.ods',
-      'r.odp',
-      'r.odg',
-      'r.rtf',
-    ]) {
-      expect(fileKind(fileOf(name, ''))).toBe('office');
+  it('accepts Word and Excel by extension when the picker omits the type (Android)', () => {
+    expect(fileKind(fileOf('r.docx', ''))).toBe('office');
+    expect(fileKind(fileOf('r.xlsx', ''))).toBe('office');
+    for (const name of ['r.pptx', 'r.odt', 'r.ods', 'r.odp', 'r.odg', 'r.rtf', 'r.xls']) {
+      expect(fileKind(fileOf(name, ''))).toBe('unsupported');
     }
   });
 
-  it('routes plain-text exports to the text path, not the heavy engine', () => {
-    for (const name of ['r.csv', 'r.tsv', 'r.md', 'r.markdown', 'r.txt']) {
-      expect(fileKind(fileOf(name, ''))).toBe('text');
+  it('refuses text exports and saved web pages', () => {
+    for (const name of ['r.csv', 'r.tsv', 'r.md', 'r.markdown', 'r.txt', 'r.html']) {
+      expect(fileKind(fileOf(name, ''))).toBe('unsupported');
     }
-    expect(fileKind(fileOf('r.csv', 'text/csv'))).toBe('text');
-    expect(fileKind(fileOf('r.txt', 'text/plain'))).toBe('text');
+    expect(fileKind(fileOf('r.csv', 'text/csv'))).toBe('unsupported');
+    expect(fileKind(fileOf('r.html', 'text/html'))).toBe('unsupported');
   });
 
   it('still refuses genuinely unsupported files', () => {
@@ -94,26 +94,29 @@ describe('fileKind detection', () => {
     expect(fileKind(fileOf('clip.mp4', 'video/mp4'))).toBe('unsupported');
   });
 
-  it('leaves the existing PDF/image/HTML routing intact', () => {
+  it('leaves PDF and image routing intact', () => {
     expect(fileKind(fileOf('r.pdf', 'application/pdf'))).toBe('pdf');
     expect(fileKind(fileOf('r.jpg', 'image/jpeg'))).toBe('image');
-    expect(fileKind(fileOf('r.html', 'text/html'))).toBe('html');
   });
 });
 
 describe('sniffKind magic-byte routing', () => {
-  it('routes a real Office/ODF file to the office decoder by SIGNATURE, not name', async () => {
-    // Rename every fixture to a neutral ".bin" with no declared type, so only the
-    // first bytes can decide — a mislabelled docx must still be detected.
-    for (const [name] of OFFICE_FIXTURES) {
-      expect(await sniffKind(fixtureFile(name, 'mystery.bin', ''))).toBe('office');
-    }
+  it('reads a Word or Excel file by its signature when it says it is DOCX or XLSX', async () => {
+    expect(await sniffKind(fixtureFile('result-card.docx', 'card.docx', ''))).toBe('office');
+    expect(await sniffKind(fixtureFile('result-card.xlsx', 'card.xlsx', ''))).toBe('office');
   });
 
-  it('routes signature-less text exports by extension', async () => {
-    expect(await sniffKind(new File(['a,b,c'], 'x.csv', { type: '' }))).toBe('text');
-    expect(await sniffKind(new File(['# notes'], 'x.md', { type: '' }))).toBe('text');
-    expect(await sniffKind(new File(['plain'], 'x.txt', { type: '' }))).toBe('text');
+  it('refuses other ZIP-based and office formats, and a ZIP that does not say DOCX/XLSX', async () => {
+    for (const [name] of OFFICE_FIXTURES.filter(([, kind]) => kind !== 'docx' && kind !== 'xlsx')) {
+      expect(await sniffKind(fixtureFile(name))).toBe('unsupported');
+    }
+    expect(await sniffKind(fixtureFile('result-card.docx', 'mystery.bin', ''))).toBe('unsupported');
+  });
+
+  it('refuses signature-less text exports', async () => {
+    expect(await sniffKind(new File(['a,b,c'], 'x.csv', { type: '' }))).toBe('unsupported');
+    expect(await sniffKind(new File(['# notes'], 'x.md', { type: '' }))).toBe('unsupported');
+    expect(await sniffKind(new File(['plain'], 'x.txt', { type: '' }))).toBe('unsupported');
   });
 
   it('still refuses an unknown binary with no usable name or type', async () => {

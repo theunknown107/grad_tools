@@ -84,8 +84,8 @@ describe('entering a result card', () => {
 
     await user.click(await screen.findByRole('button', { name: /add a semester/i }));
     await user.type(screen.getByLabelText(/subject code 1/i), 'BCS401');
-    await user.type(screen.getByLabelText(/internal 1/i), '46');
-    await user.type(screen.getByLabelText(/external 1/i), '34');
+    await user.type(screen.getByLabelText(/internal 1/i), '44');
+    await user.type(screen.getByLabelText(/external 1/i), '36');
     await user.type(screen.getByLabelText(/total 1/i), '90');
     await user.click(screen.getByRole('button', { name: /save semester/i }));
 
@@ -235,13 +235,30 @@ describe('a saved result', () => {
   });
 
   it('says why there is no SGPA instead of showing a dash alone', async () => {
-    const { bundle } = createMemoryRepositories({ results: [provisional()] });
+    /*
+     * A code the published catalogue does not cover (BZZ401): graded, but with
+     * no credit on the card and none in the catalogue to fall back to, so the
+     * SGPA genuinely cannot be formed and the screen says why. (A catalogue code
+     * now resolves its official credits and computes — subject-metadata.test.)
+     */
+    const unknownCredits = saved(4, [
+      {
+        subjectCode: 'BZZ401',
+        subjectTitle: 'An Unlisted Course',
+        internal: 48,
+        external: 35,
+        total: 81,
+        resultStatus: 'P',
+        hasSee: true,
+      },
+    ]);
+    const { bundle } = createMemoryRepositories({ results: [unknownCredits] });
     const user = userEvent.setup();
     renderRecord(bundle);
 
     await openRecord(user);
     expect(screen.getByText(/no sgpa yet/i)).toBeTruthy();
-    expect(screen.getAllByText(/BCS401/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/BZZ401/).length).toBeGreaterThan(0);
   });
 
   it('calls a CIE-only course Not applicable, and not a backlog', async () => {
@@ -304,7 +321,6 @@ describe('a saved result', () => {
     expect((screen.getByLabelText(/internal 1/i) as HTMLInputElement).value).toBe('46');
 
     await user.clear(screen.getByLabelText(/internal 1/i));
-    // One more internal mark, and the total that goes with it (47 + 34 = 81).
     await user.type(screen.getByLabelText(/internal 1/i), '47');
     await user.clear(screen.getByLabelText(/total 1/i));
     await user.type(screen.getByLabelText(/total 1/i), '81');

@@ -35,7 +35,7 @@
  *   It is offered for merge at first sign-in and never silently moved.
  */
 
-import { del, get, keys, set } from 'idb-keyval';
+import { createStore, del, get, keys, promisifyRequest, set } from 'idb-keyval';
 
 const PREFIX = 'gradtools:v1:';
 
@@ -77,6 +77,10 @@ export type StorageKey =
   | 'schemeCourses'
   | 'examTimetables'
   | 'examEvents'
+  /** Grade-card SGPAs and credit totals the student typed (docs/53). Device-local. */
+  | 'gradeCards'
+  /** Later sittings of courses not passed (docs/53). Device-local. */
+  | 'courseAttempts'
   /** Sync bookkeeping: the cursor and the pending queue (M9 §40). */
   | 'syncState'
   /**
@@ -135,9 +139,47 @@ export async function writeValue<T>(
 ): Promise<boolean> {
   try {
     await set(fullKey(scope, key), value);
+    if (!NOT_RECORDS.has(key) && !isEmptyValue(value)) void requestPersistence();
     return true;
   } catch {
     return false;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Persistent storage (docs/51)                                               */
+/* -------------------------------------------------------------------------- */
+
+let persistenceRequested = false;
+
+/**
+ * Asks the browser, once per session and only after a real record is written,
+ * to keep this origin's storage out of best-effort eviction. The browser decides
+ * (Firefox may ask the student), so this is a request, never a promise, and a
+ * refusal or a missing API is silent. Not a backup: see `backup.ts`.
+ */
+async function requestPersistence(): Promise<void> {
+  if (persistenceRequested) return;
+  persistenceRequested = true;
+  try {
+    const storage = typeof navigator === 'undefined' ? undefined : navigator.storage;
+    if (storage?.persist === undefined || (await storage.persisted())) return;
+    await storage.persist();
+  } catch {
+    /* The request is a protection, not a requirement. */
+  }
+}
+
+export type StoragePersistence = 'persistent' | 'best_effort' | 'unknown';
+
+/** What the browser says now: the Account page shows this, not a guess. */
+export async function storagePersistence(): Promise<StoragePersistence> {
+  try {
+    const storage = typeof navigator === 'undefined' ? undefined : navigator.storage;
+    if (storage?.persisted === undefined) return 'unknown';
+    return (await storage.persisted()) ? 'persistent' : 'best_effort';
+  } catch {
+    return 'unknown';
   }
 }
 
@@ -170,6 +212,32 @@ export async function clearScope(scope: AccountScope): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Deletes and writes keys of ONE scope in a single IndexedDB transaction: all of
+ * it commits, or none of it does (docs/51 restore rule 4). Throws on failure.
+ *
+ * idb-keyval's own database and store, opened directly, because its helpers
+ * each run their own transaction. A request that throws synchronously does not
+ * abort a transaction by itself, so it is aborted explicitly.
+ */
+export async function writeScopeAtomically(
+  scope: AccountScope,
+  remove: readonly StorageKey[],
+  put: readonly (readonly [StorageKey, unknown])[],
+): Promise<void> {
+  const store = createStore('keyval-store', 'keyval');
+  await store('readwrite', (objects) => {
+    try {
+      for (const key of remove) objects.delete(fullKey(scope, key));
+      for (const [key, value] of put) objects.put(value, fullKey(scope, key));
+    } catch (error) {
+      objects.transaction.abort();
+      throw error;
+    }
+    return promisifyRequest(objects.transaction);
+  });
 }
 
 /** True when a scope holds anything at all. Drives the first-sync offer. */
@@ -234,11 +302,87 @@ export async function scopeHoldsRecords(scope: AccountScope): Promise<boolean> {
 }
 
 /**
- * Supabase-era account scopes on this device, other than `current`, that hold
- * records. After the Clerk cutover the same student signs in under a NEW id,
- * so their old records are here but under a scope nothing reads any more.
+ * True when ANY account scope on this device holds records — never which, and
+ * never what. The signed-out dashboard uses it to say "your records are still
+ * here, sign in to see them" instead of "no results are saved yet", without
+ * reading a single record out of a scope it is not signed in to (M9 §37).
+ * A storage failure answers false: the dashboard's own read reports failures.
  */
-export async function legacyScopesWithRecords(current: string): Promise<string[]> {
+export async function anyAccountHoldsRecords(): Promise<boolean> {
+  try {
+    const ids = new Set<string>();
+    for (const key of await keys()) {
+      if (typeof key !== 'string' || !key.startsWith(`${PREFIX}u:`)) continue;
+      const id = key.slice(`${PREFIX}u:`.length).split(':')[0] ?? '';
+      if (id !== '') ids.add(id);
+    }
+    for (const id of ids) if (await scopeHoldsRecords(id)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+const claimKey = (id: string): string => `${PREFIX}legacy-claim:${id}`;
+
+/**
+ * The address Supabase saved for a former account, if its session is still here.
+ * The only evidence on a device of who an old scope belonged to.
+ */
+export function legacyOwnerEmail(id: string): string | null {
+  try {
+    for (const key of Object.keys(window.localStorage)) {
+      if (!/^sb-.+-auth-token$/.test(key)) continue;
+      const session = JSON.parse(window.localStorage.getItem(key) ?? 'null') as {
+        user?: { id?: unknown; email?: unknown };
+      } | null;
+      if (session?.user?.id === id && typeof session.user.email === 'string') {
+        return session.user.email.toLowerCase();
+      }
+    }
+  } catch {
+    /* Unreadable is the same as absent. */
+  }
+  return null;
+}
+
+/**
+ * Whether this signed-in account may take a former scope. Only with proof: the old
+ * session on this device must name the address this account verified. No proof
+ * means no, never "whoever confirms first". The records stay where they are, for
+ * a recovery route to reach later.
+ *
+ * ponytail: the proof is a saved session, so someone who controls the device could
+ * forge it. Upgrade path: a server-held record of old ids to verified addresses.
+ */
+async function mayClaim(id: string, account: string, email: string | null): Promise<boolean> {
+  const claimedBy = await get<string>(claimKey(id));
+  if (claimedBy !== undefined && claimedBy !== account) return false;
+  const owner = legacyOwnerEmail(id);
+  return owner !== null && email !== null && owner === email.toLowerCase();
+}
+
+/** True when former records exist here that this account cannot prove are its own. */
+export async function unprovenLegacyRecords(
+  current: string,
+  email: string | null,
+): Promise<boolean> {
+  const all = await legacyScopesWithRecords(current, email, true);
+  const provable = await legacyScopesWithRecords(current, email);
+  return all.length > provable.length;
+}
+
+/**
+ * Supabase-era account scopes on this device, other than `current`, that hold
+ * records and that this account may take. After the Clerk cutover the same
+ * student signs in under a NEW id, so their old records are here but under a
+ * scope nothing reads any more.
+ */
+export async function legacyScopesWithRecords(
+  current: string,
+  email: string | null = null,
+  includeUnproven = false,
+): Promise<string[]> {
   try {
     const ids = new Set<string>();
     for (const key of await keys()) {
@@ -247,7 +391,10 @@ export async function legacyScopesWithRecords(current: string): Promise<string[]
       if (id !== current && LEGACY_ID.test(id)) ids.add(id);
     }
     const found: string[] = [];
-    for (const id of ids) if (await scopeHoldsRecords(id)) found.push(id);
+    for (const id of ids) {
+      if (!(await scopeHoldsRecords(id))) continue;
+      if (includeUnproven || (await mayClaim(id, current, email))) found.push(id);
+    }
     return found;
   } catch {
     return [];
@@ -266,9 +413,16 @@ export async function legacyScopesWithRecords(current: string): Promise<string[]
  * - The legacy `schemaVersion` IS copied (or the target's removed), so
  *   pre-ledger data still runs its upgrade instead of being misread.
  * - All or nothing: on any failure the target is restored to what it was.
+ * - One owner: re-checked here, not only when offered, and recorded once done.
  */
-export async function copyLegacyScope(from: string, to: string): Promise<number> {
+export async function copyLegacyScope(
+  from: string,
+  to: string,
+  email: string | null = null,
+): Promise<number> {
   if (!LEGACY_ID.test(from) || from === to) throw new Error('Not a legacy account scope.');
+  if (to === '' || LEGACY_ID.test(to)) throw new Error('Not a signed-in account.');
+  if (!(await mayClaim(from, to, email))) throw new Error('These records are not this account\'s.');
   if (await scopeHoldsRecords(to)) throw new Error('This account already holds records.');
 
   const before = await entriesOf(to);
@@ -277,6 +431,7 @@ export async function copyLegacyScope(from: string, to: string): Promise<number>
   try {
     if (!source.some(([key]) => key === 'schemaVersion')) await del(`${target}schemaVersion`);
     for (const [key, value] of source) await set(`${target}${key}`, value);
+    await set(claimKey(from), to);
     return source.length;
   } catch (error) {
     await clearScope(to);

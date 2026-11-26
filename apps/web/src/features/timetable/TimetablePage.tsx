@@ -99,9 +99,9 @@ const KIND_LABEL: Record<Kind, string> = { course: 'Course', activity: 'Activity
  * edge is a 2px span painted with `KIND_BAR`, the same fills the legend uses.
  */
 const KIND_TINT: Record<Kind, string> = {
-  course: 'bg-accent-weak',
-  activity: 'bg-warning-weak',
-  break: 'bg-sunken',
+  course: 'bg-accent-weak/40',
+  activity: 'bg-warning-weak/80',
+  break: 'bg-sunken/60',
 };
 
 /**
@@ -466,20 +466,18 @@ function WeekStack({
               >
                 {DAY_NAME[weekday]}
                 {weekday === todayName && (
-                  <span className="ml-1.5 align-middle font-mono text-[10px] text-ink-3 uppercase">
+                  <span className="ml-1.5 align-middle font-mono text-[12px] text-ink-3">
                     today
                   </span>
                 )}
               </span>
-              <span className="font-mono text-[10px] tracking-wide text-ink-3 uppercase">
+              <span className="font-mono text-[12px] text-ink-3">
                 {sessions === 0 ? 'None' : formatCount(sessions, 'session')}
               </span>
             </button>
-            <div className="flex flex-col gap-1.5">
+            <div className="gt-surface flex flex-col divide-y divide-line overflow-hidden rounded-xl border border-line">
               {slots.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-line px-2.5 py-2 text-[11px] text-ink-3">
-                  Nothing recorded.
-                </p>
+                <p className="px-3 py-2.5 text-[12px] text-ink-3">Nothing recorded.</p>
               ) : (
                 slots.map((slot) => (
                   <SessionChip
@@ -519,8 +517,8 @@ function WeekStack({
  * genuinely empty space.
  */
 const STEP = 5;
-/** Height of one `STEP`. 6px ⇒ an hour is 72px, a 50-minute class is 60px. */
-const STEP_PX = 6;
+/** Height of one `STEP`. 8px ⇒ an hour is 96px, a 55-minute class is 88px: room for its name, code, room and faculty. */
+const STEP_PX = 8;
 /**
  * The span given to a row that HAS no duration — `end <= start`, which no
  * writer can produce and which storage therefore only holds as corruption
@@ -534,7 +532,7 @@ const STEP_PX = 6;
  * is exactly as tall as it is long.
  */
 const DEGENERATE_SPAN_MINUTES = 30;
-const GRID_COLUMNS = '3.25rem repeat(6, minmax(0, 1fr))';
+const GRID_COLUMNS = '4.5rem repeat(6, minmax(0, 1fr))';
 
 interface Placement {
   readonly slot: TimetableSlot;
@@ -638,12 +636,12 @@ function WeekTimeGrid({
               >
                 {DAY_NAME[weekday]}
                 {weekday === todayName && (
-                  <span className="ml-1.5 align-middle font-mono text-[10px] text-ink-3 uppercase">
+                  <span className="ml-1.5 align-middle font-mono text-[12px] text-ink-3">
                     today
                   </span>
                 )}
               </span>
-              <span className="font-mono text-[10px] tracking-wide text-ink-3 uppercase">
+              <span className="font-mono text-[12px] text-ink-3">
                 {sessions === 0 ? 'None' : formatCount(sessions, 'session')}
               </span>
             </button>
@@ -681,7 +679,7 @@ function WeekTimeGrid({
         {hours.slice(0, -1).map((minute) => (
           <span
             key={minute}
-            className="pr-2 text-right font-mono text-[10px] text-ink-3 tabular-nums"
+            className="pr-2 text-right font-mono text-[12px] text-ink-3 tabular-nums"
             style={{
               gridColumn: '1',
               gridRow: `${String(rowOf(minute))} / span ${String(60 / STEP)}`,
@@ -695,7 +693,7 @@ function WeekTimeGrid({
           (placed[day] ?? []).map((one) => (
             <div
               key={one.slot.id}
-              className="min-w-0"
+              className="min-w-0 pb-0.5"
               style={{
                 gridColumn: String(day + 2),
                 gridRow: `${String(rowOf(one.start))} / ${String(rowOf(one.end))}`,
@@ -739,15 +737,28 @@ function GridSession({
   readonly minutes: number;
 }) {
   const time = `${slot.startTime}–${slot.endTime}`;
-  const name = entry.isCourse ? entry.shortName : entry.name;
-  const where = slot.room ?? (entry.isCourse ? entry.name : null);
+  /* The subject's name leads; its code and time sit under it, then where and with whom. */
+  const meta = [entry.isCourse ? entry.shortName : null, time].filter(Boolean).join(' · ');
+  const place = [slot.room, slot.faculty].filter(Boolean).join(' · ');
   /* Everything, always: whatever the density hides visually, this still says. */
-  const label = [KIND_LABEL[kind], entry.name, time, slot.room].filter(Boolean).join(', ');
+  const label = [
+    KIND_LABEL[kind],
+    entry.name,
+    entry.isCourse ? entry.shortName : null,
+    time,
+    slot.room,
+    slot.faculty,
+  ]
+    .filter(Boolean)
+    .join(', ');
   const density = densityFor(minutes);
-  const surface = cn('relative flex h-full min-w-0 overflow-hidden pr-1.5 pl-2.5', KIND_TINT[kind]);
+  const surface = cn('relative flex h-full min-w-0 overflow-hidden pr-1.5 pl-2', KIND_TINT[kind]);
   /*
-   * Secondary text here is `ink-2`, not `ink-3`: on the tint, `ink-3` measures
-   * 4.17:1 light and 4.24:1 dark, under the 4.5:1 floor (axe, qa:app).
+   * Three tiers, not three equal lines: the name in ink and medium weight, the
+   * code and time in `ink-2` tabular figures, room and faculty in `ink-2` at
+   * regular weight. Secondary text stays `ink-2`, not `ink-3`: on the tint,
+   * `ink-3` measures 4.17:1 light and 4.24:1 dark, under the 4.5:1 floor.
+   * Room and faculty wrap to a second line instead of being cut off.
    */
   /* A break is quieter than a class: its tint alone says so, with no edge. */
   const edge =
@@ -759,7 +770,7 @@ function GridSession({
     return (
       <article
         aria-label={label}
-        className={cn(surface, 'items-center gap-1.5 text-[11px] text-ink-2')}
+        className={cn(surface, 'items-center gap-1.5 text-[12px] text-ink-2')}
       >
         <Coffee className="size-3.5 shrink-0" aria-hidden="true" />
         {/* The time is the row it sits on; dropping it is what lets the name fit. */}
@@ -772,32 +783,28 @@ function GridSession({
 
   if (density === 'short') {
     return (
-      <article aria-label={label} className={cn(surface, 'items-center gap-1.5')}>
+      <article aria-label={label} className={cn(surface, 'items-center gap-1.5')} title={label}>
         {edge}
-        <span className="truncate text-[11px] font-medium" title={entry.name}>
-          {name}
-        </span>
-        <span className="shrink-0 font-mono text-[10px] text-ink-2">{slot.startTime}</span>
+        <span className="truncate text-[12px] font-medium text-ink">{entry.name}</span>
+        <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{slot.startTime}</span>
       </article>
     );
   }
 
   return (
-    <article aria-label={label} className={cn(surface, 'flex-col gap-0.5 py-1.5')}>
+    <article aria-label={label} className={cn(surface, 'flex-col py-1')} title={label}>
       {edge}
-      <span
-        className={cn(
-          'text-[12px] leading-tight font-medium',
-          density === 'tall' ? 'line-clamp-2' : 'truncate',
-        )}
-        title={entry.name}
-      >
-        {name}
+      <span className="line-clamp-2 text-[12px] leading-[1.3] font-medium text-ink">
+        {entry.name}
       </span>
-      <span className="truncate font-mono text-[10px] text-ink-2">
-        {time}
-        {where === null || where === '' ? null : ` · ${where}`}
+      <span className="mt-0.5 truncate text-[12px] leading-[1.3] text-ink-2 tabular-nums">
+        {meta}
       </span>
+      {place !== '' && (
+        <span className="line-clamp-2 text-[12px] leading-[1.3] font-normal text-ink-2">
+          {place}
+        </span>
+      )}
     </article>
   );
 }
@@ -817,69 +824,37 @@ function SessionChip({
 }) {
   const kind = kindOf(entry);
   if (fill) return <GridSession slot={slot} entry={entry} kind={kind} minutes={minutes} />;
+  /*
+   * ON A PHONE A SESSION IS A ROW, NOT A CARD. The day's group is the one
+   * surface; each class is a divided row in it: time, then name, then code and
+   * room, then faculty. Nothing is truncated, and the row stays a 44px target.
+   */
   if (kind === 'break') {
     return (
-      /*
-       * A break is the same surface at lower emphasis: the dashed border and
-       * the panel background are the only overrides, so it cannot drift away
-       * from the class block it sits between.
-       */
-      <Card
-        className={cn(
-          'flex items-center gap-2 overflow-hidden rounded-lg border-dashed bg-panel px-2.5 text-[11px] text-ink-3',
-          fill ? 'h-full py-1' : 'py-1.5',
-        )}
-      >
+      <article className="flex min-h-11 items-center gap-3 px-3 py-2 text-[12px] text-ink-2">
+        <span className="w-20 shrink-0 tabular-nums">{slot.startTime}</span>
         <Coffee className="size-3.5 shrink-0" aria-hidden="true" />
-        <span className="font-mono">{slot.startTime}</span>
-        <span className="truncate">{entry.name}</span>
-      </Card>
+        <span className="min-w-0">{entry.name}</span>
+      </article>
     );
   }
   return (
-    /*
-     * THE CLASS BLOCK IS A CARD, NOT A HAND-ROLLED BOX.
-     *
-     * This was `rounded-lg border border-line bg-raised` written out by hand —
-     * character for character what `ui/card.tsx` already is, which is how a
-     * timetable ends up looking like arbitrary rounded rectangles rather than
-     * the rest of the product. `asChild` keeps the `<article>` element, so the
-     * semantics are unchanged and only the surface comes from the primitive.
-     *
-     * `rounded-lg` overrides the Card's `rounded-xl` through `cn`'s
-     * tailwind-merge: a grid cell this dense needs the tighter radius, and the
-     * override is the design system's own mechanism rather than a fork.
-     */
-    <Card
-      asChild
-      className={cn(
-        'relative overflow-hidden rounded-lg p-2.5 transition-colors hover:border-line-strong',
-        fill && 'h-full',
-      )}
-    >
-      <article>
-        <span
-          aria-hidden="true"
-          className={cn('absolute top-2 bottom-2 left-0 w-[3px] rounded-full', KIND_BAR[kind])}
-        />
-        <div className="pl-2">
-          <div className="flex items-center justify-between gap-1">
-            <span className="font-mono text-[10px] text-ink-3">
-              {slot.startTime}–{slot.endTime}
-            </span>
-          </div>
-          <div
-            className="mt-1 line-clamp-2 text-[12px] leading-tight font-medium"
-            title={entry.name}
-          >
-            {entry.isCourse ? entry.shortName : entry.name}
-          </div>
-          <div className="truncate text-[11px] text-ink-3">
-            {slot.room ?? (entry.isCourse ? entry.name : '')}
-          </div>
+    <article className="relative flex min-h-11 gap-3 px-3 py-2.5">
+      <span
+        aria-hidden="true"
+        className={cn('absolute top-3 bottom-3 left-0 w-0.5 rounded-full', KIND_BAR[kind])}
+      />
+      <span className="w-20 shrink-0 pt-0.5 text-[12px] text-ink-2 tabular-nums">
+        {slot.startTime}–{slot.endTime}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[14px] leading-snug font-medium text-ink">{entry.name}</div>
+        <div className="mt-0.5 text-[12px] text-ink-2">
+          {[entry.isCourse ? entry.shortName : null, slot.room].filter(Boolean).join(' · ')}
         </div>
-      </article>
-    </Card>
+        {slot.faculty !== null && <div className="text-[12px] text-ink-2">{slot.faculty}</div>}
+      </div>
+    </article>
   );
 }
 
@@ -927,7 +902,7 @@ function DayFocus({
       <CardHeader
         title={`${DAY_NAME[day]}${isToday ? ' · today' : ''}`}
         action={
-          <span className="font-mono text-[11px] text-ink-3">
+          <span className="font-mono text-[12px] text-ink-3">
             {slots.length === 0 ? 'No sessions' : formatCount(slots.length, 'session')}
           </span>
         }
@@ -966,9 +941,15 @@ function DayFocus({
                 )}
               >
                 {/* The design's time column: one mono line, as the timetable prints it. */}
-                <div className="w-[4.75rem] shrink-0 font-mono text-[11px] whitespace-nowrap text-ink-3 tabular-nums sm:w-24">
-                  <time dateTime={slot.startTime}>{slot.startTime}</time>–
-                  <time dateTime={slot.endTime}>{slot.endTime}</time>
+                {/* On a phone the start and end stack, so the name keeps its width. */}
+                <div className="w-12 shrink-0 font-mono text-[12px] whitespace-nowrap text-ink-3 tabular-nums sm:w-24">
+                  <time dateTime={slot.startTime} className="max-sm:block">
+                    {slot.startTime}
+                  </time>
+                  <span className="max-sm:sr-only">–</span>
+                  <time dateTime={slot.endTime} className="max-sm:block">
+                    {slot.endTime}
+                  </time>
                   {isNow && (
                     <div className="mt-1">
                       <Badge tone="accent">Now</Badge>
@@ -981,7 +962,12 @@ function DayFocus({
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className={cn('truncate text-[14px] font-medium', muted && 'text-ink-3')}>
+                    <span
+                      className={cn(
+                        'min-w-0 text-[14px] leading-snug font-medium break-words hyphens-auto',
+                        muted && 'text-ink-3',
+                      )}
+                    >
                       {entry.name}
                     </span>
                     {!muted && <Badge className="shrink-0 max-sm:hidden">{KIND_LABEL[kind]}</Badge>}
@@ -1004,18 +990,19 @@ function DayFocus({
                       </Badge>
                     )}
                   </div>
-                  <div className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-[12px] text-ink-3">
+                  {/* Wraps rather than truncates: room and faculty are essential on a phone. */}
+                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 text-[12px] text-ink-3">
                     {entry.detail !== null && <span className="font-mono">{entry.detail}</span>}
                     {slot.room !== null && (
                       <>
                         {entry.detail !== null && <span aria-hidden="true">·</span>}
-                        <MapPin className="size-3 shrink-0" aria-hidden="true" />
-                        <span className="truncate">{slot.room}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="size-3 shrink-0" aria-hidden="true" />
+                          {slot.room}
+                        </span>
                       </>
                     )}
-                    {slot.faculty !== null && (
-                      <span className="truncate max-sm:hidden">· {slot.faculty}</span>
-                    )}
+                    {slot.faculty !== null && <span>· {slot.faculty}</span>}
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">

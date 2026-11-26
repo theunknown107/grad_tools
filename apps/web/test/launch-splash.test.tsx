@@ -33,7 +33,7 @@ describe('the launch splash', () => {
     native(false);
     render(<LaunchSplash />);
     const splash = screen.getByTestId('launch-splash');
-    expect(splash.querySelector('svg')).not.toBeNull();
+    expect(splash.querySelector('img')).not.toBeNull();
     expect(splash.textContent).toContain('GradTools');
     // Its own fade-out ending is what removes it — no timer, nothing left behind.
     // jsdom has no AnimationEvent, so the event carries its name by hand.
@@ -45,9 +45,27 @@ describe('the launch splash', () => {
     expect(screen.queryByTestId('launch-splash')).toBeNull();
   });
 
+  it("takes over from index.html's white boot ground once mounted", () => {
+    native(false);
+    document.documentElement.classList.add('gt-booting');
+    render(<LaunchSplash />);
+    expect(document.documentElement.classList.contains('gt-booting')).toBe(false);
+  });
+
   it('is not shown at all under reduced motion', () => {
     native(true);
     render(<LaunchSplash />);
     expect(screen.queryByTestId('launch-splash')).toBeNull();
+  });
+
+  it("is not shown when the app's own Reduced-motion setting is on", () => {
+    native(false);
+    document.documentElement.setAttribute('data-motion', 'reduced');
+    try {
+      render(<LaunchSplash />);
+      expect(screen.queryByTestId('launch-splash')).toBeNull();
+    } finally {
+      document.documentElement.removeAttribute('data-motion');
+    }
   });
 });

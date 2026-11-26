@@ -103,7 +103,7 @@ export const DESTINATIONS: readonly Destination[] = [
     short: 'Attendance',
     icon: CalendarCheck2,
     group: 'Academics',
-    description: 'Percentage and classes you can miss',
+    description: 'Percentage and margin for each course',
     keywords: 'bunk present absent planner',
   },
   {

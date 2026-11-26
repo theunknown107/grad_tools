@@ -11,14 +11,17 @@
     "build": "tsc -b tsconfig.build.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "android:sync": "pnpm run build && cap sync android",
+    "build:android": "tsc -b tsconfig.build.json && vite build --mode android",
+    "android:sync": "pnpm run build:android && cap sync android",
     "android:open": "cap open android",
     "android:icons": "node scripts/android-icons.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",
     "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
     "@capacitor/core": "8.5.2",
+    "@capacitor/local-notifications": "8.3.1",
     "@clerk/react": "6.17.7",
     "@gradtools/academic-rules": "workspace:*",
     "@gradtools/shared-types": "workspace:*",

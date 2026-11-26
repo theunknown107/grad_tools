@@ -155,6 +155,21 @@ describe('the shipped result-session catalogue', () => {
     ]);
   });
 
+  /*
+   * Summer / Make-up 2026, verified on VTU's own results page (not the
+   * third-party page the rest of the file was transcribed from). VTU labels it
+   * for the 2022 scheme's 1st and 2nd semesters; the note says so.
+   */
+  it('carries the verified Summer / Make-up 2026 session, newest first', () => {
+    const found = findVtuResultSession('SME26cbcs');
+    expect(found?.session.url).toBe('https://results.vtu.ac.in/SME26cbcs/index.php');
+    expect(found?.card.title).toBe('Summer / Makeup - 2026 Examination');
+    expect(found?.session.programme).toBe('UG');
+    expect(found?.session.note).toMatch(/official results\.vtu\.ac\.in main page/);
+    expect(found?.session.note).toMatch(/2022 Scheme 1st & 2nd Semester/);
+    expect(catalog.cards[0]?.title).toBe('Summer / Makeup - 2026 Examination');
+  });
+
   it('finds a session by id, and nothing for an unknown one', () => {
     expect(findVtuResultSession('MJ26cbcs')?.card.title).toBe('May – June 2026 Exam');
     expect(findVtuResultSession('nope')).toBeNull();

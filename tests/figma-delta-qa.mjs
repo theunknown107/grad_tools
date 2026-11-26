@@ -75,7 +75,7 @@ function serve() {
       res.writeHead(404).end('not found');
     }
   });
-  return new Promise((ok) => server.listen(PORT, () => ok(server)));
+  return new Promise((ok) => server.listen(PORT, '127.0.0.1', () => ok(server)));
 }
 
 /**
@@ -255,9 +255,9 @@ async function probeRail(browser, dist) {
     ),
   );
   const page = await context.newPage();
-  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle' });
   await seed(page, dist);
-  await page.goto(`http://localhost:${PORT}/results`, { waitUntil: 'networkidle' });
+  await page.goto(`http://127.0.0.1:${PORT}/results`, { waitUntil: 'networkidle' });
 
   const NAV = 'aside#gt-sidebar nav[aria-label="Destinations"] a';
   const toggle = page.getByRole('button', { name: 'Collapse sidebar' });
@@ -392,9 +392,9 @@ async function probeOverlays(browser, dist) {
       appearance,
     );
     const page = await context.newPage();
-    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+    await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle' });
     await seed(page, dist);
-    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+    await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle' });
 
     if (open === 'command') {
       /* The shortcut, not the button: the shortcut is the thing the design
@@ -503,11 +503,11 @@ async function probeStates(browser, dist) {
     ),
   );
   const page = await context.newPage();
-  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle' });
   await seed(page, dist);
 
   /* Results → Semesters tab. */
-  await page.goto(`http://localhost:${PORT}/results`, { waitUntil: 'networkidle' });
+  await page.goto(`http://127.0.0.1:${PORT}/results`, { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: /Semesters/ }).click();
   await page.waitForTimeout(300);
   /*
@@ -565,7 +565,7 @@ async function probeStates(browser, dist) {
   }
 
   /* SGPA → the calculator tab. */
-  await page.goto(`http://localhost:${PORT}/academics`, { waitUntil: 'networkidle' });
+  await page.goto(`http://127.0.0.1:${PORT}/academics`, { waitUntil: 'networkidle' });
   const calc = page.getByRole('tab', { name: /Calculator/i });
   if ((await calc.count()) > 0) {
     await calc.first().click();
@@ -590,7 +590,7 @@ async function probeFonts(browser) {
   const requests = [];
   context.on('request', (request) => requests.push(request.url()));
   const page = await context.newPage();
-  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle' });
   /* Give the faces a moment to be requested and decoded. */
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(400);
@@ -639,7 +639,7 @@ async function probeFonts(browser) {
 async function probeGeometry(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
-  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(500);
 
   const measured = await page.evaluate(() => {
@@ -729,9 +729,9 @@ async function probeDensity(browser, dist) {
       density,
     );
     const page = await context.newPage();
-    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+    await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle' });
     await seed(page, dist);
-    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+    await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(400);
     const out = await page.evaluate(() => {
       const n = (v) => Math.round(parseFloat(v) * 100) / 100;
@@ -811,11 +811,11 @@ async function main() {
         const page = await context.newPage();
         const errors = [];
         page.on('pageerror', (event) => errors.push(String(event)));
-        await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
+        await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'networkidle' });
         await seed(page, data);
 
         for (const [path, name] of ROUTES) {
-          await page.goto(`http://localhost:${PORT}${path}`, { waitUntil: 'networkidle' });
+          await page.goto(`http://127.0.0.1:${PORT}${path}`, { waitUntil: 'networkidle' });
           await page.waitForTimeout(220);
 
           /* §13. A measurement, not an opinion. */

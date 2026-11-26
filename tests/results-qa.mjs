@@ -90,7 +90,7 @@ function serve() {
         res.writeHead(404).end('not found');
       }
     });
-    server.listen(PORT, () => ok(server));
+    server.listen(PORT, '127.0.0.1', () => ok(server));
   });
 }
 
@@ -153,7 +153,7 @@ function seedData() {
   const s3 = gradedSemester(3, 8);
   s3.subjects[2] = {
     ...s3.subjects[2],
-    internal: 38,
+    internal: 40,
     external: 17,
     total: 57,
     resultStatus: 'F',
@@ -224,8 +224,8 @@ function seedData() {
       schemeId: 'vtu-2022',
       branch: 'cse',
       currentSemester: 5,
-      createdAt: '2026-08-01T00:0:00.000Z',
-      updatedAt: '2026-08-01T00:0:00.000Z',
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
     },
     semesters,
     results: [s1, s2, s3, s4],
@@ -290,11 +290,11 @@ const run = async () => {
     });
     page.on('pageerror', (e) => errors.push(String(e)));
 
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     await seed(page, data);
 
     for (const [path, name] of ROUTES) {
-      await page.goto(`http://localhost:${PORT}${path}`);
+      await page.goto(`http://127.0.0.1:${PORT}${path}`);
       await page.waitForTimeout(450);
 
       /* The Semesters tab is where the result tables live. */
@@ -325,7 +325,7 @@ const run = async () => {
     }
 
     /* ---- the editor, open, at every width ---------------------------- */
-    await page.goto(`http://localhost:${PORT}/results`);
+    await page.goto(`http://127.0.0.1:${PORT}/results`);
     await page.waitForTimeout(350);
     await page.getByRole('button', { name: /add a semester/i }).click();
     await page.waitForTimeout(350);
@@ -370,9 +370,9 @@ const run = async () => {
   });
   page.on('pageerror', (e) => errors.push(String(e)));
 
-  await page.goto(`http://localhost:${PORT}/`);
+  await page.goto(`http://127.0.0.1:${PORT}/`);
   await seed(page, data);
-  await page.goto(`http://localhost:${PORT}/results`);
+  await page.goto(`http://127.0.0.1:${PORT}/results`);
   await page.waitForTimeout(450);
 
   /* ---- what the seeded data must already show ------------------------ */
@@ -483,8 +483,8 @@ const run = async () => {
   await page.getByLabel(/^Semester$/).selectOption('5');
   await page.waitForTimeout(200);
   await page.getByLabel(/subject code 1/i).fill('BQA999');
-  await page.getByLabel(/internal 1/i).fill('46');
-  await page.getByLabel(/external 1/i).fill('34');
+  await page.getByLabel(/internal 1/i).fill('44');
+  await page.getByLabel(/external 1/i).fill('36');
   await page.getByLabel(/total 1/i).fill('90');
   await page.getByRole('button', { name: /save semester/i }).click();
   await page.waitForTimeout(300);
@@ -563,9 +563,9 @@ const run = async () => {
   });
   const phone = await narrow.newPage();
   phone.on('pageerror', (e) => errors.push(String(e)));
-  await phone.goto(`http://localhost:${PORT}/`);
+  await phone.goto(`http://127.0.0.1:${PORT}/`);
   await seed(phone, data);
-  await phone.goto(`http://localhost:${PORT}/results`);
+  await phone.goto(`http://127.0.0.1:${PORT}/results`);
   await phone.waitForTimeout(450);
   await phone.getByRole('tab', { name: /semesters/i }).click();
   await phone.waitForTimeout(350);

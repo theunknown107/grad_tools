@@ -17,25 +17,15 @@ describe('the GradTools logo', () => {
     expect(screen.getByRole('img', { name: 'GradTools' }).getAttribute('aria-hidden')).toBeNull();
   });
 
-  it('draws one monochrome symbol that takes its colour from the theme tile', () => {
+  it('shows the supplied brand asset, sized by its tile', () => {
     render(<GradToolsLogo size={40} />);
     const logo = screen.getByTestId('gradtools-logo');
     expect(logo.style.width).toBe('40px');
-    const svg = logo.querySelector('svg');
-    expect(svg).not.toBeNull();
-    expect(svg!.querySelector('path')?.getAttribute('fill')).toBe('currentColor');
-    // One colour, from the theme: every paint is currentColor, or none at all.
-    for (const attribute of ['fill', 'stroke']) {
-      expect(
-        svg!.querySelector(
-          `[${attribute}]:not([${attribute}="currentColor"]):not([${attribute}="none"])`,
-        ),
-      ).toBeNull();
-    }
-    // Inlined, its favicon style must not reach the page: `:root` is the page there.
-    expect(svg!.querySelector('style')?.textContent ?? '').not.toMatch(/:root\s*\{/);
-    expect(logo.className).toMatch(/bg-brand-surface/);
-    expect(logo.className).toMatch(/text-brand-mark/);
-    expect(svg!.querySelector('text')).toBeNull();
+    const img = logo.querySelector('img');
+    expect(img).not.toBeNull();
+    // The one official asset, used as-is — not a hand-drawn vector.
+    expect(img!.getAttribute('src')).toMatch(/gradtools-logo/);
+    expect(logo.querySelector('svg')).toBeNull();
+    expect(logo.querySelector('text')).toBeNull();
   });
 });

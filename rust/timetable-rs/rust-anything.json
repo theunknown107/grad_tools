@@ -1,0 +1,169 @@
+{
+  "schema": "rust-anything/bridge@1",
+  "root": "../..",
+  "unit": "apps/web/src/domain/timetable/",
+  "language": "ts",
+  "kind": "wasm",
+  "crate_name": "timetable-rs",
+  "exports": [
+    {
+      "name": "subjectKey",
+      "file": "apps/web/src/domain/timetable/primitives.ts",
+      "line": 27,
+      "params": [
+        {
+          "name": "code",
+          "ts_type": "string",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "string",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "readSlot",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 260,
+      "params": [
+        {
+          "name": "text",
+          "ts_type": "string",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "{ start: string; end: string } | null",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "normalizeSubjectToken",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 759,
+      "params": [
+        {
+          "name": "raw",
+          "ts_type": "string",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "string",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    },
+    {
+      "name": "isWeekday",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 2326,
+      "params": [
+        {
+          "name": "value",
+          "ts_type": "string",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "value is (typeof WEEKDAYS)[number]",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    }
+  ],
+  "classes": [],
+  "js_only": [
+    {
+      "name": "DocxLimitError",
+      "file": "apps/web/src/domain/timetable/docx-structure.ts",
+      "line": 75,
+      "reason": "class: extends another class"
+    },
+    {
+      "name": "readDocxStructure",
+      "file": "apps/web/src/domain/timetable/docx-structure.ts",
+      "line": 185,
+      "reason": "checks `instanceof`: class identity does not survive the bridge"
+    },
+    {
+      "name": "docxTimetables",
+      "file": "apps/web/src/domain/timetable/docx-timetable.ts",
+      "line": 299,
+      "reason": "later slice, the TypeScript stays authoritative"
+    },
+    {
+      "name": "readDictionary",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 387,
+      "reason": "later slice, the TypeScript stays authoritative"
+    },
+    {
+      "name": "initialismsFor",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 681,
+      "reason": "later slice, the TypeScript stays authoritative"
+    },
+    {
+      "name": "resolveGridSubject",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 768,
+      "reason": "later slice, the TypeScript stays authoritative"
+    },
+    {
+      "name": "readContext",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 924,
+      "reason": "later slice, the TypeScript stays authoritative"
+    },
+    {
+      "name": "parsePeriodGrid",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 1072,
+      "reason": "later slice, the TypeScript stays authoritative"
+    },
+    {
+      "name": "parseTimetable",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 1159,
+      "reason": "later slice, the TypeScript stays authoritative"
+    },
+    {
+      "name": "applyTimetableCorrections",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 2119,
+      "reason": "later slice, the TypeScript stays authoritative"
+    },
+    {
+      "name": "slotsForBatch",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 2149,
+      "reason": "takes or returns a function"
+    },
+    {
+      "name": "timetableEntry",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 2231,
+      "reason": "later slice, the TypeScript stays authoritative"
+    },
+    {
+      "name": "needsBatch",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 2260,
+      "reason": "later slice, the TypeScript stays authoritative"
+    },
+    {
+      "name": "relateTimetable",
+      "file": "apps/web/src/domain/timetable/timetable-import.ts",
+      "line": 2300,
+      "reason": "later slice, the TypeScript stays authoritative"
+    }
+  ]
+}

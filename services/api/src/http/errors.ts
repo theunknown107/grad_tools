@@ -99,7 +99,8 @@ export interface FaultContext {
 /** A safe request path for telemetry: the matched route, never the query string. */
 function routeOf(req: Request): string | undefined {
   const path = req.originalUrl.split('?')[0];
-  return path === undefined || path === '' ? undefined : path;
+  /* The same cap the report schema puts on a route: a URL is attacker-sized. */
+  return path === undefined || path === '' ? undefined : path.slice(0, 120);
 }
 
 function clientHeader(req: Request, name: string): string | undefined {
@@ -144,9 +145,17 @@ export function createErrorHandler(recorder?: IncidentRecorder) {
     if (error instanceof ApiError) {
       // Client faults are expected traffic, not incidents: log at warn.
       log?.warn({ reference, code: error.code }, error.message);
-      // A tripped rate limit is a security signal worth surfacing, but not a bug.
+      /*
+       * A tripped rate limit is a security signal worth surfacing, but not a
+       * bug. Recorded on the FIRST rejection in a window only: writing a row for
+       * every rejected request would turn the limiter into the write it exists
+       * to prevent.
+       */
       if (error.code === 'RATE_LIMITED' && recorder?.recordSecurity !== undefined) {
-        recorder.recordSecurity(faultContext(req, reference, error.code, error.status));
+        const info = (req as Request & { rateLimit?: { used?: number; limit?: number } }).rateLimit;
+        if (info?.used === undefined || info.used === (info.limit ?? 0) + 1) {
+          recorder.recordSecurity(faultContext(req, reference, error.code, error.status));
+        }
       }
       res
         .status(error.status)
@@ -169,6 +178,20 @@ export function createErrorHandler(recorder?: IncidentRecorder) {
       res
         .status(413)
         .json(buildErrorBody('PAYLOAD_TOO_LARGE', 'That request body is too large.', reference));
+      return;
+    }
+
+    /*
+     * ANY OTHER 4xx FROM THE FRAMEWORK IS THE CLIENT'S, NOT OURS: malformed JSON,
+     * an unsupported charset, an undecodable path. Treated as a fault, each one
+     * wrote an incident row for free, before the rate limiter had run.
+     */
+    const status = (error as { status?: unknown } | null)?.status;
+    if (typeof status === 'number' && status >= 400 && status < 500) {
+      log?.warn({ reference, status }, 'client request rejected');
+      res
+        .status(status)
+        .json(buildErrorBody('VALIDATION_FAILED', 'The request was not valid.', reference));
       return;
     }
 

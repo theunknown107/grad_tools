@@ -1,0 +1,137 @@
+{"fn":"readSlot","args":["10:00 am to 10:55 am"]}
+{"fn":"readSlot","args":["03:10- 04:05pm"]}
+{"fn":"readSlot","args":["03:10-04:05pm"]}
+{"fn":"readSlot","args":["04:05-05:00pm"]}
+{"fn":"readSlot","args":["09:00 - 09:55"]}
+{"fn":"readSlot","args":["10:00 - 10:55"]}
+{"fn":"readSlot","args":["10:00 a.m. - 10:55 a.m."]}
+{"fn":"readSlot","args":["10:00-10:55am"]}
+{"fn":"readSlot","args":["10:50 am to 11:10 am"]}
+{"fn":"readSlot","args":["10:55-11:50am"]}
+{"fn":"readSlot","args":["11:00-10:00am"]}
+{"fn":"readSlot","args":["11:10 am to 12:05 pm"]}
+{"fn":"readSlot","args":["11:50-12.10pm"]}
+{"fn":"readSlot","args":["12.10-1:05pm"]}
+{"fn":"readSlot","args":["12:05 pm to 1:00 pm"]}
+{"fn":"readSlot","args":["1:05 pm to 2:00 pm"]}
+{"fn":"readSlot","args":["1:05-02:00pm"]}
+{"fn":"readSlot","args":["2.00pm to 5.00pm"]}
+{"fn":"readSlot","args":["2:00 pm to 2:55 pm"]}
+{"fn":"readSlot","args":["2:00-03:10pm"]}
+{"fn":"readSlot","args":["4:05 p.m to 5:00p.m"]}
+{"fn":"readSlot","args":["9.30am to 12.30pm"]}
+{"fn":"readSlot","args":["9:00 am to 9:55 am"]}
+{"fn":"readSlot","args":["9:55 am to 10:50 am"]}
+{"fn":"readSlot","args":["Thu 13:05-14:00 BQTCK105I"]}
+{"fn":"readSlot","args":["10:00 am"]}
+{"fn":"readSlot","args":["10:00"]}
+{"fn":"readSlot","args":["MONDAY"]}
+{"fn":"readSlot","args":["Mini project"]}
+{"fn":"readSlot","args":["9:00 am\nto\n9:55 am"]}
+{"fn":"readSlot","args":["9:55am\nto\n10:50am"]}
+{"fn":"readSlot","args":["10:50 am to 11:10 am"]}
+{"fn":"readSlot","args":["2:00 pm to 2:55 pm"]}
+{"fn":"readSlot","args":["Day/Hour"]}
+{"fn":"readSlot","args":["9:00–9:55"]}
+{"fn":"readSlot","args":["9:00—9:55"]}
+{"fn":"readSlot","args":["9.00 – 9.55"]}
+{"fn":"readSlot","args":["08:30-09:25"]}
+{"fn":"readSlot","args":["8:30 TO 9:25"]}
+{"fn":"readSlot","args":["8:30 To 9:25"]}
+{"fn":"readSlot","args":["1:00 PM - 2:00 PM"]}
+{"fn":"readSlot","args":["1:00 P.M. - 2:00 P.M."]}
+{"fn":"readSlot","args":["12:00-12:55"]}
+{"fn":"readSlot","args":["12:00 am - 1:00 am"]}
+{"fn":"readSlot","args":["12:00 pm - 12:55 pm"]}
+{"fn":"readSlot","args":["11:00 am - 12:00 pm"]}
+{"fn":"readSlot","args":["11:00-12:00"]}
+{"fn":"readSlot","args":["7:30-8:30"]}
+{"fn":"readSlot","args":["7:30 am - 8:30 am"]}
+{"fn":"readSlot","args":["0:30-1:30"]}
+{"fn":"readSlot","args":["23:00-23:55"]}
+{"fn":"readSlot","args":["13:05-14:00"]}
+{"fn":"readSlot","args":["24:00-25:00"]}
+{"fn":"readSlot","args":["9:60-10:00"]}
+{"fn":"readSlot","args":["9:00-9:65"]}
+{"fn":"readSlot","args":["10:00-9:00"]}
+{"fn":"readSlot","args":["12:10-1:05"]}
+{"fn":"readSlot","args":["5:00-4:00pm"]}
+{"fn":"readSlot","args":["9:00 - 9:55"]}
+{"fn":"readSlot","args":["9:00 – 9:55"]}
+{"fn":"readSlot","args":["﻿9:00-9:55"]}
+{"fn":"readSlot","args":["9:00　to　9:55"]}
+{"fn":"readSlot","args":["9:00\tto\t9:55"]}
+{"fn":"readSlot","args":["9:00 to9:55"]}
+{"fn":"readSlot","args":["9:00to9:55"]}
+{"fn":"readSlot","args":[" 9 : 00 - 9 : 55 "]}
+{"fn":"readSlot","args":["9:5-10:00"]}
+{"fn":"readSlot","args":["10:00-10:55 pm extra 11:00-11:55"]}
+{"fn":"readSlot","args":["Lunch 1:00-1:45"]}
+{"fn":"readSlot","args":["١٠:٠٠-١٠:٥٥"]}
+{"fn":"readSlot","args":["９:００-１０:００"]}
+{"fn":"readSlot","args":["10:00 am - 10:55 a"]}
+{"fn":"readSlot","args":["10:00 a.m - 10:55 p.m."]}
+{"fn":"readSlot","args":["10:00 AM-10:55AM"]}
+{"fn":"readSlot","args":["10:00 pM - 10:55 Pm"]}
+{"fn":"readSlot","args":["tomorrow 9:00 to 9:55"]}
+{"fn":"readSlot","args":[""]}
+{"fn":"readSlot","args":["9:00 a.m. – 12:30 p.m. (Lab)"]}
+{"fn":"readSlot","args":["10:55 – 11:10 Short Break"]}
+{"fn":"readSlot","args":["1:00 – 2:00\nLUNCH"]}
+{"fn":"normalizeSubjectToken","args":["CN"]}
+{"fn":"normalizeSubjectToken","args":[" CN "]}
+{"fn":"normalizeSubjectToken","args":["\"CN"]}
+{"fn":"normalizeSubjectToken","args":["'DBMS'"]}
+{"fn":"normalizeSubjectToken","args":["[CN]"]}
+{"fn":"normalizeSubjectToken","args":["CN [Lab]"]}
+{"fn":"normalizeSubjectToken","args":["CN [Lab"]}
+{"fn":"normalizeSubjectToken","args":["CN\n[Batch A1]\nLH-301"]}
+{"fn":"normalizeSubjectToken","args":["CN-A1"]}
+{"fn":"normalizeSubjectToken","args":["CN Lab B1(RMK+AR)"]}
+{"fn":"normalizeSubjectToken","args":["\"\""]}
+{"fn":"normalizeSubjectToken","args":["[]"]}
+{"fn":"normalizeSubjectToken","args":["  ATC  "]}
+{"fn":"normalizeSubjectToken","args":["ATC \""]}
+{"fn":"normalizeSubjectToken","args":["ML]"]}
+{"fn":"normalizeSubjectToken","args":["Project Work Phase-2/"]}
+{"fn":"normalizeSubjectToken","args":["QL LAB (Batch-A1)"]}
+{"fn":"normalizeSubjectToken","args":["RMIPR LH - 301"]}
+{"fn":"normalizeSubjectToken","args":["Gen AI Lab"]}
+{"fn":"normalizeSubjectToken","args":["﻿CN"]}
+{"fn":"normalizeSubjectToken","args":["CN Lab"]}
+{"fn":"normalizeSubjectToken","args":["MRMM [elective] extra"]}
+{"fn":"normalizeSubjectToken","args":["a [b] c [d]"]}
+{"fn":"normalizeSubjectToken","args":["[note] CN"]}
+{"fn":"normalizeSubjectToken","args":["\"[x]\""]}
+{"fn":"normalizeSubjectToken","args":["ÇN"]}
+{"fn":"normalizeSubjectToken","args":["ß"]}
+{"fn":"normalizeSubjectToken","args":[""]}
+{"fn":"normalizeSubjectToken","args":["   "]}
+{"fn":"normalizeSubjectToken","args":["\t\n"]}
+{"fn":"subjectKey","args":["BCS502"]}
+{"fn":"subjectKey","args":["bcs 301"]}
+{"fn":"subjectKey","args":[" 21cs51 "]}
+{"fn":"subjectKey","args":["BESCK104B"]}
+{"fn":"subjectKey","args":["b e s c k 1 0 4 c"]}
+{"fn":"subjectKey","args":["ßtraße"]}
+{"fn":"subjectKey","args":["ﬁle"]}
+{"fn":"subjectKey","args":["i̇"]}
+{"fn":"subjectKey","args":["BCS 502"]}
+{"fn":"subjectKey","args":["BCS　502"]}
+{"fn":"subjectKey","args":["bcs﻿502"]}
+{"fn":"subjectKey","args":[""]}
+{"fn":"subjectKey","args":["   "]}
+{"fn":"subjectKey","args":["Ω"]}
+{"fn":"isWeekday","args":["Mon"]}
+{"fn":"isWeekday","args":["Tue"]}
+{"fn":"isWeekday","args":["Wed"]}
+{"fn":"isWeekday","args":["Thu"]}
+{"fn":"isWeekday","args":["Fri"]}
+{"fn":"isWeekday","args":["Sat"]}
+{"fn":"isWeekday","args":["Sun"]}
+{"fn":"isWeekday","args":["mon"]}
+{"fn":"isWeekday","args":["MON"]}
+{"fn":"isWeekday","args":["Monday"]}
+{"fn":"isWeekday","args":[" Mon"]}
+{"fn":"isWeekday","args":[""]}
+{"fn":"isWeekday","args":["Mon​"]}

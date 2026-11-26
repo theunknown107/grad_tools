@@ -7,9 +7,10 @@
  * new account (repositories/local/store.ts `copyLegacyScope`). Nothing moves
  * without a choice, and the old copy stays until it is removed on purpose.
  *
- * A shared device can hold more than one former account, so each is shown
- * with its own name, USN and record count, and the student confirms that the
- * records are theirs.
+ * A shared device can hold more than one former account, so only an account the
+ * old session proves to be the same person is offered anything (store.ts
+ * `mayClaim`). Without that proof nothing is shown about the records and nothing
+ * can be copied: they stay on this device, untouched, and the student is told why.
  */
 
 import { History } from 'lucide-react';
@@ -25,6 +26,7 @@ import {
   copyLegacyScope,
   legacyScopesWithRecords,
   scopeHoldsRecords,
+  unprovenLegacyRecords,
 } from '../../repositories/local/store.js';
 import { useIdentity } from './AuthContext.js';
 
@@ -56,25 +58,46 @@ async function describe(id: string): Promise<Candidate> {
 export function LegacyDataOffer() {
   const identity = useIdentity();
   const userId = identity?.userId ?? null;
+  const email = identity?.email ?? null;
   const [candidates, setCandidates] = useState<readonly Candidate[]>([]);
   const [confirming, setConfirming] = useState<Candidate | null>(null);
   const [copied, setCopied] = useState<Candidate | null>(null);
   const [removing, setRemoving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     if (userId === null) return;
     let cancelled = false;
     void (async () => {
       if (await scopeHoldsRecords(userId)) return;
-      const found = await Promise.all((await legacyScopesWithRecords(userId)).map(describe));
-      if (!cancelled) setCandidates(found);
+      const found = await Promise.all(
+        (await legacyScopesWithRecords(userId, email)).map(describe),
+      );
+      const unproven = found.length === 0 && (await unprovenLegacyRecords(userId, email));
+      if (!cancelled) {
+        setCandidates(found);
+        setLocked(unproven);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, email]);
+
+  if (userId !== null && locked) {
+    return (
+      <Card className="p-6">
+        <h2 className="text-[15px] font-semibold">Records from an earlier account</h2>
+        <p className="mt-1 max-w-xl text-[13px] text-ink-2">
+          This device holds records from an earlier GradTools account, and we cannot confirm they
+          are yours, so they cannot be brought into this account. They have not been changed or
+          removed.
+        </p>
+      </Card>
+    );
+  }
 
   if (userId === null || (candidates.length === 0 && copied === null)) return null;
 
@@ -151,7 +174,7 @@ export function LegacyDataOffer() {
           const chosen = confirming;
           setBusy(true);
           setError(null);
-          void copyLegacyScope(chosen.id, userId)
+          void copyLegacyScope(chosen.id, userId, email)
             .then(() => {
               setCopied(chosen);
               setConfirming(null);

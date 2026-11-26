@@ -32,10 +32,27 @@ export const CATALOGUES: readonly Catalogue[] = [VTU_2022];
  * exact match made this return NOTHING for every real caller — silently, since
  * an empty catalogue looks exactly like a scheme nobody has data for.
  */
-export function coursesForScheme(scheme: string): readonly CatalogueCourse[] {
+/**
+ * Every course of a scheme, or — with `programme` — only that programme's.
+ *
+ * The programme filter matters once the catalogue holds more than one branch: a
+ * code the university reuses across programmes (e.g. `BBOK407`, 3 credits in one
+ * and 2 in another) must be read against the student's own programme, not
+ * whichever row happens to be last. Without the filter this returns every
+ * programme's rows, as it always did, and `buildSubjectIndex` is the net that
+ * stops a divergent credit resolving to an arbitrary value.
+ */
+export function coursesForScheme(
+  scheme: string,
+  programme?: string | null,
+): readonly CatalogueCourse[] {
   const year = /(20\d{2})/.exec(scheme)?.[1] ?? scheme;
   return CATALOGUES.flatMap((catalogue) =>
-    catalogue.courses.filter((course) => course.schemeYear === year),
+    catalogue.courses.filter(
+      (course) =>
+        course.schemeYear === year &&
+        (programme === undefined || programme === null || course.programme === programme),
+    ),
   );
 }
 
@@ -85,3 +102,30 @@ export const VTU_BRANCHES_2022: {
   };
   readonly entries: readonly TranscribedBranch[];
 } = vtuBranches2022;
+
+/**
+ * The courses a student in `branchLabel` should see, scoped so a shared code
+ * resolves to THEIR programme's credits.
+ *
+ * The bridge is the official document itself: a branch's `schemeUrl` is the
+ * `sourceUrl` of that branch's own scheme rows (verified on the published
+ * data). So from the third semester on, only rows read from the branch's own
+ * document are kept. The first two semesters are left unfiltered — they come
+ * from shared first-year stream documents, not the branch document, and where
+ * two streams disagree `buildSubjectIndex` resolves the credit to unknown
+ * rather than guessing. An unknown or unlisted branch keeps every row, so
+ * nothing is dropped on a guess; the same net then applies.
+ */
+export function coursesForBranch(
+  scheme: string,
+  branchLabel: string | null,
+): readonly CatalogueCourse[] {
+  const all = coursesForScheme(scheme);
+  const schemeUrl =
+    branchLabel === null
+      ? null
+      : (VTU_BRANCHES_2022.entries.find((entry) => entry.labelAsPrinted === branchLabel)
+          ?.schemeUrl ?? null);
+  if (schemeUrl === null) return all;
+  return all.filter((course) => course.semester <= 2 || course.provenance.sourceUrl === schemeUrl);
+}

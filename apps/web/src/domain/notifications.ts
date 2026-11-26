@@ -60,9 +60,11 @@ export interface NotificationPreferences {
 }
 
 /*
- * There is no browser-notification preference. GradTools delivers nothing
- * outside the app — no `Notification` call, no service worker, no push — so a
- * saved "on" would have been a switch wired to nothing (OQ-032).
+ * There is no browser-notification preference. On the web GradTools delivers
+ * nothing outside the app — no `Notification` call, no service worker, no push
+ * (OQ-032). In the Android app, relevant unread notices are also posted as
+ * system notifications with the GradTools chime (`lib/system-notifications`);
+ * muting a category here stops those too.
  */
 export const DEFAULT_PREFERENCES: NotificationPreferences = {
   muted: [],

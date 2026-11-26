@@ -46,6 +46,7 @@ const adapter: AuthAdapter = {
   signInWithPassword: async () => ({ error: null }),
   signUpWithPassword: async () => ({ error: null, needsConfirmation: true }),
   signInWithProvider: async () => ({ error: null }),
+  signUpWithProvider: async () => ({ error: null }),
   sendRecovery: async () => ({ error: null }),
   updatePassword: async () => ({ error: null }),
   completeDeepLink: async () => ({ error: null }),

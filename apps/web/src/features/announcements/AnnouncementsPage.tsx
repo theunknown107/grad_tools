@@ -21,7 +21,7 @@ import {
   useStudentContext,
 } from '../../hooks/useAnnouncements.js';
 import { formatCount } from '../../lib/format.js';
-import { AnnouncementCard, CATEGORY_LABEL } from './AnnouncementCard.js';
+import { AnnouncementCard, CATEGORY_LABEL, SnapshotNote } from './AnnouncementCard.js';
 
 const CATEGORY_OPTIONS: readonly (AnnouncementCategory | 'all')[] = [
   'all',
@@ -36,6 +36,7 @@ const CATEGORY_OPTIONS: readonly (AnnouncementCategory | 'all')[] = [
   'academic_calendar',
   'college_notice',
   'department_notice',
+  'sports',
   'general',
 ];
 
@@ -45,7 +46,7 @@ export function AnnouncementsPage() {
   const [category, setCategory] = useState<AnnouncementCategory | 'all'>('all');
   const [scope, setScope] = useState<Scope>('all');
   const [query, setQuery] = useState('');
-  const { items, total, loading, error, reload } = useAnnouncements(category);
+  const { items, total, loading, error, reload, snapshotAt } = useAnnouncements(category);
   const sorted = useSortedAnnouncements(items);
   const context = useStudentContext();
 
@@ -117,7 +118,7 @@ export function AnnouncementsPage() {
             <Input
               type="search"
               aria-label="Search announcements"
-              placeholder="Search announcements…"
+              placeholder="Search"
               className="pl-9"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -126,6 +127,7 @@ export function AnnouncementsPage() {
         </div>
       </div>
 
+      {snapshotAt !== null && <SnapshotNote at={snapshotAt} />}
       {error !== null ? (
         <ErrorState title="Notices are unavailable" message={error} onRetry={reload} />
       ) : loading ? (

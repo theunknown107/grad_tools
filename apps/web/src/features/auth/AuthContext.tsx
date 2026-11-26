@@ -32,9 +32,11 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { toast } from '../../components/ui/feedback.js';
 import { RepositoryProvider } from '../../repositories/context.js';
 import { createLocalRepositories } from '../../repositories/local/index.js';
 import { createAuthAdapter, type AuthAdapter } from '../../repositories/cloud/supabase.js';
@@ -44,7 +46,12 @@ export interface AuthContextValue {
   readonly state: AuthState;
   /** Null when this build has no identity provider configured. */
   readonly adapter: AuthAdapter | null;
-  readonly signOut: () => Promise<void>;
+  /**
+   * Leaves the account on this device at once, then ends the session on the
+   * server. `revoked` is true only when the server confirmed it; false means
+   * the device is signed out and the server side is still to do (offline).
+   */
+  readonly signOut: () => Promise<SignOutResult>;
   /** Forces a re-read of the session, after a redirect or a manual refresh. */
   readonly refresh: () => Promise<void>;
 }
@@ -52,19 +59,93 @@ export interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue>({
   state: { status: 'signed_out' },
   adapter: null,
-  signOut: async () => {
+  signOut: async () =>
     /* No provider configured: there is nothing to sign out of. */
-  },
+    ({ revoked: true }),
   refresh: async () => {
     /* Likewise. */
   },
 });
 
-/**
- * A failure to reach the sign-in service, as opposed to a session it refused:
- * the adapter's own AuthServiceUnreachable, a fetch that never got an answer,
- * or the device reporting itself offline.
+export interface SignOutResult {
+  readonly revoked: boolean;
+}
+
+/*
+ * A SIGN-OUT THE SERVER HAS NOT CONFIRMED YET.
+ *
+ * Offline, Clerk cannot end the session: if clerk-js never loaded, @clerk/react
+ * only queues the call; if it had loaded, clerk-js swallows the request's
+ * network error and clears only its own memory. Either way the session is still
+ * live on Clerk's server, and the next launch with a network restores it —
+ * silently undoing the student's sign-out.
+ *
+ * So the intent is recorded here (a flag, no id, no token). While it stands, a
+ * session Clerk restores is NOT accepted as signed in: the app stays signed
+ * out and asks Clerk to end it again, every launch, until the server confirms.
+ *
+ * ONLY THE SERVER LIFTS IT. Pressing a sign-in button proves nothing: the student
+ * can cancel, Google can fail, the app can die in the Custom Tab. So every sign-in
+ * first finishes the sign-out and stops if that fails; a sign-in needs the network
+ * the sign-out was waiting for. The old session is then dead whatever the sign-in
+ * does next, and a session that appears afterwards can only be a new one.
  */
+const SIGN_OUT_PENDING = 'gradtools:v1:sign-out-pending';
+
+export function signOutPending(): boolean {
+  try {
+    return window.localStorage.getItem(SIGN_OUT_PENDING) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/*
+ * WHEN THE STUDENT LAST SIGNED OUT ON PURPOSE — a timestamp, nothing else.
+ * Read only by Authentication Diagnostics, so a deliberate sign-out is not
+ * reported as a session that was lost. Cleared by the next sign-in.
+ */
+const SIGNED_OUT_AT = 'gradtools:v1:signed-out-at';
+
+export function deliberateSignOutAt(): string | null {
+  try {
+    return window.localStorage.getItem(SIGNED_OUT_AT);
+  } catch {
+    return null;
+  }
+}
+
+function recordDeliberateSignOut(at: string | null): void {
+  try {
+    if (at === null) window.localStorage.removeItem(SIGNED_OUT_AT);
+    else window.localStorage.setItem(SIGNED_OUT_AT, at);
+  } catch {
+    /* Diagnostics only: nothing depends on it. */
+  }
+}
+
+function setSignOutPending(pending: boolean): void {
+  try {
+    if (pending) window.localStorage.setItem(SIGN_OUT_PENDING, '1');
+    else window.localStorage.removeItem(SIGN_OUT_PENDING);
+  } catch {
+    /* Storage blocked: nothing persists across launches to protect anyway. */
+  }
+}
+
+/** A provider without a result (not Clerk) ends its session in the call itself. */
+async function endSession(adapter: AuthAdapter): Promise<boolean> {
+  try {
+    return (await adapter.signOut())?.revoked ?? true;
+  } catch {
+    return false;
+  }
+}
+
+function isNativeApp(): boolean {
+  const cap = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return typeof cap?.isNativePlatform === 'function' && cap.isNativePlatform();
+}
 
 /*
  * THE LAST VERIFIED ACCOUNT, for offline use only.
@@ -74,12 +155,19 @@ const AuthContext = createContext<AuthContextValue>({
  * identity Clerk already showed this device — id, email, provider — never a
  * token, and it unlocks nothing on the server. It only decides whose ON-DEVICE
  * records an offline student sees, and only for a week after the last
- * verification, roughly a Clerk session's life.
+ * verification, roughly a Clerk session's life. (A bare id stored by the
+ * release-candidate build does not parse here and is treated as absent until
+ * the next verified session rewrites it.)
+ *
+ * Native only. On a shared browser M9 §37 applies as written: an account's
+ * records are shown only behind a session verified now, so a web page never
+ * remembers an account.
  */
 const LAST_ACCOUNT_KEY = 'gradtools:v1:last-account';
 const LAST_ACCOUNT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function rememberAccount(identity: Identity): void {
+  if (!isNativeApp()) return;
   try {
     window.localStorage.setItem(
       LAST_ACCOUNT_KEY,
@@ -99,6 +187,7 @@ function forgetAccount(): void {
 }
 
 export function lastAccount(now: number = Date.now()): Identity | null {
+  if (!isNativeApp()) return null;
   try {
     const raw = window.localStorage.getItem(LAST_ACCOUNT_KEY);
     if (raw === null) return null;
@@ -118,6 +207,11 @@ export function lastAccount(now: number = Date.now()): Identity | null {
   }
 }
 
+/**
+ * A failure to reach the sign-in service, as opposed to a session it refused:
+ * the adapter's own AuthServiceUnreachable, a fetch that never got an answer,
+ * or the device reporting itself offline.
+ */
 function isUnreachable(error: unknown): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
   if (error instanceof Error && error.name === 'AuthServiceUnreachable') return true;
@@ -146,17 +240,54 @@ export function AuthProvider({
     adapter === null ? { status: 'signed_out' } : { status: 'restoring' },
   );
 
-  const settle = useCallback((identity: Identity | null) => {
-    if (identity === null) forgetAccount();
-    else rememberAccount(identity);
-    setState(identity === null ? { status: 'signed_out' } : { status: 'signed_in', identity });
-  }, []);
+  /* One attempt at a time: a late second one could end the session that came after. */
+  const finishing = useRef<Promise<boolean> | null>(null);
+  const finishSignOut = useCallback((): Promise<boolean> => {
+    finishing.current ??= (adapter === null ? Promise.resolve(true) : endSession(adapter)).then(
+      (revoked) => {
+        finishing.current = null;
+        if (revoked) setSignOutPending(false);
+        return revoked;
+      },
+    );
+    return finishing.current;
+  }, [adapter]);
+
+  const settle = useCallback(
+    (identity: Identity | null) => {
+      if (identity !== null && signOutPending()) {
+        // A restored session the student already signed out of: refuse it,
+        // and try again to end it on the server.
+        setState({ status: 'signed_out' });
+        void finishSignOut();
+        return;
+      }
+      if (identity === null) forgetAccount();
+      else {
+        recordDeliberateSignOut(null);
+        rememberAccount(identity);
+      }
+      setState(identity === null ? { status: 'signed_out' } : { status: 'signed_in', identity });
+    },
+    [finishSignOut],
+  );
 
   const refresh = useCallback(async () => {
     if (adapter === null) return;
     try {
-      settle(await adapter.current());
+      const identity = await adapter.current();
+      /*
+       * No session HERE is not the server's word: offline, clerk-js clears only
+       * its memory and emits "signed out". Only the server's answer lifts it.
+       */
+      if (identity === null && signOutPending()) await finishSignOut();
+      settle(identity);
     } catch (error) {
+      /* The student already signed out: then they are, here, whatever the network says. */
+      if (signOutPending()) {
+        setState({ status: 'signed_out' });
+        return;
+      }
       /*
        * Could not reach the sign-in service: the session is UNKNOWN, so say
        * that (`unreachable`) rather than claim it expired. Nothing is cleared.
@@ -178,7 +309,7 @@ export function AuthProvider({
       forgetAccount();
       setState({ status: 'expired' });
     }
-  }, [adapter, settle]);
+  }, [adapter, finishSignOut, settle]);
 
   /*
    * Back online after an unreachable check: try once more, on the device's own
@@ -218,7 +349,12 @@ export function AuthProvider({
     void (async () => {
       const { App } = await import('@capacitor/app');
       const complete = (url: string): void => {
-        void adapter.completeDeepLink(url).then(() => refresh());
+        void adapter.completeDeepLink(url).then(({ error, handled }) => {
+          if (error !== null) toast(error, { tone: 'warning' });
+          /* Any app or page can fire this link: only our own sign-in re-reads. */
+          if (handled !== true) return;
+          return refresh();
+        });
       };
       const launch = await App.getLaunchUrl();
       if (!cancelled && launch?.url !== undefined) complete(launch.url);
@@ -232,32 +368,80 @@ export function AuthProvider({
     };
   }, [adapter, refresh]);
 
-  const signOut = useCallback(async () => {
-    if (adapter !== null) await adapter.signOut();
-    forgetAccount();
+  const signOut = useCallback(async (): Promise<SignOutResult> => {
     /*
+     * THIS DEVICE FIRST, AT ONCE. The intent is recorded before anything can
+     * fail, and the app stops presenting the account immediately, and the
+     * remembered account is forgotten.
+     *
      * LOCAL DATA IS NOT TOUCHED (M9 §36). The scope simply changes back to
      * anonymous, and the signed-out student's records stay under their own
      * account scope for when they sign back in.
      */
+    setSignOutPending(true);
+    recordDeliberateSignOut(new Date().toISOString());
+    forgetAccount();
     setState({ status: 'signed_out' });
-  }, [adapter]);
+    // Then the server, which only it can confirm.
+    return { revoked: await finishSignOut() };
+  }, [finishSignOut]);
+
+  /* The adapter screens use: no sign-in starts over an unfinished sign-out. */
+  const exposed = useMemo((): AuthAdapter | null => {
+    if (adapter === null) return null;
+    const afterSignOut =
+      <A extends unknown[], R extends { error: string | null }>(
+        call: (...args: A) => Promise<R>,
+      ) =>
+      async (...args: A): Promise<R> => {
+        if (signOutPending() && !(await finishSignOut())) {
+          return { error: 'Could not reach the sign-in service. Check your connection.' } as R;
+        }
+        return call(...args);
+      };
+    return {
+      ...adapter,
+      signInWithPassword: afterSignOut(adapter.signInWithPassword.bind(adapter)),
+      signUpWithPassword: afterSignOut(adapter.signUpWithPassword.bind(adapter)),
+      signInWithProvider: afterSignOut(adapter.signInWithProvider.bind(adapter)),
+      signUpWithProvider: afterSignOut(adapter.signUpWithProvider.bind(adapter)),
+    };
+  }, [adapter, finishSignOut]);
+
+  /*
+   * THE PHONE'S OWN ACCOUNT WHILE THE SESSION RESTORES.
+   *
+   * On the app, the account Clerk last verified here (lastAccount, above) is
+   * read while Clerk loads, so the student sees their own records instead of an
+   * empty anonymous scope that is about to be replaced. Unreachable after that
+   * is the `offline` state. Nothing is uploaded on its strength: sync requires
+   * a verified `signed_in` (useSync).
+   *
+   * Native only. On a shared browser M9 §37 applies as written: an account's
+   * records are shown only behind a session verified now (or `offline`).
+   */
+  const [remembered] = useState(() => lastAccount()?.userId ?? null);
 
   /*
    * The bundle is rebuilt only when the scope changes, so an ordinary token
    * refresh does not remount every screen reading from storage.
    */
-  const scope = scopeFor(state);
+  const scope = scopeFor(state) ?? (state.status === 'restoring' ? remembered : null);
   const repositories = useMemo(() => createLocalRepositories(scope), [scope]);
+  /* Restoring with nothing remembered reads as loading — never as an empty
+     anonymous account that is about to be replaced. */
+  const ready = state.status !== 'restoring' || scope !== null;
 
   const value = useMemo(
-    () => ({ state, adapter, signOut, refresh }),
-    [state, adapter, signOut, refresh],
+    () => ({ state, adapter: exposed, signOut, refresh }),
+    [state, exposed, signOut, refresh],
   );
 
   return (
     <AuthContext value={value}>
-      <RepositoryProvider repositories={repositories}>{children}</RepositoryProvider>
+      <RepositoryProvider repositories={repositories} ready={ready}>
+        {children}
+      </RepositoryProvider>
     </AuthContext>
   );
 }

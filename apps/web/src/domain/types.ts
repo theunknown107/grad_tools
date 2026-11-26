@@ -13,10 +13,10 @@
  */
 
 import type { AuthUserId, StudentProfileId } from './identity.js';
+import type { Weekday } from './timetable/primitives.js';
 
-/** Days of the week, 0 = Monday, matching the timetable grid's reading order. */
-export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-export type Weekday = (typeof WEEKDAYS)[number];
+/** Days of the week, 0 = Monday: moved verbatim to `timetable/primitives.ts` (Rust migration unit boundary). */
+export { WEEKDAYS, type Weekday } from './timetable/primitives.js';
 
 /**
  * The student's academic profile.
@@ -414,6 +414,11 @@ export interface TimetableSlot {
   readonly room: string | null;
   readonly faculty: string | null;
   /**
+   * The imported timetable's own title for `subjectCode`. Kept on this device
+   * only (the cloud row has no column for it); absent on older rows.
+   */
+  readonly subjectTitle?: string | null;
+  /**
    * What this hour IS, said explicitly rather than guessed (domain/day-schedule).
    *
    * Absent on every row written before this existed, which is why `slotKind`
@@ -620,4 +625,66 @@ export interface RemoteSnapshot {
   readonly lastSeenAt: string;
   /** Set when adopted: the `AttendanceAdjustment` it produced. */
   readonly adjustmentId: string | null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Grade-card semesters and later attempts (docs/53)                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A semester AS THE STUDENT'S GRADE CARD PRINTS IT: the SGPA and the two credit
+ * totals the card shows (22OB 6.9(1): credits registered, credits earned).
+ *
+ * Student-entered and labelled so everywhere — never catalogue data, never a
+ * computed figure. Kept apart from `SemesterResult`, which holds course rows:
+ * a CGPA reconstructed from these never overwrites one computed from those.
+ * DEVICE-LOCAL: not synced; included in the local backup.
+ */
+export interface GradeCardSemester {
+  readonly id: string;
+  readonly profileId: StudentProfileId;
+  /** 1-8. */
+  readonly semester: number;
+  /** As printed: two decimals (22OB 6.6). */
+  readonly sgpa: number;
+  readonly creditsRegistered: number;
+  readonly creditsEarned: number;
+  readonly updatedAt: string;
+}
+
+/**
+ * How a later sitting of a course happened.
+ *
+ *   see      the next regular SEE (22OB 4.3(7))
+ *   makeup   a make-up examination, which VTU also calls the supplementary
+ *            examination (notification 2209, revised by 2625 of 21-08-2026)
+ *   summer   a summer-semester SEE taken with the CIE carried forward
+ */
+export const ATTEMPT_KINDS = ['see', 'makeup', 'summer'] as const;
+export type AttemptKind = (typeof ATTEMPT_KINDS)[number];
+
+/**
+ * One later sitting of a course the student did not pass.
+ *
+ * Every appearance is an attempt (22OB 6.3(9)), so each is kept: a later
+ * attempt never edits the original result row or an earlier attempt. The CIE
+ * is the original one, carried forward (22OB 4.3(7)), so only what the later
+ * sitting printed is stored here. DEVICE-LOCAL: not synced; in the backup.
+ */
+export interface CourseAttempt {
+  readonly id: string;
+  readonly profileId: StudentProfileId;
+  /** The semester the course BELONGS to, not the one the exam was sat in. */
+  readonly semester: number;
+  readonly subjectCode: string;
+  readonly kind: AttemptKind;
+  /** The examination session as printed, e.g. "Summer / Makeup - 2026". */
+  readonly session: string;
+  /** The SEE contribution this sitting printed. */
+  readonly external: number | null;
+  /** The total this sitting printed, if it printed one. */
+  readonly total: number | null;
+  /** The status letter this sitting printed, verbatim. */
+  readonly resultStatus: string | null;
+  readonly recordedAt: string;
 }

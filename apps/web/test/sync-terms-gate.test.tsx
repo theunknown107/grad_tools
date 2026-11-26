@@ -81,4 +81,12 @@ describe('cloud sync gating (local-first)', () => {
     await waitFor(() => expect(result.current.sync.state.status).not.toBe('needs_terms'));
     expect(result.current.sync.state.status).not.toBe('local_only');
   });
+
+  it('signed IN but Terms unaccepted: surfaces needs_terms on sign-in, before any sync', async () => {
+    mockApi(null); // /me: current Terms unaccepted
+    const { result } = renderHook(both, { wrapper: wrapper(true) });
+    await waitFor(() => expect(result.current.auth.state.status).toBe('signed_in'));
+    // No syncNow() call — the proactive check surfaces the consent prompt itself.
+    await waitFor(() => expect(result.current.sync.state.status).toBe('needs_terms'));
+  });
 });

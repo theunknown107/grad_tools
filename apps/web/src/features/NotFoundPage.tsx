@@ -12,7 +12,7 @@ export function NotFoundPage() {
         <div className="grid size-20 place-items-center rounded-2xl bg-accent-weak text-accent-ink">
           <Compass className="size-9" />
         </div>
-        <span className="absolute -top-2 -right-2 rotate-6 font-mono text-[11px] font-semibold text-ink-3">
+        <span className="absolute -top-2 -right-2 rotate-6 font-mono text-[12px] font-semibold text-ink-3">
           404
         </span>
       </div>

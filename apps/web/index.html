@@ -9,8 +9,8 @@
       content="GradTools brings routine academic workflows into one place. Independent student project, not affiliated with VTU."
     />
     <title>GradTools</title>
-    <!-- The same file the in-app logo inlines; it follows the browser's light/dark. -->
-    <link rel="icon" type="image/svg+xml" href="/src/brand/gradtools-mark.svg" />
+    <!-- Generated from the brand logo by scripts/android-icons.mjs. -->
+    <link rel="icon" type="image/png" href="/gradtools-favicon.png" />
     <!--
       Fonts ship with the bundle (src/styles/fonts.css); no third-party request.
 
@@ -81,11 +81,29 @@
           root.setAttribute('data-accent', accents.indexOf(accent) !== -1 ? accent : 'mono');
           if (saved.density === 'compact') root.setAttribute('data-density', 'compact');
           if (saved.reducedMotion === true) root.setAttribute('data-motion', 'reduced');
-          if (saved.reducedTransparency === true) root.setAttribute('data-transparency', 'reduced');
+          /* Same migration as readStoredTheme: the release-candidate keys. */
+          if (
+            saved.reducedTransparency === true ||
+            saved.surface === 'opaque' ||
+            saved.surface === 'off' ||
+            saved.buttonStyle === 'opaque'
+          )
+            root.setAttribute('data-transparency', 'reduced');
           root.setAttribute(
             'data-glass',
             saved.glass === 'clear' || saved.glass === 'frosted' ? saved.glass : 'regular',
           );
+          /*
+           * Android cold start: stay white from the native splash until the
+           * launch overlay mounts (LaunchSplash removes this), so the hand-off
+           * never flashes the dark canvas. Same conditions as the overlay.
+           */
+          var cap = window.Capacitor;
+          var reduce =
+            saved.reducedMotion === true ||
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (cap && cap.isNativePlatform && cap.isNativePlatform() && !reduce)
+            root.classList.add('gt-booting');
         } catch (error) {
           /* Storage blocked or corrupt: light + mono from the stylesheet. */
         }

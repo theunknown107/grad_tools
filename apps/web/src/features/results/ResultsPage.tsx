@@ -92,9 +92,6 @@ export function ResultsPage() {
         actions={
           <>
             <Button asChild variant="secondary">
-              <Link to="/academics">SGPA &amp; CGPA</Link>
-            </Button>
-            <Button asChild variant="secondary">
               <Link to="/results/get">Get VTU result</Link>
             </Button>
             <Button asChild variant="primary" icon={<Plus />}>
@@ -154,7 +151,7 @@ export function ResultsPage() {
               <Input
                 type="search"
                 aria-label="Search semesters and subjects"
-                placeholder="Search semester or course…"
+                placeholder="Search"
                 className="pl-9"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -172,8 +169,10 @@ export function ResultsPage() {
 
           {view === 'overview' ? (
             <>
-              <MetricGrid>
+              <MetricGrid className="lg:grid-cols-5">
                 <Metric
+                  className="col-span-2"
+                  size="large"
                   label="CGPA"
                   value={cgpa.value}
                   state={statistics.cgpa.value === null ? 'unavailable' : 'resolved'}
@@ -195,6 +194,7 @@ export function ResultsPage() {
                   }
                 />
                 <Metric
+                  className="col-span-2 lg:col-span-1"
                   /* The results' own figure; the unqualified "Backlogs" is the recorded one (OQ-056). */
                   label="Backlogs in your results"
                   value={
@@ -204,7 +204,10 @@ export function ResultsPage() {
                   }
                   emphasis={backlogCount > 0 ? 'warning' : undefined}
                   sub={
-                    statistics.backlogsFromResults.reason ??
+                    /* The full reason is the callout under this grid; here, only the count. */
+                    (statistics.backlogsUndetermined > 0
+                      ? `${formatCount(statistics.backlogsUndetermined, 'subject')} not checked`
+                      : statistics.backlogsFromResults.reason) ??
                     /*
                      * The figure is the results' own; "Clear record" is a claim
                      * about the student, so it also needs no recorded backlog.
@@ -245,6 +248,15 @@ export function ResultsPage() {
           )}
         </>
       )}
+
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
+        <Button asChild variant="link" size="text" className="text-[13px]">
+          <Link to="/academics">SGPA &amp; CGPA</Link>
+        </Button>
+        <Button asChild variant="link" size="text" className="text-[13px]">
+          <Link to="/results/statement">Print summary</Link>
+        </Button>
+      </div>
 
       <p className="text-[12px] leading-relaxed text-ink-3">
         GradTools does not fetch results from the university portal — that site asks automated tools
@@ -361,7 +373,7 @@ function SemesterRow({
           </span>
         </span>
         <span className="hidden text-right sm:block">
-          <span className="block text-[11px] text-ink-3">SGPA</span>
+          <span className="block text-[12px] text-ink-3">SGPA</span>
           {sgpa === null ? (
             <span
               className="block text-sm font-medium text-ink-3"
@@ -407,7 +419,7 @@ function SemesterCard({
       >
         <span className="flex items-start justify-between gap-3">
           <span>
-            <span className="block font-mono text-[11px] tracking-[0.14em] text-ink-3 uppercase">
+            <span className="block font-mono text-[12px] text-ink-3">
               Semester {result.semester}
             </span>
             {sgpa === null ? (

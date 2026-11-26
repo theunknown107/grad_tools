@@ -16,6 +16,13 @@
 import { z } from 'zod';
 
 const configSchema = z.object({
+  /**
+   * The edge header that names the client, for a deployment where `trust proxy`
+   * cannot (see http/rate-limit.ts). Unset means `req.ip`. Only set it after the
+   * operator `client-address` route shows the header arriving, and only behind an
+   * edge that refuses client-supplied copies.
+   */
+  CLIENT_IP_HEADER: z.literal('cf-connecting-ip').optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_ENV: z.enum(['local', 'test', 'experimental', 'staging', 'alpha']).default('local'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
@@ -239,6 +246,26 @@ export function assertSafeExposure(config: Config, env: NodeJS.ProcessEnv = proc
     problems.push(
       `DOCUMENT_AI_REQUIRE_ZDR=false is for synthetic local testing, not ${config.APP_ENV}.`,
     );
+  }
+  /*
+   * With Clerk as the authority the token's `azp` (the origin it was minted for)
+   * is pinned ONLY when authorizedParties is set (auth/clerk.ts). Left empty,
+   * Clerk does not check it, so a session token minted for another origin on the
+   * SAME Clerk instance could be replayed against this API. A deployed env must
+   * therefore name its origin(s) — the same ones as WEB_ORIGIN.
+   */
+  if (config.CLERK_SECRET_KEY !== undefined) {
+    const parties = (config.CLERK_AUTHORIZED_PARTIES ?? '')
+      .split(',')
+      .map((party) => party.trim())
+      .filter((party) => party !== '');
+    if (parties.length === 0) {
+      problems.push(
+        `CLERK_AUTHORIZED_PARTIES must list the app origin(s) in ${config.APP_ENV}: without it ` +
+          `Clerk does not pin a token's azp, so one minted for another origin on the same Clerk ` +
+          `instance could be replayed.`,
+      );
+    }
   }
   if (problems.length > 0) {
     throw new Error(`Refusing to start:\n  ${problems.join('\n  ')}`);

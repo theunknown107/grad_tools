@@ -9,10 +9,18 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/coverage/**',
       'docs/**',
+      // Third-party skills, kept as published.
+      '.claude/**',
       // Vendored, minified OCR engine. Not ours to lint or to fix.
       'apps/web/public/ocr/**',
       // Generated Capacitor project; its assets/public is a copy of dist.
       'apps/web/android/**',
+      // Rust migration crates: build output, rust-anything's working files and
+      // the generated wasm-bindgen loader. Regenerated, never hand-edited.
+      'rust/*/target/**',
+      'rust/*/pkg/**',
+      'rust/*/.rust-anything/**',
+      'rust/*/index.cjs',
       // QA output and private validation scratch. Gitignored, never shipped.
       '.qa-*/**',
       // Anywhere, not only at the root: the harnesses that need a workspace's

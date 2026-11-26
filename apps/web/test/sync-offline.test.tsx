@@ -4,7 +4,7 @@
  */
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from '../src/features/auth/AuthContext.js';
 import { useSync } from '../src/features/auth/useSync.js';
 import { AuthServiceUnreachable } from '../src/repositories/cloud/clerk.js';
@@ -34,6 +34,7 @@ const OFFLINE: AuthAdapter = {
   signInWithPassword: async () => ({ error: null }),
   signUpWithPassword: async () => ({ error: null, needsConfirmation: false }),
   signInWithProvider: async () => ({ error: null }),
+  signUpWithProvider: async () => ({ error: null }),
   sendRecovery: async () => ({ error: null }),
   updatePassword: async () => ({ error: null }),
   completeDeepLink: async () => ({ error: null }),
@@ -47,6 +48,13 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 );
 
 describe('sync while a signed-in account is offline', () => {
+  /* The offline account view is the Android app's (M9 §37: a web page never remembers one). */
+  beforeEach(() => {
+    (window as { Capacitor?: unknown }).Capacitor = { isNativePlatform: () => true };
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'Capacitor');
+  });
   it('contacts no server and reports offline, never synced', async () => {
     window.localStorage.setItem(KEY, JSON.stringify({ identity: ALICE, verifiedAt: Date.now() }));
     const fetchMock = vi.fn();

@@ -57,7 +57,7 @@ export function ExplanationDisclosure({
               ))}
             </ul>
           )}
-          <p className="mt-3 text-[11px] leading-relaxed text-ink-3">
+          <p className="mt-3 text-[12px] leading-relaxed text-ink-3">
             Rule set <code className="font-mono text-ink-2">{explanation.ruleSetId}</code> v
             {explanation.ruleSetVersion} · clause{' '}
             <strong className="font-semibold text-ink-2">{explanation.clause}</strong>

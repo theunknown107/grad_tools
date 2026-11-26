@@ -47,7 +47,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Sql } from 'postgres';
-import { optionGroupsOf, parseScheme, semesterTotalsOf } from '@gradtools/vtu-catalogue';
+import { optionGroupsOf, parseScheme, semesterTotalsOf, suspectTitle } from '@gradtools/vtu-catalogue';
 import type { SchemePage } from '@gradtools/vtu-catalogue';
 
 const CACHE_ROOT = resolve('../../.vtu-store/extractions');
@@ -434,6 +434,71 @@ async function checkCourses(sql: Sql, schemeYear: string | null): Promise<Findin
             AND c.source_page > v.page_count`,
     ),
   ];
+}
+
+/* -------------------------------------------------------------------------- */
+/* Title quality                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A stored title that reads as a leaked column rather than a course name.
+ *
+ * The extractor resolves the title column for the layouts it can, but a few
+ * multi-column pages interleave the teaching department with the title in a way
+ * no column edge separates ("Computer-Aided Engineering ME Dept Drawing"). The
+ * empty-title check above catches a title that is GONE; this catches one that
+ * is WRONG, which is the failure that actually ships a wrong subject name.
+ *
+ * A code is published once however many documents list it, so what matters is
+ * per code, not per row:
+ *
+ *  - A code whose EVERY reading is corrupted has no clean title to publish. That
+ *    is our defect and a FAILURE — the gate must not publish a guess at a
+ *    subject's name (§6). Leaving the code out is the smaller, honest catalogue.
+ *  - A code with a clean reading AND a corrupted one is a WARNING: the clean
+ *    reading is the one to publish, and the corrupted sibling is recorded so the
+ *    selection is never silently the wrong one.
+ *
+ * `suspectTitle` is the single implementation of the signal, unit-tested in the
+ * catalogue package against the whole dataset; this names it of the DATA.
+ */
+async function checkTitleQuality(sql: Sql, schemeYear: string | null): Promise<Finding[]> {
+  const area = 'title quality';
+  const rows = (await sql<{ code: string; title: string }[]>`
+    SELECT code, title FROM catalogue_courses
+    WHERE ${schemeYear === null ? sql`TRUE` : sql`scheme_year = ${schemeYear}`}
+  `) as unknown as { code: string; title: string }[];
+  if (rows.length === 0) return [skip(area, 'no courses to check')];
+
+  const clean = new Set<string>();
+  const suspect = new Map<string, string>();
+  for (const row of rows) {
+    if (suspectTitle(row.title) === null) clean.add(row.code);
+    else if (!suspect.has(row.code)) suspect.set(row.code, row.title);
+  }
+  const unpublishable = [...suspect.keys()].filter((code) => !clean.has(code));
+  const recoverable = [...suspect.keys()].filter((code) => clean.has(code));
+  const example = (code: string): string => `${code}: ${suspect.get(code) ?? ''}`;
+
+  const findings: Finding[] = [
+    unpublishable.length === 0
+      ? pass(area, 'every course has at least one clean title')
+      : fail(
+          area,
+          `${String(unpublishable.length)} courses whose every reading has a corrupted title`,
+          unpublishable.slice(0, 5).map(example),
+        ),
+  ];
+  if (recoverable.length > 0) {
+    findings.push(
+      warn(
+        area,
+        `${String(recoverable.length)} courses have a corrupted title alongside a clean one`,
+        recoverable.slice(0, 5).map(example),
+      ),
+    );
+  }
+  return findings;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -922,6 +987,7 @@ export async function validateCatalogue(
     ...(await checkDocuments(sql)),
     ...(await checkApplicability(sql)),
     ...(await checkCourses(sql, schemeYear)),
+    ...(await checkTitleQuality(sql, schemeYear)),
     ...(await checkSyllabi(sql, schemeYear)),
     ...(await checkOptions(sql, schemeYear)),
     ...(await checkAliases(sql, schemeYear)),

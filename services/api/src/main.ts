@@ -11,6 +11,7 @@
 import { assertSafeExposure, loadConfig } from './config.js';
 import { createClient } from './db/client.js';
 import { assertStartupSafety, createApp } from './http/app.js';
+import { purgeExpiredSupport } from './support/store.js';
 import { createLogger } from './observability/logger.js';
 import { stopListening } from './monitor/realtime.js';
 
@@ -55,6 +56,15 @@ async function start(): Promise<void> {
    * container. Public binding is safe because no route is unauthenticated
    * (see `OPERATOR_TOKEN` in config.ts, docs/13 §T-19).
    */
+  /* The 90-day support retention: at boot, then daily. A failure waits for the next run. */
+  const purge = (): void => {
+    purgeExpiredSupport(sql).catch((error: unknown) => {
+      logger.warn({ err: error }, 'support retention purge failed');
+    });
+  };
+  purge();
+  setInterval(purge, 24 * 60 * 60 * 1000).unref();
+
   const server = app.listen(config.PORT, config.HOST, () => {
     logger.info(
       {

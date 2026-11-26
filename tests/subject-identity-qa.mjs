@@ -73,7 +73,7 @@ function serve() {
         res.writeHead(404).end('not found');
       }
     });
-    server.listen(PORT, () => ok(server));
+    server.listen(PORT, '127.0.0.1', () => ok(server));
   });
 }
 
@@ -157,7 +157,7 @@ function seedData() {
         subjectCode: CODE_ATTENDANCE,
         subjectTitle: TITLE_ATTENDANCE,
         attended: 38,
-        conducted: 46,
+        conducted: 44,
         updatedAt: '2026-08-29T00:00:00.000Z',
       },
     ],
@@ -246,11 +246,11 @@ const run = async () => {
     });
     page.on('pageerror', (e) => errors.push(String(e)));
 
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     await seed(page, data);
 
     for (const [path, name] of ROUTES) {
-      await page.goto(`http://localhost:${PORT}${path}`);
+      await page.goto(`http://127.0.0.1:${PORT}${path}`);
       await page.waitForTimeout(450);
 
       const overflow = await page.evaluate(
@@ -294,11 +294,11 @@ const run = async () => {
   });
   page.on('pageerror', (e) => errors.push(String(e)));
 
-  await page.goto(`http://localhost:${PORT}/`);
+  await page.goto(`http://127.0.0.1:${PORT}/`);
   await seed(page, data);
 
   /* ---- the timetable used to render a bare code ----------------------- */
-  await page.goto(`http://localhost:${PORT}/timetable`);
+  await page.goto(`http://127.0.0.1:${PORT}/timetable`);
   await page.waitForTimeout(600);
   const timetableText = await page.locator('#main').innerText();
   expect(
@@ -327,9 +327,9 @@ const run = async () => {
   });
   const page2 = await narrow.newPage();
   page2.on('pageerror', (e) => errors.push(String(e)));
-  await page2.goto(`http://localhost:${PORT}/`);
+  await page2.goto(`http://127.0.0.1:${PORT}/`);
   await seed(page2, data);
-  await page2.goto(`http://localhost:${PORT}/results`);
+  await page2.goto(`http://127.0.0.1:${PORT}/results`);
   await page2.waitForTimeout(600);
   await page2.getByRole('tab', { name: /semesters/i }).click();
   await page2.waitForTimeout(400);

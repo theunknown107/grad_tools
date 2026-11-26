@@ -201,14 +201,17 @@ describe('the announcements page', () => {
   });
 
   /* An unreachable feed is not an empty feed. */
-  it('reports a server it cannot reach rather than showing nothing', async () => {
+  it('shows the labelled vtu.ac.in snapshot when the server cannot be reached, never nothing', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.reject(new Error('network'))),
     );
     renderWith(<AnnouncementsPage />);
 
-    expect(await screen.findByText(/Could not reach the GradTools server/)).toBeTruthy();
+    expect(await screen.findByText(/Latest notices from vtu\.ac\.in, captured/)).toBeTruthy();
+    expect(
+      screen.getByText(/Provisional Results of VTU Eligibility Test for Research/),
+    ).toBeTruthy();
   });
 });
 
@@ -313,7 +316,9 @@ describe('relevance on screen', () => {
 describe('what changed, on the dashboard', () => {
   it('shows a compact list with a way to see everything', async () => {
     mockFeed([announcement(), announcement({ id: 'a2', title: 'Second notice' })]);
-    renderWith(<DashboardPage />);
+    renderWith(<DashboardPage />, {
+      repositories: createMemoryRepositories({ profile: profile() }).bundle,
+    });
 
     const title = await screen.findByText('Semester 4 results announced');
     // The category is shown by its label, never the stored key.
@@ -323,7 +328,9 @@ describe('what changed, on the dashboard', () => {
 
   it('says there is nothing new rather than showing an empty box', async () => {
     mockFeed([]);
-    renderWith(<DashboardPage />);
+    renderWith(<DashboardPage />, {
+      repositories: createMemoryRepositories({ profile: profile() }).bundle,
+    });
     expect(await screen.findByText('Nothing new')).toBeTruthy();
   });
 });

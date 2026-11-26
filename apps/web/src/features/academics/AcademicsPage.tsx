@@ -9,9 +9,6 @@
 
 import { SchemeNotice, useSchemeRules } from '../../hooks/useSchemeRules.js';
 import {
-  calculateCGPA,
-  calculateClass,
-  calculatePercentage,
   calculateRequiredMarks,
   calculateRequiredSGPA,
   calculateSGPA,
@@ -19,7 +16,6 @@ import {
   type BindingConstraint,
   type CourseGrade,
   type MarksTarget,
-  type SemesterSummary,
 } from '@gradtools/academic-rules';
 import { Info, Plus, RotateCcw, Sigma, TriangleAlert, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -38,12 +34,18 @@ import { Segmented } from '../../components/ui/segmented.js';
 import { PageSkeleton } from '../../components/ui/skeleton.js';
 import { Tooltip } from '../../components/ui/tooltip.js';
 import { dataCompleteness } from '../../domain/academics.js';
-import { semesterSgpa } from '../../domain/results.js';
-import { resolveSubject, type SubjectIdentity } from '../../domain/subjects.js';
-import { useSubjectIndex } from '../../hooks/useSubjectIndex.js';
 import { OUTCOME_LABEL, type CourseOutcome } from '../../domain/statistics.js';
 import { useAcademicState } from '../../hooks/useAcademicState.js';
-import { useResults } from '../../hooks/useCollection.js';
+import { useGradeCards, useProfile } from '../../hooks/useCollection.js';
+import {
+  firstSemesterOf,
+  gradeCardCgpa,
+  gradeCardIssues,
+  type GradeCardDraft,
+  type GradeCardField,
+  type GradeCardIssue,
+} from '../../domain/grade-card-cgpa.js';
+import { asStudentProfileId } from '../../domain/identity.js';
 import { cn } from '../../lib/cn.js';
 import { formatCount, formatGpa, formatPercent, metricDisplay } from '../../lib/format.js';
 import { newId } from '../../lib/id.js';
@@ -202,7 +204,7 @@ function Figures() {
                 <Tooltip content="Σ(SGPA × credits) ÷ Σ credits — weighted by the credits each semester carried. Clause 22OB 6.6.">
                   <button
                     type="button"
-                    className="cursor-help font-mono text-[11px] text-accent-ink underline decoration-accent-ink decoration-dashed underline-offset-3"
+                    className="cursor-help font-mono text-[12px] text-accent-ink underline decoration-accent-ink decoration-dashed underline-offset-3"
                   >
                     formula
                   </button>
@@ -277,7 +279,7 @@ function Figures() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[13px] font-medium">Semester {entry.number}</span>
-                      <span className="block text-[11px] text-ink-3">
+                      <span className="block text-[12px] text-ink-3">
                         {formatCount(entry.courseCount, 'course')}
                         {(entry.creditsAttempted.value ?? 0) > 0
                           ? ` · ${String(entry.creditsAttempted.value ?? 0)} credits`
@@ -364,7 +366,7 @@ function Figures() {
           </dl>
           {OUTCOME_ORDER.some((key) => statistics.outcomes[key] > 0) && (
             <>
-              <h3 className="mt-5 mb-2 text-[12px] font-semibold tracking-[0.08em] text-ink-2 uppercase">
+              <h3 className="mt-5 mb-2 text-[12px] font-semibold text-ink-2">
                 Course outcomes
               </h3>
               <ul className="flex flex-wrap gap-2">
@@ -405,7 +407,7 @@ function Figures() {
 function DataStat({ label, value }: { readonly label: string; readonly value: string }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[11px] text-ink-3">{label}</dt>
+      <dt className="text-[12px] text-ink-3">{label}</dt>
       <dd className="tnum mt-0.5 text-[15px] font-semibold text-ink">{value}</dd>
     </div>
   );
@@ -467,7 +469,7 @@ function CalculatorPanel() {
 function FormulaLine({ label, formula }: { readonly label: string; readonly formula: string }) {
   return (
     <div>
-      <dt className="text-[11px] font-medium text-ink-2">{label}</dt>
+      <dt className="text-[12px] font-medium text-ink-2">{label}</dt>
       <dd className="mt-0.5 font-mono text-[12px] text-accent-ink">{formula}</dd>
     </div>
   );
@@ -610,165 +612,198 @@ function SgpaCalculator() {
   );
 }
 
-interface SemesterRowDraft {
-  readonly id: string;
-  readonly semester: string;
-  readonly credits: string;
-  readonly sgpa: string;
-}
-const blankSemester = (index: number): SemesterRowDraft => ({
-  id: newId(),
-  semester: String(Math.min(index + 1, 8)),
-  credits: '',
+const blankGradeCard = (semester: number): GradeCardDraft => ({
+  semester: String(Math.min(Math.max(semester, 1), 8)),
   sgpa: '',
+  creditsRegistered: '',
+  creditsEarned: '',
 });
 
+/**
+ * CGPA from grade-card SGPAs (docs/53, domain/grade-card-cgpa).
+ *
+ * The rows are what the student typed from their cards — saved on this device
+ * and in the local backup, never synced, never labelled as catalogue data. The
+ * figure is a RECONSTRUCTION and says so; a CGPA computed from saved course
+ * results is shown beside it, never replaced by it.
+ */
 function CgpaCalculator() {
-  const { index } = useSubjectIndex();
-  const identify = (code: string | null): SubjectIdentity | null =>
-    code === null ? null : resolveSubject(index, code);
-  const { items: savedResults } = useResults();
-  const [rows, setRows] = useState<SemesterRowDraft[]>(() => [blankSemester(0), blankSemester(1)]);
-  const semesters: SemesterSummary[] = useMemo(
-    () =>
-      rows
-        .filter((row) => row.credits.trim() !== '' && row.sgpa.trim() !== '')
-        .map((row) => ({
-          credits: Number(row.credits),
-          sgpa: Number(row.sgpa),
-          semester: Number(row.semester),
-        })),
-    [rows],
+  const { profile } = useProfile();
+  const { items: cards, save, remove } = useGradeCards();
+  const { statistics } = useAcademicState();
+  const firstSemester = firstSemesterOf(profile);
+  const ordered = useMemo(() => [...cards].sort((a, b) => a.semester - b.semester), [cards]);
+  const nextSemester = (ordered.at(-1)?.semester ?? firstSemester - 1) + 1;
+  const [draft, setDraft] = useState<GradeCardDraft>(() => blankGradeCard(nextSemester));
+  const [issues, setIssues] = useState<readonly GradeCardIssue[]>([]);
+  const result = useMemo(
+    () => gradeCardCgpa(cards, { firstSemester, schemeId: profile?.schemeId ?? 'vtu-2022' }),
+    [cards, firstSemester, profile?.schemeId],
   );
-  const cgpa = useMemo(() => calculateCGPA(semesters, ruleSet), [semesters]);
-  const percentage = useMemo(
-    () => (cgpa.ok ? calculatePercentage(cgpa.value, ruleSet) : null),
-    [cgpa],
-  );
-  const classBand = useMemo(
-    () => (percentage?.ok === true ? calculateClass(percentage.value, ruleSet) : null),
-    [percentage],
-  );
-  const update = (id: string, patch: Partial<SemesterRowDraft>): void =>
-    setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+  const issueFor = (field: GradeCardField) =>
+    issues.find((issue) => issue.field === field)?.message;
+
+  const submit = async (): Promise<void> => {
+    const found = gradeCardIssues(draft, firstSemester);
+    setIssues(found);
+    if (found.length > 0) return;
+    const semester = Number(draft.semester);
+    /* One row per semester: saving a semester again corrects it rather than adding a second. */
+    const existing = cards.find((card) => card.semester === semester);
+    await save({
+      id: existing?.id ?? newId(),
+      profileId: profile?.id ?? asStudentProfileId('local'),
+      semester,
+      sgpa: Number(draft.sgpa),
+      creditsRegistered: Number(draft.creditsRegistered),
+      creditsEarned: Number(draft.creditsEarned),
+      updatedAt: new Date().toISOString(),
+    });
+    setDraft(blankGradeCard(Math.max(semester, ordered.at(-1)?.semester ?? 0) + 1));
+  };
 
   return (
     <section aria-labelledby="cgpa-calc">
-      <h3 id="cgpa-calc" className="mb-3 text-sm font-semibold">
-        CGPA across semesters
+      <h3 id="cgpa-calc" className="mb-1 text-sm font-semibold">
+        CGPA from your grade cards
       </h3>
-      {savedResults.length > 0 && (
-        <Callout
-          className="mb-3"
-          action={
-            <Button
-              size="sm"
-              onClick={() =>
-                setRows(
-                  [...savedResults]
-                    .sort((a, b) => a.semester - b.semester)
-                    .map((saved) => {
-                      /* The same credit resolution the results screens use. */
-                      const { sgpa, credits } = semesterSgpa(saved, ruleSet, identify);
-                      return {
-                        id: saved.id,
-                        semester: String(saved.semester),
-                        credits: String(credits),
-                        sgpa: sgpa === null ? '' : sgpa.toFixed(2),
-                      };
-                    }),
-                )
-              }
-            >
-              Fill from saved results
-            </Button>
-          }
-        >
-          You have {formatCount(savedResults.length, 'saved semester result')}.
-        </Callout>
+      <p className="mb-3 text-[12px] text-ink-2">
+        Enter what each semester&rsquo;s grade card prints: the SGPA, the credits registered and the
+        credits earned. Saved on this device and in your backup; never sent anywhere.
+        {firstSemester === 3 &&
+          ' Your profile says diploma entry, so your degree starts in semester 3.'}
+      </p>
+
+      {ordered.length > 0 && (
+        <table className="mb-3 w-full text-[13px]">
+          <thead className="text-left text-[12px] text-ink-3">
+            <tr>
+              <th scope="col" className="font-medium">
+                Semester
+              </th>
+              <th scope="col" className="font-medium">
+                SGPA
+              </th>
+              <th scope="col" className="font-medium">
+                Registered
+              </th>
+              <th scope="col" className="font-medium">
+                Earned
+              </th>
+              <th scope="col">
+                <span className="sr-only">Remove</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {ordered.map((card) => (
+              <tr key={card.id} className="border-t border-line">
+                <td className="py-1">{card.semester}</td>
+                <td className="tnum">{formatGpa(card.sgpa)}</td>
+                <td className="tnum">{card.creditsRegistered}</td>
+                <td className="tnum">{card.creditsEarned}</td>
+                <td className="text-right">
+                  <IconButton
+                    label={`Remove semester ${String(card.semester)}`}
+                    className="hover:text-danger"
+                    onClick={() => void remove(card.id)}
+                  >
+                    <X />
+                  </IconButton>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
-      <div
-        aria-hidden="true"
-        className="mb-1.5 grid grid-cols-[1.2fr_1fr_1fr_auto] gap-2 text-[11px] font-medium text-ink-3"
+
+      <form
+        className="grid gap-2 sm:grid-cols-[1.1fr_1fr_1fr_1fr_auto] sm:items-end"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
       >
-        <span>Semester</span>
-        <span>Total credits</span>
-        <span>SGPA</span>
-        <span className="w-9" />
-      </div>
-      <ul className="space-y-2">
-        {rows.map((row, index) => {
-          const n = String(index + 1);
-          return (
-            <li key={row.id} className="grid grid-cols-[1.2fr_1fr_1fr_auto] items-center gap-2">
-              <Select
-                aria-label={`Semester number, row ${n}`}
-                value={row.semester}
-                onValueChange={(value) => update(row.id, { semester: value })}
-                options={SEMESTER_OPTIONS}
-              />
-              <Input
-                aria-label={`Total credits, row ${n}`}
-                inputMode="numeric"
-                placeholder="22"
-                value={row.credits}
-                onChange={(event) => update(row.id, { credits: event.target.value })}
-              />
-              <Input
-                aria-label={`SGPA, row ${n}`}
-                inputMode="decimal"
-                placeholder="8.43"
-                value={row.sgpa}
-                onChange={(event) => update(row.id, { sgpa: event.target.value })}
-              />
-              <IconButton
-                label={`Remove semester row ${n}`}
-                disabled={rows.length === 1}
-                className="hover:text-danger"
-                onClick={() =>
-                  setRows((current) => current.filter((candidate) => candidate.id !== row.id))
-                }
-              >
-                <X />
-              </IconButton>
-            </li>
-          );
-        })}
-      </ul>
-      <Button
-        size="sm"
-        className="mt-2"
-        icon={<Plus />}
-        onClick={() => setRows((current) => [...current, blankSemester(current.length)])}
-      >
-        Add semester
-      </Button>
+        <Field label="Semester" error={issueFor('semester')}>
+          <Select
+            aria-label="Semester"
+            value={draft.semester}
+            onValueChange={(value) => setDraft((current) => ({ ...current, semester: value }))}
+            options={SEMESTER_OPTIONS}
+          />
+        </Field>
+        <Field label="SGPA on the card" error={issueFor('sgpa')}>
+          <Input
+            inputMode="decimal"
+            placeholder="8.43"
+            value={draft.sgpa}
+            onChange={(event) => setDraft((current) => ({ ...current, sgpa: event.target.value }))}
+          />
+        </Field>
+        <Field label="Credits registered" error={issueFor('creditsRegistered')}>
+          <Input
+            inputMode="numeric"
+            placeholder="20"
+            value={draft.creditsRegistered}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, creditsRegistered: event.target.value }))
+            }
+          />
+        </Field>
+        <Field label="Credits earned" error={issueFor('creditsEarned')}>
+          <Input
+            inputMode="numeric"
+            placeholder="20"
+            value={draft.creditsEarned}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, creditsEarned: event.target.value }))
+            }
+          />
+        </Field>
+        <Button type="submit" icon={<Plus />}>
+          Save semester
+        </Button>
+      </form>
+
       <ResultBlock
-        label="Estimated CGPA"
-        value={cgpa.ok ? formatGpa(cgpa.value) : null}
+        label="CGPA reconstructed from your grade cards"
+        value={result.status === 'available' ? formatGpa(result.cgpa) : null}
         caption={
-          cgpa.ok
-            ? `Credit-weighted across ${formatCount(semesters.length, 'entered semester')}.`
-            : cgpa.detail
+          result.status === 'available'
+            ? `From the SGPAs you entered for semesters ${result.semesters.join(', ')} (${String(result.totalCredits)} credits). Grade cards print SGPAs to two decimals, so this can differ from your card’s own CGPA in the second decimal.`
+            : 'Not available yet.'
         }
       >
-        {cgpa.ok && (
+        {result.status === 'available' && result.percentage !== null && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {percentage?.ok === true && (
-              <Badge>Percentage · {formatPercent(percentage.value)}</Badge>
-            )}
-            {classBand?.ok === true && <Badge tone="accent">{classBand.value.label}</Badge>}
+            <Badge>Percentage · {formatPercent(result.percentage)}</Badge>
           </div>
         )}
+        {result.status === 'unavailable' && (
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-[12px] text-ink-2">
+            {(result.reasons.length > 0
+              ? result.reasons
+              : ['Enter your grade-card semesters above.']
+            ).map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        )}
       </ResultBlock>
-      <ExplanationDisclosure explanation={cgpa.explanation} className="mt-3" />
-      {percentage?.ok === true && (
+      {result.status === 'available' && result.percentage !== null && (
         <Callout className="mt-3" title="Percentage = CGPA × 10,">
           per clause 22OB 6.7 of the VTU 2022 regulation, which gives this worked example: CGPA 8.20
           → 82.0%. Many other calculators subtract 0.75 before multiplying, which returns a figure
           exactly 7.5 percentage points lower. That formula does not appear in the 2022 regulation.
           GradTools follows the regulation.
         </Callout>
+      )}
+      {statistics.cgpa.value !== null && (
+        <p className="mt-3 text-[12px] text-ink-2">
+          From your saved course results, GradTools calculates a CGPA of{' '}
+          <strong>{formatGpa(statistics.cgpa.value)}</strong>. That figure is kept separately and is
+          not changed by anything entered here.
+        </p>
       )}
     </section>
   );

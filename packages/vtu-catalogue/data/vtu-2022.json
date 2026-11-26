@@ -1,13 +1,14 @@
 {
-  "normalizationVersion": "1.0.0",
-  "generatedAt": "2026-09-08T14:28:14.641Z",
+  "normalizationVersion": "1.2.0",
+  "generatedAt": "2026-10-25T14:42:24.599Z",
   "courses": [
     {
       "schemeYear": "2022",
       "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
       "semester": 1,
       "code": "BCEDK103",
-      "title": "Civil/Mech Computer-aided engineering Drawing Engg dept",
+      "title": "Computer-aided engineering Drawing",
       "credits": 3,
       "creditBasis": "table",
       "relatedCode": null,
@@ -16,7 +17,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
       }
     },
     {
@@ -34,6 +35,24 @@
         "sourcePage": 7,
         "parserVersion": "1.0.0",
         "retrievedAt": "2026-09-08T14:28:14.641Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 1,
+      "code": "BCIVC103",
+      "title": "Engineering Mechanics",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
       }
     },
     {
@@ -141,9 +160,10 @@
     {
       "schemeYear": "2022",
       "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
       "semester": 1,
       "code": "BESCK104x",
-      "title": "Respective Engineering Science Course-I Dept",
+      "title": "Engineering Science Course-I",
       "credits": 3,
       "creditBasis": "table",
       "relatedCode": null,
@@ -152,7 +172,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
       }
     },
     {
@@ -362,18 +382,19 @@
     {
       "schemeYear": "2022",
       "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
       "semester": 1,
-      "code": "BITDK158",
-      "title": "Innovation and Design Thinking Any Dept",
+      "code": "BIDTK158",
+      "title": "Innovation and Design Thinking",
       "credits": 1,
       "creditBasis": "alternative",
       "relatedCode": "BSFHK158",
       "provenance": {
         "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
-        "sourcePage": 7,
+        "sourcePage": 1,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
       }
     },
     {
@@ -396,6 +417,24 @@
     {
       "schemeYear": "2022",
       "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 1,
+      "code": "BKBKK107",
+      "title": "Balake Kannada",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BICOK107",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
       "semester": 1,
       "code": "BMATC101",
       "title": "Mathematics-I for Civil Engg Stream Maths",
@@ -408,6 +447,24 @@
         "sourcePage": 7,
         "parserVersion": "1.0.0",
         "retrievedAt": "2026-09-08T14:28:14.641Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 1,
+      "code": "BPHYC102",
+      "title": "Applied Physics for Civil Engineering Stream",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 1,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
       }
     },
     {
@@ -527,6 +584,564 @@
         "sourcePage": 7,
         "parserVersion": "1.0.0",
         "retrievedAt": "2026-09-08T14:28:14.641Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BCEDK203",
+      "title": "Computer-Aided Engineering Drawing",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BCHEC202",
+      "title": "Applied Chemistry for Civil Engineering stream",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BENGK206",
+      "title": "Communicative English",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BPWSK206",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BESCK204A",
+      "title": "Introduction to Civil Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BESCK204B",
+      "title": "Introduction to Electrical Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BESCK204C",
+      "title": "Introduction to Electronics",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BESCK204D",
+      "title": "Introduction to Mechanical Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BESCK204E",
+      "title": "Introduction to C Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BESCK204x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BESCK204x",
+      "title": "Engineering Science Course-II",
+      "credits": 3,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205A",
+      "title": "Smart materials and Systems",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205B",
+      "title": "Green Buildings",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205C",
+      "title": "Introduction to Nano Technology",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205D",
+      "title": "Introduction to Sustainable Engineering",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205E",
+      "title": "Renewable Energy Sources",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205F",
+      "title": "Waste Management",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205G",
+      "title": "Emerging Applications of Biosensors",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205H",
+      "title": "Introduction to Internet of Things(IoT)",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205I",
+      "title": "Introduction to Cyber Security",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205J",
+      "title": "Introduction to Embedded System",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BETCK205x",
+      "title": "Emerging Technology Course-II",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BETCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BICOK207",
+      "title": "Indian Constitution",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BKBKK207",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BIDTK258",
+      "title": "Innovation and Design Thinking Any",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BSFHK258",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BKBKK207",
+      "title": "Kannada Humanities OR",
+      "credits": 1,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BMATC201",
+      "title": "Mathematics-II for Civil Engineering Maths",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BPHYC202",
+      "title": "Applied Physics for Civil PHY Engineering",
+      "credits": 4,
+      "creditBasis": "table",
+      "relatedCode": null,
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 10,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BPLCK205A",
+      "title": "Introduction to Web Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BPLCK205B",
+      "title": "Introduction to Python Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BPLCK205C",
+      "title": "Basics of JAVA programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BPLCK205D",
+      "title": "Introduction to C++ Programming",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 6,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BPLCK205x",
+      "title": "Programming Language Course-II",
+      "credits": 3,
+      "creditBasis": "slot",
+      "relatedCode": "BPLCK205x",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
+      }
+    },
+    {
+      "schemeYear": "2022",
+      "programme": "Civil Engineering Stream (CV/EV/TR/CC)",
+      "streamId": "civil-engineering-stream",
+      "semester": 2,
+      "code": "BPWSK206",
+      "title": "Professional Writing Skills in English",
+      "credits": 1,
+      "creditBasis": "alternative",
+      "relatedCode": "BENGK206",
+      "provenance": {
+        "documentSha256": "b8d4b4b8770f867b0c129bd560907193976d657fd221b4dfbd004bb723226a17",
+        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/cvsch.pdf",
+        "sourcePage": 4,
+        "parserVersion": "1.0.0",
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
       }
     },
     {
@@ -1027,7 +1642,7 @@
       "programme": "Computer Science & Business System",
       "semester": 4,
       "code": "BPEK459",
-      "title": "Physical Education Physical Education (PE) (Sports and Athletics)",
+      "title": "Physical Education (PE) (Sports and Athletics)",
       "credits": 0,
       "creditBasis": "table",
       "relatedCode": null,
@@ -1248,7 +1863,7 @@
       "programme": "Computer Science & Business System",
       "semester": 5,
       "code": "BPEK559",
-      "title": "Physical Education Physical Education (PE) (Sports and Athletics)",
+      "title": "Physical Education (PE) (Sports and Athletics)",
       "credits": 0,
       "creditBasis": "table",
       "relatedCode": null,
@@ -1588,7 +2203,7 @@
       "programme": "Computer Science & Business System",
       "semester": 6,
       "code": "BPEK658",
-      "title": "Physical Education Physical Education (PE) (Sports and Athletics)",
+      "title": "Physical Education (PE) (Sports and Athletics)",
       "credits": 0,
       "creditBasis": "table",
       "relatedCode": null,
@@ -1893,57 +2508,6 @@
       "schemeYear": "2022",
       "programme": "Computer Science & Business System",
       "semester": 8,
-      "code": "BCB801B",
-      "title": "BCB801B",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BCB801x",
-      "provenance": {
-        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
-        "sourcePage": 12,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": "Computer Science & Business System",
-      "semester": 8,
-      "code": "BCB801C",
-      "title": "BCB801C",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BCB801x",
-      "provenance": {
-        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
-        "sourcePage": 12,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": "Computer Science & Business System",
-      "semester": 8,
-      "code": "BCB801D",
-      "title": "BCB801D",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BCB801x",
-      "provenance": {
-        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
-        "sourcePage": 12,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": "Computer Science & Business System",
-      "semester": 8,
       "code": "BCB801x",
       "title": "Professional Elective (Online Courses) Only through NPTEL",
       "credits": 3,
@@ -1963,57 +2527,6 @@
       "semester": 8,
       "code": "BCB802A",
       "title": "BOS will publish courses based on the availability",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BCB802x",
-      "provenance": {
-        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
-        "sourcePage": 12,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": "Computer Science & Business System",
-      "semester": 8,
-      "code": "BCB802B",
-      "title": "BCB802B",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BCB802x",
-      "provenance": {
-        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
-        "sourcePage": 12,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": "Computer Science & Business System",
-      "semester": 8,
-      "code": "BCB802C",
-      "title": "BCB802C",
-      "credits": 3,
-      "creditBasis": "slot",
-      "relatedCode": "BCB802x",
-      "provenance": {
-        "documentSha256": "60ed0ab331251d52ba14322b3f1fb8c96573dfe5ea7f14733eb5a580677ef4a5",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022_3to8/38csbssch.pdf",
-        "sourcePage": 12,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": "Computer Science & Business System",
-      "semester": 8,
-      "code": "BCB802D",
-      "title": "BCB802D",
       "credits": 3,
       "creditBasis": "slot",
       "relatedCode": "BCB802x",
@@ -2062,9 +2575,10 @@
     {
       "schemeYear": "2022",
       "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "streamId": "cse-stream",
       "semester": 1,
       "code": "BCEDK103",
-      "title": "Civil/Mech Computer-Aided Engineering Drawing Engg dept",
+      "title": "Computer-Aided Engineering Drawing",
       "credits": 3,
       "creditBasis": "table",
       "relatedCode": null,
@@ -2073,7 +2587,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
         "sourcePage": 7,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
       }
     },
     {
@@ -2191,23 +2705,6 @@
         "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
         "sourcePage": 3,
-        "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
-      }
-    },
-    {
-      "schemeYear": "2022",
-      "programme": "CSE Stream Scheme (CSE/ISC/BT)",
-      "semester": 1,
-      "code": "BESCK104x",
-      "title": "Respective Engg Engineering Science Course-I Dept",
-      "credits": 3,
-      "creditBasis": "table",
-      "relatedCode": null,
-      "provenance": {
-        "documentSha256": "0082c2289a43a53e9fc5f0f70140c9d41cf5f73695a07c83c561cde33c12e04e",
-        "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
-        "sourcePage": 1,
         "parserVersion": "1.0.0",
         "retrievedAt": "2026-09-08T14:28:14.641Z"
       }
@@ -2623,9 +3120,10 @@
     {
       "schemeYear": "2022",
       "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "streamId": "cse-stream",
       "semester": 2,
       "code": "BCEDK203",
-      "title": "Civil/Mech Computer-Aided Engineering Drawing Engg dept",
+      "title": "Computer-Aided Engineering Drawing",
       "credits": 3,
       "creditBasis": "table",
       "relatedCode": null,
@@ -2634,7 +3132,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
         "sourcePage": 4,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
       }
     },
     {
@@ -2759,9 +3257,10 @@
     {
       "schemeYear": "2022",
       "programme": "CSE Stream Scheme (CSE/ISC/BT)",
+      "streamId": "cse-stream",
       "semester": 2,
       "code": "BESCK204x",
-      "title": "Respective Engineering Science Course-II Engg. Dept",
+      "title": "Engineering Science Course-II",
       "credits": 3,
       "creditBasis": "table",
       "relatedCode": null,
@@ -2770,7 +3269,7 @@
         "sourceUrl": "https://vtu.ac.in/pdf/2022syll/csesch.pdf",
         "sourcePage": 4,
         "parserVersion": "1.0.0",
-        "retrievedAt": "2026-09-08T14:28:14.641Z"
+        "retrievedAt": "2026-10-25T14:42:24.599Z"
       }
     },
     {
@@ -3185,6 +3684,7 @@
   "conflicts": [],
   "aliases": [
     {
+      "schemeYear": "2022",
       "variant": "BCSL358D",
       "canonical": "BCS358D",
       "title": "Data Visualization with Python",

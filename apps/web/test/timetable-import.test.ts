@@ -25,13 +25,17 @@ import { describe, expect, it } from 'vitest';
 import {
   initialismsFor,
   needsBatch,
+  applyTimetableCorrections,
   parseTimetable,
   readDictionary,
   readSlot,
   relateTimetable,
+  normalizeSubjectToken,
   resolveGridSubject,
   slotsForBatch,
   timetableEntry,
+  type GridClass,
+  type ParsedTimetable,
   type PlacedLike,
   type SavedTimetable,
 } from '../src/domain/timetable-import.js';
@@ -827,6 +831,26 @@ describe('resolving a grid abbreviation to a subject', () => {
     expect(resolved.reason).toMatch(/check it/);
   });
 
+  /*
+   * OCR NOISE MUST NOT BLOCK A MATCH (regression for the installed app's
+   * "['ESEWM [Cum"). A table border is misread as a leading quote/bracket and a
+   * bracketed note is combined into the cell; neither is part of the subject, so
+   * the cleaned token resolves exactly as the clean "ESEVM" does.
+   */
+  it('strips OCR bracket/quote noise so a corrupted cell resolves like the clean one', () => {
+    const dictionary = readDictionary([
+      'BQAS508 Environmental Studies and E-waste Management Prof. A One 1+0+0 1+0+0',
+      ...table,
+    ]);
+    for (const noisy of ["['ESEVM [Cum", "'ESEVM'", 'ESEVM [Cumulative Test]', '[ESEVM']) {
+      const resolved = resolveGridSubject(dictionary, noisy);
+      expect(resolved).toMatchObject({ subjectCode: 'BQAS508', resolution: 'near' });
+      // The reason names the cleaned token, not the noisy one.
+      expect(resolved.reason).toContain('ESEVM');
+      expect(resolved.reason).not.toContain('[');
+    }
+  });
+
   it('never near-matches a short abbreviation, or one close to two subjects', () => {
     // Three letters or fewer: CNL and CSL are different labs, not a typo.
     expect(resolveGridSubject(readDictionary(table), 'CXL').resolution).toBe('unknown');
@@ -1259,5 +1283,91 @@ describe('the letters of a vertically-set break label', () => {
     );
     const monday = parsed.classes.filter((entry) => entry.day === 'Mon');
     expect(monday.map((entry) => entry.initials)).toEqual(['Value added Course']);
+  });
+});
+
+describe('applyTimetableCorrections maps labels to courses without inventing meaning', () => {
+  const klass = (over: Partial<GridClass>): GridClass => ({
+    day: 'Mon',
+    start: '10:00',
+    end: '10:55',
+    subjectCode: null,
+    resolution: 'unknown',
+    unresolvedReason: '"FM" is not defined anywhere on this timetable.',
+    initials: 'FM',
+    batch: null,
+    room: null,
+    spansSlots: 1,
+    sourceText: 'FM',
+    ...over,
+  });
+
+  const base: ParsedTimetable = {
+    context: {
+      className: null,
+      semester: null,
+      academicYear: null,
+      revision: null,
+      effectiveFrom: null,
+      room: null,
+    },
+    slots: [],
+    dictionary: [],
+    classes: [
+      klass({ day: 'Mon' }),
+      klass({ day: 'Wed' }),
+      klass({
+        day: 'Tue',
+        initials: 'CN',
+        subjectCode: 'BQAS502',
+        resolution: 'initialism',
+        unresolvedReason: null,
+        sourceText: 'CN',
+      }),
+    ],
+    batches: [],
+    conflicts: [],
+    coverage: {
+      cellsFound: 3,
+      cellsResolved: 1,
+      slotsFound: 3,
+      dictionaryEntries: 0,
+      looksComplete: false,
+    },
+    warnings: [],
+  };
+
+  it('maps every occurrence of a label, leaves other labels alone, and keeps the raw cell', () => {
+    const out = applyTimetableCorrections(base, { FM: 'BQAS501' });
+    const fm = out.classes.filter((entry) => entry.initials === 'FM');
+    expect(fm).toHaveLength(2);
+    expect(fm.every((e) => e.subjectCode === 'BQAS501' && e.resolution === 'declared')).toBe(true);
+    expect(fm.every((e) => e.sourceText === 'FM')).toBe(true); // provenance preserved
+    // The unrelated CN class is untouched.
+    expect(out.classes.find((e) => e.initials === 'CN')?.subjectCode).toBe('BQAS502');
+    expect(out.coverage.cellsResolved).toBe(3);
+  });
+
+  it('an empty choice leaves the label explicitly unresolved, never a guess', () => {
+    const out = applyTimetableCorrections(base, { FM: '' });
+    const fm = out.classes.filter((entry) => entry.initials === 'FM');
+    expect(fm.every((e) => e.subjectCode === null && e.resolution === 'unknown')).toBe(true);
+  });
+
+  it('returns the input unchanged when there are no corrections', () => {
+    expect(applyTimetableCorrections(base, {})).toBe(base);
+  });
+});
+
+describe('normalizeSubjectToken strips OCR noise, keeping the real subject', () => {
+  it.each([
+    ["['ESEVM [Cum", 'ESEVM'], // leading border noise + a combined bracketed note
+    ['[Mini project', 'Mini project'], // leading bracket only — internal space kept
+    ["'FM'", 'FM'], // stray quotes
+    ['ESEVM [Cumulative]', 'ESEVM'], // a note printed in the same cell
+    ['CN', 'CN'], // a clean token is untouched
+    ['Value added Course', 'Value added Course'], // spelled-out cells are preserved whole
+  ])('%j -> %j', (raw, expected) => {
+    expect(normalizeSubjectToken(raw)).toBe(expected);
   });
 });

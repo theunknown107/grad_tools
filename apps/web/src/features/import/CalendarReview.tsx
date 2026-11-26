@@ -172,7 +172,7 @@ export function CalendarReview({
                     ? formatDate(event.startDate)
                     : `${formatDate(event.startDate)} – ${formatDate(event.endDate)}`}
                 </span>
-                <span className="mt-1 block truncate font-mono text-[11px] text-ink-3">
+                <span className="mt-1 block truncate font-mono text-[12px] text-ink-3">
                   Read from: {event.sourceLine}
                 </span>
               </span>

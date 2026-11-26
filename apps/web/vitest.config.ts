@@ -30,5 +30,11 @@ export default defineConfig({
     // Raises Testing Library's own findBy* wait, which is separate from
     // testTimeout and defaults to 1s — too tight under full-suite load.
     setupFiles: ['./test/setup.ts'],
+    /*
+     * Tests never talk to a real GradTools API. A developer's gitignored
+     * `.env.local` may set VITE_API_URL; without this pin, hooks such as
+     * useColleges() fetch from that server mid-test (and wait on it).
+     */
+    env: { VITE_API_URL: '' },
   },
 });

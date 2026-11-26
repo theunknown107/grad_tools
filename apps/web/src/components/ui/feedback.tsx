@@ -67,7 +67,7 @@ const calloutTone = {
   },
   danger: { box: 'bg-danger-weak/40', icon: 'text-danger', Icon: OctagonAlert },
   success: { box: 'bg-success-weak/40', icon: 'text-success', Icon: CircleCheck },
-  info: { box: 'border-line bg-panel', icon: 'text-ink-2', Icon: Info },
+  info: { box: 'border-line bg-[var(--glass-surface)]', icon: 'text-ink-2', Icon: Info },
 } as const;
 
 /** The design's tinted inline notice ("Partial result. …"). */
@@ -91,14 +91,28 @@ export function Callout({
   return (
     <div
       {...(role === undefined ? {} : { role })}
-      className={cn('flex items-start gap-3 rounded-xl border p-4', style.box, className)}
+      /*
+       * Icon | text, and the action BELOW the text on a phone — beside it only
+       * from `sm` up. Beside it at phone width, a long action ("Sign out on
+       * this device") squeezed the explanation into a one-word column.
+       */
+      className={cn(
+        'grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-3 rounded-xl border p-4',
+        action !== undefined && 'sm:grid-cols-[auto_minmax(0,1fr)_auto]',
+        style.box,
+        className,
+      )}
     >
       <Icon aria-hidden="true" className={cn('mt-0.5 size-4.5 shrink-0', style.icon)} />
-      <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-ink-2">
+      <div className="min-w-0 text-[13px] leading-relaxed text-ink-2">
         {title !== undefined && <span className="font-medium text-ink">{title} </span>}
         {children}
       </div>
-      {action !== undefined && <div className="shrink-0">{action}</div>}
+      {action !== undefined && (
+        <div data-slot="callout-action" className="col-start-2 sm:col-start-3 sm:row-start-1">
+          {action}
+        </div>
+      )}
     </div>
   );
 }
@@ -119,7 +133,7 @@ export function ErrorState({
     <div
       role="alert"
       className={cn(
-        'flex flex-col items-center rounded-xl border border-line bg-raised px-6 py-12 text-center',
+        'gt-surface flex flex-col items-center rounded-xl border border-line px-6 py-12 text-center',
         className,
       )}
     >

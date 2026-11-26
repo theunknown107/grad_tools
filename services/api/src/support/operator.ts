@@ -65,6 +65,8 @@ export async function overview(sql: Sql): Promise<{
     {
       last_hour: string;
       last_24h: string;
+      user_reports: string;
+      anonymous_reports: string;
       api_5xx: string;
       rate_limited: string;
       sync_failed: string;
@@ -75,8 +77,11 @@ export async function overview(sql: Sql): Promise<{
     }[]
   >`
     SELECT
-      count(*) FILTER (WHERE occurred_at >= now() - interval '1 hour')          AS last_hour,
-      count(*) FILTER (WHERE occurred_at >= now() - interval '24 hours')        AS last_24h,
+      count(*) FILTER (WHERE occurred_at >= now() - interval '1 hour'
+                         AND event_type <> 'USER_REPORT')                       AS last_hour,
+      count(*) FILTER (WHERE event_type <> 'USER_REPORT')                       AS last_24h,
+      count(*) FILTER (WHERE event_type = 'USER_REPORT' AND auth_user_id IS NOT NULL) AS user_reports,
+      count(*) FILTER (WHERE event_type = 'USER_REPORT' AND auth_user_id IS NULL) AS anonymous_reports,
       count(*) FILTER (WHERE event_type = 'API_5XX')                            AS api_5xx,
       count(*) FILTER (WHERE event_type IN ('API_RATE_LIMITED','RATE_LIMIT_TRIGGERED')) AS rate_limited,
       count(*) FILTER (WHERE event_type = 'SYNC_FAILED')                        AS sync_failed,
@@ -91,7 +96,9 @@ export async function overview(sql: Sql): Promise<{
   const codes = await sql<{ error_code: string; count: string; last_seen: Date }[]>`
     SELECT error_code, count(*) AS count, max(occurred_at) AS last_seen
     FROM support_events
-    WHERE error_code IS NOT NULL AND occurred_at >= now() - interval '24 hours'
+    WHERE error_code IS NOT NULL
+      AND event_type <> 'USER_REPORT'
+      AND occurred_at >= now() - interval '24 hours'
     GROUP BY error_code
     ORDER BY count DESC
     LIMIT 20
@@ -108,6 +115,9 @@ export async function overview(sql: Sql): Promise<{
       aiFailed: n(totals?.ai_failed),
       nativeFailed: n(totals?.native_failed),
       security: n(totals?.security),
+      /* What people said, never mixed into what the server observed above. */
+      userReports: n(totals?.user_reports),
+      anonymousReports: n(totals?.anonymous_reports),
     },
     topErrorCodes: codes.map((c) => ({
       code: c.error_code,

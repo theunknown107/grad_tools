@@ -26,8 +26,10 @@ import { AuthProvider } from '../src/features/auth/AuthContext.js';
 import { ThemeProvider } from '../src/hooks/useTheme.js';
 import { TooltipProvider } from '../src/components/ui/tooltip.js';
 import { SignInPage } from '../src/features/auth/SignInPage.js';
+import { SignUpPage } from '../src/features/auth/SignUpPage.js';
 import { ResetPasswordPage } from '../src/features/auth/ResetPasswordPage.js';
 import { AccountPage } from '../src/features/auth/AccountPage.js';
+import { DiagnosticsPage } from '../src/features/diagnostics/DiagnosticsPage.js';
 import type { AuthAdapter } from '../src/repositories/cloud/supabase.js';
 import type { Identity } from '../src/domain/auth.js';
 import { createLocalRepositories } from '../src/repositories/local/index.js';
@@ -59,6 +61,10 @@ function fakeAdapter(initial: Identity | null = null): AuthAdapter & { calls: st
     },
     async signInWithProvider(provider) {
       calls.push(`oauth:${provider}`);
+      return { error: null };
+    },
+    async signUpWithProvider(provider) {
+      calls.push(`oauth-signup:${provider}`);
       return { error: null };
     },
     async sendRecovery(email) {
@@ -160,8 +166,8 @@ describe('the sign-in screen', () => {
    */
   it('says plainly that nothing is uploaded by signing in', async () => {
     renderAuth(<SignInPage />, fakeAdapter());
-    const explainer = await screen.findByText(/upload anything on its own/i);
-    expect(explainer.textContent).toContain('not');
+    const explainer = await screen.findByText(/uploads nothing by itself/i);
+    expect(explainer.textContent).toContain('You choose');
   });
 
   it('makes staying local a real, visible option (local-first: an account is optional)', async () => {
@@ -177,22 +183,90 @@ describe('the sign-in screen', () => {
     const adapter = fakeAdapter();
     renderAuth(<SignInPage />, adapter);
 
-    await userEvent.click(await screen.findByRole('radio', { name: 'Recover' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Forgot password?' }));
     await userEvent.type(screen.getByLabelText('Email'), 'nobody@example.test');
-    await userEvent.click(screen.getByRole('button', { name: 'Recover your account' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send reset code' }));
 
     const message = await screen.findByText(/If that address has an account/);
     expect(message.textContent).toContain('If that address has an account');
     expect(message.textContent).not.toMatch(/not found|no account|does not exist/i);
   });
 
-  it('asks for a new password when creating an account', async () => {
-    renderAuth(<SignInPage />, fakeAdapter());
-    await userEvent.click(await screen.findByRole('radio', { name: 'Create' }));
+  it('asks for a new password when creating an account, with no app-imposed length rule', async () => {
+    renderAuth(<SignUpPage />, fakeAdapter());
 
-    const password = screen.getByLabelText('Password');
+    const password = await screen.findByLabelText('Password');
     expect(password.getAttribute('autocomplete')).toBe('new-password');
-    expect(password.getAttribute('minlength')).toBe('8');
+    // No native `minlength` (it fired a browser bubble that blocked valid input)
+    // and no app-invented "at least N characters" hint — the provider owns the policy.
+    expect(password.getAttribute('minlength')).toBeNull();
+    expect(screen.queryByText(/at least \d+ characters/i)).toBeNull();
+  });
+
+  /*
+   * REGRESSION (the 15-char sign-in block). A sign-in must never be held to the
+   * NEW-password minimum: an existing password shorter than the current policy
+   * (14 chars here, policy 15) must still reach the authentication layer.
+   */
+  it('lets an existing short password sign in, unblocked by the new-password minimum', async () => {
+    const adapter = fakeAdapter();
+    renderAuth(<SignInPage />, adapter);
+
+    await userEvent.type(screen.getByLabelText(/^email$/i), 'demo@example.test');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'fourteen-chars');
+    expect('fourteen-chars'.length).toBe(14);
+    // No native minLength attribute to block submission.
+    expect(screen.getByLabelText(/^password$/i).getAttribute('minlength')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+    await waitFor(() => expect(adapter.calls).toContain('signIn:demo@example.test'));
+  });
+
+  /*
+   * CREATE no longer enforces any app-side length rule: a short password is sent
+   * straight to the provider, which owns the policy and returns its own error.
+   */
+  it('sends a short new password to the provider instead of blocking it', async () => {
+    const adapter = fakeAdapter();
+    renderAuth(<SignUpPage />, adapter);
+
+    await userEvent.type(await screen.findByLabelText(/^email$/i), 'new@example.test');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'short'); // 5 chars, well under 15
+    // No native minLength, no inline length gate.
+    expect(screen.getByLabelText(/^password$/i).getAttribute('minlength')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Create an account' }));
+
+    // The provider WAS called with the short password — the app did not block it.
+    await waitFor(() => expect(adapter.calls).toContain('signUp:new@example.test'));
+  });
+
+  /* An empty password never reaches the provider — the field is `required`. */
+  it('does not call the provider when the password is empty', async () => {
+    const adapter = fakeAdapter();
+    renderAuth(<SignUpPage />, adapter);
+
+    await userEvent.type(await screen.findByLabelText(/^email$/i), 'new@example.test');
+    await userEvent.click(screen.getByRole('button', { name: 'Create an account' }));
+
+    expect(adapter.calls.some((c) => c.startsWith('signUp:'))).toBe(false);
+  });
+
+  /* A provider rejection is shown verbatim, not rephrased as local validation. */
+  it("displays the provider's password rejection on sign-up", async () => {
+    const rejection = 'That password was not accepted. Choose a longer or stronger one.';
+    const adapter = Object.assign(fakeAdapter(), {
+      signUpWithPassword: async (email: string) => {
+        adapter.calls.push(`signUp:${email}`);
+        return { error: rejection };
+      },
+    });
+    renderAuth(<SignUpPage />, adapter);
+
+    await userEvent.type(await screen.findByLabelText(/^email$/i), 'new@example.test');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'short');
+    await userEvent.click(screen.getByRole('button', { name: 'Create an account' }));
+
+    expect(await screen.findByText(rejection)).toBeTruthy();
   });
 
   /* A build with no provider says so rather than showing a form that cannot work. */
@@ -200,6 +274,60 @@ describe('the sign-in screen', () => {
     renderAuth(<SignInPage />, null);
     expect(await screen.findByText(/Accounts are not available in this build/)).toBeTruthy();
     expect(screen.queryByLabelText('Password')).toBeNull();
+  });
+
+  it('points new users to the separate sign-up screen', async () => {
+    renderAuth(<SignInPage />, fakeAdapter());
+    const link = await screen.findByRole('link', { name: 'Create account' });
+    expect(link.getAttribute('href')).toBe('/sign-up');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Signing up (the separate new-user journey)                                 */
+/* -------------------------------------------------------------------------- */
+
+describe('the sign-up screen', () => {
+  it('offers a distinct "Sign up with Google" that uses the SIGN-UP provider flow', async () => {
+    const adapter = fakeAdapter();
+    renderAuth(<SignUpPage />, adapter);
+
+    await userEvent.click(await screen.findByRole('button', { name: /Sign up with Google/ }));
+    // The sign-up entry point, not the sign-in one — distinct from the Sign-In page.
+    expect(adapter.calls).toContain('oauth-signup:google');
+    expect(adapter.calls).not.toContain('oauth:google');
+  });
+
+  it('creates an account with email and password', async () => {
+    const adapter = fakeAdapter();
+    renderAuth(<SignUpPage />, adapter);
+
+    await userEvent.type(await screen.findByLabelText('Email'), 'new@example.test');
+    await userEvent.type(screen.getByLabelText('Password'), 'synthetic-pw');
+    await userEvent.click(screen.getByRole('button', { name: 'Create an account' }));
+    await waitFor(() => expect(adapter.calls).toContain('signUp:new@example.test'));
+  });
+
+  it('links back to the sign-in screen for returning users', async () => {
+    renderAuth(<SignUpPage />, fakeAdapter());
+    const link = await screen.findByRole('link', { name: 'Sign in' });
+    expect(link.getAttribute('href')).toBe('/sign-in');
+  });
+
+  it('hides Google with a reason where the provider cannot work (Android)', async () => {
+    renderAuth(
+      <SignUpPage />,
+      Object.assign(fakeAdapter(), {
+        providerUnavailable: 'Not available in the Android app yet.',
+      }),
+    );
+    expect(await screen.findByText('Not available in the Android app yet.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Sign up with Google/ })).toBeNull();
+  });
+
+  it('says accounts are unavailable when no provider is configured', async () => {
+    renderAuth(<SignUpPage />, null);
+    expect(await screen.findByText(/Accounts are not available in this build/)).toBeTruthy();
   });
 });
 
@@ -221,9 +349,8 @@ describe('the sign-in screen with emailed codes', () => {
 
   it('asks for the emailed code after creating an account', async () => {
     const adapter = codeAdapter();
-    renderAuth(<SignInPage />, adapter);
-    await userEvent.click(await screen.findByRole('radio', { name: 'Create' }));
-    await userEvent.type(screen.getByLabelText('Email'), 'new@example.test');
+    renderAuth(<SignUpPage />, adapter);
+    await userEvent.type(await screen.findByLabelText('Email'), 'new@example.test');
     await userEvent.type(screen.getByLabelText(/^Password/), 'synthetic-pw');
     await userEvent.click(screen.getByRole('button', { name: 'Create an account' }));
 
@@ -237,9 +364,9 @@ describe('the sign-in screen with emailed codes', () => {
   it('resets with a code and a new password, without revealing the account', async () => {
     const adapter = codeAdapter();
     renderAuth(<SignInPage />, adapter);
-    await userEvent.click(await screen.findByRole('radio', { name: 'Recover' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Forgot password?' }));
     await userEvent.type(screen.getByLabelText('Email'), 'nobody@example.test');
-    await userEvent.click(screen.getByRole('button', { name: 'Recover your account' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send reset code' }));
 
     expect((await screen.findByText(/If that address has an account/)).textContent).not.toMatch(
       /not found|no account/i,
@@ -302,6 +429,77 @@ describe('the reset-password screen', () => {
 
 describe('the account screen', () => {
   const identity: Identity = { userId: 'user-a', email: 'a@example.test', provider: 'google' };
+
+  it('diagnostics: shows the real signed-in state even when the API cannot be read', async () => {
+    // The API answers, but CORS hides the reply (fetch rejects; an opaque request resolves).
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.mode === 'no-cors') return new Response(null, { status: 200 });
+        throw new TypeError('Failed to fetch');
+      }),
+    );
+    renderAuth(<DiagnosticsPage />, fakeAdapter(identity));
+    expect(await screen.findByText('signed_in')).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Probe connectivity' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Probe authenticated /me' }));
+    await waitFor(() =>
+      expect(screen.getAllByText('Reachable, but CORS blocks this origin')).toHaveLength(2),
+    );
+    // A failed request never turns into a signed-out state.
+    expect(screen.getByText('signed_in')).toBeTruthy();
+    expect(screen.getByText(/refused this origin/i)).toBeTruthy();
+  });
+
+  it('diagnostics: when even an opaque request is blocked, it says the cause is ambiguous', async () => {
+    // What the device saw: CORS hides the reply AND Cross-Origin-Resource-Policy
+    // blocks the opaque retry, so every fetch rejects.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch');
+      }),
+    );
+    renderAuth(<DiagnosticsPage />, fakeAdapter(identity));
+    expect(await screen.findByText('signed_in')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Probe connectivity' }));
+    expect(await screen.findByText('No readable reply (network, TLS or CORS)')).toBeTruthy();
+    expect(
+      screen.getByText(/cannot tell a network or TLS failure from a CORS refusal/i),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Unreachable/)).toBeNull(); // never claims an outage it cannot see
+    expect(screen.getByText('signed_in')).toBeTruthy();
+  });
+
+  it('diagnostics: a signed-out student has no token to send', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 401 })),
+    );
+    renderAuth(<DiagnosticsPage />, fakeAdapter(null));
+    expect(await screen.findByText('signed_out')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Probe connectivity' }));
+    expect(await screen.findByText('Reachable, token rejected (401)')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Probe authenticated /me' }));
+    expect(await screen.findByText('No session — nothing to send')).toBeTruthy();
+  });
+
+  it('links to Authentication Diagnostics only in a diagnostic build', async () => {
+    renderAuth(<AccountPage />, fakeAdapter(identity));
+    await screen.findByText(/manage your academic configuration/i);
+    expect(screen.queryByRole('link', { name: 'Authentication Diagnostics' })).toBeNull();
+    cleanup();
+
+    vi.stubEnv('VITE_DIAGNOSTICS', '1');
+    try {
+      renderAuth(<AccountPage />, fakeAdapter(identity));
+      const link = await screen.findByRole('link', { name: 'Authentication Diagnostics' });
+      expect(link.getAttribute('href')).toBe('/diagnostics');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 
   it('shows who is signed in, and how', async () => {
     renderAuth(<AccountPage />, fakeAdapter(identity), DATA);
@@ -369,7 +567,7 @@ describe('the account screen', () => {
     };
     renderAuth(<AccountPage />, adapter, DATA);
 
-    expect(await screen.findByText(/session has expired/i)).toBeTruthy();
+    expect(await screen.findByText(/session could not be verified/i)).toBeTruthy();
   });
 
   it('shows no provider metadata beyond the provider’s name', async () => {
@@ -378,6 +576,33 @@ describe('the account screen', () => {
     // The user id is an internal identifier and has no business on screen.
     expect(container.textContent).not.toContain('user-a');
     expect(container.textContent).not.toContain('synthetic-token');
+  });
+
+  /*
+   * DISCOVERABILITY (the bug this covers). A signed-out student used to find
+   * sign-in only inside the "Data & privacy" tab, which the page does not open
+   * by default — so it was effectively invisible. Both actions must be on the
+   * Account page the moment it opens, on the DEFAULT section, not a tab away.
+   */
+  it('shows Sign in and Create account at the top when signed out, on the default section', async () => {
+    renderAuth(<AccountPage />, fakeAdapter(null));
+    const signIn = await screen.findByRole('link', { name: 'Sign in' });
+    expect(signIn.getAttribute('href')).toBe('/sign-in');
+    const createAccount = screen.getByRole('link', { name: 'Create account' });
+    expect(createAccount.getAttribute('href')).toBe('/sign-up');
+  });
+
+  it('does not offer sign-in when no provider is configured', async () => {
+    renderAuth(<AccountPage />, null);
+    await screen.findByText(/manage your academic configuration/i);
+    expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
+  });
+
+  it('does not show the sign-in prompt to an already signed-in student', async () => {
+    renderAuth(<AccountPage />, fakeAdapter(identity));
+    await screen.findByText(/manage your academic configuration/i);
+    expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
   });
 });
 

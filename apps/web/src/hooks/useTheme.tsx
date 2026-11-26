@@ -15,6 +15,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -127,12 +128,44 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
 
   const resolved = resolveAppearance(preference.appearance, systemDark);
 
+  /*
+   * A visible change of environment (light <-> dark, or a new accent) cross-fades
+   * the whole page as one through a view transition, so background, glass, text
+   * and controls change together instead of at their own speeds. The first
+   * render, reduced motion and engines without the API switch directly.
+   */
+  const applied = useRef(false);
   useEffect(() => {
     const root = document.documentElement;
-    applyTheme(root, preference);
-    root.classList.toggle('dark', resolved === 'dark');
-    root.style.colorScheme = resolved;
-    setNativeBarsFor(resolved);
+    const apply = (): void => {
+      applyTheme(root, preference);
+      root.classList.toggle('dark', resolved === 'dark');
+      root.style.colorScheme = resolved;
+      setNativeBarsFor(resolved);
+    };
+    const visible =
+      applied.current &&
+      (root.classList.contains('dark') !== (resolved === 'dark') ||
+        root.getAttribute('data-accent') !== preference.accent);
+    applied.current = true;
+    const transition = (
+      document as Document & {
+        startViewTransition?: (update: () => void) => { finished: Promise<void> };
+      }
+    ).startViewTransition;
+    const still =
+      preference.reducedMotion ||
+      (typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (!visible || still || typeof transition !== 'function') {
+      apply();
+      return;
+    }
+    root.classList.add('gt-theme-swap');
+    transition
+      .call(document, apply)
+      .finished.catch(() => undefined)
+      .finally(() => root.classList.remove('gt-theme-swap'));
   }, [preference, resolved]);
 
   const update = useCallback((patch: Partial<ThemePreference>) => {

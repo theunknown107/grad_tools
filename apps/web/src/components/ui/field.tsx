@@ -32,7 +32,7 @@ import { collisionInsets } from '../../lib/viewport.js';
  * invalid field looked valid.
  */
 export const controlClass = cn(
-  'w-full rounded-lg border border-line bg-panel text-sm text-ink transition-[border-color,box-shadow]',
+  'gt-inset w-full rounded-lg border border-line text-sm text-ink transition-[border-color,box-shadow]',
   'placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-accent/25',
   'disabled:cursor-not-allowed disabled:opacity-60',
   'aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-danger aria-[invalid=true]:focus:ring-2 aria-[invalid=true]:focus:ring-danger/25',

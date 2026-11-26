@@ -41,7 +41,7 @@ import { extname, join, resolve } from 'node:path';
 const DIST = resolve('apps/web/dist');
 const OUT = resolve('.qa/import-route');
 const PORT = 4324;
-const ORIGIN = `http://localhost:${PORT}`;
+const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 const MIME = {
   '.html': 'text/html',
@@ -79,7 +79,7 @@ function serve() {
         response.end();
       }
     });
-    server.listen(PORT, () => ok(server));
+    server.listen(PORT, '127.0.0.1', () => ok(server));
   });
 }
 

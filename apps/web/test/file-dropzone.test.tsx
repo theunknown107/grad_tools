@@ -133,6 +133,19 @@ describe('FileDropzone', () => {
     expect(region.textContent).toMatch(/clip\.mp4/);
   });
 
+  it('says "Invalid format" for a file outside images, PDF, DOCX and XLSX, even with no type', () => {
+    const onFiles = vi.fn();
+    render(<FileDropzone onFiles={onFiles} />);
+    dropFiles(screen.getByText(/Drag a document here/i).parentElement as Element, [
+      makeFile('marks.csv', ''),
+      makeFile('deck.pptx', ''),
+    ]);
+
+    expect(onFiles).not.toHaveBeenCalled();
+    expect(screen.getByText('Invalid format.')).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toMatch(/marks\.csv, deck\.pptx/);
+  });
+
   it('accepts a Word document now that DOCX is read directly', () => {
     const onFiles = vi.fn();
     render(<FileDropzone onFiles={onFiles} />);

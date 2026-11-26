@@ -113,7 +113,7 @@ describe('resolving what kind of course a row describes', () => {
      * THE MIRROR OF THE POSITIVE-EXTERNAL RULE.
      *
      * A SEE-bearing course is marked out of `cieMax` — 50 under VTU 2022 — so
-     * an internal of 72 is not a mark out of 50 and the course cannot be
+     * an internal of 96 is not a mark out of 50 and the course cannot be
      * SEE-bearing. Arithmetic about the scale, not a guess about the
      * curriculum. Three rows across two real semesters have exactly this shape,
      * and every one of them was being put to a person as a question the marks

@@ -263,6 +263,20 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
             'Set up your profile before syncing academic records.',
           );
         }
+        /*
+         * TERMS ARE ENFORCED HERE, not just by the client (M9 §… terms gate).
+         * The honest client withholds the upload until the current Terms are
+         * accepted (useSync), but a stale or modified client — or any caller
+         * with a valid token and an existing profile — must not be able to
+         * write records the server considers unauthorised. Mirrors the profile
+         * guard above; refuses the UPLOAD only, local data is untouched.
+         */
+        if ((await readAcceptance(tx, CURRENT_TERMS.version)) === null) {
+          throw new ApiError(
+            'VALIDATION_FAILED',
+            'Accept the current Terms before syncing academic records.',
+          );
+        }
 
         const results: SyncOutcome[] = [];
         for (const record of push.records) {
@@ -328,7 +342,8 @@ export function createStudentRouter(deps: StudentRouterDeps): Router {
    * (M9 §34). Removing the `accounts` row (as the user, under RLS) cascades
    * through every student table by foreign key, so there is no list of tables
    * here to fall out of date — the schema deletes itself. Only then is the
-   * identity (the Clerk user) deleted, server-side (db/cloud.ts).
+   * identity (the Clerk user) deleted, server-side (db/cloud.ts). Support reports
+   * and events live in another database and go first (`forgetSupportSubject`).
    *
    * Local data on the device is NOT touched by this route, and the interface
    * says so: it is the student's copy, on their machine, and deleting the cloud

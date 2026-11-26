@@ -6,7 +6,7 @@
  * after Google sign-in in the Android app (the app's NATIVE_RETURN_PAGE). If a
  * deploy loses that route, the site's catch-all serves the web app's 404 and
  * students are stranded in Chrome. These checks fail before that can ship.
- * See docs/52_ANDROID_GOOGLE_SIGNIN_RETURN.md.
+ * See docs/55_ANDROID_GOOGLE_SIGNIN_RETURN.md.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

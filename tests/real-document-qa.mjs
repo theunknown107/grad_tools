@@ -41,7 +41,7 @@ const DIST = resolve('apps/web/dist');
 const OUT = resolve(process.env.OUT ?? '.qa/real');
 const TRUTH = resolve(process.env.TRUTH ?? '.qa/real/truth.json');
 const PORT = 4322;
-const ORIGIN = `http://localhost:${PORT}`;
+const ORIGIN = `http://127.0.0.1:${PORT}`;
 const REVEAL = process.env.REVEAL === '1';
 
 const MIME = {
@@ -78,7 +78,7 @@ function serve() {
         res.writeHead(404).end('not found');
       }
     });
-    server.listen(PORT, () => ok(server));
+    server.listen(PORT, '127.0.0.1', () => ok(server));
   });
 }
 
@@ -124,13 +124,53 @@ const run = async () => {
   const report = { generatedAt: new Date().toISOString(), documents: [] };
   let problems = 0;
 
+  /*
+   * The rows a student ENDS UP WITH, read from the saved record, not the review.
+   *
+   * The review renders marks as read-only cells, not labelled inputs, so the
+   * old getByLabel('Subject code N') scrape found nothing on the current
+   * frontend (identical to the change tests/ocr-qa.mjs already made). The
+   * stable, student-meaningful contract is the SemesterResult written to
+   * IndexedDB on confirm (keyval-store → gradtools:v1:anon:results). This reads
+   * that back; it changes how the harness MEASURES, never what is extracted.
+   */
+  const RESULTS_KEY = 'gradtools:v1:anon:results';
+  const savedResults = (target) =>
+    target.evaluate(
+      (key) =>
+        new Promise((resolve) => {
+          const open = indexedDB.open('keyval-store');
+          open.onerror = () => resolve([]);
+          open.onsuccess = () => {
+            const db = open.result;
+            if (!db.objectStoreNames.contains('keyval')) return resolve([]);
+            const get = db.transaction('keyval').objectStore('keyval').get(key);
+            get.onsuccess = () => resolve(Array.isArray(get.result) ? get.result : []);
+            get.onerror = () => resolve([]);
+          };
+        }),
+      RESULTS_KEY,
+    );
+
   for (const document of documents) {
+    /*
+     * A fresh, EMPTY device per document: confirm-and-save writes to the device,
+     * and a device already holding a semester refuses a second card of the same
+     * number — the corpus has two sem-1 and two sem-4 cards, so they must not
+     * share a device. The shared `requests`/`consoleLines` still see this context.
+     */
+    const docContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    docContext.on('request', (request) => requests.push(request.url()));
+    const page = await docContext.newPage();
+    page.on('console', (message) => consoleLines.push(`${message.type()}: ${message.text()}`));
+    page.on('pageerror', (error) => consoleLines.push(`pageerror: ${String(error)}`));
+
     await page.goto(`${ORIGIN}/`);
     await page.evaluate((v) => {
       if (v === '') localStorage.removeItem('ttPsm');
       else localStorage.setItem('ttPsm', v);
     }, process.env.TTPSM ?? '');
-    await page.goto(`${ORIGIN}/results`);
+    await page.goto(`${ORIGIN}/import`);
     await page.waitForTimeout(600);
     const opener = page.getByRole('button', { name: /add academic document/i });
     if (await opener.count()) await opener.first().click();
@@ -156,24 +196,37 @@ const run = async () => {
       .catch(() => undefined);
     const ms = Date.now() - started;
 
-    /* Read the review back through the labels a student sees. */
-    const value = async (label) => {
-      const field = page.getByLabel(label).first();
-      return (await field.count()) === 0 ? null : field.inputValue();
-    };
-    const main = await page.locator('#main').innerText();
-    const rows = [];
-    for (let i = 1; i <= 30; i += 1) {
-      const code = await value(new RegExp(`^Subject code ${String(i)}$`, 'i'));
-      if (code === null) break;
-      rows.push({
-        code,
-        title: await value(new RegExp(`^Subject name ${String(i)}$`, 'i')),
-        internal: await value(new RegExp(`^Internal ${String(i)}$`, 'i')),
-        external: await value(new RegExp(`^External ${String(i)}$`, 'i')),
-        total: await value(new RegExp(`^Total ${String(i)}$`, 'i')),
-        status: await value(new RegExp(`^Result ${String(i)}$`, 'i')),
-      });
+    const main = await page.locator('#gt-main').innerText();
+
+    /*
+     * Confirm-and-save, then read the SAVED SemesterResult. A card that reached
+     * a confirmable state is saved; if the button is absent or disabled (a card
+     * the reader could not make savable) rows stays empty and every field scores
+     * missing — the honest outcome.
+     */
+    let rows = [];
+    let savedSemester = null;
+    const confirm = page.getByRole('button', { name: /confirm and save \d+ courses?/i }).first();
+    if ((await confirm.count()) > 0 && !(await confirm.isDisabled())) {
+      const before = (await savedResults(page)).length;
+      await confirm.click();
+      let saved = [];
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        saved = await savedResults(page);
+        if (saved.length > before) break;
+        await page.waitForTimeout(100);
+      }
+      const latest = saved.length > before ? saved[saved.length - 1] : null;
+      const text = (v) => (v === null || v === undefined ? null : String(v));
+      savedSemester = text(latest?.semester);
+      rows = (latest?.subjects ?? []).map((s) => ({
+        code: text(s.subjectCode),
+        title: text(s.subjectTitle),
+        internal: text(s.internal),
+        external: text(s.external),
+        total: text(s.total),
+        status: text(s.resultStatus),
+      }));
     }
 
     /*
@@ -190,7 +243,9 @@ const run = async () => {
     };
 
     const detail = [];
-    const semester = /Semester (\d)/.exec(main)?.[1] ?? null;
+    // From the SAVED record, not the review text: the review no longer prints
+    // "Semester N" in a form this scraped. The saved SemesterResult is the truth.
+    const semester = savedSemester;
     bump(
       'semester',
       semester === null ? 'missing' : semester === document.semester ? 'correct' : 'incorrect',
@@ -296,6 +351,7 @@ const run = async () => {
       }
     }
     if (totals.incorrect > 0 || totals.missing > 0) problems += 1;
+    await docContext.close();
   }
 
   /* ---------------------------------------------------------------------- */
@@ -388,24 +444,24 @@ const run = async () => {
 
       /* OCR on a photographed timetable is minutes, not seconds. */
       await page
-        .locator('text=/dates · from|classes · from|could not|Failed|does not appear/i')
+        .locator('text=/Parsed as|could not|Failed|does not appear/i')
         .first()
         .waitFor({ timeout: 300_000 })
         .catch(() => undefined);
       const readMs = Date.now() - started;
 
-      const main = await page.locator('#main').innerText();
+      const main = await page.locator('#gt-main').innerText();
 
       /*
        * ROUTING FIRST. Everything below is meaningless if the document was
        * handed to the wrong parser, and a calendar read as a result card would
        * still produce confident-looking numbers.
        */
-      const routedTo = /dates · from/.test(main)
+      const routedTo = /parsed as an academic calendar/i.test(main)
         ? 'academic_calendar'
-        : /classes · from/.test(main)
+        : /parsed as a class timetable/i.test(main)
           ? 'college_timetable'
-          : /rows read/.test(main)
+          : /parsed as a semester result/i.test(main)
             ? 'result_card'
             : 'refused';
       const expectedRoute = entry.kind === 'calendar' ? 'academic_calendar' : 'college_timetable';
@@ -425,12 +481,12 @@ const run = async () => {
         extracted:
           entry.kind === 'calendar'
             ? {
-                dates: countOf(/(\d+) dates · from/),
+                dates: countOf(/(\d+)\s+dates\b/),
                 semesterNamed: !/could not tell which semester/i.test(main),
-                academicYearNamed: /Academic calendar \d/.test(main),
+                academicYearNamed: /academic (calendar|year)/i.test(main),
               }
             : {
-                classes: countOf(/(\d+) classes · from/),
+                classes: countOf(/(\d+)\s+classes\b/),
                 /*
                  * The REVIEW's own heading, not the whole page. `/import`
                  * carries a "Class timetable" pill listing what the page
@@ -439,7 +495,7 @@ const run = async () => {
                  * class the parser had read perfectly well.
                  */
                 classNameNamed: !/^Class timetable(\s·|$)/m.test(
-                  /(^.*classes · from.*$)/m.exec(main)?.[1] ?? main,
+                  /(^.*\bclasses\b.*$)/m.exec(main)?.[1] ?? main,
                 ),
                 revisionNamed: /\bR\d\b/.test(main),
                 effectiveFromNamed: /W\.?E\.?F|takes effect|from \d/i.test(main),
@@ -576,11 +632,11 @@ const run = async () => {
 
     await page.goto(`${ORIGIN}/`);
     await page.waitForTimeout(900);
-    const dashboard = await page.locator('#main').innerText();
+    const dashboard = await page.locator('#gt-main').innerText();
 
     await page.goto(`${ORIGIN}/timetable`);
     await page.waitForTimeout(900);
-    const timetableScreen = await page.locator('#main').innerText();
+    const timetableScreen = await page.locator('#gt-main').innerText();
 
     /*
      * Mark a class from whatever the real timetable produced for today. There

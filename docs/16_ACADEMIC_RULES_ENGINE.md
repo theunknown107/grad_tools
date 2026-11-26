@@ -95,7 +95,7 @@ The SEE is written for 100 marks and contributes 50 to the course total. Every f
 > so the printed `External` is the SEE's **contribution out of 50**, not the raw
 > script mark out of 100. An external of 34 on the document is a raw SEE of 68.
 >
-> The evidence is unambiguous. One row shows a low external with a result of **P**.
+> The evidence is unambiguous. A row on that card shows an external below 35 with a result of **P**.
 > Read as a raw SEE out of 100 that is below the 35% SEE minimum, and the
 > course would have to be a fail — but VTU printed a pass. Read as a contribution
 > out of 50 it clears the minimum, and it passes. The printed scale is therefore 50.
