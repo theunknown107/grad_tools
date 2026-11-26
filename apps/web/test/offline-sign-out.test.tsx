@@ -23,7 +23,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react';
 import { screen } from '@testing-library/dom';
 import type { ReactNode } from 'react';
-import { AuthProvider, deliberateSignOutAt, lastAccount, useAuth } from '../src/features/auth/AuthContext.js';
+import {
+  AuthProvider,
+  deliberateSignOutAt,
+  lastAccount,
+  useAuth,
+} from '../src/features/auth/AuthContext.js';
 import { useSync } from '../src/features/auth/useSync.js';
 import { useResults } from '../src/hooks/useCollection.js';
 import type { Identity } from '../src/domain/auth.js';

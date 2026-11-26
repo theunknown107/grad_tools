@@ -272,7 +272,10 @@ describe('on the phone: the account this device last verified', () => {
   const REMEMBERED = 'gradtools:v1:last-account';
   /* Production's format: the identity Clerk verified, and when. */
   const remembered = (userId: string): string =>
-    JSON.stringify({ identity: { userId, email: null, provider: 'email' }, verifiedAt: Date.now() });
+    JSON.stringify({
+      identity: { userId, email: null, provider: 'email' },
+      verifiedAt: Date.now(),
+    });
   function asNativeApp(): void {
     (window as { Capacitor?: unknown }).Capacitor = { isNativePlatform: () => true };
   }

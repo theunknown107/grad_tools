@@ -374,9 +374,7 @@ function Hero({
           >
             {title}
           </h1>
-          <p className="mt-2 max-w-md text-sm text-ink-2">
-            {standingSentence(stats, signedOut)}
-          </p>
+          <p className="mt-2 max-w-md text-sm text-ink-2">{standingSentence(stats, signedOut)}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button asChild variant="glass-primary" icon={<FileCheck2 />}>
               <Link to="/import">{firstRun ? 'Add your first result' : 'Add result'}</Link>
