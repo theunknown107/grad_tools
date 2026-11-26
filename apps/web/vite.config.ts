@@ -10,9 +10,16 @@ const { version } = JSON.parse(readFileSync(new URL('./package.json', import.met
   version: string;
 };
 
-export default defineConfig({
+/*
+ * Source maps: on for development and the web build (Vercel refuses public
+ * `.map` requests), OFF for the Android app (`vite build --mode android`, used
+ * by `build:android` / `android:sync`): an APK is a downloadable archive, and
+ * maps there would ship the original source. The release Gradle build refuses
+ * web assets that still contain a map or a `sourceMappingURL`.
+ */
+export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
   server: { port: 5173 },
-  build: { outDir: 'dist', sourcemap: true },
+  build: { outDir: 'dist', sourcemap: mode !== 'android' },
   define: { __APP_VERSION__: JSON.stringify(version) },
-});
+}));
