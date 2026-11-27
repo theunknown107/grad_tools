@@ -35,11 +35,15 @@ export interface StudentContext {
 }
 
 export type Relevance =
+  /* Stated by the source as for every student (audience.scope = 'global'). */
   | 'global'
   | 'college_relevant'
   | 'branch_relevant'
   | 'semester_relevant'
   | 'scheme_relevant'
+  /* Nothing establishes it either way: no audience named, or a targeted axis
+     the student has not filled in. Shown in the archive, never "for you". */
+  | 'unknown'
   | 'not_relevant';
 
 /** Compares two names the way a person would: case and spacing do not matter. */
@@ -56,49 +60,61 @@ function sameName(a: string | null, b: string | null): boolean {
  * an audience is a conjunction, and treating it as a disjunction would quietly
  * broadcast targeted notices to everyone.
  *
- * NULL ON AN AXIS MEANS "NOT TARGETED ON THAT AXIS", never "unknown". The
- * publisher chose not to restrict it, so it is not a restriction to enforce.
+ * NULL ON ONE AXIS of a targeted notice means "not targeted on that axis".
+ * A notice that names NO audience is `unknown`, not global: nothing says it is
+ * for everyone (it may never have been classified). Only `audience.scope =
+ * 'global'` makes it global.
  *
- * WHEN THE STUDENT HAS NOT SAID, a targeted announcement is still shown. A
- * student who has not filled in their branch would otherwise silently lose every
- * branch notice and have no way to know it was happening — and the cost of the
- * other choice is one irrelevant notice, which is visibly wrong and fixable.
+ * WHEN THE STUDENT HAS NOT SAID, a targeted announcement is `unknown`: still
+ * shown in the archive (a student who has not filled in their branch must not
+ * silently lose every branch notice), but not claimed as theirs.
  */
 export function relevanceOf(announcement: Announcement, context: StudentContext): Relevance {
   const { audience } = announcement;
-  let grounds: Relevance = 'global';
+  if (!isTargeted(announcement)) return audience.scope === 'global' ? 'global' : 'unknown';
+  let grounds: Relevance = 'unknown';
+  let unverified = false;
 
   if (audience.schemeId !== null) {
-    if (context.schemeId !== null && context.schemeId !== audience.schemeId) return 'not_relevant';
+    if (context.schemeId === null) unverified = true;
+    else if (context.schemeId !== audience.schemeId) return 'not_relevant';
     grounds = 'scheme_relevant';
   }
 
   if (audience.collegeName !== null) {
-    if (context.collegeName !== null && !sameName(context.collegeName, audience.collegeName)) {
-      return 'not_relevant';
-    }
+    if (context.collegeName === null) unverified = true;
+    else if (!sameName(context.collegeName, audience.collegeName)) return 'not_relevant';
     grounds = 'college_relevant';
   }
 
   if (audience.branchName !== null) {
-    if (context.branchName !== null && !sameName(context.branchName, audience.branchName)) {
-      return 'not_relevant';
-    }
+    if (context.branchName === null) unverified = true;
+    else if (!sameName(context.branchName, audience.branchName)) return 'not_relevant';
     grounds = 'branch_relevant';
   }
 
   if (audience.semester !== null) {
-    if (context.currentSemester !== null && context.currentSemester !== audience.semester) {
-      return 'not_relevant';
-    }
+    if (context.currentSemester === null) unverified = true;
+    else if (context.currentSemester !== audience.semester) return 'not_relevant';
     grounds = 'semester_relevant';
   }
 
-  return grounds;
+  return unverified ? 'unknown' : grounds;
 }
 
+/** May apply: everything not ruled out. Decides what the archive shows. */
 export function isRelevant(announcement: Announcement, context: StudentContext): boolean {
   return relevanceOf(announcement, context) !== 'not_relevant';
+}
+
+/**
+ * Established as this student's: a targeted notice whose every constraint
+ * matches their profile, or one stated to be for every student. The only
+ * notices counted "for you", listed as notifications or sent to the phone.
+ */
+export function isForYou(announcement: Announcement, context: StudentContext): boolean {
+  const relevance = relevanceOf(announcement, context);
+  return relevance !== 'not_relevant' && relevance !== 'unknown';
 }
 
 /** True when the announcement names any audience at all. */

@@ -134,7 +134,7 @@ function FromVtuRow({
 
 type Filter = 'all' | 'unread';
 
-/** Android only: posts the stored notices as phone notifications, with the chime. */
+/** Android only: posts stored notices as phone notifications titled "Demo", with the chime. */
 function DemoButton({ notices }: { readonly notices: readonly Announcement[] }) {
   const [busy, setBusy] = useState(false);
   return (
@@ -182,9 +182,7 @@ export function NotificationsPage() {
         description="Academic updates since you last looked. Read state stays on this device."
         actions={
           <div className="flex flex-wrap gap-2">
-            {Capacitor.isNativePlatform() && (
-              <DemoButton notices={undismissed.map((item) => item.announcement)} />
-            )}
+            {Capacitor.isNativePlatform() && <DemoButton notices={items} />}
             <Button icon={<Check />} disabled={unread === 0} onClick={() => void readAll()}>
               Mark all read
             </Button>

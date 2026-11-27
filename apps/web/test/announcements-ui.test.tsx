@@ -45,6 +45,8 @@ function announcement(overrides: Partial<Announcement> = {}): Announcement {
       collegeId: null,
       collegeName: null,
       semester: null,
+      /* The default fixture is a notice stated to be for every student. */
+      scope: 'global',
     },
     firstSeenAt: '2026-09-08T00:00:00Z',
     lastSeenAt: '2026-09-08T00:00:00Z',
@@ -232,6 +234,41 @@ describe('relevance on screen', () => {
       collegeName: null,
       semester: null,
     },
+  });
+
+  it('counts only established notices as "for you"; unknown ones stay under All', async () => {
+    mockFeed([
+      announcement({
+        id: 'unclassified',
+        title: 'Unclassified notice',
+        audience: {
+          schemeId: null,
+          branchId: null,
+          branchName: null,
+          collegeId: null,
+          collegeName: null,
+          semester: null,
+        },
+      }),
+      announcement({
+        id: 'mine',
+        title: 'CSE semester 5 notice',
+        audience: {
+          schemeId: null,
+          branchId: null,
+          branchName: 'Computer Science and Engineering',
+          collegeId: null,
+          collegeName: null,
+          semester: 5,
+        },
+      }),
+    ]);
+    const { bundle } = createMemoryRepositories({ profile: profile() });
+    renderWith(<AnnouncementsPage />, { repositories: bundle });
+
+    expect(await screen.findByText('Unclassified notice')).toBeTruthy();
+    expect(screen.getByText('1 for you')).toBeTruthy();
+    expect(screen.getAllByText('● For you')).toHaveLength(1);
   });
 
   /* Shown, but marked. A feed that hides things cannot be trusted (M7 §14). */

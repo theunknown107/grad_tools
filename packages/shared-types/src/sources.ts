@@ -783,9 +783,15 @@ export type AnnouncementOrigin = z.infer<typeof announcementOriginSchema>;
 /**
  * Who an announcement is for.
  *
- * NULL ON AN AXIS MEANS "NOT TARGETED ON THAT AXIS", never "unknown". Every
- * non-null constraint must match for a student to see it, and a targeted notice
- * is never silently broadened (M7 §14).
+ * NULL ON AN AXIS MEANS "NOT TARGETED ON THAT AXIS". Every non-null
+ * constraint must match for a student to see it, and a targeted notice is never
+ * silently broadened (M7 §14).
+ *
+ * ALL-NULL IS NOT PROOF OF "EVERYONE". An entry that names no audience may be
+ * university-wide or may simply never have been classified, so the browser
+ * treats it as UNKNOWN: kept in the archive, never called "for you", never a
+ * phone notification. `scope: 'global'` is the explicit statement that a notice
+ * is for every student; it is set only where the source says so.
  *
  * Names accompany the identifiers because relevance is computed IN THE BROWSER
  * from the student's local profile, which holds a branch name and a college
@@ -799,6 +805,8 @@ export const announcementAudienceSchema = z.object({
   collegeId: z.string().nullable(),
   collegeName: z.string().nullable(),
   semester: z.number().int().min(1).max(8).nullable(),
+  /** Present only when the source states the notice is for every student. */
+  scope: z.literal('global').optional(),
 });
 export type AnnouncementAudience = z.infer<typeof announcementAudienceSchema>;
 

@@ -106,20 +106,25 @@ function Shell({
   /* Keep the focused field and its message above the keyboard (lib/viewport). */
   useRevealFocusedField();
 
-  const { items: announcements } = useAnnouncements();
+  const { items: announcements, snapshotAt } = useAnnouncements();
   const { unread, notifications } = useNotifications(announcements);
   const { profile } = useProfile();
   const name = profile?.displayName?.trim() || null;
   const initials = initialsOf(name);
   const navigate = useNavigate();
 
-  /* Relevant, unmuted, unread notices become Android notifications, once each. */
+  /* The student's own unmuted, unread, recent notices from the live feed become
+     Android notifications, once per version (lib/system-notifications). */
   useEffect(() => {
     const fresh = notifications
       .filter((notification) => notification.state === 'unread')
       .map((notification) => notification.announcement);
-    void postNewNotices(fresh, (notice) => CATEGORY_LABEL[notice.category]).catch(() => 0);
-  }, [notifications]);
+    void postNewNotices(
+      fresh,
+      (notice) => CATEGORY_LABEL[notice.category],
+      snapshotAt !== null,
+    ).catch(() => 0);
+  }, [notifications, snapshotAt]);
   useEffect(() => onNoticeTapped(() => navigate('/notifications')), [navigate]);
 
   useEffect(() => {

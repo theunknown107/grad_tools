@@ -14,7 +14,7 @@ import { Input } from '../../components/ui/field.js';
 import { PageHeader } from '../../components/ui/page.js';
 import { ChipGroup, Segmented } from '../../components/ui/segmented.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
-import { isRelevant, isTargeted } from '../../domain/announcements.js';
+import { isForYou, isRelevant, isTargeted } from '../../domain/announcements.js';
 import {
   useAnnouncements,
   useSortedAnnouncements,
@@ -65,7 +65,8 @@ export function AnnouncementsPage() {
   }, [hash, loading]);
 
   const needle = query.trim().toLowerCase();
-  const forYou = sorted.filter((item) => isRelevant(item, context));
+  /* Established as this student's only; unknown-audience notices stay under All. */
+  const forYou = sorted.filter((item) => isForYou(item, context));
   const shown = (scope === 'mine' ? forYou : sorted).filter(
     (item) =>
       needle === '' ||
@@ -77,7 +78,7 @@ export function AnnouncementsPage() {
       <PageHeader
         eyebrow="Overview"
         title="Announcements"
-        description="Official academic notices, sorted for you. GradTools shows them; it does not issue them."
+        description="Official academic notices, newest first. GradTools shows them; it does not issue them."
         actions={
           sorted.length > 0 ? (
             <>
@@ -163,6 +164,7 @@ export function AnnouncementsPage() {
                 announcement={announcement}
                 relevant={isRelevant(announcement, context)}
                 targeted={isTargeted(announcement)}
+                forYou={isForYou(announcement, context)}
               />
             </li>
           ))}

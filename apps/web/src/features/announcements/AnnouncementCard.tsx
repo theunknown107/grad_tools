@@ -109,10 +109,13 @@ export function AnnouncementCard({
   announcement,
   relevant,
   targeted,
+  forYou,
 }: {
   readonly announcement: Announcement;
   readonly relevant: boolean;
   readonly targeted: boolean;
+  /** Established as this student's (domain `isForYou`): the only "For you". */
+  readonly forYou: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const now = new Date();
@@ -123,10 +126,7 @@ export function AnnouncementCard({
   return (
     <Card
       asChild
-      className={cn(
-        'scroll-mt-24 p-5 outline-none',
-        relevant && targeted && 'relative overflow-hidden',
-      )}
+      className={cn('scroll-mt-24 p-5 outline-none', forYou && 'relative overflow-hidden')}
     >
       <article id={announcementAnchor(announcement.id)} tabIndex={-1}>
         {/*
@@ -134,7 +134,7 @@ export function AnnouncementCard({
           in the neutral hairline colour (index.css neutralises coloured borders
           by design). Decorative; "For you" below says it in words.
         */}
-        {relevant && targeted && (
+        {forYou && (
           <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-accent" />
         )}
         <div className="flex flex-wrap items-center gap-2">
@@ -143,9 +143,7 @@ export function AnnouncementCard({
           </Badge>
           {priority !== null && <Badge tone={priority.tone}>{priority.text}</Badge>}
           {announcement.origin === 'demo_fixture' && <Badge tone="warning">Demo data</Badge>}
-          {relevant && targeted && (
-            <span className="text-[12px] font-medium text-accent-ink">● For you</span>
-          )}
+          {forYou && <span className="text-[12px] font-medium text-accent-ink">● For you</span>}
           {announcement.publishedAt !== null && (
             <time
               dateTime={announcement.publishedAt}

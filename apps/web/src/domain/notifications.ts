@@ -15,7 +15,7 @@
  */
 
 import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
-import { isRelevant, priorityOf, type Priority, type StudentContext } from './announcements.js';
+import { isForYou, priorityOf, type Priority, type StudentContext } from './announcements.js';
 
 export const NOTIFICATION_STATES = ['unread', 'read', 'dismissed'] as const;
 export type NotificationState = (typeof NOTIFICATION_STATES)[number];
@@ -107,9 +107,10 @@ export function stateFor(
 /**
  * The notification list: what is worth telling the student about.
  *
- * Irrelevant and muted announcements are excluded HERE and not from the
- * announcements page, which is the distinction between "do not interrupt me"
- * and "hide this from me".
+ * Only notices established as this student's (`isForYou`) and not muted are
+ * included. Unknown-audience notices stay on the announcements page (the
+ * archive) and are never presented as the student's own: "do not interrupt
+ * me" is decided here, "hide this from me" is not.
  */
 export function buildNotifications(
   announcements: readonly Announcement[],
@@ -119,7 +120,7 @@ export function buildNotifications(
   now: Date,
 ): Notification[] {
   return announcements
-    .filter((announcement) => isRelevant(announcement, context))
+    .filter((announcement) => isForYou(announcement, context))
     .filter((announcement) => !isMuted(announcement.category, preferences))
     .map((announcement) => ({
       announcement,

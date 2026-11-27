@@ -97,11 +97,13 @@ reason in words.
   concerned" is not university-wide; it is a sentence nobody can act on.
 - **`unresolved` notifies nobody** (§35). A broadcast cannot be un-sent.
 
-It does **not** duplicate the browser's `relevanceOf`. That answers "should this
-appear in this student's list" and answers it leniently on purpose; this answers
-"should we interrupt this student" and is strict. Same matching rules, two
-policies, differing only in what they do with `unknown` — which is written into
-the top of `applicability.ts` so the next person does not merge them.
+It does **not** duplicate the browser's `relevanceOf`. The browser keeps every
+notice that is not ruled out in its archive, but since the PR #3 remediation it
+also answers `unknown`, for a notice naming no audience or a targeted axis the
+profile leaves blank, and calls nothing "for you" or a notification without
+evidence (docs/20 §20.17). This engine answers "should we interrupt this
+student" for the monitor's `source_items`; the two are kept separate, as the top
+of `applicability.ts` says.
 
 ## Where the fanout runs, and why it is not in the worker
 
