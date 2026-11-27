@@ -29,6 +29,7 @@ import { IconButton } from '../ui/button.js';
 import { Toaster } from '../ui/feedback.js';
 import { Kbd } from '../ui/kbd.js';
 import { Avatar, initialsOf } from '../ui/page.js';
+import { Segmented } from '../ui/segmented.js';
 import { BottomSheet } from '../ui/sheet.js';
 import { TooltipProvider } from '../ui/tooltip.js';
 import { DESTINATIONS, MOBILE_TABS, NAV_GROUPS, isActive } from './nav.js';
@@ -672,29 +673,14 @@ function MobileNavSheet({
       <h3 id="sheet-appearance" className="mt-5 mb-2 px-3 font-mono text-caption text-ink-3">
         Appearance
       </h3>
-      {/* One segmented control rather than three bordered buttons. */}
-      <div
-        className="grid grid-cols-3 gap-1 rounded-full bg-sunken p-1"
-        role="group"
-        aria-labelledby="sheet-appearance"
-      >
-        {APPEARANCES.map((option) => (
-          <button
-            key={option}
-            type="button"
-            aria-pressed={preference.appearance === option}
-            onClick={() => setAppearance(option)}
-            className={cn(
-              'min-h-11 rounded-full text-label font-medium transition-colors',
-              preference.appearance === option
-                ? 'bg-raised text-ink shadow-e1'
-                : 'text-ink-3 hover:text-ink-2',
-            )}
-          >
-            {APPEARANCE_LABEL[option]}
-          </button>
-        ))}
-      </div>
+      {/* One choice of three: a radio group (arrow keys move between them). */}
+      <Segmented
+        label="Appearance"
+        value={preference.appearance}
+        onChange={setAppearance}
+        options={APPEARANCES.map((option) => ({ value: option, label: APPEARANCE_LABEL[option] }))}
+        className="grid w-full grid-cols-3 rounded-full bg-sunken [&>*]:min-h-11 [&>*]:rounded-full"
+      />
     </BottomSheet>
   );
 }

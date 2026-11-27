@@ -262,6 +262,17 @@ describe('More', () => {
     expect(current.getAttribute('aria-current')).toBe('page');
     expect(current.className).toContain('bg-accent-weak');
   });
+
+  it('offers appearance as one choice of three (a radio group)', () => {
+    shell();
+    fireEvent.click(screen.getByRole('button', { name: /^more/i }));
+    const group = screen.getByRole('radiogroup', { name: 'Appearance' });
+    expect(within(group).getAllByRole('radio')).toHaveLength(3);
+    fireEvent.click(within(group).getByRole('radio', { name: 'Dark' }));
+    expect(within(group).getByRole('radio', { name: 'Dark' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+  });
 });
 
 describe('an app with no server configured', () => {
