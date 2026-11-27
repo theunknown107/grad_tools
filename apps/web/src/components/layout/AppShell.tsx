@@ -679,7 +679,8 @@ function MobileNavSheet({
         value={preference.appearance}
         onChange={setAppearance}
         options={APPEARANCES.map((option) => ({ value: option, label: APPEARANCE_LABEL[option] }))}
-        className="grid w-full grid-cols-3 rounded-full bg-sunken [&>*]:min-h-11 [&>*]:rounded-full"
+        className="grid w-full grid-cols-3 rounded-full bg-sunken"
+        itemClassName="min-h-11 rounded-full"
       />
     </BottomSheet>
   );

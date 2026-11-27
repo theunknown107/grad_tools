@@ -23,6 +23,7 @@ export function Segmented<T extends string>({
   size = 'md',
   label,
   className,
+  itemClassName,
 }: {
   readonly options: readonly SegmentedOption<T>[];
   readonly value: T;
@@ -31,6 +32,8 @@ export function Segmented<T extends string>({
   /** Accessible name for the group. */
   readonly label: string;
   readonly className?: string;
+  /** Extra classes for every option, e.g. a larger touch target. */
+  readonly itemClassName?: string;
 }) {
   return (
     <ToggleGroup.Root
@@ -57,6 +60,7 @@ export function Segmented<T extends string>({
             'data-[state=on]:bg-[var(--glass-control-hover)] data-[state=on]:text-ink data-[state=on]:shadow-e1',
             '[&_svg]:size-3.5',
             size === 'sm' ? 'min-h-7 px-2.5 py-1 text-[12px]' : 'min-h-8 px-3.5 py-1 text-[13px]',
+            itemClassName,
           )}
         >
           {option.label}
