@@ -928,7 +928,7 @@ function BunkPlanner({
                       ? `you can miss ${formatCount(targetMiss.value, 'class', 'classes')} and stay at it.`
                       : targetAttend?.ok === true && targetAttend.value > 0
                         ? `attend the next ${formatCount(targetAttend.value, 'class', 'classes')} to reach it.`
-                        : targetAttend?.ok === false
+                        : targetAttend?.ok === false || targetMiss?.ok === false
                           ? 'not reachable with the classes recorded.'
                           : 'met, with no margin.'}{' '}
                     This is your goal, not the eligibility rule.

@@ -46,13 +46,19 @@ function prepare(): Promise<boolean> {
   return prepared;
 }
 
-/** The posted versions, or null when this device has never recorded any. */
+/**
+ * The posted versions, or null when there is no usable record: never written,
+ * unreadable or corrupt. Null means "record a baseline, ring for nothing", so
+ * a device whose storage fails never re-posts the same notices on every run.
+ */
 function posted(): Set<string> | null {
   try {
     const raw = window.localStorage.getItem(POSTED_KEY);
-    return raw === null ? null : new Set(JSON.parse(raw) as string[]);
+    if (raw === null) return null;
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? new Set(parsed.map(String)) : null;
   } catch {
-    return new Set();
+    return null;
   }
 }
 
@@ -108,13 +114,15 @@ export async function postNewNotices(
   labelOf: (announcement: Announcement) => string,
   fromSnapshot: boolean,
 ): Promise<number> {
-  if (fromSnapshot || notices.length === 0 || !(await prepare())) return 0;
+  if (fromSnapshot || !(await prepare())) return 0;
   const seen = posted();
   if (seen === null) {
-    /* First sight of the feed on this device: record it, ring for nothing. */
+    /* First sight of the live feed on this device: record it (even when none
+       of it is the student's yet), ring for nothing. */
     remember(new Set(notices.map(versionKey)));
     return 0;
   }
+  if (notices.length === 0) return 0;
   const fresh = noticesToPost(notices, seen, new Date(), fromSnapshot);
   if (fresh.length === 0) return 0;
   await LocalNotifications.schedule({

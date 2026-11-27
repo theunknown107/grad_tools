@@ -106,7 +106,7 @@ function Shell({
   /* Keep the focused field and its message above the keyboard (lib/viewport). */
   useRevealFocusedField();
 
-  const { items: announcements, snapshotAt } = useAnnouncements();
+  const { items: announcements, snapshotAt, loading: feedLoading } = useAnnouncements();
   const { unread, notifications } = useNotifications(announcements);
   const { profile } = useProfile();
   const name = profile?.displayName?.trim() || null;
@@ -116,6 +116,8 @@ function Shell({
   /* The student's own unmuted, unread, recent notices from the live feed become
      Android notifications, once per version (lib/system-notifications). */
   useEffect(() => {
+    /* Only once the feed has answered: a baseline taken mid-load would be empty. */
+    if (feedLoading) return;
     const fresh = notifications
       .filter((notification) => notification.state === 'unread')
       .map((notification) => notification.announcement);
@@ -124,7 +126,7 @@ function Shell({
       (notice) => CATEGORY_LABEL[notice.category],
       snapshotAt !== null,
     ).catch(() => 0);
-  }, [notifications, snapshotAt]);
+  }, [notifications, snapshotAt, feedLoading]);
   useEffect(() => onNoticeTapped(() => navigate('/notifications')), [navigate]);
 
   useEffect(() => {

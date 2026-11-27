@@ -61,7 +61,8 @@ interface DemoNotice {
 /**
  * A spread wide enough to exercise the product, not a realistic feed.
  *
- * It deliberately covers every audience shape — global, semester-targeted,
+ * It deliberately covers every audience shape — no audience named (which the
+ * browser treats as unknown, not global: docs/20 §20.17), semester-targeted,
  * branch-targeted, college-targeted — and both a live deadline and a notice with
  * none, because "no deadline" is the case a product is most likely to get wrong.
  */

@@ -202,5 +202,27 @@ describe('Android notification eligibility', () => {
       expect(await postNewNotices([fresh], () => 'General', true)).toBe(0);
       expect(native.schedule).not.toHaveBeenCalled();
     });
+
+    it('takes the baseline even when nothing is the student’s yet', async () => {
+      expect(await postNewNotices([], () => 'General', false)).toBe(0);
+      /* The first genuinely new notice afterwards is posted, not swallowed. */
+      expect(await postNewNotices([fresh], () => 'General', false)).toBe(1);
+    });
+
+    it('treats a corrupt record as a fresh baseline, not as "nothing posted"', async () => {
+      window.localStorage.setItem('gradtools:v1:notified-ids', '{not json');
+      expect(await postNewNotices([fresh], () => 'General', false)).toBe(0);
+      expect(native.schedule).not.toHaveBeenCalled();
+    });
+
+    it('never re-posts on every run when storage cannot be read', async () => {
+      const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('storage unavailable');
+      });
+      expect(await postNewNotices([fresh], () => 'General', false)).toBe(0);
+      expect(await postNewNotices([fresh], () => 'General', false)).toBe(0);
+      expect(native.schedule).not.toHaveBeenCalled();
+      read.mockRestore();
+    });
   });
 });
