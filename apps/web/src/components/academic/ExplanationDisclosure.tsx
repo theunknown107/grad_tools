@@ -29,7 +29,7 @@ export function ExplanationDisclosure({
       onOpenChange={setOpen}
       className={cn('rounded-xl border border-line bg-panel', className)}
     >
-      <Collapsible.Trigger className="flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-[13px] font-medium text-ink-2 transition-colors hover:text-ink">
+      <Collapsible.Trigger className="flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-label font-medium text-ink-2 transition-colors hover:text-ink">
         How was this calculated?
         <ChevronDown
           aria-hidden="true"
@@ -41,11 +41,11 @@ export function ExplanationDisclosure({
       </Collapsible.Trigger>
       <Collapsible.Content className="data-[state=open]:animate-fade">
         <div className="border-t border-line px-4 py-3">
-          <div className="rounded-lg bg-sunken px-3 py-2 font-mono text-[12px] text-accent-ink">
+          <div className="rounded-lg bg-sunken px-3 py-2 font-mono text-caption text-accent-ink">
             {explanation.formula}
           </div>
           {explanation.steps.length > 0 && (
-            <ul className="mt-3 divide-y divide-line text-[12px]">
+            <ul className="mt-3 divide-y divide-line text-label">
               {explanation.steps.map((step, index) => (
                 <li
                   key={`${step.label}-${String(index)}`}
@@ -57,7 +57,7 @@ export function ExplanationDisclosure({
               ))}
             </ul>
           )}
-          <p className="mt-3 text-[12px] leading-relaxed text-ink-3">
+          <p className="mt-3 text-caption leading-relaxed text-ink-2">
             Rule set <code className="font-mono text-ink-2">{explanation.ruleSetId}</code> v
             {explanation.ruleSetVersion} · clause{' '}
             <strong className="font-semibold text-ink-2">{explanation.clause}</strong>

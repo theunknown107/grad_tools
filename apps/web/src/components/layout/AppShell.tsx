@@ -224,8 +224,8 @@ function Brand({ collapsed }: { readonly collapsed: boolean }) {
       <GradToolsLogo />
       {!collapsed && (
         <span className="hidden leading-tight lg:block">
-          <span className="block text-[15px] font-semibold tracking-[-0.01em]">GradTools</span>
-          <span className="block font-mono text-[12px] text-ink-3">VTU 2022 scheme</span>
+          <span className="block text-title font-semibold tracking-[-0.01em]">GradTools</span>
+          <span className="block font-mono text-caption text-ink-3">VTU 2022 scheme</span>
         </span>
       )}
     </Link>
@@ -292,7 +292,7 @@ function Sidebar({
             <span className={cn('sr-only', !collapsed && 'lg:not-sr-only')}>
               <span
                 className={cn(
-                  'mb-1.5 hidden px-3 font-mono text-[12px]  text-ink-3',
+                  'mb-1.5 hidden px-3 font-mono text-caption  text-ink-3',
                   !collapsed && 'lg:block',
                 )}
               >
@@ -321,7 +321,7 @@ function Sidebar({
                          * `title` attribute this used to rely on is gone: a
                          * hover tooltip is unreachable on a touchscreen.
                          */
-                        'group relative mx-1.5 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[12px] font-medium transition-colors duration-150',
+                        'group relative mx-1.5 flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-caption font-medium transition-colors duration-150',
                         !collapsed &&
                           'lg:mx-0 lg:h-10 lg:min-h-0 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-sm',
                         active
@@ -355,7 +355,7 @@ function Sidebar({
                         the number in every state.
                       */}
                       {!collapsed && badge !== null && (
-                        <span className="tnum ml-auto hidden text-[12px] font-semibold text-accent-ink lg:inline">
+                        <span className="tnum ml-auto hidden text-caption font-semibold text-accent-ink lg:inline">
                           {badge > 99 ? '99+' : badge}
                         </span>
                       )}
@@ -390,8 +390,8 @@ function Sidebar({
           <span className="sr-only">{name ?? 'Your profile'}</span>
         ) : (
           <span className="min-w-0">
-            <span className="block truncate text-[13px] font-medium">{name ?? 'Your profile'}</span>
-            <span className="block truncate font-mono text-[12px] text-ink-3">
+            <span className="block truncate text-label font-medium">{name ?? 'Your profile'}</span>
+            <span className="block truncate font-mono text-caption text-ink-3">
               {usn !== null && usn !== '' ? usn : 'Add your details'}
             </span>
           </span>
@@ -486,7 +486,7 @@ function TopBar({
           {unread > 0 && (
             <span
               aria-hidden="true"
-              className="tnum pointer-events-none absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[12px] font-semibold text-canvas"
+              className="tnum pointer-events-none absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-caption font-semibold text-canvas"
             >
               {unread > 9 ? '9+' : unread}
             </span>
@@ -557,7 +557,7 @@ function MobileBottomNav({
                  * This is the sidebar's own pill, so all three navigation
                  * states now say "you are here" the same way.
                  */
-                'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[12px] font-medium tracking-[-0.01em] transition-[color,background-color,scale] active:scale-[0.94]',
+                'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-caption font-medium tracking-[-0.01em] transition-[color,background-color,scale] active:scale-[0.94]',
                 active ? 'bg-accent-weak text-accent-ink' : 'text-ink-3 hover:text-ink-2',
               )}
             >
@@ -573,7 +573,7 @@ function MobileBottomNav({
           aria-haspopup="dialog"
           aria-expanded={moreOpen}
           aria-label={unread > 0 ? `More, ${String(unread)} unread notifications` : 'More'}
-          className="relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[12px] font-medium tracking-[-0.01em] text-ink-3 transition-[color,scale] hover:text-ink-2 active:scale-[0.94]"
+          className="relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-caption font-medium tracking-[-0.01em] text-ink-3 transition-[color,scale] hover:text-ink-2 active:scale-[0.94]"
         >
           <CommandIcon className="size-[21px] shrink-0" aria-hidden="true" />
           <span aria-hidden="true" className="max-[359px]:hidden">
@@ -582,7 +582,7 @@ function MobileBottomNav({
           {unread > 0 && (
             <span
               aria-hidden="true"
-              className="tnum absolute top-1 right-[calc(50%-22px)] min-w-4 rounded-full bg-danger px-1 text-[12px] leading-4 font-semibold text-on-accent"
+              className="tnum absolute top-1 right-[calc(50%-22px)] min-w-4 rounded-full bg-danger px-1 text-caption leading-4 font-semibold text-on-accent"
             >
               {unread > 9 ? '9+' : unread}
             </span>
@@ -647,7 +647,7 @@ function MobileNavSheet({
         )}
         {NAV_GROUPS.map((group) => (
           <section key={group} aria-labelledby={`sheet-${group}`}>
-            <h3 id={`sheet-${group}`} className="mb-1 px-3 font-mono text-[12px] text-ink-3">
+            <h3 id={`sheet-${group}`} className="mb-1 px-3 font-mono text-caption text-ink-3">
               {group}
             </h3>
             <ul className="flex flex-col">
@@ -668,7 +668,7 @@ function MobileNavSheet({
         ))}
       </nav>
 
-      <h3 id="sheet-appearance" className="mt-5 mb-2 px-3 font-mono text-[12px] text-ink-3">
+      <h3 id="sheet-appearance" className="mt-5 mb-2 px-3 font-mono text-caption text-ink-3">
         Appearance
       </h3>
       {/* One segmented control rather than three bordered buttons. */}
@@ -684,7 +684,7 @@ function MobileNavSheet({
             aria-pressed={preference.appearance === option}
             onClick={() => setAppearance(option)}
             className={cn(
-              'min-h-11 rounded-full text-[13px] font-medium transition-colors',
+              'min-h-11 rounded-full text-label font-medium transition-colors',
               preference.appearance === option
                 ? 'bg-raised text-ink shadow-e1'
                 : 'text-ink-3 hover:text-ink-2',
@@ -720,7 +720,7 @@ function SheetRow({
       onClick={onNavigate}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex min-h-12 items-center gap-3 rounded-lg px-3 text-[15px] font-medium transition-colors',
+        'flex min-h-12 items-center gap-3 rounded-lg px-3 text-title font-medium transition-colors',
         active ? 'bg-accent-weak text-accent-ink' : 'text-ink hover:bg-sunken',
       )}
     >
@@ -731,11 +731,11 @@ function SheetRow({
       <span className="min-w-0 flex-1 py-2">
         <span className="block truncate">{item.label}</span>
         {detail !== undefined && (
-          <span className="block truncate text-[12px] font-normal text-ink-3">{detail}</span>
+          <span className="block truncate text-caption font-normal text-ink-3">{detail}</span>
         )}
       </span>
       {count !== null && (
-        <span className="tnum text-[12px] font-semibold text-danger">{count}</span>
+        <span className="tnum text-caption font-semibold text-danger">{count}</span>
       )}
     </NavLink>
   );
@@ -744,7 +744,7 @@ function SheetRow({
 /** The product disclaimer at the foot of every page. */
 export function Disclaimer({ children }: { readonly children: ReactNode }) {
   return (
-    <p className="mt-12 border-t border-line pt-5 text-[12px] leading-relaxed text-ink-3">
+    <p className="mt-12 border-t border-line pt-5 text-caption leading-relaxed text-ink-3">
       {children}
     </p>
   );

@@ -48,7 +48,7 @@ export function LaunchSplash() {
   return (
     <div ref={ref} aria-hidden="true" data-testid="launch-splash" className="gt-splash">
       <div className="gt-splash-mark">
-        <img src={logo} alt="" />
+        <img src={logo} alt="" width={96} height={96} />
       </div>
       <span className="gt-splash-name">GradTools</span>
     </div>

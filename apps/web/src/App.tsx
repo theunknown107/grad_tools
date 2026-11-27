@@ -102,7 +102,13 @@ export function App() {
       <Route
         path="/welcome"
         element={
-          <Suspense fallback={null}>
+          <Suspense
+            fallback={
+              <div className="mx-auto w-full max-w-5xl px-4 py-10">
+                <PageSkeleton label="Loading" />
+              </div>
+            }
+          >
             <LandingPage />
           </Suspense>
         }

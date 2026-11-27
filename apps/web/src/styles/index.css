@@ -602,6 +602,13 @@ html.dark[data-accent='crimson-tinted'] {
   --font-display: 'Space Grotesk', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
+  /* The interface's three small sizes, named. Font size only: like the
+     text-[12px] literals they replace, they leave line-height to the context.
+     12px is the floor (interface-signs.test.ts). */
+  --text-caption: 12px;
+  --text-label: 13px;
+  --text-title: 15px;
+
   --radius-lg: 10px;
   --radius-xl: 14px;
 
