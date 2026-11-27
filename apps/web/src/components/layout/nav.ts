@@ -33,7 +33,11 @@ export type NavGroup = 'Overview' | 'Academics' | 'Account';
 export interface Destination {
   readonly to: string;
   readonly label: string;
-  /** The bottom-bar label, where the destination is on the bottom bar. */
+  /**
+   * The bottom-bar label, where the destination is on the bottom bar. One that
+   * ends in "." is an abbreviation: the bar then names the link in full for
+   * assistive tech (the visible text stays part of that name).
+   */
   readonly short: string;
   readonly icon: LucideIcon;
   readonly group: NavGroup;
@@ -100,7 +104,8 @@ export const DESTINATIONS: readonly Destination[] = [
   {
     to: '/attendance',
     label: 'Attendance',
-    short: 'Attendance',
+    /* Five 12px labels must fit a 360px phone; "Attendance" did not. */
+    short: 'Attend.',
     icon: CalendarCheck2,
     group: 'Academics',
     description: 'Percentage and margin for each course',

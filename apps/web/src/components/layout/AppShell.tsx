@@ -550,6 +550,7 @@ function MobileBottomNav({
               to={item.to}
               end={item.to === '/'}
               aria-current={active ? 'page' : undefined}
+              aria-label={item.short.endsWith('.') ? item.label : undefined}
               className={cn(
                 /*
                  * Colour alone carried the active tab, which the design system

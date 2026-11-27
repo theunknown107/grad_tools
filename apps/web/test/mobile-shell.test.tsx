@@ -106,6 +106,17 @@ describe('the top of the app', () => {
   });
 });
 
+describe('the bottom bar labels', () => {
+  it('abbreviates Attendance on screen but names it in full', () => {
+    shell();
+    const bar = bottomBar();
+    const attendance = within(bar).getByRole('link', { name: 'Attendance' });
+    expect(attendance.textContent).toBe('Attend.');
+    /* Unabbreviated tabs keep their visible text as their name. */
+    expect(within(bar).getByRole('link', { name: 'Home' })).toBeTruthy();
+  });
+});
+
 describe('the bottom bar and the keyboard', () => {
   it('steps aside while a keyboard is up, and comes back when it goes', () => {
     renderWith(
