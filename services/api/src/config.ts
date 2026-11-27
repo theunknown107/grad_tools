@@ -199,6 +199,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 
   const { WEB_ORIGIN, ...rest } = parsed.data;
 
+  /*
+   * A production build runs as a deployed environment. Every deployed API is
+   * built from the Dockerfile, which sets NODE_ENV=production; an APP_ENV that
+   * is unset (so `local`), or `local`/`experimental` copied from an example
+   * file, would otherwise skip the exposure guard (WEB_ORIGIN, ZDR, Clerk
+   * authorized parties) without a word. Local work and tests keep their
+   * default; running the image locally means NODE_ENV=development.
+   */
+  if (rest.NODE_ENV === 'production' && !DEPLOYED_ENVIRONMENTS.has(rest.APP_ENV)) {
+    throw new Error(
+      `Invalid environment configuration:\n  NODE_ENV=production requires APP_ENV=alpha (the release) ` +
+        `or staging (pre-release); got ${rest.APP_ENV}${env.APP_ENV === undefined ? ' (unset)' : ''}. ` +
+        `See docs/25 §25.10.`,
+    );
+  }
+
   // Half a Clerk configuration must not silently fall back to another authority.
   if ((rest.CLERK_SECRET_KEY === undefined) !== (rest.CLERK_PUBLISHABLE_KEY === undefined)) {
     throw new Error(
@@ -233,6 +249,19 @@ export function assertSafeExposure(config: Config, env: NodeJS.ProcessEnv = proc
   if (!DEPLOYED_ENVIRONMENTS.has(config.APP_ENV)) return;
 
   const problems: string[] = [];
+  /*
+   * The release holds real student data: it must not run on a Clerk development
+   * instance (the preview's pk_test_/sk_test_ keys). Staging may.
+   */
+  if (
+    config.APP_ENV === 'alpha' &&
+    (config.CLERK_SECRET_KEY?.startsWith('sk_test_') === true ||
+      config.CLERK_PUBLISHABLE_KEY?.startsWith('pk_test_') === true)
+  ) {
+    problems.push(
+      'alpha must use a Clerk production instance (sk_live_/pk_live_), not development keys.',
+    );
+  }
   if (env.WEB_ORIGIN === undefined || env.WEB_ORIGIN.trim() === '') {
     problems.push(`WEB_ORIGIN must be set explicitly in ${config.APP_ENV}.`);
   }
@@ -264,6 +293,14 @@ export function assertSafeExposure(config: Config, env: NodeJS.ProcessEnv = proc
         `CLERK_AUTHORIZED_PARTIES must list the app origin(s) in ${config.APP_ENV}: without it ` +
           `Clerk does not pin a token's azp, so one minted for another origin on the same Clerk ` +
           `instance could be replayed.`,
+      );
+    }
+    /* Same rule as WEB_ORIGIN: a token minted for a plain-HTTP page is not one to trust. */
+    const insecureParties = parties.filter((party) => !party.startsWith('https://'));
+    if (insecureParties.length > 0) {
+      problems.push(
+        `Every CLERK_AUTHORIZED_PARTIES origin must use https:// in ${config.APP_ENV}: ` +
+          insecureParties.join(', '),
       );
     }
   }

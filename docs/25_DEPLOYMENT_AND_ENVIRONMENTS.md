@@ -15,7 +15,7 @@
 | **alpha** | Stage 3 release | **Real student data. No demo data ever.** | Cohort + college demo |
 | production | Future | — | Not yet defined |
 
-**Hard rule:** the alpha environment contains **no demo or sample data**. The `DEMO` markers exist so demo data is unmistakable (`09` §9.11), and a startup check refuses to boot the alpha environment if any record carries a demo marker. A screenshot of fake results circulating out of context is the fastest way to lose institutional credibility (`15` §7).
+**Hard rule:** the alpha environment contains **no demo or sample data**. The `DEMO` markers exist so demo data is unmistakable (`09` §9.11). **A startup check that refuses to boot alpha when a record carries a demo marker is planned, not implemented** (app-env audit, 2026-11-27): nothing scans for demo records at boot, so never run `db/seed-demo.ts` against an alpha database. A screenshot of fake results circulating out of context is the fastest way to lose institutional credibility (`15` §7).
 
 ## 25.2 Topology
 
@@ -153,6 +153,28 @@ reads — so binding publicly is safe, and `ALLOW_PUBLIC_BIND` no longer exists.
 origin in it is `https://` — the `http://localhost:5173` default would silently
 refuse the real web app. The Android app's origin, `https://localhost`,
 qualifies. Staging and Android setup: `docs/48_STAGING_AND_ANDROID.md`.
+
+The same guard refuses `DOCUMENT_AI_REQUIRE_ZDR=false`, and, when Clerk is the
+authority, an empty `CLERK_AUTHORIZED_PARTIES` or any non-`https://` party.
+
+**`APP_ENV` is read in exactly two places:** this guard (`staging`, `alpha`) and
+the startup log line. It switches nothing else — no data, jobs, logging level,
+flags or authentication path. Accepted values are `local`, `test`,
+`experimental`, `staging`, `alpha`; anything else (including `production`, which
+is "future, not defined" above) fails at load. **A production build
+(`NODE_ENV=production`, set by the Dockerfile) must run as `APP_ENV=alpha` or
+`staging`**, or the API refuses to start: an unset value (`local`) or `local` /
+`experimental` copied from an example file can no longer skip the guard. This
+applies to every `loadConfig()` entry point (the server, `db/migrate.ts`,
+`db/seed.ts`), so a migration run in a production environment needs `APP_ENV`
+too. To run the image locally, set `NODE_ENV=development`.
+
+**`alpha` is the public release** and must use a Clerk **production** instance:
+the guard refuses `sk_test_`/`pk_test_` keys in `alpha` (staging may use them).
+
+Residual: a deployment that uses neither the Dockerfile's `NODE_ENV=production`
+nor `APP_ENV=staging|alpha` still runs unguarded; the deploy checklist
+(`docs/49`) is what covers it.
 
 ### 25.4.2 The OCR worker process (M5A.3)
 

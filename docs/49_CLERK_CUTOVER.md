@@ -57,7 +57,7 @@ Secrets / variables:
 | Vercel (web build) and Android build env | `VITE_API_URL` | the API's https origin. Without it a production build sends API calls to its own origin, where the SPA rewrite answers with HTML |
 | Render (API) | `SUPABASE_DB_URL` | the RLS data store (`authenticator` role); `/api/v1/me` does not exist without it |
 | Render (API) | `WEB_ORIGIN` | exact CORS origins: the web origin(s) and `https://localhost` |
-| Render (API) | `APP_ENV` | `alpha` (or `staging`). `APP_ENV` has no `production` value, and the start-up guard that refuses an empty `CLERK_AUTHORIZED_PARTIES` runs only for `staging`/`alpha` (`services/api/src/config.ts`) |
+| Render (API) | `APP_ENV` | `alpha`: the release environment (docs/25). It switches nothing but the start-up guard, which then refuses a missing or non-https `WEB_ORIGIN`, ZDR off, an empty or non-https `CLERK_AUTHORIZED_PARTIES`, or Clerk development (`sk_test_`/`pk_test_`) keys. Under the image's `NODE_ENV=production` any value other than `alpha`/`staging` (including unset) refuses to start; `production` is not an accepted value (app-env audit, 2026-11-27) |
 
 Clerk dashboard, redirect URLs: `https://<web origin>/sso-callback`, `/account`,
 and `https://grad-tools.vercel.app/native-return` (the Android return; Clerk

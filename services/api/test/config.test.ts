@@ -13,8 +13,12 @@
  * browser origin list.
  */
 
+import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { assertSafeExposure, loadConfig } from '../src/config.js';
+import { createClient } from '../src/db/client.js';
+import { createApp } from '../src/http/app.js';
+import { createLogger } from '../src/observability/logger.js';
 
 const BASE = { DATABASE_URL: 'postgres://u@localhost:5432/db' };
 
@@ -117,4 +121,150 @@ describe('exposure guard', () => {
       assertSafeExposure(loadConfig(vars), vars);
     }).not.toThrow();
   });
+});
+
+/*
+ * THE APP_ENV MATRIX (docs/25 §25.10, app-env audit 2026-11-27).
+ *
+ * APP_ENV is read in exactly two places: the exposure guard (staging and alpha
+ * only) and the startup log line. `alpha` is the release environment; there is
+ * no `production` value. Placeholder keys only.
+ */
+describe('APP_ENV', () => {
+  const env = (extra: Record<string, string>) => ({ ...BASE, ...extra });
+  const DEPLOYED = {
+    WEB_ORIGIN: 'https://app.example.test,https://localhost',
+    /* Placeholders shaped like a production instance's keys; not real keys. */
+    CLERK_SECRET_KEY: 'sk_live_placeholder',
+    CLERK_PUBLISHABLE_KEY: 'pk_live_placeholder',
+    CLERK_AUTHORIZED_PARTIES: 'https://app.example.test,https://localhost',
+  };
+  const guard = (vars: Record<string, string>) => () => {
+    assertSafeExposure(loadConfig(vars), vars);
+  };
+
+  it('defaults to local when unset outside production, and the guard stays off', () => {
+    expect(loadConfig(BASE).APP_ENV).toBe('local');
+    expect(guard(env({ WEB_ORIGIN: 'http://localhost:5173' }))).not.toThrow();
+  });
+
+  it('refuses a production build that does not say which environment it is', () => {
+    expect(() => loadConfig(env({ NODE_ENV: 'production', ...DEPLOYED }))).toThrow(
+      /NODE_ENV=production requires APP_ENV=alpha .* got local \(unset\)/,
+    );
+  });
+
+  it.each(['local', 'test', 'experimental'])(
+    'refuses a production build set to %s (e.g. copied from .env.example)',
+    (value) => {
+      expect(() =>
+        loadConfig(env({ NODE_ENV: 'production', APP_ENV: value, ...DEPLOYED })),
+      ).toThrow(new RegExp(`NODE_ENV=production requires APP_ENV=alpha .* got ${value}\\.`));
+    },
+  );
+
+  it('alpha refuses Clerk development keys; staging accepts them', () => {
+    const devKeys = {
+      ...DEPLOYED,
+      CLERK_SECRET_KEY: 'sk_test_placeholder',
+      CLERK_PUBLISHABLE_KEY: 'pk_test_placeholder',
+    };
+    expect(guard(env({ NODE_ENV: 'production', APP_ENV: 'alpha', ...devKeys }))).toThrow(
+      /alpha must use a Clerk production instance/,
+    );
+    expect(guard(env({ NODE_ENV: 'production', APP_ENV: 'staging', ...devKeys }))).not.toThrow();
+  });
+
+  it.each(['production', 'prod', 'PRODUCTION', '', 'Alpha'])(
+    'refuses the unsupported value %j at load',
+    (value) => {
+      expect(() => loadConfig(env({ APP_ENV: value }))).toThrow(/APP_ENV/);
+    },
+  );
+
+  it.each(['local', 'test', 'experimental'])('%s does not run the deployed guard', (value) => {
+    expect(guard(env({ APP_ENV: value, WEB_ORIGIN: 'http://localhost:5173' }))).not.toThrow();
+  });
+
+  it.each(['staging', 'alpha'])(
+    '%s starts with a complete, https, pinned configuration',
+    (value) => {
+      expect(guard(env({ NODE_ENV: 'production', APP_ENV: value, ...DEPLOYED }))).not.toThrow();
+    },
+  );
+
+  describe.each(['staging', 'alpha'])('%s refuses', (value) => {
+    const base = { NODE_ENV: 'production', APP_ENV: value, ...DEPLOYED };
+
+    it('a missing authorized-parties list', () => {
+      const { CLERK_AUTHORIZED_PARTIES: _omit, ...vars } = base;
+      expect(guard(env(vars))).toThrow(/CLERK_AUTHORIZED_PARTIES must list/);
+    });
+
+    it.each(['', ' , ,'])('an empty authorized-parties list (%j)', (parties) => {
+      expect(guard(env({ ...base, CLERK_AUTHORIZED_PARTIES: parties }))).toThrow(
+        /CLERK_AUTHORIZED_PARTIES must list/,
+      );
+    });
+
+    it('a plain-http authorized party', () => {
+      expect(
+        guard(
+          env({ ...base, CLERK_AUTHORIZED_PARTIES: 'https://app.example.test,http://evil.test' }),
+        ),
+      ).toThrow(/CLERK_AUTHORIZED_PARTIES origin must use https:\/\/.*http:\/\/evil\.test/);
+    });
+
+    it('a plain-http web origin', () => {
+      expect(guard(env({ ...base, WEB_ORIGIN: 'http://app.example.test' }))).toThrow(/https:\/\//);
+    });
+
+    it('document AI without zero data retention', () => {
+      expect(guard(env({ ...base, DOCUMENT_AI_REQUIRE_ZDR: 'false' }))).toThrow(/ZDR/);
+    });
+  });
+
+  it('refuses half a Clerk configuration in any environment, production included', () => {
+    expect(() =>
+      loadConfig(
+        env({ NODE_ENV: 'production', APP_ENV: 'alpha', CLERK_SECRET_KEY: 'sk_test_placeholder' }),
+      ),
+    ).toThrow(/CLERK_SECRET_KEY and CLERK_PUBLISHABLE_KEY must be set together/);
+  });
+
+  it('alpha changes nothing but the guard: the parsed config is otherwise the same as staging', () => {
+    const alpha = loadConfig(env({ NODE_ENV: 'production', APP_ENV: 'alpha', ...DEPLOYED }));
+    const staging = loadConfig(env({ NODE_ENV: 'production', APP_ENV: 'staging', ...DEPLOYED }));
+    expect({ ...alpha, APP_ENV: 'x' }).toEqual({ ...staging, APP_ENV: 'x' });
+  });
+});
+
+describe('CORS in a deployed configuration', () => {
+  const config = loadConfig({
+    ...BASE,
+    NODE_ENV: 'test',
+    APP_ENV: 'alpha',
+    WEB_ORIGIN: 'https://app.example.test,https://localhost',
+  });
+  /* A lazy client: a preflight never reaches the database. */
+  const app = createApp(config, createClient(BASE.DATABASE_URL), createLogger('silent', false));
+
+  it.each(['https://app.example.test', 'https://localhost'])('allows %s', async (origin) => {
+    const res = await request(app)
+      .options('/api/v1/universities')
+      .set('Origin', origin)
+      .set('Access-Control-Request-Method', 'GET');
+    expect(res.headers['access-control-allow-origin']).toBe(origin);
+  });
+
+  it.each(['https://evil.test', 'http://app.example.test', 'https://app.example.test.evil.test'])(
+    'gives %s no CORS grant',
+    async (origin) => {
+      const res = await request(app)
+        .options('/api/v1/universities')
+        .set('Origin', origin)
+        .set('Access-Control-Request-Method', 'GET');
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    },
+  );
 });
