@@ -54,6 +54,19 @@ Secrets / variables:
 | Render (API) | `CLERK_PUBLISHABLE_KEY` | same `pk_live_…` |
 | Render (API), secret | `CLERK_SECRET_KEY` | `sk_live_…` — never a `VITE_` variable |
 | Render (API) | `CLERK_AUTHORIZED_PARTIES` | `https://<custom domain>,https://localhost` |
+| Vercel (web build) and Android build env | `VITE_API_URL` | the API's https origin. Without it a production build sends API calls to its own origin, where the SPA rewrite answers with HTML |
+| Render (API) | `SUPABASE_DB_URL` | the RLS data store (`authenticator` role); `/api/v1/me` does not exist without it |
+| Render (API) | `WEB_ORIGIN` | exact CORS origins: the web origin(s) and `https://localhost` |
+| Render (API) | `APP_ENV` | `alpha` (or `staging`). `APP_ENV` has no `production` value, and the start-up guard that refuses an empty `CLERK_AUTHORIZED_PARTIES` runs only for `staging`/`alpha` (`services/api/src/config.ts`) |
+
+Clerk dashboard, redirect URLs: `https://<web origin>/sso-callback`, `/account`,
+and `https://grad-tools.vercel.app/native-return` (the Android return; Clerk
+refuses the `gradtools://` scheme itself). Enable email code, password and
+Google; check the new-device ("client trust") setting matches the app, which
+answers `needs_client_trust` with an emailed code.
+
+**Never** copy the Preview (development instance, `pk_test_`) values into the
+Production environment, and never enable sign-in in production with them.
 
 App URLs: `/sso-callback` (Google returns here), `/account` (after sign-in).
 Local development: `http://localhost:5173` with a development instance (`pk_test_`).

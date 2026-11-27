@@ -52,10 +52,6 @@ const ResetPasswordPage = page(
   'ResetPasswordPage',
 );
 const SsoCallbackPage = page(() => import('./features/auth/ClerkAuth.js'), 'SsoCallbackPage');
-const NativeReturnPage = page(
-  () => import('./features/auth/NativeReturnPage.js'),
-  'NativeReturnPage',
-);
 const ExamsPage = page(() => import('./features/exams/ExamsPage.js'), 'ExamsPage');
 const ImportPage = page(() => import('./features/import/ImportPage.js'), 'ImportPage');
 const LandingPage = page(() => import('./features/landing/LandingPage.js'), 'LandingPage');
@@ -143,14 +139,6 @@ export function App() {
         element={
           <Auth>
             <SetupPage />
-          </Auth>
-        }
-      />
-      <Route
-        path="/native-return"
-        element={
-          <Auth>
-            <NativeReturnPage />
           </Auth>
         }
       />

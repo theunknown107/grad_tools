@@ -99,6 +99,24 @@ describe('native OAuth callback guard', () => {
     expect(signIn.reload).not.toHaveBeenCalled();
     expect(localStorage.getItem(OAUTH_PENDING_KEY)).not.toBeNull();
   });
+
+  it('ignores a look-alike that only starts with the callback, keeping the marker', async () => {
+    const { adapter, signIn } = fakeClerk();
+    markPending();
+    await adapter.completeDeepLink(`${CALLBACK}XYZ`);
+    expect(signIn.reload).not.toHaveBeenCalled();
+    expect(localStorage.getItem(OAUTH_PENDING_KEY)).not.toBeNull();
+  });
+
+  it('accepts the callback with a query string', async () => {
+    const { adapter, signIn } = fakeClerk();
+    signIn.reload.mockResolvedValue({ status: 'needs_identifier' });
+    markPending();
+    await adapter.completeDeepLink(`${CALLBACK}?state=ignored`);
+    expect(signIn.reload).toHaveBeenCalled();
+    /* The single-use marker is consumed by an accepted callback. */
+    expect(localStorage.getItem(OAUTH_PENDING_KEY)).toBeNull();
+  });
 });
 
 describe('finishing native Google', () => {

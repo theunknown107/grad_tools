@@ -44,6 +44,15 @@ app's `NATIVE_RETURN_PAGE`). That page's only job is to bring the app back.
 | Regression test | `apps/web/test/native-return.test.ts` |
 | App side | `NATIVE_RETURN_PAGE` and `completeDeepLink` in the app's Clerk adapter; Android intent filter `gradtools://auth` |
 
+**One mechanism.** The static page is the only Android return. The release
+candidate's React `/native-return` route (`NativeReturnPage.tsx`, an unpinned
+`gradtools://` navigation that Vercel never served) was removed in PR #3.
+`completeDeepLink` accepts exactly `gradtools://auth/callback`, optionally
+followed by `?`, `#` or `/`, so a look-alike such as `…/callbackXYZ` is ignored.
+It acts only when this app started a sign-in in the last 10 minutes (a
+single-use marker), and the result always comes from Clerk's own state. No
+token travels in the URL.
+
 The page was first deployed by hand on 22 Nov 2026 (Vercel deployment
 `dpl_C378tBDM39KheLFa8qoGhY7pVSKu`) and verified with a real Google sign-in on
 a Samsung Galaxy A35: Custom Tab → Google → back in GradTools, signed in. The

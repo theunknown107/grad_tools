@@ -35,9 +35,12 @@ function isNativeApp(): boolean {
 export const NATIVE_AUTH_CALLBACK = 'gradtools://auth/callback';
 
 /**
- * Where the Custom Tab lands after Google: an https page (NativeReturnPage)
- * that opens the deep link, so the app comes back and finishes. Until that page
- * is deployed, the student closes the tab and the app's watch finishes instead.
+ * Where the Custom Tab lands after Google: the ONE Android return mechanism.
+ * vercel.json rewrites /native-return to the static apps/web/public/
+ * native-return.html, which opens the deep link through an intent pinned to
+ * app.gradtools (docs/55). Used only by the Android app; web and preview
+ * sign-in return to their own origin. If the canonical domain ever changes,
+ * change this, the rewrite and Clerk's allowed redirects together.
  */
 const NATIVE_RETURN_PAGE = 'https://grad-tools.vercel.app/native-return';
 const NATIVE_OAUTH_POLL_MS = 2_000;
@@ -496,8 +499,12 @@ export function createClerkAdapter(clerk: Clerk): AuthAdapter {
     },
 
     async completeDeepLink(url) {
-      // Only our own OAuth return; ignore any other deep link.
-      if (!url.startsWith(NATIVE_AUTH_CALLBACK)) return { error: null };
+      // Only our own OAuth return (exactly the callback, optionally followed by
+      // a query, fragment or path); ignore any other deep link.
+      const rest = url.startsWith(NATIVE_AUTH_CALLBACK)
+        ? url.slice(NATIVE_AUTH_CALLBACK.length)
+        : null;
+      if (rest === null || !(rest === '' || '?#/'.includes(rest[0]!))) return { error: null };
       // Only honour a callback for a sign-in THIS app started: a BROWSABLE deep
       // link fired by any other app must not drive the WebView to /sso-callback.
       const flow = consumeOauthPending();
