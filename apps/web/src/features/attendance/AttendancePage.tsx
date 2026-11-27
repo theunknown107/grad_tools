@@ -6,9 +6,11 @@
  * not with a pooled percentage, which can read as safe while one course is
  * below the DX floor. The pooled figure stays, labelled as what it is.
  *
- * Every percentage and verdict comes from @gradtools/academic-rules, judged
- * against the college's attendance criteria (default 75% per course,
- * lib/attendance-criteria); DX below 75% (22OB 3.7). No "attendance
+ * Every percentage and verdict comes from @gradtools/academic-rules and the
+ * official rule set, unmodified (lib/attendance-criteria): 85% per course is
+ * the requirement, a shortage of up to 10 points may be condoned at the Vice
+ * Chancellor's discretion, and below 75% the course is DX (22OB 3.7). A
+ * personal target only adds its own line to the plan. No "attendance
  * over time" chart is drawn: the product stores counts, not a dated history,
  * and a trend line through numbers it does not have would be invented.
  */
@@ -68,23 +70,23 @@ import { DateView } from './DateView.js';
 import { DayView, NowLine } from './DayView.js';
 import { HistoryView } from './HistoryView.js';
 import {
-  ATTENDANCE_CRITERIA_OPTIONS,
-  DEFAULT_ATTENDANCE_CRITERIA,
+  PERSONAL_TARGET_OPTIONS,
   attendanceRules,
-  setAttendanceCriteria,
-  useAttendanceCriteria,
+  setPersonalTarget,
+  targetRules,
+  usePersonalTarget,
 } from '../../lib/attendance-criteria.js';
 import { cn } from '../../lib/cn.js';
 import { formatCount, formatPercent } from '../../lib/format.js';
 import { newId, nowIso } from '../../lib/id.js';
 
-/* The VTU rules judged at the college's attendance criteria (lib/attendance-criteria). */
+/* The official VTU rules, unmodified (lib/attendance-criteria). */
 const rules = attendanceRules;
 
 const STATUS: Record<AttendanceStatus, { label: string; ink: string; fill: string }> = {
-  safe: { label: 'Safe', ink: 'text-ink', fill: 'bg-ink-2' },
+  safe: { label: 'Meets requirement', ink: 'text-ink', fill: 'bg-ink-2' },
   below_requirement: { label: 'Below requirement', ink: 'text-warning', fill: 'bg-warning' },
-  dx_risk: { label: 'DX risk', ink: 'text-danger', fill: 'bg-danger' },
+  dx_risk: { label: 'Below 75% (DX)', ink: 'text-danger', fill: 'bg-danger' },
 };
 
 /** Where one course stands, and the classes between it and the rule. */
@@ -105,27 +107,32 @@ function standingOf(record: AttendanceRecord) {
   return { percentage, status, margin };
 }
 
-/** Which percentage every verdict on this page is judged against. */
-function CriteriaPicker({ value }: { readonly value: number }) {
+/**
+ * The student's own goal, at or above the requirement. It never changes a
+ * verdict: it only adds its own line to each course's plan.
+ */
+function TargetPicker({ value }: { readonly value: number }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span className="text-[13px] font-medium text-ink" aria-hidden="true">
-        Attendance criteria
+      <span className="text-label font-medium text-ink" aria-hidden="true">
+        Personal target
       </span>
       <Select
-        aria-label="Attendance criteria"
-        aria-describedby="attendance-criteria-note"
+        aria-label="Personal target"
+        aria-describedby="attendance-target-note"
         value={String(value)}
-        onValueChange={(next) => setAttendanceCriteria(Number(next))}
-        options={ATTENDANCE_CRITERIA_OPTIONS.map((percent) => ({
+        onValueChange={(next) => setPersonalTarget(Number(next))}
+        options={PERSONAL_TARGET_OPTIONS.map((percent) => ({
           value: String(percent),
-          label: `${String(percent)}% per course${percent === DEFAULT_ATTENDANCE_CRITERIA ? ' (default)' : ''}`,
+          label:
+            percent === rules().attendanceRequiredPct
+              ? `${String(percent)}% (the VTU requirement)`
+              : `${String(percent)}% per course`,
         }))}
         className="w-auto min-w-44"
       />
-      <p id="attendance-criteria-note" className="basis-full text-[12px] text-ink-3">
-        VTU asks 85% and allows up to 10 points to be condoned, so 75% is the line below which a
-        course is barred. Choose what your college enforces.
+      <p id="attendance-target-note" className="basis-full text-caption text-ink-2">
+        Your own goal. Every verdict on this page uses VTU&rsquo;s rule, whatever you pick here.
       </p>
     </div>
   );
@@ -179,7 +186,7 @@ function AttendanceBody() {
    */
   const now = useNow();
   const label = useTodayLabel();
-  const criteria = useAttendanceCriteria();
+  const target = usePersonalTarget();
 
   if (loading || semestersLoading) return <PageSkeleton label="Loading attendance" />;
 
@@ -252,7 +259,7 @@ function AttendanceBody() {
       <PageHeader
         eyebrow={semesterLabel}
         title="Attendance"
-        description={`${String(criteria)}% per course, your college's criteria. Below ${String(rules().attendanceDxFloorPct)}% a course is marked DX and you cannot sit its exam (22OB 3.7).`}
+        description={`VTU requires ${String(rules().attendanceRequiredPct)}% in each course (22OB 3.7). Between ${String(rules().attendanceDxFloorPct)}% and ${String(rules().attendanceRequiredPct)}% a shortage may be condoned, at the Vice Chancellor's discretion. Below ${String(rules().attendanceDxFloorPct)}% the course is marked DX and you cannot sit its exam.`}
         actions={
           /* When nothing is tracked yet the empty state below carries this action, once. */
           items.length === 0 && timetable.length === 0 ? undefined : (
@@ -263,7 +270,7 @@ function AttendanceBody() {
         }
       />
 
-      <CriteriaPicker value={criteria} />
+      <TargetPicker value={target} />
 
       {items.length === 0 && timetable.length === 0 ? (
         <EmptyState
@@ -425,13 +432,14 @@ function AttendanceBody() {
                     </CardRows>
                   </>
                 )}
-                {anyDx && (
-                  <p className="border-t border-line px-5 py-4 text-[12px] leading-relaxed text-ink-2">
-                    Below {rules().attendanceDxFloorPct}% a course is marked DX and you are not
-                    permitted to sit its Semester End Examination (clause 22OB 3.7(5)). A shortage
-                    of up to {rules().attendanceCondonablePct} points may be condoned by the Vice
-                    Chancellor on the Principal&rsquo;s recommendation with supporting documents.
-                    This is discretionary, not automatic.
+                {(belowCount > 0 || anyDx) && (
+                  <p className="border-t border-line px-5 py-4 text-caption leading-relaxed text-ink-2">
+                    Below {rules().attendanceRequiredPct}% a course does not meet the requirement. A
+                    shortage of up to {rules().attendanceCondonablePct} points may be condoned by
+                    the Vice Chancellor on the Principal&rsquo;s recommendation with supporting
+                    documents. This is discretionary, not automatic. Below{' '}
+                    {rules().attendanceDxFloorPct}% a course is marked DX and you are not permitted
+                    to sit its Semester End Examination (clause 22OB 3.7(5)).
                   </p>
                 )}
               </Card>
@@ -465,6 +473,7 @@ function AttendanceBody() {
       />
 
       <BunkPlanner
+        target={target}
         record={planning}
         name={planning === null ? null : subjectName(planning.subjectCode, semesterSubjects)}
         onClose={() => setPlanning(null)}
@@ -639,10 +648,10 @@ function CourseRow({
         <Tooltip
           content={
             status === 'safe'
-              ? `At or above the ${String(rules().attendanceRequiredPct)}% requirement (22OB 3.7).`
+              ? `Meets VTU's ${String(rules().attendanceRequiredPct)}% requirement (22OB 3.7(1)).`
               : status === 'dx_risk'
-                ? `Below the ${String(rules().attendanceDxFloorPct)}% floor: the course carries a DX and cannot be sat.`
-                : `Below the ${String(rules().attendanceRequiredPct)}% requirement but above the ${String(rules().attendanceDxFloorPct)}% floor.`
+                ? `Below ${String(rules().attendanceDxFloorPct)}%: the DX threshold is crossed. The course is marked DX and its exam cannot be sat (22OB 3.7(5)).`
+                : `Below the ${String(rules().attendanceRequiredPct)}% requirement. A shortage of up to ${String(rules().attendanceCondonablePct)} points may be condoned at the Vice Chancellor's discretion; it is not automatic.`
           }
         >
           <button
@@ -823,10 +832,12 @@ function AddCourseDialog({
 /* -------------------------------------------------------- Attendance plan */
 
 function BunkPlanner({
+  target,
   record,
   name,
   onClose,
 }: {
+  readonly target: number;
   readonly record: AttendanceRecord | null;
   readonly name: string | null;
   readonly onClose: () => void;
@@ -838,6 +849,16 @@ function BunkPlanner({
   const mustAttend =
     record === null ? null : calculateClassesMustAttend(record.attended, record.conducted, rules());
   const safe = attendance?.ok === true && attendance.value.status === 'safe';
+  /* The personal target, as its own line: never a verdict. */
+  const aboveRequirement = target > rules().attendanceRequiredPct;
+  const targetMiss =
+    record === null || !aboveRequirement
+      ? null
+      : calculateClassesCanMiss(record.attended, record.conducted, targetRules(target));
+  const targetAttend =
+    record === null || !aboveRequirement
+      ? null
+      : calculateClassesMustAttend(record.attended, record.conducted, targetRules(target));
 
   return (
     <Dialog open={record !== null} onOpenChange={(open) => !open && onClose()}>
@@ -900,6 +921,19 @@ function BunkPlanner({
                   </div>
                 </dl>
 
+                {aboveRequirement && (
+                  <p className="mt-3 text-label text-ink-2">
+                    <span className="font-medium text-ink">Your {target}% target:</span>{' '}
+                    {targetMiss?.ok === true && targetMiss.value > 0
+                      ? `you can miss ${formatCount(targetMiss.value, 'class', 'classes')} and stay at it.`
+                      : targetAttend?.ok === true && targetAttend.value > 0
+                        ? `attend the next ${formatCount(targetAttend.value, 'class', 'classes')} to reach it.`
+                        : targetAttend?.ok === false
+                          ? 'not reachable with the classes recorded.'
+                          : 'met, with no margin.'}{' '}
+                    This is your goal, not the eligibility rule.
+                  </p>
+                )}
                 <p className="mt-3 text-[12px] text-ink-3">
                   From recorded classes only, assuming the schedule stays fixed (22OB 3.7).
                 </p>

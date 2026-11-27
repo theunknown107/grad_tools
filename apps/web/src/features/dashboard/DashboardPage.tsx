@@ -74,7 +74,7 @@ import {
   useTimetableImports,
   useTimetableOverrides,
 } from '../../hooks/useCollection.js';
-import { attendanceRules, useAttendanceCriteria } from '../../lib/attendance-criteria.js';
+import { attendanceRules } from '../../lib/attendance-criteria.js';
 import { cn } from '../../lib/cn.js';
 import {
   branchCode,
@@ -87,7 +87,7 @@ import {
 } from '../../lib/format.js';
 import { greetingFor, relativeTime } from '../../lib/time.js';
 
-/* The VTU rules judged at the college's attendance criteria (lib/attendance-criteria). */
+/* The official VTU rules, unmodified (lib/attendance-criteria). */
 const rules = attendanceRules;
 
 function todayWeekday(): Weekday {
@@ -144,8 +144,6 @@ function useSignedOutWithRecords(): boolean | null {
 }
 
 export function DashboardPage() {
-  /* Re-renders when the attendance criteria change (lib/attendance-criteria). */
-  useAttendanceCriteria();
   const now = useNow();
   const { state: authState, adapter } = useAuth();
   const signedOutWithRecords = useSignedOutWithRecords();
@@ -479,7 +477,8 @@ function Standing({
   const conducted = attendance.reduce((total, record) => total + record.conducted, 0);
   const overall =
     rulesKnown && conducted > 0 ? calculateAttendance(attended, conducted, rules()) : null;
-  const short = attendance.filter((record) => {
+  /* Judged only where the built-in (2022) rules are this profile's rules. */
+  const short = (rulesKnown ? attendance : []).filter((record) => {
     const verdict = calculateAttendance(record.attended, record.conducted, rules());
     return verdict.ok && verdict.value.status !== 'safe';
   }).length;

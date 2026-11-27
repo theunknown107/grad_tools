@@ -10,7 +10,6 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setAttendanceCriteria } from '../src/lib/attendance-criteria.js';
 import { normalizeResultSubject } from '../src/domain/results.js';
 import userEvent from '@testing-library/user-event';
 import { screen, waitFor, within } from '@testing-library/dom';
@@ -91,7 +90,6 @@ function result(
 
 beforeEach(() => {
   cleanup();
-  setAttendanceCriteria(75);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -238,7 +236,6 @@ describe('dashboard', () => {
   });
 
   it('surfaces only the courses that need attention', async () => {
-    setAttendanceCriteria(85); // a college enforcing VTU's full 85%
     const { bundle } = createMemoryRepositories({
       attendance: [
         attendance('a1', 'SAFE1', 48, 50), // 72% safe
@@ -518,7 +515,6 @@ describe('attendance', () => {
   });
 
   it('answers how many classes can still be missed', async () => {
-    setAttendanceCriteria(85); // a college enforcing VTU's full 85%
     const { bundle } = createMemoryRepositories({
       attendance: [attendance('a1', 'BCS301', 45, 50)],
     });
@@ -541,8 +537,29 @@ describe('attendance', () => {
     renderWith(<AttendancePage />, { repositories: bundle });
     await openCourses();
 
-    expect((await screen.findAllByText(/dx risk/i)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/below 75% \(dx\)/i)).length).toBeGreaterThan(0);
     expect(screen.getByText(/discretionary, not\s+automatic/i)).toBeTruthy();
+  });
+
+  it('agrees with the dashboard: an 80% course is below 85% on both', async () => {
+    const { bundle } = createMemoryRepositories({
+      attendance: [attendance('a1', 'BCS301', 40, 50)], // 80%
+    });
+    renderWith(<DashboardPage />, { repositories: bundle });
+    expect(await screen.findByText('1 below 85%')).toBeTruthy();
+  });
+
+  it('puts 75–84.99% below the requirement, never as meeting it', async () => {
+    const { bundle } = createMemoryRepositories({
+      attendance: [attendance('a1', 'BCS301', 40, 50)], // 80%
+    });
+    renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
+
+    expect((await screen.findAllByText(/^Below requirement/)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^Meets requirement/)).toBeNull();
+    expect(screen.getByText(/discretionary, not\s+automatic/i)).toBeTruthy();
+    expect(screen.getByText(/VTU requires 85% in each course/)).toBeTruthy();
   });
 
   it('never tells the student they should skip a class', async () => {
@@ -560,7 +577,6 @@ describe('attendance', () => {
 
 describe('bunk planner', () => {
   it('says how many classes it takes to recover, from the rules engine', async () => {
-    setAttendanceCriteria(85); // a college enforcing VTU's full 85%
     const { bundle } = createMemoryRepositories({
       attendance: [attendance('a1', 'BCS301', 30, 40)],
     });
@@ -1004,13 +1020,12 @@ describe('the attendance register', () => {
   });
 
   it('lists the worst course first and says what each needs, in words', async () => {
-    setAttendanceCriteria(85); // a college enforcing VTU's full 85%
     const { bundle } = createMemoryRepositories({
       attendance: [attendance('a1', 'BCS301', 45, 50), attendance('a2', 'BCS302', 30, 50)],
     });
     const { container } = renderWith(<AttendancePage />, { repositories: bundle });
     await openCourses();
-    await screen.findByText(/^DX risk · Attend next/);
+    await screen.findByText(/^Below 75% \(DX\) · Attend next/);
     expect(screen.getByText('Margin of 2')).toBeTruthy();
     const text = container.textContent ?? '';
     expect(text.indexOf('BCS302')).toBeLessThan(text.indexOf('BCS301'));
