@@ -94,9 +94,7 @@ export function SessionDetail({
               </p>
             ) : (
               <div className="mt-1 flex items-center justify-between gap-3">
-                <span className="font-mono text-[15px] font-semibold tracking-wide text-ink">
-                  {usn}
-                </span>
+                <span className="font-mono text-[15px] font-semibold text-ink">{usn}</span>
                 <Button size="sm" icon={<Copy />} onClick={() => void copyUsn()}>
                   Copy
                 </Button>
@@ -119,7 +117,7 @@ export function SessionDetail({
               </Button>
             </Step>
             <Step n={2} title="Enter your USN and the CAPTCHA on VTU's page" />
-            <Step n={3} title="Save the result: Print → Save as PDF (or Save page as HTML)" />
+            <Step n={3} title="Save the result: Print → Save as PDF" />
             <Step n={4} title="Import saved result">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                 <Field label="Semester" optional className="sm:w-56">

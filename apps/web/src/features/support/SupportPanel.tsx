@@ -43,7 +43,7 @@ function CopyField({ label, value }: { readonly label: string; readonly value: s
   };
   return (
     <div>
-      <div className="text-[11px] tracking-wide text-ink-3 uppercase">{label}</div>
+      <div className="text-[12px] text-ink-3">{label}</div>
       <div className="mt-1 flex items-center gap-2">
         <code className="rounded-md bg-sunken px-2 py-1 font-mono text-[13px] font-medium">
           {value}

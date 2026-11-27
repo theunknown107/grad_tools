@@ -16,6 +16,13 @@
 import { z } from 'zod';
 
 const configSchema = z.object({
+  /**
+   * The edge header that names the client, for a deployment where `trust proxy`
+   * cannot (see http/rate-limit.ts). Unset means `req.ip`. Only set it after the
+   * operator `client-address` route shows the header arriving, and only behind an
+   * edge that refuses client-supplied copies.
+   */
+  CLIENT_IP_HEADER: z.literal('cf-connecting-ip').optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_ENV: z.enum(['local', 'test', 'experimental', 'staging', 'alpha']).default('local'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
@@ -192,6 +199,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 
   const { WEB_ORIGIN, ...rest } = parsed.data;
 
+  /*
+   * A production build runs as a deployed environment. Every deployed API is
+   * built from the Dockerfile, which sets NODE_ENV=production; an APP_ENV that
+   * is unset (so `local`), or `local`/`experimental` copied from an example
+   * file, would otherwise skip the exposure guard (WEB_ORIGIN, ZDR, Clerk
+   * authorized parties) without a word. Local work and tests keep their
+   * default; running the image locally means NODE_ENV=development.
+   */
+  if (rest.NODE_ENV === 'production' && !DEPLOYED_ENVIRONMENTS.has(rest.APP_ENV)) {
+    throw new Error(
+      `Invalid environment configuration:\n  NODE_ENV=production requires APP_ENV=alpha (the release) ` +
+        `or staging (pre-release); got ${rest.APP_ENV}${env.APP_ENV === undefined ? ' (unset)' : ''}. ` +
+        `See docs/25 §25.10.`,
+    );
+  }
+
   // Half a Clerk configuration must not silently fall back to another authority.
   if ((rest.CLERK_SECRET_KEY === undefined) !== (rest.CLERK_PUBLISHABLE_KEY === undefined)) {
     throw new Error(
@@ -226,6 +249,19 @@ export function assertSafeExposure(config: Config, env: NodeJS.ProcessEnv = proc
   if (!DEPLOYED_ENVIRONMENTS.has(config.APP_ENV)) return;
 
   const problems: string[] = [];
+  /*
+   * The release holds real student data: it must not run on a Clerk development
+   * instance (the preview's pk_test_/sk_test_ keys). Staging may.
+   */
+  if (
+    config.APP_ENV === 'alpha' &&
+    (config.CLERK_SECRET_KEY?.startsWith('sk_test_') === true ||
+      config.CLERK_PUBLISHABLE_KEY?.startsWith('pk_test_') === true)
+  ) {
+    problems.push(
+      'alpha must use a Clerk production instance (sk_live_/pk_live_), not development keys.',
+    );
+  }
   if (env.WEB_ORIGIN === undefined || env.WEB_ORIGIN.trim() === '') {
     problems.push(`WEB_ORIGIN must be set explicitly in ${config.APP_ENV}.`);
   }
@@ -239,6 +275,34 @@ export function assertSafeExposure(config: Config, env: NodeJS.ProcessEnv = proc
     problems.push(
       `DOCUMENT_AI_REQUIRE_ZDR=false is for synthetic local testing, not ${config.APP_ENV}.`,
     );
+  }
+  /*
+   * With Clerk as the authority the token's `azp` (the origin it was minted for)
+   * is pinned ONLY when authorizedParties is set (auth/clerk.ts). Left empty,
+   * Clerk does not check it, so a session token minted for another origin on the
+   * SAME Clerk instance could be replayed against this API. A deployed env must
+   * therefore name its origin(s) — the same ones as WEB_ORIGIN.
+   */
+  if (config.CLERK_SECRET_KEY !== undefined) {
+    const parties = (config.CLERK_AUTHORIZED_PARTIES ?? '')
+      .split(',')
+      .map((party) => party.trim())
+      .filter((party) => party !== '');
+    if (parties.length === 0) {
+      problems.push(
+        `CLERK_AUTHORIZED_PARTIES must list the app origin(s) in ${config.APP_ENV}: without it ` +
+          `Clerk does not pin a token's azp, so one minted for another origin on the same Clerk ` +
+          `instance could be replayed.`,
+      );
+    }
+    /* Same rule as WEB_ORIGIN: a token minted for a plain-HTTP page is not one to trust. */
+    const insecureParties = parties.filter((party) => !party.startsWith('https://'));
+    if (insecureParties.length > 0) {
+      problems.push(
+        `Every CLERK_AUTHORIZED_PARTIES origin must use https:// in ${config.APP_ENV}: ` +
+          insecureParties.join(', '),
+      );
+    }
   }
   if (problems.length > 0) {
     throw new Error(`Refusing to start:\n  ${problems.join('\n  ')}`);

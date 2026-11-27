@@ -4,7 +4,7 @@
  * fast, and says so with a retry.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from '../src/features/auth/AuthContext.js';
 import { AuthUnreachable } from '../src/features/auth/AuthUnreachable.js';
 import { AuthServiceUnreachable, createClerkAdapter } from '../src/repositories/cloud/clerk.js';
@@ -26,6 +26,7 @@ function adapterFailingWith(error: unknown): AuthAdapter {
     signInWithPassword: async () => ({ error: null }),
     signUpWithPassword: async () => ({ error: null, needsConfirmation: false }),
     signInWithProvider: async () => ({ error: null }),
+    signUpWithProvider: async () => ({ error: null }),
     sendRecovery: async () => ({ error: null }),
     updatePassword: async () => ({ error: null }),
     completeDeepLink: async () => ({ error: null }),
@@ -137,6 +138,13 @@ function Scope() {
 
 describe('a signed-in student who goes offline', () => {
   afterEach(() => window.localStorage.removeItem(KEY));
+  /* The offline account view is the Android app's (M9 §37: a web page never remembers one). */
+  beforeEach(() => {
+    (window as { Capacitor?: unknown }).Capacitor = { isNativePlatform: () => true };
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'Capacitor');
+  });
 
   it('keeps their own account scope, never the guest one, and says they are offline', async () => {
     window.localStorage.setItem(KEY, JSON.stringify({ identity: ALICE, verifiedAt: Date.now() }));

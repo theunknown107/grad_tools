@@ -160,6 +160,131 @@ describe('reading the scheme table', () => {
     expect(parsed.courses[0]?.title).toBe('Invented Course Five');
   });
 
+  it('leaves a bare teaching-staff descriptor out of the title when no TD:/PSB: label marks the column', () => {
+    /*
+     * The physical-education and mandatory-course rows name their teaching slot
+     * in prose — "… Director", "Yoga Teacher" — with no `TD:`/`PSB:` label, and
+     * some stream documents label no row on the page at all. With nothing
+     * labelled the column had no left edge, the ceiling fell to the first number
+     * column, and the staff descriptor sitting in the gap was read into the
+     * title: "Physical Education Physical Education … Director".
+     *
+     * The column names itself in its header, and that is the edge. Here the
+     * staff cell (x390) sits a hair RIGHT of the "Teaching Department" header
+     * (x380) exactly as it does in the document, so the header is the only thing
+     * that excludes it: drop the header detection and this title gains
+     * "Invented Director".
+     */
+    const y = 322;
+    const parsed = parseScheme([
+      {
+        page: 1,
+        items: [
+          ...HEADING,
+          at('Teaching Department', 380, 410),
+          at('1', COL.serial, y),
+          at('MC', COL.category, y),
+          at('BQQ406', COL.code, y),
+          at('Invented Physical Course', COL.title, y),
+          at('Invented Director', 390, y),
+          at('0', COL.lecture, y),
+          at('0', COL.tutorial, y),
+          at('2', COL.practical, y),
+          at('03', COL.duration, y),
+          at('50', COL.cie, y),
+          at('50', COL.see, y),
+          at('100', COL.total, y + 6),
+          at('2', COL.credits, y + 6),
+        ],
+      },
+    ]);
+    expect(parsed.courses[0]?.title).toBe('Invented Physical Course');
+  });
+
+  /*
+   * TWO OPTION SUB-TABLES SIDE BY SIDE (the first-year ESC/ETC layout).
+   *
+   *   BQQ104A  Alpha Science        │  BQR105A  Beta Materials Systems   3 0 0 03 50 50 100 4
+   *
+   * The left title has no teaching-department column to cap it, and before the
+   * fix it ran through the divider and came back fused with the right table's
+   * title. The divider is the right table's own course code; each code keeps
+   * the title in its own column. Coordinates are written to the geometry, and
+   * the expected titles are read off the layout by hand.
+   */
+  const twoTableRow = (y: number): PositionedText[] => [
+    at('1', COL.serial, y),
+    at('PCC', COL.category, y),
+    at('BQQ104A', COL.code, y),
+    at('Alpha Science', COL.title, y),
+    at('BQR105A', 360, y),
+    at('Beta Materials Systems', 410, y),
+    at('3', COL.lecture, y),
+    at('0', COL.tutorial, y),
+    at('0', COL.practical, y),
+    at('03', COL.duration, y),
+    at('50', COL.cie, y),
+    at('50', COL.see, y),
+    at('100', COL.total, y),
+    at('4', COL.credits, y),
+  ];
+
+  it('keeps each option sub-table’s title in its own column', () => {
+    const parsed = parseScheme(page(twoTableRow(322)));
+    const left = parsed.courses.find((c) => c.code === 'BQQ104A');
+    const right = parsed.courses.find((c) => c.code === 'BQR105A');
+    expect(left?.title).toBe('Alpha Science');
+    expect(right?.title).toBe('Beta Materials Systems');
+    // the left title did NOT absorb the right table, nor the right the left
+    expect(left?.title).not.toMatch(/Beta|Materials|Systems/);
+    expect(right?.title).not.toMatch(/Alpha|Science/);
+  });
+
+  it('keeps codes and credits attached to the right titles across the divider', () => {
+    const parsed = parseScheme(page(twoTableRow(322)));
+    expect(parsed.courses.map((c) => c.code).sort()).toEqual(['BQQ104A', 'BQR105A']);
+    for (const course of parsed.courses) expect(course.credits).toBe(4);
+  });
+
+  it('is deterministic when the two sub-tables are extracted in the opposite order', () => {
+    const forward = parseScheme(page(twoTableRow(322)));
+    const reversed = parseScheme(page([...twoTableRow(322)].reverse()));
+    const titleOf = (p: typeof forward, code: string) =>
+      p.courses.find((c) => c.code === code)?.title;
+    expect(titleOf(reversed, 'BQQ104A')).toBe(titleOf(forward, 'BQQ104A'));
+    expect(titleOf(reversed, 'BQR105A')).toBe(titleOf(forward, 'BQR105A'));
+    expect(titleOf(forward, 'BQQ104A')).toBe('Alpha Science');
+  });
+
+  it('keeps a left title that wraps, still without crossing the divider', () => {
+    const parsed = parseScheme(page([...twoTableRow(322), at('Methods', COL.title, 322 - 13)]));
+    expect(parsed.courses.find((c) => c.code === 'BQQ104A')?.title).toBe('Alpha Science Methods');
+  });
+
+  it('marks a row that prints no title of its own as unresolved rather than borrowing one', () => {
+    // A code with only numbers after it and no title in its own column is
+    // refused — it is not handed a neighbour's title to look complete.
+    const parsed = parseScheme(
+      page([
+        at('1', COL.serial, 322),
+        at('PCC', COL.category, 322),
+        at('BQQ777', COL.code, 322),
+        at('3', COL.lecture, 322),
+        at('0', COL.tutorial, 322),
+        at('0', COL.practical, 322),
+        at('03', COL.duration, 322),
+        at('50', COL.cie, 322),
+        at('50', COL.see, 322),
+        at('100', COL.total, 322),
+        at('4', COL.credits, 322),
+      ]),
+    );
+    expect(parsed.courses.find((c) => c.code === 'BQQ777')).toBeUndefined();
+    expect(
+      parsed.rejected.some((r) => r.code === 'BQQ777' && /no course title/i.test(r.reason)),
+    ).toBe(true);
+  });
+
   it('reads a non-credit course as genuinely zero credits', () => {
     // §33: zero is an answer here, not an absence. A mandatory non-credit
     // course really is worth nothing towards the average.

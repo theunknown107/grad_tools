@@ -111,8 +111,8 @@ describe('the shipped catalogues', () => {
      * regenerated to take them, which is the point: an older artifact stays
      * byte-identical and reads correctly under the newer type.
      */
-    expect(VTU_2022.normalizationVersion).toBe('1.0.0');
-    expect(VTU_2022.courses).toHaveLength(187);
+    expect(VTU_2022.normalizationVersion).toBe('1.2.0');
+    expect(VTU_2022.courses).toHaveLength(214);
     expect(VTU_2022.conflicts).toHaveLength(0);
     expect(VTU_2022.documents).toHaveLength(19);
   });

@@ -56,6 +56,21 @@ export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 export const MAX_EDGE = 2000;
 
 /**
+ * The longest edge a small image is enlarged to on the gated upscale RETRY
+ * (result-file.ts), so sub-30px glyphs reach a size Tesseract separates into
+ * words. Only images below this are candidates for the retry.
+ */
+export const UPSCALE_TO = 3000;
+
+/**
+ * The most a small image is enlarged, whatever `UPSCALE_TO` asks. A 2.6x blow-up
+ * of an already-adequate card destroyed its reading and produced a wrong mark;
+ * capping the factor bounds the distortion. The retry's `betterReading` gate is
+ * the real safety net, but a tight cap keeps the retry's reading usable.
+ */
+export const UPSCALE_MAX = 1.5;
+
+/**
  * The smallest longest-edge worth attempting.
  *
  * Under this the digits in a marks column are a few pixels tall and OCR returns
@@ -92,7 +107,10 @@ export interface DecodedImage {
  * photo reaches OCR on its side, and a rotated table produces no rows at all
  * while looking, in the preview, perfectly correct.
  */
-export async function decodeImage(blob: Blob): Promise<DecodedImage> {
+export async function decodeImage(
+  blob: Blob,
+  options: { readonly upscaleTo?: number } = {},
+): Promise<DecodedImage> {
   if (blob.size > MAX_IMAGE_BYTES) {
     throw new OcrError(
       `That image is larger than ${String(MAX_IMAGE_BYTES / 1024 / 1024)}MB. A photo of a result card is normally a few megabytes.`,
@@ -131,10 +149,20 @@ export async function decodeImage(blob: Blob): Promise<DecodedImage> {
     }
 
     /*
-     * Scaled DOWN only. Enlarging a small photo invents no detail and multiplies
-     * the work, and OCR on an upscaled blur is confident nonsense.
+     * Downscaled always; upscaled ONLY when the caller opts in with `upscaleTo`.
+     * A small, crisp screenshot whose glyphs are below Tesseract's wanted height
+     * reads better enlarged — words like "PRINCIPLES OF" stop merging into one
+     * token. But blindly upscaling every image is wrong: a 2.6x blow-up of an
+     * already-adequate card destroyed its reading and produced a wrong mark. So
+     * the caller upscales as a gated RETRY and keeps it only if it reads more
+     * (result-file.ts readImageFile), never as the one decode of every image.
      */
-    const scale = longest > MAX_EDGE ? MAX_EDGE / longest : 1;
+    const scale =
+      longest > MAX_EDGE
+        ? MAX_EDGE / longest
+        : options.upscaleTo !== undefined && longest < options.upscaleTo
+          ? Math.min(options.upscaleTo / longest, UPSCALE_MAX)
+          : 1;
     const width = Math.round(bitmap.width * scale);
     const height = Math.round(bitmap.height * scale);
 
@@ -246,6 +274,31 @@ export function normalizeContrast(canvas: HTMLCanvasElement): void {
   const image = context.getImageData(0, 0, canvas.width, canvas.height);
   stretchGrey(image.data);
   context.putImageData(image, 0, 0);
+}
+
+/**
+ * A NEW canvas holding `source` turned clockwise by `quarterTurns` × 90° (M2.2).
+ *
+ * `source` is never touched: the turn is drawn into a fresh canvas, so the
+ * caller's decoded image stays as it was. Width and height swap on an odd number
+ * of turns, and everything the engine later reports — word boxes included — is
+ * in the turned canvas's coordinates, which is the page the parser should see.
+ * Returns null when the browser cannot provide a 2D context.
+ */
+export function turnCanvas(
+  source: HTMLCanvasElement,
+  quarterTurns: 1 | 2 | 3,
+): HTMLCanvasElement | null {
+  const turned = document.createElement('canvas');
+  const sideways = quarterTurns % 2 === 1;
+  turned.width = sideways ? source.height : source.width;
+  turned.height = sideways ? source.width : source.height;
+  const context = turned.getContext('2d');
+  if (context === null) return null;
+  context.translate(turned.width / 2, turned.height / 2);
+  context.rotate((quarterTurns * Math.PI) / 2);
+  context.drawImage(source, -source.width / 2, -source.height / 2);
+  return turned;
 }
 
 /* -------------------------------------------------------------------------- */

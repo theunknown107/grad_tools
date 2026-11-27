@@ -63,7 +63,7 @@ function serve() {
         res.writeHead(404).end('not found');
       }
     });
-    server.listen(PORT, () => ok(server));
+    server.listen(PORT, '127.0.0.1', () => ok(server));
   });
 }
 
@@ -84,7 +84,7 @@ const run = async () => {
   };
 
   const openImport = async (page) => {
-    await page.goto(`http://localhost:${PORT}/results`);
+    await page.goto(`http://127.0.0.1:${PORT}/results`);
     await page.waitForTimeout(500);
     const opener = page.getByRole('button', { name: /add academic document/i });
     if (await opener.count()) await opener.first().click();
@@ -206,7 +206,7 @@ const run = async () => {
   );
 
   /* ---- the saved record is an ordinary result ------------------------ */
-  await page.goto(`http://localhost:${PORT}/results`);
+  await page.goto(`http://127.0.0.1:${PORT}/results`);
   await page.waitForTimeout(600);
   await page.getByRole('tab', { name: /semesters/i }).click();
   await page.waitForTimeout(400);
@@ -233,7 +233,7 @@ const run = async () => {
     ['/', 'dashboard'],
     ['/semesters', 'degree'],
   ]) {
-    await page.goto(`http://localhost:${PORT}${path}`);
+    await page.goto(`http://127.0.0.1:${PORT}${path}`);
     await page.waitForTimeout(600);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

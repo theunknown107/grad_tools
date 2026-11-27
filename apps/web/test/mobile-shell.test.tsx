@@ -106,6 +106,17 @@ describe('the top of the app', () => {
   });
 });
 
+describe('the bottom bar labels', () => {
+  it('abbreviates Attendance on screen but names it in full', () => {
+    shell();
+    const bar = bottomBar();
+    const attendance = within(bar).getByRole('link', { name: 'Attendance' });
+    expect(attendance.textContent).toBe('Attend.');
+    /* Unabbreviated tabs keep their visible text as their name. */
+    expect(within(bar).getByRole('link', { name: 'Home' })).toBeTruthy();
+  });
+});
+
 describe('the bottom bar and the keyboard', () => {
   it('steps aside while a keyboard is up, and comes back when it goes', () => {
     renderWith(
@@ -250,6 +261,17 @@ describe('More', () => {
     const current = within(sheet).getByRole('link', { name: /^timetable$/i });
     expect(current.getAttribute('aria-current')).toBe('page');
     expect(current.className).toContain('bg-accent-weak');
+  });
+
+  it('offers appearance as one choice of three (a radio group)', () => {
+    shell();
+    fireEvent.click(screen.getByRole('button', { name: /^more/i }));
+    const group = screen.getByRole('radiogroup', { name: 'Appearance' });
+    expect(within(group).getAllByRole('radio')).toHaveLength(3);
+    fireEvent.click(within(group).getByRole('radio', { name: 'Dark' }));
+    expect(within(group).getByRole('radio', { name: 'Dark' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
   });
 });
 

@@ -2,14 +2,16 @@
  * Terms & Conditions acceptance (TERMS-AND-ONBOARDING, Slice 2).
  *
  * Renders `CURRENT_TERMS` and gates continuation behind an explicit,
- * initially-unchecked consent box. On accept it POSTs the exact version it
- * displayed, then RE-READS `/me` to confirm the server recorded it, and only
+ * initially-unchecked consent box. It is the first screen on a new device
+ * (`OnboardingGate`). Signed out, acceptance is recorded on the device and the
+ * student moves on to Sign in / Sign up. Signed in, it POSTs the exact version
+ * it displayed, then RE-READS `/me` to confirm the server recorded it, and only
  * then moves on. If the POST or the verification fails, it says so and stays
  * put — it never claims an acceptance it could not confirm.
  */
 
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { CURRENT_TERMS, TERMS_ROUTES } from '@gradtools/shared-types';
 import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
 import { Button } from '../../components/ui/button.js';
@@ -18,6 +20,7 @@ import { Callout } from '../../components/ui/feedback.js';
 import { Checkbox } from '../../components/ui/field.js';
 import { PageSkeleton } from '../../components/ui/skeleton.js';
 import { authorizedFetch } from '../../lib/api.js';
+import { firstRunStep, markTermsAccepted } from '../../lib/first-run.js';
 import { useAuth } from '../auth/AuthContext.js';
 
 export function TermsPage() {
@@ -27,14 +30,17 @@ export function TermsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Acceptance requires a session. Without a provider there is nothing to
-  // record against; while the session is still restoring we wait rather than
-  // bounce; without a signed-in user, sign in first.
-  if (adapter === null) return <Navigate to="/" replace />;
+  // While the session is still restoring we wait rather than guess.
   if (state.status === 'restoring') return <PageSkeleton label="Loading" />;
-  if (state.status !== 'signed_in') return <Navigate to="/sign-in" replace />;
+  const signedIn = adapter !== null && state.status === 'signed_in';
 
   const accept = async (): Promise<void> => {
+    // Signed out (a new device): record it here and continue to Sign in.
+    if (adapter === null || !signedIn) {
+      markTermsAccepted();
+      navigate(firstRunStep() === 'sign-in' ? '/sign-in' : '/', { replace: true });
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -61,6 +67,7 @@ export function TermsPage() {
         setError('We couldn’t confirm your acceptance. Please try again.');
         return;
       }
+      markTermsAccepted();
       navigate('/onboarding', { replace: true });
     } catch {
       setError('We couldn’t reach the server. Please try again.');
@@ -84,7 +91,7 @@ export function TermsPage() {
         <div
           tabIndex={0}
           aria-label="Terms and Conditions"
-          className="scroll-quiet mt-6 max-h-[48vh] overflow-y-auto rounded-xl border border-line bg-raised p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+          className="scroll-quiet mt-6 max-h-[48vh] overflow-y-auto rounded-xl border border-line gt-surface p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
         >
           {CURRENT_TERMS.sections.map((section) => (
             <section key={section.n} className="mb-5 last:mb-0">
@@ -129,14 +136,16 @@ export function TermsPage() {
           >
             {busy ? 'Recording…' : 'Accept & Continue'}
           </Button>
-          <Button
-            variant="ghost"
-            className="w-full sm:w-auto"
-            disabled={busy}
-            onClick={() => void signOut()}
-          >
-            Sign out
-          </Button>
+          {signedIn && (
+            <Button
+              variant="ghost"
+              className="w-full sm:w-auto"
+              disabled={busy}
+              onClick={() => void signOut()}
+            >
+              Sign out
+            </Button>
+          )}
         </div>
       </Card>
     </div>

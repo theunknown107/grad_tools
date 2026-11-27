@@ -89,8 +89,13 @@ describeDb('terms & conditions acceptance', () => {
     expect(res.body.version).toBe(VERSION);
     expect(new Date(res.body.acceptedAt).toString()).not.toBe('Invalid Date');
 
+    // Scoped to the two users this file owns: other suites (e.g. authorization)
+    // legitimately hold acceptances for their own users, and under --maxWorkers
+    // run in parallel against this same database — an unqualified SELECT here
+    // would see their rows and fail. The claim is still exact: A has one row at
+    // the current version, B has none.
     const rows = await admin<{ auth_user_id: string; version: string }[]>`
-      SELECT auth_user_id, version FROM terms_acceptances`;
+      SELECT auth_user_id, version FROM terms_acceptances WHERE auth_user_id IN (${A}, ${B})`;
     expect(rows).toEqual([{ auth_user_id: A, version: VERSION }]);
   });
 

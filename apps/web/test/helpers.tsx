@@ -15,6 +15,8 @@ import type { ReactElement } from 'react';
 import type {
   AttendanceRecord,
   BacklogRecord,
+  CourseAttempt,
+  GradeCardSemester,
   DayOverride,
   LedgerEntry,
   RemoteSnapshot,
@@ -31,6 +33,7 @@ import type { SavedExamTimetable, StoredExamEvent } from '../src/domain/exam-imp
 import type { NotificationPreferences, NotificationRecord } from '../src/domain/notifications.js';
 import type { RepositoryBundle } from '../src/repositories/types.js';
 import { RepositoryProvider } from '../src/repositories/context.js';
+import { asStudentProfileId } from '../src/domain/identity.js';
 import { TooltipProvider } from '../src/components/ui/tooltip.js';
 import { Toaster } from '../src/components/ui/feedback.js';
 import { ThemeProvider } from '../src/hooks/useTheme.js';
@@ -50,6 +53,8 @@ export interface MemorySeed {
   schemeCourses?: SchemeCourse[];
   examTimetables?: SavedExamTimetable[];
   examEvents?: StoredExamEvent[];
+  gradeCards?: GradeCardSemester[];
+  courseAttempts?: CourseAttempt[];
   timetableImports?: SavedTimetable[];
   notificationState?: NotificationRecord[];
   notificationPreferences?: NotificationPreferences | null;
@@ -88,6 +93,8 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
   const timetableImports = listRepo<SavedTimetable>(seed.timetableImports ?? []);
   const examTimetables = listRepo<SavedExamTimetable>(seed.examTimetables ?? []);
   const examEvents = listRepo<StoredExamEvent>(seed.examEvents ?? []);
+  const gradeCards = listRepo<GradeCardSemester>(seed.gradeCards ?? []);
+  const courseAttempts = listRepo<CourseAttempt>(seed.courseAttempts ?? []);
   let notificationState: NotificationRecord[] = [...(seed.notificationState ?? [])];
   let notificationPreferences: NotificationPreferences | null =
     seed.notificationPreferences ?? null;
@@ -118,6 +125,8 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
     schemeCourses,
     examTimetables,
     examEvents,
+    gradeCards,
+    courseAttempts,
     notifications: {
       async listStates() {
         return notificationState;
@@ -152,6 +161,8 @@ export function createMemoryRepositories(seed: MemorySeed = {}) {
       schemeCourses: schemeCourses.peek,
       examTimetables: examTimetables.peek,
       examEvents: examEvents.peek,
+      gradeCards: gradeCards.peek,
+      courseAttempts: courseAttempts.peek,
       notificationState: () => notificationState,
       notificationPreferences: () => notificationPreferences,
     },
@@ -190,4 +201,25 @@ export async function choose(label: RegExp | string, option: RegExp | string): P
   const user = userEvent.setup();
   await user.click(screen.getByRole('combobox', { name: label }));
   await user.click(await screen.findByRole('option', { name: option }));
+}
+
+/**
+ * A saved profile with no academic data — an "empty account", NOT a brand-new
+ * user. Seed it where a test needs the full dashboard (standing, Today) to
+ * render its honest empty states, rather than the stripped first-run.
+ */
+export function emptyProfile(): StudentProfile {
+  return {
+    id: asStudentProfileId('99999999-9999-4999-8999-999999999999'),
+    authUserId: null,
+    displayName: null,
+    usn: null,
+    collegeName: null,
+    schemeId: 'vtu-2022',
+    programme: null,
+    branch: null,
+    currentSemester: null,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  };
 }

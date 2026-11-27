@@ -10,17 +10,16 @@
 import { FileText, UploadCloud } from 'lucide-react';
 import { useRef, useState, type DragEvent } from 'react';
 import { cn } from '../../lib/cn.js';
-import { fileKind } from '../../lib/result-file.js';
+import { INVALID_FORMAT_MESSAGE, fileKind } from '../../lib/result-file.js';
 import { Button } from '../ui/button.js';
 import { Callout } from '../ui/feedback.js';
 
+/** Images, PDF, Word and Excel only (the allow-list in `lib/result-file`). */
 const ACCEPTED = [
-  'application/pdf',
-  'image/jpeg,image/png,image/webp',
-  'text/html,.html,.htm',
-  '.docx,.xlsx,.pptx',
-  '.odt,.ods,.odp,.odg',
-  '.rtf,.csv,.tsv,.md,.markdown,.txt',
+  'application/pdf,.pdf',
+  'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp',
+  '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ].join(',');
 
 export function FileDropzone({
@@ -43,11 +42,12 @@ export function FileDropzone({
   const inert = disabled || busy;
 
   /*
-   * Refused here only when the file DECLARES a type we do not read. A file with
-   * no type at all — Android pickers hand over photos named by a UUID — goes
-   * on, and its own first bytes decide (`sniffKind`).
+   * Refused here when the file declares a type, or carries an extension, that
+   * is not on the allow-list. A file with neither (Android pickers hand over
+   * photos named by a UUID) goes on, and its own first bytes decide (`sniffKind`).
    */
-  const refused = (file: File): boolean => file.type !== '' && fileKind(file) === 'unsupported';
+  const refused = (file: File): boolean =>
+    fileKind(file) === 'unsupported' && (file.type !== '' || /\.[a-z0-9]+$/i.test(file.name));
   const accept = (files: readonly File[]): void => {
     const good = files.filter((file) => !refused(file));
     setRejected(files.filter(refused).map((file) => file.name));
@@ -112,8 +112,8 @@ export function FileDropzone({
             Browse files
           </Button>
         </div>
-        <p className="mt-3 font-mono text-[11px] tracking-[0.08em] text-ink-3">
-          PDF · DOCX · XLSX · PPTX · ODT · ODS · ODP · JPEG · PNG · WebP · HTML · CSV · MD · TXT
+        <p className="mt-3 font-mono text-[12px] text-ink-3">
+          PDF · DOCX · XLSX · JPEG · PNG · WebP
         </p>
         <input
           ref={inputRef}
@@ -135,18 +135,17 @@ export function FileDropzone({
         <Callout
           tone="warning"
           role="status"
-          title="Not added."
+          title="Invalid format."
           action={
             <Button size="sm" variant="ghost" onClick={() => setRejected([])}>
               Dismiss
             </Button>
           }
         >
-          GradTools reads PDFs, photos (JPG, PNG, WebP), Office and OpenDocument files (DOCX, XLSX,
-          PPTX, ODT, ODS, ODP), and result exports saved as HTML, CSV, Markdown or plain text.{' '}
+          {INVALID_FORMAT_MESSAGE.replace('Invalid format. ', '')}{' '}
           {rejected.length === 1
-            ? `${rejected[0] ?? ''} is none of these.`
-            : `${rejected.join(', ')} are none of these.`}
+            ? `${rejected[0] ?? ''} was not added.`
+            : `${rejected.join(', ')} were not added.`}
         </Callout>
       )}
     </div>

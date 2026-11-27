@@ -106,8 +106,8 @@ const stats = (input: {
 const GOOD = [
   course('BCS401', 4, { internal: 46, external: 34 }),
   course('BCS402', 4, { internal: 40, external: 34 }),
-  course('BCS403', 3, { internal: 34, external: 30 }),
-  course('BCS404', 1, { internal: 47, external: 46 }),
+  course('BCS403', 3, { internal: 36, external: 30 }),
+  course('BCS404', 1, { internal: 47, external: 44 }),
 ];
 
 /* -------------------------------------------------------------------------- */

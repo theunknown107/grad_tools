@@ -8,6 +8,8 @@
 import type {
   AttendanceRecord,
   BacklogRecord,
+  CourseAttempt,
+  GradeCardSemester,
   DayOverride,
   LedgerEntry,
   RemoteSnapshot,
@@ -248,6 +250,9 @@ export function createLocalRepositories(scope: AccountScope): RepositoryBundle {
      */
     examTimetables: createListRepository<SavedExamTimetable>(scope, 'examTimetables'),
     examEvents: createListRepository<StoredExamEvent>(scope, 'examEvents'),
+    /* Student-entered; device-local, in the backup, not synced (docs/53). */
+    gradeCards: createListRepository<GradeCardSemester>(scope, 'gradeCards'),
+    courseAttempts: createListRepository<CourseAttempt>(scope, 'courseAttempts'),
     notifications,
   };
 }

@@ -51,6 +51,8 @@ function announcement(overrides: Partial<Announcement> = {}): Announcement {
       collegeId: null,
       collegeName: null,
       semester: null,
+      /* The default fixture is a notice stated to be for every student. */
+      scope: 'global',
     },
     firstSeenAt: '2026-09-08T00:00:00Z',
     lastSeenAt: '2026-09-08T00:00:00Z',

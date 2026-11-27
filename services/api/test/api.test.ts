@@ -1062,6 +1062,14 @@ describe('log redaction', () => {
       },
     });
 
+    /*
+     * SYNTHETIC, NON-SECRET FIXTURES. These values are not credentials — they
+     * are decoys fed to the logger so the test can PROVE the logger redacts
+     * sensitive fields: every one is asserted ABSENT from the output below. The
+     * literals must stay for the assertion to mean anything (removing them would
+     * gut a security test). Any scanner flag on `token`/`password` here is a
+     * false positive on a redaction test.
+     */
     createLogger('info', false, capture).info(
       {
         usn: '1XX22CS001',

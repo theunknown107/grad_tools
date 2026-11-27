@@ -206,7 +206,7 @@ describe('hostile and malformed input', () => {
 
   it('carries hostile text through as text, and never as markup', async () => {
     /*
-     * Extracted text is untrusted (§34). React escapes it on render; this test
+     * Extracted text is untrusted (§36). React escapes it on render; this test
      * pins that the PARSER does not treat it specially either — the script tag
      * is simply not a subject row, and the good row beside it still reads.
      */

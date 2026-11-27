@@ -45,6 +45,8 @@ function announcement(overrides: Partial<Announcement> = {}): Announcement {
       collegeId: null,
       collegeName: null,
       semester: null,
+      /* The default fixture is a notice stated to be for every student. */
+      scope: 'global',
     },
     firstSeenAt: '2026-09-08T00:00:00Z',
     lastSeenAt: '2026-09-08T00:00:00Z',
@@ -201,14 +203,17 @@ describe('the announcements page', () => {
   });
 
   /* An unreachable feed is not an empty feed. */
-  it('reports a server it cannot reach rather than showing nothing', async () => {
+  it('shows the labelled vtu.ac.in snapshot when the server cannot be reached, never nothing', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.reject(new Error('network'))),
     );
     renderWith(<AnnouncementsPage />);
 
-    expect(await screen.findByText(/Could not reach the GradTools server/)).toBeTruthy();
+    expect(await screen.findByText(/Latest notices from vtu\.ac\.in, captured/)).toBeTruthy();
+    expect(
+      screen.getByText(/Provisional Results of VTU Eligibility Test for Research/),
+    ).toBeTruthy();
   });
 });
 
@@ -229,6 +234,41 @@ describe('relevance on screen', () => {
       collegeName: null,
       semester: null,
     },
+  });
+
+  it('counts only established notices as "for you"; unknown ones stay under All', async () => {
+    mockFeed([
+      announcement({
+        id: 'unclassified',
+        title: 'Unclassified notice',
+        audience: {
+          schemeId: null,
+          branchId: null,
+          branchName: null,
+          collegeId: null,
+          collegeName: null,
+          semester: null,
+        },
+      }),
+      announcement({
+        id: 'mine',
+        title: 'CSE semester 5 notice',
+        audience: {
+          schemeId: null,
+          branchId: null,
+          branchName: 'Computer Science and Engineering',
+          collegeId: null,
+          collegeName: null,
+          semester: 5,
+        },
+      }),
+    ]);
+    const { bundle } = createMemoryRepositories({ profile: profile() });
+    renderWith(<AnnouncementsPage />, { repositories: bundle });
+
+    expect(await screen.findByText('Unclassified notice')).toBeTruthy();
+    expect(screen.getByText('1 for you')).toBeTruthy();
+    expect(screen.getAllByText('● For you')).toHaveLength(1);
   });
 
   /* Shown, but marked. A feed that hides things cannot be trusted (M7 §14). */
@@ -313,7 +353,9 @@ describe('relevance on screen', () => {
 describe('what changed, on the dashboard', () => {
   it('shows a compact list with a way to see everything', async () => {
     mockFeed([announcement(), announcement({ id: 'a2', title: 'Second notice' })]);
-    renderWith(<DashboardPage />);
+    renderWith(<DashboardPage />, {
+      repositories: createMemoryRepositories({ profile: profile() }).bundle,
+    });
 
     const title = await screen.findByText('Semester 4 results announced');
     // The category is shown by its label, never the stored key.
@@ -323,7 +365,9 @@ describe('what changed, on the dashboard', () => {
 
   it('says there is nothing new rather than showing an empty box', async () => {
     mockFeed([]);
-    renderWith(<DashboardPage />);
+    renderWith(<DashboardPage />, {
+      repositories: createMemoryRepositories({ profile: profile() }).bundle,
+    });
     expect(await screen.findByText('Nothing new')).toBeTruthy();
   });
 });

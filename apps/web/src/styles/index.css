@@ -121,18 +121,13 @@
   color-scheme: dark;
 }
 
-/* ============================================================ Brand mark.
-   One monochrome symbol (src/brand/gradtools-mark.svg); only its tile takes
-   the theme. The neutral accent keeps the default black mark on white (white
-   on near-black in dark). Every colour accent puts its own contrast ink on its
-   own fill, so a new accent needs nothing here. */
+/* ============================================================ Brand tile.
+   Legacy tokens for the old vector mark's tile. The logo is now the supplied
+   raster (src/brand/gradtools-logo.png), shown as-is on its own white ground
+   by GradToolsLogo; these remain only for any surface still reading them. */
 :root {
   --brand-surface: var(--raised);
   --brand-mark: var(--text-primary);
-}
-[data-accent]:not([data-accent='mono']) {
-  --brand-surface: var(--accent);
-  --brand-mark: var(--accent-contrast);
 }
 
 /* ============================================================ Accent themes.
@@ -329,7 +324,7 @@
   --ring: #94a3b8;
 }
 
-/* Original August 2026 palettes (177a23e, docs/51_THEMES.md). Only the accents of
+/* Original August 2026 palettes (177a23e, docs/54_THEMES.md). Only the accents of
    the first theme system are restored, from its hue stops: light uses the fill
    (white text on it, `--a-fill`) and the light-ground text stop
    (`--a-on-light`); dark uses the dark-ground stop (`--a-on-dark`), which is
@@ -607,8 +602,15 @@ html.dark[data-accent='crimson-tinted'] {
   --font-display: 'Space Grotesk', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  /* The interface's three small sizes, named. Font size only: like the
+     text-[12px] literals they replace, they leave line-height to the context.
+     12px is the floor (interface-signs.test.ts). */
+  --text-caption: 12px;
+  --text-label: 13px;
+  --text-title: 15px;
+
+  --radius-lg: 10px;
+  --radius-xl: 14px;
 
   --shadow-e1: var(--shadow-sm);
   --shadow-e2: var(--shadow-md);
@@ -722,11 +724,18 @@ html.dark[data-accent='crimson-tinted'] {
 }
 
 /* ------------------------------------------------------- Launch splash.
-     ~800ms, on the same mono ground as Android's own splash: the mark scales
-     and fades in (0-360ms), the name follows (300-520ms), the whole thing
-     fades into the app (620-800ms) and then removes itself. The global
-     reduced-motion rule would collapse these durations; the component also
-     never renders under reduced motion. */
+     ~900ms, black on white — the same ground and mark as Android's own
+     splash (values/ic_launcher_background.xml and the generated foreground),
+     so the hand-off shows no colour change. The cap's outline draws itself
+     (0-480ms), the name follows (360-580ms), the whole thing fades into the
+     app (720-900ms) and then removes itself. An overlay only: it never waits
+     on Clerk, the network or a route. Not rendered under reduced motion. */
+/* Between the native splash and the overlay's first paint (index.html adds
+   it on Android, LaunchSplash removes it): white, never the dark canvas. */
+html.gt-booting,
+html.gt-booting body {
+  background: #ffffff;
+}
 .gt-splash {
   position: fixed;
   inset: 0;
@@ -735,29 +744,31 @@ html.dark[data-accent='crimson-tinted'] {
   place-content: center;
   justify-items: center;
   gap: 14px;
-  background: #070708;
-  color: #ffffff;
-  animation: gt-splash-out 180ms ease-in 620ms forwards;
+  background: #ffffff;
+  color: #000000;
+  animation: gt-splash-out 180ms ease-in 720ms forwards;
 }
 .gt-splash-mark {
   width: 96px;
   height: 96px;
-  animation: gt-splash-mark 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* The mark is a raster now: it fades and settles rather than drawing. */
+  animation: gt-splash-mark 360ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
-.gt-splash-mark > svg {
+.gt-splash-mark > img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 .gt-splash-name {
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  animation: gt-splash-name 220ms ease-out 300ms both;
+  animation: gt-splash-name 220ms ease-out 360ms both;
 }
 @keyframes gt-splash-mark {
   from {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.96);
   }
   to {
     opacity: 1;
@@ -834,11 +845,7 @@ html.dark[data-accent='crimson-tinted'] {
      backdrop-filter disabled: background and border carry it. */
 .gt-glass {
   background-color: var(--raised);
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.28));
   border: 1px solid var(--border);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    var(--shadow-sm);
   -webkit-backdrop-filter: blur(6px) saturate(1.1);
   backdrop-filter: blur(6px) saturate(1.1);
 }
@@ -846,68 +853,62 @@ html.dark[data-accent='crimson-tinted'] {
   background-color: var(--panel);
   border-color: var(--border-strong);
 }
-.gt-glass:active {
-  box-shadow: inset 0 1px 2px rgba(27, 26, 23, 0.12);
-}
 .dark .gt-glass {
   background-color: rgba(255, 255, 255, 0.025);
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015));
   border-color: rgba(255, 255, 255, 0.09);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.55),
-    var(--shadow-sm);
 }
 .dark .gt-glass:hover {
   background-color: rgba(255, 255, 255, 0.055);
   border-color: rgba(255, 255, 255, 0.15);
 }
-.dark .gt-glass:active {
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
-}
 
 .gt-glass-primary {
   color: var(--accent-contrast);
   background-color: var(--accent);
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent) 88%, white),
-    var(--accent)
-  );
-  border: 1px solid color-mix(in srgb, var(--accent) 65%, black);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    var(--shadow-sm);
+  border: 1px solid var(--accent);
 }
 .gt-glass-primary:hover {
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent) 96%, white),
-    var(--accent)
-  );
+  filter: brightness(1.1);
 }
 .gt-glass-primary:active {
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  filter: brightness(0.95);
 }
-.dark .gt-glass-primary {
-  color: var(--accent-ink);
-  background-color: color-mix(in srgb, var(--accent) 18%, transparent);
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent) 30%, transparent),
-    color-mix(in srgb, var(--accent) 14%, transparent)
-  );
-  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.5),
-    var(--shadow-sm);
-  -webkit-backdrop-filter: blur(6px) saturate(1.2);
-  backdrop-filter: blur(6px) saturate(1.2);
+
+/* ------------------------------------------------------- Glass OFF.
+     Reduced transparency (data-transparency="reduced") and reduced motion
+     render the glass surfaces solid: no backdrop-filter, no
+     translucency. Plain selectors, so the default (glass) is untouched, and the
+     tokens are theme- and accent-aware so the solid result stays legible. */
+:root[data-transparency='reduced'] .gt-glass,
+:root[data-motion='reduced'] .gt-glass {
+  background-image: none;
+  background-color: var(--raised);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
-.dark .gt-glass-primary:hover {
-  background-color: color-mix(in srgb, var(--accent) 26%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+:root[data-transparency='reduced'] .gt-glass-primary,
+:root[data-motion='reduced'] .gt-glass-primary {
+  background-image: none;
+  background-color: var(--accent);
+  color: var(--accent-contrast);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Reduced transparency (OS): the glass buttons go solid too (final QA). */
+@media (prefers-reduced-transparency: reduce) {
+  :root .gt-glass {
+    background-image: none;
+    background-color: var(--raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  :root .gt-glass-primary {
+    background-image: none;
+    background-color: var(--accent);
+    color: var(--accent-contrast);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 /* ------------------------------------------------------- Floating glass.
@@ -1265,5 +1266,438 @@ html.dark[data-accent='crimson-tinted'] .gt-shell {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * THE PRINTABLE ACADEMIC SUMMARY (docs/53).
+ *
+ * The page stands outside the app shell, so there is no chrome to hide but
+ * its own toolbar (`print:hidden`). Print is black on white whatever the
+ * theme, header rows repeat on every page, a course row never splits across
+ * a page, and text wraps instead of being clipped.
+ */
+.statement-table th,
+.statement-table td {
+  border: 1px solid var(--color-line);
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.statement-table th {
+  font-weight: 600;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  .statement-page {
+    max-width: none;
+    padding: 0;
+  }
+  .statement-page,
+  .statement-page * {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .statement-doc {
+    border: 0 !important;
+  }
+  .statement-table th,
+  .statement-table td,
+  .statement-disclaimer {
+    border-color: #777 !important;
+  }
+  .statement-table thead {
+    display: table-header-group;
+  }
+  .statement-table tr {
+    break-inside: avoid;
+  }
+  .statement-semester h2,
+  .statement-cumulative h2,
+  .statement-backlogs h2 {
+    break-after: avoid;
+  }
+}
+
+/*
+ * LIQUID GLASS 2.0 — the environment and its materials, declared once.
+ *
+ * 1. THE ENVIRONMENT. The page sits on a ground gradient and two fixed
+ *    pseudo-element layers of large elliptical colour fields (four fields in
+ *    all) that drift, turn and breathe against each other on different periods
+ *    (24 s and 30 s), so the fields cross and merge like liquid. Each theme has its
+ *    own palette; mono is black and white (white and silver light, graphite
+ *    dark), and any other accent derives the fields from the accent's hue.
+ *
+ *    COST CONTROL. Movement is `transform` only, on two composited layers, so
+ *    it runs on the compositor with no script and no React work. It is
+ *    continuous (eased, every frame); the Android app holds its window at the
+ *    display's 60 Hz mode (MainActivity), so that is 60 updates a second, one
+ *    16.67 ms budget for everything. Paused while the app is in the
+ *    background (main.tsx). Measured in
+ *    pitch-readiness/device-experience-fixes/FPS_PERFORMANCE.md.
+ *
+ * 2. THE MATERIALS, by name (layout unaffected):
+ *    .gt-surface  cards and panels: clear (light) / smoked (dark) glass, a top
+ *                 sheen, a light edge and a soft shadow. No backdrop blur: what
+ *                 is behind a card is the soft colour field itself, which blur
+ *                 cannot change, so it would only add per-frame cost.
+ *    .gt-panel    menus, selects, dialogs, sheets, toasts: frosted, blurred.
+ *    .gt-inset    inputs and segmented tracks: recessed glass.
+ *    .gt-control  secondary buttons and round controls: clear glass.
+ *    .gt-primary  primary buttons: accent-tinted glass, light edge.
+ *
+ * 3. SETTINGS. Opaque: every material solid, environment stays. Off: solid and
+ *    no environment. Reduced motion (OS or in-app): the environment holds a
+ *    still frame. Reduced transparency: solid materials. Print: plain.
+ */
+
+/* ------------------------------------------------------------------ Tokens */
+:root {
+  /* Ground and fluid palette (light: clear, luminous, pearl). */
+  --ground-a: #f7f5f2;
+  --ground-b: #eef0f4;
+  --fluid-1: color-mix(in oklab, #f2c4a2 62%, transparent);
+  --fluid-2: color-mix(in oklab, #a8cbef 60%, transparent);
+  --fluid-3: color-mix(in oklab, #d6c2f0 58%, transparent);
+  --fluid-4: color-mix(in oklab, #b4e3d2 58%, transparent);
+
+  /* Text tiers tuned for text that sits over moving light. */
+  --text-muted: #58544d;
+
+  /* Materials. */
+  --glass-surface: rgb(255 255 255 / 0.42);
+  --glass-sheen: rgb(255 255 255 / 0.55);
+  --glass-edge: rgb(255 255 255 / 0.72);
+  --glass-elevated: rgb(255 255 255 / 0.66);
+  --glass-nav: rgb(255 255 255 / 0.34);
+  --glass-inset: rgb(255 255 255 / 0.4);
+  --glass-inset-shadow: inset 0 1px 2px rgb(20 20 40 / 0.08);
+  --glass-control: rgb(255 255 255 / 0.52);
+  --glass-control-hover: rgb(255 255 255 / 0.78);
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 0.9);
+  --glass-shadow: 0 1px 2px rgb(30 30 60 / 0.06), 0 14px 34px -18px rgb(30 30 60 / 0.22);
+  --glass-blur: 22px;
+  --primary-glass: color-mix(in oklab, var(--accent) 88%, transparent);
+  --primary-glass-hover: color-mix(in oklab, var(--accent) 96%, transparent);
+  --primary-edge: color-mix(in oklab, var(--accent), white 30%);
+
+  /* Motion. */
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-hover: 150ms;
+  --dur-surface: 220ms;
+  --dur-dialog: 260ms;
+  --dur-theme: 200ms;
+}
+.dark {
+  /* Dark: deep midnight ground, rich jewel fields, smoked glass. */
+  --ground-a: #0a0c16;
+  --ground-b: #120e1d;
+  --fluid-1: color-mix(in oklab, #4b2a86 52%, transparent);
+  --fluid-2: color-mix(in oklab, #0d5878 52%, transparent);
+  --fluid-3: color-mix(in oklab, #7a2b52 46%, transparent);
+  --fluid-4: color-mix(in oklab, #1b3f86 50%, transparent);
+
+  --text-secondary: #c1beb8;
+  --text-muted: #a8a59f;
+
+  --glass-surface: rgb(14 16 28 / 0.46);
+  --glass-sheen: rgb(255 255 255 / 0.07);
+  --glass-edge: rgb(255 255 255 / 0.13);
+  --glass-elevated: rgb(18 20 34 / 0.72);
+  --glass-nav: rgb(8 10 18 / 0.42);
+  --glass-inset: rgb(0 0 0 / 0.3);
+  --glass-inset-shadow: inset 0 1px 2px rgb(0 0 0 / 0.35);
+  --glass-control: rgb(255 255 255 / 0.08);
+  --glass-control-hover: rgb(255 255 255 / 0.15);
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 0.1);
+  --glass-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 18px 40px -20px rgb(0 0 0 / 0.75);
+  --primary-edge: color-mix(in oklab, var(--accent), white 22%);
+}
+
+/*
+ * Mono is black and white: a neutral ground with white, silver and graphite
+ * fields. Environment palette, not an accent preset: presets (the
+ * `[data-accent]` blocks above) only ever set accent tokens.
+ */
+:root[data-accent='mono'] {
+  --ground-a: #eeeef0;
+  --ground-b: #e3e3e6;
+  --fluid-1: color-mix(in oklab, #ffffff 92%, transparent);
+  --fluid-2: color-mix(in oklab, #c2c2c9 58%, transparent);
+  --fluid-3: color-mix(in oklab, #ffffff 75%, transparent);
+  --fluid-4: color-mix(in oklab, #cdcdd3 52%, transparent);
+}
+:root.dark[data-accent='mono'] {
+  --ground-a: #030304;
+  --ground-b: #08080a;
+  --fluid-1: color-mix(in oklab, #44444b 85%, transparent);
+  --fluid-2: color-mix(in oklab, #1c1c20 70%, transparent);
+  --fluid-3: color-mix(in oklab, #3a3a41 80%, transparent);
+  --fluid-4: color-mix(in oklab, #2a2a30 70%, transparent);
+}
+
+/*
+ * Any other accent re-lights the room in its OWN hue only: four fields at
+ * different lightness and saturation of that one hue, over a neutral light or
+ * dark ground. No second hue ever enters the background.
+ */
+@supports (color: oklch(from red l c h)) {
+  :root:not([data-accent='mono']) {
+    --ground-a: #f7f7f8;
+    --ground-b: #eeeef0;
+    --fluid-1: oklch(from var(--accent) 0.86 0.09 h / 0.6);
+    --fluid-2: oklch(from var(--accent) 0.93 0.04 h / 0.7);
+    --fluid-3: oklch(from var(--accent) 0.8 0.11 h / 0.5);
+    --fluid-4: oklch(from var(--accent) 0.97 0.02 h / 0.8);
+  }
+  :root.dark:not([data-accent='mono']) {
+    --ground-a: #09090b;
+    --ground-b: #0f0f12;
+    --fluid-1: oklch(from var(--accent) 0.36 0.13 h / 0.55);
+    --fluid-2: oklch(from var(--accent) 0.28 0.09 h / 0.6);
+    --fluid-3: oklch(from var(--accent) 0.42 0.12 h / 0.45);
+    --fluid-4: oklch(from var(--accent) 0.22 0.06 h / 0.6);
+  }
+}
+
+/* ------------------------------------------------------------ Environment */
+body {
+  background-color: var(--ground-a);
+  background-image: linear-gradient(160deg, var(--ground-a), var(--ground-b));
+}
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: -25%;
+  z-index: -1;
+  pointer-events: none;
+  will-change: transform;
+}
+body::before {
+  background:
+    radial-gradient(42% 30% at 26% 30%, var(--fluid-1), transparent 70%),
+    radial-gradient(36% 44% at 76% 68%, var(--fluid-2), transparent 70%);
+  /* 24 s, four 6 s segments, eased so every turn is smooth. */
+  animation: gt-flow-a 24s ease-in-out infinite alternate;
+}
+body::after {
+  background:
+    radial-gradient(46% 28% at 70% 24%, var(--fluid-3), transparent 70%),
+    radial-gradient(32% 40% at 28% 80%, var(--fluid-4), transparent 70%);
+  /* 30 s, moving against the first layer so the fields cross and merge. */
+  animation: gt-flow-b 30s ease-in-out infinite alternate;
+}
+@keyframes gt-flow-a {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translate3d(12%, -8%, 0) rotate(18deg) scale(1.15);
+  }
+  50% {
+    transform: translate3d(-6%, 10%, 0) rotate(-12deg) scale(0.9);
+  }
+  75% {
+    transform: translate3d(10%, 6%, 0) rotate(26deg) scale(1.12);
+  }
+  100% {
+    transform: translate3d(-10%, -6%, 0) rotate(-8deg) scale(1.04);
+  }
+}
+@keyframes gt-flow-b {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1.06);
+  }
+  25% {
+    transform: translate3d(-12%, 8%, 0) rotate(-20deg) scale(0.88);
+  }
+  50% {
+    transform: translate3d(8%, -10%, 0) rotate(14deg) scale(1.18);
+  }
+  75% {
+    transform: translate3d(-8%, -4%, 0) rotate(-24deg) scale(0.95);
+  }
+  100% {
+    transform: translate3d(14%, 6%, 0) rotate(10deg) scale(1.1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none;
+  }
+}
+[data-motion='reduced'] body::before,
+[data-motion='reduced'] body::after {
+  animation: none;
+}
+/* A sheet or dialog covers the room: it holds still, so the panel's frosted
+   blur is not recomputed every frame (measured: 47% jank under the More sheet). */
+:root:has([role='dialog'][data-state='open']) body::before,
+:root:has([role='dialog'][data-state='open']) body::after {
+  animation-play-state: paused;
+}
+
+/* ----------------------------------------------------------- Theme switch */
+/* The whole environment cross-fades as one (useTheme wraps the switch in a
+   view transition); nothing else animates while it runs. */
+.gt-theme-swap *,
+.gt-theme-swap *::before,
+.gt-theme-swap *::after {
+  transition: none !important;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 420ms;
+  animation-timing-function: var(--ease-glide);
+}
+
+/* -------------------------------------------------------------- Materials */
+@layer components {
+  .gt-surface {
+    background-color: var(--glass-surface);
+    background-image: linear-gradient(180deg, var(--glass-sheen), transparent 55%);
+    box-shadow: var(--glass-highlight), var(--glass-shadow);
+    transition:
+      background-color var(--dur-theme) var(--ease-glide),
+      border-color var(--dur-surface) var(--ease-glide),
+      box-shadow var(--dur-surface) var(--ease-glide),
+      transform var(--dur-hover) var(--ease-glide);
+  }
+  .gt-panel {
+    background-color: var(--glass-elevated);
+    box-shadow: var(--glass-highlight), var(--shadow-lg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+  }
+  .gt-inset {
+    background-color: var(--glass-inset);
+    box-shadow: var(--glass-inset-shadow);
+  }
+  .gt-control {
+    background-color: var(--glass-control);
+    box-shadow: var(--glass-highlight), var(--shadow-sm);
+    transition:
+      background-color var(--dur-hover) var(--ease-glide),
+      border-color var(--dur-hover) var(--ease-glide),
+      transform var(--dur-hover) var(--ease-glide);
+  }
+  .gt-control:hover:not(:disabled) {
+    background-color: var(--glass-control-hover);
+  }
+  .gt-primary {
+    color: var(--accent-contrast);
+    background-color: var(--primary-glass);
+    border: 1px solid var(--primary-edge);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.28),
+      0 8px 20px -12px rgb(0 0 0 / 0.45);
+    transition:
+      background-color var(--dur-hover) var(--ease-glide),
+      transform var(--dur-hover) var(--ease-glide);
+  }
+  .gt-primary:hover:not(:disabled) {
+    background-color: var(--primary-glass-hover);
+  }
+}
+
+/* Glass edges. Unlayered and class-specific, so they beat the global hairline. */
+.gt-surface,
+.gt-panel,
+.gt-control,
+.gt-inset {
+  border-color: var(--glass-edge);
+}
+
+/* Existing controls brought into the system. */
+.gt-bubble {
+  background-color: var(--glass-control);
+  border-color: var(--glass-edge);
+  box-shadow: var(--glass-highlight);
+}
+.gt-bubble:hover {
+  background-color: var(--glass-control-hover);
+}
+.gt-metric,
+.dark .gt-metric {
+  --metric-surface: var(--glass-surface);
+  --metric-border: var(--glass-edge);
+  background-color: var(--glass-surface);
+  border-color: var(--glass-edge);
+}
+.gt-glass,
+.dark .gt-glass {
+  background-color: var(--glass-control);
+  border-color: var(--glass-edge);
+  box-shadow: var(--glass-highlight);
+}
+.gt-glass:hover,
+.dark .gt-glass:hover {
+  background-color: var(--glass-control-hover);
+}
+.gt-glass-primary {
+  color: var(--accent-contrast);
+  background-color: var(--primary-glass);
+  border: 1px solid var(--primary-edge);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    0 8px 20px -12px rgb(0 0 0 / 0.45);
+}
+
+/* ------------------------------------------------- Reduced transparency */
+:root[data-transparency='reduced'] {
+  --glass-surface: var(--raised);
+  --glass-sheen: transparent;
+  --glass-edge: var(--border);
+  --glass-elevated: var(--raised);
+  --glass-nav: var(--canvas);
+  --glass-inset: var(--panel);
+  --glass-control: var(--raised);
+  --glass-control-hover: var(--panel);
+  --primary-glass: var(--accent);
+  --primary-glass-hover: var(--accent);
+}
+:root[data-transparency='reduced'] :is(.gt-panel, .gt-glass, .gt-glass-primary) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root,
+  :root.dark {
+    --glass-surface: var(--raised);
+    --glass-sheen: transparent;
+    --glass-edge: var(--border);
+    --glass-elevated: var(--raised);
+    --glass-nav: var(--canvas);
+    --glass-inset: var(--panel);
+    --glass-control: var(--raised);
+    --glass-control-hover: var(--panel);
+    --primary-glass: var(--accent);
+    --primary-glass-hover: var(--accent);
+  }
+  .gt-glass-primary {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media print {
+  body::before,
+  body::after {
+    display: none;
+  }
+  body {
+    background-image: none;
   }
 }

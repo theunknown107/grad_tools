@@ -135,7 +135,11 @@ describe('TermsPage', () => {
     expect(screen.queryByText('ONBOARDING')).toBeNull();
   });
 
-  it('sends a signed-out visitor to sign-in rather than recording anything', async () => {
+  it('lets a signed-out visitor on a new device accept on the device, then go on to sign in', async () => {
+    window.localStorage.removeItem('gradtools:v1:terms-accepted');
+    window.localStorage.removeItem('gradtools:v1:first-run-done');
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
     render(
       <MemoryRouter initialEntries={['/terms']}>
         <AuthProvider adapter={fakeAdapter(false)}>
@@ -146,6 +150,12 @@ describe('TermsPage', () => {
         </AuthProvider>
       </MemoryRouter>,
     );
+    await userEvent.click(await screen.findByRole('checkbox'));
+    await userEvent.click(screen.getByRole('button', { name: /accept & continue/i }));
+
     expect(await screen.findByText('SIGN IN')).toBeTruthy();
+    expect(window.localStorage.getItem('gradtools:v1:terms-accepted')).toBe(CURRENT_TERMS.version);
+    // Recorded on the device only: nothing is sent to a server without a session.
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

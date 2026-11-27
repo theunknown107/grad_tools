@@ -70,7 +70,7 @@ function serve() {
       res.writeHead(404).end('not found');
     }
   });
-  return new Promise((ok) => server.listen(PORT, () => ok(server)));
+  return new Promise((ok) => server.listen(PORT, '127.0.0.1', () => ok(server)));
 }
 
 /**
@@ -240,12 +240,12 @@ const run = async () => {
       });
       page.on('pageerror', (e) => errors.push(String(e)));
 
-      await page.goto(`http://localhost:${PORT}/`);
+      await page.goto(`http://127.0.0.1:${PORT}/`);
       await seed(page, data);
 
       for (const [path, name] of ROUTES) {
         const label = `${name}@${vp.name}/${appearance}`;
-        await page.goto(`http://localhost:${PORT}${path}`);
+        await page.goto(`http://127.0.0.1:${PORT}${path}`);
         await page.waitForTimeout(400);
 
         const overflow = await page.evaluate(

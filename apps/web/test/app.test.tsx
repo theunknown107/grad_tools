@@ -24,7 +24,7 @@ import { asStudentProfileId } from '../src/domain/identity.js';
 import type { AttendanceRecord, SemesterResult, StudentProfile } from '../src/domain/types.js';
 import { Route, Routes } from 'react-router-dom';
 import { ResultDetailPage } from '../src/features/results/ResultDetailPage.js';
-import { choose, createMemoryRepositories, renderWith } from './helpers.js';
+import { choose, createMemoryRepositories, emptyProfile, renderWith } from './helpers.js';
 
 const profileId = asStudentProfileId('p1');
 
@@ -98,7 +98,9 @@ beforeEach(() => {
 
 describe('dashboard', () => {
   it('renders an honest empty state with one action per region', async () => {
-    renderWith(<DashboardPage />);
+    renderWith(<DashboardPage />, {
+      repositories: createMemoryRepositories({ profile: emptyProfile() }).bundle,
+    });
     /*
      * No figure is invented and no paragraph explains the empty screen: the
      * CGPA reads Unavailable and the hero offers the one action (M9.3 §19).
@@ -110,8 +112,10 @@ describe('dashboard', () => {
   });
 
   it('shows no fabricated metrics when there is no data', async () => {
-    renderWith(<DashboardPage />);
-    await screen.findAllByText('Unavailable');
+    renderWith(<DashboardPage />, {
+      repositories: createMemoryRepositories({ profile: emptyProfile() }).bundle,
+    });
+    await screen.findByText(/no results are saved yet/i);
     // Invented engagement metrics are prohibited by docs/05 §Anti-patterns.
     expect(screen.queryByText(/streak/i)).toBeNull();
     expect(screen.queryByText(/score/i)).toBeNull();
@@ -140,7 +144,7 @@ describe('dashboard', () => {
      * The CGPA is said ONCE, as the hero's standing figure. The strip below
      * carries the percentage that follows from it rather than repeating it.
      */
-    const hero = await screen.findByRole('region', { name: /^Good (morning|afternoon|evening)/ });
+    const hero = (await screen.findByRole('heading', { level: 1 })).closest('section')!;
     expect(within(hero).getByText('8.75')).toBeTruthy();
     const strip = screen.getByTestId('standing-strip');
     expect(within(strip).queryByText('8.75')).toBeNull();
@@ -150,7 +154,9 @@ describe('dashboard', () => {
   });
 
   it('lays the standing out as one ruled strip of five figures', async () => {
-    renderWith(<DashboardPage />);
+    renderWith(<DashboardPage />, {
+      repositories: createMemoryRepositories({ profile: emptyProfile() }).bundle,
+    });
     const strip = await screen.findByTestId('standing-strip');
     const names = within(strip)
       .getAllByRole('group')
@@ -213,13 +219,17 @@ describe('dashboard', () => {
       })),
     });
     renderWith(<DashboardPage />, { repositories: bundle });
-    const hero = await screen.findByRole('region', { name: /^Good (morning|afternoon|evening)/ });
+    const hero = (await screen.findByRole('heading', { level: 1 })).closest('section')!;
     expect(within(hero).getByText('2 semesters marked complete')).toBeTruthy();
   });
 
   it('keeps the hero one region, with no card nested inside it', async () => {
-    renderWith(<DashboardPage />);
-    const hero = await screen.findByRole('region', { name: /^Good (morning|afternoon|evening)/ });
+    // The standing column shows once there is a result; it is hidden when empty.
+    const { bundle } = createMemoryRepositories({
+      results: [result('r1', 1, null, [{ code: 'A1', credits: 4, grade: 'A' }])],
+    });
+    renderWith(<DashboardPage />, { repositories: bundle });
+    const hero = (await screen.findByRole('heading', { level: 1 })).closest('section')!;
     // The standing figure sits in a ruled column, not a bordered panel.
     expect(hero.querySelector('.bg-panel, .rounded-xl')).toBeNull();
     expect(within(hero).getByText('Semesters graded')).toBeTruthy();
@@ -386,29 +396,46 @@ describe('SGPA calculator', () => {
 });
 
 describe('CGPA calculator', () => {
-  it('computes CGPA, percentage and class from the rules engine', async () => {
-    const user = userEvent.setup();
+  /* Fills one grade-card semester (SGPA + credits registered/earned) and saves it. */
+  async function addGradeCardSemester(
+    semester: string,
+    sgpa: string,
+    credits: string,
+  ): Promise<void> {
+    await choose('Semester', new RegExp(`^Semester ${semester}$`));
+    for (const [label, value] of [
+      ['SGPA on the card', sgpa],
+      ['Credits registered', credits],
+      ['Credits earned', credits],
+    ] as const) {
+      const input = screen.getByLabelText(label);
+      await userEvent.clear(input);
+      await userEvent.type(input, value);
+    }
+    await userEvent.click(screen.getByRole('button', { name: /save semester/i }));
+  }
+
+  it('reconstructs CGPA and percentage from grade-card SGPAs (rules engine)', async () => {
     renderWith(<AcademicsPage />);
     await openCalculatorMode(/^CGPA$/i);
 
-    await user.type(screen.getByLabelText(/total credits, row 1/i), '20');
-    await user.type(screen.getByLabelText(/sgpa, row 1/i), '8.20');
-    await user.click(screen.getByRole('button', { name: /remove semester row 2/i }));
+    // Two semesters at SGPA 8.20, all credits earned: CGPA 8.20 -> 82.0% (22OB 6.7).
+    await addGradeCardSemester('1', '8.20', '20');
+    await addGradeCardSemester('2', '8.20', '20');
 
-    expect(await screen.findByText('8.20')).toBeTruthy();
-    // The regulation's own worked example: CGPA 8.20 -> 82.0% (22OB 6.7).
-    expect(screen.getByText(/Percentage · 82\.0%/)).toBeTruthy();
-    expect(screen.getByText(/first class with distinction/i)).toBeTruthy();
+    // The percentage badge appears only once a CGPA is reconstructed.
+    expect(await screen.findByText(/Percentage · 82\.0%/)).toBeTruthy();
+    // The reconstruction caption names the semesters it covered.
+    expect(screen.getByText(/From the SGPAs you entered for semesters 1, 2/)).toBeTruthy();
     // The obsolete (CGPA - 0.75) x 10 conversion would be 74.5%.
     expect(screen.queryByText('74.5%')).toBeNull();
   });
 
   it('explains why its percentage differs from other calculators', async () => {
-    const user = userEvent.setup();
     renderWith(<AcademicsPage />);
     await openCalculatorMode(/^CGPA$/i);
-    await user.type(screen.getByLabelText(/total credits, row 1/i), '20');
-    await user.type(screen.getByLabelText(/sgpa, row 1/i), '8.20');
+    await addGradeCardSemester('1', '8.20', '20');
+    await addGradeCardSemester('2', '8.20', '20');
     expect(await screen.findByText(/7.5 percentage points lower/i)).toBeTruthy();
   });
 });
@@ -499,7 +526,7 @@ describe('attendance', () => {
 
     await openPlanner();
     // 45/50 at an 85% requirement allows exactly 2 more (docs/16 §16.9).
-    expect(await screen.findByText(/can miss 2 more classes/i)).toBeTruthy();
+    expect(await screen.findByText(/margin of 2 classes/i)).toBeTruthy();
     expect(screen.getAllByText(/45 of 50 classes/).length).toBeGreaterThan(0);
   });
 
@@ -510,8 +537,29 @@ describe('attendance', () => {
     renderWith(<AttendancePage />, { repositories: bundle });
     await openCourses();
 
-    expect((await screen.findAllByText(/dx risk/i)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/below 75% \(dx\)/i)).length).toBeGreaterThan(0);
     expect(screen.getByText(/discretionary, not\s+automatic/i)).toBeTruthy();
+  });
+
+  it('agrees with the dashboard: an 80% course is below 85% on both', async () => {
+    const { bundle } = createMemoryRepositories({
+      attendance: [attendance('a1', 'BCS301', 40, 50)], // 80%
+    });
+    renderWith(<DashboardPage />, { repositories: bundle });
+    expect(await screen.findByText('1 below 85%')).toBeTruthy();
+  });
+
+  it('puts 75–84.99% below the requirement, never as meeting it', async () => {
+    const { bundle } = createMemoryRepositories({
+      attendance: [attendance('a1', 'BCS301', 40, 50)], // 80%
+    });
+    renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
+
+    expect((await screen.findAllByText(/^Below requirement/)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^Meets requirement/)).toBeNull();
+    expect(screen.getByText(/discretionary, not\s+automatic/i)).toBeTruthy();
+    expect(screen.getByText(/VTU requires 85% in each course/)).toBeTruthy();
   });
 
   it('never tells the student they should skip a class', async () => {
@@ -536,7 +584,7 @@ describe('bunk planner', () => {
     await openPlanner();
 
     // 30 of 40 at an 85% requirement: (30 + n) / (40 + n) >= 0.85 first holds at n = 27.
-    const dialog = await screen.findByRole('dialog', { name: /bunk planner/i });
+    const dialog = await screen.findByRole('dialog', { name: /attendance plan/i });
     expect(within(dialog).getByText(/attend the next 27 classes to recover/i)).toBeTruthy();
     expect(within(dialog).getByText('75.0%')).toBeTruthy();
     expect(within(dialog).getByText('85.0%')).toBeTruthy();
@@ -551,7 +599,7 @@ describe('bunk planner', () => {
     await openPlanner();
 
     // The design's footer Close, beside the header's × which carries the same name.
-    const dialog = await screen.findByRole('dialog', { name: /bunk planner/i });
+    const dialog = await screen.findByRole('dialog', { name: /attendance plan/i });
     const closes = within(dialog).getAllByRole('button', { name: /^close$/i });
     await user.click(closes[closes.length - 1] as HTMLElement);
     await waitFor(() => {
@@ -911,5 +959,75 @@ describe('local persistence', () => {
      */
     expect((await screen.findAllByText('BCS404')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('100.0%').length).toBeGreaterThan(0);
+  });
+});
+
+describe('the dashboard title', () => {
+  const imported = (semester: number | null) => ({
+    id: 'tt-1',
+    className: 'V (B)',
+    semester,
+    academicYear: '2026-27',
+    revision: 'R0',
+    effectiveFrom: '2026-09-09',
+    batch: null,
+    fingerprint: 'synthetic',
+    importedAt: '2026-10-01T10:00:00.000Z',
+    slotCount: 29,
+  });
+
+  it('greets the student and badges the semester from the imported timetable', async () => {
+    const profile = { ...emptyProfile(), displayName: 'Asha Rao', currentSemester: null };
+    renderWith(<DashboardPage />, {
+      repositories: createMemoryRepositories({ profile, timetableImports: [imported(5)] }).bundle,
+    });
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: /^Good (morning|afternoon|evening), Asha$/,
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText('Semester 5')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Dashboard' })).toBeNull();
+  });
+
+  it('greets the student without a semester badge when none is known', async () => {
+    const profile = { ...emptyProfile(), displayName: 'Asha Rao', currentSemester: null };
+    renderWith(<DashboardPage />, {
+      repositories: createMemoryRepositories({ profile, timetableImports: [imported(null)] })
+        .bundle,
+    });
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: /^Good (morning|afternoon|evening), Asha$/,
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/^Semester \d$/)).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Dashboard' })).toBeNull();
+  });
+});
+
+describe('the attendance register', () => {
+  it('judges per course: a healthy pooled figure cannot hide a DX course', async () => {
+    const { bundle } = createMemoryRepositories({
+      attendance: [attendance('a1', 'BCS301', 95, 100), attendance('a2', 'BCS302', 7, 10)],
+    });
+    renderWith(<AttendancePage />, { repositories: bundle });
+    expect(
+      await screen.findByRole('heading', { name: '1 course below the DX floor' }),
+    ).toBeTruthy();
+  });
+
+  it('lists the worst course first and says what each needs, in words', async () => {
+    const { bundle } = createMemoryRepositories({
+      attendance: [attendance('a1', 'BCS301', 45, 50), attendance('a2', 'BCS302', 30, 50)],
+    });
+    const { container } = renderWith(<AttendancePage />, { repositories: bundle });
+    await openCourses();
+    await screen.findByText(/^Below 75% \(DX\) · Attend next/);
+    expect(screen.getByText('Margin of 2')).toBeTruthy();
+    const text = container.textContent ?? '';
+    expect(text.indexOf('BCS302')).toBeLessThan(text.indexOf('BCS301'));
   });
 });

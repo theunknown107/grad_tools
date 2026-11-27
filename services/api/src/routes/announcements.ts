@@ -56,10 +56,12 @@ export function createAnnouncementRouter(
   router.get(SOURCE_ROUTES.announcements, async (req: Request, res: Response) => {
     const rawLimit = Number(req.query.limit ?? DEFAULT_LIMIT);
     const rawOffset = Number(req.query.offset ?? 0);
+    /* Whole numbers: Postgres refuses `LIMIT 1.5`, and a client typo is not a 500. */
     const limit = Number.isFinite(rawLimit)
-      ? Math.min(Math.max(1, rawLimit), MAX_LIMIT)
+      ? Math.min(Math.max(1, Math.trunc(rawLimit)), MAX_LIMIT)
       : DEFAULT_LIMIT;
-    const offset = Number.isFinite(rawOffset) ? Math.max(0, rawOffset) : 0;
+    const offset =
+      Number.isSafeInteger(Math.trunc(rawOffset)) && rawOffset > 0 ? Math.trunc(rawOffset) : 0;
 
     /*
      * An unknown category is a client mistake, not an empty feed. Silently

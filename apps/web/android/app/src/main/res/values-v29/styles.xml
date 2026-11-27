@@ -9,6 +9,8 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- White under the WebView, as in values/styles.xml. -->
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
         <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>

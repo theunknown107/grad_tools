@@ -37,6 +37,7 @@
  *
  * Runs from `prebuild` and `predev`, and is idempotent.
  */
+import { Buffer } from 'node:buffer';
 import { createRequire } from 'node:module';
 import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { gunzipSync } from 'node:zlib';
@@ -99,6 +100,20 @@ async function vendorModel(from, to) {
   return { to, bytes: model.length, copied: true };
 }
 
+/**
+ * The worker script, without upstream's trailing `sourceMappingURL` comment.
+ * Its `.map` is not vendored, so the comment would only point at a missing
+ * file, and the Android release build refuses any web asset that references a
+ * source map. The code itself is copied byte for byte.
+ */
+async function vendorScript(from, to) {
+  const text = (await readFile(from, 'utf8')).replace(/\n?\/\/# sourceMappingURL=\S+\s*$/, '\n');
+  const bytes = Buffer.byteLength(text);
+  if ((await sizeOf(to)) === bytes) return { to, bytes, copied: false };
+  await writeFile(to, text);
+  return { to, bytes, copied: true };
+}
+
 const main = async () => {
   await mkdir(OUT, { recursive: true });
 
@@ -116,7 +131,7 @@ const main = async () => {
 
   const jobs = [
     // The worker script the main thread spawns.
-    [join(tesseractDir, 'dist', 'worker.min.js'), join(OUT, 'worker.min.js')],
+    [join(tesseractDir, 'dist', 'worker.min.js'), join(OUT, 'worker.min.js'), vendorScript],
     /*
      * `4.0.0_best_int` rather than `4.0.0`: the integer-quantised LSTM model is
      * 2.8MB against 10.9MB, and the larger file's extra size is the LEGACY

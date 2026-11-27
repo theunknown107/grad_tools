@@ -266,12 +266,12 @@ describe('confidence is reported, never acted on', () => {
      * the evidence that a row is doubtful while leaving the row — a gap in the
      * marks with nothing on screen explaining it.
      */
-    const words = [word('BQAS401', 60, 400, 72), word('4A', 320, 400, 42)];
+    const words = [word('BQAS401', 60, 400, 96), word('4A', 320, 400, 42)];
     const result = ocrPageToLines(words, PAGE_HEIGHT);
 
     expect(result.wordCount).toBe(2);
     expect(result.lowConfidenceWords).toBe(1);
-    expect(result.meanConfidence).toBeCloseTo(57, 5); // (72 + 42) / 2
+    expect(result.meanConfidence).toBeCloseTo(69, 5); // (96 + 42) / 2
     // The doubtful word is still in the line, for a person to check.
     expect(result.lines[0]?.text).toContain('4A');
   });

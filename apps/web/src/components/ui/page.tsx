@@ -4,7 +4,7 @@
  */
 
 import { Slot } from '@radix-ui/react-slot';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, User } from 'lucide-react';
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/cn.js';
@@ -26,9 +26,7 @@ export function PageHeader({
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         {eyebrow !== undefined && eyebrow !== null && eyebrow !== '' && (
-          <div className="mb-2 font-mono text-[11px] tracking-[0.16em] text-ink-3 uppercase">
-            {eyebrow}
-          </div>
+          <div className="mb-2 font-mono text-[12px] text-ink-3">{eyebrow}</div>
         )}
         <h1
           id={titleId}
@@ -60,7 +58,7 @@ export function SectionTitle({
 }) {
   return (
     <div className={cn('mb-3 flex items-center justify-between gap-3', className)}>
-      <h2 id={id} className="text-[13px] font-semibold tracking-[0.08em] text-ink-2 uppercase">
+      <h2 id={id} className="text-[13px] font-semibold text-ink-2">
         {children}
       </h2>
       {action}
@@ -101,7 +99,7 @@ export function RowText({
     <div className={cn('min-w-0 flex-1', className)}>
       <div className="truncate text-[13px] font-medium text-ink">{title}</div>
       {meta !== undefined && meta !== null && meta !== '' && (
-        <div className="truncate font-mono text-[11px] text-ink-3">{meta}</div>
+        <div className="truncate font-mono text-[12px] text-ink-3">{meta}</div>
       )}
     </div>
   );
@@ -156,15 +154,21 @@ export function Avatar({
       )}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
     >
-      {initials}
+      {/* No person yet (signed out, or the session still restoring): a neutral
+          person glyph — never an app monogram standing in for someone. */}
+      {initials === '' ? <User style={{ width: size * 0.5, height: size * 0.5 }} /> : initials}
     </span>
   );
 }
 
-/** Two initials from a display name, or a neutral mark when there is none. */
+/**
+ * Two initials from a display name, or '' when there is none — `Avatar` then
+ * shows a neutral person glyph. Never the app's initials: the avatar is the
+ * person, and the app's identity is the cap mark.
+ */
 export function initialsOf(name: string | null | undefined): string {
   const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'GT';
+  if (parts.length === 0) return '';
   const first = parts[0]?.[0] ?? '';
   const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
   return (first + last).toUpperCase();

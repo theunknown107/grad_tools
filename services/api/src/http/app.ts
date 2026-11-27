@@ -17,7 +17,12 @@ import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 import { isDatabaseReachable, type Sql } from '../db/client.js';
 import { createStudentRouter } from '../routes/me.js';
-import { createApiLimiter } from './rate-limit.js';
+import {
+  createAnonymousReportCeiling,
+  createAnonymousReportLimiter,
+  createApiLimiter,
+  createWriteBudget,
+} from './rate-limit.js';
 import { buildOpenApiDocument, OPENAPI_ROUTE } from './openapi.js';
 import { createDocumentRouter } from '../routes/documents.js';
 import { type DocumentReader } from '../documents/gemini.js';
@@ -44,7 +49,8 @@ import {
   createPublicSupportRouter,
 } from '../routes/support.js';
 import { newIncidentId } from '../support/id.js';
-import { recordEventSafe } from '../support/store.js';
+import { forgetSupportSubject, recordEventSafe } from '../support/store.js';
+import { SUPPORT_ROUTES } from '@gradtools/shared-types';
 import { createErrorHandler, notFoundHandler, type IncidentRecorder } from './errors.js';
 
 /**
@@ -126,14 +132,17 @@ export function createApp(
   app.disable('x-powered-by');
 
   /*
-   * ONE trusted proxy hop. Render terminates TLS at its edge and forwards the
-   * real client IP as the left-most `X-Forwarded-For` entry; `trust proxy, 1`
-   * makes `req.ip` that client address rather than the proxy's. It trusts
-   * exactly one hop, so a client cannot forge its address by prepending its own
-   * `X-Forwarded-For` — the rate limiter (F1) keys on `req.ip`, so this must be
-   * correct or every caller would share one bucket (docs/13, M22).
+   * ONE trusted proxy hop. `trust proxy, 1` makes `req.ip` the RIGHT-most
+   * `X-Forwarded-For` entry, the one the proxy appended, so a client cannot forge
+   * its address by sending the header itself. The rate limiter (F1) keys on
+   * `req.ip`, so this must match the deployment: too few hops lets a client
+   * spoof, too many puts every caller in one bucket (docs/13, M22).
+   *
+   * On Render the right-most entry was measured to be a rotating proxy, so a
+   * deployment sets CLIENT_IP_HEADER once `client-address` shows it arrives.
    */
   app.set('trust proxy', 1);
+  app.set('client ip header', config.CLIENT_IP_HEADER);
 
   /*
    * `<`, `>` and `&` are emitted as \uXXXX escapes in every JSON response.
@@ -213,8 +222,28 @@ export function createApp(
     }),
   );
 
-  // 1 MB body limit (docs/10 §10.9). No endpoint in M5a accepts a body at all,
-  // so this is a floor rather than a working limit.
+  /*
+   * Rate limiting (F1), BEFORE anything reads a body. Scoped to `/api/v1` so
+   * liveness/readiness are NEVER throttled: a limiter that can 429 a health probe
+   * would make the platform kill a healthy container. The document-AI route adds
+   * a second, stricter limiter of its own (routes/documents.ts). In-memory,
+   * per-instance (see rate-limit.ts).
+   */
+  app.use('/api/v1', createApiLimiter());
+  app.post(
+    SUPPORT_ROUTES.anonymousReport,
+    createAnonymousReportLimiter(),
+    createAnonymousReportCeiling(),
+  );
+
+  /*
+   * The small report limit has to run here: body-parser skips a body that has
+   * already been read, so a limit declared on the route after the global parser
+   * below never applies.
+   */
+  app.use(SUPPORT_ROUTES.anonymousReport, express.json({ limit: '16kb' }));
+
+  // 1 MB body limit (docs/10 §10.9).
   app.use(express.json({ limit: '1mb' }));
 
   /*
@@ -244,15 +273,6 @@ export function createApp(
       },
     }),
   );
-
-  /*
-   * Rate limiting (F1). Scoped to `/api/v1` so liveness/readiness below are
-   * NEVER throttled — a limiter that can 429 a health probe would make the
-   * platform kill a healthy container. The document-AI route adds a second,
-   * stricter limiter of its own (routes/documents.ts). In-memory, per-instance
-   * (see rate-limit.ts).
-   */
-  app.use('/api/v1', createApiLimiter());
 
   /*
    * Liveness. Performs NO dependency checks by design: a liveness probe that
@@ -401,11 +421,24 @@ export function createApp(
         );
       }
     }
+    /*
+     * Support data lives in the reference database, outside the cloud's cascade.
+     * FIRST, while the session still works: if this fails the student can retry,
+     * and once the identity is gone they cannot.
+     */
+    const removeAccount = student.deleteAccount;
+    const deleteStudentAccount =
+      removeAccount === undefined
+        ? undefined
+        : async (userId: string): Promise<boolean> => {
+            await forgetSupportSubject(sql, userId);
+            return removeAccount(userId);
+          };
     app.use(
       createStudentRouter({
         cloud: student.sql,
         verify: student.verify,
-        ...(student.deleteAccount === undefined ? {} : { deleteAccount: student.deleteAccount }),
+        ...(deleteStudentAccount === undefined ? {} : { deleteAccount: deleteStudentAccount }),
       }),
     );
 
@@ -454,9 +487,11 @@ export function createApp(
    * failure never changes the response, and the id is generated synchronously
    * so the student always has one to quote.
    */
+  const withinBudget = createWriteBudget();
   const recorder: IncidentRecorder = {
     recordFault(ctx) {
       const incidentId = newIncidentId();
+      if (!withinBudget()) return incidentId;
       void recordEventSafe(
         sql,
         {
@@ -477,6 +512,7 @@ export function createApp(
       return incidentId;
     },
     recordSecurity(ctx) {
+      if (!withinBudget()) return;
       void recordEventSafe(
         sql,
         {

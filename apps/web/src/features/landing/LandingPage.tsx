@@ -15,8 +15,6 @@ import {
   CalendarDays,
   ClipboardList,
   FilePlus2,
-  GraduationCap,
-  Lock,
   Megaphone,
   type LucideIcon,
 } from 'lucide-react';
@@ -28,7 +26,6 @@ import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
 import { Toaster } from '../../components/ui/feedback.js';
 import { GradToolsLogo } from '../../brand/GradToolsLogo.js';
-import { IconTile } from '../../components/ui/page.js';
 import { Progress } from '../../components/ui/progress.js';
 import { TooltipProvider } from '../../components/ui/tooltip.js';
 
@@ -108,7 +105,7 @@ const SEMESTERS = [
 
 export function LandingPage() {
   useEffect(() => {
-    document.title = 'GradTools — your academic life, organized';
+    document.title = 'GradTools — your VTU degree, worked to the clause';
     return () => {
       document.title = 'GradTools';
     };
@@ -116,7 +113,7 @@ export function LandingPage() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-full bg-canvas text-ink">
+      <div className="min-h-full text-ink">
         <a
           href="#welcome-main"
           className="sr-only z-[100] rounded-lg bg-raised px-3 py-2 text-sm font-medium shadow-e2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
@@ -138,8 +135,8 @@ export function LandingPage() {
                 <span className="block text-[15px] font-semibold tracking-[-0.01em]">
                   GradTools
                 </span>
-                <span className="hidden font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase sm:block">
-                  Academic OS
+                <span className="hidden font-mono text-[12px] text-ink-3 sm:block">
+                  VTU 2022 scheme
                 </span>
               </span>
             </Link>
@@ -176,18 +173,18 @@ export function LandingPage() {
             className="grid animate-rise items-center gap-10 lg:grid-cols-[1.15fr_1fr]"
           >
             <div>
-              <Badge tone="accent" icon={<GraduationCap />}>
-                Built for the VTU 2022 scheme
-              </Badge>
+              <p className="font-mono text-[12px] text-ink-3">
+                For students on the VTU 2022 scheme
+              </p>
               <h1
                 id="welcome-title"
-                className="mt-5 font-display text-[40px] leading-[1.02] font-semibold tracking-[-0.03em] sm:text-[56px]"
+                className="mt-4 font-display text-[40px] leading-[1.04] font-medium tracking-[-0.03em] sm:text-[56px]"
               >
-                Your academic life, organized.
+                Your VTU degree, worked to the clause
               </h1>
               <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-ink-2">
-                Track your degree, understand your results and stay ahead of your semester — with
-                every figure showing the regulation it came from.
+                Results, SGPA and CGPA, attendance and your class timetable in one place, with every
+                figure showing the regulation it came from.
               </p>
               <div className="mt-7 flex flex-wrap gap-2">
                 <Button asChild variant="glass-primary" size="lg">
@@ -209,9 +206,7 @@ export function LandingPage() {
               aria-label="Worked example: one course against the three passing heads"
             >
               <div className="flex items-center justify-between gap-3">
-                <div className="font-mono text-[11px] tracking-[0.16em] text-ink-3 uppercase">
-                  Worked example · 22OB 6.3
-                </div>
+                <div className="font-mono text-[12px] text-ink-3">Worked example · 22OB 6.3</div>
                 <Badge tone="success">Pass</Badge>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-3">
@@ -221,7 +216,7 @@ export function LandingPage() {
                   ['Total', '61', '100'],
                 ].map(([label, value, max]) => (
                   <div key={label} className="gt-metric rounded-xl p-3">
-                    <div className="text-[11px] font-medium text-ink-2">{label}</div>
+                    <div className="text-[12px] font-medium text-ink-2">{label}</div>
                     <div className="tnum mt-1 text-2xl font-semibold">
                       {value}
                       <span className="text-sm text-ink-3">/{max}</span>
@@ -236,7 +231,7 @@ export function LandingPage() {
                   ['Total', '61 of 100', 'needs 40'],
                 ].map(([head, got, needs]) => (
                   <li key={head} className="flex items-center gap-3 px-4 py-2.5">
-                    <span className="w-12 font-mono text-[11px] text-ink-3">{head}</span>
+                    <span className="w-12 font-mono text-[12px] text-ink-3">{head}</span>
                     <span className="tnum flex-1 font-medium">{got}</span>
                     <span className="text-[12px] text-ink-3">{needs}</span>
                   </li>
@@ -251,9 +246,7 @@ export function LandingPage() {
 
           <section id="what" aria-labelledby="what-title" className="scroll-mt-24">
             <div className="max-w-2xl">
-              <div className="mb-2 font-mono text-[11px] tracking-[0.16em] text-ink-3 uppercase">
-                What it does
-              </div>
+              <div className="mb-2 font-mono text-[12px] text-ink-3">What it does</div>
               <h2
                 id="what-title"
                 className="font-display text-[28px] leading-tight font-semibold tracking-[-0.02em] sm:text-[34px]"
@@ -265,16 +258,15 @@ export function LandingPage() {
                 it anyway.
               </p>
             </div>
-            <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {/* A ledger, not a card grid: each line a hairline, an icon in one column, the title on one line. */}
+            <ul className="mt-8 grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
               {CAPABILITIES.map((capability) => (
-                <li key={capability.title}>
-                  <Card className="h-full p-5">
-                    <IconTile tone="accent">
-                      <capability.icon />
-                    </IconTile>
-                    <h3 className="mt-4 text-[15px] font-semibold">{capability.title}</h3>
-                    <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{capability.body}</p>
-                  </Card>
+                <li key={capability.title} className="border-t border-line py-5">
+                  <h3 className="flex items-center gap-2 text-[15px] font-medium">
+                    <capability.icon className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+                    {capability.title}
+                  </h3>
+                  <p className="mt-2 text-[13px] leading-relaxed text-ink-2">{capability.body}</p>
                 </li>
               ))}
             </ul>
@@ -286,9 +278,7 @@ export function LandingPage() {
             className="grid scroll-mt-24 items-center gap-8 lg:grid-cols-[1fr_1.2fr]"
           >
             <div>
-              <div className="mb-2 font-mono text-[11px] tracking-[0.16em] text-ink-3 uppercase">
-                Your degree
-              </div>
+              <div className="mb-2 font-mono text-[12px] text-ink-3">Your degree</div>
               <h2
                 id="degree-title"
                 className="font-display text-[28px] leading-tight font-semibold tracking-[-0.02em] sm:text-[34px]"
@@ -335,14 +325,11 @@ export function LandingPage() {
           <section id="privacy" aria-labelledby="privacy-title" className="scroll-mt-24">
             <Card className="flex flex-col items-start gap-6 p-6 sm:p-10 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-xl">
-                <IconTile tone="solid" size="lg">
-                  <Lock />
-                </IconTile>
                 <h2
                   id="privacy-title"
-                  className="mt-4 font-display text-[26px] leading-tight font-semibold tracking-[-0.02em]"
+                  className="font-display text-[26px] leading-tight font-medium tracking-[-0.02em]"
                 >
-                  Start in a minute. Keep it on your device.
+                  Start in a minute, keep it on your device
                 </h2>
                 <p className="mt-2 text-sm text-ink-2">
                   No account, no setup. Add a result and GradTools does the arithmetic — and shows
@@ -382,9 +369,7 @@ export function LandingPage() {
             <nav aria-label="Footer" className="grid grid-cols-2 gap-6 sm:grid-cols-3">
               {FOOTER.map((column) => (
                 <div key={column.title}>
-                  <h2 className="mb-2 font-mono text-[10px] tracking-[0.16em] text-ink-3 uppercase">
-                    {column.title}
-                  </h2>
+                  <h2 className="mb-2 font-mono text-[12px] text-ink-3">{column.title}</h2>
                   <ul className="space-y-1.5">
                     {column.links.map((link) => (
                       <li key={link.to}>

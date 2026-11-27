@@ -64,7 +64,7 @@ import {
 const DIST = resolve('apps/web/dist');
 const OUT = resolve(process.env.OUT ?? '.qa/workflow');
 const PORT = 4322;
-const ORIGIN = `http://localhost:${PORT}`;
+const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 const VIEWPORTS = [
   { name: '320', width: 320, height: 800 },
@@ -99,7 +99,7 @@ function serve() {
         res.writeHead(404).end('not found');
       }
     });
-    server.listen(PORT, () => ok(server));
+    server.listen(PORT, '127.0.0.1', () => ok(server));
   });
 }
 

@@ -66,7 +66,8 @@ const cards = [
   },
 ];
 
-vi.mock('@gradtools/vtu-catalogue', () => ({
+vi.mock('@gradtools/vtu-catalogue', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   vtuResultCatalog: () => ({
     source: {
       name: 'VTU result archive page',

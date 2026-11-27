@@ -52,7 +52,7 @@ function serve() {
       res.writeHead(404).end('not found');
     }
   });
-  return new Promise((ok) => server.listen(PORT, () => ok(server)));
+  return new Promise((ok) => server.listen(PORT, '127.0.0.1', () => ok(server)));
 }
 
 const checks = [];
@@ -90,7 +90,7 @@ async function main() {
           window.localStorage.setItem('gradtools.theme', JSON.stringify({ appearance: mode }));
         }, appearance);
 
-        await page.goto(`http://localhost:${PORT}/profile`, { waitUntil: 'networkidle' });
+        await page.goto(`http://127.0.0.1:${PORT}/profile`, { waitUntil: 'networkidle' });
 
         /*
          * The form opens directly when there is no profile worth summarising,

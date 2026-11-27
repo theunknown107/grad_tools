@@ -95,7 +95,7 @@ The SEE is written for 100 marks and contributes 50 to the course total. Every f
 > so the printed `External` is the SEE's **contribution out of 50**, not the raw
 > script mark out of 100. An external of 34 on the document is a raw SEE of 68.
 >
-> The evidence is unambiguous. One row shows a low external with a result of **P**.
+> The evidence is unambiguous. A row on that card shows an external below 35 with a result of **P**.
 > Read as a raw SEE out of 100 that is below the 35% SEE minimum, and the
 > course would have to be a fail — but VTU printed a pass. Read as a contribution
 > out of 50 it clears the minimum, and it passes. The printed scale is therefore 50.
@@ -149,7 +149,21 @@ Minimum passing grade is **P** (grade point 4) — 22OB 6.3(3).
 
 **Product implication (FR-024).** GradTools presents **85% as the target**, because that is the rule. It presents 75% as the point at which `DX` applies. It never presents condonation as automatic or expected — it is discretionary, requires documented grounds (medical, NSS/NCC, national-level parades, university/state/national/international sports and cultural events, seminars and paper presentations of significant value) and requires a recommendation submitted before the last day of the semester.
 
-A bunk planner that silently targets 75% would be giving students academically dangerous advice. The default threshold is 85%, adjustable only through an explicit disclosure control that states what condonation actually involves.
+A bunk planner that silently targets 75% would be giving students academically dangerous advice. **Every verdict, margin and recovery count uses the scheme's official rule set, unmodified** (`apps/web/src/lib/attendance-criteria.ts`); no setting on the device can change `attendanceRequiredPct`, `attendanceCondonablePct` or `attendanceDxFloorPct`.
+
+| Attendance in a course | Shown as | Meaning |
+|---|---|---|
+| ≥ 85% | Meets requirement | Meets 22OB 3.7(1) |
+| ≥ 75% and < 85% | Below requirement | Short of the requirement; a shortage of up to 10 points **may** be condoned at the Vice Chancellor's discretion. Not eligibility |
+| < 75% | Below 75% (DX) | The DX threshold is crossed: no SEE for the course, which is repeated (3.7(5)) |
+
+Both thresholds are inclusive (`>=`): exactly 85% meets the requirement; exactly 75% is below it but not DX.
+
+**Personal target.** A student may set a goal of 85% (the requirement), 90% or 95%. It adds its own line ("Your 90% target: …") to a course's attendance plan and never changes a verdict. Nothing below the requirement is offered. GradTools holds no verified college-specific policy, so it offers no "college threshold"; one would need institutional evidence and versioned rule data.
+
+**Worked example.** 36 of 40 classes (90%): 2 more may be missed and stay at 85% (36/42 = 85.7%); a third would not (36/43 = 83.7%). 30 of 40 (75%): below the requirement and not DX; 27 consecutive classes reach 85% (57/67 = 85.07%).
+
+**Schemes.** The 2025 rule set (25OB10(4)-(5), 25OB23.0) also holds 85 / 10 / 75, as separate rule data. The attendance screens compute only for the 2022 scheme (`useSchemeRules().builtIn`); a 2025 profile is told its attendance is not calculated yet rather than judged by 2022 rules.
 
 ## 16.8 SGPA, CGPA, percentage, class — VERIFIED (22OB 6.6–6.8)
 

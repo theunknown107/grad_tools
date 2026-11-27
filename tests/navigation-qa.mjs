@@ -56,7 +56,7 @@ function serve() {
       res.writeHead(404).end('not found');
     }
   });
-  return new Promise((ok) => server.listen(PORT, () => ok(server)));
+  return new Promise((ok) => server.listen(PORT, '127.0.0.1', () => ok(server)));
 }
 
 /* -------------------------------------------------------------------------- */

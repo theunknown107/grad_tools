@@ -720,3 +720,78 @@ Arbitrary "free model" discovery is not allowed: a provider is added only after
 its terms, privacy/ZDR, image + structured-output support, and zero-cost policy
 are verified. OmniRoute informed these patterns (provider abstraction, capability
 registry, circuit breaker, quota/reset handling) but is **not** a dependency.
+
+## 13.32 Universal-input review — source → sink → control (staging hardening pass)
+
+A repository-wide pass over the highest-risk input paths, tracing each from
+source to sink and recording the control that makes it safe. The rule: an input
+is untrusted until validated for its purpose, authorized for its operation,
+bounded to safe limits, and encoded for its destination — regardless of who or
+what produced it. This pass found **no unresolved confirmed or plausible defect**
+in the surfaces below; it records the verified controls so a regression is
+visible, not re-discovered.
+
+| Source → sink | Threat | Control (verified) | Status |
+|---|---|---|---|
+| Any value → React render | DOM/HTML XSS | React escaping; the only `dangerouslySetInnerHTML` (`GradToolsLogo`, `LaunchSplash`) injects a **static** `svg?raw` build import, never input | Confirmed safe |
+| Request body/params → Postgres | SQL injection | `postgres.js` tagged templates (parameterized); the sole `sql.unsafe` is a hardcoded table-alias in the operator-only `vtu:validate` CLI, value still parameterized | Confirmed safe |
+| User URL → server `fetch` | SSRF / redirect | `fetchSource` gates on `checkDestination` (rejects private/loopback hosts) + `redirect:'manual'` + timeout; not yet wired to any route | Confirmed safe (pre-emptive) |
+| Redirect targets | Open redirect | Auth redirects are `window.location.origin` + fixed paths; no user-controlled `next`/target | Confirmed safe |
+| Clerk JWT / session → `/api/v1/*` | AuthN/Z, IDOR | Verified `sub` → `accounts.id`; per-table RLS own-row; `UNAUTHENTICATED` is one opaque code; operator routes gated by `OPERATOR_TOKEN` (routes 404 when unset) | Confirmed (tests: authorization/account/clerk/terms = 55) |
+| Terms acceptance → gate/store | Version bypass | Server-verified acceptance vs exact `CURRENT_TERMS.version`; POST-then-`/me`-verify; append-only RLS table; failed persistence denies access | Confirmed (onboarding-gate 15, terms 8) |
+| Request bodies | Resource exhaustion | `express.json` limits (1 MB global · 128 KB announcements · 4 KB terms); AI doc `express.raw` **and** post-decode `AI_DOCUMENT_MAX_BYTES`; sync-push array `.max(2000)`; pagination `limit` server-capped to `MAX_LIMIT` | Confirmed |
+| Cross-origin requests | CORS misconfig | Explicit `allowedOrigins` allowlist; `credentials:false`; no ACAO for unapproved origins; config fails closed (every origin must be `https://` outside dev) | Confirmed (api.test CORS allow/deny; live staging probe) |
+| `/api/v1/*` abuse | Rate/cost | `express-rate-limit` IETF `RateLimit`/`RateLimit-Policy` (draft-7) + `Retry-After` on 429; stricter limiter on the AI route; keyed on `req.ip` under `trust proxy, 1` | Confirmed (rate-limit tests + live headers) |
+| Logs / error bodies | Secret/PII leak | Typed `{error:{code,message,reference,incidentId?}}`; internal detail never sent; logger redacts `password`/`token` | Confirmed (api.test redaction) |
+| Client office/CSV import | Decompression / parse | Client-side (self-DoS only); `MAX_TEXT_BYTES = 5 MB` + fixed parse ceilings | Mitigated (low severity — browser-local) |
+| Web bundle / source maps | Secret exposure | No server secret in shipped `.js`; source maps carry env-var **names**/comments only, not values; publishable Clerk key is public by design | Confirmed safe (maps are source-readable — a hardening note, not a leak) |
+
+**Blocked — require staging/credentials (not inferable from local tests):**
+- Supabase `gradtools_runtime` role flags (no RLS-bypass / no superuser), `SET LOCAL ROLE authenticated` behaviour, monitor-view grants — need a staging DB read.
+- A real authenticated **Snyk** scan — CLI not installed/authenticated here; `pnpm audit` = 1 moderate (`uuid@7.0.3`, dev/build-only, deferred).
+- In-browser verification of the deployed gate and Liquid Glass toggle.
+
+No input path in this pass was left with a silently unresolved serious finding; the open items are access-gated verifications, not code defects.
+
+## 13.33 Public-release hardening (RC branch, November 2026)
+
+Verified on a Samsung Galaxy A35 (Android 16, WebView 158) with a release build signed by the GradTools key, installed as an update over existing data.
+
+### Release APK: no source maps
+
+- Cause: `vite.config.ts` emitted maps for every build, and `cap sync` copied `dist/` (62 maps, 24.6 MB) into the APK.
+- `vite build --mode android` (scripts `build:android`, `android:sync`) emits none; the web build keeps them for debugging (Vercel refuses public `.map` requests).
+- The vendored tesseract worker is copied without its trailing `sourceMappingURL` (`scripts/vendor-ocr-assets.mjs`); its code is byte-identical to upstream.
+- Guard: a release Gradle build fails if `src/main/assets/public` holds a `.map` or a `sourceMappingURL` (`android/app/build.gradle`). Tested with a planted map.
+- Result: 0 maps, 0 references, 0 inline maps, 0 `sourcesContent`; APK 20.76 MB → 14.85 MB.
+
+### Android permissions
+
+`@capacitor/local-notifications` declares `SCHEDULE_EXACT_ALARM`, used only for notifications scheduled for a later time. GradTools posts every notice immediately (`src/lib/system-notifications.ts`: no `schedule`, `isExactNotification: false`), so the app manifest removes it with `tools:node="remove"`. Final merged manifest and installed package: `INTERNET`, `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK` (and the AndroidX-generated `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`). Notifications and the chime verified on the device after removal.
+
+### Content-Security-Policy
+
+A `<meta>` policy is generated at build time (`scripts/csp-policy.mjs`, wired in `vite.config.ts`; the dev server is untouched), so it applies on the web and inside the Android WebView. Origins come from the same variables the app uses; with Clerk configured:
+
+```
+default-src 'self'; script-src 'self' 'sha256-<inline bootstrap>' 'wasm-unsafe-eval' <Clerk FAPI> https://challenges.cloudflare.com;
+style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://img.clerk.com; font-src 'self' data:;
+connect-src 'self' blob: data: [API origin] [Supabase https/wss] <Clerk FAPI>; worker-src 'self' blob:;
+frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'
+```
+
+`vercel.json` adds `frame-ancestors 'none'` as a header (meta tags cannot carry it).
+
+Exceptions, each measured: `'wasm-unsafe-eval'` (OCR compiles WebAssembly), `'unsafe-inline'` for styles only (libraries insert `<style>` tags; scripts stay hash-restricted), `blob:` workers (tesseract.js). Expected, harmless reports: Zod 4's `new Function("")` capability probe and a generator probe in officeparser, both inside `try` with a working fallback.
+
+Verified: report-only and enforced runs over every route, Clerk sign-in, theme switching, DOCX, XLSX, PDF and image OCR imports, all working; injected inline script, external script and inline event handler all blocked. On the device: app, plugins (notifications), OCR and Clerk session restore work under the policy. Capacitor 8 injects its bridge with `addDocumentStartJavaScript` when the WebView supports it, outside the page's CSP; on a WebView without that feature it falls back to an inline `<script>`, which this policy would block (not verified on old WebViews; API 24 is untested).
+
+Not deployed to production: the policy ships when the RC branch is merged.
+
+### Rust dependency audit (paused crate)
+
+`cargo audit` 0.23.0 on `rust/timetable-rs/Cargo.lock` (27 crates; RustSec database of 1,568 advisories, 26 Nov 2026): no vulnerabilities, no warnings. No dependency change. The crate stays **PAUSED — GATE 3 PASSED WITH LIMITATIONS** and is not part of the app.
+
+### Clerk session across restarts
+
+`ClerkProvider` (`@clerk/react`) keeps Clerk's client in the WebView's own storage; the app restores it on start (`restoring` → `signed_in`, or `expired` if Clerk cannot be reached within 15 s). On the device, two full process terminations (`am force-stop`) and relaunches kept the same signed-in account, profile and timetable, with no "Sign-in not confirmed". No code change was needed. Offline start, expiry and revocation are covered by the unit tests in `dashboard-restoration`, `offline-sign-out` and `sign-in-after-sign-out`, not re-run on the device.

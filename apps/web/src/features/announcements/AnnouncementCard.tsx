@@ -12,6 +12,7 @@ import {
   Receipt,
   RefreshCw,
   Sun,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -33,6 +34,7 @@ export const CATEGORY_LABEL: Record<AnnouncementCategory, string> = {
   academic_calendar: 'Academic calendar',
   college_notice: 'College notice',
   department_notice: 'Department notice',
+  sports: 'Sports',
   general: 'General',
 };
 
@@ -48,6 +50,7 @@ export const CATEGORY_ICON: Record<AnnouncementCategory, LucideIcon> = {
   academic_calendar: CalendarDays,
   college_notice: Megaphone,
   department_notice: GraduationCap,
+  sports: Trophy,
   general: Info,
 };
 
@@ -63,6 +66,7 @@ export const CATEGORY_TONE: Record<AnnouncementCategory, Tone> = {
   academic_calendar: 'schedule',
   college_notice: 'neutral',
   department_notice: 'neutral',
+  sports: 'success',
   general: 'neutral',
 };
 
@@ -105,10 +109,13 @@ export function AnnouncementCard({
   announcement,
   relevant,
   targeted,
+  forYou,
 }: {
   readonly announcement: Announcement;
   readonly relevant: boolean;
   readonly targeted: boolean;
+  /** Established as this student's (domain `isForYou`): the only "For you". */
+  readonly forYou: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const now = new Date();
@@ -119,10 +126,7 @@ export function AnnouncementCard({
   return (
     <Card
       asChild
-      className={cn(
-        'scroll-mt-24 p-5 outline-none',
-        relevant && targeted && 'relative overflow-hidden',
-      )}
+      className={cn('scroll-mt-24 p-5 outline-none', forYou && 'relative overflow-hidden')}
     >
       <article id={announcementAnchor(announcement.id)} tabIndex={-1}>
         {/*
@@ -130,7 +134,7 @@ export function AnnouncementCard({
           in the neutral hairline colour (index.css neutralises coloured borders
           by design). Decorative; "For you" below says it in words.
         */}
-        {relevant && targeted && (
+        {forYou && (
           <span aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-accent" />
         )}
         <div className="flex flex-wrap items-center gap-2">
@@ -139,13 +143,11 @@ export function AnnouncementCard({
           </Badge>
           {priority !== null && <Badge tone={priority.tone}>{priority.text}</Badge>}
           {announcement.origin === 'demo_fixture' && <Badge tone="warning">Demo data</Badge>}
-          {relevant && targeted && (
-            <span className="text-[11px] font-medium text-accent-ink">● For you</span>
-          )}
+          {forYou && <span className="text-[12px] font-medium text-accent-ink">● For you</span>}
           {announcement.publishedAt !== null && (
             <time
               dateTime={announcement.publishedAt}
-              className="ml-auto font-mono text-[11px] text-ink-3"
+              className="ml-auto font-mono text-[12px] text-ink-3"
             >
               {formatNoticeDate(announcement.publishedAt)}
             </time>
@@ -206,5 +208,20 @@ export function AnnouncementCard({
         </div>
       </article>
     </Card>
+  );
+}
+
+/** Says plainly that the list is the bundled snapshot of vtu.ac.in, not a live feed. */
+export function SnapshotNote({ at }: { readonly at: string }) {
+  const day = new Date(at).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  return (
+    <p className="text-[12px] text-ink-3">
+      Latest notices from vtu.ac.in, captured {day}. Live updates resume when GradTools can reach
+      its server.
+    </p>
   );
 }

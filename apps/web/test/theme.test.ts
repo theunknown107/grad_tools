@@ -180,6 +180,21 @@ describe('applying a preference to the document', () => {
   });
 });
 
+describe('release-candidate glass preferences', () => {
+  /* The RC build stored opaque glass as `surface` / `buttonStyle`; production's
+     model has one switch for it, reducedTransparency. */
+  it.each([
+    [{ surface: 'opaque' }, true],
+    [{ surface: 'off' }, true],
+    [{ buttonStyle: 'opaque' }, true],
+    [{ surface: 'liquid', buttonStyle: 'glass' }, false],
+  ])('reads %o as reducedTransparency %s', (stored, expected) => {
+    expect(readStoredTheme(memoryStorage(JSON.stringify(stored))).reducedTransparency).toBe(
+      expected,
+    );
+  });
+});
+
 describe('resolving what system means', () => {
   it.each([
     ['light', true, 'light'],
@@ -312,7 +327,7 @@ describe('WCAG AA contrast, computed from the shipped stylesheet', () => {
   );
 
   it('checks every accent the product offers, not a subset', () => {
-    // 12 current + 5 original (Aug 2026) + Crimson tinted. docs/51_THEMES.md.
+    // 12 current + 5 original (Aug 2026) + Crimson tinted. docs/54_THEMES.md.
     expect(ACCENTS.length).toBe(18);
     for (const accent of ACCENTS) {
       expect(CSS).toContain(`\n[data-accent='${accent}']`);
@@ -352,7 +367,7 @@ describe('the storage key', () => {
 /* The full collection                                                         */
 /* -------------------------------------------------------------------------- */
 
-describe('the palette collection (docs/51_THEMES.md)', () => {
+describe('the palette collection (docs/54_THEMES.md)', () => {
   it('names every palette, in three groups, with ids separate from names', () => {
     expect(ACCENT_GROUPS.map((group) => group.id)).toEqual(['current', 'original', 'new']);
     const byGroup = (group: string) =>

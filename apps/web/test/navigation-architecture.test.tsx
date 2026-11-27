@@ -113,7 +113,7 @@ describe('every destination is reachable', () => {
       expect(names.some((name) => name.includes(destination.label))).toBe(true);
     }
     for (const appearance of ['Light', 'Dark', 'System']) {
-      expect(within(sheet).getByRole('button', { name: appearance })).toBeTruthy();
+      expect(within(sheet).getByRole('radio', { name: appearance })).toBeTruthy();
     }
   });
 });

@@ -51,6 +51,7 @@ import type { Subject } from '@gradtools/shared-types';
  * see it too — `apps/web/src/domain/course-aliases.ts` was the frontend
  * holding an authoritative record alone.
  */
+import { subjectKey } from './timetable/primitives.js';
 import { aliasesOf } from '@gradtools/vtu-catalogue';
 import type {
   AttendanceRecord,
@@ -130,23 +131,8 @@ export interface SubjectIdentity {
   readonly sources: readonly SubjectSource[];
 }
 
-/**
- * The identity key for a subject code.
- *
- * TWO TRANSFORMATIONS, AND NO OTHERS: outer whitespace is trimmed, inner
- * whitespace is removed, and the result is upper-cased. A VTU code contains no
- * spaces, so `"bcs 301"` and `"BCS301"` are the same code typed two ways — and
- * treating them as two subjects would split one student's own record in half.
- *
- * That is the whole of it. There is no edit distance, no prefix matching, no
- * stripping of trailing letters, and no comparison of titles anywhere in this
- * module. `BESCK104B` and `BESCK104C` are two different electives and must stay
- * that way; a rule that "helpfully" folded the suffix would merge them
- * (M10A.1 §47).
- */
-export function subjectKey(code: string): string {
-  return code.replace(/\s+/g, '').toUpperCase();
-}
+/** The identity key for a subject code: moved verbatim to `timetable/primitives.ts` (Rust migration unit boundary). */
+export { subjectKey } from './timetable/primitives.js';
 
 /* -------------------------------------------------------------------------- */
 /* Building the index                                                         */
@@ -186,10 +172,45 @@ interface Draft {
   canonicalConflict: boolean;
   titles: SubjectTitle[];
   credits: number | null;
+  /**
+   * Set when two CATALOGUE rows give this code different credits — the same
+   * code shared across programmes with divergent values (e.g. BBOK407, 3 in one
+   * programme and 2 in another). The credit then resolves to `null` (unknown),
+   * never to whichever row was read last: an arbitrary wrong credit is worse
+   * than an honest "we don't know", which routes the student to confirm it.
+   */
+  creditsConflict: boolean;
   studentCredits: number | null;
   hasSee: boolean | null;
+  hasSeeConflict: boolean;
   semesters: Set<number>;
   sources: Set<SubjectSource>;
+}
+
+/**
+ * Records a catalogue row's credits on a draft, order-independently. The first
+ * value stands; a later DIFFERENT value marks a conflict and clears it to null;
+ * a later equal value is a no-op. So {3,2,3} and {2,3,3} both resolve to null,
+ * and {4,4} resolves to 4, whatever the order the rows arrive in.
+ */
+function recordCatalogueCredits(draft: Draft, credits: number | null): void {
+  if (draft.creditsConflict) return;
+  if (credits === null) return;
+  if (draft.credits === null) draft.credits = credits;
+  else if (draft.credits !== credits) {
+    draft.credits = null;
+    draft.creditsConflict = true;
+  }
+}
+
+function recordCatalogueHasSee(draft: Draft, hasSee: boolean | null): void {
+  if (draft.hasSeeConflict) return;
+  if (hasSee === null) return;
+  if (draft.hasSee === null) draft.hasSee = hasSee;
+  else if (draft.hasSee !== hasSee) {
+    draft.hasSee = null;
+    draft.hasSeeConflict = true;
+  }
 }
 
 /**
@@ -219,8 +240,10 @@ function draftFor(index: Map<string, Draft>, code: string): Draft | null {
     canonicalConflict: false,
     titles: [],
     credits: null,
+    creditsConflict: false,
     studentCredits: null,
     hasSee: null,
+    hasSeeConflict: false,
     semesters: new Set(),
     sources: new Set(),
   };
@@ -284,8 +307,8 @@ export function buildSubjectIndex(input: SubjectIndexInput): Map<string, Subject
       const draft = draftFor(drafts, spelling);
       if (draft === null) continue;
       observe(draft, 'catalogue', subject.title, subject.semester);
-      draft.credits = subject.credits;
-      draft.hasSee = subject.hasSee;
+      recordCatalogueCredits(draft, subject.credits);
+      recordCatalogueHasSee(draft, subject.hasSee);
       indexCatalogueTitle(draft, subject.title);
     }
     const draft = draftFor(drafts, subject.code);
@@ -306,8 +329,14 @@ export function buildSubjectIndex(input: SubjectIndexInput): Map<string, Subject
        * row and must not become the answer on three other screens.
        */
       if (subject.provenance === 'catalogue') {
-        draft.credits ??= subject.credits;
-        draft.hasSee ??= subject.hasSee;
+        /*
+         * A catalogue-provenance credit on a result row fills an unknown, but
+         * NOT a credit the catalogue itself found to conflict across
+         * programmes: that row's value may be the arbitrary one captured before
+         * the conflict was known, so it stays unknown and the student confirms.
+         */
+        if (!draft.creditsConflict) draft.credits ??= subject.credits;
+        if (!draft.hasSeeConflict) draft.hasSee ??= subject.hasSee;
       } else {
         /*
          * A credit the student typed on a result row is theirs. It is recorded
@@ -352,7 +381,7 @@ export function buildSubjectIndex(input: SubjectIndexInput): Map<string, Subject
     if (slot.subjectCode === null) continue;
     const draft = draftFor(drafts, slot.subjectCode);
     if (draft === null) continue;
-    observe(draft, 'timetable', null, null);
+    observe(draft, 'timetable', slot.subjectTitle ?? null, null);
   }
 
   for (const record of input.backlogs ?? []) {

@@ -45,7 +45,7 @@ const DIST = resolve('apps/web/dist');
 const OUT = resolve('.qa/real');
 const TRUTH = resolve(process.env.TRUTH ?? '.qa/real/truth.json');
 const PORT = 4325;
-const ORIGIN = `http://localhost:${PORT}`;
+const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 /** What the harness types where the card prints nothing. Not the student's. */
 const HARNESS_CREDITS = '4';
@@ -82,7 +82,7 @@ function serve() {
         response.end();
       }
     });
-    server.listen(PORT, () => ok(server));
+    server.listen(PORT, '127.0.0.1', () => ok(server));
   });
 }
 
@@ -246,7 +246,7 @@ async function main() {
      * course assessed entirely by CIE.
      *
      * Answering "yes" instead is what exposed the point — it left every one of
-     * those rows unevaluable, because an internal of 72 is not a mark out of
+     * those rows unevaluable, because an internal of 96 is not a mark out of
      * 50, so the engine refused the row rather than producing a figure from a
      * scale that cannot be right. An honest refusal on a wrong answer is the
      * behaviour worth having.

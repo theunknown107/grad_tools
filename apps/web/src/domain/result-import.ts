@@ -253,7 +253,13 @@ export interface ImportLine {
  * correcting the marks (M10A.6C §6).
  */
 function stripRules(text: string): string {
-  return text.replace(/[|¦]+/g, ' ').replace(/\s+$/, '');
+  // A ruled table's vertical borders come back from OCR not only as pipes but as
+  // brackets and quotes — a real card read "ALGORITHMS LAB ]" and
+  // "UNIVERSAL HUMAN "VALUES COURSE", the ] and " being a column rule beside the
+  // title. None of `| ¦ [ ] "` is ever a digit, a letter of a course code, or
+  // part of a status or a VTU subject title, so removing them reads the table
+  // rather than altering a value (M10A.6C §6).
+  return text.replace(/[|¦[\]"]+/g, ' ').replace(/\s+$/, '');
 }
 
 /**
@@ -269,6 +275,28 @@ function looksLikeSubjectRow(text: string): boolean {
       .trimStart()
       .replace(/^[^A-Za-z0-9]+/, ''),
   );
+}
+
+/**
+ * Whether a line ENDS in a marks triple (internal, external, total, with
+ * internal + external = total) even though its leading code is unreadable.
+ *
+ * The other half of catch-don't-drop. `looksLikeSubjectRow` keys on the course
+ * code; when OCR corrupts the code's first glyph (`BCS408` → `8CS408`) the code
+ * test fails, yet the row still plainly carries its marks. Without this such a
+ * line matches neither the full parse nor the code test and vanishes silently —
+ * the exact nine-becomes-eight loss the block below exists to prevent. The
+ * internal + external = total invariant is a strong, low-false-positive signal
+ * (a date or a clause reference does not satisfy it); the total floor rules out
+ * a coincidental small sum. A false positive only asks the student to check a
+ * line, which is far cheaper than a dropped subject.
+ */
+function looksLikeMarksRow(text: string): boolean {
+  const numbers = stripRules(text)
+    .split(/\s+/)
+    .filter((token) => /^\d{1,3}$/.test(token));
+  const triple = rightmostConsistentTriple(numbers);
+  return triple !== null && (wholeNumber(triple[2]) ?? 0) >= 10;
 }
 
 /**
@@ -490,7 +518,7 @@ export function parseResultCard(
     const row = parseRow(line, profileSchemeId);
     if (row !== null) {
       rows.push(row);
-    } else if (looksLikeSubjectRow(line.text)) {
+    } else if (looksLikeSubjectRow(line.text) || looksLikeMarksRow(line.text)) {
       unreadable.push(line);
     }
   }

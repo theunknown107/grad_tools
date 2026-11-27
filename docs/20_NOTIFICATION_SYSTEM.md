@@ -246,3 +246,59 @@ link to the existing screen — no badge, no count, no polling.
 
 **VTU polling remains DISABLED** (`OQ-026`, `OQ-006`). M9.4 added no fetch, no
 toggle and no environment switch.
+
+## 20.17 Audience evidence before "for you" (PR #3 remediation)
+
+**Principle.** A notice is called the student's, listed as a notification or sent
+to the phone only on evidence of its audience. Everything else stays in the
+archive.
+
+| Audience as stored | `relevanceOf` | Archive (Announcements, All) | "For you", notification list, badge | Phone notification |
+|---|---|---|---|---|
+| No audience named, no `scope` | `unknown` | shown | no | no |
+| `audience.scope = 'global'` (the source states it is for every student) | `global` | shown | yes | if the conditions below hold |
+| Targeted; every stated axis matches the profile | `scheme_relevant` … `semester_relevant` | shown | yes | if the conditions below hold |
+| Targeted; an axis the profile has not filled in | `unknown` | shown | no | no |
+| Targeted; an axis that does not match | `not_relevant` | shown, marked "Not for your branch or semester" | no | no |
+
+**A category is not an audience.** A Results, exam or sports notice with no stated
+audience is `unknown`, like any other.
+
+**All-null is not "everyone".** Migration 0009 and `announcementAudienceSchema`
+read a null axis as "not targeted on that axis". That still holds for a notice
+that names some audience. A notice that names **none** may simply never have been
+classified, so the browser no longer treats it as university-wide.
+`audience.scope = 'global'` is the explicit statement. The database has no column
+for it yet: today no served notice is marked global, so none is called "for you"
+unless it is targeted and matches. Adding `announcements.audience_scope` is a
+separate, reviewed migration, not applied here.
+
+**Phone notifications** (`lib/system-notifications.ts`, `noticesToPost`). A
+notice is posted only when **all** of these hold:
+1. It came from the live feed, never the bundled snapshot.
+2. It is in the notification list: established as the student's, not muted, unread.
+3. It was published or updated within the last 7 days.
+4. This version (id + `updatedAt`) has not been posted on this device, so an
+   updated notice is news again.
+
+The first time a device sees the feed, what is there is recorded and nothing
+rings. At most ten are posted at a time. The payload is the notice's own title
+and id: no USN or other profile data reaches a lock screen. The channel
+description no longer claims the notices are "relevant to you". The pitch demo
+titles every notice it posts "Demo".
+
+**The bundled snapshot** (`data/vtu-announcements-snapshot.ts`, captured
+22 Nov 2026, 10 notices from vtu.ac.in) is a dated copy, not a live feed. It is
+labelled with its capture date wherever it shows. Its notices name no audience,
+so they are `unknown`: they stay in the archive and never become notifications.
+
+**Matching stays on the device.** Relevance is computed in the browser from the
+local profile. No USN, branch, college, semester or admission year is sent to
+the announcements API.
+
+**Live ingestion** is still disabled (`services/api/src/sources/vtu-announcements.ts`,
+OQ-006). The server-side monitor (§42, `source_items`, `unresolved_scope`)
+already declines to notify on an unresolved scope.
+
+Tests: `apps/web/test/notice-eligibility.test.ts`, `announcements.test.ts` and
+`announcements-ui.test.tsx` ("counts only established notices").

@@ -5,15 +5,17 @@
  * marks it read. What may interrupt is set in Account → Settings.
  */
 
+import { Capacitor } from '@capacitor/core';
 import { Bell, BellRing, Check, ExternalLink, FileText } from 'lucide-react';
+import { postDemoNotices, postTestNotice } from '../../lib/system-notifications.js';
 import { externalHref } from '../../lib/external-url.js';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { AnnouncementCategory } from '@gradtools/shared-types';
+import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardHeader, CardRows } from '../../components/ui/card.js';
-import { Callout, EmptyState, ErrorState } from '../../components/ui/feedback.js';
+import { Callout, EmptyState, ErrorState, toast } from '../../components/ui/feedback.js';
 import { SwitchRow } from '../../components/ui/field.js';
 import { Dot, IconTile, PageHeader, SectionTitle } from '../../components/ui/page.js';
 import { Segmented } from '../../components/ui/segmented.js';
@@ -30,6 +32,7 @@ import {
   CATEGORY_ICON,
   CATEGORY_LABEL,
   CATEGORY_TONE,
+  SnapshotNote,
 } from './AnnouncementCard.js';
 
 const MUTABLE: readonly AnnouncementCategory[] = [
@@ -44,6 +47,7 @@ const MUTABLE: readonly AnnouncementCategory[] = [
   'academic_calendar',
   'college_notice',
   'department_notice',
+  'sports',
   'general',
 ];
 
@@ -56,7 +60,7 @@ export function FromVtu() {
   const { items, unread, loading, unavailable, error, markRead, markAllRead } =
     useSourceNotifications();
   if (unavailable) return null;
-  if (loading && items.length === 0) return null;
+  if (loading && items.length === 0 && error === null) return null;
   if (error === null && items.length === 0) return null;
   return (
     <Card className="overflow-hidden">
@@ -118,7 +122,7 @@ function FromVtuRow({
           <Badge className="capitalize">{notification.category.replace(/_/g, ' ')}</Badge>
         </div>
         <p className="mt-1 text-[13px] text-ink-2">{notification.reason}</p>
-        <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-ink-3">
+        <div className="mt-1.5 inline-flex items-center gap-1 text-[12px] text-ink-3">
           Official source <ExternalLink className="size-3" aria-hidden="true" />
           <span className="sr-only">(opens in a new tab)</span>
         </div>
@@ -130,8 +134,39 @@ function FromVtuRow({
 
 type Filter = 'all' | 'unread';
 
+/** Android only: posts stored notices as phone notifications titled "Demo", with the chime. */
+function DemoButton({ notices }: { readonly notices: readonly Announcement[] }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      variant="primary"
+      icon={<BellRing />}
+      loading={busy}
+      disabled={notices.length === 0}
+      onClick={() => {
+        setBusy(true);
+        void postDemoNotices(notices, (notice) => CATEGORY_LABEL[notice.category])
+          .then((result) => {
+            if (result === 'blocked')
+              toast('Notifications are off for GradTools', {
+                tone: 'warning',
+                description: 'Turn them on in Android settings to see the demo.',
+              });
+            else if (result === 'posted')
+              toast(`${String(Math.min(15, notices.length))} notifications sent to this phone`, {
+                tone: 'neutral',
+              });
+          })
+          .finally(() => setBusy(false));
+      }}
+    >
+      Play notification demo
+    </Button>
+  );
+}
+
 export function NotificationsPage() {
-  const { items, loading, error, reload } = useAnnouncements();
+  const { items, loading, error, reload, snapshotAt } = useAnnouncements();
   const { notifications, unread, setState, readAll } = useNotifications(items);
   const [filter, setFilter] = useState<Filter>('all');
   const now = Date.now();
@@ -146,9 +181,12 @@ export function NotificationsPage() {
         title="Notifications"
         description="Academic updates since you last looked. Read state stays on this device."
         actions={
-          <Button icon={<Check />} disabled={unread === 0} onClick={() => void readAll()}>
-            Mark all read
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {Capacitor.isNativePlatform() && <DemoButton notices={items} />}
+            <Button icon={<Check />} disabled={unread === 0} onClick={() => void readAll()}>
+              Mark all read
+            </Button>
+          </div>
         }
       />
 
@@ -165,6 +203,7 @@ export function NotificationsPage() {
         className="w-full"
       />
 
+      {snapshotAt !== null && <SnapshotNote at={snapshotAt} />}
       {error !== null ? (
         <ErrorState title="Notifications are unavailable" message={error} onRetry={reload} />
       ) : loading ? (
@@ -225,7 +264,7 @@ export function NotificationsPage() {
                           {announcement.body}
                         </p>
                       )}
-                      <div className="mt-1.5 text-[11px] text-ink-3">
+                      <div className="mt-1.5 text-[12px] text-ink-3">
                         {announcement.publisher}
                         {announcement.publishedAt !== null && (
                           <>
@@ -255,6 +294,44 @@ export function NotificationsPage() {
  * asked for permission and then said notifications were on, while nothing ever
  * showed one; a control wired to nothing is worse than no control.
  */
+/** Android only: what the phone does with notices, and a way to hear it. */
+function PhoneNotifications() {
+  const [state, setState] = useState<'idle' | 'sending' | 'posted' | 'blocked'>('idle');
+  return (
+    <Card className="p-6">
+      <SectionTitle>Phone notifications</SectionTitle>
+      <p className="text-[13px] text-ink-2">
+        Relevant VTU notices also arrive as phone notifications with the GradTools chime. Their
+        sound and volume follow the &ldquo;VTU notices&rdquo; category in Android&rsquo;s settings
+        for GradTools.
+      </p>
+      <Button
+        className="mt-4"
+        icon={<BellRing />}
+        loading={state === 'sending'}
+        onClick={() => {
+          setState('sending');
+          void postTestNotice().then(setState, () => setState('blocked'));
+        }}
+      >
+        Send a test notification
+      </Button>
+      {state === 'posted' && (
+        <p role="status" className="mt-2 text-[12px] text-ink-3">
+          Sent. If you heard nothing, check the phone is not on silent and the &ldquo;VTU
+          notices&rdquo; sound is on.
+        </p>
+      )}
+      {state === 'blocked' && (
+        <p role="alert" className="mt-2 text-[12px] text-warning">
+          Notifications are turned off for GradTools. Turn them on in Android settings to hear
+          notices.
+        </p>
+      )}
+    </Card>
+  );
+}
+
 export function NotificationSettings() {
   const { items } = useAnnouncements();
   const { preferences, savePreferences } = useNotifications(items);
@@ -288,13 +365,17 @@ export function NotificationSettings() {
           })}
         </div>
       </Card>
-      <Card className="p-6">
-        <SectionTitle>Browser notifications</SectionTitle>
-        <p className="text-[13px] text-ink-2">
-          Browser notifications aren&rsquo;t available yet. New notices appear here in GradTools, in
-          Notifications and on the bell, marked unread until you open them.
-        </p>
-      </Card>
+      {Capacitor.isNativePlatform() ? (
+        <PhoneNotifications />
+      ) : (
+        <Card className="p-6">
+          <SectionTitle>Browser notifications</SectionTitle>
+          <p className="text-[13px] text-ink-2">
+            Browser notifications aren&rsquo;t available yet. New notices appear here in GradTools,
+            in Notifications and on the bell, marked unread until you open them.
+          </p>
+        </Card>
+      )}
     </div>
   );
 }

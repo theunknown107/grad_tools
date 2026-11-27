@@ -541,6 +541,31 @@ Git history was therefore rewritten as well, on 2026-08-31 — see `31` §31.19
 for the purge and, importantly, for what it did **not** achieve. Do not read
 this section as a claim that the data is gone from the internet.
 
+### A second exposure, found 2026-11-01
+
+The 2026-08-31 search covered file contents, not commit messages, and it looked for
+the document rather than the numbers in it. A first note on this exposure, written
+the same day, called it one row. That was wrong: comparing against the private
+pre-purge fixture showed the whole card.
+
+All nine rows came back in test files after the purge, renamed to invented `BQ`
+course codes, and four commit messages and `docs/16` quote some of them. Changing a
+course code does not make a mark synthetic.
+
+The public branches and the `v1.0.0` tag were rewritten on 2026-11-01. GitHub still
+has to clear `refs/pull/*`, cached views and old commits reachable by SHA, so do not
+read this as a claim that the data has gone. The working trees hold invented values.
+
+Three checks now apply. `apps/web/test/fixture-privacy.test.ts` counts every
+result-shaped row in the tests, whatever its course code, so a new row needs a
+person to confirm its marks were invented. `tests/private-record-scan.mjs` compares
+real values held outside the repository, including inside Office files. Local git
+hooks run the same comparison on commits, commit messages and pushes.
+
+None of them reads text inside an image: the card also sat in a PNG fixture as
+pixels, so review image fixtures by eye. The rule stands: invent test marks, never
+transcribe them, and never quote a real value in a commit message.
+
 ## 12.17 Reading a result card that is a picture (M10A.6B)
 
 A student can now import a photograph or a scan of a result card. The claim

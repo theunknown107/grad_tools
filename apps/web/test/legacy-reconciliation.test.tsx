@@ -59,10 +59,15 @@ afterEach(() => cleanup());
 describe('finding legacy records', () => {
   it('finds a Supabase-era scope with records, and nothing else', async () => {
     await seedLegacy();
+    window.localStorage.setItem(
+      'sb-synth-auth-token',
+      JSON.stringify({ user: { id: LEGACY, email: 'synthetic@example.test' } }),
+    );
     await writeValue(OTHER_LEGACY, 'attendanceLedger', []); // placeholder only
     await writeValue(null, 'results', RESULTS); // signed-out data: first-sync's job
     await writeValue('user_2someoneElse', 'results', RESULTS); // another Clerk account
-    expect(await legacyScopesWithRecords(CLERK)).toEqual([LEGACY]);
+    expect(await legacyScopesWithRecords(CLERK, 'synthetic@example.test')).toEqual([LEGACY]);
+    window.localStorage.clear();
   });
 
   it('does not count empty placeholders as records', async () => {
@@ -74,11 +79,19 @@ describe('finding legacy records', () => {
 });
 
 describe('copying', () => {
+  beforeEach(() => {
+    window.localStorage.setItem(
+      'sb-synth-auth-token',
+      JSON.stringify({ user: { id: LEGACY, email: 'synthetic@example.test' } }),
+    );
+  });
+  afterEach(() => window.localStorage.clear());
+
   it('copies every record, leaves the old bookkeeping behind, and keeps the original', async () => {
     await seedLegacy();
     await writeValue(CLERK, 'attendanceLedger', []); // a page was opened before the offer
 
-    await copyLegacyScope(LEGACY, CLERK);
+    await copyLegacyScope(LEGACY, CLERK, 'synthetic@example.test');
 
     expect(await readValue(CLERK, 'profile')).toEqual(PROFILE);
     expect(await readValue(CLERK, 'results')).toEqual(RESULTS);
@@ -98,14 +111,16 @@ describe('copying', () => {
   it('keeps pre-ledger data pre-ledger, so its upgrade still runs', async () => {
     await seedLegacy(LEGACY, { version: null });
     await writeValue(CLERK, 'schemaVersion', 1);
-    await copyLegacyScope(LEGACY, CLERK);
+    await copyLegacyScope(LEGACY, CLERK, 'synthetic@example.test');
     expect(await readValue(CLERK, 'schemaVersion')).toBeNull();
   });
 
   it('refuses to overwrite an account that already holds records', async () => {
     await seedLegacy();
     await writeValue(CLERK, 'results', [{ id: 'mine', semester: 1, subjects: [] }]);
-    await expect(copyLegacyScope(LEGACY, CLERK)).rejects.toThrow(/already holds records/);
+    await expect(copyLegacyScope(LEGACY, CLERK, 'synthetic@example.test')).rejects.toThrow(
+      /already holds records/,
+    );
     expect(await readValue(CLERK, 'results')).toEqual([{ id: 'mine', semester: 1, subjects: [] }]);
   });
 
@@ -116,13 +131,112 @@ describe('copying', () => {
   });
 });
 
+describe('who may take the records', () => {
+  const supabaseSession = (id: string, email: string) =>
+    window.localStorage.setItem(
+      'sb-synth-auth-token',
+      JSON.stringify({ user: { id, email }, access_token: 'never-read' }),
+    );
+  afterEach(() => window.localStorage.clear());
+  const stranger: AuthAdapter = {
+    current: async () => ({ userId: CLERK, email: 'someone@example.test', provider: 'email' }),
+    accessToken: async () => null,
+    signInWithPassword: async () => ({ error: null }),
+    signUpWithPassword: async () => ({ error: null, needsConfirmation: false }),
+    signInWithProvider: async () => ({ error: null }),
+    signUpWithProvider: async () => ({ error: null }),
+    sendRecovery: async () => ({ error: null }),
+    updatePassword: async () => ({ error: null }),
+    completeDeepLink: async () => ({ error: null }),
+    signOut: async () => undefined,
+    onChange: () => () => undefined,
+    onPasswordRecovery: () => () => undefined,
+  };
+
+  it('still works when the old session names this student, whatever the case', async () => {
+    await seedLegacy();
+    supabaseSession(LEGACY, 'Student@Example.test');
+    expect(await legacyScopesWithRecords(CLERK, 'student@example.test')).toEqual([LEGACY]);
+    expect(await copyLegacyScope(LEGACY, CLERK, 'student@example.test')).toBeGreaterThan(0);
+  });
+
+  it('refuses an account the old session rules out', async () => {
+    await seedLegacy();
+    supabaseSession(LEGACY, 'owner@example.test');
+    expect(await legacyScopesWithRecords(CLERK, 'someone@example.test')).toEqual([]);
+    await expect(copyLegacyScope(LEGACY, CLERK, 'someone@example.test')).rejects.toThrow();
+    expect(await scopeHoldsRecords(CLERK)).toBe(false);
+  });
+
+  it('refuses everyone when no old session proves the owner, and keeps the records', async () => {
+    await seedLegacy();
+    expect(await legacyScopesWithRecords(CLERK, 'student@example.test')).toEqual([]);
+    await expect(copyLegacyScope(LEGACY, CLERK, 'student@example.test')).rejects.toThrow();
+    expect(await scopeHoldsRecords(CLERK)).toBe(false);
+    expect(await scopeHoldsRecords(LEGACY)).toBe(true);
+  });
+
+  it('refuses an account with no verified address, even with a session saved', async () => {
+    await seedLegacy();
+    supabaseSession(LEGACY, 'owner@example.test');
+    await expect(copyLegacyScope(LEGACY, CLERK, null)).rejects.toThrow();
+  });
+
+  it('ignores a saved session for a different former account', async () => {
+    await seedLegacy();
+    supabaseSession(OTHER_LEGACY, 'student@example.test');
+    await expect(copyLegacyScope(LEGACY, CLERK, 'student@example.test')).rejects.toThrow();
+  });
+
+  it('gives proven records to one account, and a repeat claim to no one else', async () => {
+    await seedLegacy();
+    supabaseSession(LEGACY, 'student@example.test');
+    await copyLegacyScope(LEGACY, CLERK, 'student@example.test');
+    const second = 'user_2synthSecond';
+    expect(await legacyScopesWithRecords(second, 'student@example.test')).toEqual([]);
+    await expect(copyLegacyScope(LEGACY, second, 'student@example.test')).rejects.toThrow();
+    expect(await scopeHoldsRecords(second)).toBe(false);
+  });
+
+  it('never copies into anything but a signed-in account', async () => {
+    await seedLegacy();
+    await expect(copyLegacyScope(LEGACY, '')).rejects.toThrow();
+    await expect(copyLegacyScope(LEGACY, OTHER_LEGACY)).rejects.toThrow();
+  });
+
+  it('does not show a stranger whose records these are', async () => {
+    await seedLegacy();
+    render(
+      <AuthProvider adapter={stranger}>
+        <MemoryRouter>
+          <LegacyDataOffer />
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+    await screen.findByText(/cannot confirm they\s+are yours/);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText(new RegExp(PROFILE.usn))).toBeNull();
+    expect(screen.queryByText(new RegExp(PROFILE.displayName))).toBeNull();
+  });
+});
+
 describe('the offer', () => {
+  beforeEach(() => {
+    /* The old session names this student, which is what lets the card say who. */
+    window.localStorage.setItem(
+      'sb-synth-auth-token',
+      JSON.stringify({ user: { id: LEGACY, email: 'synthetic@example.test' } }),
+    );
+  });
+  afterEach(() => window.localStorage.clear());
+
   const adapter: AuthAdapter = {
     current: async () => ({ userId: CLERK, email: 'synthetic@example.test', provider: 'email' }),
     accessToken: async () => null,
     signInWithPassword: async () => ({ error: null }),
     signUpWithPassword: async () => ({ error: null, needsConfirmation: false }),
     signInWithProvider: async () => ({ error: null }),
+    signUpWithProvider: async () => ({ error: null }),
     sendRecovery: async () => ({ error: null }),
     updatePassword: async () => ({ error: null }),
     completeDeepLink: async () => ({ error: null }),

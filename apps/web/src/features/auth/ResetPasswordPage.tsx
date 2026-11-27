@@ -1,10 +1,12 @@
 /**
  * Reset password — the completion half of recovery.
  *
- * `sendRecovery` emails a link back to this route. Opening it lets the Supabase
- * SDK consume the recovery token and enter a short-lived recovery session; this
- * screen then takes a new password and calls `updatePassword`. The old password
- * is never shown, read, or needed — recovery is a reset, not a reveal.
+ * Under a LINK-based provider (Supabase) `sendRecovery` emails a link back to
+ * this route; opening it consumes the recovery token into a short-lived recovery
+ * session, and this screen takes a new password and calls `updatePassword`.
+ * Under a CODE-based provider (Clerk) recovery is completed by code on the
+ * sign-in screen, so this route short-circuits (see below). Either way the old
+ * password is never shown, read, or needed — recovery is a reset, not a reveal.
  */
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
@@ -146,11 +148,14 @@ export function ResetPasswordPage() {
   return (
     <Frame title="Choose a new password" lead="Enter the password you'd like to use from now on.">
       <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">
-        <Field label="New password" hint="At least eight characters.">
+        <Field label="New password">
           <PasswordInput
             autoComplete="new-password"
             required
-            minLength={8}
+            // No app-imposed minimum: `required` prevents an empty password, and
+            // the provider enforces its own policy. A native `minLength` would
+            // also fire a browser bubble that blocks a submit the provider should
+            // decide on.
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />

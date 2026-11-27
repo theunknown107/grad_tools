@@ -20,8 +20,7 @@ export function ImportStepper({
   return (
     <ol
       aria-label="Import progress"
-      tabIndex={0}
-      className="relative flex max-w-full min-w-0 items-center gap-2 overflow-x-auto pb-1 scroll-quiet focus-visible:outline-offset-[-2px]"
+      className="flex max-w-full min-w-0 flex-wrap items-center gap-2"
     >
       {IMPORT_STEPS.map((step, index) => {
         const complete = index < current;
@@ -34,7 +33,7 @@ export function ImportStepper({
           >
             <span
               className={cn(
-                'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors',
+                'flex items-center gap-2 rounded-full border px-3 py-1.5 text-caption font-medium transition-colors',
                 complete && 'bg-success-weak text-success',
                 active && 'bg-accent-weak text-accent-ink',
                 !complete && !active && 'border-line text-ink-3',
@@ -43,7 +42,7 @@ export function ImportStepper({
               <span
                 aria-hidden="true"
                 className={cn(
-                  'tnum grid size-4 place-items-center rounded-full text-[10px]',
+                  'tnum grid size-4 place-items-center rounded-full text-caption',
                   complete && 'bg-success text-canvas',
                   active && 'bg-accent text-on-accent',
                   !complete && !active && 'bg-sunken text-ink-3',

@@ -123,7 +123,7 @@ function serve() {
       res.writeHead(404).end('not found');
     }
   });
-  return new Promise((ok) => server.listen(PORT, () => ok(server)));
+  return new Promise((ok) => server.listen(PORT, '127.0.0.1', () => ok(server)));
 }
 
 const run = async () => {
@@ -170,7 +170,7 @@ const run = async () => {
 
         for (const [path, name] of ROUTES) {
           const label = `${name}@${vp.name}/${appearance}/${accent}`;
-          await page.goto(`http://localhost:${PORT}${path}`);
+          await page.goto(`http://127.0.0.1:${PORT}${path}`);
           await page.waitForTimeout(300);
 
           // The attributes actually reached the document.
@@ -249,9 +249,9 @@ const run = async () => {
   {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     await page.evaluate(() => localStorage.removeItem('gradtools:v1:theme'));
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     await page.waitForTimeout(500);
 
     /* Light is the default for a device with no stored preference (§26). */
@@ -333,14 +333,14 @@ const run = async () => {
       colorScheme: scheme,
     });
     const page = await context.newPage();
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     await page.evaluate(() =>
       localStorage.setItem(
         'gradtools:v1:theme',
         JSON.stringify({ appearance: 'system', accent: 'violet' }),
       ),
     );
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(`http://127.0.0.1:${PORT}/`);
     await page.waitForTimeout(400);
 
     const seen = await page.evaluate(() => ({

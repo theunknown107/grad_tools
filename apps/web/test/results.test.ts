@@ -121,7 +121,7 @@ describe('validation', () => {
     // No grade, no grade point, no credits, no SGPA — and it saves. This is the
     // whole of OQ-049 in one assertion.
     const issues = validateResultSubject(
-      subject({ internal: 38, external: 18, total: 56, resultStatus: 'P' }),
+      subject({ internal: 38, external: 21, total: 59, resultStatus: 'P' }),
       ruleSet,
     );
     expect(issues).toEqual([]);
@@ -158,9 +158,9 @@ describe('validation', () => {
      * 50, because a course with no SEE is assessed on CIE over the whole 100
      * (22OB 6.1(3)). Bounding every internal at 50 would refuse a printed row.
      */
-    expect(validateResultSubject(subject({ hasSee: false, internal: 72 }), ruleSet)).toEqual([]);
+    expect(validateResultSubject(subject({ hasSee: false, internal: 96 }), ruleSet)).toEqual([]);
     expect(
-      validateResultSubject(subject({ hasSee: true, internal: 72 }), ruleSet).map((i) => i.field),
+      validateResultSubject(subject({ hasSee: true, internal: 96 }), ruleSet).map((i) => i.field),
     ).toEqual(['internal']);
   });
 
@@ -265,7 +265,7 @@ describe('backlog and SEE applicability', () => {
      * Row `b` is the genuinely ambiguous one: `hasSee` unknown, an external of
      * 0, AND an internal that fits the CIE scale. All three matter now. A
      * positive external resolves (marks prove the exam happened) and an
-     * internal ABOVE `cieMax` resolves the other way (72 is not a mark out of
+     * internal ABOVE `cieMax` resolves the other way (96 is not a mark out of
      * 50), so the only shape left unanswerable is this one — which is exactly
      * the case DEC-037 describes.
      */
@@ -430,7 +430,7 @@ describe('the calculated total', () => {
 
   it('agrees silently when the columns add up', () => {
     const evaluation = evaluateResultSubject(
-      subject({ hasSee: true, internal: 38, external: 18, total: 56 }),
+      subject({ hasSee: true, internal: 38, external: 21, total: 59 }),
       ruleSet,
     );
     expect(evaluation.totalDisagrees).toBe(false);
@@ -462,7 +462,7 @@ describe('SGPA from a semester', () => {
     // A real fourth semester. Nothing anywhere assumes eight.
     const { sgpa, credits } = semesterSgpa(result(graded(9)), ruleSet);
     expect(sgpa).toBeCloseTo(8, 5);
-    expect(credits).toBe(36); // nine subjects of 4 credits
+    expect(credits).toBe(36);
   });
 
   it('refuses to grade a semester where one subject has no grade', () => {
@@ -540,8 +540,8 @@ describe('SGPA from a semester', () => {
      * prints none. The rules engine was already banding these totals correctly
      * a few lines away in `evaluateResultSubject`; nothing passed the answer on.
      *
-     * 80/100 is A+ (9) and 72/100 is A (8), both by 22OB 6.1's percentage
-     * bands. Credit-weighted over 4 and 2 credits: (9x4 + 8x2) / 6 = 8.67.
+     * 80/100 is A+ (9) and 96/100 is O (10), both by 22OB 6.1's percentage
+     * bands. Credit-weighted over 4 and 2 credits: (9x4 + 10x2) / 6 = 9.33.
      */
     const provisional = result([
       subject({

@@ -15,7 +15,7 @@
  */
 
 import type { Announcement, AnnouncementCategory } from '@gradtools/shared-types';
-import { isRelevant, priorityOf, type Priority, type StudentContext } from './announcements.js';
+import { isForYou, priorityOf, type Priority, type StudentContext } from './announcements.js';
 
 export const NOTIFICATION_STATES = ['unread', 'read', 'dismissed'] as const;
 export type NotificationState = (typeof NOTIFICATION_STATES)[number];
@@ -60,9 +60,11 @@ export interface NotificationPreferences {
 }
 
 /*
- * There is no browser-notification preference. GradTools delivers nothing
- * outside the app — no `Notification` call, no service worker, no push — so a
- * saved "on" would have been a switch wired to nothing (OQ-032).
+ * There is no browser-notification preference. On the web GradTools delivers
+ * nothing outside the app — no `Notification` call, no service worker, no push
+ * (OQ-032). In the Android app, relevant unread notices are also posted as
+ * system notifications with the GradTools chime (`lib/system-notifications`);
+ * muting a category here stops those too.
  */
 export const DEFAULT_PREFERENCES: NotificationPreferences = {
   muted: [],
@@ -105,9 +107,10 @@ export function stateFor(
 /**
  * The notification list: what is worth telling the student about.
  *
- * Irrelevant and muted announcements are excluded HERE and not from the
- * announcements page, which is the distinction between "do not interrupt me"
- * and "hide this from me".
+ * Only notices established as this student's (`isForYou`) and not muted are
+ * included. Unknown-audience notices stay on the announcements page (the
+ * archive) and are never presented as the student's own: "do not interrupt
+ * me" is decided here, "hide this from me" is not.
  */
 export function buildNotifications(
   announcements: readonly Announcement[],
@@ -117,7 +120,7 @@ export function buildNotifications(
   now: Date,
 ): Notification[] {
   return announcements
-    .filter((announcement) => isRelevant(announcement, context))
+    .filter((announcement) => isForYou(announcement, context))
     .filter((announcement) => !isMuted(announcement.category, preferences))
     .map((announcement) => ({
       announcement,

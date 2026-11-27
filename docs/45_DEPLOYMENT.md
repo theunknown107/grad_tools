@@ -93,7 +93,7 @@ developer's terminal and is not what a deployment should use.
 | `DATABASE_URL` | yes | reference data — public academic reference, no student data |
 | `PORT` / `HOST` | no | default `3001` / `0.0.0.0` in the image |
 | `WEB_ORIGIN` | yes | CORS allowlist of exact origins. **Never `*`**. In `staging`/`alpha` it must be set and all `https://`, or the API refuses to start. Add `https://localhost` for the Android app |
-| `APP_ENV` | yes | `staging` or `alpha` turns on the check above |
+| `APP_ENV` | yes | `staging` or `alpha` turns on the check above (and the Clerk authorized-parties check). The public release is `alpha`; it switches nothing else. Under `NODE_ENV=production` (the image sets it) it must be `alpha` or `staging`, or the server, `migrate` and `seed` refuse to start. `alpha` also refuses Clerk `sk_test_`/`pk_test_` keys |
 | `OPERATOR_TOKEN` | no | **secret.** Enables announcement entry/publish, bearer-authenticated; unset = those routes 404 |
 | `SUPABASE_URL` | for `/me` | JWT verification; public |
 | `SUPABASE_DB_URL` | for `/me` | **secret.** Must name `authenticator` — a role with no `bypassrls`. The API refuses to start otherwise |

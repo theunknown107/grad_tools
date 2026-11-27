@@ -59,7 +59,7 @@ function serve() {
         res.writeHead(404).end('not found');
       }
     });
-    server.listen(PORT, () => ok(server));
+    server.listen(PORT, '127.0.0.1', () => ok(server));
   });
 }
 
@@ -100,7 +100,7 @@ for (const theme of THEMES) {
     const at = `${theme}@${width}`;
 
     /* ---- the signed-out account screens --------------------------------- */
-    await page.goto(`http://localhost:${PORT}/sign-in`);
+    await page.goto(`http://127.0.0.1:${PORT}/sign-in`);
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
     const unavailable = await page.getByText(/Accounts are not available in this build/i).count();
@@ -119,14 +119,14 @@ for (const theme of THEMES) {
     }
 
     /* Local-first is not degraded by the account screens existing. */
-    await page.goto(`http://localhost:${PORT}/academics?tab=calculator`);
+    await page.goto(`http://127.0.0.1:${PORT}/academics?tab=calculator`);
     await page.waitForLoadState('networkidle').catch(() => undefined);
     check(
       `calculator ${at}: works with no account`,
       (await page.getByRole('heading', { name: /SGPA|CGPA|Calculator/i }).count()) > 0,
     );
 
-    await page.goto(`http://localhost:${PORT}/attendance`);
+    await page.goto(`http://127.0.0.1:${PORT}/attendance`);
     await page.waitForLoadState('networkidle').catch(() => undefined);
     /*
      * The HEADING, not the Today tab: on a device with no timetable and no
@@ -139,7 +139,7 @@ for (const theme of THEMES) {
     );
 
     /* ---- what the account screen promises about storage ----------------- */
-    await page.goto(`http://localhost:${PORT}/account?section=data`);
+    await page.goto(`http://127.0.0.1:${PORT}/account?section=data`);
     await page.waitForLoadState('networkidle').catch(() => undefined);
     check(
       `account ${at}: says what stays on this device`,
@@ -159,7 +159,7 @@ for (const theme of THEMES) {
     );
 
     /* ---- the merge screen, which is where an upload is decided ---------- */
-    await page.goto(`http://localhost:${PORT}/first-sync`);
+    await page.goto(`http://127.0.0.1:${PORT}/first-sync`);
     await page.waitForLoadState('networkidle').catch(() => undefined);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

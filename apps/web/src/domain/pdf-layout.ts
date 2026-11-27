@@ -39,24 +39,10 @@
  */
 
 import type { ImportLine } from './result-import.js';
+import type { PositionedText } from './timetable/primitives.js';
 
-/**
- * One positioned run of text.
- *
- * Deliberately not pdf.js's own type: this module is pure and testable without
- * loading a PDF engine, and the adapter that produces these is the only place
- * that knows about pdf.js.
- */
-export interface PositionedText {
-  readonly text: string;
-  /** Left edge, in PDF user space. */
-  readonly x: number;
-  /** Baseline, in PDF user space. Larger is HIGHER on the page. */
-  readonly y: number;
-  readonly width: number;
-  /** Rendered text height, used to scale both tolerances. */
-  readonly height: number;
-}
+/** One positioned run of text: moved verbatim to `timetable/primitives.ts` (Rust migration unit boundary). */
+export type { PositionedText } from './timetable/primitives.js';
 
 /**
  * How far apart two baselines may be and still be one row, as a fraction of
@@ -164,8 +150,24 @@ export function itemsToLines(items: readonly PositionedText[], page = 1): Import
     const first = leftmost(above);
     if (head === undefined || first === undefined) return false;
     const slack = medianHeight(above) * COLUMN_TOLERANCE;
+    // Starts in the row's first column → that is the next row, not a wrap.
     if (Math.abs(head.x - first.x) <= slack) return false;
-    return line.every((run) => above.some((column) => Math.abs(run.x - column.x) <= slack));
+    // Its first word stands UNDER one of the row's columns. A real wrap begins
+    // in a column; a legend or note sits in the gutter between them.
+    if (!above.some((column) => Math.abs(head.x - column.x) <= slack)) return false;
+    /*
+     * Every word then stays within the row's own horizontal extent. The old
+     * rule required each word to line up with a column — true for a PDF, whose
+     * wrapped cell is ONE positioned run, but false for OCR, which reports one
+     * box per WORD. A real "ALGORITHMS LAB" wrapping under the title put LAB
+     * between two columns, failed the per-word alignment, and the title lost its
+     * last word on every multi-word wrap. Staying within the span still rejects
+     * a line that spills past the row (a different structure), while a new row
+     * and a legend are already excluded above.
+     */
+    const spanMin = Math.min(...above.map((column) => column.x));
+    const spanMax = Math.max(...above.map((column) => column.x + column.width));
+    return line.every((run) => run.x >= spanMin - slack && run.x + run.width <= spanMax + slack);
   };
 
   /* A row, and the wrapped lines that belong to it — kept apart until ordered. */

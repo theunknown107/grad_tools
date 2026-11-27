@@ -278,7 +278,7 @@ export function SemestersPage() {
                   aria-label={`Semester ${String(view.number)}, ${STATUS_LABEL[view.status].toLowerCase()}${sgpa === null ? '' : `, SGPA ${formatGpa(sgpa)}`}`}
                   onClick={() => setOpenSemester(selected ? null : view.number)}
                   className={cn(
-                    'flex h-full w-full flex-col gap-3 rounded-xl border border-line bg-raised p-4',
+                    'gt-surface flex h-full w-full flex-col gap-3 rounded-xl border border-line p-4',
                     cardInteractive,
                     view.status === 'in_progress' && 'ring-1 ring-schedule/40',
                     selected && 'ring-2 ring-accent/20',

@@ -14,14 +14,14 @@ import { Input } from '../../components/ui/field.js';
 import { PageHeader } from '../../components/ui/page.js';
 import { ChipGroup, Segmented } from '../../components/ui/segmented.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
-import { isRelevant, isTargeted } from '../../domain/announcements.js';
+import { isForYou, isRelevant, isTargeted } from '../../domain/announcements.js';
 import {
   useAnnouncements,
   useSortedAnnouncements,
   useStudentContext,
 } from '../../hooks/useAnnouncements.js';
 import { formatCount } from '../../lib/format.js';
-import { AnnouncementCard, CATEGORY_LABEL } from './AnnouncementCard.js';
+import { AnnouncementCard, CATEGORY_LABEL, SnapshotNote } from './AnnouncementCard.js';
 
 const CATEGORY_OPTIONS: readonly (AnnouncementCategory | 'all')[] = [
   'all',
@@ -36,6 +36,7 @@ const CATEGORY_OPTIONS: readonly (AnnouncementCategory | 'all')[] = [
   'academic_calendar',
   'college_notice',
   'department_notice',
+  'sports',
   'general',
 ];
 
@@ -45,7 +46,7 @@ export function AnnouncementsPage() {
   const [category, setCategory] = useState<AnnouncementCategory | 'all'>('all');
   const [scope, setScope] = useState<Scope>('all');
   const [query, setQuery] = useState('');
-  const { items, total, loading, error, reload } = useAnnouncements(category);
+  const { items, total, loading, error, reload, snapshotAt } = useAnnouncements(category);
   const sorted = useSortedAnnouncements(items);
   const context = useStudentContext();
 
@@ -64,7 +65,8 @@ export function AnnouncementsPage() {
   }, [hash, loading]);
 
   const needle = query.trim().toLowerCase();
-  const forYou = sorted.filter((item) => isRelevant(item, context));
+  /* Established as this student's only; unknown-audience notices stay under All. */
+  const forYou = sorted.filter((item) => isForYou(item, context));
   const shown = (scope === 'mine' ? forYou : sorted).filter(
     (item) =>
       needle === '' ||
@@ -76,7 +78,7 @@ export function AnnouncementsPage() {
       <PageHeader
         eyebrow="Overview"
         title="Announcements"
-        description="Official academic notices, sorted for you. GradTools shows them; it does not issue them."
+        description="Official academic notices, newest first. GradTools shows them; it does not issue them."
         actions={
           sorted.length > 0 ? (
             <>
@@ -117,7 +119,7 @@ export function AnnouncementsPage() {
             <Input
               type="search"
               aria-label="Search announcements"
-              placeholder="Search announcements…"
+              placeholder="Search"
               className="pl-9"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -126,6 +128,7 @@ export function AnnouncementsPage() {
         </div>
       </div>
 
+      {snapshotAt !== null && <SnapshotNote at={snapshotAt} />}
       {error !== null ? (
         <ErrorState title="Notices are unavailable" message={error} onRetry={reload} />
       ) : loading ? (
@@ -161,6 +164,7 @@ export function AnnouncementsPage() {
                 announcement={announcement}
                 relevant={isRelevant(announcement, context)}
                 targeted={isTargeted(announcement)}
+                forYou={isForYou(announcement, context)}
               />
             </li>
           ))}

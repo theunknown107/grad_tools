@@ -4,7 +4,7 @@
  * Authority: Phase 7D §18, §26, §27
  */
 import { describe, expect, it } from 'vitest';
-import { CATALOGUES, coursesForScheme, VTU_2022 } from '../data/index.js';
+import { CATALOGUES, coursesForBranch, coursesForScheme, VTU_2022 } from '../data/index.js';
 import { courseKey } from '../src/types.js';
 
 describe('the generated catalogue', () => {
@@ -122,9 +122,56 @@ describe('two scheme years sharing one catalogue', () => {
      * the row count of a published artifact, which is exactly the thing that
      * must not drift when another scheme is added beside it.
      */
-    expect(VTU_2022.courses).toHaveLength(187);
+    expect(VTU_2022.courses).toHaveLength(214);
     expect(VTU_2022.conflicts).toHaveLength(0);
     expect(VTU_2022.aliases).toHaveLength(1);
     expect(VTU_2022.documents).toHaveLength(19);
+  });
+});
+
+describe('programme-scoped lookup', () => {
+  const CSBS = 'Computer Science & Business System';
+
+  it('filters coursesForScheme to one programme, and returns nothing for an unknown one', () => {
+    const scoped = coursesForScheme('2022', CSBS);
+    expect(scoped.length).toBeGreaterThan(0);
+    expect(scoped.every((c) => c.programme === CSBS)).toBe(true);
+    expect(scoped.length).toBeLessThan(coursesForScheme('2022').length);
+    expect(coursesForScheme('2022', 'No Such Programme')).toHaveLength(0);
+    // Omitting the programme keeps the original behaviour.
+    expect(coursesForScheme('2022', undefined).length).toBe(coursesForScheme('2022').length);
+  });
+
+  it('coursesForBranch keeps the whole CSBS programme (no regression for the published branch)', () => {
+    const forBranch = coursesForBranch('2022', CSBS);
+    const all = coursesForScheme('2022');
+    // Current data has only CSBS at sem 3+, so nothing is dropped for a CSBS student.
+    expect(forBranch.length).toBe(all.length);
+    for (const c of all.filter((x) => x.programme === CSBS)) expect(forBranch).toContain(c);
+  });
+
+  it('drops another programme sem 3+ rows: a Civil student does not get CSBS courses', () => {
+    // Civil engineering's schemeUrl (civsch.pdf) matches no sem 3+ row in the
+    // current data (which is all CSBS), so every CSBS sem 3+ row is dropped,
+    // while the shared first-year rows stay.
+    const forCivil = coursesForBranch('2022', 'Civil engineering');
+    const csbs38 = coursesForScheme('2022').filter((c) => c.programme === CSBS && c.semester >= 3);
+    expect(csbs38.length).toBeGreaterThan(0);
+    for (const c of csbs38) expect(forCivil).not.toContain(c);
+    const firstYear = coursesForScheme('2022').filter((c) => c.semester <= 2);
+    for (const fy of firstYear) expect(forCivil).toContain(fy);
+  });
+
+  it('falls back to every course for a null or unlisted branch, dropping nothing', () => {
+    expect(coursesForBranch('2022', null)).toHaveLength(coursesForScheme('2022').length);
+    expect(coursesForBranch('2022', 'Unlisted College Branch')).toHaveLength(
+      coursesForScheme('2022').length,
+    );
+  });
+
+  it('is deterministic', () => {
+    expect(coursesForBranch('2022', CSBS).map((c) => c.code)).toEqual(
+      coursesForBranch('2022', CSBS).map((c) => c.code),
+    );
   });
 });

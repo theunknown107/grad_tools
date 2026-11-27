@@ -150,15 +150,33 @@ export interface AuthAdapter {
     password: string,
   ): Promise<{ error: string | null; needsConfirmation: boolean }>;
   signInWithProvider(provider: 'google'): Promise<{ error: string | null }>;
+  /**
+   * The SIGN-UP entry point for a provider, for the dedicated Sign-Up page.
+   *
+   * HONEST LIMIT: the provider (Clerk, Supabase) runs ONE OAuth flow per provider
+   * and transfers between sign-in and sign-up automatically — a sign-up OAuth for
+   * a returning user signs them in, a sign-in OAuth for a new user creates the
+   * account. So this expresses the INTENT the user arrived with; it cannot force
+   * "new accounts only". It exists so the Sign-Up page can present a "Sign up
+   * with Google" action distinct from the Sign-In page's.
+   */
+  signUpWithProvider(provider: 'google'): Promise<{ error: string | null }>;
   sendRecovery(email: string): Promise<{ error: string | null }>;
   /** Sets a new password for the recovery session the reset link established. */
   updatePassword(password: string): Promise<{ error: string | null }>;
   /**
    * Completes a native deep-link auth callback (`gradtools://auth/callback?code=…`):
    * exchanges the PKCE code for a session. A no-op for URLs without a `code`.
+   * `handled` is true only for a callback this app started: anything else is a
+   * link another app or page fired, and must change nothing.
    */
-  completeDeepLink(url: string): Promise<{ error: string | null }>;
-  signOut(): Promise<void>;
+  completeDeepLink(url: string): Promise<{ error: string | null; readonly handled?: boolean }>;
+  /**
+   * Ends the session. `revoked: false` when the provider could not confirm it
+   * ended on the server (offline); a provider returning nothing ends it in the
+   * call itself.
+   */
+  signOut(): Promise<{ readonly revoked: boolean } | void>;
   /** Fires on sign-in, sign-out, token refresh and cross-tab changes. */
   onChange(listener: (identity: Identity | null) => void): () => void;
   /**
@@ -261,6 +279,21 @@ export function createAuthAdapter(): AuthAdapter | null {
       return { error: error === null ? null : friendly(error.message) };
     },
 
+    async signUpWithProvider(provider) {
+      /*
+       * Supabase runs ONE OAuth flow per provider: `signInWithOAuth` creates the
+       * account on first use and signs the returning user in otherwise. There is
+       * no sign-up-only variant, so the Sign-Up page's "Sign up with Google" is
+       * the same call — the separation is the intent the user arrived with, not a
+       * guarantee the provider enforces.
+       */
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: authRedirect('/account') },
+      });
+      return { error: error === null ? null : friendly(error.message) };
+    },
+
     async sendRecovery(email) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         // Web: this origin's reset-password screen. Native: the deep-link
@@ -297,7 +330,7 @@ export function createAuthAdapter(): AuthAdapter | null {
         const code = new URLSearchParams(query).get('code');
         if (code === null) return { error: null };
         const { error } = await supabase.auth.exchangeCodeForSession(code);
-        return { error: error === null ? null : friendly(error.message) };
+        return { error: error === null ? null : friendly(error.message), handled: true };
       } catch {
         return { error: 'Could not complete sign-in from that link. Try again.' };
       }

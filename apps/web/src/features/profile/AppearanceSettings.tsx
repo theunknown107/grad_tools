@@ -3,7 +3,7 @@
  * cards, plus the glass level.
  *
  * Light / Dark / System, one of eighteen palettes in three groups (Mono by
- * default; docs/51_THEMES.md), glass (Clear, Regular, Frosted or Solid —
+ * default; docs/54_THEMES.md), glass (Clear, Regular, Frosted or Solid —
  * Solid is reduced transparency), density and reduced motion. Device-local only: never synced, and nothing here can reach an
  * academic figure — the palette recolours interactive states, never grades,
  * credits or GPA.
@@ -259,7 +259,7 @@ function AppearancePreview() {
           </div>
         </div>
         <div className="gt-metric rounded-lg p-3">
-          <div className="text-[11px] font-medium text-ink-2">Sample figure</div>
+          <div className="text-[12px] font-medium text-ink-2">Sample figure</div>
           <div className="tnum text-2xl font-semibold tracking-[-0.02em]">8.00</div>
         </div>
       </div>

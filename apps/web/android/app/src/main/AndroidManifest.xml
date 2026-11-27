@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="false"
@@ -22,6 +23,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+              App deep link, routed by @capacitor/app (singleTask). Clerk's server
+              refuses this scheme as an OAuth redirect, so Clerk returns Google
+              sign-in to the https page NATIVE_RETURN_PAGE (/native-return), which
+              opens gradtools://auth/callback through an intent pinned to this
+              package. The link carries no token; the app re-checks with Clerk.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gradtools" android:host="auth" />
+            </intent-filter>
+
         </activity>
 
         <provider
@@ -38,4 +53,16 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      @capacitor/local-notifications declares SCHEDULE_EXACT_ALARM, which it uses
+      only for notifications scheduled for a later time. GradTools posts every
+      notice immediately (no `schedule`, isExactNotification: false; see
+      src/lib/system-notifications.ts), so the permission is removed from the
+      merged manifest. POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED and WAKE_LOCK
+      from the plugin are kept.
+    -->
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        tools:node="remove" />
 </manifest>

@@ -5,7 +5,8 @@
  *   PDF with text      → read directly
  *   PDF without text   → queued for OCR
  *   photo              → queued for OCR
- *   saved web page     → parsed as text, never rendered
+ *   Word / Excel       → read on the device
+ *   anything else      → refused: "Invalid format"
  *
  * Then `classifyDocument` routes it: result card, academic calendar, class
  * timetable, exam timetable or scheme. Anything else is refused with the
@@ -14,7 +15,7 @@
 
 import { vtu2022RuleSet } from '@gradtools/academic-rules';
 import { parseScheme, schemePages, type ParsedScheme } from '@gradtools/vtu-catalogue';
-import { coursesForScheme } from '@gradtools/vtu-catalogue/data';
+import { coursesForBranch } from '@gradtools/vtu-catalogue/data';
 import { FileText, ImageIcon, RotateCcw, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileDropzone } from '../../components/forms/FileDropzone.js';
@@ -24,6 +25,10 @@ import { Button } from '../../components/ui/button.js';
 import { Card, CardRows } from '../../components/ui/card.js';
 import { IconTile, Row } from '../../components/ui/page.js';
 import { Spinner } from '../../components/ui/spinner.js';
+import { Segmented } from '../../components/ui/segmented.js';
+import { docxTimetables, type DocxTimetableSection } from '../../domain/docx-timetable.js';
+import { knownTimetables } from '../../domain/timetable/known-timetables.js';
+import { readDocxStructure } from '../../lib/docx-structure.js';
 import {
   fingerprintOf,
   parseAcademicCalendar,
@@ -67,10 +72,10 @@ import {
 import { useAuth } from '../auth/AuthContext.js';
 import { SwitchRow } from '../../components/ui/field.js';
 import { PdfReadError } from '../../lib/pdf-text.js';
-import { OfficeReadError, readOfficeFile, readTextFile } from '../../lib/office-extract.js';
+import { OfficeReadError, readOfficeFile } from '../../lib/office-extract.js';
 import {
   HtmlReadError,
-  readHtmlFile,
+  INVALID_FORMAT_MESSAGE,
   readImageFile,
   readPdfFile,
   sniffKind,
@@ -127,6 +132,11 @@ interface FileState {
   readonly file: ImportedFile | null;
   readonly calendar: ParsedCalendar | null;
   readonly timetable: ParsedTimetable | null;
+  /**
+   * Every class timetable a Word file's own tables hold ("V (A)", "V (B)"). The
+   * student picks theirs; they are never merged. Empty for every other file.
+   */
+  readonly timetableSections: readonly DocxTimetableSection[];
   readonly exam: ParsedExamTimetable | null;
   readonly scheme: ParsedScheme | null;
   readonly fingerprint: string | null;
@@ -202,9 +212,12 @@ export function DocumentImport({
   const schemeCourses = useSchemeCourses();
   const reference = useSubjects(schemeId);
 
+  const branch = profile?.branch ?? null;
   const catalogue: readonly CatalogueSubject[] = useMemo(
     () => [
-      ...coursesForScheme(schemeId).map((course) => ({
+      // Scoped to the student's branch so a code shared across programmes
+      // (e.g. BBOK407) resolves to THEIR credits, not an arbitrary row's.
+      ...coursesForBranch(schemeId, branch).map((course) => ({
         code: course.code,
         title: course.title,
         semester: course.semester,
@@ -220,7 +233,7 @@ export function DocumentImport({
       })),
       ...(reference.state.status === 'ready' ? reference.state.data : []),
     ],
-    [schemeCourses.items, reference.state, schemeId],
+    [schemeCourses.items, reference.state, schemeId, branch],
   );
   const subjectIndex = useMemo(
     () => buildSubjectIndex({ catalogue, results, semesterSubjects }),
@@ -270,6 +283,18 @@ export function DocumentImport({
   const store = (id: string, fileName: string, reading: FileReading): void => {
     const seen = classifyDocument(reading.lines);
     const fingerprint = fingerprintOf(reading.lines);
+    /* A timetable the app already holds verified: shown as stored, whatever OCR made of it. */
+    const known = knownTimetables(reading.lines);
+    if (known[0] !== undefined) {
+      patch(id, {
+        status: 'read',
+        reading,
+        timetable: known[0].timetable,
+        timetableSections: known,
+        fingerprint,
+      });
+      return;
+    }
     switch (seen.type) {
       case 'academic_calendar':
         patch(id, {
@@ -348,6 +373,7 @@ export function DocumentImport({
       file: null,
       calendar: null,
       timetable: null,
+      timetableSections: [],
       exam: null,
       scheme: null,
       fingerprint: null,
@@ -426,26 +452,39 @@ export function DocumentImport({
         try {
           const kind = await sniffKind(file);
           if (kind === 'unsupported') {
-            patch(entry.id, {
-              status: 'failed',
-              error:
-                'GradTools reads PDFs, photos (JPG, PNG, WebP), Office and OpenDocument files (DOCX, XLSX, PPTX, ODT, ODS, ODP), and result exports saved as HTML, CSV, Markdown or plain text. This file is none of these.',
-            });
+            patch(entry.id, { status: 'failed', error: INVALID_FORMAT_MESSAGE });
             return;
           }
-          if (kind === 'html') {
-            store(entry.id, file.name, await readHtmlFile(file));
-            return;
-          }
-          // Office/ODF and plain-text files are read on the device into the same
-          // lines everything else produces. Like HTML they are already text, so
-          // they never go through the AI path and never leave the device.
-          if (kind === 'text') {
-            store(entry.id, file.name, await readTextFile(file));
-            return;
-          }
+          // Word and Excel files are read on the device into the same lines
+          // everything else produces. They are already text, so they never go
+          // through the AI path and never leave the device.
           if (kind === 'office') {
-            store(entry.id, file.name, await readOfficeFile(await file.arrayBuffer(), file.name));
+            const bytes = await file.arrayBuffer();
+            const reading = await readOfficeFile(bytes, file.name);
+            /*
+             * A WORD TIMETABLE IS READ FROM ITS TABLES, NOT ITS TEXT. Flattened
+             * lines lose which cell sits under which time; the document's own
+             * grid keeps it. Null structure (not a .docx, or over a limit) and no
+             * grid table both fall back to the existing text path unchanged.
+             */
+            const structure = /\.docx$/i.test(file.name)
+              ? readDocxStructure(new Uint8Array(bytes))
+              : null;
+            const known = knownTimetables(reading.lines);
+            const sections =
+              known.length > 0 ? known : structure === null ? [] : docxTimetables(structure);
+            const first = sections[0];
+            if (first !== undefined) {
+              patch(entry.id, {
+                status: 'read',
+                reading,
+                timetable: first.timetable,
+                timetableSections: sections,
+                fingerprint: fingerprintOf(reading.lines),
+              });
+              return;
+            }
+            store(entry.id, file.name, reading);
             return;
           }
           /*
@@ -694,9 +733,33 @@ export function DocumentImport({
       )}
 
       {files.map((entry) =>
+        entry.timetable === null || entry.timetableSections.length < 2 ? null : (
+          <Card key={`${entry.id}-sections`} className="flex flex-col gap-2 p-4">
+            <p className="text-[13px] text-ink-2">
+              {entry.fileName} holds {entry.timetableSections.length} class timetables. Choose
+              yours; they are never merged.
+            </p>
+            <Segmented
+              label="Class timetable in this document"
+              value={String(
+                entry.timetableSections.findIndex((s) => s.timetable === entry.timetable),
+              )}
+              onChange={(value) => {
+                const section = entry.timetableSections[Number(value)];
+                if (section !== undefined) patch(entry.id, { timetable: section.timetable });
+              }}
+              options={entry.timetableSections.map((s, i) => ({
+                value: String(i),
+                label: s.label ?? `Table ${String(i + 1)}`,
+              }))}
+            />
+          </Card>
+        ),
+      )}
+      {files.map((entry) =>
         entry.timetable === null || entry.fingerprint === null ? null : (
           <TimetableReview
-            key={entry.id}
+            key={`${entry.id}-${String(entry.timetableSections.findIndex((s) => s.timetable === entry.timetable))}`}
             fileName={entry.fileName}
             parsed={entry.timetable}
             fingerprint={entry.fingerprint}

@@ -207,6 +207,7 @@ export const anonymousSupportReportSchema = z.object({ incidentId: z.string() })
 export type AnonymousSupportReport = z.infer<typeof anonymousSupportReportSchema>;
 
 export const OPERATOR_SUPPORT_ROUTES = {
+  clientAddress: '/api/v1/operator/support/client-address',
   /** Global operations dashboard (counts, top error codes). */
   overview: '/api/v1/operator/support/overview',
   /** Look up a user by Support ID: their recent events and reports. */

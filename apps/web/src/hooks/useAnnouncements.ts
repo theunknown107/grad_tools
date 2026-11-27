@@ -24,9 +24,15 @@ import {
 import { sortForStudent, type StudentContext } from '../domain/announcements.js';
 import { useRepositories } from '../repositories/context.js';
 import { NOT_CONNECTED, apiBaseUrl, apiConfigured } from '../repositories/reference.js';
+import {
+  VTU_ANNOUNCEMENTS_SNAPSHOT,
+  VTU_SNAPSHOT_CAPTURED_AT,
+} from '../data/vtu-announcements-snapshot.js';
 import { publish, storeFor, useShared, type SharedStore } from './shared-store.js';
 import { useProfile, useSemesters } from './useCollection.js';
 import { buildSemesterViews, currentSemester } from '../domain/academics.js';
+import { branchNameForCode, parseUsn, semesterFromAdmission } from '../domain/usn.js';
+import { VTU_COLLEGES } from '@gradtools/vtu-catalogue/data';
 
 /* -------------------------------------------------------------------------- */
 /* The feed                                                                   */
@@ -37,12 +43,38 @@ export interface AnnouncementsState {
   readonly total: number;
   readonly loading: boolean;
   readonly error: string | null;
+  /** Set when the live feed is unreachable and the bundled VTU snapshot is shown. */
+  readonly snapshotAt: string | null;
   readonly reload: () => void;
 }
 
 type FeedSnapshot = Omit<AnnouncementsState, 'reload'>;
 
-const FEED_INITIAL: FeedSnapshot = { items: [], total: 0, loading: true, error: null };
+const FEED_INITIAL: FeedSnapshot = {
+  items: [],
+  total: 0,
+  loading: true,
+  error: null,
+  snapshotAt: null,
+};
+
+/**
+ * The bundled VTU snapshot, filtered as the live query would be. Shown only
+ * when the live feed cannot be reached, and always labelled as a snapshot.
+ */
+function snapshotFor(query: string): FeedSnapshot {
+  const category = new URLSearchParams(query).get('category');
+  const items = VTU_ANNOUNCEMENTS_SNAPSHOT.filter(
+    (item) => category === null || item.category === category,
+  );
+  return {
+    items,
+    total: items.length,
+    loading: false,
+    error: null,
+    snapshotAt: VTU_SNAPSHOT_CAPTURED_AT,
+  };
+}
 
 /**
  * One feed per query per app session, shared by every consumer.
@@ -129,18 +161,18 @@ function requestFeed(store: SharedStore<FeedSnapshot>, query: string): Promise<F
     .then(
       (body): FeedSnapshot => {
         loadedAt.set(store, Date.now());
-        return { items: body.data, total: body.total, loading: false, error: null };
+        return {
+          items: body.data,
+          total: body.total,
+          loading: false,
+          error: null,
+          snapshotAt: null,
+        };
       },
-      // A feed that cannot be reached says so; it does not show an empty
-      // state, which would read as "there is nothing to tell you".
-      (cause: unknown): FeedSnapshot => ({
-        ...store.snapshot,
-        loading: false,
-        error:
-          cause instanceof Error && cause.message === NOT_CONNECTED
-            ? `${NOT_CONNECTED} Announcements need one.`
-            : 'Could not reach the GradTools server.',
-      }),
+      // A feed that cannot be reached falls back to the bundled VTU snapshot,
+      // labelled as such, rather than an empty state that would read as
+      // "there is nothing to tell you".
+      (): FeedSnapshot => snapshotFor(query),
     )
     .finally(() => {
       inFlight.delete(store);
@@ -228,11 +260,23 @@ export function useStudentContext(): StudentContext {
 
   return useMemo(() => {
     const inProgress = currentSemester(buildSemesterViews(semesters, []));
+    /*
+     * The USN fills in what the profile leaves blank: its college code, branch
+     * code and admission year. On the device only; nothing here is sent.
+     */
+    const usn = parseUsn(profile?.usn);
+    const college =
+      usn === null
+        ? null
+        : (VTU_COLLEGES.entries.find((entry) => entry.code === usn.collegeCode)?.name ?? null);
     return {
       schemeId: profile?.schemeId ?? null,
-      branchName: profile?.branch ?? null,
-      collegeName: profile?.collegeName ?? null,
-      currentSemester: inProgress?.number ?? profile?.currentSemester ?? null,
+      branchName: profile?.branch ?? (usn === null ? null : branchNameForCode(usn.branchCode)),
+      collegeName: profile?.collegeName ?? college,
+      currentSemester:
+        inProgress?.number ??
+        profile?.currentSemester ??
+        (usn === null ? null : semesterFromAdmission(usn.admissionYear, new Date())),
     };
   }, [profile, semesters]);
 }

@@ -54,6 +54,19 @@ Secrets / variables:
 | Render (API) | `CLERK_PUBLISHABLE_KEY` | same `pk_live_…` |
 | Render (API), secret | `CLERK_SECRET_KEY` | `sk_live_…` — never a `VITE_` variable |
 | Render (API) | `CLERK_AUTHORIZED_PARTIES` | `https://<custom domain>,https://localhost` |
+| Vercel (web build) and Android build env | `VITE_API_URL` | the API's https origin. Without it a production build sends API calls to its own origin, where the SPA rewrite answers with HTML |
+| Render (API) | `SUPABASE_DB_URL` | the RLS data store (`authenticator` role); `/api/v1/me` does not exist without it |
+| Render (API) | `WEB_ORIGIN` | exact CORS origins: the web origin(s) and `https://localhost` |
+| Render (API) | `APP_ENV` | `alpha`: the release environment (docs/25). It switches nothing but the start-up guard, which then refuses a missing or non-https `WEB_ORIGIN`, ZDR off, an empty or non-https `CLERK_AUTHORIZED_PARTIES`, or Clerk development (`sk_test_`/`pk_test_`) keys. Under the image's `NODE_ENV=production` any value other than `alpha`/`staging` (including unset) refuses to start; `production` is not an accepted value (app-env audit, 2026-11-27) |
+
+Clerk dashboard, redirect URLs: `https://<web origin>/sso-callback`, `/account`,
+and `https://grad-tools.vercel.app/native-return` (the Android return; Clerk
+refuses the `gradtools://` scheme itself). Enable email code, password and
+Google; check the new-device ("client trust") setting matches the app, which
+answers `needs_client_trust` with an emailed code.
+
+**Never** copy the Preview (development instance, `pk_test_`) values into the
+Production environment, and never enable sign-in in production with them.
 
 App URLs: `/sso-callback` (Google returns here), `/account` (after sign-in).
 Local development: `http://localhost:5173` with a development instance (`pk_test_`).
@@ -94,5 +107,7 @@ the next sync.
 
 Live checks: sign up + email code; sign in; new-device code; password reset;
 Google on web; two accounts see only their own data; account deletion removes
-data and the Clerk user; Android email/password. Google on Android is not
-supported yet (hidden in the app).
+data and the Clerk user; Android email/password; Google on Android. Android
+Google runs in a Custom Tab that returns to an https page, because Clerk's server
+refuses a custom-scheme return during a real login (`invalid_url_scheme`). The
+app finishes when the tab closes. Proven on a development instance only.
